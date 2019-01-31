@@ -1,8 +1,8 @@
 propertyestimator
 ==============================
 [//]: # (Badges)
-[![Travis Build Status](https://travis-ci.com/openforcefield/propertyestimator.svg?branch=master)](https://travis-ci.org/REPLACE_WITH_OWNER_ACCOUNT/propertyestimator)
-[![codecov](https://codecov.io/gh/openforcefield/propertyestimator/branch/master/graph/badge.svg)](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/propertyestimator/branch/master)
+[![Travis Build Status](https://travis-ci.com/openforcefield/propertyestimator.svg?branch=master)](https://travis-ci.org/openforcefield/propertyestimator)
+[![codecov](https://codecov.io/gh/openforcefield/propertyestimator/branch/master/graph/badge.svg)](https://codecov.io/gh/openforcefield/propertyestimator/branch/master)
 
 Property calculation toolkit from the Open Forcefield Consortium.
 
