@@ -12,3 +12,5 @@ dependencies:
     # Pip-only installs
   - pip:
     - codecov
+    - --extra-index-url https://pypi.anaconda.org/OpenEye/simple
+    - OpenEye-toolkits
