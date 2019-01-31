@@ -11,3 +11,4 @@ dependencies:
     - numpydoc
     - nbsphinx
     - m2r >=0.2.1
+    
