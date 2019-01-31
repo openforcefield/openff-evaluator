@@ -1,9 +1,11 @@
 name: test
 channels:
+  - openeye
 dependencies:
     # Base depends
   - python
   - pip
+  - openeye-toolkits
 
     # Testing
   - pytest

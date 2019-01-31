@@ -13,9 +13,12 @@ matrix:
   - os: linux
     python: 3.7
     env: PYTHON_VER=3.7
+env:
+  global:
+    - OE_LICENSE="$HOME/oe_license.txt"
 before_install:
 - openssl aes-256-cbc -K $encrypted_c469bd55e683_key -iv $encrypted_c469bd55e683_iv
-  -in oe_license.txt.enc -out ~\/oe_license.txt -d
+  -in oe_license.txt.enc -out $OE_LICENSE -d
 - uname -a
 - df -h
 - ulimit -a
