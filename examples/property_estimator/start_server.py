@@ -3,9 +3,9 @@
 import shutil
 from os import path
 
-from propertyestimator import runner
-from propertyestimator.estimator import DaskLocalClusterBackend
-from propertyestimator.estimator import LocalFileStorage
+from propertyestimator import server
+from propertyestimator.backends import DaskLocalClusterBackend
+from propertyestimator.storage import LocalFileStorage
 from propertyestimator.utils import setup_timestamp_logging
 
 
@@ -23,7 +23,7 @@ def start_property_estimator_server():
     calculation_backend = DaskLocalClusterBackend(1, 1)
     storage_backend = LocalFileStorage()
 
-    property_server = runner.PropertyCalculationRunner(calculation_backend,
+    property_server = server.PropertyCalculationRunner(calculation_backend,
                                                        storage_backend,
                                                        working_directory=working_directory)
 

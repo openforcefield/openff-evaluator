@@ -12,7 +12,6 @@ from typing import Dict
 
 import mdtraj
 import numpy as np
-from openforcefield.typing.engines import smirnoff
 from simtk import openmm, unit
 from simtk.openmm import app, System, Platform
 
@@ -606,6 +605,8 @@ class BuildSmirnoffTopology(BaseProtocol):
                                                   message='{} could not be converted to a Molecule'.format(component))
 
             molecules.append(molecule)
+
+        from openforcefield.typing.engines import smirnoff
 
         system = parameter_set.createSystem(pdb_file.topology,
                                             molecules,

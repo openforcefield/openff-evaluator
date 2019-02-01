@@ -8,7 +8,6 @@ import uuid
 from os import path, makedirs
 from typing import List, Dict
 
-from openforcefield.typing.engines.smirnoff import ForceField
 from pydantic import BaseModel
 from simtk import unit
 from tornado.ioloop import IOLoop, PeriodicCallback
@@ -327,6 +326,8 @@ class PropertyCalculationRunner(TCPServer):
         PropertyRunnerDataModel
             The server side data model.
         """
+        from openforcefield.typing.engines.smirnoff.forcefield import ForceField
+
         parameter_set = ForceField([])
         parameter_set.__setstate__(client_data_model.parameter_set)
 
