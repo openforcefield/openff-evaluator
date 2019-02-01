@@ -12,10 +12,15 @@ This toolkit provides an API for storing, manipulating, and computing measured p
 from simulation data.
 
 User Guide
-----------
+-----------------
+
+* :doc:`physicalproperties`
+* :doc:`propertydatasets`
 
 .. toctree::
-  :maxdepth: 1
+  :maxdepth: 2
+  :hidden:
+  :caption: User Guide
 
   physicalproperties
   propertydatasets
@@ -23,8 +28,13 @@ User Guide
 API documentation
 -----------------
 
+* :doc:`propertyestimator`
+* :doc:`propertyworkflows`
+
 .. toctree::
-  :maxdepth: 1
+  :maxdepth: 2
+  :hidden:
+  :caption: API documentation
 
   propertyestimator
   propertyworkflows

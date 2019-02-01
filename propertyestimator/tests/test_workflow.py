@@ -1,27 +1,20 @@
+"""
+Units tests for propertyestimator.workflow
+"""
+
 import uuid
 
 from simtk import unit
 
-from propertyestimator.estimator.client import PropertyEstimatorOptions
-from propertyestimator.estimator.layers.simulation import DirectCalculation, DirectCalculationGraph
-from propertyestimator.estimator.workflow.schema import CalculationSchema
-from propertyestimator.estimator.workflow.statistics import Statistics
-from propertyestimator.properties import  PropertyPhase
+from propertyestimator.client import PropertyEstimatorOptions
+from propertyestimator.layers.simulation import DirectCalculation, DirectCalculationGraph
+from propertyestimator.properties import PropertyPhase
 from propertyestimator.properties.density import Density
 from propertyestimator.properties.dielectric import DielectricConstant
-from propertyestimator.properties.substances import Mixture
-from propertyestimator.properties.thermodynamics import ThermodynamicState
+from propertyestimator.substances import Mixture
+from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import get_data_filename, graph
-
-
-def test_statistics_object():
-
-    statistics_object = Statistics.from_openmm_csv(get_data_filename('properties/stats_openmm.csv'), 1*unit.atmosphere)
-    print(statistics_object)
-
-    statistics_object.save_as_pandas_csv('stats_pandas.csv')
-
-    statistics_object = Statistics.from_pandas_csv('stats_pandas.csv')
+from propertyestimator.workflow import WorkflowSchema
 
 
 def test_calculation_schema():
@@ -38,13 +31,13 @@ def test_calculation_schema():
     dielectric_json = dielectric_schema.json()
     print(dielectric_json)
 
-    density_schema_from_json = CalculationSchema.parse_raw(density_json)
+    density_schema_from_json = WorkflowSchema.parse_raw(density_json)
     print(density_schema_from_json)
 
     density_recreated_json = density_schema_from_json.json()
     assert density_json == density_recreated_json
 
-    dielectric_schema_from_json = CalculationSchema.parse_raw(dielectric_json)
+    dielectric_schema_from_json = WorkflowSchema.parse_raw(dielectric_json)
     print(dielectric_schema_from_json)
 
     dielectric_recreated_json = dielectric_schema_from_json.json()

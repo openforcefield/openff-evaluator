@@ -1,3 +1,7 @@
+"""
+Units tests for propertyestimator.datasets
+"""
+
 from os import listdir
 from os.path import isfile, join
 
@@ -8,8 +12,8 @@ from propertyestimator.utils import get_data_filename
 from propertyestimator.properties import PhysicalProperty
 from propertyestimator.datasets import ThermoMLDataSet
 
-# TODO: Add tests for specific ThermoML data sets that give 100% coverage.
-# These may need to be hand written.
+# .. todo: Add tests for specific ThermoML data sets that give 100% coverage.
+#          These may need to be hand written.
 
 
 def test_from_url():

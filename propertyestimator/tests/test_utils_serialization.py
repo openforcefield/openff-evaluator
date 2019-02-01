@@ -2,7 +2,6 @@
 Units tests for propertyestimator.utils.serialization
 """
 
-import logging
 from enum import Enum, IntEnum
 from typing import Dict
 

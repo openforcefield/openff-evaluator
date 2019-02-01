@@ -1,24 +1,9 @@
-# =============================================================================================
-# MODULE DOCSTRING
-# =============================================================================================
-
 """
-An API to store general exceptions that may be raised.
-
-Authors
--------
-* Simon Boothroyd <simon.boothroyd@choderalab.org>
+A collection of commonly raised python exceptions.
 """
 
+from pydantic import BaseModel
 
-# =============================================================================================
-# GLOBAL IMPORTS
-# =============================================================================================
-
-
-# =============================================================================================
-# Module Constants
-# =============================================================================================
 
 class XmlNodeMissingException(Exception):
 
@@ -26,3 +11,13 @@ class XmlNodeMissingException(Exception):
 
         message = 'The calculation template does not contain a <' + str(node_name) + '> node.'
         super().__init__(message)
+
+
+class PropertyEstimatorException(BaseModel):
+    """A json serializable object wrapper containing information about
+    a failed property calculation.
+
+    .. todo:: Flesh out more fully.
+    """
+    directory: str
+    message: str

@@ -1,22 +1,11 @@
-# =============================================================================================
-# MODULE DOCSTRING
-# =============================================================================================
-
 """
-Substances API.
+An API for defining and creating substances.
 """
-# =============================================================================================
-# GLOBAL IMPORTS
-# =============================================================================================
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel
 from pydantic.validators import dict_validator
 from typing import List
 
-
-# =============================================================================================
-# Component
-# =============================================================================================
 
 class Component(BaseModel):
     """Represents a chemical component.
@@ -49,10 +38,6 @@ class Component(BaseModel):
 
             cls(**dict_validator(value))
 
-
-# =============================================================================================
-# SUBSTANCE
-# =============================================================================================
 
 class Substance(BaseModel):
     """
@@ -89,18 +74,14 @@ class Substance(BaseModel):
             cls(**dict_validator(value))
 
 
-# =============================================================================================
-# MIXTURE
-# =============================================================================================
-
-# TODO: The name is perhaps misleading as a mixture can be pure...
-# SystemComposition or just Composition perhaps?
 class Mixture(Substance):
     """Defines the components and their amounts in a mixture.
 
+    .. todo: The name is perhaps misleading as a mixture can be pure - should this
+             perhaps be renamed to SystemComposition or just Composition perhaps?
+
     Examples
     --------
-
     A neat liquid has only one component:
 
     >>> liquid = Mixture()

@@ -1,6 +1,9 @@
 Physical property measurements
 ==================================
 
+.. warning:: This text is now out of date, but will be updated in future to reflect the
+             latest version of the framework.
+
 `Physical property measurements <https://en.wikipedia.org/wiki/Physical_property>`_ are measured properties of
 a substance that provide some information about the physical parameters that define the interactions within the
 substance.

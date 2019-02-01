@@ -6,6 +6,9 @@ This module provides an api for multi-fidelity property calculations.
 Estimating properties
 ---------------------
 
+.. warning:: This text is now out of date, but will be updated in future to reflect the
+             latest version of the framework.
+
 The ``PropertyEstimator`` class creates objects that handle property estimation of all of the properties in a dataset,
 given a set or sets of parameters. The implementation will isolate the user from whatever backend (local machine,
 HPC cluster, `XSEDE resources <http://xsede.org>`_, `Amazon EC2 <https://aws.amazon.com/ec2>`_) is being used to compute
@@ -69,6 +72,9 @@ simulations, along with a distributed task management system like `celery <http:
 API Usage Examples
 ------------------
 
+.. warning:: This text is now out of date, but will be updated in future to reflect the
+             latest version of the framework.
+
 In this example, datasets are retrieved from the ThermoML and filtered to retain certain properties.
 
 The corresponding properties for a given parameter set filename are then computed for a SMIRFF parameter set and
@@ -106,7 +112,7 @@ printed.
 Client Side API
 ---------------
 
-.. currentmodule:: propertyestimator.estimator.client
+.. currentmodule:: propertyestimator.client
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -119,7 +125,7 @@ Client Side API
 Server Side API
 ---------------
 
-.. currentmodule:: propertyestimator.estimator.runner
+.. currentmodule:: propertyestimator.server
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -130,7 +136,7 @@ Server Side API
 Calculation Layers
 ------------------
 
-.. currentmodule:: propertyestimator.estimator.layers
+.. currentmodule:: propertyestimator.layers
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -144,19 +150,19 @@ Calculation Layers
 Calculation Backends
 --------------------
 
-.. currentmodule:: propertyestimator.estimator.backends
+.. currentmodule:: propertyestimator.backends
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
-    BackendResources
+    PropertyEstimatorBackendResources
     PropertyEstimatorBackend
     DaskLocalClusterBackend
 
 Storage Backends
 ----------------
 
-.. currentmodule:: propertyestimator.estimator.storage
+.. currentmodule:: propertyestimator.storage
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/

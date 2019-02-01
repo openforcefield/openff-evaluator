@@ -3,7 +3,7 @@
 import shutil
 from os import path
 
-from propertyestimator.estimator import runner
+from propertyestimator import runner
 from propertyestimator.estimator import DaskLocalClusterBackend
 from propertyestimator.estimator import LocalFileStorage
 from propertyestimator.utils import setup_timestamp_logging

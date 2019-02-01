@@ -1,32 +1,16 @@
-# =============================================================================================
-# MODULE DOCSTRING
-# =============================================================================================
-
 """
-Enthalpy Definition API.
+A collection of enthalpy physical property definitions.
 """
-# =============================================================================================
-# GLOBAL IMPORTS
-# =============================================================================================
 
+from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.datasets import register_thermoml_property
-from propertyestimator.estimator.client import register_estimable_property
-from propertyestimator.estimator.workflow import protocols, groups
-from propertyestimator.estimator.workflow.protocols import ProtocolPath
-from propertyestimator.estimator.workflow.schema import CalculationSchema
 from propertyestimator.properties.properties import PhysicalProperty
-from propertyestimator.estimator.workflow.statistics import AvailableQuantities
-from propertyestimator.properties.thermodynamics import Ensemble
+from propertyestimator.thermodynamics import Ensemble
+from propertyestimator.utils.statistics import AvailableQuantities
+from propertyestimator.workflow import WorkflowSchema
+from propertyestimator.workflow import protocols, groups
+from propertyestimator.workflow.utils import ProtocolPath
 
-
-# =============================================================================================
-# Custom Protocol Building Blocks
-# =============================================================================================
-
-
-# =============================================================================================
-# Enthalpy
-# =============================================================================================
 
 @register_estimable_property()
 class Enthalpy(PhysicalProperty):
@@ -35,7 +19,7 @@ class Enthalpy(PhysicalProperty):
     @staticmethod
     def get_default_calculation_schema():
 
-        schema = CalculationSchema(property_type=Enthalpy.__name__)
+        schema = WorkflowSchema(property_type=Enthalpy.__name__)
         schema.id = '{}{}'.format(Enthalpy.__name__, 'Schema')
 
         # Initial coordinate and topology setup.
@@ -66,8 +50,8 @@ class Enthalpy(PhysicalProperty):
 
         npt_equilibration.ensemble = Ensemble.NPT
 
-        npt_equilibration.steps = 2  # Debug settings.
-        npt_equilibration.output_frequency = 1  # Debug settings.
+        npt_equilibration.steps = 2000  # Debug settings.
+        npt_equilibration.output_frequency = 200  # Debug settings.
 
         npt_equilibration.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 
@@ -81,8 +65,8 @@ class Enthalpy(PhysicalProperty):
 
         npt_production.ensemble = Ensemble.NPT
 
-        npt_production.steps = 20  # Debug settings.
-        npt_production.output_frequency = 2  # Debug settings.
+        npt_production.steps = 20000  # Debug settings.
+        npt_production.output_frequency = 200  # Debug settings.
 
         npt_production.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 
@@ -90,6 +74,12 @@ class Enthalpy(PhysicalProperty):
         npt_production.system = ProtocolPath('system', assign_topology.id)
 
         # Analysis
+        # extract_enthalpy = ExtractAverageEnthalpy('extract_enthalpy')
+        #
+        # extract_enthalpy.input_coordinate_file = ProtocolPath('output_coordinate_file', npt_production.id)
+        # extract_enthalpy.trajectory_path = ProtocolPath('trajectory_file_path', npt_production.id)
+        # extract_enthalpy.system = ProtocolPath('system', assign_topology.id)
+
         extract_enthalpy = protocols.ExtractAverageStatistic('extract_enthalpy')
 
         extract_enthalpy.statistics_type = AvailableQuantities.Enthalpy
@@ -111,7 +101,7 @@ class Enthalpy(PhysicalProperty):
 
         converge_uncertainty.add_condition(condition)
 
-        converge_uncertainty.max_iterations = 1
+        converge_uncertainty.max_iterations = 10
 
         schema.protocols[converge_uncertainty.id] = converge_uncertainty.schema
 
@@ -156,7 +146,7 @@ class EnthalpyOfMixing(PhysicalProperty):
     @staticmethod
     def get_default_calculation_schema():
 
-        schema = CalculationSchema(property_type=Enthalpy.__name__)
+        schema = WorkflowSchema(property_type=Enthalpy.__name__)
         schema.id = '{}{}'.format(Enthalpy.__name__, 'Schema')
 
         # Initial coordinate and topology setup.

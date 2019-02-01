@@ -35,10 +35,10 @@ setup(
         'propertyestimator.properties',
         'propertyestimator.datasets',
         'propertyestimator.estimator',
-        'propertyestimator.estimator.backends',
-        'propertyestimator.estimator.workflow',
-        'propertyestimator.estimator.layers',
-        'propertyestimator.estimator.storage',
+        'propertyestimator.backends',
+        'propertyestimator.workflow',
+        'propertyestimator.layers',
+        'propertyestimator.storage',
         'propertyestimator.utils'
     ],
 

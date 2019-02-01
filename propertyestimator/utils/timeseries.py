@@ -1,29 +1,16 @@
-# =============================================================================================
-# MODULE DOCSTRING
-# =============================================================================================
-
 """
 A set of utilities for performing statistical analysis on a time series.
 
 Notes
 -----
-Based on the original implementation at https://github.com/choderalab/pymbar/tree/master/pymbar
+Based on the original implementation found in `pymbar <https://github.com/choderalab/pymbar/tree/master/pymbar>`_
 """
-
-
-# =============================================================================================
-# GLOBAL IMPORTS
-# =============================================================================================
 
 import math
 
 import numpy as np
 from pymbar.utils import ParameterError
 
-
-# =============================================================================================
-# Utilities
-# =============================================================================================
 
 def calculate_statistical_inefficiency(time_series, minimum_samples=3):
     """Calculates the statistical inefficiency of a time series.

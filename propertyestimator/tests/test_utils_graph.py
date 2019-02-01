@@ -1,6 +1,7 @@
 """
 Units tests for propertyestimator.utils.graph
 """
+
 from propertyestimator.utils import graph
 
 

@@ -1,92 +1,16 @@
-# =============================================================================================
-# MODULE DOCSTRING
-# =============================================================================================
-
 """
-Density Definition API.
+A collection of density physical property definitions.
 """
-# =============================================================================================
-# GLOBAL IMPORTS
-# =============================================================================================
 
-import logging
-
-import mdtraj
-from simtk import unit
-from simtk.openmm import System
-
+from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.datasets import register_thermoml_property
-from propertyestimator.estimator import register_estimable_property
-from propertyestimator.estimator.utils import PropertyEstimatorException
-from propertyestimator.estimator.workflow import protocols, groups, protocol_input
-from propertyestimator.estimator.workflow.protocols import AverageTrajectoryProperty, \
-    register_calculation_protocol, ProtocolPath
-from propertyestimator.estimator.workflow.schema import CalculationSchema
 from propertyestimator.properties.properties import PhysicalProperty
-from propertyestimator.estimator.workflow.statistics import AvailableQuantities
-from propertyestimator.properties.thermodynamics import Ensemble
-from propertyestimator.utils import statistics
+from propertyestimator.thermodynamics import Ensemble
+from propertyestimator.utils.statistics import AvailableQuantities
+from propertyestimator.workflow import WorkflowSchema
+from propertyestimator.workflow import protocols, groups
+from propertyestimator.workflow.utils import ProtocolPath
 
-
-# =============================================================================================
-# Custom Protocol Building Blocks
-# =============================================================================================
-
-@register_calculation_protocol()
-class ExtractAverageDensity(AverageTrajectoryProperty):
-    """Extracts the average density from a simulation trajectory.
-
-    .. todo:: Refactor this into a general 'ExtractAverageStatistic' class which
-              can live in the protocols namespace.
-    """
-
-    def __init__(self, protocol_id):
-
-        super().__init__(protocol_id)
-
-        self._system = None
-
-    @protocol_input(System)
-    def system(self, value):
-        """The system object which defines the forces present in the system."""
-        pass
-
-    def execute(self, directory, available_resources):
-
-        logging.info('Extracting densities: ' + self.id)
-
-        base_exception = super(ExtractAverageDensity, self).execute(directory, available_resources)
-
-        if isinstance(base_exception, PropertyEstimatorException):
-            return base_exception
-
-        mass_list = []
-
-        for atom_index in range(self._system.getNumParticles()):
-
-            mass = self._system.getParticleMass(atom_index)
-            mass /= (unit.gram / unit.mole)
-
-            mass_list.append(mass)
-
-        densities = mdtraj.density(self.trajectory, mass_list)
-
-        densities, self._equilibration_index, self._statistical_inefficiency = \
-            statistics.decorrelate_time_series(densities)
-
-        self._value, self._uncertainty = self._perform_bootstrapping(densities)
-
-        self._value *= unit.kilogram * unit.meter ** -3
-        self._uncertainty *= unit.kilogram * unit.meter ** -3
-
-        logging.info('Extracted densities: ' + self.id)
-
-        return self._get_output_dictionary()
-
-
-# =============================================================================================
-# Density
-# =============================================================================================
 
 @register_estimable_property()
 @register_thermoml_property(thermoml_string='Mass density, kg/m3')
@@ -96,7 +20,7 @@ class Density(PhysicalProperty):
     @staticmethod
     def get_default_calculation_schema():
 
-        schema = CalculationSchema(property_type=Density.__name__)
+        schema = WorkflowSchema(property_type=Density.__name__)
         schema.id = '{}{}'.format(Density.__name__, 'Schema')
 
         # Initial coordinate and topology setup.

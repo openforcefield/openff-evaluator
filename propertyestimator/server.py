@@ -1,20 +1,10 @@
-# =============================================================================================
-# MODULE DOCSTRING
-# =============================================================================================
-
 """
 Property calculator 'server' side API.
 """
 
-
-# =============================================================================================
-# GLOBAL IMPORTS
-# =============================================================================================
-
 import json
 import logging
 import os
-import struct
 import uuid
 from os import path
 from typing import List, Dict
@@ -26,25 +16,15 @@ from tornado.ioloop import IOLoop, PeriodicCallback
 from tornado.iostream import IOStream, StreamClosedError
 from tornado.tcpserver import TCPServer
 
-from propertyestimator.estimator.client import PropertyEstimatorSubmission, PropertyEstimatorOptions, \
+from propertyestimator.client import PropertyEstimatorSubmission, PropertyEstimatorOptions, \
     PropertyEstimatorResult
-from propertyestimator.estimator.layers import available_layers
-from propertyestimator.estimator.utils import PropertyEstimatorException
-from propertyestimator.estimator.workflow.protocols import ProtocolPath
+from propertyestimator.layers import available_layers
 from propertyestimator.properties import PhysicalProperty
+from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import serialize_quantity, PolymorphicDataType
-from .utils import PropertyEstimatorMessageTypes
+from propertyestimator.utils.tcp import PropertyEstimatorMessageTypes, pack_int, unpack_int
+from propertyestimator.workflow.utils import ProtocolPath
 
-# Needed for server-client communication.
-int_struct = struct.Struct("<i")
-
-unpack_int = int_struct.unpack
-pack_int = int_struct.pack
-
-
-# =============================================================================================
-# Property Runner
-# =============================================================================================
 
 class PropertyRunnerDataModel(BaseModel):
     """Represents a data packet to be calculated by the runner, along with
@@ -104,16 +84,16 @@ class PropertyCalculationRunner(TCPServer):
     Setting up a general server instance using a dask LocalCluster backend:
 
     >>> # Create the backend which will be responsible for distributing the calculations
-    >>> from propertyestimator.estimator.backends import DaskLocalClusterBackend, BackendResources
-    >>> calculation_backend = DaskLocalClusterBackend(1, 1, BackendResources(1, 0))
+    >>> from propertyestimator.backends import DaskLocalClusterBackend, PropertyEstimatorBackendResources
+    >>> calculation_backend = DaskLocalClusterBackend(1, 1, PropertyEstimatorBackendResources(1, 0))
     >>>
     >>> # Calculate the backend which will be responsible for storing and retrieving
     >>> # the data from previous calculations
-    >>> from propertyestimator.estimator.storage import LocalFileStorage
+    >>> from propertyestimator.storage import LocalFileStorage
     >>> storage_backend = LocalFileStorage()
     >>>
     >>> # Create the server to which all calculations will be submitted
-    >>> from propertyestimator.estimator.runner import PropertyCalculationRunner
+    >>> from propertyestimator.server import PropertyCalculationRunner
     >>> property_server = PropertyCalculationRunner(calculation_backend, storage_backend)
     >>>
     >>> # Instruct the server to listen for incoming submissions
@@ -340,7 +320,7 @@ class PropertyCalculationRunner(TCPServer):
 
         Parameters
         ----------
-        client_data_model: propertyestimator.estimator.PropertyEstimatorSubmission
+        client_data_model: propertyestimator.PropertyEstimatorSubmission
             The client data model.
 
         Returns

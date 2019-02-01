@@ -1,13 +1,6 @@
-# =============================================================================================
-# MODULE DOCSTRING
-# =============================================================================================
-
 """
-Dielectric Definition API.
+A collection of dielectric physical property definitions.
 """
-# =============================================================================================
-# GLOBAL IMPORTS
-# =============================================================================================
 
 import logging
 
@@ -16,23 +9,19 @@ import numpy as np
 from simtk import openmm, unit
 from simtk.openmm import System
 
+from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.datasets import register_thermoml_property
-from propertyestimator.estimator.client import register_estimable_property
-from propertyestimator.estimator.workflow import protocols, groups, protocol_input
-from propertyestimator.estimator.workflow.protocols import AverageTrajectoryProperty, \
-    register_calculation_protocol, ProtocolPath
-from propertyestimator.estimator.workflow.schema import CalculationSchema
 from propertyestimator.properties.properties import PhysicalProperty
-from propertyestimator.properties.thermodynamics import ThermodynamicState, Ensemble
-from propertyestimator.utils import statistics
+from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
+from propertyestimator.utils import timeseries
+from propertyestimator.workflow import WorkflowSchema
+from propertyestimator.workflow import protocols, groups, plugins
+from propertyestimator.workflow.decorators import protocol_input
+from propertyestimator.workflow.utils import ProtocolPath
 
 
-# =============================================================================================
-# Custom Protocol Building Blocks
-# =============================================================================================
-
-@register_calculation_protocol()
-class ExtractAverageDielectric(AverageTrajectoryProperty):
+@plugins.register_calculation_protocol()
+class ExtractAverageDielectric(protocols.AverageTrajectoryProperty):
     """Extracts the average dielectric constant from a simulation trajectory.
     """
     def __init__(self, protocol_id):
@@ -137,7 +126,7 @@ class ExtractAverageDielectric(AverageTrajectoryProperty):
         volumes = self.trajectory.unitcell_volumes
 
         dipole_moments, self._equilibration_index, self._statistical_inefficiency = \
-            statistics.decorrelate_time_series(dipole_moments)
+            timeseries.decorrelate_time_series(dipole_moments)
 
         dipole_moments_and_volume = np.zeros([dipole_moments.shape[0], 4])
 
@@ -158,10 +147,6 @@ class ExtractAverageDielectric(AverageTrajectoryProperty):
         return self._get_output_dictionary()
 
 
-# =============================================================================================
-# Dielectric Constant
-# =============================================================================================
-
 @register_estimable_property()
 @register_thermoml_property(thermoml_string='Relative permittivity at zero frequency')
 class DielectricConstant(PhysicalProperty):
@@ -170,7 +155,7 @@ class DielectricConstant(PhysicalProperty):
     @staticmethod
     def get_default_calculation_schema():
 
-        schema = CalculationSchema(property_type=DielectricConstant.__name__)
+        schema = WorkflowSchema(property_type=DielectricConstant.__name__)
         schema.id = '{}{}'.format(DielectricConstant.__name__, 'Schema')
 
         # Initial coordinate and topology setup.

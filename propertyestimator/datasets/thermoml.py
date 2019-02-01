@@ -1,41 +1,22 @@
-# =============================================================================================
-# MODULE DOCSTRING
-# =============================================================================================
-
 """
 An API for importing a ThermoML archive.
 """
 
-
-# =============================================================================================
-# GLOBAL IMPORTS
-# =============================================================================================
-
-from __future__ import with_statement
-
-import pickle
 import logging
+import pickle
 import re
-
 from enum import IntEnum, unique
-
 from urllib.error import HTTPError
 from urllib.request import urlopen
-
 from xml.etree import ElementTree
 
 from simtk import unit
 
-from propertyestimator.properties.properties import PhysicalProperty, PropertyPhase, MeasurementSource
-from propertyestimator.properties.substances import Mixture
-from propertyestimator.properties.thermodynamics import ThermodynamicState
+from propertyestimator.properties import PropertyPhase, MeasurementSource
+from propertyestimator.substances import Mixture
+from propertyestimator.thermodynamics import ThermodynamicState
+from .datasets import PhysicalPropertyDataSet
 
-from .property_dataset import PhysicalPropertyDataSet
-
-
-# =============================================================================================
-# Helper Methods
-# =============================================================================================
 
 def register_thermoml_property(thermoml_string):
     """A decorator which registers information on how to parse a given
@@ -121,10 +102,6 @@ def phase_from_thermoml_string(string):
     return phase
 
 
-# =============================================================================================
-# ThermoMLConstraintType
-# =============================================================================================
-
 @unique
 class ThermoMLConstraintType(IntEnum):
     """An enum containing the supported types of ThermoML constraints
@@ -166,10 +143,6 @@ class ThermoMLConstraintType(IntEnum):
 
         return constraint_type
 
-
-# =============================================================================================
-# ThermoML Constraints
-# =============================================================================================
 
 class ThermoMLConstraint:
     """A wrapper around a ThermoML Constraint node.
@@ -307,10 +280,6 @@ class ThermoMLVariableDefinition:
         return None if return_value.type is ThermoMLConstraintType.Undefined else return_value
 
 
-# =============================================================================================
-# ThermoML Uncertainties
-# =============================================================================================
-
 class ThermoMLPropertyUncertainty:
     """A wrapper around a ThermoML PropUncertainty node.
     """
@@ -371,10 +340,6 @@ class ThermoMLCombinedUncertainty(ThermoMLPropertyUncertainty):
 
     prefix = 'Comb'
 
-
-# =============================================================================================
-# ThermoML Compound
-# =============================================================================================
 
 class ThermoMLCompound:
     """A wrapper around a ThermoML Compound node.
@@ -480,10 +445,6 @@ class ThermoMLCompound:
 
         return return_value
 
-
-# =============================================================================================
-# ThermoML Properties
-# =============================================================================================
 
 class ThermoMLProperty:
     """A wrapper around a ThermoML Property node.
@@ -1242,10 +1203,6 @@ class ThermoMLPureOrMixtureData:
 
         return measured_properties
 
-
-# =============================================================================================
-# ThermoMLDataSet
-# =============================================================================================
 
 class ThermoMLDataSet(PhysicalPropertyDataSet):
     """A dataset of physical property measurements created from a ThermoML dataset.

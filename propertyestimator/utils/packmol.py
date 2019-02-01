@@ -1,19 +1,10 @@
-# =============================================================================================
-# MODULE DOCSTRING
-# =============================================================================================
-
 """
-Packmol API.
+An API for interacting with `packmol <http://m3g.iqm.unicamp.br/packmol/home.shtml>`_.
 
 Notes
 -----
-Based on SolvationToolkit (https://github.com/MobleyLab/SolvationToolkit)
+Based on the `SolvationToolkit <https://github.com/MobleyLab/SolvationToolkit>`_.
 """
-
-
-# =============================================================================================
-# GLOBAL IMPORTS
-# =============================================================================================
 
 import copy
 import logging
@@ -30,11 +21,8 @@ from simtk import openmm
 from simtk import unit
 from simtk.openmm import app
 
-# =============================================================================================
-# Module Constants
-# =============================================================================================
-
-PACKMOL_PATH = find_executable("packmol") or shutil.which("packmol")
+PACKMOL_PATH = find_executable("packmol") or shutil.which("packmol") or \
+               None if 'PACKMOL' not in os.environ else os.environ['PACKMOL']
 
 _HEADER_TEMPLATE = """
 # Mixture
@@ -51,10 +39,6 @@ structure {0:s}
 end structure
 """
 
-
-# =============================================================================================
-# Packmol
-# =============================================================================================
 
 def pack_box(molecules,
              n_copies,
@@ -77,7 +61,8 @@ def pack_box(molecules,
         The size of the box to generate.
         Default generates boxes that are very large for increased stability.
         May require extra time for energy minimization and equilibration.
-    mass_density : simtk.unit.Quantity with units compatible with grams/milliliters, optional, default = 1.0*grams/milliliters
+    mass_density : simtk.unit.Quantity with units compatible with grams/milliliters, optional,
+                   default = 1.0*grams/milliliters
         Target mass density for final system, if available.
     verbose : bool, optional, default=False
         If True, verbose output is written.
@@ -277,7 +262,8 @@ def approximate_volume_by_density(molecules,
         Number of copies of the molecules.
     box_scaleup_factor : float, optional, default = 1.1
         Factor by which the estimated box size is increased
-    mass_density : simtk.unit.Quantity with units compatible with grams/milliliters, optional, default = 1.0*grams/milliliters
+    mass_density : simtk.unit.Quantity with units compatible with grams/milliliters, optional,
+                   default = 1.0*grams/milliliters
         Target mass density for final system, if available.
 
     Returns

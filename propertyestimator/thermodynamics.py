@@ -1,13 +1,6 @@
-# =============================================================================================
-# MODULE DOCSTRING
-# =============================================================================================
-
 """
-Thermodynamics API.
+Defines an API for defining thermodynamic states.
 """
-# =============================================================================================
-# GLOBAL IMPORTS
-# =============================================================================================
 
 from enum import Enum
 from typing import Optional
@@ -17,10 +10,6 @@ from simtk import unit
 
 from propertyestimator.utils.serialization import deserialize_quantity, serialize_quantity
 
-
-# =============================================================================================
-# THERMODYNAMIC STATE
-# =============================================================================================
 
 class Ensemble(Enum):
     """An enum describing the available thermodynamic ensembles.

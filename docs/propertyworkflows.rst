@@ -1,5 +1,3 @@
-.. _propertyworkflows ::
-
 Property API
 ==================================
 
@@ -18,35 +16,31 @@ Primary objects
 Built-in Properties
 -------------------
 
-.. currentmodule:: propertyestimator.properties.density
+.. currentmodule:: propertyestimator.properties
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
     Density
-
-.. currentmodule:: propertyestimator.properties.dielectric
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
     DielectricConstant
+    Enthalpy
+    EnthalpyOfMixing
 
 Workflow Components
 -------------------
 
 Schema
 
-.. currentmodule:: propertyestimator.estimator.workflow.schema
+.. currentmodule:: propertyestimator.workflow.schemas
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
-    CalculationSchema
+    WorkflowSchema
 
 Protocol API
 
-.. currentmodule:: propertyestimator.estimator.workflow.protocols
+.. currentmodule:: propertyestimator.workflow.protocols
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -57,7 +51,7 @@ Protocol API
 
 Built in Protocols
 
-.. currentmodule:: propertyestimator.estimator.workflow.protocols
+.. currentmodule:: propertyestimator.workflow.protocols
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -73,7 +67,7 @@ Built in Protocols
 
 Protocol Groups
 
-.. currentmodule:: propertyestimator.estimator.workflow.groups
+.. currentmodule:: propertyestimator.workflow.groups
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/

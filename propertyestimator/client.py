@@ -1,19 +1,9 @@
-# =============================================================================================
-# MODULE DOCSTRING
-# =============================================================================================
-
 """
 Property estimator client side API.
 """
 
-
-# =============================================================================================
-# GLOBAL IMPORTS
-# =============================================================================================
-
 import json
 import logging
-import struct
 from time import sleep
 from typing import Dict, List
 
@@ -24,47 +14,15 @@ from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
 from tornado.tcpclient import TCPClient
 
-from propertyestimator.estimator.workflow.schema import CalculationSchema
-from propertyestimator.estimator.layers import SurrogateLayer, ReweightingLayer, SimulationLayer
-from propertyestimator.estimator.workflow.protocols import ProtocolPath
+from propertyestimator.layers import SurrogateLayer, ReweightingLayer, SimulationLayer
 from propertyestimator.properties import PhysicalProperty
+from propertyestimator.properties.plugins import registered_properties
+from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import serialize_quantity, PolymorphicDataType
-from .utils import PropertyEstimatorMessageTypes, PropertyEstimatorException
+from propertyestimator.utils.tcp import PropertyEstimatorMessageTypes, pack_int, unpack_int
+from propertyestimator.workflow import WorkflowSchema
+from propertyestimator.workflow.utils import ProtocolPath
 
-int_struct = struct.Struct("<i")
-
-unpack_int = int_struct.unpack
-pack_int = int_struct.pack
-
-
-# =============================================================================================
-# Registration Decorators
-# =============================================================================================
-
-def register_estimable_property():
-    """A decorator which registers a property as being estimable
-    by the property estimator.
-
-    Notes
-    -----
-    The property must implement a static get_calculation_template method
-    which returns the calculation schema to follow.
-    """
-
-    def decorator(cls):
-
-        if cls.__name__ in PropertyEstimator.registered_properties:
-            raise ValueError('The {} property is already registered.'.format(cls.__name__))
-
-        PropertyEstimator.registered_properties[cls.__name__] = cls
-        return cls
-
-    return decorator
-
-
-# =============================================================================================
-# Property Estimator
-# =============================================================================================
 
 class PropertyEstimatorOptions(BaseModel):
     """Represents additional options that can be passed to the
@@ -75,8 +33,8 @@ class PropertyEstimatorOptions(BaseModel):
     allowed_calculation_layers: list of str
         A list of allowed calculation layers. The order of the layers in the list is the order
         that the calculator will attempt to execute the layers in.
-    calculation_schemas: Dict[str, CalculationSchema]
-        A dictionary of the CalculationSchema which will be used to calculate any properties.
+    calculation_schemas: Dict[str, WorkflowSchema]
+        A dictionary of the WorkflowSchema which will be used to calculate any properties.
         The dictionary key represents the type of property the schema will calculate. The
         dictionary will be automatically populated with defaults if no entries are added.
     relative_uncertainty: float, default = 1.0
@@ -90,7 +48,7 @@ class PropertyEstimatorOptions(BaseModel):
         SimulationLayer.__name__
     ]
 
-    calculation_schemas: Dict[str, CalculationSchema] = {}
+    calculation_schemas: Dict[str, WorkflowSchema] = {}
 
     relative_uncertainty: float = 1.0
     allow_protocol_merging: bool = True
@@ -182,16 +140,16 @@ class PropertyEstimator(object):
     Setting up the server instance:
 
     >>> # Create the backend which will be responsible for distributing the calculations
-    >>> from propertyestimator.estimator.backends import DaskLocalClusterBackend, BackendResources
-    >>> calculation_backend = DaskLocalClusterBackend(1, 1, BackendResources(1, 0))
+    >>> from propertyestimator.backends import DaskLocalClusterBackend, PropertyEstimatorBackendResources
+    >>> calculation_backend = DaskLocalClusterBackend(1, 1, PropertyEstimatorBackendResources(1, 0))
     >>>
     >>> # Calculate the backend which will be responsible for storing and retrieving
     >>> # the data from previous calculations
-    >>> from propertyestimator.estimator.storage import LocalFileStorage
+    >>> from propertyestimator.storage import LocalFileStorage
     >>> storage_backend = LocalFileStorage()
     >>>
     >>> # Create the server to which all calculations will be submitted
-    >>> from propertyestimator.estimator.runner import PropertyCalculationRunner
+    >>> from propertyestimator.server import PropertyCalculationRunner
     >>> property_server = PropertyCalculationRunner(calculation_backend, storage_backend)
     >>>
     >>> # Instruct the server to listen for incoming submissions
@@ -217,7 +175,7 @@ class PropertyEstimator(object):
     >>> parameters = ForceField('smirnoff99Frosst.offxml')
     >>>
     >>> # Create a property estimator
-    >>> from propertyestimator.estimator import PropertyEstimator
+    >>> from propertyestimator.client import PropertyEstimator
     >>> property_estimator = PropertyEstimator()
 
     Submit the calculations using the default submission options:
@@ -239,8 +197,6 @@ class PropertyEstimator(object):
 
     >>> property_estimator.query_computation_state(ticket_ids)
     """
-
-    registered_properties = {}
 
     def __init__(self, server_address='localhost', port=8000):
         """Constructs a new PropertyEstimator object.
@@ -301,7 +257,7 @@ class PropertyEstimator(object):
 
                 type_name = type(physical_property).__name__
 
-                if type_name not in PropertyEstimator.registered_properties:
+                if type_name not in registered_properties:
 
                     raise ValueError('The property estimator does not support {} '
                                      'properties.'.format(type_name))
@@ -309,7 +265,7 @@ class PropertyEstimator(object):
                 if type_name in options.calculation_schemas:
                     continue
 
-                property_type = PropertyEstimator.registered_properties[type_name]()
+                property_type = registered_properties[type_name]()
 
                 options.calculation_schemas[type_name] = \
                     property_type.get_default_calculation_schema()

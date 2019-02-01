@@ -3,7 +3,7 @@
 import logging
 
 from propertyestimator.datasets import ThermoMLDataSet
-from propertyestimator.estimator import client
+from propertyestimator import client
 from openforcefield.typing.engines import smirnoff
 from propertyestimator.utils import get_data_filename, setup_timestamp_logging
 

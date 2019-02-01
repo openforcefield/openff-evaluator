@@ -1,31 +1,18 @@
-# =============================================================================================
-# MODULE DOCSTRING
-# =============================================================================================
-
 """
-An API to store general exceptions that may be raised.
+A collection of classes which aid in serializing data types.
 """
-
-
-# =============================================================================================
-# GLOBAL IMPORTS
-# =============================================================================================
 
 import importlib
 import json
 import sys
 from enum import Enum
 
-from json import JSONEncoder, JSONDecoder, JSONDecodeError
+from json import JSONEncoder
 
 from pydantic import BaseModel, ValidationError
 from pydantic.validators import dict_validator
 from simtk import unit
 
-
-# =============================================================================================
-# Module Constants
-# =============================================================================================
 
 class TypedBaseModel(BaseModel):
 
@@ -338,7 +325,7 @@ def deserialize_quantity(serialized):
         return None
     quantity_unit = None
     for unit_name, power in serialized['unit']:
-        unit_name = unit_name.replace(' ','_') # Convert eg. 'elementary charge' to 'elementary_charge'
+        unit_name = unit_name.replace(' ', '_')  # Convert eg. 'elementary charge' to 'elementary_charge'
         if quantity_unit is None:
             quantity_unit = (getattr(unit, unit_name) ** power)
         else:

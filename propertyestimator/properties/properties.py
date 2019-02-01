@@ -1,33 +1,19 @@
-# =============================================================================================
-# MODULE DOCSTRING
-# =============================================================================================
-
 """
 Properties base API.
 """
-# =============================================================================================
-# GLOBAL IMPORTS
-# =============================================================================================
 
 import uuid
-
 from enum import IntFlag, unique
-
-from pydantic import validator
 from typing import Optional, Dict
 
+from pydantic import validator
+from simtk import unit
+
+from propertyestimator.substances import Substance
+from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.serialization import deserialize_quantity, serialize_quantity, TypedBaseModel, \
     PolymorphicDataType
 
-from propertyestimator.properties.thermodynamics import ThermodynamicState
-from propertyestimator.properties.substances import Substance
-
-from simtk import unit
-
-
-# =============================================================================================
-# Property Enums
-# =============================================================================================
 
 @unique
 class PropertyPhase(IntFlag):
@@ -58,10 +44,6 @@ class PropertyPhase(IntFlag):
         """
         return str(self)
 
-
-# =============================================================================================
-# Property Sources
-# =============================================================================================
 
 class Source(TypedBaseModel):
     """Container class for information about how a property was measured / calculated.
@@ -115,10 +97,6 @@ class CalculationSource(Source):
     fidelity: str = None
     provenance: Dict[str, PolymorphicDataType] = None
 
-
-# =============================================================================================
-# Property Definitions
-# =============================================================================================
 
 class PhysicalProperty(TypedBaseModel):
     """Represents the value of any physical property and it's uncertainty.
@@ -194,7 +172,7 @@ class PhysicalProperty(TypedBaseModel):
 
         Returns
         -------
-        propertyestimator.estimator.CalculationSchema
+        propertyestimator.WorkflowSchema
             The calculation schema to follow.
         """
         raise NotImplementedError()
