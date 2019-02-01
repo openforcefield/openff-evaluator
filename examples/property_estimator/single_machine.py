@@ -5,7 +5,7 @@ import shutil
 from os import path
 
 from propertyestimator.datasets import ThermoMLDataSet
-from propertyestimator import client, runner
+from propertyestimator import client, server
 from propertyestimator.backends import PropertyEstimatorBackendResources, DaskLocalClusterBackend
 from propertyestimator.storage import LocalFileStorage
 from openforcefield.typing.engines import smirnoff
@@ -40,7 +40,7 @@ def run_property_estimator():
     calculation_backend = DaskLocalClusterBackend(1, 1, PropertyEstimatorBackendResources(2, 0))
     storage_backend = LocalFileStorage()
 
-    property_server = runner.PropertyCalculationRunner(calculation_backend,
+    property_server = server.PropertyCalculationRunner(calculation_backend,
                                                        storage_backend,
                                                        working_directory=working_directory)
 
