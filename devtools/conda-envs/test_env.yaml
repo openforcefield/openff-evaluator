@@ -9,6 +9,21 @@ dependencies:
   - pytest
   - pytest-cov
 
+    # Standard dependencies
+  - openforcefield
+  - numpy
+  - pandas
+  - lxml
+  - icu 58*  # This is a lxml dependency but sometimes conda installs version 56
+  - openmm
+  - packmol
+  - pymbar
+  - mdtraj
+  - dask
+  - tornado
+  - pydantic
+  - coverage >=4.4
+
     # Pip-only installs
   - pip:
     - codecov

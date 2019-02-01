@@ -11,4 +11,20 @@ dependencies:
     - numpydoc
     - nbsphinx
     - m2r >=0.2.1
-    
+
+    # Standard dependencies
+    - openforcefield
+    - numpy
+    - pandas
+    - lxml
+    - icu 58*  # This is a lxml dependency but sometimes conda installs version 56
+    - openmm
+    - packmol
+    - pymbar
+    - mdtraj
+    - dask
+    - tornado
+    - pydantic
+
+    - pip:
+        - sphinx_rtd_theme

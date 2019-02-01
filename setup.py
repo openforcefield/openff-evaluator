@@ -27,7 +27,20 @@ setup(
     license='MIT',
 
     # Which Python importable modules should be included when your package is installed
-    packages=['propertyestimator', "propertyestimator.tests"],
+    # packages=['propertyestimator', "propertyestimator.tests"],
+
+    packages=[
+        'propertyestimator',
+        'propertyestimator.tests',
+        'propertyestimator.properties',
+        'propertyestimator.datasets',
+        'propertyestimator.estimator',
+        'propertyestimator.estimator.backends',
+        'propertyestimator.estimator.workflow',
+        'propertyestimator.estimator.layers',
+        'propertyestimator.estimator.storage',
+        'propertyestimator.utils'
+    ],
 
     # Optional include package data to ship with your package
     # Comment out this line to prevent the files from being packaged with your software

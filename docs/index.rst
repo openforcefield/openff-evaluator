@@ -3,18 +3,28 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to propertyestimator's documentation!
+Property Estimator
 =========================================================
 
+Property calculation toolkit from the `Open Forcefield Consortium <http://openforcefield.org>`_.
+
+This toolkit provides an API for storing, manipulating, and computing measured physical properties
+from simulation data.
+
+User Guide
+----------
+
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+  :maxdepth: 1
 
+  physicalproperties
+  propertydatasets
 
+API documentation
+-----------------
 
-Indices and tables
-==================
+.. toctree::
+  :maxdepth: 1
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+  propertyestimator
+  propertyworkflows
