@@ -16,3 +16,4 @@ def test_statistics_object():
     statistics_object.save_as_pandas_csv('stats_pandas.csv')
 
     statistics_object = Statistics.from_pandas_csv('stats_pandas.csv')
+    assert statistics_object is not None

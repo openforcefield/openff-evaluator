@@ -3,10 +3,8 @@ A local file based storage backend.
 """
 
 import logging
-import os
 import pickle
-from os import path
-from pickle import PicklingError, UnpicklingError
+from os import path, makedirs
 
 from .storage import PropertyEstimatorStorage
 
@@ -26,7 +24,7 @@ class LocalFileStorage(PropertyEstimatorStorage):
         self._root_directory = root_directory
 
         if not path.isdir(root_directory):
-            os.makedirs(root_directory)
+            makedirs(root_directory)
 
         super().__init__()
 
@@ -39,7 +37,7 @@ class LocalFileStorage(PropertyEstimatorStorage):
             with open(file_path, 'wb') as file:
                 pickle.dump(object_to_store, file)
 
-        except PicklingError:
+        except pickle.PicklingError:
             logging.warning('Unable to pickle an object to {}'.format(storage_key))
 
         super(LocalFileStorage, self).store_object(storage_key, object_to_store)
@@ -58,7 +56,7 @@ class LocalFileStorage(PropertyEstimatorStorage):
             with open(file_path, 'rb') as file:
                 loaded_object = pickle.load(file)
 
-        except UnpicklingError:
+        except pickle.UnpicklingError:
             logging.warning('Unable to unpickle the object at {}'.format(storage_key))
 
         return loaded_object

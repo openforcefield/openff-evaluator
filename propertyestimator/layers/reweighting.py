@@ -2,8 +2,6 @@
 The simulation reweighting estimation layer.
 """
 
-from openforcefield.typing.engines.smirnoff import ForceField
-
 from propertyestimator.layers import register_calculation_layer, PropertyCalculationLayer
 
 

@@ -9,9 +9,8 @@ protocols until certain conditions have been met.
 
 import copy
 import logging
-import os
 from enum import Enum, unique
-from os import path
+from os import path, makedirs
 
 from propertyestimator.utils import graph, serialization
 from propertyestimator.utils.exceptions import PropertyEstimatorException
@@ -262,7 +261,7 @@ class ProtocolGroup(BaseProtocol):
             working_directory = path.join(directory, protocol_to_execute.id)
 
             if not path.isdir(working_directory):
-                os.makedirs(working_directory)
+                makedirs(working_directory)
 
             for input_path in protocol_to_execute.required_inputs:
 

@@ -7,8 +7,6 @@ import json
 import sys
 from enum import Enum
 
-from json import JSONEncoder
-
 from pydantic import BaseModel, ValidationError
 from pydantic.validators import dict_validator
 from simtk import unit
@@ -39,7 +37,7 @@ class TypedBaseModel(BaseModel):
         self.type_metadata = type(self).__name__
 
 
-class PolymorphicEncoder(JSONEncoder):
+class PolymorphicEncoder(json.JSONEncoder):
 
     def default(self, obj):
 

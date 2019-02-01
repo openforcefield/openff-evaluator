@@ -4,16 +4,15 @@ Property calculator 'server' side API.
 
 import json
 import logging
-import os
 import uuid
-from os import path
+from os import path, makedirs
 from typing import List, Dict
 
 from openforcefield.typing.engines.smirnoff import ForceField
 from pydantic import BaseModel
 from simtk import unit
 from tornado.ioloop import IOLoop, PeriodicCallback
-from tornado.iostream import IOStream, StreamClosedError
+from tornado.iostream import StreamClosedError
 from tornado.tcpserver import TCPServer
 
 from propertyestimator.client import PropertyEstimatorSubmission, PropertyEstimatorOptions, \
@@ -130,7 +129,7 @@ class PropertyCalculationRunner(TCPServer):
         self.working_directory = working_directory
 
         if not path.isdir(self.working_directory):
-            os.makedirs(self.working_directory)
+            makedirs(self.working_directory)
 
         self._port = port
 
@@ -409,7 +408,7 @@ class PropertyCalculationRunner(TCPServer):
         layer_directory = path.join(self.working_directory, current_layer_type)
 
         if not path.isdir(layer_directory):
-            os.makedirs(layer_directory)
+            makedirs(layer_directory)
 
         current_layer = available_layers[current_layer_type]
 

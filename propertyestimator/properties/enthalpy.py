@@ -150,6 +150,6 @@ class EnthalpyOfMixing(PhysicalProperty):
         schema.id = '{}{}'.format(Enthalpy.__name__, 'Schema')
 
         # Initial coordinate and topology setup.
-        default_enthalpy_schema = Enthalpy.get_default_calculation_schema()
+        # default_enthalpy_schema = Enthalpy.get_default_calculation_schema()
 
         raise NotImplementedError()

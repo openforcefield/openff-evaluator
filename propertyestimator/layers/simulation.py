@@ -4,11 +4,10 @@ The direct simulation estimation layer.
 
 import copy
 import logging
-import os
 import pickle
 import traceback
 import uuid
-from os import path
+from os import path, makedirs
 
 import mdtraj
 
@@ -501,7 +500,7 @@ class DirectCalculationGraph:
         protocol.schema = protocol_schema
 
         if not path.isdir(directory):
-            os.makedirs(directory)
+            makedirs(directory)
 
         for input_path in protocol.required_inputs:
 

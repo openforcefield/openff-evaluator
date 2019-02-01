@@ -7,8 +7,7 @@ import logging
 from time import sleep
 from typing import Dict, List
 
-from openforcefield.typing.engines.smirnoff import ForceField
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from simtk import unit
 from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
@@ -489,7 +488,7 @@ class PropertyEstimator(object):
 
             try:
                 server_response = PropertyEstimatorResult.parse_raw(server_response)
-            except:
+            except ValidationError:
                 server_response = PropertyEstimatorException.parse_raw(server_response)
 
         # Return the ids of the submitted jobs.

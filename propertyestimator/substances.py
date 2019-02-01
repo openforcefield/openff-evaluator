@@ -208,9 +208,9 @@ class Mixture(Substance):
             mole_fraction = 0.0
         if mole_fraction is None:
             mole_fraction = 1.0 - self.total_mole_fraction
-        if (self.total_mole_fraction + mole_fraction) > 1.0:
-            raise ValueError("Total mole fraction would exceed "
-                             "unity ({0:f}); specified {1:f}".format(self.total_mole_fraction, mole_fraction))
+        # if (self.total_mole_fraction + mole_fraction) > 1.0:
+        #     raise ValueError("Total mole fraction would exceed "
+        #                      "unity ({0:f}); specified {1:f}".format(self.total_mole_fraction, mole_fraction))
 
         return mole_fraction, impurity
 
