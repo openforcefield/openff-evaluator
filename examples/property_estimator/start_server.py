@@ -1,0 +1,34 @@
+#!/usr/bin/env python
+
+import shutil
+from os import path
+
+from propertyestimator import runner
+from propertyestimator.estimator import DaskLocalClusterBackend
+from propertyestimator.estimator import LocalFileStorage
+from propertyestimator.utils import setup_timestamp_logging
+
+
+def start_property_estimator_server():
+    """An integrated test of the property estimator"""
+
+    setup_timestamp_logging()
+
+    working_directory = 'working_directory'
+
+    # Remove any existing data.
+    if path.isdir(working_directory):
+        shutil.rmtree(working_directory)
+
+    calculation_backend = DaskLocalClusterBackend(1, 1)
+    storage_backend = LocalFileStorage()
+
+    property_server = runner.PropertyCalculationRunner(calculation_backend,
+                                                       storage_backend,
+                                                       working_directory=working_directory)
+
+    property_server.run_until_killed()
+
+
+if __name__ == "__main__":
+    start_property_estimator_server()

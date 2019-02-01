@@ -9,14 +9,18 @@ propertyestimator
 
 
 
-Property calculation toolkit from the Open Forcefield Consortium.
-
-### Copyright
-
-Copyright (c) 2019, Open Force Field Consortium
-
+A distributed, automated property estimation toolkit from the Open Force Field Consortium. See the 
+[documentation](https://property-estimator.readthedocs.io) for more information.
 
 #### Acknowledgements
  
 Project based on the 
 [Computational Molecular Science Python Cookiecutter](https://github.com/molssi/cookiecutter-cms) version 1.0.
+
+#### License
+
+MIT. See the [License File](LICENSE) for more information.
+
+#### Copyright
+
+Copyright (c) 2019, Open Force Field Consortium

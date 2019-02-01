@@ -64,6 +64,7 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+docs/api
 
 # PyBuilder
 target/
@@ -100,3 +101,9 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# macOS
+.DS_Store
+
+# PyChamr
+.idea

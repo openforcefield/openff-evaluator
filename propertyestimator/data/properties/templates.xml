@@ -1,0 +1,152 @@
+<!--All values in this file are temporary and for testing only.-->
+<CalculationTemplates>
+
+    <CalculationTemplate>
+
+        <property>Undefined</property>
+        <id>BaseSimulationTemplate</id>
+        <protocols>
+
+            <!--Setup-->
+            <BuildCoordinatesPackmol>
+                <id>build_coordinates</id>
+                <inputs>
+                    <input property="substance">global:substance</input>
+                </inputs>
+                <max_molecules>128</max_molecules>
+                <mass_density>1.0</mass_density>
+            </BuildCoordinatesPackmol>
+
+            <BuildSmirnoffTopology>
+                <id>build_topology</id>
+                <inputs>
+                    <input property="force_field">global:force_field</input>
+                    <input property="topology">build_coordinates:topology</input>
+                    <input property="molecules">build_coordinates:molecules</input>
+                </inputs>
+            </BuildSmirnoffTopology>
+
+            <!--Equilibration-->
+            <RunEnergyMinimisation>
+                <id>energy_minimisation</id>
+                <inputs>
+                    <input property="positions">build_coordinates:positions</input>
+                    <input property="topology">build_coordinates:topology</input>
+                    <input property="system">build_topology:system</input>
+                </inputs>
+            </RunEnergyMinimisation>
+
+            <RunOpenMMSimulation>
+                <id>npt_equilibration</id>
+                <inputs>
+                    <input property="thermodynamic_state">global:thermodynamic_state</input>
+                    <input property="positions">energy_minimisation:final_positions</input>
+                    <input property="topology">build_coordinates:topology</input>
+                    <input property="system">build_topology:system</input>
+                </inputs>
+                <steps>2</steps>
+                <thermostat_friction>1.0</thermostat_friction>
+                <timestep>0.001</timestep>
+                <output_frequency>1</output_frequency>
+                <ensemble>NPT</ensemble>
+            </RunOpenMMSimulation>
+
+            <!--Production-->
+            <RunOpenMMSimulation>
+                <id>npt_production</id>
+                <inputs>
+                    <input property="thermodynamic_state">global:thermodynamic_state</input>
+                    <input property="positions">npt_equilibration:final_positions</input>
+                    <input property="topology">build_coordinates:topology</input>
+                    <input property="system">build_topology:system</input>
+                </inputs>
+                <steps>200</steps>
+                <thermostat_friction>1.0</thermostat_friction>
+                <timestep>0.001</timestep>
+                <output_frequency>20</output_frequency>
+                <ensemble>NPT</ensemble>
+            </RunOpenMMSimulation>
+
+        </protocols>
+
+    </CalculationTemplate>
+
+    <CalculationTemplate>
+
+        <property>Density</property>
+        <id>DensityTemplate</id>
+        <output-value>extract_density:value</output-value>
+        <output-uncertainty>extract_density:uncertainty</output-uncertainty>
+        <protocols>
+
+            <import>BaseSimulationTemplate</import>
+
+            <!--Analysis-->
+            <ExtractAverageDensity>
+                <id>extract_density</id>
+                <inputs>
+                    <input property="positions">npt_production:final_positions</input>
+                    <input property="topology">build_coordinates:topology</input>
+                    <input property="system">build_topology:system</input>
+                    <input property="trajectory_path">npt_production:trajectory</input>
+                </inputs>
+            </ExtractAverageDensity>
+
+        </protocols>
+
+        <groups>
+
+            <ConditionalGroup>
+                <id>converge_uncertainty</id>
+                <condition>extract_density:uncertainty lessthan global:uncertainty</condition>
+                <protocol-ids>
+                    <protocol-id>npt_production</protocol-id>
+                    <protocol-id>extract_density</protocol-id>
+                </protocol-ids>
+            </ConditionalGroup>
+
+        </groups>
+
+    </CalculationTemplate>
+
+    <CalculationTemplate>
+
+        <property>DielectricConstant</property>
+        <id>DielectricTemplate</id>
+        <output-value>extract_dielectric:value</output-value>
+        <output-uncertainty>extract_dielectric:uncertainty</output-uncertainty>
+        <protocols>
+
+            <import>BaseSimulationTemplate</import>
+
+            <!--Analysis-->
+            <ExtractAverageDielectric>
+                <id>extract_dielectric</id>
+                <inputs>
+                    <input property="thermodynamic_state">global:thermodynamic_state</input>
+                    <input property="topology">build_coordinates:topology</input>
+                    <input property="system">build_topology:system</input>
+                    <input property="trajectory_path">npt_production:trajectory</input>
+                    <input property="positions">npt_production:final_positions</input>
+                    <input property="target_uncertainty">global:uncertainty</input>
+                </inputs>
+            </ExtractAverageDielectric>
+
+        </protocols>
+
+        <groups>
+
+            <ConditionalGroup>
+                <id>converge_uncertainty</id>
+                <condition>extract_dielectric:uncertainty lessthan global:uncertainty</condition>
+                <protocol-ids>
+                    <protocol-id>npt_production</protocol-id>
+                    <protocol-id>extract_dielectric</protocol-id>
+                </protocol-ids>
+            </ConditionalGroup>
+
+        </groups>
+
+    </CalculationTemplate>
+
+</CalculationTemplates>
