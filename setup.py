@@ -32,14 +32,13 @@ setup(
     packages=[
         'propertyestimator',
         'propertyestimator.tests',
-        'propertyestimator.properties',
-        'propertyestimator.datasets',
-        'propertyestimator.estimator',
         'propertyestimator.backends',
-        'propertyestimator.workflow',
+        'propertyestimator.datasets',
         'propertyestimator.layers',
+        'propertyestimator.properties',
         'propertyestimator.storage',
-        'propertyestimator.utils'
+        'propertyestimator.utils',
+        'propertyestimator.workflow'
     ],
 
     # Optional include package data to ship with your package
