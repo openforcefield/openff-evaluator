@@ -25,6 +25,7 @@ dependencies:
     - dask
     - tornado
     - pydantic
+    - uncertainties
 
     - pip:
         - sphinx_rtd_theme

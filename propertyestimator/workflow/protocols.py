@@ -8,7 +8,6 @@ import logging
 import math
 import pickle
 from os import path
-from typing import Dict
 
 import mdtraj
 import numpy as np
@@ -17,7 +16,7 @@ from simtk.openmm import app, System, Platform
 
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
-from propertyestimator.utils import packmol, graph, utils, statistics, create_molecule_from_smiles
+from propertyestimator.utils import packmol, graph, utils, timeseries, create_molecule_from_smiles
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import serialize_quantity, deserialize_quantity, PolymorphicDataType
 from propertyestimator.utils.statistics import Statistics, AvailableQuantities
@@ -793,8 +792,6 @@ class RunOpenMMSimulation(BaseProtocol):
 
         self._temporary_statistics_path = None
 
-        pass
-
     def execute(self, directory, available_resources):
 
         temperature = self._thermodynamic_state.temperature
@@ -1138,7 +1135,7 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
         values = np.array(values)
 
         values, self._equilibration_index, self._statistical_inefficiency = \
-            statistics.decorrelate_time_series(values)
+            timeseries.decorrelate_time_series(values)
 
         self._value, self._uncertainty = self._perform_bootstrapping(values)
 
@@ -1218,7 +1215,7 @@ class ExtractUncorrelatedTrajectoryData(ExtractUncorrelatedData):
 
         trajectory = mdtraj.load_dcd(filename=self._input_trajectory_path, top=self._input_coordinate_file)
 
-        uncorrelated_indices = statistics.get_uncorrelated_indices(trajectory.n_frames, self._statistical_inefficiency)
+        uncorrelated_indices = timeseries.get_uncorrelated_indices(trajectory.n_frames, self._statistical_inefficiency)
         uncorrelated_trajectory = trajectory[uncorrelated_indices]
 
         self._output_trajectory_path = path.join(directory, 'uncorrelated_trajectory.dcd')
