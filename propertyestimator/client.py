@@ -17,7 +17,7 @@ from propertyestimator.layers import SurrogateLayer, ReweightingLayer, Simulatio
 from propertyestimator.properties import PhysicalProperty
 from propertyestimator.properties.plugins import registered_properties
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import serialize_quantity, PolymorphicDataType
+from propertyestimator.utils.serialization import serialize_quantity, PolymorphicDataType, serialize_force_field
 from propertyestimator.utils.tcp import PropertyEstimatorMessageTypes, pack_int, unpack_int
 from propertyestimator.workflow import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
@@ -76,7 +76,7 @@ class PropertyEstimatorSubmission(BaseModel):
         The options used to calculate the properties.
     parameter_set: dict of str and int
         The force field parameters used during the calculations. These should be
-        obtained by calling .__getstate__() on a `ForceField` object.
+        obtained by calling `serialize_force_field` on a `ForceField` object.
     """
     properties: List[PhysicalProperty] = []
     options: PropertyEstimatorOptions = None
@@ -105,9 +105,8 @@ class PropertyEstimatorResult(BaseModel):
         The list of physical properties to calculate.
     options: PropertyEstimatorOptions
         The options used to calculate the properties.
-    parameter_set: dict of str and int
-        The force field parameters used during the calculations. These should be
-        obtained by calling .__getstate__() on a `ForceField` object.
+    parameter_set_id:
+        The id of the parameter set used in the calculation.
     """
     id: str
 
@@ -281,7 +280,7 @@ class PropertyEstimator(object):
                 protocol_schema.inputs['.allow_merging'] = PolymorphicDataType(options.allow_protocol_merging)
 
         submission = PropertyEstimatorSubmission(properties=properties_list,
-                                                 parameter_set=parameter_set.__getstate__(),
+                                                 parameter_set=serialize_force_field(parameter_set),
                                                  options=options)
 
         # For now just do a blocking submit to the server.

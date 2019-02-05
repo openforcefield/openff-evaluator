@@ -6,6 +6,7 @@ import importlib
 import json
 import sys
 from enum import Enum
+from io import BytesIO
 
 from pydantic import BaseModel, ValidationError
 from pydantic.validators import dict_validator
@@ -330,3 +331,40 @@ def deserialize_quantity(serialized):
             quantity_unit *= (getattr(unit, unit_name) ** power)
     quantity = unit.Quantity(serialized['unitless_value'], quantity_unit)
     return quantity
+
+
+def serialize_force_field(force_field):
+
+        file_buffers = tuple([BytesIO() for index in force_field._XMLTrees])
+
+        force_field.writeFile(file_buffers)
+
+        return_dictionary = {}
+
+        for index, file_buffer in enumerate(file_buffers):
+
+            string_value = file_buffer.getvalue().decode()
+            return_dictionary[index] = string_value
+
+            file_buffer.close()
+
+        return return_dictionary
+
+
+def deserialize_force_field(force_field_dictionary):
+
+    file_buffers = [None] * len(force_field_dictionary)
+
+    for index in force_field_dictionary:
+
+        bytes_string = force_field_dictionary[index]
+
+        if isinstance(bytes_string, str):
+            bytes_string = bytes_string.encode('utf-8')
+
+        file_buffers[index] = BytesIO(bytes_string)
+
+    from openforcefield.typing.engines.smirnoff import ForceField
+
+    force_field = ForceField(*file_buffers)
+    return force_field

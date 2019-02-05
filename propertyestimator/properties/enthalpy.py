@@ -3,7 +3,7 @@ A collection of enthalpy physical property definitions.
 """
 
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.datasets import register_thermoml_property
+from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.properties import PhysicalProperty
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.statistics import AvailableQuantities

@@ -7,7 +7,8 @@ from typing import Dict
 
 from pydantic import BaseModel
 
-from propertyestimator.utils.serialization import PolymorphicDataType
+from propertyestimator.utils import get_data_filename
+from propertyestimator.utils.serialization import PolymorphicDataType, serialize_force_field, deserialize_force_field
 
 
 class Foo:
@@ -91,3 +92,13 @@ def test_polymorphic_dictionary():
     pydantic_recreated_json = pydantic_recreated.json()
 
     assert pydantic_json == pydantic_recreated_json
+
+
+def test_force_field_serialization():
+
+    from openforcefield.typing.engines import smirnoff
+
+    force_field = smirnoff.ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
+
+    serialized_force_field = serialize_force_field(force_field)
+    deserialized_force_field = deserialize_force_field(serialized_force_field)

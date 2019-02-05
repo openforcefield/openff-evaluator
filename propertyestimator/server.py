@@ -19,7 +19,7 @@ from propertyestimator.client import PropertyEstimatorSubmission, PropertyEstima
 from propertyestimator.layers import available_layers
 from propertyestimator.properties import PhysicalProperty
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import serialize_quantity, PolymorphicDataType
+from propertyestimator.utils.serialization import serialize_quantity, PolymorphicDataType, deserialize_force_field
 from propertyestimator.utils.tcp import PropertyEstimatorMessageTypes, pack_int, unpack_int
 from propertyestimator.workflow.utils import ProtocolPath
 
@@ -326,10 +326,8 @@ class PropertyCalculationRunner(TCPServer):
         PropertyRunnerDataModel
             The server side data model.
         """
-        from openforcefield.typing.engines.smirnoff.forcefield import ForceField
 
-        parameter_set = ForceField([])
-        parameter_set.__setstate__(client_data_model.parameter_set)
+        parameter_set = deserialize_force_field(client_data_model.parameter_set)
 
         parameter_set_id = self._storage_backend.has_force_field(parameter_set)
 

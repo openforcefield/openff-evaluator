@@ -10,7 +10,7 @@ from simtk import openmm, unit
 from simtk.openmm import System
 
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.datasets import register_thermoml_property
+from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.properties import PhysicalProperty
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils import timeseries

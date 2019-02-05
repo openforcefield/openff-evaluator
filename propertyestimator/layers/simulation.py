@@ -15,7 +15,7 @@ from propertyestimator.layers import register_calculation_layer, PropertyCalcula
 from propertyestimator.storage import StoredSimulationData
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import PolymorphicDataType
+from propertyestimator.utils.serialization import PolymorphicDataType, serialize_force_field, deserialize_force_field
 from propertyestimator.workflow import WorkflowSchema
 from propertyestimator.workflow import protocols, groups, plugins
 from .layers import CalculationLayerResult
@@ -683,7 +683,7 @@ class SimulationLayer(PropertyCalculationLayer):
         force_field_path = path.join(layer_directory, 'force_field_{}'.format(data_model.parameter_set_id))
 
         with open(force_field_path, 'wb') as file:
-            pickle.dump(force_field, file)
+            pickle.dump(serialize_force_field(force_field), file)
 
         calculation_graph = SimulationLayer._build_calculation_graph(layer_directory,
                                                                      data_model.queued_properties,
