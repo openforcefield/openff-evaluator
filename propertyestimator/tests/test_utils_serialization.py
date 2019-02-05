@@ -101,4 +101,9 @@ def test_force_field_serialization():
     force_field = smirnoff.ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
 
     serialized_force_field = serialize_force_field(force_field)
-    deserialize_force_field(serialized_force_field)
+    deserialized_force_field = deserialize_force_field(serialized_force_field)
+
+    original_generators = force_field.getGenerators()
+    deserialized_generators = deserialized_force_field.getGenerators()
+
+    assert len(original_generators) == len(deserialized_generators)

@@ -334,24 +334,60 @@ def deserialize_quantity(serialized):
 
 
 def serialize_force_field(force_field):
+    """A method for turning an `openforcefield.typing.engines.smirnoff.ForceField`
+    object into a dictionary of int and str.
 
-        file_buffers = tuple([BytesIO() for _ in force_field._XMLTrees])
+    Notes
+    -----
+    The value in the dictionary is
+    temporarily for now just the xml representation of the force field.
 
-        force_field.writeFile(file_buffers)
+    Parameters
+    ----------
+    force_field: openforcefield.typing.engines.smirnoff.ForceField
+        The force field to serialize.
+    Returns
+    -------
+    Dict[int, str]
+        The serialised force field, where the keys are int indices, and
+        the values are the xml of the serialized force field trees.
+    """
+    file_buffers = tuple([BytesIO() for _ in force_field._XMLTrees])
 
-        return_dictionary = {}
+    force_field.writeFile(file_buffers)
 
-        for index, file_buffer in enumerate(file_buffers):
+    return_dictionary = {}
 
-            string_value = file_buffer.getvalue().decode()
-            return_dictionary[index] = string_value
+    for index, file_buffer in enumerate(file_buffers):
 
-            file_buffer.close()
+        string_value = file_buffer.getvalue().decode()
+        return_dictionary[index] = string_value
 
-        return return_dictionary
+        file_buffer.close()
+
+    return return_dictionary
 
 
 def deserialize_force_field(force_field_dictionary):
+    """A method for deserializing a force field which has been
+    serialized as a dictionary by the `serialize_force_field` method.
+
+    Notes
+    -----
+    The value in the dictionary is temporarily for now just the xml
+    representation of the force field.
+
+    Parameters
+    ----------
+    force_field_dictionary: Dict[int, str]
+        The serialised force field, where each key of the dictionary is an int index,
+        each value is an xml representation of the force field.
+
+    Returns
+    -------
+    openforcefield.typing.engines.smirnoff.ForceField
+        The deserialized force field.
+    """
 
     file_buffers = [None] * len(force_field_dictionary)
 

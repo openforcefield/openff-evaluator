@@ -682,8 +682,8 @@ class SimulationLayer(PropertyCalculationLayer):
         force_field = storage_backend.retrieve_force_field(data_model.parameter_set_id)
         force_field_path = path.join(layer_directory, 'force_field_{}'.format(data_model.parameter_set_id))
 
-        with open(force_field_path, 'wb') as file:
-            pickle.dump(serialize_force_field(force_field), file)
+        with open(force_field_path, 'wb') as file_object:
+            pickle.dump(serialize_force_field(force_field), file_object)
 
         calculation_graph = SimulationLayer._build_calculation_graph(layer_directory,
                                                                      data_model.queued_properties,
