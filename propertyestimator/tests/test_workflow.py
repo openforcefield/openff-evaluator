@@ -8,7 +8,7 @@ from simtk import unit
 
 from propertyestimator.client import PropertyEstimatorOptions
 from propertyestimator.layers.simulation import DirectCalculation, DirectCalculationGraph
-from propertyestimator.properties import PropertyPhase
+from propertyestimator.properties import PropertyPhase, EnthalpyOfMixing
 from propertyestimator.properties.density import Density
 from propertyestimator.properties.dielectric import DielectricConstant
 from propertyestimator.substances import Mixture
@@ -24,12 +24,18 @@ def test_calculation_schema():
 
     density_json = density_schema.json()
     print(density_json)
-    
+
     dielectric_schema = DielectricConstant.get_default_calculation_schema()
     dielectric_schema.validate_interfaces()
 
     dielectric_json = dielectric_schema.json()
     print(dielectric_json)
+
+    enthalpy_of_mixing_schema = EnthalpyOfMixing.get_default_calculation_schema()
+    enthalpy_of_mixing_schema.validate_interfaces()
+
+    enthalpy_of_mixing_json = enthalpy_of_mixing_schema.json()
+    print(enthalpy_of_mixing_json)
 
     density_schema_from_json = WorkflowSchema.parse_raw(density_json)
     print(density_schema_from_json)

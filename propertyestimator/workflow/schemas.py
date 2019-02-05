@@ -67,16 +67,24 @@ class WorkflowSchema(BaseModel):
         that inputs and outputs correctly match up.
         """
 
-        if self.final_value_source.start_protocol not in self.protocols:
+        if (self.final_value_source is not None and
+            self.final_value_source.start_protocol not in self.protocols):
+
             raise ValueError('The value source {} does not exist.'.format(self.final_value_source))
 
-        if self.final_uncertainty_source.start_protocol not in self.protocols:
+        if (self.final_uncertainty_source is not None and
+            self.final_uncertainty_source.start_protocol not in self.protocols):
+
             raise ValueError('The uncertainty source {} does not exist.'.format(self.final_uncertainty_source))
 
-        if self.final_coordinate_source.start_protocol not in self.protocols:
+        if (self.final_coordinate_source is not None and
+            self.final_coordinate_source.start_protocol not in self.protocols):
+
             raise ValueError('The coordinate source {} does not exist.'.format(self.final_coordinate_source))
 
-        if self.final_trajectory_source.start_protocol not in self.protocols:
+        if (self.final_trajectory_source is not None and
+            self.final_trajectory_source.start_protocol not in self.protocols):
+
             raise ValueError('The trajectory source {} does not exist.'.format(self.final_trajectory_source))
 
         for protocol_name in self.protocols:
@@ -86,13 +94,13 @@ class WorkflowSchema(BaseModel):
             protocol_object = available_protocols[protocol_schema.type](protocol_schema.id)
             protocol_object.schema = protocol_schema
 
-            if protocol_name == self.final_value_source.start_protocol:
+            if self.final_value_source and protocol_name == self.final_value_source.start_protocol:
                 protocol_object.get_value(self.final_value_source)
-            if protocol_name == self.final_uncertainty_source.start_protocol:
+            if self.final_uncertainty_source and protocol_name == self.final_uncertainty_source.start_protocol:
                 protocol_object.get_value(self.final_uncertainty_source)
-            if protocol_name == self.final_trajectory_source.start_protocol:
+            if self.final_trajectory_source and protocol_name == self.final_trajectory_source.start_protocol:
                 protocol_object.get_value(self.final_trajectory_source)
-            if protocol_name == self.final_coordinate_source.start_protocol:
+            if self.final_coordinate_source and protocol_name == self.final_coordinate_source.start_protocol:
                 protocol_object.get_value(self.final_coordinate_source)
 
             for input_path in protocol_object.required_inputs:

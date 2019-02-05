@@ -5,7 +5,20 @@ buildings blocks in a property estimation workflow.
 from propertyestimator.utils import graph
 
 
-class ProtocolPath:
+class PlaceholderInput:
+    """A class to act as a place holder for a protocols
+    input value, for when the value of an input is not
+    known a priori, and does not come from another protocol.
+    """
+
+    def __getstate__(self):
+        return {}
+
+    def __setstate__(self, state):
+        pass
+
+
+class ProtocolPath(PlaceholderInput):
     """Represents a pointer to the output of another protocol.
     """
 

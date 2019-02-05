@@ -14,7 +14,7 @@ from os import path, makedirs
 
 from propertyestimator.utils import graph, serialization
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.workflow.decorators import MergeBehaviour, protocol_input
+from propertyestimator.workflow.decorators import MergeBehaviour, protocol_input, protocol_output
 from propertyestimator.workflow.plugins import register_calculation_protocol, available_protocols
 from .protocols import BaseProtocol, ProtocolPath
 from .schemas import ProtocolGroupSchema
@@ -144,6 +144,9 @@ class ProtocolGroup(BaseProtocol):
 
                     self.required_inputs.append(grouped_path)
                     continue
+
+                # if input_value.start_protocol == None or input_value.start_protocol != self.id:
+                #     input_value.prepend_protocol_id(self.id)
 
                 if protocol_id in self._dependants_graph[input_value.start_protocol]:
                     continue
@@ -833,3 +836,27 @@ class ConditionalGroup(ProtocolGroup):
                 return
 
         super(ConditionalGroup, self).set_value(reference_path, value)
+
+
+@register_calculation_protocol()
+class GeneratorGroup(ProtocolGroup):
+    """A `GeneratorGroup` is a complex protocol group, whose aim
+    is to replicate a set of protocols a number of times, and replace
+    ...
+    """
+
+    @protocol_input(list)
+    def template_values(self):
+        pass
+
+    @protocol_input(list)
+    def template_targets(self):
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new GeneratorGroup object.
+        """
+        super().__init__(protocol_id)
+
+        self._template_values = None
+        self._template_targets = None

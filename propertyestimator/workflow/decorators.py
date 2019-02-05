@@ -7,6 +7,8 @@ import numpy as np
 
 from enum import Enum
 
+from propertyestimator.workflow.utils import PlaceholderInput
+
 
 class MergeBehaviour(Enum):
     """A enum which describes how attributes should be handled when
@@ -64,9 +66,7 @@ class BaseProtocolInputObject:
         if not hasattr(instance, self.attribute):
             raise ValueError('Missing {} attribute.'.format(self.attribute))
 
-        from propertyestimator.workflow.protocols import ProtocolPath
-
-        if not isinstance(value, self.value_type) and not isinstance(value, ProtocolPath) and value is not None:
+        if not isinstance(value, self.value_type) and not isinstance(value, PlaceholderInput) and value is not None:
 
             # Handle the special case where the decimal has been lost on float types...
             if (not (self.value_type is float and isinstance(value, int)) and
