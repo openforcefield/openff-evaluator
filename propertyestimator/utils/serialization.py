@@ -6,6 +6,7 @@ import importlib
 import json
 import sys
 from enum import Enum
+from io import BytesIO
 
 from pydantic import BaseModel, ValidationError
 from pydantic.validators import dict_validator
@@ -330,3 +331,76 @@ def deserialize_quantity(serialized):
             quantity_unit *= (getattr(unit, unit_name) ** power)
     quantity = unit.Quantity(serialized['unitless_value'], quantity_unit)
     return quantity
+
+
+def serialize_force_field(force_field):
+    """A method for turning an `openforcefield.typing.engines.smirnoff.ForceField`
+    object into a dictionary of int and str.
+
+    Notes
+    -----
+    The value in the dictionary is
+    temporarily for now just the xml representation of the force field.
+
+    Parameters
+    ----------
+    force_field: openforcefield.typing.engines.smirnoff.ForceField
+        The force field to serialize.
+    Returns
+    -------
+    Dict[int, str]
+        The serialised force field, where the keys are int indices, and
+        the values are the xml of the serialized force field trees.
+    """
+    file_buffers = tuple([BytesIO() for _ in force_field._XMLTrees])
+
+    force_field.writeFile(file_buffers)
+
+    return_dictionary = {}
+
+    for index, file_buffer in enumerate(file_buffers):
+
+        string_value = file_buffer.getvalue().decode()
+        return_dictionary[index] = string_value
+
+        file_buffer.close()
+
+    return return_dictionary
+
+
+def deserialize_force_field(force_field_dictionary):
+    """A method for deserializing a force field which has been
+    serialized as a dictionary by the `serialize_force_field` method.
+
+    Notes
+    -----
+    The value in the dictionary is temporarily for now just the xml
+    representation of the force field.
+
+    Parameters
+    ----------
+    force_field_dictionary: Dict[int, str]
+        The serialised force field, where each key of the dictionary is an int index,
+        each value is an xml representation of the force field.
+
+    Returns
+    -------
+    openforcefield.typing.engines.smirnoff.ForceField
+        The deserialized force field.
+    """
+
+    file_buffers = [None] * len(force_field_dictionary)
+
+    for index in force_field_dictionary:
+
+        bytes_string = force_field_dictionary[index]
+
+        if isinstance(bytes_string, str):
+            bytes_string = bytes_string.encode('utf-8')
+
+        file_buffers[index] = BytesIO(bytes_string)
+
+    from openforcefield.typing.engines.smirnoff import ForceField
+
+    force_field = ForceField(*file_buffers)
+    return force_field

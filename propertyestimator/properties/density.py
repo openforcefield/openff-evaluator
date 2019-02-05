@@ -3,7 +3,7 @@ A collection of density physical property definitions.
 """
 
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.datasets import register_thermoml_property
+from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.properties import PhysicalProperty
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.statistics import AvailableQuantities
@@ -51,8 +51,8 @@ class Density(PhysicalProperty):
 
         npt_equilibration.ensemble = Ensemble.NPT
 
-        npt_equilibration.steps = 2000  # Debug settings.
-        npt_equilibration.output_frequency = 200  # Debug settings.
+        npt_equilibration.steps = 2  # Debug settings.
+        npt_equilibration.output_frequency = 2  # Debug settings.
 
         npt_equilibration.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 
@@ -66,8 +66,8 @@ class Density(PhysicalProperty):
 
         npt_production.ensemble = Ensemble.NPT
 
-        npt_production.steps = 20000  # Debug settings.
-        npt_production.output_frequency = 200  # Debug settings.
+        npt_production.steps = 200  # Debug settings.
+        npt_production.output_frequency = 20  # Debug settings.
 
         npt_production.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 
@@ -102,7 +102,7 @@ class Density(PhysicalProperty):
 
         converge_uncertainty.add_condition(condition)
 
-        converge_uncertainty.max_iterations = 10
+        converge_uncertainty.max_iterations = 1
 
         schema.protocols[converge_uncertainty.id] = converge_uncertainty.schema
 

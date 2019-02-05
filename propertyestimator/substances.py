@@ -199,18 +199,24 @@ class Mixture(Substance):
         """
         if not impurity and mole_fraction is None:
             raise ValueError("Either mole_fraction or impurity must be specified!")
+
         elif impurity and mole_fraction != 0:
             raise ValueError('Mole fraction must be 0.0 or None for impurities. '
                              'Specified mole fraction of {0:f}'.format(mole_fraction))
+
         elif mole_fraction is not None and not 0.0 <= mole_fraction <= 1.0:
             raise ValueError('Mole fraction must be positive; specified {0:f}.'.format(mole_fraction))
+
         if impurity:
             mole_fraction = 0.0
-        if mole_fraction is None:
-            mole_fraction = 1.0 - self.total_mole_fraction
-        # if (self.total_mole_fraction + mole_fraction) > 1.0:
-        #     raise ValueError("Total mole fraction would exceed "
-        #                      "unity ({0:f}); specified {1:f}".format(self.total_mole_fraction, mole_fraction))
+
+        # TODO: Check if this necessary? It is unreachable at the moment.
+        # if mole_fraction is None:
+        #     mole_fraction = 1.0 - self.total_mole_fraction
+
+        if (self.total_mole_fraction + mole_fraction) > 1.0:
+            raise ValueError("Total mole fraction would exceed "
+                             "unity ({0:f}); specified {1:f}".format(self.total_mole_fraction, mole_fraction))
 
         return mole_fraction, impurity
 

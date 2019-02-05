@@ -1,2 +1,3 @@
 from .datasets import PhysicalPropertyDataSet
-from .thermoml import ThermoMLDataSet, register_thermoml_property
+from .plugins import registered_thermoml_properties
+from .thermoml import ThermoMLDataSet

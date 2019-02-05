@@ -3,6 +3,7 @@ The simulation reweighting estimation layer.
 """
 
 from propertyestimator.layers import register_calculation_layer, PropertyCalculationLayer
+from propertyestimator.utils.serialization import serialize_force_field
 
 
 @register_calculation_layer()
@@ -27,7 +28,7 @@ class ReweightingLayer(PropertyCalculationLayer):
 
             reweighting_future = calculation_backend.submit_task(ReweightingLayer.perform_reweighting,
                                                                  physical_property,
-                                                                 parameter_set,
+                                                                 serialize_force_field(parameter_set),
                                                                  existing_data)
 
             reweighting_futures.append(reweighting_future)

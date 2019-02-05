@@ -16,21 +16,7 @@ from propertyestimator.properties import PropertyPhase, MeasurementSource
 from propertyestimator.substances import Mixture
 from propertyestimator.thermodynamics import ThermodynamicState
 from .datasets import PhysicalPropertyDataSet
-
-
-def register_thermoml_property(thermoml_string):
-    """A decorator which registers information on how to parse a given
-    ThermoML property
-
-    For now this only takes input of a thermoML string, but in future
-    will give greater control over exactly how ThermoML XML gets parsed
-    to an actual property."""
-
-    def decorator(cls):
-        ThermoMLDataSet.registered_properties[thermoml_string] = cls
-        return cls
-
-    return decorator
+from .plugins import registered_thermoml_properties
 
 
 def unit_from_thermoml_string(full_string):
@@ -581,14 +567,14 @@ class ThermoMLProperty:
         if method_name_node is None or property_name_node is None:
             raise RuntimeError('A property does not have a name / method entry.')
 
-        if property_name_node.text not in ThermoMLDataSet.registered_properties:
+        if property_name_node.text not in registered_thermoml_properties:
 
             logging.warning('An unsupported property was found ({}) and '
                             'will be skipped.'.format(property_name_node.text))
 
             return None
 
-        property_type = ThermoMLDataSet.registered_properties[property_name_node.text]
+        property_type = registered_thermoml_properties[property_name_node.text]
 
         return_value = cls(property_type)
 
@@ -1221,8 +1207,6 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
     >>> dataset = ThermoMLDataSet.from_doi_list(*thermoml_keys)
 
     """
-
-    registered_properties = {}
 
     def __init__(self):
 

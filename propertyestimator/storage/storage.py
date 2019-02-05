@@ -6,6 +6,8 @@ import hashlib
 import pickle
 import uuid
 
+from propertyestimator.utils.serialization import serialize_force_field, deserialize_force_field
+
 
 class PropertyEstimatorStorage:
     """An abstract base representation of how the property estimator will interact
@@ -154,7 +156,7 @@ class PropertyEstimatorStorage:
         str
             The hash key of the force field.
         """
-        force_field_pickle = pickle.dumps(force_field.__getstate__())
+        force_field_pickle = pickle.dumps(serialize_force_field(force_field))
         return hashlib.sha256(force_field_pickle).hexdigest()
 
     def has_force_field(self, force_field):
@@ -206,7 +208,7 @@ class PropertyEstimatorStorage:
             The force field if present in the storage system with the given key, otherwise None.
         """
         force_field_key = 'force_field_{}'.format(unique_id)
-        return self.retrieve_object(force_field_key)
+        return deserialize_force_field(self.retrieve_object(force_field_key))
 
     def store_force_field(self, unique_id, force_field):
         """Store the force field in the cached force field
@@ -227,7 +229,7 @@ class PropertyEstimatorStorage:
         hash_string = self._force_field_to_hash(force_field)
         force_field_key = 'force_field_{}'.format(unique_id)
 
-        self.store_object(force_field_key, force_field)
+        self.store_object(force_field_key, serialize_force_field(force_field))
 
         if unique_id not in self._force_field_id_map or hash_string != self._force_field_id_map[unique_id]:
 

@@ -3,6 +3,7 @@ The surrogate modelling estimation layer.
 """
 
 from propertyestimator.layers import register_calculation_layer, PropertyCalculationLayer
+from propertyestimator.utils.serialization import serialize_force_field
 
 
 @register_calculation_layer()
@@ -25,7 +26,7 @@ class SurrogateLayer(PropertyCalculationLayer):
 
             surrogate_future = calculation_backend.submit_task(SurrogateLayer.perform_surrogate_extrapolation,
                                                                physical_property,
-                                                               parameter_set)
+                                                               serialize_force_field(parameter_set))
 
             surrogate_futures.append(surrogate_future)
 
@@ -38,7 +39,7 @@ class SurrogateLayer(PropertyCalculationLayer):
                                                 synchronous)
 
     @staticmethod
-    def perform_surrogate_extrapolation(physical_property, parameter_set, **kwargs):
+    def perform_surrogate_extrapolation(physical_property, parameter_set_dict, **kwargs):
         """A placeholder method that would be used to spawn the surrogate
         model backend.
 
