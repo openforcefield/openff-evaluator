@@ -101,4 +101,4 @@ def test_force_field_serialization():
     force_field = smirnoff.ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
 
     serialized_force_field = serialize_force_field(force_field)
-    deserialized_force_field = deserialize_force_field(serialized_force_field)
+    deserialize_force_field(serialized_force_field)

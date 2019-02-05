@@ -335,7 +335,7 @@ def deserialize_quantity(serialized):
 
 def serialize_force_field(force_field):
 
-        file_buffers = tuple([BytesIO() for index in force_field._XMLTrees])
+        file_buffers = tuple([BytesIO() for _ in force_field._XMLTrees])
 
         force_field.writeFile(file_buffers)
 

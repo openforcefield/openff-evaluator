@@ -15,7 +15,7 @@ from propertyestimator.layers import register_calculation_layer, PropertyCalcula
 from propertyestimator.storage import StoredSimulationData
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import PolymorphicDataType, serialize_force_field, deserialize_force_field
+from propertyestimator.utils.serialization import PolymorphicDataType, serialize_force_field
 from propertyestimator.workflow import WorkflowSchema
 from propertyestimator.workflow import protocols, groups, plugins
 from .layers import CalculationLayerResult
