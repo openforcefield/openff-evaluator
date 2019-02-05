@@ -2,7 +2,6 @@
 their uncertainties
 """
 
-import math
 from collections import Sized
 from collections.abc import Iterable
 
@@ -10,11 +9,42 @@ import numpy as np
 from simtk import unit
 from uncertainties import ufloat
 
+from propertyestimator.utils import statistics
+
 
 class VanillaEstimatedQuantity:
     """A 'bare minimum' implementation of an `EstimatedQuantity` class, which employs
     the uncertainty package to linearly propagate uncertainties through simple arithmetic
     and scalar multiplication / division operations.
+
+    Examples
+    --------
+    To add two **independent** quantities together:
+
+    >>> from simtk import unit
+    >>>
+    >>> a_value = 5 * unit.angstrom
+    >>> a_uncertainty = 0.03 * unit.angstrom
+    >>>
+    >>> b_value = 10 * unit.angstrom
+    >>> b_uncertainty = 0.04 * unit.angstrom
+    >>>
+    >>> quantity_a = VanillaEstimatedQuantity(a_value, a_uncertainty)
+    >>> quantity_b = VanillaEstimatedQuantity(b_value, b_uncertainty)
+    >>>
+    >>> quantity_addition = quantity_a + quantity_b
+
+    To subtract one **independent** quantity from another:
+
+    >>> quantity_subtraction = quantity_b - quantity_a
+
+    To multiply by a scalar:
+
+    >>> quantity_scalar_multiply = quantity_a * 2.0
+
+    To divide by a scalar:
+
+    >>> quantity_scalar_divide = quantity_a / 2.0
     """
 
     @property
@@ -107,16 +137,12 @@ class VanillaEstimatedQuantity:
         return VanillaEstimatedQuantity(result_value, result_uncertainty)
 
     def __eq__(self, other):
-        """
-        """
         if not isinstance(other, VanillaEstimatedQuantity):
             return False
 
         return self.value == other.value and self.uncertainty == other.uncertainty
 
     def __ne__(self, other):
-        """
-        """
         return not self.__eq__(other)
 
     def __ge__(self, other):
@@ -189,6 +215,38 @@ class TaggedEstimatedQuantity(VanillaEstimatedQuantity):
     Care must be taken that the source string is standardised. As an example, this
     design would not work if comparing a quantity whose source is a protocol id, and
     another whose source is a trajectory file name.
+
+    Examples
+    --------
+    To add two **independent** quantities together:
+
+    >>> from simtk import unit
+    >>>
+    >>> a_value = 5 * unit.angstrom
+    >>> a_uncertainty = 0.03 * unit.angstrom
+    >>>
+    >>> b_value = 10 * unit.angstrom
+    >>> b_uncertainty = 0.04 * unit.angstrom
+    >>>
+    >>> quantity_a = TaggedEstimatedQuantity(a_value, a_uncertainty, 'calc_325262315:npt_production')
+    >>> quantity_b = TaggedEstimatedQuantity(b_value, b_uncertainty, 'calc_987234582:npt_production')
+    >>>
+    >>> quantity_addition = quantity_a + quantity_b
+
+    To subtract one **independent** quantity from another:
+
+    >>> quantity_subtraction = quantity_b - quantity_a
+
+    Attempting to add quantities from the same source (i.e probably correlated)
+    will raise a `DependantValuesException`.
+
+    >>> c_value = 5.04 * unit.angstrom
+    >>> c_uncertainty = 0.029 * unit.angstrom
+    >>>
+    >>> quantity_c = TaggedEstimatedQuantity(c_value, c_uncertainty, 'calc_325262315:npt_production')
+    >>>
+    >>> # The below raised a DependantValuesException.
+    >>> quantity_addition = quantity_a + quantity_c
     """
 
     @property
@@ -241,6 +299,35 @@ class ExplicitEstimatedQuantity:
     """An implementation of an `EstimatedQuantity` class, which is almost identical
     to the VanillaEstimatedQuantity implementation, except now all operators have been
     replaced with explicit method calls.
+
+    Examples
+    --------
+    To add two **independent** quantities together:
+
+    >>> from simtk import unit
+    >>>
+    >>> a_value = 5 * unit.angstrom
+    >>> a_uncertainty = 0.03 * unit.angstrom
+    >>>
+    >>> b_value = 10 * unit.angstrom
+    >>> b_uncertainty = 0.04 * unit.angstrom
+    >>>
+    >>> quantity_a = ExplicitEstimatedQuantity(a_value, a_uncertainty)
+    >>> quantity_b = ExplicitEstimatedQuantity(b_value, b_uncertainty)
+    >>>
+    >>> quantity_addition = quantity_a.add_independent_quantity(quantity_b)
+
+    To subtract one **independent** quantity from another:
+
+    >>> quantity_subtraction = quantity_b.sub_independent_quantity(quantity_a)
+
+    To multiply by a scalar:
+
+    >>> quantity_scalar_multiply = quantity_a.multiply_by_scalar(2.0)
+
+    To divide by a scalar:
+
+    >>> quantity_scalar_divide = quantity_a.divide_by_scalar(2.0)
     """
 
     @property
@@ -330,16 +417,12 @@ class ExplicitEstimatedQuantity:
         return ExplicitEstimatedQuantity(result_value, result_uncertainty)
 
     def __eq__(self, other):
-        """
-        """
         if not isinstance(other, ExplicitEstimatedQuantity):
             return False
 
         return self.value == other.value and self.uncertainty == other.uncertainty
 
     def __ne__(self, other):
-        """
-        """
         return not self.__eq__(other)
 
     def __ge__(self, other):
@@ -391,7 +474,47 @@ class ExplicitEstimatedQuantity:
 
 
 class BootstrappedEstimatedQuantity:
-    """
+    """A 'bootstrap everything' implementation of an `EstimatedQuantity` class.
+
+    Examples
+    --------
+    To create an estimated quantity:
+
+    >>> from simtk import unit
+    >>>
+    >>> def bootstrap_function(bootstrap_array):
+    >>>     return bootstrap_array.mean()
+    >>>
+    >>> sample_size = 2000
+    >>>
+    >>> original_data_a = np.random.normal(5, 0.3, sample_size) * unit.angstrom
+    >>>
+    >>> a_bootstrapped = statistics.perform_bootstrapping(bootstrap_function, 1.0,
+    >>>                                                   sample_size, original_data_a)
+    >>>
+    >>> original_data_b = np.random.normal(10, 0.4, sample_size) * unit.angstrom
+    >>>
+    >>> b_bootstrapped = statistics.perform_bootstrapping(bootstrap_function, 1.0,
+    >>>                                                   sample_size, original_data_b)
+    >>>
+    >>> quantity_a = BootstrappedEstimatedQuantity(original_data_a.mean(), a_bootstrapped)
+    >>> quantity_b = BootstrappedEstimatedQuantity(original_data_b.mean(), b_bootstrapped)
+
+    To add two quantities together:
+
+    >>> quantity_addition = quantity_a + quantity_b
+
+    To subtract one quantity from another:
+
+    >>> quantity_subtraction = quantity_b - quantity_a
+
+    To multiply by a scalar:
+
+    >>> quantity_scalar_multiply = quantity_a * 2.0
+
+    To divide by a scalar:
+
+    >>> quantity_scalar_divide = quantity_a / 2.0
     """
 
     @property
@@ -402,7 +525,7 @@ class BootstrappedEstimatedQuantity:
     def uncertainty(self):
         return self._bootstrapped_values.std()
 
-    def __init__(self, value, bootstrapped_values, relative_sample_size=1.0):
+    def __init__(self, value, bootstrapped_values):
         """Constructs a new EstimatedQuantity object.
 
         Parameters
@@ -412,8 +535,6 @@ class BootstrappedEstimatedQuantity:
         bootstrapped_values: np.ndarray of unit.Quantity
             An array of values which were obtained by bootstrapping
             the original data set from which `value` was calculated.
-        relative_sample_size: The relative size of the data set to use when bootstrapping
-            when computing uncertainties.
         """
 
         assert value is not None and bootstrapped_values is not None
@@ -430,79 +551,10 @@ class BootstrappedEstimatedQuantity:
         self._value = value
         self._bootstrapped_values = bootstrapped_values
 
-        self._bootstrap_relative_sample_size = relative_sample_size
-
-    @staticmethod
-    def _get_unitless_array(data_set):
-
-        array_in_default_unit_system = data_set.in_unit_system(unit.md_unit_system)
-
-        array_unit = array_in_default_unit_system.unit
-        unitless_array = data_set.value_in_unit(array_unit)
-
-        return unitless_array, array_unit
-
-    @staticmethod
-    def _perform_bootstrapping(bootstrap_function, relative_sample_size, *data_sets):
-
-        """Performs bootstrapping on a data set to calculate the
-        average value, and the standard error in the average,
-        bootstrapping.
-
-        Parameters
-        ----------
-        data_set: np.ndarray of unit.Quantity
-            The data set to perform bootstrapping on.
-        bootstrap_function: function
-            The function to apply to the bootstrapped data
-
-        Returns
-        -------
-        np.ndarray of unit.Quantity
-            The bootstrapped data.
-        """
-
-        assert len(data_sets) > 0
-
-        # Make a copy of the data so we don't accidentally destroy anything.
-        data_to_bootstrap = []
-
-        data_set_size = len(data_sets[0])
-        data_set_unit = None
-
-        for data_set in data_sets:
-
-            assert data_set_size == len(data_set)
-
-            unitless_array, stripped_unit = BootstrappedEstimatedQuantity._get_unitless_array(data_set)
-
-            if data_set_unit is not None:
-                assert data_set_unit == stripped_unit
-
-            data_set_unit = stripped_unit
-            data_to_bootstrap.append(unitless_array)
-
-        # Choose the sample size as a percentage of the full data set.
-        sample_size = min(math.floor(data_set_size * relative_sample_size), data_set_size)
-
-        evaluated_values = np.zeros(data_set_size)
-
-        for bootstrap_iteration in range(data_set_size):
-
-            sample_datasets = []
-
-            for data_set in data_to_bootstrap:
-
-                sample_indices = np.random.choice(data_set_size, sample_size)
-                sample_datasets.append(data_set[sample_indices])
-
-            evaluated_values[bootstrap_iteration] = bootstrap_function(*sample_datasets)
-
-        return evaluated_values * data_set_unit
-
     def __add__(self, other):
 
         assert isinstance(other, BootstrappedEstimatedQuantity)
+        assert len(self._bootstrapped_values) == len(other._bootstrapped_values)
 
         def bootstrap_function(*sample_data_sets):
 
@@ -512,10 +564,11 @@ class BootstrappedEstimatedQuantity:
             result_array = data_set_a + data_set_b
             return result_array.mean()
 
-        bootstrap_results = self._perform_bootstrapping(bootstrap_function,
-                                                        self._bootstrap_relative_sample_size,
-                                                        self._bootstrapped_values,
-                                                        other._bootstrapped_values)
+        bootstrap_results = statistics.perform_bootstrapping(bootstrap_function,
+                                                             1.0,
+                                                             len(self._bootstrapped_values),
+                                                             self._bootstrapped_values,
+                                                             other._bootstrapped_values)
 
         result_value = self.value + other.value
 
@@ -524,6 +577,7 @@ class BootstrappedEstimatedQuantity:
     def __sub__(self, other):
 
         assert isinstance(other, BootstrappedEstimatedQuantity)
+        assert len(self._bootstrapped_values) == len(other._bootstrapped_values)
 
         def bootstrap_function(*sample_data_sets):
 
@@ -533,10 +587,11 @@ class BootstrappedEstimatedQuantity:
             result_array = data_set_a - data_set_b
             return result_array.mean()
 
-        bootstrap_results = self._perform_bootstrapping(bootstrap_function,
-                                                        self._bootstrap_relative_sample_size,
-                                                        self._bootstrapped_values,
-                                                        other._bootstrapped_values)
+        bootstrap_results = statistics.perform_bootstrapping(bootstrap_function,
+                                                             1.0,
+                                                             len(self._bootstrapped_values),
+                                                             self._bootstrapped_values,
+                                                             other._bootstrapped_values)
 
         result_value = self.value - other.value
 
@@ -546,7 +601,7 @@ class BootstrappedEstimatedQuantity:
         # We only support multiplication by a scalar here.
         assert np.issubdtype(type(other), float) or np.issubdtype(type(other), int)
 
-        multiplied_bootstraps, bootstrap_unit = BootstrappedEstimatedQuantity._get_unitless_array(
+        multiplied_bootstraps, bootstrap_unit = statistics.get_unitless_array(
             self._bootstrapped_values)
 
         multiplied_bootstraps *= other
@@ -560,7 +615,7 @@ class BootstrappedEstimatedQuantity:
     def __truediv__(self, other):
         assert np.issubdtype(type(other), float) or np.issubdtype(type(other), int)
 
-        multiplied_bootstraps, bootstrap_unit = BootstrappedEstimatedQuantity._get_unitless_array(
+        multiplied_bootstraps, bootstrap_unit = statistics.get_unitless_array(
             self._bootstrapped_values)
 
         multiplied_bootstraps /= other
@@ -569,8 +624,6 @@ class BootstrappedEstimatedQuantity:
         return BootstrappedEstimatedQuantity(self._value / other, multiplied_bootstraps)
 
     def __eq__(self, other):
-        """
-        """
         if not isinstance(other, BootstrappedEstimatedQuantity):
             return False
 
@@ -584,8 +637,6 @@ class BootstrappedEstimatedQuantity:
         return self.value == other.value
 
     def __ne__(self, other):
-        """
-        """
         return not self.__eq__(other)
 
     def __ge__(self, other):

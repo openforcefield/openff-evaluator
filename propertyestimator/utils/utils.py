@@ -139,3 +139,31 @@ def setup_timestamp_logging():
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     logger.addHandler(screen_handler)
+
+
+def get_unitless_array(array):
+    """Separates a simtk.unit.Quantitiy np.ndarray array into a
+    tuple of the unitless array and its original unit.
+
+    Parameters
+    ----------
+    array: np.ndarray of unit.Quantity
+        The array to separate.
+
+    Returns
+    -------
+    np.ndarray of float
+        The unitless array.
+    simtk.unit.Quantity
+        The corresponding unit of the array.
+    """
+
+    from simtk import unit
+    assert isinstance(array, unit.Quantity)
+
+    array_in_default_unit_system = array.in_unit_system(unit.md_unit_system)
+
+    array_unit = array_in_default_unit_system.unit
+    unitless_array = array.value_in_unit(array_unit)
+
+    return unitless_array, array_unit

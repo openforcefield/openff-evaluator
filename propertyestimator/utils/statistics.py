@@ -2,12 +2,15 @@
 A collection of classes for loading and manipulating statistics data files.
 """
 
+import math
 from enum import Enum
 from io import StringIO
 
 import numpy as np
 import pandas as pd
 from simtk import unit
+
+from .utils import get_unitless_array
 
 
 class AvailableQuantities(Enum):
@@ -204,3 +207,67 @@ class Statistics:
 
         data_frame = pd.DataFrame(data=data, columns=columns)
         data_frame.to_csv(file_path)
+
+
+def perform_bootstrapping(bootstrap_function, relative_sample_size, iterations, *data_sets):
+
+    """Performs bootstrapping on a data set to calculate the
+    average value, and the standard error in the average,
+    bootstrapping.
+
+    Parameters
+    ----------
+    bootstrap_function: function
+        The function to apply to the bootstrapped data
+    relative_sample_size: float
+        The relative size of the data set to bootstrap on (i.e
+        `sample size = data_set_size * relative_sample_size`).
+    iterations: int
+        The number of bootstrap iterations to perform.
+    data_sets: np.ndarray of unit.Quantity
+        The data sets to sample bootstrap. The data sets
+        passed in must have the same number of samples.
+
+    Returns
+    -------
+    np.ndarray of unit.Quantity
+        The bootstrapped data.
+    """
+
+    assert len(data_sets) > 0
+
+    # Make a copy of the data so we don't accidentally destroy anything.
+    data_to_bootstrap = []
+
+    data_set_size = len(data_sets[0])
+    data_set_unit = None
+
+    for data_set in data_sets:
+
+        assert data_set_size == len(data_set)
+
+        unitless_array, stripped_unit = get_unitless_array(data_set)
+
+        if data_set_unit is not None:
+            assert data_set_unit == stripped_unit
+
+        data_set_unit = stripped_unit
+        data_to_bootstrap.append(unitless_array)
+
+    # Choose the sample size as a percentage of the full data set.
+    sample_size = min(math.floor(data_set_size * relative_sample_size), data_set_size)
+
+    evaluated_values = np.zeros(iterations)
+
+    for bootstrap_iteration in range(iterations):
+
+        sample_datasets = []
+
+        for data_set in data_to_bootstrap:
+
+            sample_indices = np.random.choice(data_set_size, sample_size)
+            sample_datasets.append(data_set[sample_indices])
+
+        evaluated_values[bootstrap_iteration] = bootstrap_function(*sample_datasets)
+
+    return evaluated_values * data_set_unit
