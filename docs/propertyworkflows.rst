@@ -23,7 +23,6 @@ Built-in Properties
 
     Density
     DielectricConstant
-    Enthalpy
     EnthalpyOfMixing
 
 Workflow Components
@@ -64,6 +63,8 @@ Built in Protocols
     AverageTrajectoryProperty
     ExtractUncorrelatedData
     ExtractUncorrelatedTrajectoryData
+    AddQuantities
+    SubtractQuantities
 
 Protocol Groups
 
