@@ -4,7 +4,7 @@ import logging
 import shutil
 from os import path
 
-from propertyestimator.datasets import ThermoMLDataSet
+from propertyestimator.datasets import ThermoMLDataSet, PhysicalPropertyDataSet
 from propertyestimator import client, server
 from propertyestimator.backends import PropertyEstimatorBackendResources, DaskLocalClusterBackend
 from propertyestimator.storage import LocalFileStorage
@@ -23,7 +23,14 @@ def run_property_estimator():
     if path.isdir(working_directory):
         shutil.rmtree(working_directory)
 
-    data_set = ThermoMLDataSet.from_file_list(get_data_filename('properties/single_density.xml'))
+    complete_data_set = ThermoMLDataSet.from_file_list(get_data_filename('properties/JCT/j.jct.2008.12.004.xml'))
+
+    data_set = PhysicalPropertyDataSet()
+
+    data_set.properties['[CH3].C1CCCCC1{0.074}|[H].CCCCCC{0.926}'] = \
+        complete_data_set.properties['[CH3].C1CCCCC1{0.074}|[H].CCCCCC{0.926}']
+
+    # data_set = ThermoMLDataSet.from_file_list(get_data_filename('properties/single_density.xml'))
     # data_set = ThermoMLDataSet.from_file_list(get_data_filename('properties/single_dielectric.xml'))
 
     # data_set = ThermoMLDataSet.from_file_list(get_data_filename('properties/single_density.xml'),
@@ -32,8 +39,6 @@ def run_property_estimator():
     # data_set = ThermoMLDataSet.from_file_list(get_data_filename('properties/density_dielectric.xml'))
     # data_set = ThermoMLDataSet.from_file_list(get_data_filename('properties/two_species.xml'))
     # data_set = ThermoMLDataSet.from_file_list(get_data_filename('properties/binary.xml'))
-    # data_set = ThermoMLDataSet.from_file_list(get_data_filename('properties/fake_data.xml'))
-    # data_set = ThermoMLDataSet.from_file_list(get_data_filename('properties/j.jct.2007.09.004.xml'))
 
     force_field = smirnoff.ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
 

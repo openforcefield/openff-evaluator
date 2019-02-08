@@ -131,7 +131,7 @@ class Mixture(Substance):
 
         def __eq__(self, other):
 
-            return (self.smiles == other.self and
+            return (self.smiles == other.smiles and
                     self.mole_fraction == other.mole_fraction and
                     self.impurity == other.impurity)
 
