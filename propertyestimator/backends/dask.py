@@ -9,10 +9,6 @@ from dask import distributed
 from .backends import PropertyEstimatorBackend, PropertyEstimatorBackendResources
 
 
-# =============================================================================================
-# Base Backend Definition
-# =============================================================================================
-
 class DaskLocalClusterBackend(PropertyEstimatorBackend):
     """A property estimator backend which uses a dask `LocalCluster` to
     run calculations.

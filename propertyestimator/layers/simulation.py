@@ -13,17 +13,15 @@ import mdtraj
 
 from propertyestimator.layers import register_calculation_layer, PropertyCalculationLayer
 from propertyestimator.storage import StoredSimulationData
+from propertyestimator.substances import Mixture
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import PolymorphicDataType, serialize_force_field
 from propertyestimator.workflow import WorkflowSchema
 from propertyestimator.workflow import protocols, groups, plugins
+from propertyestimator.workflow.utils import ProtocolPath
 from .layers import CalculationLayerResult
 
-
-# =============================================================================================
-# Direct Calculation Classes
-# =============================================================================================
 
 class DirectCalculation:
     """Encapsulates and prepares the workflow needed to calculate a physical
@@ -61,10 +59,20 @@ class DirectCalculation:
 
         self.schema = WorkflowSchema.parse_raw(schema.json())
 
+        components = []
+
+        for component in physical_property.substance.components:
+
+            mixture = Mixture()
+            mixture.add_component(component.smiles, 1.0, False)
+
+            components.append(mixture)
+
         # Define a dictionary of accessible 'global' properties.
         self.global_properties = {
             "thermodynamic_state": physical_property.thermodynamic_state,
             "substance": physical_property.substance,
+            "components": components,
             "target_uncertainty": physical_property.uncertainty * options.relative_uncertainty,
             "force_field_path": force_field_path
         }
@@ -79,6 +87,33 @@ class DirectCalculation:
             self.global_properties['target_uncertainty'] = unit.Quantity(self.global_properties['target_uncertainty'],
                                                                          physical_property.uncertainty.unit)
 
+        self._build_protocols()
+
+        self._build_dependants_graph()
+        self.update_schema()
+
+        self.final_value_source = copy.deepcopy(self.schema.final_value_source)
+        self.final_value_source.append_uuid(self.uuid)
+
+        self.final_uncertainty_source = copy.deepcopy(self.schema.final_uncertainty_source)
+        self.final_uncertainty_source.append_uuid(self.uuid)
+
+        if self.schema.final_trajectory_source is not None:
+
+            self.final_trajectory_source = copy.deepcopy(self.schema.final_trajectory_source)
+            self.final_trajectory_source.append_uuid(self.uuid)
+
+        if self.schema.final_coordinate_source is not None:
+
+            self.final_coordinate_source = copy.deepcopy(self.schema.final_coordinate_source)
+            self.final_coordinate_source.append_uuid(self.uuid)
+
+    def _build_protocols(self):
+        """Creates a set of protocols based on this calculations WorkflowSchema.
+        """
+        for replicator in self.schema.replicators:
+            self._build_replicated_protocols(replicator)
+
         for protocol_name in self.schema.protocols:
 
             protocol_schema = self.schema.protocols[protocol_name]
@@ -89,15 +124,35 @@ class DirectCalculation:
             # Try to set global properties on each of the protocols
             for input_path in protocol.required_inputs:
 
+                input_values = protocol.get_value_references(input_path)
+                values = {}
+
+                for input_value in input_values:
+
+                    if not input_value.is_global:
+                        continue
+
+                    values[input_value] = self.global_properties[input_value.property_name]
+
                 input_value = protocol.get_value(input_path)
 
-                if not isinstance(input_value, protocols.ProtocolPath):
-                    continue
+                if isinstance(input_value, ProtocolPath) and input_value in values:
+                    protocol.set_value(input_path, values[input_value])
 
-                if not input_value.is_global:
-                    continue
+                elif isinstance(input_value, list):
 
-                protocol.set_value(input_path, self.global_properties[input_value.property_name])
+                    value_list = []
+
+                    for target_value in input_value:
+
+                        if not isinstance(target_value, ProtocolPath):
+                            value_list.append(target_value)
+                        elif target_value in values:
+                            value_list.append(values[target_value])
+                        else:
+                            value_list.append(target_value)
+
+                    protocol.set_value(input_path, value_list)
 
             if isinstance(protocol, groups.ConditionalGroup):
 
@@ -109,27 +164,161 @@ class DirectCalculation:
                         condition.left_hand_value = self.global_properties[left_value.property_name]
 
                     right_value = condition.right_hand_value
-        
+
                     if isinstance(right_value, protocols.ProtocolPath) and right_value.is_global:
                         condition.right_hand_value = self.global_properties[right_value.property_name]
 
             protocol.set_uuid(self.uuid)
             self.protocols[protocol.id] = protocol
 
-        self._build_dependants_graph()
-        self.update_schema()
+    def _build_replicated_protocols(self, replicator):
+        """A method to create a set of protocol schemas based on a ProtocolReplicator,
+        and add them to the list of existing schemas.
 
-        self.final_value_source = copy.deepcopy(self.schema.final_value_source)
-        self.final_value_source.append_uuid(self.uuid)
+        Parameters
+        ----------
+        replicator: :obj:`ProtocolReplicator`
+            The replicator which describes which new protocols should
+            be created.
+        """
 
-        self.final_uncertainty_source = copy.deepcopy(self.schema.final_uncertainty_source)
-        self.final_uncertainty_source.append_uuid(self.uuid)
+        template_values = replicator.template_values.value
 
-        self.final_trajectory_source = copy.deepcopy(self.schema.final_trajectory_source)
-        self.final_trajectory_source.append_uuid(self.uuid)
+        # Get the list of values which will be passed to the newly created protocols -
+        # in particular those specified by `generator_protocol.template_targets`
+        if isinstance(template_values, ProtocolPath):
 
-        self.final_coordinate_source = copy.deepcopy(self.schema.final_coordinate_source)
-        self.final_coordinate_source.append_uuid(self.uuid)
+            if not template_values.is_global:
+
+                raise ValueError('Template values must either be a constant or come'
+                                 'from the global scope (and not from {})'.format(template_values))
+
+            template_values = self.global_properties[template_values.property_name]
+
+        replicated_protocols = []
+
+        # Replicate the protocols.
+        for protocol_path in replicator.protocols_to_replicate:
+
+            if protocol_path.start_protocol in replicated_protocols:
+                continue
+
+            replicated_protocols.append(protocol_path.start_protocol)
+
+            schema_to_replicate = self.schema.protocols[protocol_path.start_protocol]
+
+            if protocol_path.start_protocol == protocol_path.last_protocol:
+
+                # If the protocol is not a group, replicate the protocol directly.
+                for index in range(len(template_values)):
+
+                    replicated_schema_id = schema_to_replicate.id.replace('$index', str(index))
+
+                    protocol = plugins.available_protocols[schema_to_replicate.type](replicated_schema_id)
+                    protocol.schema = schema_to_replicate
+
+                    # If this protocol references other protocols which are being
+                    # replicated, point it to the replicated version with the same index.
+                    for other_path in replicator.protocols_to_replicate:
+
+                        _, other_path_components = ProtocolPath.to_components(other_path.full_path)
+
+                        for protocol_id_to_rename in other_path_components:
+
+                            protocol.replace_protocol(protocol_id_to_rename,
+                                                      protocol_id_to_rename.replace('$index', str(index)))
+
+                    self.schema.protocols[protocol.id] = protocol.schema
+
+                self.schema.protocols.pop(protocol_path.start_protocol)
+
+            else:
+
+                # Otherwise, let the group replicate its own protocols.
+                protocol = plugins.available_protocols[schema_to_replicate.type](schema_to_replicate.id)
+                protocol.schema = schema_to_replicate
+
+                protocol.apply_replicator(replicator, template_values)
+                self.schema.protocols[protocol.id] = protocol.schema
+
+            # Go through all of the newly created protocols, and update
+            # their references and their values if targeted by the replicator.
+            for index, template_value in enumerate(template_values):
+
+                protocol_id = schema_to_replicate.id.replace('$index', str(index))
+
+                protocol_schema = self.schema.protocols[protocol_id]
+
+                protocol = plugins.available_protocols[protocol_schema.type](protocol_schema.id)
+                protocol.schema = protocol_schema
+
+                template_value = template_values[index]
+
+                # Pass the template values to the target protocols.
+                for template_target in replicator.template_targets:
+
+                    if template_target.start_protocol != schema_to_replicate.id:
+                        continue
+
+                    indexed_target = ProtocolPath.from_string(
+                        template_target.full_path.replace('$index', str(index)))
+
+                    protocol.set_value(indexed_target, template_value)
+
+                self.schema.protocols[protocol_id] = protocol.schema
+
+        # Find any non-replicated protocols which take input from the replication templates,
+        # and redirect the path to point to the actual replicated protocol.
+        for protocol_id in self.schema.protocols:
+
+            protocol_schema = self.schema.protocols[protocol_id]
+
+            protocol = plugins.available_protocols[protocol_schema.type](protocol_schema.id)
+            protocol.schema = protocol_schema
+
+            # Look at each of the protocols inputs and see if its value is either a ProtocolPath,
+            # or a list of ProtocolPath's.
+            for required_input in protocol.required_inputs:
+
+                input_values = [value for value in protocol.get_value_references(required_input) if
+                                replicator.replicates_protocol_or_child(value)]
+
+                if len(input_values) == 0:
+                    continue
+
+                generated_path_list = {}
+
+                for input_value in input_values:
+
+                    # Replace the input value with a list of ProtocolPath's that point to
+                    # the newly generated protocols.
+                    path_list = [ProtocolPath.from_string(input_value.full_path.replace('$index', str(index)))
+                                 for index in range(len(template_values))]
+
+                    generated_path_list[input_value] = path_list
+
+                input_value = protocol.get_value(required_input)
+
+                if isinstance(input_value, ProtocolPath):
+
+                    protocol.set_value(required_input, generated_path_list[input_value])
+                    continue
+
+                new_list_value = []
+
+                for value in input_value:
+
+                    if not isinstance(value, ProtocolPath):
+
+                        new_list_value.append(value)
+                        continue
+
+                    new_list_value.extend(generated_path_list[value])
+
+                protocol.set_value(required_input, new_list_value)
+
+            # Update the schema of the modified protocol.
+            self.schema.protocols[protocol_id] = protocol.schema
 
     def _build_dependants_graph(self):
         """Builds a dictionary of key value pairs where each key represents the id of a
@@ -227,6 +416,8 @@ class DirectCalculation:
 
     def update_schema(self):
 
+        self.schema.protocols = {}
+
         for protocol_id in self.protocols:
 
             protocol = self.protocols[protocol_id]
@@ -256,8 +447,8 @@ class DirectCalculationGraph:
 
         self._calculations_to_run = {}
 
-    def _insert_node(self, protocol_name, calculation, parent_node_name=None):
-        """Recursively inserts a protocol node into the tree.
+    def _insert_node(self, protocol_name, calculation, parent_node_ids):
+        """Inserts a protocol into the calculation graph.
 
         Parameters
         ----------
@@ -265,8 +456,8 @@ class DirectCalculationGraph:
             The name of the protocol to insert.
         calculation : DirectCalculation
             The calculation being inserted.
-        parent_node_name : str, optional
-            The name of the new parent of the node to be inserted. If None,
+        parent_node_ids : List[str]
+            The ids of the new parents of the node to be inserted. If None,
             the protocol will be added as a new parent node.
         """
 
@@ -275,7 +466,10 @@ class DirectCalculationGraph:
             raise RuntimeError('A protocol with id ' + protocol_name + ' has already been inserted'
                                                                        ' into the graph.')
 
-        nodes = self._root_nodes if parent_node_name is None else self._dependants_graph[parent_node_name]
+        nodes = self._root_nodes if len(parent_node_ids) == 0 else []
+
+        for parent_node_id in parent_node_ids:
+            nodes.extend(x for x in self._dependants_graph[parent_node_id] if x not in nodes)
 
         protocol_to_insert = calculation.protocols[protocol_name]
         existing_node = None
@@ -283,6 +477,9 @@ class DirectCalculationGraph:
         # Start by checking to see if the starting node of the calculation graph is
         # already present in the full graph.
         for node_id in nodes:
+
+            if node_id in calculation.protocols:
+                continue
 
             node = self._nodes_by_id[node_id]
 
@@ -304,11 +501,16 @@ class DirectCalculationGraph:
 
         else:
 
-            parent_node = None if parent_node_name is None else self._nodes_by_id[parent_node_name]
-            root_directory = self._root_directory if parent_node_name is None else None
+            # parent_node = None if parent_node_name is None else self._nodes_by_id[parent_node_name]
+            root_directory = self._root_directory if len(parent_node_ids) == 1 else None
 
-            protocol_to_insert.directory = protocol_to_insert.id if parent_node is None \
-                else path.join(parent_node.directory, protocol_to_insert.id)
+            if len(parent_node_ids) != 1:
+
+                protocol_to_insert.directory = protocol_to_insert.id
+            else:
+
+                parent_node = self._nodes_by_id[parent_node_ids[0]]
+                protocol_to_insert.directory = path.join(parent_node.directory, protocol_to_insert.id)
 
             if root_directory is not None:
 
@@ -321,25 +523,20 @@ class DirectCalculationGraph:
             existing_node = self._nodes_by_id[protocol_name]
             self._dependants_graph[protocol_name] = []
 
-            if parent_node_name is None:
+            if len(parent_node_ids) == 0:
                 self._root_nodes.append(protocol_name)
             else:
 
                 for node_id in calculation.dependants_graph:
 
                     if (protocol_name not in calculation.dependants_graph[node_id] or
-                       node_id in self._dependants_graph[protocol_name]):
+                        node_id in self._dependants_graph[protocol_name]):
 
                         continue
 
                     self._dependants_graph[node_id].append(protocol_name)
 
-        reduced_graph = copy.deepcopy(calculation.dependants_graph)
-        graph.apply_transitive_reduction(reduced_graph)
-
-        # Add all of the dependants to the existing node
-        for dependant_name in reduced_graph[existing_node.id]:
-            self._insert_node(dependant_name, calculation, existing_node.id)
+        return existing_node.id
 
     def add_calculation(self, calculation):
         """Insert a calculation into the calculation graph.
@@ -358,8 +555,24 @@ class DirectCalculationGraph:
 
         self._calculations_to_run[calculation.uuid] = calculation
 
-        for starting_protocol_name in calculation.starting_protocols:
-            self._insert_node(starting_protocol_name, calculation)
+        protocol_execution_order = graph.topological_sort(calculation.dependants_graph)
+
+        reduced_protocol_dependants = copy.deepcopy(calculation.dependants_graph)
+        graph.apply_transitive_reduction(reduced_protocol_dependants)
+
+        parent_protocol_ids = {}
+
+        for protocol_id in protocol_execution_order:
+
+            parent_ids = parent_protocol_ids.get(protocol_id) or []
+            inserted_id = self._insert_node(protocol_id, calculation, parent_ids)
+
+            for dependant in reduced_protocol_dependants[protocol_id]:
+
+                if dependant not in parent_protocol_ids:
+                    parent_protocol_ids[dependant] = []
+
+                parent_protocol_ids[dependant].append(inserted_id)
 
         self._calculations_to_run[calculation.uuid].update_schema()
 
@@ -504,18 +717,37 @@ class DirectCalculationGraph:
 
         for input_path in protocol.required_inputs:
 
-            target_path = protocol.get_value(input_path)
+            target_paths = protocol.get_value_references(input_path)
+            values = {}
 
-            if not isinstance(target_path, protocols.ProtocolPath):
-                continue
+            for target_path in target_paths:
 
-            if (target_path.start_protocol == input_path.start_protocol or
-                target_path.start_protocol == protocol.id):
+                if (target_path.start_protocol == input_path.start_protocol or
+                    target_path.start_protocol == protocol.id):
 
-                continue
+                    continue
 
-            input_value = parent_outputs_by_path[target_path]
-            protocol.set_value(input_path, input_value)
+                values[target_path] = parent_outputs_by_path[target_path]
+
+            input_value = protocol.get_value(input_path)
+
+            if isinstance(input_value, ProtocolPath) and input_value in values:
+                protocol.set_value(input_path, values[input_value])
+
+            elif isinstance(input_value, list):
+
+                value_list = []
+
+                for target_value in input_value:
+
+                    if not isinstance(target_value, ProtocolPath):
+                        value_list.append(target_value)
+                    elif target_value in values:
+                        value_list.append(values[target_value])
+                    else:
+                        value_list.append(target_value)
+
+                protocol.set_value(input_path, value_list)
 
         if isinstance(protocol, groups.ConditionalGroup):
 
@@ -540,7 +772,7 @@ class DirectCalculationGraph:
         try:
             output_dictionary = protocol.execute(directory, available_resources)
         except Exception as e:
-            # Except the unexpected...
+            # Except the unexcepted...
             formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
             return protocol.id, PropertyEstimatorException(directory=directory,
@@ -621,10 +853,6 @@ class DirectCalculationGraph:
 
         return return_object
 
-
-# =============================================================================================
-# Simulation Layer
-# =============================================================================================
 
 @register_calculation_layer()
 class SimulationLayer(PropertyCalculationLayer):

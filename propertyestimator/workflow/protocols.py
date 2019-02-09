@@ -82,12 +82,16 @@ class BaseProtocol:
 
         for input_path in self.required_inputs:
 
-            input_value = self.get_value(input_path)
+            input_values = self.get_value_references(input_path)
 
-            if not isinstance(input_value, ProtocolPath):
+            if len(input_values) == 0:
                 continue
 
-            if input_value not in return_dependencies:
+            for input_value in input_values:
+
+                if input_value in return_dependencies:
+                    continue
+
                 return_dependencies.append(input_value)
 
         return return_dependencies
@@ -191,7 +195,7 @@ class BaseProtocol:
 
         for input_full_path in schema_value.inputs:
 
-            value = schema_value.inputs[input_full_path].value
+            value = copy.deepcopy(schema_value.inputs[input_full_path].value)
 
             if isinstance(value, dict) and 'unit' in value and 'unitless_value' in value:
                 value = deserialize_quantity(value)
@@ -232,9 +236,10 @@ class BaseProtocol:
         for input_path in self.required_inputs:
 
             input_path.append_uuid(value)
-            input_value = self.get_value(input_path)
 
-            if isinstance(input_value, ProtocolPath):
+            input_values = self.get_value_references(input_path)
+
+            for input_value in input_values:
                 input_value.append_uuid(value)
 
         for output_path in self.provided_outputs:
@@ -265,13 +270,16 @@ class BaseProtocol:
                                                          input_path.start_protocol != self.id):
                 continue
 
-            input_value = self.get_value(input_path)
+            input_values = self.get_value_references(input_path)
 
-            if isinstance(input_value, ProtocolPath):
+            for input_value in input_values:
                 input_value.replace_protocol(old_id, new_id)
 
         for output_path in self.provided_outputs:
             output_path.replace_protocol(old_id, new_id)
+
+        if self._id == old_id:
+            self._id = new_id
 
     def can_merge(self, other):
         """Determines whether this protocol can be merged with another.
@@ -377,6 +385,44 @@ class BaseProtocol:
 
         return {}
 
+    def get_value_references(self, input_path):
+        """Returns a list of references to the protocols which one of this
+        protocols inputs (specified by `input_path`) takes its value from.
+
+        Notes
+        -----
+        Currently this method only functions correctly for an input value which
+        is either currently a :obj:`ProtocolPath`, or a `list` which contains a
+        :obj:`ProtocolPath`.
+
+         Parameters
+         ----------
+         input_path: :obj:`propertyestimator.workflow.utils.ProtocolPath`
+            The input value to check.
+
+        Returns
+        -------
+        List[:obj:`propertyestimator.workflow.utils.ProtocolPath`]
+            A list of path pointed to by the value specified by `input_path`. If the value is a
+            constant, an empty list is returned.
+        """
+        input_value = self.get_value(input_path)
+
+        if isinstance(input_value, ProtocolPath):
+            return [input_value]
+
+        if not isinstance(input_value, list):
+            return []
+
+        return_paths = []
+
+        for list_value in input_value:
+
+            if isinstance(list_value, ProtocolPath):
+                return_paths.append(list_value)
+
+        return return_paths
+
     def get_attribute_type(self, reference_path):
         """Returns the type of one of the protocol input/output attributes.
 
@@ -447,6 +493,18 @@ class BaseProtocol:
             raise ValueError('Output values cannot be set by this method.')
 
         setattr(self, reference_path.property_name, value)
+
+    def apply_replicator(self, replicator, template_values):
+        """Applies a `ProtocolReplicator` to this protocol.
+
+        Parameters
+        ----------
+        replicator: :obj:`ProtocolReplicator`
+            The replicator to apply.
+        template_values
+            The values to pass to each of the replicated protocols.
+        """
+        raise ValueError('The {} protocol does not contain any protocols to replicate.'.format(self.id))
 
 
 @register_calculation_protocol()
@@ -1223,4 +1281,84 @@ class ExtractUncorrelatedTrajectoryData(ExtractUncorrelatedData):
 
         logging.info('Trajectory subsampled: {}'.format(self.id))
 
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class AddQuantities(BaseProtocol):
+    """A protocol to add together a list of values.
+
+    Notes
+    -----
+    The `values` input must either be a list of unit.Quantity, a ProtocolPath to a list
+    of unit.Quantity, or a list of ProtocolPath which each point to a unit.Quantity.
+    """
+
+    @protocol_input(list)
+    def values(self):
+        """The values to add together."""
+        pass
+
+    @protocol_output(unit.Quantity)
+    def result(self):
+        """The sum of the values."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new AddQuantities object."""
+        super().__init__(protocol_id)
+
+        self._values = None
+        self._result = None
+
+    def execute(self, directory, available_resources):
+
+        self._result = None
+
+        for value in self._values:
+
+            if self._result is None:
+
+                self._result = value
+                continue
+
+            self._result += value
+
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class SubtractQuantities(BaseProtocol):
+    """A protocol to subtract one value from another such that:
+
+    `result = value_b - value_a`
+    """
+
+    @protocol_input(unit.Quantity)
+    def value_a(self):
+        """`value_a` in the formula `result = value_b - value_a`"""
+        pass
+
+    @protocol_input(unit.Quantity)
+    def value_b(self):
+        """`value_b` in the formula  `result = value_b - value_a`"""
+        pass
+
+    @protocol_output(unit.Quantity)
+    def result(self):
+        """The sum of the values."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new AddQuantities object."""
+        super().__init__(protocol_id)
+
+        self._value_a = None
+        self._value_b = None
+
+        self._result = None
+
+    def execute(self, directory, available_resources):
+
+        self._result = self._value_b - self._value_a
         return self._get_output_dictionary()
