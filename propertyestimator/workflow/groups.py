@@ -378,7 +378,7 @@ class ProtocolGroup(BaseProtocol):
             The name of the other protocol to attempt to merge.
         other_group : ProtocolGroup
             The other protocol group which the protocol to merge belongs to.
-        parent_ids : str, optional
+        parent_ids : List[str]
             The ids of the new parents of the node to be inserted. If None,
             the protocol will be added as a new parent node.
         merged_ids : Dict[str, str]
@@ -854,6 +854,14 @@ class ConditionalGroup(ProtocolGroup):
         return merged_ids
 
     def add_condition(self, condition_to_add):
+        """Adds a condition to this groups list of conditions if it
+        not already in the condition list.
+
+        Parameters
+        ----------
+        condition_to_add: :obj:`ConditionalGroup.Condition`
+            The condition to add.
+        """
 
         for condition in self._conditions:
 

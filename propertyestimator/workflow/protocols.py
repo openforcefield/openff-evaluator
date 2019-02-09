@@ -397,12 +397,12 @@ class BaseProtocol:
 
          Parameters
          ----------
-         input_path: :obj:`ProtocolPath`
+         input_path: :obj:`propertyestimator.workflow.utils.ProtocolPath`
             The input value to check.
 
         Returns
         -------
-        List[:obj:`ProtocolPath`]
+        List[:obj:`propertyestimator.workflow.utils.ProtocolPath`]
             A list of path pointed to by the value specified by `input_path`. If the value is a
             constant, an empty list is returned.
         """
