@@ -6,6 +6,7 @@ from mdtraj import Trajectory
 
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
+from propertyestimator.utils.statistics import StatisticsArray
 
 
 class StoredSimulationData:
@@ -24,6 +25,7 @@ class StoredSimulationData:
         self.effective_samples: int = 0
 
         self.trajectory_data: Trajectory = None
+        self.statistics_data: StatisticsArray = None
 
         self.parameter_set_id: str = None
 

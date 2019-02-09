@@ -6,7 +6,7 @@ from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.properties import PhysicalProperty
 from propertyestimator.thermodynamics import Ensemble
-from propertyestimator.utils.statistics import AvailableQuantities
+from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow import WorkflowSchema
 from propertyestimator.workflow import protocols, groups
 from propertyestimator.workflow.utils import ProtocolPath
@@ -83,7 +83,7 @@ class Density(PhysicalProperty):
 
         extract_density = protocols.ExtractAverageStatistic('extract_density')
 
-        extract_density.statistics_type = AvailableQuantities.Density
+        extract_density.statistics_type = ObservableType.Density
         extract_density.statistics_path = ProtocolPath('statistics_file_path', npt_production.id)
 
         # Set up a conditional group to ensure convergence of uncertainty

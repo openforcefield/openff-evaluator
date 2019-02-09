@@ -823,7 +823,7 @@ class RunOpenMMSimulation(BaseProtocol):
         # Save the newly generated statistics data as a pandas csv file.
         pressure = None if self._ensemble == Ensemble.NVT else self._thermodynamic_state.pressure
 
-        working_statistics = statistics.Statistics.from_openmm_csv(self._temporary_statistics_path, pressure)
+        working_statistics = statistics.StatisticsArray.from_openmm_csv(self._temporary_statistics_path, pressure)
         working_statistics.save_as_pandas_csv(self._statistics_file_path)
 
         positions = self._simulation_object.context.getState(getPositions=True).getPositions()
@@ -1095,7 +1095,7 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
         """The file path to the trajectory to average over."""
         pass
 
-    @protocol_input(statistics.AvailableQuantities)
+    @protocol_input(statistics.ObservableType)
     def statistics_type(self):
         """The file path to the trajectory to average over."""
         pass
@@ -1105,7 +1105,7 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
         super().__init__(protocol_id)
 
         self._statistics_path = None
-        self._statistics_type = statistics.AvailableQuantities.PotentialEnergy
+        self._statistics_type = statistics.ObservableType.PotentialEnergy
 
         self._statistics = None
 
@@ -1119,9 +1119,9 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
                                               message='The ExtractAverageStatistic protocol '
                                                        'requires a previously calculated statistics file')
 
-        self._statistics = statistics.Statistics.from_pandas_csv(self.statistics_path)
+        self._statistics = statistics.StatisticsArray.from_pandas_csv(self.statistics_path)
 
-        values = self._statistics.get_statistics(self._statistics_type)
+        values = self._statistics.get_observable(self._statistics_type)
 
         if values is None or len(values) == 0:
 
