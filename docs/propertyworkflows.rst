@@ -56,7 +56,7 @@ Built in Protocols
     :toctree: api/generated/
 
     BuildCoordinatesPackmol
-    BuildSmirnoffTopology
+    BuildSmirnoffSystem
     RunEnergyMinimisation
     RunOpenMMSimulation
     AveragePropertyProtocol

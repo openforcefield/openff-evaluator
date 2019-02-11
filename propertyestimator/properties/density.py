@@ -30,7 +30,7 @@ class Density(PhysicalProperty):
 
         schema.protocols[build_coordinates.id] = build_coordinates.schema
 
-        assign_topology = protocols.BuildSmirnoffTopology('build_topology')
+        assign_topology = protocols.BuildSmirnoffSystem('build_topology')
 
         assign_topology.force_field_path = ProtocolPath('force_field_path', 'global')
 
@@ -75,12 +75,6 @@ class Density(PhysicalProperty):
         npt_production.system = ProtocolPath('system', assign_topology.id)
 
         # Analysis
-        # extract_density = ExtractAverageDensity('extract_density')
-        #
-        # extract_density.input_coordinate_file = ProtocolPath('output_coordinate_file', npt_production.id)
-        # extract_density.trajectory_path = ProtocolPath('trajectory_file_path', npt_production.id)
-        # extract_density.system = ProtocolPath('system', assign_topology.id)
-
         extract_density = protocols.ExtractAverageStatistic('extract_density')
 
         extract_density.statistics_type = ObservableType.Density
@@ -92,7 +86,7 @@ class Density(PhysicalProperty):
 
         condition = groups.ConditionalGroup.Condition()
 
-        condition.left_hand_value = ProtocolPath('uncertainty',
+        condition.left_hand_value = ProtocolPath('value',
                                                  converge_uncertainty.id,
                                                  extract_density.id)
 
@@ -127,13 +121,29 @@ class Density(PhysicalProperty):
 
         schema.protocols[extract_uncorrelated_trajectory.id] = extract_uncorrelated_trajectory.schema
 
+        extract_uncorrelated_statistics = protocols.ExtractUncorrelatedStatisticsData('extract_stats')
+
+        extract_uncorrelated_statistics.statistical_inefficiency = ProtocolPath('statistical_inefficiency',
+                                                                                converge_uncertainty.id,
+                                                                                extract_density.id)
+
+        extract_uncorrelated_statistics.equilibration_index = ProtocolPath('equilibration_index',
+                                                                           converge_uncertainty.id,
+                                                                           extract_density.id)
+
+        extract_uncorrelated_statistics.input_statistics_path = ProtocolPath('statistics_file_path',
+                                                                             converge_uncertainty.id,
+                                                                             npt_production.id)
+
+        schema.protocols[extract_uncorrelated_statistics.id] = extract_uncorrelated_statistics.schema
+
         # Define where the final values come from.
         schema.final_value_source = ProtocolPath('value', converge_uncertainty.id, extract_density.id)
-        schema.final_uncertainty_source = ProtocolPath('uncertainty', converge_uncertainty.id, extract_density.id)
 
-        schema.final_coordinate_source = ProtocolPath('output_coordinate_file', converge_uncertainty.id,
-                                                                                npt_production.id)
-
-        schema.final_trajectory_source = ProtocolPath('output_trajectory_path', extract_uncorrelated_trajectory.id)
+        schema.outputs_to_store['full_system'] = {
+            'trajectory': ProtocolPath('output_trajectory_path', extract_uncorrelated_trajectory.id),
+            'statistics': ProtocolPath('output_statistics_path', extract_uncorrelated_statistics.id),
+            'coordinates': ProtocolPath('output_coordinate_file', converge_uncertainty.id, npt_production.id)
+        }
 
         return schema

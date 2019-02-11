@@ -14,6 +14,7 @@ from os import path, makedirs
 
 from propertyestimator.utils import graph, serialization
 from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import plugins
 from propertyestimator.workflow.decorators import MergeBehaviour, protocol_input
 from propertyestimator.workflow.plugins import register_calculation_protocol, available_protocols
@@ -748,6 +749,12 @@ class ConditionalGroup(ProtocolGroup):
 
         if left_hand_value is None or right_hand_value is None:
             return False
+
+        if isinstance(left_hand_value, EstimatedQuantity):
+            left_hand_value = left_hand_value.uncertainty
+            
+        if isinstance(right_hand_value, EstimatedQuantity):
+            right_hand_value = right_hand_value.uncertainty
 
         if condition_type == self.ConditionType.LessThan:
             return left_hand_value < right_hand_value

@@ -18,8 +18,10 @@ from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils import packmol, graph, utils, statistics, timeseries, create_molecule_from_smiles
 from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import serialize_quantity, deserialize_quantity, PolymorphicDataType, \
     deserialize_force_field
+from propertyestimator.utils.statistics import StatisticsArray
 from propertyestimator.workflow.decorators import protocol_input, protocol_output, MergeBehaviour
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.schemas import ProtocolSchema
@@ -603,7 +605,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
 
 
 @register_calculation_protocol()
-class BuildSmirnoffTopology(BaseProtocol):
+class BuildSmirnoffSystem(BaseProtocol):
     """Parametrise a set of molecules with a given smirnoff force field.
     """
 
@@ -1002,14 +1004,9 @@ class AveragePropertyProtocol(BaseProtocol):
         """The relative sample size to use for bootstrapping."""
         pass
 
-    @protocol_output(unit.Quantity)
+    @protocol_output(EstimatedQuantity)
     def value(self):
         """The averaged value."""
-        pass
-
-    @protocol_output(unit.Quantity)
-    def uncertainty(self):
-        """The uncertainty in the average, as calculated by bootstrapping."""
         pass
 
     @protocol_output(int)
@@ -1030,7 +1027,6 @@ class AveragePropertyProtocol(BaseProtocol):
         self._bootstrap_sample_size = 1.0
 
         self._value = None
-        self._uncertainty = None
 
         self._equilibration_index = None
         self._statistical_inefficiency = None
@@ -1195,10 +1191,10 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
         values, self._equilibration_index, self._statistical_inefficiency = \
             timeseries.decorrelate_time_series(values)
 
-        self._value, self._uncertainty = self._perform_bootstrapping(values)
+        final_value, final_uncertainty = self._perform_bootstrapping(values)
 
-        self._value = unit.Quantity(self._value, statistics_unit)
-        self._uncertainty = unit.Quantity(self._uncertainty, statistics_unit)
+        self._value = EstimatedQuantity(unit.Quantity(final_value, statistics_unit),
+                                        unit.Quantity(final_uncertainty, statistics_unit), self.id)
 
         logging.info('Extracted {}: {}'.format(self._statistics_type, self.id))
 
@@ -1285,6 +1281,54 @@ class ExtractUncorrelatedTrajectoryData(ExtractUncorrelatedData):
 
 
 @register_calculation_protocol()
+class ExtractUncorrelatedStatisticsData(ExtractUncorrelatedData):
+    """A protocol which will subsample entries from a statistics array, yielding only uncorrelated
+    entries as determined from a provided statistical inefficiency and equilibration time.
+    """
+
+    @protocol_input(str)
+    def input_statistics_path(self):
+        """The file path to the statistics to subsample."""
+        pass
+
+    @protocol_output(str)
+    def output_statistics_path(self):
+        """The file path to the subsampled statistics."""
+        pass
+
+    def __init__(self, protocol_id):
+
+        super().__init__(protocol_id)
+
+        self._input_statistics_path = None
+        self._output_statistics_path = None
+
+    def execute(self, directory, available_resources):
+
+        logging.info('Subsampling statistics: {}'.format(self.id))
+
+        if self._input_statistics_path is None:
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='The ExtractUncorrelatedStatisticsData protocol '
+                                                       'requires a previously calculated statisitics file')
+
+        statistics = StatisticsArray.from_pandas_csv(self._input_statistics_path)
+
+        uncorrelated_indices = timeseries.get_uncorrelated_indices(statistics.number_of_items,
+                                                                   self._statistical_inefficiency)
+
+        uncorrelated_statistics = statistics.from_existing(statistics, uncorrelated_indices)
+
+        self._output_statistics_path = path.join(directory, 'uncorrelated_statistics.csv')
+        uncorrelated_statistics.save_as_pandas_csv(self._output_statistics_path)
+
+        logging.info('Statistics subsampled: {}'.format(self.id))
+
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
 class AddQuantities(BaseProtocol):
     """A protocol to add together a list of values.
 
@@ -1299,7 +1343,7 @@ class AddQuantities(BaseProtocol):
         """The values to add together."""
         pass
 
-    @protocol_output(unit.Quantity)
+    @protocol_output(EstimatedQuantity)
     def result(self):
         """The sum of the values."""
         pass
@@ -1334,17 +1378,17 @@ class SubtractQuantities(BaseProtocol):
     `result = value_b - value_a`
     """
 
-    @protocol_input(unit.Quantity)
+    @protocol_input(EstimatedQuantity)
     def value_a(self):
         """`value_a` in the formula `result = value_b - value_a`"""
         pass
 
-    @protocol_input(unit.Quantity)
+    @protocol_input(EstimatedQuantity)
     def value_b(self):
         """`value_b` in the formula  `result = value_b - value_a`"""
         pass
 
-    @protocol_output(unit.Quantity)
+    @protocol_output(EstimatedQuantity)
     def result(self):
         """The sum of the values."""
         pass

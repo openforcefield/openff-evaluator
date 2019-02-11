@@ -14,6 +14,7 @@ from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.properties import PhysicalProperty
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils import timeseries
+from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import WorkflowSchema
 from propertyestimator.workflow import protocols, groups, plugins
 from propertyestimator.workflow.decorators import protocol_input
@@ -137,10 +138,10 @@ class ExtractAverageDielectric(protocols.AverageTrajectoryProperty):
 
             dipole_moments_and_volume[index] = np.array([dipole[0], dipole[1], dipole[2], volume])
 
-        self._value, self._uncertainty = self._perform_bootstrapping(dipole_moments_and_volume)
+        value, uncertainty = self._perform_bootstrapping(dipole_moments_and_volume)
 
-        self._value = unit.Quantity(self._value, None)
-        self._uncertainty = unit.Quantity(self._uncertainty, None)
+        self._value = EstimatedQuantity(unit.Quantity(value, None),
+                                        unit.Quantity(uncertainty, None), self.id)
 
         logging.info('Extracted dielectrics: ' + self.id)
 
@@ -165,7 +166,7 @@ class DielectricConstant(PhysicalProperty):
 
         schema.protocols[build_coordinates.id] = build_coordinates.schema
 
-        assign_topology = protocols.BuildSmirnoffTopology('build_topology')
+        assign_topology = protocols.BuildSmirnoffSystem('build_topology')
 
         assign_topology.force_field_path = ProtocolPath('force_field_path', 'global')
 
@@ -259,13 +260,29 @@ class DielectricConstant(PhysicalProperty):
 
         schema.protocols[extract_uncorrelated_trajectory.id] = extract_uncorrelated_trajectory.schema
 
+        extract_uncorrelated_statistics = protocols.ExtractUncorrelatedStatisticsData('extract_stats')
+
+        extract_uncorrelated_statistics.statistical_inefficiency = ProtocolPath('statistical_inefficiency',
+                                                                                converge_uncertainty.id,
+                                                                                extract_dielectric.id)
+
+        extract_uncorrelated_statistics.equilibration_index = ProtocolPath('equilibration_index',
+                                                                           converge_uncertainty.id,
+                                                                           extract_dielectric.id)
+
+        extract_uncorrelated_statistics.input_statistics_path = ProtocolPath('statistics_file_path',
+                                                                             converge_uncertainty.id,
+                                                                             npt_production.id)
+
+        schema.protocols[extract_uncorrelated_statistics.id] = extract_uncorrelated_statistics.schema
+
         # Define where the final values come from.
         schema.final_value_source = ProtocolPath('value', converge_uncertainty.id, extract_dielectric.id)
-        schema.final_uncertainty_source = ProtocolPath('uncertainty', converge_uncertainty.id, extract_dielectric.id)
 
-        schema.final_coordinate_source = ProtocolPath('output_coordinate_file', converge_uncertainty.id,
-                                                                                npt_production.id)
-
-        schema.final_trajectory_source = ProtocolPath('output_trajectory_path', extract_uncorrelated_trajectory.id)
+        schema.outputs_to_store['full_system'] = {
+            'trajectory': ProtocolPath('output_trajectory_path', extract_uncorrelated_trajectory.id),
+            'statistics': ProtocolPath('output_statistics_path', extract_uncorrelated_statistics.id),
+            'coordinates': ProtocolPath('output_coordinate_file', converge_uncertainty.id, npt_production.id)
+        }
 
         return schema

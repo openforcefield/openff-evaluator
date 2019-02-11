@@ -199,24 +199,30 @@ class ReweightingLayer(PropertyCalculationLayer):
 
             property_class = registered_properties[physical_property.type]
 
-            # Calculate the
-            observables[1] = property_class.calculate_observable(data)
+            # Calculate the observables.
+            # observables[1] = property_class.calculate_observable(data)
 
             mbar = pymbar.MBAR(reduced_energies, frame_counts, verbose=False, relative_tolerance=1e-12)
             results = mbar.computeExpectations(observables, state_dependent=True)
 
             all_values = results['mu']
             all_uncertainties = results['sigma']
-    
-        # physical_property.value = all_values[len(all_values) - 1]
-        # physical_property.uncertainty = all_uncertainties[len(all_uncertainties) - 1]
-        #
-        # physical_property.source = CalculationSource()
-        #
-        # physical_property.source.fidelity = ReweightingLayer.__name__
-        # physical_property.source.provenance = {
-        #     'data_sources': []  # TODO: Add tags to data sources
-        # }
+
+            if all_uncertainties[1] < physical_property.uncertainty:
+
+                physical_property.value = all_values[1]
+                physical_property.uncertainty = all_uncertainties[1]
+
+                physical_property.source = CalculationSource()
+
+                physical_property.source.fidelity = ReweightingLayer.__name__
+                physical_property.source.provenance = {
+                    'data_sources': []  # TODO: Add tags to data sources
+                }
+
+                return physical_property
+
+        return None
 
     @staticmethod
     def resample_data(trajectory_to_resample, thermodynamic_state, force_field):

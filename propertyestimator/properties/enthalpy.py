@@ -109,7 +109,7 @@ class EnthalpyOfMixing(PhysicalProperty):
 
         build_coordinates.substance = ProtocolPath('substance', 'global')
 
-        assign_topology = protocols.BuildSmirnoffTopology(id_prefix + 'build_topology')
+        assign_topology = protocols.BuildSmirnoffSystem(id_prefix + 'build_topology')
 
         assign_topology.force_field_path = ProtocolPath('force_field_path', 'global')
 
@@ -278,14 +278,13 @@ class EnthalpyOfMixing(PhysicalProperty):
         schema.final_value_source = ProtocolPath('result', converge_uncertainty.id,
                                                            calculate_enthalpy_of_mixing.id)
 
-        schema.final_uncertainty_source = ProtocolPath('result', converge_uncertainty.id,
-                                                                 calculate_enthalpy_of_mixing.id)
-
-        # TODO: Replace with the real values.
-        schema.final_coordinate_source = ProtocolPath('coordinate_file_path',
-                                                      mixed_system_workflow.build_coordinates.id)
-
-        schema.final_trajectory_source = ProtocolPath('trajectory_file_path', converge_uncertainty.id,
-                                                      mixed_system_workflow.npt_production.id)
+        # schema.final_uncertainty_source = ProtocolPath('result', converge_uncertainty.id,
+        #                                                          calculate_enthalpy_of_mixing.id)
+        #
+        # schema.final_coordinate_source = ProtocolPath('coordinate_file_path',
+        #                                               mixed_system_workflow.build_coordinates.id)
+        #
+        # schema.final_trajectory_source = ProtocolPath('trajectory_file_path', converge_uncertainty.id,
+        #                                               mixed_system_workflow.npt_production.id)
 
         return schema
