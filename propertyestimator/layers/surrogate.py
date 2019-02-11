@@ -18,7 +18,7 @@ class SurrogateLayer(PropertyCalculationLayer):
     def schedule_calculation(calculation_backend, storage_backend, layer_directory,
                              data_model, callback, synchronous=False):
 
-        parameter_set = storage_backend.retrieve_force_field(data_model.parameter_set_id)
+        parameter_set = storage_backend.retrieve_force_field(data_model.force_field_id)
 
         surrogate_futures = []
 

@@ -69,7 +69,7 @@ class PropertyCalculationLayer:
             The backend used to store / retrieve data from previous calculations.
         layer_directory: str
             The local directory in which to store all local, temporary calculation data from this layer.
-        data_model: propertyestimator.server.PropertyRunnerDataModel
+        data_model: propertyestimator.server.PropertyEstimatorServerData
             The data model encoding the awaited calculation.
         callback: function
             The function to call when the backend returns the results (or an error).
@@ -103,8 +103,8 @@ class PropertyCalculationLayer:
                 # Make sure to store any important calculation data.
                 if returned_output.data_to_store is not None and returned_output.calculated_property is not None:
 
-                    if returned_output.data_to_store.parameter_set_id is None:
-                        returned_output.data_to_store.parameter_set_id = data_model.parameter_set_id
+                    if returned_output.data_to_store.force_field_id is None:
+                        returned_output.data_to_store.force_field_id = data_model.force_field_id
 
                     substance_id = str(returned_output.calculated_property.substance)
 
@@ -121,7 +121,7 @@ class PropertyCalculationLayer:
                 from propertyestimator.properties import PhysicalProperty
 
                 if isinstance(return_object, PhysicalProperty):
-                    returned_data_model.calculated_properties[return_object.id] = return_object
+                    returned_data_model.estimated_properties[return_object.id] = return_object
                 else:
                     returned_data_model.unsuccessful_properties[returned_output.property_id] = return_object
 
@@ -145,7 +145,7 @@ class PropertyCalculationLayer:
             The backend used to store / retrieve data from previous calculations.
         layer_directory: str
             The local directory in which to store all local, temporary calculation data from this layer.
-        data_model: propertyestimator.server.PropertyRunnerDataModel
+        data_model: propertyestimator.server.PropertyEstimatorServerData
             The data model encoding the proposed calculation.
         callback: function
             The function to call when the backend returns the results (or an error).

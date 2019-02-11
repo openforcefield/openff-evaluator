@@ -884,14 +884,14 @@ class SimulationLayer(PropertyCalculationLayer):
 
             property_type = type(property_to_calculate).__name__
 
-            if property_type not in options.calculation_schemas:
+            if property_type not in options.workflow_schemas:
 
                 logging.warning('The property calculator does not support {} '
                                 'calculations.'.format(property_type))
 
                 continue
 
-            schema = options.calculation_schemas[property_type]
+            schema = options.workflow_schemas[property_type]
 
             calculation = DirectCalculation(property_to_calculate,
                                             force_field_path,
@@ -907,8 +907,8 @@ class SimulationLayer(PropertyCalculationLayer):
                              data_model, callback, synchronous=False):
 
         # Store a temporary copy of the force field for protocols to easily access.
-        force_field = storage_backend.retrieve_force_field(data_model.parameter_set_id)
-        force_field_path = path.join(layer_directory, 'force_field_{}'.format(data_model.parameter_set_id))
+        force_field = storage_backend.retrieve_force_field(data_model.force_field_id)
+        force_field_path = path.join(layer_directory, 'force_field_{}'.format(data_model.force_field_id))
 
         with open(force_field_path, 'wb') as file_object:
             pickle.dump(serialize_force_field(force_field), file_object)

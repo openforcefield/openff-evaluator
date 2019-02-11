@@ -139,3 +139,26 @@ class PhysicalPropertyDataSet(object):
             return min_temperature <= x.thermodynamic_state.temperature <= max_temperature
 
         self.filter_by_function(filter_function)
+
+    def filter_by_components(self, number_of_components):
+        """Filter the data set based on a minimum and maximum temperature.
+
+        Parameters
+        ----------
+        number_of_components : int
+            The allowed number of components in the mixture.
+
+        Examples
+        --------
+        Filter the dataset to only include pure substance properties.
+
+        >>> # Load in the data set of properties which will be used for comparisons
+        >>> from propertyestimator.datasets import ThermoMLDataSet
+        >>> data_set = ThermoMLDataSet.from_doi_list('10.1016/j.jct.2016.10.001')
+        >>>
+        >>> data_set.filter_by_components(number_of_components=1)
+        """
+        def filter_function(x):
+            return x.substance.number_of_components == number_of_components
+
+        self.filter_by_function(filter_function)
