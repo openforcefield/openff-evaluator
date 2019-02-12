@@ -174,7 +174,7 @@ class PropertyEstimatorClient:
 
     >>> # Load in the data set of properties which will be used for comparisons
     >>> from propertyestimator.datasets import ThermoMLDataSet
-    >>> data_set = ThermoMLDataSet.from_doi_list('10.1016/j.jct.2016.10.001')
+    >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
     >>> # Filter the dataset to only include densities measured between 130-260 K
     >>> from propertyestimator.properties import Density
     >>>

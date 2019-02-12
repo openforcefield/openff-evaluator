@@ -13,7 +13,7 @@ def request_estimate_blocking():
     setup_timestamp_logging()
 
     # Load in the data set of interest.
-    data_set = ThermoMLDataSet.from_file_list(get_data_filename('properties/single_density.xml'))
+    data_set = ThermoMLDataSet.from_file(get_data_filename('properties/single_density.xml'))
     # Load in the force field to use.
     force_field = smirnoff.ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
 
@@ -30,7 +30,7 @@ def request_estimate_non_blocking():
     setup_timestamp_logging()
 
     # Load in the data set of interest.
-    data_set = ThermoMLDataSet.from_file_list(get_data_filename('properties/single_density.xml'))
+    data_set = ThermoMLDataSet.from_file(get_data_filename('properties/single_density.xml'))
     # Load in the force field to use.
     force_field = smirnoff.ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
 

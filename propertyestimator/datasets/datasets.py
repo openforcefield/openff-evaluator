@@ -79,7 +79,7 @@ class PhysicalPropertyDataSet(object):
 
         >>> # Load in the data set of properties which will be used for comparisons
         >>> from propertyestimator.datasets import ThermoMLDataSet
-        >>> data_set = ThermoMLDataSet.from_doi_list('10.1016/j.jct.2016.10.001')
+        >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
         >>>
         >>> # Filter the dataset to only include densities measured between 130-260 K
         >>> from propertyestimator.properties import Density, DielectricConstant
@@ -104,7 +104,7 @@ class PhysicalPropertyDataSet(object):
 
         >>> # Load in the data set of properties which will be used for comparisons
         >>> from propertyestimator.datasets import ThermoMLDataSet
-        >>> data_set = ThermoMLDataSet.from_doi_list('10.1016/j.jct.2016.10.001')
+        >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
         >>>
         >>> from propertyestimator.properties import PropertyPhase
         >>> data_set.filter_by_temperature(PropertyPhase.Liquid)
@@ -130,7 +130,7 @@ class PhysicalPropertyDataSet(object):
 
         >>> # Load in the data set of properties which will be used for comparisons
         >>> from propertyestimator.datasets import ThermoMLDataSet
-        >>> data_set = ThermoMLDataSet.from_doi_list('10.1016/j.jct.2016.10.001')
+        >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
         >>>
         >>> from simtk import unit
         >>> data_set.filter_by_temperature(min_temperature=130*unit.kelvin, max_temperature=260*unit.kelvin)
@@ -154,7 +154,7 @@ class PhysicalPropertyDataSet(object):
 
         >>> # Load in the data set of properties which will be used for comparisons
         >>> from propertyestimator.datasets import ThermoMLDataSet
-        >>> data_set = ThermoMLDataSet.from_doi_list('10.1016/j.jct.2016.10.001')
+        >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
         >>>
         >>> data_set.filter_by_components(number_of_components=1)
         """
