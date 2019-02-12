@@ -327,14 +327,14 @@ class PropertyEstimatorServer(TCPServer):
             The server side data model.
         """
 
-        parameter_set = deserialize_force_field(client_data_model.parameter_set)
+        force_field = deserialize_force_field(client_data_model.force_field)
 
-        force_field_id = self._storage_backend.has_force_field(parameter_set)
+        force_field_id = self._storage_backend.has_force_field(force_field)
 
         if force_field_id is None:
 
             force_field_id = str(uuid.uuid4())
-            self._storage_backend.store_force_field(force_field_id, parameter_set)
+            self._storage_backend.store_force_field(force_field_id, force_field)
 
         calculation_id = str(uuid.uuid4())
 

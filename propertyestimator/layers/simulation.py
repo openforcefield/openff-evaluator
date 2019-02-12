@@ -73,7 +73,7 @@ class DirectCalculation:
             "thermodynamic_state": physical_property.thermodynamic_state,
             "substance": physical_property.substance,
             "components": components,
-            "target_uncertainty": physical_property.uncertainty * options.relative_uncertainty,
+            "target_uncertainty": physical_property.uncertainty * options.relative_uncertainty_tolerance,
             "force_field_path": force_field_path
         }
 

@@ -21,9 +21,9 @@ processes on a cluster:
 .. code-block:: python
 
     estimator = PropertyEstimatorClient(nworkers=10) # NOTE: multiple backends will be supported in the future
-    computed_properties = estimator.computeProperties(dataset, parameter_sets)
+    computed_properties = estimator.computeProperties(dataset, force_fields)
 
-Here, ``dataset`` is a ``PhysicalPropertyDataset`` or subclass, and ``parameter_sets`` is a list containing
+Here, ``dataset`` is a ``PhysicalPropertyDataset`` or subclass, and ``force_fields`` is a list containing
 ``ForceField`` objects used to parameterize the physical systems in the dataset.
 
 This can be a single parameter set or multiple (usually closely related) parameter sets.
@@ -94,11 +94,11 @@ printed.
                                                                                      # `eTemperature` in specified range
 
     # Load an initial parameter set
-    parameter_set = [ SMIRFFParameterSet('smarty-initial.xml') ]
+    force_field = [ SMIRFFParameterSet('smarty-initial.xml') ]
 
     # Compute physical properties for these measurements
     estimator = PropertyEstimatorClient(nworkers=10) # NOTE: multiple backends will be supported in the future
-    computed_properties = estimator.computeProperties(dataset, parameter_set)
+    computed_properties = estimator.computeProperties(dataset, force_field)
 
     # Write out statistics about errors in computed properties
     for (computed, measured) in (computed_properties, dataset):

@@ -41,11 +41,11 @@ class PropertyEstimatorOptions(BaseModel):
         A dictionary of the WorkflowSchema which will be used to calculate any properties.
         The dictionary key represents the type of property the schema will calculate. The
         dictionary will be automatically populated with defaults if no entries are added.
-    relative_uncertainty: :obj:`float`, default = 1.0
+    relative_uncertainty_tolerance: :obj:`float`, default = 1.0
         Controls the desired uncertainty of any calculated properties. The estimator will
         attempt to estimate all properties to within an uncertainity equal to:
 
-        `target_uncertainty = relative_uncertainty * experimental_uncertainty`
+        `target_uncertainty = relative_uncertainty_tolerance * experimental_uncertainty`
     allow_protocol_merging: :obj:`bool`, default = True
         If true, allows individual identical steps in a property estimation workflow to be merged.
 
@@ -62,7 +62,7 @@ class PropertyEstimatorOptions(BaseModel):
 
     workflow_schemas: Dict[str, WorkflowSchema] = {}
 
-    relative_uncertainty: float = 1.0
+    relative_uncertainty_tolerance: float = 1.0
     allow_protocol_merging: bool = True
 
     gradient_properties: List[str] = []
@@ -89,14 +89,14 @@ class PropertyEstimatorSubmission(BaseModel):
         The list of physical properties to estimate.
     options: :obj:`PropertyEstimatorOptions`
         The options which control how the `properties` are estimated.
-    parameter_set: :obj:`dict` of :obj:`int` and :obj:`str`
+    force_field: :obj:`dict` of :obj:`int` and :obj:`str`
         The force field parameters used during the calculations. These should be
         obtained by calling `serialize_force_field` on a `ForceField` object.
     """
     properties: List[PhysicalProperty] = []
     options: PropertyEstimatorOptions = None
 
-    parameter_set: Dict[int, str] = None
+    force_field: Dict[int, str] = None
 
     class Config:
 
@@ -183,24 +183,24 @@ class PropertyEstimatorClient:
     >>> property_estimator = PropertyEstimatorClient(server_address='server_address',
     >>>                                              port=8000)
 
-    To submit a request to the running server using the default estimator options:
+    To asynchronously submit a request to the running server using the default estimator
+    options:
 
-    >>> ticket_id = property_estimator.request_estimate(data_set, parameters)
+    >>> ticket_id = property_estimator.estimate(data_set, parameters)
 
-    The status of the request can be queried by calling
+    The status of the request can be asynchronously queried by calling
 
-    >>> results = property_estimator.query_estimate(ticket_id)
+    >>> results = property_estimator.retrieve_estimate(ticket_id)
 
-    Both the `request_estimate` and `query_estimate` methods are non-blocking,
-    and will return even if the server hasn't yet finished estimating the property
-    set. To perform a blocking property estimation request, use instead:
+    or the main thread can be blocked until the results are
+    available by calling
 
-    >>> results = property_estimator.estimate(data_set, parameters)
+    >>> results = property_estimator.retrieve_estimate(ticket_id, synchronous=True)
 
-    or the local version if you wish the properties to be estimated on your local
-    machine:
+    Alternatively, the estimate request can be ran synchronously by
+    setting the synchronous parameter to True
 
-    >>> results = property_estimator.estimate_locally(data_set, parameters)
+    >>> results = property_estimator.estimate(data_set, parameters, synchronous=True)
 
     How the property set will be estimated can easily be controlled by passing a
     :obj:`PropertyEstimatorOptions` object to the estimate commands.
@@ -211,11 +211,11 @@ class PropertyEstimatorClient:
     >>> options = PropertyEstimatorOptions(allowed_calculation_layers = [ReweightingLayer.__name__,
     >>>                                                                  SimulationLayer.__name__])
     >>>
-    >>> ticket_id = property_estimator.request_estimate(data_set, parameters, options)
+    >>> ticket_id = property_estimator.estimate(data_set, parameters, options)
 
     As can the uncertainty tolerance:
 
-    >>> options = PropertyEstimatorOptions(relative_uncertainty = 0.1)
+    >>> options = PropertyEstimatorOptions(relative_uncertainty_tolerance = 0.1)
     """
 
     def __init__(self, server_address='localhost', port=8000):
@@ -239,9 +239,10 @@ class PropertyEstimatorClient:
         self._port = port
         self._tcp_client = TCPClient()
 
-    def request_estimate(self, property_set, force_field, options=None):
-        """Sends a request to the :obj:`PropertyEstimatorServer` to estimate the provided
-        property set using the supplied force field and estimator options.
+    def estimate(self, property_set, force_field, options=None, synchronous=False, polling_interval=5):
+        """A blocking convenience method for requesting that a :obj:`PropertyEstimatorServer`
+        attempt to estimate the provided property set using the supplied force field and
+        estimator options.
 
         Parameters
         ----------
@@ -252,14 +253,23 @@ class PropertyEstimatorClient:
         options : :obj:`PropertyEstimatorOptions`, optional
             A set of estimator options. If None, default options
             will be used.
+        synchronous : :obj:`bool`, default=False
+            If True, this will be a blocking call which will not return
+            until the server has finished estimated all of the properties.
+            If False, this method will return a unique id which can be used
+            to query / retrieve the results of the submitted estimate request.
+        polling_interval: :obj:`int`
+            If running synchronously, this is the time interval (seconds) between
+            checking if the calculation has finished.
 
         Returns
         -------
-        :obj:`list` of :obj:`str`:
-            A list unique ids which can be used to retrieve the submitted calculations
-            when they have finished running.
+        If the synchronous option is True, either a PropertyEstimatorResult or a
+        PropertyCalculatorException will be returned depending on whether the
+        server returned an error. If the synchronous option is false, a unique
+        :obj`str` id which can be used to query / retrieve the results of the
+        submitted estimate request.
         """
-
         if property_set is None or force_field is None:
 
             raise ValueError('Both a data set and parameter set must be '
@@ -297,66 +307,60 @@ class PropertyEstimatorClient:
 
             for protocol_schema_name in options.workflow_schemas[property_schema_name].protocols:
 
-                protocol_schema = options.workflow_schemas[
-                    property_schema_name].protocols[protocol_schema_name]
-
+                protocol_schema = options.workflow_schemas[property_schema_name].protocols[protocol_schema_name]
                 protocol_schema.inputs['.allow_merging'] = PolymorphicDataType(options.allow_protocol_merging)
 
         submission = PropertyEstimatorSubmission(properties=properties_list,
-                                                 parameter_set=serialize_force_field(force_field),
+                                                 force_field=serialize_force_field(force_field),
                                                  options=options)
 
-        # For now just do a blocking submit to the server.
-        ticket_ids = IOLoop.current().run_sync(lambda: self._send_calculations_to_server(submission))
+        ticket_id = IOLoop.current().run_sync(lambda: self._send_calculations_to_server(submission))
 
-        return ticket_ids
+        if synchronous is False:
+            return ticket_id
 
-    def query_estimate(self, ticket_id):
-        """A method to retrieve the status (e.g. still running, finished) of
-        a requested property estimation.
+        return self.retrieve_estimate(ticket_id, True, polling_interval)
+
+    def retrieve_estimate(self, ticket_id, synchronous=False, polling_interval=5):
+        """A method to retrieve the status of a requested estimate from the server.
 
         Parameters
         ----------
         ticket_id: :obj:`str`
             The id of the estimate request which was returned by the server
             upon making the request.
+        synchronous: :obj:`bool`
+            If true, this method will block the main thread until the server
+            either returns a result or an error.
+        polling_interval: :obj:`int`
+            If running synchronously, this is the time interval (seconds) between
+            checking if the calculation has finished.
 
         Returns
         -------
-        :obj:`PropertyEstimatorResult` or :obj:`PropertyCalculatorException`, optional:
-            The status requested estimation. Returns None if the estimation has
-            not yet completed.
+        If the method is run synchronously then this method will block the main
+        thread until the server returns either an error (:obj:`PropertyCalculatorException`),
+        or the results of the requested estimate (:obj:`PropertyEstimatorResult`).
+
+        If the method is run asynchronously, it will return None if the
+        estimate is still queued for calculation on the server, or either
+        an error (:obj:`PropertyCalculatorException`) or results
+        (:obj:`PropertyEstimatorResult`) object.
         """
 
-        # For now just do a blocking submit to the server.
-        result = IOLoop.current().run_sync(lambda: self._send_query_server(ticket_id))
-        return result
+        # If running asynchronously, just return whatever the server
+        # sends back.
+        if synchronous is False:
+            return IOLoop.current().run_sync(lambda: self._send_query_server(ticket_id))
 
-    def wait_for_estimate(self, ticket_id, interval=1):
-        """
-        Synchronously wait for the result of a calculation
-
-        Parameters
-        ----------
-        ticket_id: str
-            The id of the calculation to wait for.
-        interval: int
-            The time interval (seconds) between checking if the calculation has finished.
-
-        Returns
-        -------
-        PropertyEstimatorResult or PropertyCalculatorException, optional:
-           The result of the submitted job. Returns None if the calculation has
-           not yet completed.
-        """
-        assert interval >= 1
+        assert polling_interval >= 5
 
         response = None
         should_run = True
 
         while should_run:
 
-            sleep(interval)
+            sleep(polling_interval)
 
             response = IOLoop.current().run_sync(lambda: self._send_query_server(ticket_id))
 
@@ -367,82 +371,6 @@ class PropertyEstimatorClient:
             should_run = False
 
         return response
-
-    def estimate(self, property_set, force_field, options=None):
-        """A blocking convenience method for requesting that a :obj:`PropertyEstimatorServer`
-        attempt to estimate the provided property set using the supplied force field and
-        estimator options.
-
-        Parameters
-        ----------
-        property_set : :obj:`PhysicalPropertyDataSet`
-            The set of properties to attempt to estimate.
-        force_field : :obj:`ForceField`
-            The OpenFF force field to use for the calculations.
-        options : :obj:`PropertyEstimatorOptions`, optional
-            A set of estimator options. If None, default options
-            will be used.
-
-        Returns
-        -------
-        PropertyEstimatorResult or PropertyCalculatorException, optional:
-           The result of the submitted job. Returns None if the calculation has
-           not yet completed.
-        """
-        ticket_id = self.request_estimate(property_set, force_field, options)
-        return self.wait_for_estimate(ticket_id)
-
-    def estimate_locally(self, property_set, force_field, options=None,
-                         calculation_backend=None, storage_backend=None):
-
-        """A blocking convenience method for setting up a local :obj:`PropertyEstimatorServer`,
-        and using this to attempt to estimate the provided property set using the supplied
-        force field and estimator options.
-
-        Parameters
-        ----------
-        property_set : :obj:`PhysicalPropertyDataSet`
-            The set of properties to attempt to estimate.
-        force_field : :obj:`ForceField`
-            The OpenFF force field to use for the calculations.
-        options : :obj:`PropertyEstimatorOptions`, optional
-            A set of estimator options. If None, default options
-            will be used.
-        calculation_backend : :obj:`PropertyEstimatorBackend`
-            The calculation backend to use. By default, a local dask cluster backend
-            will be used:
-
-            `calculation_backend = DaskLocalClusterBackend(1, 1, PropertyEstimatorBackendResources(1, 0))`
-
-        storage_backend : :obj:`PropertyEstimatorStorage`
-            The backend to use when storing the results of the calculations. By default,
-            a local file storage backend will be used:
-
-            `storage_backend = LocalFileStorage(root_directory='stored_data')`
-
-        Returns
-        -------
-        :obj:`PropertyEstimatorResult` or :obj:`PropertyCalculatorException`, optional:
-           The result of the submitted job. Returns None if the calculation has
-           not yet completed.
-        """
-
-        from propertyestimator.backends import DaskLocalClusterBackend, PropertyEstimatorBackendResources
-        calculation_backend = calculation_backend or DaskLocalClusterBackend(1, 1,
-                                                                             PropertyEstimatorBackendResources(1, 0))
-
-        from propertyestimator.storage import LocalFileStorage
-        storage_backend = storage_backend or LocalFileStorage()
-
-        from propertyestimator.server import PropertyEstimatorServer
-        property_server = PropertyEstimatorServer(calculation_backend,
-                                                    storage_backend,
-                                                    working_directory='estimator_working_directory')
-
-        ticket_id = self.request_estimate(property_set, force_field, options)
-        result = self.wait_for_estimate(ticket_id)
-
-        return result  # property_server.finished_calculations[ticket_id]
 
     async def _send_calculations_to_server(self, submission):
         """Attempts to connect to the calculation server, and
