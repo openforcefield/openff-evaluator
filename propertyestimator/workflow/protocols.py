@@ -135,7 +135,7 @@ class BaseProtocol:
         ----------
         directory: str
             The directory to store output data in.
-        available_resources: PropertyEstimatorBackendResources
+        available_resources: ComputeResources
             The resources available to execute on.
 
         Returns
@@ -909,7 +909,7 @@ class RunOpenMMSimulation(BaseProtocol):
             The temperature at which to run the simulation
         pressure: unit.Quantiy
             The pressure at which to run the simulation
-        available_resources: PropertyEstimatorBackendResources
+        available_resources: ComputeResources
             The resources available to run on.
         """
 

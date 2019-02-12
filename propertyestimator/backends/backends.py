@@ -3,7 +3,7 @@ Defines the base API for the property estimator task calculation backend.
 """
 
 
-class PropertyEstimatorBackendResources:
+class ComputeResources:
     """An object which stores how many of each type of computational resource
     (threads or gpu's) is available to a calculation task."""
 
@@ -16,7 +16,7 @@ class PropertyEstimatorBackendResources:
         return self._number_of_gpus
 
     def __init__(self, number_of_threads=1, number_of_gpus=0):
-        """Constructs a new PropertyEstimatorBackendResources object.
+        """Constructs a new ComputeResources object.
 
         Parameters
         ----------
@@ -68,8 +68,7 @@ class PropertyEstimatorBackend:
     `start`, `stop`, and `submit_task` method.
     """
 
-    def __init__(self, number_of_workers=1, threads_per_worker=None,
-                 resources_per_task=PropertyEstimatorBackendResources()):
+    def __init__(self, number_of_workers=1, resources_per_worker=ComputeResources()):
 
         """Constructs a new PropertyEstimatorBackend object.
 
@@ -78,16 +77,12 @@ class PropertyEstimatorBackend:
         number_of_workers : int
             The number of works to run the calculations on. One worker
             can perform a single task (e.g run a simulation) at once.
-        threads_per_worker : int, optional
-            The number of threads per each launched worker.
-        resources_per_task: PropertyEstimatorBackendResources
-            The number of resources available to each calculation task.
+        resources_per_worker: ComputeResources
+            The number of resources to request per worker.
         """
 
         self._number_of_workers = number_of_workers
-        self._threads_per_worker = threads_per_worker
-
-        self._resources_per_task = resources_per_task
+        self._resources_per_worker = resources_per_worker
 
     def start(self):
         """Start the calculation backend."""

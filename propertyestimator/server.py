@@ -10,7 +10,7 @@ from typing import List, Dict
 
 from pydantic import BaseModel
 from simtk import unit
-from tornado.ioloop import IOLoop, PeriodicCallback
+from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
 from tornado.tcpserver import TCPServer
 
@@ -82,8 +82,8 @@ class PropertyEstimatorServer(TCPServer):
     Setting up a general server instance using a dask LocalCluster backend:
 
     >>> # Create the backend which will be responsible for distributing the calculations
-    >>> from propertyestimator.backends import DaskLocalClusterBackend, PropertyEstimatorBackendResources
-    >>> calculation_backend = DaskLocalClusterBackend(1, 1, PropertyEstimatorBackendResources(1, 0))
+    >>> from propertyestimator.backends import DaskLocalClusterBackend, ComputeResources
+    >>> calculation_backend = DaskLocalClusterBackend(1)
     >>>
     >>> # Calculate the backend which will be responsible for storing and retrieving
     >>> # the data from previous calculations

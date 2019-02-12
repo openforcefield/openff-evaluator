@@ -160,6 +160,18 @@ class PropertyEstimatorClient:
 
     Setting up the client instance:
 
+    >>> from propertyestimator.client import PropertyEstimatorClient
+    >>> property_estimator = PropertyEstimatorClient()
+
+    If the :obj:`PropertyEstimatorServer` is not running on the local machine, you will
+    need to specify its address and the port that it is listening on:
+
+    >>> property_estimator = PropertyEstimatorClient(server_address='server_address',
+    >>>                                              port=8000)
+
+    To asynchronously submit a request to the running server using the default estimator
+    options:
+
     >>> # Load in the data set of properties which will be used for comparisons
     >>> from propertyestimator.datasets import ThermoMLDataSet
     >>> data_set = ThermoMLDataSet.from_doi_list('10.1016/j.jct.2016.10.001')
@@ -173,19 +185,6 @@ class PropertyEstimatorClient:
     >>> from openforcefield.typing.engines.smirnoff import ForceField
     >>> parameters = ForceField(['smirnoff99Frosst.offxml'])
     >>>
-    >>> # Create a property estimator
-    >>> from propertyestimator.client import PropertyEstimatorClient
-    >>> property_estimator = PropertyEstimatorClient()
-
-    If the :obj:`PropertyEstimatorServer` is not running on the local machine, you will
-    need to specify its address and the port that it is listening on:
-
-    >>> property_estimator = PropertyEstimatorClient(server_address='server_address',
-    >>>                                              port=8000)
-
-    To asynchronously submit a request to the running server using the default estimator
-    options:
-
     >>> ticket_id = property_estimator.estimate(data_set, parameters)
 
     The status of the request can be asynchronously queried by calling

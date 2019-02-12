@@ -78,7 +78,7 @@ Calculation Backends API
     :nosignatures:
     :toctree: api/generated/
 
-    PropertyEstimatorBackendResources
+    ComputeResources
     PropertyEstimatorBackend
 
 **Built-in Backends**

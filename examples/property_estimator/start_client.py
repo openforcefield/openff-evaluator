@@ -37,11 +37,11 @@ def request_estimate_non_blocking():
     # Create the client object.
     property_estimator = client.PropertyEstimatorClient()
     # Submit the request to a running server.
-    ticket_ids = property_estimator.request_estimate(data_set, force_field)
+    ticket_id = property_estimator.estimate(data_set, force_field)
 
-    logging.info('Ticket info: {}'.format(ticket_ids))
+    logging.info('Ticket info: {}'.format(ticket_id))
     # Wait for the results.
-    result = property_estimator.wait_for_estimate(ticket_ids)
+    result = property_estimator.retrieve_estimate(ticket_id, synchronous=True)
 
     logging.info('The server has returned a response: {}'.format(result))
 

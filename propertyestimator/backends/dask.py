@@ -6,7 +6,7 @@ import multiprocessing
 
 from dask import distributed
 
-from .backends import PropertyEstimatorBackend, PropertyEstimatorBackendResources
+from .backends import PropertyEstimatorBackend, ComputeResources
 
 
 class DaskLocalClusterBackend(PropertyEstimatorBackend):
@@ -14,15 +14,14 @@ class DaskLocalClusterBackend(PropertyEstimatorBackend):
     run calculations.
     """
 
-    def __init__(self, number_of_workers=1, threads_per_worker=None,
-                 resources_per_task=PropertyEstimatorBackendResources()):
+    def __init__(self, number_of_workers=1, resources_per_worker=ComputeResources()):
 
         """Constructs a new DaskLocalClusterBackend"""
 
-        super().__init__(number_of_workers, threads_per_worker, resources_per_task)
+        super().__init__(number_of_workers, resources_per_worker)
 
         maximum_threads = multiprocessing.cpu_count()
-        requested_threads = number_of_workers * threads_per_worker * resources_per_task.number_of_threads
+        requested_threads = number_of_workers * resources_per_worker.number_of_threads
 
         if requested_threads > maximum_threads:
 
@@ -37,9 +36,9 @@ class DaskLocalClusterBackend(PropertyEstimatorBackend):
     def start(self):
 
         self._cluster = distributed.LocalCluster(self._number_of_workers,
-                                                 self._threads_per_worker,
+                                                 1,
                                                  processes=False,
-                                                 resources=self._resources_per_task.dict())
+                                                 resources=self._resources_per_worker.dict())
 
         self._client = distributed.Client(self._cluster,
                                           processes=False)
@@ -51,5 +50,5 @@ class DaskLocalClusterBackend(PropertyEstimatorBackend):
 
     def submit_task(self, function, *args):
 
-        return self._client.submit(function, *args, resources=self._resources_per_task.dict(),
-                                   available_resources=self._resources_per_task)
+        return self._client.submit(function, *args, resources=self._resources_per_worker.dict(),
+                                   available_resources=self._resources_per_worker)
