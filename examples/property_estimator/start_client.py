@@ -8,7 +8,7 @@ from openforcefield.typing.engines import smirnoff
 from propertyestimator.utils import get_data_filename, setup_timestamp_logging
 
 
-def request_estimate_blocking():
+def compute_estimate_sync():
     """Submit calculations to a running server instance"""
     setup_timestamp_logging()
 
@@ -25,7 +25,7 @@ def request_estimate_blocking():
     logging.info('The server has returned a response: {}'.format(result))
 
 
-def request_estimate_non_blocking():
+def compute_estimate_async():
     """Submit calculations to a running server instance"""
     setup_timestamp_logging()
 
@@ -47,4 +47,4 @@ def request_estimate_non_blocking():
 
 
 if __name__ == "__main__":
-    request_estimate_blocking()
+    compute_estimate_async()
