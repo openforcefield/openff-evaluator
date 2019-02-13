@@ -24,7 +24,7 @@ def start_property_estimator_server():
 
     # Create a calculation backend to perform workflow
     # calculations on.
-    calculation_backend = DaskLocalClusterBackend(1, 1)
+    calculation_backend = DaskLocalClusterBackend(1)
     # Create a backend to handle storing and retrieving
     # cached simulation data.
     storage_backend = LocalFileStorage()

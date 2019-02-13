@@ -226,22 +226,22 @@ class PropertyEstimatorServer(TCPServer):
 
         logging.info('Received job query from {}'.format(address))
 
-        encoded_ticket_id = await stream.read_bytes(message_length)
-        ticket_id = encoded_ticket_id.decode()
+        encoded_request_id = await stream.read_bytes(message_length)
+        request_id = encoded_request_id.decode()
 
-        logging.info('Looking up ticket id {}'.format(ticket_id))
+        logging.info('Looking up request id {}'.format(request_id))
 
         response = None
 
-        if (ticket_id not in self._queued_calculations and
-            ticket_id not in self._finished_calculations):
+        if (request_id not in self._queued_calculations and
+            request_id not in self._finished_calculations):
 
             response = PropertyEstimatorException(directory='',
-                                                  message='The {} ticket id was not found '
-                                                           'on the server.'.format(ticket_id)).json()
+                                                  message='The {} request id was not found '
+                                                           'on the server.'.format(request_id)).json()
 
-        elif ticket_id in self._finished_calculations:
-            response = self._finished_calculations[ticket_id].json()
+        elif request_id in self._finished_calculations:
+            response = self._finished_calculations[request_id].json()
 
         else:
             response = ''

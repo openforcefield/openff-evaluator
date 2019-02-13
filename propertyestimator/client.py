@@ -142,6 +142,13 @@ class PropertyEstimatorResult(BaseModel):
             PolymorphicDataType: lambda value: PolymorphicDataType.serialize(value)
         }
 
+    def __init__(self, **data):
+
+        self._client = None
+        self._finished = False
+
+        super().__init__(**data)
+
 
 class PropertyEstimatorClient:
     """The :obj:`PropertyEstimatorClient` is the main object that users of the
@@ -185,21 +192,16 @@ class PropertyEstimatorClient:
     >>> from openforcefield.typing.engines.smirnoff import ForceField
     >>> parameters = ForceField(['smirnoff99Frosst.offxml'])
     >>>
-    >>> ticket_id = property_estimator.estimate(data_set, parameters)
+    >>> request = property_estimator.estimate(data_set, parameters)
 
     The status of the request can be asynchronously queried by calling
 
-    >>> results = property_estimator.retrieve_estimate(ticket_id)
+    >>> results = request.results()
 
     or the main thread can be blocked until the results are
     available by calling
 
-    >>> results = property_estimator.retrieve_estimate(ticket_id, synchronous=True)
-
-    Alternatively, the estimate request can be ran synchronously by
-    setting the synchronous parameter to True
-
-    >>> results = property_estimator.estimate(data_set, parameters, synchronous=True)
+    >>> results = request.results(synchronous=True)
 
     How the property set will be estimated can easily be controlled by passing a
     :obj:`PropertyEstimatorOptions` object to the estimate commands.
@@ -210,12 +212,99 @@ class PropertyEstimatorClient:
     >>> options = PropertyEstimatorOptions(allowed_calculation_layers = [ReweightingLayer.__name__,
     >>>                                                                  SimulationLayer.__name__])
     >>>
-    >>> ticket_id = property_estimator.estimate(data_set, parameters, options)
+    >>> request_id = property_estimator.estimate(data_set, parameters, options)
 
     As can the uncertainty tolerance:
 
     >>> options = PropertyEstimatorOptions(relative_uncertainty_tolerance = 0.1)
     """
+
+    @property
+    def server_address(self):
+        return self.server_address
+
+    @property
+    def server_port(self):
+        return self._port
+
+    class Request:
+
+        @property
+        def id(self):
+            return self.id
+
+        @property
+        def server_address(self):
+            return self.server_address
+
+        @property
+        def server_port(self):
+            return self.server_port
+
+        def __init__(self, request_id, server_address, server_port, client=None):
+
+            self._id = request_id
+
+            self._server_address = server_address
+            self._server_port = server_port
+
+            self._client = client
+
+            if client is None:
+                self._client = PropertyEstimatorClient(server_address, server_port)
+
+        def __str__(self):
+
+            return 'EstimateRequest id: {} server_address: {} server_port: {}'.format(self._id,
+                                                                                      self._server_address,
+                                                                                      self._server_port)
+
+        def __repr__(self):
+            return '<EstimateRequest id: {} server_address: {} server_port: {}>'.format(self._id,
+                                                                                        self._server_address,
+                                                                                        self._server_port)
+
+        def json(self):
+
+            return json.dumps({
+                'id': self._id,
+                'server_address': self._id,
+                'server_port': self._id
+            })
+
+        @classmethod
+        def from_json(cls, json_string):
+
+            json_dict = json.loads(json_string)
+
+            return cls(json_dict['id'],
+                       json_dict['server_address'],
+                       json_dict['server_port'])
+
+        def results(self, synchronous=False, polling_interval=5):
+            """Retrieve the results of an estimate request.
+
+            Parameters
+            ----------
+            synchronous: :obj:`bool`
+                If true, this method will block the main thread until the server
+                either returns a result or an error.
+            polling_interval: :obj:`int`
+                If running synchronously, this is the time interval (seconds) between
+                checking if the calculation has finished.
+
+            Returns
+            -------
+            If the method is run synchronously then this method will block the main
+            thread until the server returns either an error (:obj:`PropertyCalculatorException`),
+            or the results of the requested estimate (:obj:`PropertyEstimatorResult`).
+
+            If the method is run asynchronously, it will return None if the
+            estimate is still queued for calculation on the server, or either
+            an error (:obj:`PropertyCalculatorException`) or results
+            (:obj:`PropertyEstimatorResult`) object.
+            """
+            return self._client._retrieve_estimate(self._id, synchronous, polling_interval)
 
     def __init__(self, server_address='localhost', port=8000):
         """Constructs a new PropertyEstimatorClient object.
@@ -238,10 +327,9 @@ class PropertyEstimatorClient:
         self._port = port
         self._tcp_client = TCPClient()
 
-    def estimate(self, property_set, force_field, options=None, synchronous=False, polling_interval=5):
-        """A blocking convenience method for requesting that a :obj:`PropertyEstimatorServer`
-        attempt to estimate the provided property set using the supplied force field and
-        estimator options.
+    def estimate(self, property_set, force_field, options=None):
+        """Requests that a :obj:`PropertyEstimatorServer` attempt to estimate the
+        provided property set using the supplied force field and estimator options.
 
         Parameters
         ----------
@@ -252,22 +340,11 @@ class PropertyEstimatorClient:
         options : :obj:`PropertyEstimatorOptions`, optional
             A set of estimator options. If None, default options
             will be used.
-        synchronous : :obj:`bool`, default=False
-            If True, this will be a blocking call which will not return
-            until the server has finished estimated all of the properties.
-            If False, this method will return a unique id which can be used
-            to query / retrieve the results of the submitted estimate request.
-        polling_interval: :obj:`int`
-            If running synchronously, this is the time interval (seconds) between
-            checking if the calculation has finished.
 
         Returns
         -------
-        If the synchronous option is True, either a PropertyEstimatorResult or a
-        PropertyCalculatorException will be returned depending on whether the
-        server returned an error. If the synchronous option is false, a unique
-        :obj`str` id which can be used to query / retrieve the results of the
-        submitted estimate request.
+        PropertyEstimatorClient.Request
+            An object which will provide access the the results of the request.
         """
         if property_set is None or force_field is None:
 
@@ -313,19 +390,21 @@ class PropertyEstimatorClient:
                                                  force_field=serialize_force_field(force_field),
                                                  options=options)
 
-        ticket_id = IOLoop.current().run_sync(lambda: self._send_calculations_to_server(submission))
+        request_id = IOLoop.current().run_sync(lambda: self._send_calculations_to_server(submission))
 
-        if synchronous is False:
-            return ticket_id
+        request_object = PropertyEstimatorClient.Request(request_id,
+                                                         self._server_address,
+                                                         self._port,
+                                                         self)
 
-        return self.retrieve_estimate(ticket_id, True, polling_interval)
+        return request_object
 
-    def retrieve_estimate(self, ticket_id, synchronous=False, polling_interval=5):
+    def _retrieve_estimate(self, request_id, synchronous=False, polling_interval=5):
         """A method to retrieve the status of a requested estimate from the server.
 
         Parameters
         ----------
-        ticket_id: :obj:`str`
+        request_id: :obj:`str`
             The id of the estimate request which was returned by the server
             upon making the request.
         synchronous: :obj:`bool`
@@ -350,9 +429,9 @@ class PropertyEstimatorClient:
         # If running asynchronously, just return whatever the server
         # sends back.
         if synchronous is False:
-            return IOLoop.current().run_sync(lambda: self._send_query_server(ticket_id))
+            return IOLoop.current().run_sync(lambda: self._send_query_server(request_id))
 
-        assert polling_interval >= 5
+        assert polling_interval >= 1
 
         response = None
         should_run = True
@@ -361,7 +440,7 @@ class PropertyEstimatorClient:
 
             sleep(polling_interval)
 
-            response = IOLoop.current().run_sync(lambda: self._send_query_server(ticket_id))
+            response = IOLoop.current().run_sync(lambda: self._send_query_server(request_id))
 
             if response is None:
                 continue
@@ -395,7 +474,7 @@ class PropertyEstimatorClient:
 
            Returns None if the calculation could not be submitted.
         """
-        ticket_id = None
+        request_id = None
 
         try:
 
@@ -430,9 +509,9 @@ class PropertyEstimatorClient:
             # went well, this should be a list of ids of the submitted
             # calculations.
             encoded_json = await stream.read_bytes(length)
-            ticket_id = json.loads(encoded_json.decode())
+            request_id = json.loads(encoded_json.decode())
 
-            logging.info('Received job id from server: {}'.format(ticket_id))
+            logging.info('Received job id from server: {}'.format(request_id))
             stream.close()
             self._tcp_client.close()
 
@@ -443,9 +522,9 @@ class PropertyEstimatorClient:
                          "that the server address / port is correct.".format(self._server_address, self._port, e))
 
         # Return the ids of the submitted jobs.
-        return ticket_id
+        return request_id
 
-    async def _send_query_server(self, ticket_id):
+    async def _send_query_server(self, request_id):
         """Attempts to connect to the calculation server, and
         submit the requested calculations.
 
@@ -457,7 +536,7 @@ class PropertyEstimatorClient:
 
         Parameters
         ----------
-        ticket_id: str
+        request_id: str
             The id of the job to query.
 
         Returns
@@ -477,13 +556,13 @@ class PropertyEstimatorClient:
 
             stream.set_nodelay(True)
 
-            # Encode the ticket id into the message.
+            # Encode the request id into the message.
             message_type = pack_int(PropertyEstimatorMessageTypes.Query)
 
-            encoded_ticket_id = ticket_id.encode()
-            length = pack_int(len(encoded_ticket_id))
+            encoded_request_id = request_id.encode()
+            length = pack_int(len(encoded_request_id))
 
-            await stream.write(message_type + length + encoded_ticket_id)
+            await stream.write(message_type + length + encoded_request_id)
 
             logging.info("Querying the server {}:{}...".format(self._server_address, self._port))
 

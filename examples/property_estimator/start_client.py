@@ -37,11 +37,12 @@ def compute_estimate_async():
     # Create the client object.
     property_estimator = client.PropertyEstimatorClient()
     # Submit the request to a running server.
-    ticket_id = property_estimator.estimate(data_set, force_field)
+    request = property_estimator.estimate(data_set, force_field)
 
-    logging.info('Ticket info: {}'.format(ticket_id))
+    logging.info('Request info: {}'.format(str(request)))
+
     # Wait for the results.
-    result = property_estimator.retrieve_estimate(ticket_id, synchronous=True)
+    result = request.results(synchronous=True)
 
     logging.info('The server has returned a response: {}'.format(result))
 
