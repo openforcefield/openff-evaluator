@@ -20,7 +20,7 @@ def compute_estimate_sync():
     # Create the client object.
     property_estimator = client.PropertyEstimatorClient()
     # Submit the request to a running server, and wait for the results.
-    result = property_estimator.estimate(data_set, force_field)
+    result = property_estimator.request_estimate(data_set, force_field)
 
     logging.info('The server has returned a response: {}'.format(result))
 
@@ -37,7 +37,7 @@ def compute_estimate_async():
     # Create the client object.
     property_estimator = client.PropertyEstimatorClient()
     # Submit the request to a running server.
-    request = property_estimator.estimate(data_set, force_field)
+    request = property_estimator.request_estimate(data_set, force_field)
 
     logging.info('Request info: {}'.format(str(request)))
 

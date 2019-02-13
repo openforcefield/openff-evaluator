@@ -185,7 +185,7 @@ class PropertyEstimatorClient:
     >>> from openforcefield.typing.engines.smirnoff import ForceField
     >>> parameters = ForceField(['smirnoff99Frosst.offxml'])
     >>>
-    >>> request = property_estimator.estimate(data_set, parameters)
+    >>> request = property_estimator.request_estimate(data_set, parameters)
 
     The status of the request can be asynchronously queried by calling
 
@@ -205,7 +205,7 @@ class PropertyEstimatorClient:
     >>> options = PropertyEstimatorOptions(allowed_calculation_layers = [ReweightingLayer.__name__,
     >>>                                                                  SimulationLayer.__name__])
     >>>
-    >>> request_id = property_estimator.estimate(data_set, parameters, options)
+    >>> request = property_estimator.request_estimate(data_set, parameters, options)
 
     As can the uncertainty tolerance:
 
