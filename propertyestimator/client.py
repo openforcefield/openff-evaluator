@@ -142,13 +142,6 @@ class PropertyEstimatorResult(BaseModel):
             PolymorphicDataType: lambda value: PolymorphicDataType.serialize(value)
         }
 
-    def __init__(self, **data):
-
-        self._client = None
-        self._finished = False
-
-        super().__init__(**data)
-
 
 class PropertyEstimatorClient:
     """The :obj:`PropertyEstimatorClient` is the main object that users of the
@@ -327,7 +320,7 @@ class PropertyEstimatorClient:
         self._port = port
         self._tcp_client = TCPClient()
 
-    def estimate(self, property_set, force_field, options=None):
+    def request_estimate(self, property_set, force_field, options=None):
         """Requests that a :obj:`PropertyEstimatorServer` attempt to estimate the
         provided property set using the supplied force field and estimator options.
 
