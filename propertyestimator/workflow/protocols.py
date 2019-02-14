@@ -599,7 +599,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
         with open(self._coordinate_file_path, 'w+') as minimised_file:
             app.PDBFile.writeFile(topology, positions, minimised_file)
 
-        logging.info('Coordinates generated: ' + str(self._substance))
+        logging.info('Coordinates generated: ' + self._substance.identifier)
 
         return self._get_output_dictionary()
 

@@ -115,19 +115,22 @@ class Mixture(Substance):
         mole_fraction: float = 0.0
         impurity: bool = False
 
-        def __str__(self):
-
+        @property
+        def identifier(self):
             hash_value = self.smiles
 
             if self.mole_fraction is not None:
                 hash_value += "{%s}" % str(self.mole_fraction)
             elif self.impurity is not None:
-                hash_value += "{%s}" % str(self.impurity)
+                hash_value += "(%s)" % str(self.impurity)
 
             return hash_value
 
+        def __str__(self):
+            return self.identifier
+
         def __hash__(self):
-            return hash(str(self))
+            return hash(self.identifier)
 
         def __eq__(self, other):
 
@@ -139,6 +142,14 @@ class Mixture(Substance):
             return not (self == other)
 
     components: List[MixtureComponent] = list()
+
+    @property
+    def identifier(self):
+
+        component_identifiers = [component.identifier for component in self.components]
+        component_identifiers.sort()
+
+        return "|".join(component_identifiers)
 
     @property
     def total_mole_fraction(self):
@@ -221,14 +232,10 @@ class Mixture(Substance):
         return mole_fraction, impurity
 
     def __str__(self):
-
-        hash_tags = [str(component) for component in self.components]
-        hash_tags.sort()
-
-        return "|".join(hash_tags)
+        return self.identifier
 
     def __hash__(self):
-        return hash(str(self))
+        return hash(self.identifier)
 
     def __eq__(self, other):
         return hash(self) == hash(other)

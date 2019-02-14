@@ -19,6 +19,7 @@ from propertyestimator.client import PropertyEstimatorSubmission, PropertyEstima
 from propertyestimator.layers import available_layers
 from propertyestimator.properties import PhysicalProperty
 from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import serialize_quantity, PolymorphicDataType, deserialize_force_field
 from propertyestimator.utils.tcp import PropertyEstimatorMessageTypes, pack_int, unpack_int
 from propertyestimator.workflow.utils import ProtocolPath
@@ -58,6 +59,7 @@ class PropertyRunnerDataModel(BaseModel):
         arbitrary_types_allowed = True
 
         json_encoders = {
+            EstimatedQuantity: lambda value: value.__getstate__(),
             unit.Quantity: lambda v: serialize_quantity(v),
             ProtocolPath: lambda v: v.full_path,
             PolymorphicDataType: lambda value: PolymorphicDataType.serialize(value)
@@ -224,12 +226,12 @@ class PropertyCalculationRunner(TCPServer):
             The length of the message being recieved.
         """
 
-        logging.info('Received job query from {}'.format(address))
+        # logging.info('Received job query from {}'.format(address))
 
         encoded_ticket_id = await stream.read_bytes(message_length)
         ticket_id = encoded_ticket_id.decode()
 
-        logging.info('Looking up ticket id {}'.format(ticket_id))
+        # logging.info('Looking up ticket id {}'.format(ticket_id))
 
         response = None
 
@@ -251,7 +253,7 @@ class PropertyCalculationRunner(TCPServer):
 
         await stream.write(length + encoded_response)
 
-        logging.info('Job results sent to the client {}: {}'.format(address, response))
+        # logging.info('Job results sent to the client {}: {}'.format(address, response))
 
     async def handle_stream(self, stream, address):
         """A routine to handle incoming requests from
@@ -271,7 +273,7 @@ class PropertyCalculationRunner(TCPServer):
         address: str
             The address from which the request came.
         """
-        logging.info("Incoming connection from {}".format(address))
+        # logging.info("Incoming connection from {}".format(address))
 
         try:
             while True:
@@ -284,17 +286,17 @@ class PropertyCalculationRunner(TCPServer):
                 packed_message_length = await stream.read_bytes(4)
                 message_length = unpack_int(packed_message_length)[0]
 
-                logging.info('Introductory packet recieved: {} {}'.format(message_type_int, message_length))
+                # logging.info('Introductory packet recieved: {} {}'.format(message_type_int, message_length))
 
                 message_type = None
 
                 try:
                     message_type = PropertyEstimatorMessageTypes(message_type_int)
-                    logging.info('Message type: {}'.format(message_type))
+                    # logging.info('Message type: {}'.format(message_type))
 
                 except Exception as e:
 
-                    logging.info('Bad message type recieved: {}'.format(e))
+                    # logging.info('Bad message type recieved: {}'.format(e))
 
                     # Discard the unrecognised message.
                     if message_length > 0:
@@ -310,7 +312,8 @@ class PropertyCalculationRunner(TCPServer):
         except StreamClosedError as e:
 
             # Handle client disconnections gracefully.
-            logging.info("Lost connection to {}:{} : {}.".format(address, self._port, e))
+            # logging.info("Lost connection to {}:{} : {}.".format(address, self._port, e))
+            pass
 
     def _prepare_data_model(self, client_data_model):
         """Turns a client data model into a form more useful to

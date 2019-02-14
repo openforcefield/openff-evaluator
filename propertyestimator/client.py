@@ -17,6 +17,7 @@ from propertyestimator.layers import SurrogateLayer, ReweightingLayer, Simulatio
 from propertyestimator.properties import PhysicalProperty
 from propertyestimator.properties.plugins import registered_properties
 from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import serialize_quantity, PolymorphicDataType, serialize_force_field
 from propertyestimator.utils.tcp import PropertyEstimatorMessageTypes, pack_int, unpack_int
 from propertyestimator.workflow import WorkflowSchema
@@ -57,6 +58,7 @@ class PropertyEstimatorOptions(BaseModel):
         arbitrary_types_allowed = True
 
         json_encoders = {
+            EstimatedQuantity: lambda value: value.__getstate__(),
             unit.Quantity: lambda v: serialize_quantity(v),
             ProtocolPath: lambda v: v.full_path,
             PolymorphicDataType: lambda value: PolymorphicDataType.serialize(value)
@@ -88,6 +90,7 @@ class PropertyEstimatorSubmission(BaseModel):
         arbitrary_types_allowed = True
 
         json_encoders = {
+            EstimatedQuantity: lambda value: value.__getstate__(),
             unit.Quantity: lambda v: serialize_quantity(v),
             ProtocolPath: lambda v: v.full_path,
             PolymorphicDataType: lambda value: PolymorphicDataType.serialize(value)
@@ -119,6 +122,7 @@ class PropertyEstimatorResult(BaseModel):
         arbitrary_types_allowed = True
 
         json_encoders = {
+            EstimatedQuantity: lambda value: value.__getstate__(),
             unit.Quantity: lambda v: serialize_quantity(v),
             ProtocolPath: lambda v: v.full_path,
             PolymorphicDataType: lambda value: PolymorphicDataType.serialize(value)

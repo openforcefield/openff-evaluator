@@ -1,7 +1,7 @@
 """
 A collection of classes for loading and manipulating statistics data files.
 """
-
+import copy
 from enum import Enum
 from io import StringIO
 
@@ -249,20 +249,28 @@ class StatisticsArray:
             The created StatisticsArray object.
         """
 
-        potential_energies = existing_instance.get_observable(ObservableType.PotentialEnergy)
-        kinetic_energies = existing_instance.get_observable(ObservableType.KineticEnergy)
-        total_energies = existing_instance.get_observable(ObservableType.TotalEnergy)
-        temperatures = existing_instance.get_observable(ObservableType.Temperature)
-        volumes = existing_instance.get_observable(ObservableType.Volume)
-        densities = existing_instance.get_observable(ObservableType.Density)
-        enthalpies = existing_instance.get_observable(ObservableType.Enthalpy)
+        potential_energies = copy.deepcopy(existing_instance.get_observable(ObservableType.PotentialEnergy))
+        kinetic_energies = copy.deepcopy(existing_instance.get_observable(ObservableType.KineticEnergy))
+        total_energies = copy.deepcopy(existing_instance.get_observable(ObservableType.TotalEnergy))
+        temperatures = copy.deepcopy(existing_instance.get_observable(ObservableType.Temperature))
+        volumes = copy.deepcopy(existing_instance.get_observable(ObservableType.Volume))
+        densities = copy.deepcopy(existing_instance.get_observable(ObservableType.Density))
+        enthalpies = copy.deepcopy(existing_instance.get_observable(ObservableType.Enthalpy))
 
-        return_object = StatisticsArray(potential_energies[data_indices],
-                                        kinetic_energies[data_indices],
-                                        total_energies[data_indices],
-                                        temperatures[data_indices],
-                                        volumes[data_indices],
-                                        densities[data_indices],
-                                        enthalpies[data_indices])
+        potential_energies /= unit.kilojoule_per_mole
+        kinetic_energies /= unit.kilojoule_per_mole
+        total_energies /= unit.kilojoule_per_mole
+        temperatures /= unit.kilojoule_per_mole
+        volumes /= unit.kilojoule_per_mole
+        densities /= unit.kilojoule_per_mole
+        enthalpies /= unit.kilojoule_per_mole
+
+        return_object = StatisticsArray(list(np.array(potential_energies)[data_indices]) * unit.kilojoule_per_mole,
+                                        list(np.array(kinetic_energies)[data_indices]) * unit.kilojoule_per_mole,
+                                        list(np.array(total_energies)[data_indices]) * unit.kilojoule_per_mole,
+                                        list(np.array(temperatures)[data_indices]) * unit.kilojoule_per_mole,
+                                        list(np.array(volumes)[data_indices]) * unit.kilojoule_per_mole,
+                                        list(np.array(densities)[data_indices]) * unit.kilojoule_per_mole,
+                                        list(np.array(enthalpies)[data_indices]) * unit.kilojoule_per_mole)
 
         return return_object

@@ -4,13 +4,14 @@ Properties base API.
 
 import uuid
 from enum import IntFlag, unique
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 
 from pydantic import validator
 from simtk import unit
 
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
+from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import deserialize_quantity, serialize_quantity, TypedBaseModel, \
     PolymorphicDataType
 
@@ -55,6 +56,7 @@ class Source(TypedBaseModel):
         arbitrary_types_allowed = True
 
         json_encoders = {
+            EstimatedQuantity: lambda value: value.__getstate__(),
             unit.Quantity: lambda value: serialize_quantity(value),
             PolymorphicDataType: lambda value: PolymorphicDataType.serialize(value)
         }
@@ -128,7 +130,9 @@ class PhysicalProperty(TypedBaseModel):
     def validate_quantity(cls, v):
 
         if isinstance(v, dict):
-            v = deserialize_quantity(v)
+
+            if 'unitless_value' in v:
+                v = deserialize_quantity(v)
 
         return v
 
@@ -139,6 +143,7 @@ class PhysicalProperty(TypedBaseModel):
         arbitrary_types_allowed = True
 
         json_encoders = {
+            EstimatedQuantity: lambda value: value.__getstate__(),
             unit.Quantity: lambda v: serialize_quantity(v),
         }
 

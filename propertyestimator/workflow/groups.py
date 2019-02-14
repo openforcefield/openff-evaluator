@@ -142,6 +142,9 @@ class ProtocolGroup(BaseProtocol):
 
                 input_values = protocol.get_value_references(input_path)
 
+                if len(input_values) == 0:
+                    self.required_inputs.append(grouped_path)
+
                 for input_value in input_values:
 
                     if input_value.start_protocol not in self._protocols:

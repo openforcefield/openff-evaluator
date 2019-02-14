@@ -18,6 +18,17 @@ class PlaceholderInput:
         pass
 
 
+class ReplicatorValue(PlaceholderInput):
+    """A placeholder value which will be set by a protocol replicator.
+    """
+
+    def __getstate__(self):
+        return {}
+
+    def __setstate__(self, state):
+        pass
+
+
 class ProtocolPath(PlaceholderInput):
     """Represents a pointer to the output of another protocol.
     """

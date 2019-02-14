@@ -1,13 +1,14 @@
 """
 Defines an API for defining thermodynamic states.
 """
-
+import math
 from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, validator
 from simtk import unit
 
+from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import deserialize_quantity, serialize_quantity
 
 
@@ -47,6 +48,7 @@ class ThermodynamicState(BaseModel):
         arbitrary_types_allowed = True
 
         json_encoders = {
+            EstimatedQuantity: lambda value: value.__getstate__(),
             unit.Quantity: lambda v: serialize_quantity(v),
         }
 
@@ -101,13 +103,10 @@ class ThermodynamicState(BaseModel):
 
         return return_value
 
-    def __hash__(self):
-        return hash((str(self.temperature), str(self.pressure)))
-
     def __eq__(self, other):
 
-        return (abs(self.temperature - other.temperature) < 0.0001 * unit.kelvin and
-                abs(self.pressure - other.pressure) < 0.0001 * unit.atmosphere)
+        return (math.isclose(self.temperature / unit.kelvin, other.temperature / unit.kelvin) and
+                math.isclose(self.pressure / unit.atmosphere, other.pressure / unit.atmosphere))
 
     def __ne__(self, other):
         return not (self == other)

@@ -21,8 +21,7 @@ class StoredSimulationData:
         self.source_calculation_id: str = None
         self.provenance: str = None
 
-        self.autocorrelation_time: float = 0.0
-        self.effective_samples: int = 0
+        self.statistical_inefficiency: float = 0.0
 
         self.trajectory_data: Trajectory = None
         self.statistics_data: StatisticsArray = None

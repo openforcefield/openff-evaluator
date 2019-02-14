@@ -148,7 +148,7 @@ def test_density_dielectric_merging():
 
     for protocol_id_A, protocol_id_B in zip(merge_order_a, merge_order_b):
 
-        if protocol_id_A.find('extract_traj') < 0:
+        if protocol_id_A.find('extract_traj') < 0 and protocol_id_A.find('extract_stats') < 0:
 
             assert density_calculation.protocols[protocol_id_A].schema.json() == \
                    dielectric_calculation.protocols[protocol_id_B].schema.json()

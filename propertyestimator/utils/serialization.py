@@ -168,6 +168,9 @@ class PolymorphicDataType:
 
         class_name = type_string[last_period_index + 1:]
 
+        if class_name == 'NoneType':
+            return PolymorphicDataType(None)
+
         class_name_split = class_name.split('->')
         class_object = module
 

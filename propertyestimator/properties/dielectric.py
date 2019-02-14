@@ -15,9 +15,11 @@ from propertyestimator.properties.properties import PhysicalProperty
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils import timeseries
 from propertyestimator.utils.quantities import EstimatedQuantity
+from propertyestimator.utils.serialization import PolymorphicDataType
 from propertyestimator.workflow import WorkflowSchema
 from propertyestimator.workflow import protocols, groups, plugins
 from propertyestimator.workflow.decorators import protocol_input
+from propertyestimator.workflow.schemas import WorkflowOutputToStore
 from propertyestimator.workflow.utils import ProtocolPath
 
 
@@ -279,10 +281,19 @@ class DielectricConstant(PhysicalProperty):
         # Define where the final values come from.
         schema.final_value_source = ProtocolPath('value', converge_uncertainty.id, extract_dielectric.id)
 
-        schema.outputs_to_store['full_system'] = {
-            'trajectory': ProtocolPath('output_trajectory_path', extract_uncorrelated_trajectory.id),
-            'statistics': ProtocolPath('output_statistics_path', extract_uncorrelated_statistics.id),
-            'coordinates': ProtocolPath('output_coordinate_file', converge_uncertainty.id, npt_production.id)
-        }
+        output_to_store = WorkflowOutputToStore()
+
+        output_to_store.trajectory_file_path = ProtocolPath('output_trajectory_path',
+                                                            extract_uncorrelated_trajectory.id)
+        output_to_store.coordinate_file_path = ProtocolPath('output_coordinate_file',
+                                                            converge_uncertainty.id, npt_production.id)
+
+        output_to_store.statistics_file_path = ProtocolPath('output_statistics_path',
+                                                            extract_uncorrelated_statistics.id)
+
+        output_to_store.statistical_inefficiency = ProtocolPath('statistical_inefficiency', converge_uncertainty.id,
+                                                                extract_dielectric.id)
+
+        schema.outputs_to_store = {'full_system': PolymorphicDataType(output_to_store)}
 
         return schema

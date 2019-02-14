@@ -34,13 +34,18 @@ class ReweightingLayer(PropertyCalculationLayer):
 
         for physical_property in data_model.queued_properties:
 
-            existing_data = storage_backend.retrieve_simulation_data(str(physical_property.substance))
+            existing_data = storage_backend.retrieve_simulation_data(physical_property.substance, True)
             existing_force_fields = {}
 
-            for data in existing_data:
+            if len(existing_data) == 0:
+                continue
 
-                existing_force_field = storage_backend.retrieve_force_field(data.parameter_set_id)
-                existing_force_fields[data.parameter_set_id] = serialize_force_field(existing_force_field)
+            for substance_id in existing_data:
+
+                for data in existing_data[substance_id]:
+
+                    existing_force_field = storage_backend.retrieve_force_field(data.parameter_set_id)
+                    existing_force_fields[data.parameter_set_id] = serialize_force_field(existing_force_field)
 
             existing_force_fields[data_model.parameter_set_id] = serialize_force_field(parameter_set)
 
@@ -159,13 +164,13 @@ class ReweightingLayer(PropertyCalculationLayer):
         ----------
         physical_property: :obj:`propertyestimator.properties.PhysicalProperty`
             The physical property to attempt to estimate by reweighting.
-        parameter_set_id: str
+        parameter_set_id: :obj:`str`
             The id of the force field parameters which the property should be
             estimated with.
-        existing_data: List[propertyestimator.storage.StoredSimulationData]
+        existing_data: :obj:`dict` of :obj:`str` and :obj:`propertyestimator.storage.StoredSimulationData`
             Data which has been stored from previous calculations on systems
             of the same composition as the desired property.
-        existing_force_fields: Dict[str, Dict[int, str]]
+        existing_force_fields: :obj:`dict` of :obj:`str` and :obj:`dict` of :obj:`int` and :obj:`str`
             A dictionary of all of the force field parameters referenced by the
             `existing_data`, which have been serialized with `serialize_force_field`
         """

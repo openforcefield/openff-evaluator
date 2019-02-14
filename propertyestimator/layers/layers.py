@@ -3,6 +3,7 @@ Defines the base API for defining new property estimator estimation layers.
 """
 
 import logging
+from typing import List
 
 from propertyestimator.properties import PhysicalProperty
 from propertyestimator.storage import StoredSimulationData
@@ -43,7 +44,7 @@ class CalculationLayerResult:
         self.calculated_property: PhysicalProperty = None
         self.calculation_error: PropertyEstimatorException = None
 
-        self.data_to_store: StoredSimulationData = None
+        self.data_to_store: List[StoredSimulationData] = None
 
 
 class PropertyCalculationLayer:
@@ -103,12 +104,14 @@ class PropertyCalculationLayer:
                 # Make sure to store any important calculation data.
                 if returned_output.data_to_store is not None and returned_output.calculated_property is not None:
 
-                    if returned_output.data_to_store.parameter_set_id is None:
-                        returned_output.data_to_store.parameter_set_id = data_model.parameter_set_id
+                    for data in returned_output.data_to_store:
 
-                    substance_id = str(returned_output.calculated_property.substance)
+                        if data.parameter_set_id is None:
+                            data.parameter_set_id = data_model.parameter_set_id
 
-                    storage_backend.store_simulation_data(substance_id, returned_output.data_to_store)
+                        substance_id = data.substance.identifier
+
+                        storage_backend.store_simulation_data(substance_id, data)
 
                 matches = [x for x in returned_data_model.queued_properties if x.id == returned_output.property_id]
 
