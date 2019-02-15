@@ -1,11 +1,15 @@
 """
 A collection of density physical property definitions.
 """
+import json
 
-from propertyestimator.properties.plugins import register_estimable_property
+import numpy as np
+import pymbar
+from simtk import unit
+
 from propertyestimator.datasets.plugins import register_thermoml_property
-from propertyestimator.properties.properties import PhysicalProperty
-from propertyestimator.storage import StoredSimulationData
+from propertyestimator.properties.plugins import register_estimable_property
+from propertyestimator.properties.properties import PhysicalProperty, CalculationSource
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.serialization import PolymorphicDataType
 from propertyestimator.utils.statistics import ObservableType
@@ -161,8 +165,8 @@ class Density(PhysicalProperty):
         return schema
 
     @staticmethod
-    def reweight(reference_data, target_property, target_force_field_id,
-                 existing_data, existing_force_fields):
+    def reweight(physical_property, options, parameter_set_id, existing_data,
+                 existing_force_fields, available_resources):
 
         """A placeholder method that would be used to attempt
         to reweight previous calculations to yield the desired
@@ -182,61 +186,92 @@ class Density(PhysicalProperty):
         existing_data: :obj:`dict` of :obj:`str` and :obj:`propertyestimator.storage.StoredSimulationData`
             Data which has been stored from previous calculations on systems
             of the same composition as the desired property.
-        existing_force_fields: :obj:`dict` of :obj:`str` and :obj:`dict` of :obj:`int` and :obj:`str`
+        existing_force_fields: :obj:`dict` of :obj:`str` and ForceField
             A dictionary of all of the force field parameters referenced by the
             `existing_data`, which have been serialized with `serialize_force_field`
         """
 
-        target_force_field = deserialize_force_field(existing_force_fields[parameter_set_id])
+        from propertyestimator.layers import ReweightingLayer
 
-        particle_counts = np.array([data.trajectory_data.n_chains for data in existing_data])
-        maximum_molecule_count = particle_counts.max()
+        target_force_field = existing_force_fields[parameter_set_id]
 
         # Only retain data which has the same number of molecules. For now
         # we choose the data which was calculated using the most molecules,
         # however perhaps we should instead choose data with the mode number
         # of molecules?
-        useable_data = [data for data in existing_data if
-                        data.trajectory_data.n_chains == maximum_molecule_count]
+        useable_data = [data for data in existing_data[physical_property.substance] if
+                        data.substance == physical_property.substance]
 
-        for data in useable_data:
+        particle_counts = np.array([data.trajectory_data.n_residues for data in useable_data])
+        maximum_molecule_count = particle_counts.max()
 
-            # Calculate the number of uncorrelated samples per data object.
-            frame_counts = np.array([data.trajectory_data.n_frames]*2)
+        useable_data = [data for data in useable_data if
+                        data.trajectory_data.n_residues == maximum_molecule_count]
 
-            reduced_energies = np.zeros(2, frame_counts.max())
-            observables = np.zeros(2, frame_counts.max())
+        frame_counts = np.array([data.trajectory_data.n_frames for data in useable_data])
+        number_of_configurations = frame_counts.sum()
 
-            # The reference state energies.
-            reduced_energies[0] = ReweightingLayer._get_reduced_reference_energies(physical_property, data)
+        reference_reduced_energies = np.zeros((len(useable_data), number_of_configurations))
+        target_reduced_energies = np.zeros((1, number_of_configurations))
 
-            # The target state energies.
-            reduced_energies[1] = ReweightingLayer._get_reduced_target_energies(physical_property, parameter_set_id,
-                                                                                target_force_field, data)
+        observables = np.zeros((1, number_of_configurations))
 
-            property_class = registered_properties[physical_property.type]
+        for index_k, data_k in enumerate(useable_data):
+
+            reference_force_field = existing_force_fields[data_k.parameter_set_id]
+
+            for index_l, data_l in enumerate(useable_data):
+
+                # Compute the reference state energies.
+                reference_reduced_energies_k_l = ReweightingLayer.get_reduced_potential(data_k.substance,
+                                                                                        data_k.thermodynamic_state,
+                                                                                        data_k.parameter_set_id,
+                                                                                        reference_force_field,
+                                                                                        data_l,
+                                                                                        available_resources)
+
+                start_index = np.array(frame_counts[0:index_l]).sum()
+
+                for index in range(0, frame_counts[index_l]):
+                    reference_reduced_energies[index_k][start_index + index] = reference_reduced_energies_k_l[index]
+
+            # Compute the target state energies.
+            target_reduced_energies_k = ReweightingLayer.get_reduced_potential(data_k.substance,
+                                                                               physical_property.thermodynamic_state,
+                                                                               parameter_set_id,
+                                                                               target_force_field,
+                                                                               data_k,
+                                                                               available_resources)
 
             # Calculate the observables.
-            # observables[1] = property_class.calculate_observable(data)
+            reference_densities = data_k.statistics_data.get_observable(ObservableType.Density)
 
-            mbar = pymbar.MBAR(reduced_energies, frame_counts, verbose=False, relative_tolerance=1e-12)
-            results = mbar.computeExpectations(observables, state_dependent=True)
+            start_index = np.array(frame_counts[0:index_k]).sum()
 
-            all_values = results['mu']
-            all_uncertainties = results['sigma']
+            for index in range(0, frame_counts[index_k]):
 
-            if all_uncertainties[1] < physical_property.uncertainty:
+                target_reduced_energies[0][start_index + index] = target_reduced_energies_k[index]
+                observables[0][start_index + index] = reference_densities[index] / unit.gram * unit.milliliter
 
-                physical_property.value = all_values[1]
-                physical_property.uncertainty = all_uncertainties[1]
+        # Construct the mbar object.
+        mbar = pymbar.MBAR(reference_reduced_energies, frame_counts, verbose=False, relative_tolerance=1e-12)
+        results = mbar.computeExpectations(observables, target_reduced_energies, state_dependent=True)
 
-                physical_property.source = CalculationSource()
+        value = results[0][0] * unit.gram / unit.milliliter
+        uncertainty = results[1][0] * unit.gram / unit.milliliter
 
-                physical_property.source.fidelity = ReweightingLayer.__name__
-                physical_property.source.provenance = {
-                    'data_sources': []  # TODO: Add tags to data sources
-                }
+        if uncertainty < physical_property.uncertainty * options.relative_uncertainty:
 
-                return physical_property
+            physical_property.value = value
+            physical_property.uncertainty = uncertainty
+
+            physical_property.source = CalculationSource()
+
+            physical_property.source.fidelity = ReweightingLayer.__name__
+            physical_property.source.provenance = {
+                'data_sources': PolymorphicDataType(json.dumps([data.unique_id for data in useable_data]))
+            }
+
+            return physical_property
 
         return None

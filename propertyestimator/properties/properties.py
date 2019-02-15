@@ -4,7 +4,7 @@ Properties base API.
 
 import uuid
 from enum import IntFlag, unique
-from typing import Optional, Dict, Any
+from typing import Optional, Dict
 
 from pydantic import validator
 from simtk import unit

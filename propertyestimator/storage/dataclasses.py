@@ -15,6 +15,8 @@ class StoredSimulationData:
 
     def __init__(self):
 
+        self.unique_id: str = None
+
         self.substance: Substance = None
         self.thermodynamic_state: ThermodynamicState = None
 

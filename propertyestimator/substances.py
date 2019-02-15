@@ -2,9 +2,10 @@
 An API for defining and creating substances.
 """
 
+from typing import List
+
 from pydantic import BaseModel
 from pydantic.validators import dict_validator
-from typing import List
 
 
 class Component(BaseModel):

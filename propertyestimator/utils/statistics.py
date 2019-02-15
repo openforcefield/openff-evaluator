@@ -260,17 +260,17 @@ class StatisticsArray:
         potential_energies /= unit.kilojoule_per_mole
         kinetic_energies /= unit.kilojoule_per_mole
         total_energies /= unit.kilojoule_per_mole
-        temperatures /= unit.kilojoule_per_mole
-        volumes /= unit.kilojoule_per_mole
-        densities /= unit.kilojoule_per_mole
+        temperatures /= unit.kelvin
+        volumes /= unit.nanometer**3
+        densities /= (unit.gram / unit.milliliter)
         enthalpies /= unit.kilojoule_per_mole
 
         return_object = StatisticsArray(list(np.array(potential_energies)[data_indices]) * unit.kilojoule_per_mole,
                                         list(np.array(kinetic_energies)[data_indices]) * unit.kilojoule_per_mole,
                                         list(np.array(total_energies)[data_indices]) * unit.kilojoule_per_mole,
-                                        list(np.array(temperatures)[data_indices]) * unit.kilojoule_per_mole,
-                                        list(np.array(volumes)[data_indices]) * unit.kilojoule_per_mole,
-                                        list(np.array(densities)[data_indices]) * unit.kilojoule_per_mole,
+                                        list(np.array(temperatures)[data_indices]) * unit.kelvin,
+                                        list(np.array(volumes)[data_indices]) * unit.nanometer**3,
+                                        list(np.array(densities)[data_indices]) * (unit.gram / unit.milliliter),
                                         list(np.array(enthalpies)[data_indices]) * unit.kilojoule_per_mole)
 
         return return_object

@@ -288,7 +288,7 @@ class PropertyEstimatorStorage:
 
         substance_ids = [substance.identifier]
 
-        if isinstance(substance, Mixture) and include_pure_data == True:
+        if isinstance(substance, Mixture) and include_pure_data is True:
 
             for component in substance.components:
 
@@ -360,12 +360,14 @@ class PropertyEstimatorStorage:
         if simulation_data_key is None:
 
             simulation_data_key = "{}_{}".format(substance_id, uuid.uuid4())
+
             data_to_store = simulation_data
+            data_to_store.unique_id = simulation_data_key
 
         self.store_object(simulation_data_key, data_to_store)
 
         if (substance_id not in self._simulation_data_by_substance or
-                simulation_data_key not in self._simulation_data_by_substance[substance_id]):
+            simulation_data_key not in self._simulation_data_by_substance[substance_id]):
 
             if substance_id not in self._simulation_data_by_substance:
                 self._simulation_data_by_substance[substance_id] = []
