@@ -72,6 +72,10 @@ class PropertyEstimatorServer(TCPServer):
     It acts as a server, which receives submitted jobs from clients
     launched via the property estimator.
 
+    Warnings
+    --------
+    This class is still heavily under development and is subject to rapid changes.
+
     Notes
     -----
     Methods to handle the TCP messages are based on the StackOverflow response from
@@ -356,8 +360,6 @@ class PropertyEstimatorServer(TCPServer):
 
         output_model.estimated_properties = server_data_model.estimated_properties
         output_model.unsuccessful_properties = server_data_model.unsuccessful_properties
-
-        output_model.force_field_id = server_data_model.force_field_id
 
         return output_model
 

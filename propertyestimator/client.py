@@ -29,8 +29,10 @@ class PropertyEstimatorOptions(BaseModel):
 
     Warnings
     --------
-    The `gradient_properties` property is not implemented yet, and is meant only
-    as a placeholder for future api development.
+    * The `gradient_properties` property is not implemented yet, and is meant only
+      as a placeholder for future api development.
+
+    * This class is still heavily under development and is subject to rapid changes.
 
     Attributes
     ----------
@@ -83,6 +85,10 @@ class PropertyEstimatorSubmission(BaseModel):
     the parameters which will be used to estimate them, and options about
     how the properties will be estimated.
 
+    Warnings
+    --------
+    This class is still heavily under development and is subject to rapid changes.
+
     Attributes
     ----------
     properties: :obj:`list` of :obj:`PhysicalProperty`
@@ -113,6 +119,10 @@ class PropertyEstimatorResult(BaseModel):
     """Represents the results of attempting to estimate a set of physical
     properties using the property estimator server backend.
 
+    Warnings
+    --------
+    This class is still heavily under development and is subject to rapid changes.
+
     Attributes
     ----------
     id: :obj:`str`
@@ -120,9 +130,9 @@ class PropertyEstimatorResult(BaseModel):
     estimated_properties: :obj:`dict` of :obj:`str` and :obj:`PhysicalProperty`
         A dictionary of the properties which were successfully estimated, where
         the dictionary key is the unique id of the property being estimated.
-    unsuccessful_properties: :obj:`dict` of :obj:`str` and :obj:`PhysicalProperty`
-        A dictionary of the properties which could not be estimated. The dictionary
-        key is the unique id of the property which could not be estimated.
+    unsuccessful_properties: :obj:`dict` of :obj:`str` and :obj:`PropertyEstimatorException`
+        A dictionary of the exceptions that were raised when unsuccessfully estimating a property.
+        The dictionary key is the unique id of the property which could not be estimated.
     force_field_id:
         The server assigned id of the parameter set used in the calculation.
     """
@@ -130,8 +140,6 @@ class PropertyEstimatorResult(BaseModel):
 
     estimated_properties: Dict[str, PhysicalProperty] = {}
     unsuccessful_properties: Dict[str, PropertyEstimatorException] = {}
-
-    force_field_id: str = None
 
     class Config:
         arbitrary_types_allowed = True
@@ -141,6 +149,19 @@ class PropertyEstimatorResult(BaseModel):
             ProtocolPath: lambda v: v.full_path,
             PolymorphicDataType: lambda value: PolymorphicDataType.serialize(value)
         }
+
+
+class PropertyEstimatorConnectionOptions(BaseModel):
+    """The set of options to use when connecting to a
+    `PropertyEstimatorServer`
+
+    Warnings
+    --------
+    This class is still heavily under development and is subject to rapid changes.
+    """
+
+    server_address: str = 'localhost'
+    server_port: int = 8000
 
 
 class PropertyEstimatorClient:
@@ -155,6 +176,11 @@ class PropertyEstimatorClient:
     the users local machine acts as both the server and the client, and
     all calculations will be performed locally.
 
+    Warnings
+    --------
+    While the API of this class in now close to being final, the internals and implementation
+    are still heavily under development and is subject to rapid changes.
+
     Examples
     --------
 
@@ -166,8 +192,11 @@ class PropertyEstimatorClient:
     If the :obj:`PropertyEstimatorServer` is not running on the local machine, you will
     need to specify its address and the port that it is listening on:
 
-    >>> property_estimator = PropertyEstimatorClient(server_address='server_address',
-    >>>                                              port=8000)
+    >>> from propertyestimator.client import PropertyEstimatorConnectionOptions
+    >>>
+    >>> connection_options = PropertyEstimatorConnectionOptions(server_address='server_address',
+    >>>                                                         server_port=8000)
+    >>> property_estimator = PropertyEstimatorClient(connection_options)
 
     To asynchronously submit a request to the running server using the default estimator
     options:
@@ -202,6 +231,8 @@ class PropertyEstimatorClient:
     The calculations layers which will be used to estimate the properties can be
     controlled for example like so:
 
+    >>> from propertyestimator.layers import ReweightingLayer, SimulationLayer
+    >>>
     >>> options = PropertyEstimatorOptions(allowed_calculation_layers = [ReweightingLayer.__name__,
     >>>                                                                  SimulationLayer.__name__])
     >>>
@@ -214,37 +245,59 @@ class PropertyEstimatorClient:
 
     @property
     def server_address(self):
-        return self.server_address
+        return self._connection_options.server_address
 
     @property
     def server_port(self):
-        return self._port
+        return self._connection_options.server_port
 
     class Request:
+        """An object representation of a estimation request which has
+        been sent to a `PropertyEstimatorServer` instance. This object
+        can be used to query and retrieve the results of the request, or
+        be stored to retrieve the request at some point in the future."""
 
         @property
         def id(self):
+            """str: The id of the submitted request."""
             return self.id
 
         @property
         def server_address(self):
+            """str: The address of the server that the request was sent to."""
             return self.server_address
 
         @property
         def server_port(self):
+            """The port that the server is listening on."""
             return self.server_port
 
-        def __init__(self, request_id, server_address, server_port, client=None):
+        def __init__(self, request_id, connection_options, client=None):
+            """Constructs a new Request object.
 
+            Parameters
+            ----------
+            request_id: str
+                The id of the submitted request.
+            connection_options: PropertyEstimatorConnectionOptions
+                The options that were used to connect to the server that the request was sent to.
+            client: PropertyEstimatorClient, optional
+                The client that was used to submit the request.
+            """
             self._id = request_id
 
-            self._server_address = server_address
-            self._server_port = server_port
+            self._server_address = connection_options.server_address
+            self._server_port = connection_options.server_port
 
             self._client = client
 
             if client is None:
-                self._client = PropertyEstimatorClient(server_address, server_port)
+
+                connection_options = PropertyEstimatorConnectionOptions(
+                    server_address=connection_options.server_address,
+                    server_port=connection_options.server_port)
+
+                self._client = PropertyEstimatorClient(connection_options)
 
         def __str__(self):
 
@@ -258,6 +311,13 @@ class PropertyEstimatorClient:
                                                                                         self._server_port)
 
         def json(self):
+            """Returns a JSON representation of the `Request` object.
+
+            Returns
+            -------
+            str:
+                The JSON representation of the `Request` object.
+            """
 
             return json.dumps({
                 'id': self._id,
@@ -267,7 +327,18 @@ class PropertyEstimatorClient:
 
         @classmethod
         def from_json(cls, json_string):
+            """Creates a new `Request` object from a JSON representation.
 
+            Parameters
+            ----------
+            json_string: str
+                The JSON representation of the `Request` object.
+
+            Returns
+            -------
+            str:
+                The created `Request` object.
+            """
             json_dict = json.loads(json_string)
 
             return cls(json_dict['id'],
@@ -299,25 +370,22 @@ class PropertyEstimatorClient:
             """
             return self._client._retrieve_estimate(self._id, synchronous, polling_interval)
 
-    def __init__(self, server_address='localhost', port=8000):
+    def __init__(self, connection_options=PropertyEstimatorConnectionOptions()):
         """Constructs a new PropertyEstimatorClient object.
 
         Parameters
         ----------
-        server_address: :obj:`str`
-            The address of the calculation server.
-        port: :obj:`int`
-            The port that the server is listening on.
+        connection_options: :obj:`PropertyEstimatorConnectionOptions`
+            The options used when connecting to the calculation server.
         """
 
-        self._server_address = server_address
+        self._connection_options = connection_options
 
-        if server_address is None:
+        if connection_options.server_address is None:
 
             raise ValueError('The address of the server which will run'
                              'these calculations must be given.')
 
-        self._port = port
         self._tcp_client = TCPClient()
 
     def request_estimate(self, property_set, force_field, options=None):
@@ -386,8 +454,7 @@ class PropertyEstimatorClient:
         request_id = IOLoop.current().run_sync(lambda: self._send_calculations_to_server(submission))
 
         request_object = PropertyEstimatorClient.Request(request_id,
-                                                         self._server_address,
-                                                         self._port,
+                                                         self._connection_options,
                                                          self)
 
         return request_object
@@ -472,9 +539,14 @@ class PropertyEstimatorClient:
         try:
 
             # Attempt to establish a connection to the server.
-            logging.info("Attempting Connection to {}:{}".format(self._server_address, self._port))
-            stream = await self._tcp_client.connect(self._server_address, self._port)
-            logging.info("Connected to {}:{}".format(self._server_address, self._port))
+            logging.info("Attempting Connection to {}:{}".format(self._connection_options.server_address,
+                                                                 self._connection_options.server_port))
+
+            stream = await self._tcp_client.connect(self._connection_options.server_address,
+                                                                 self._connection_options.server_port)
+
+            logging.info("Connected to {}:{}".format(self._connection_options.server_address,
+                                                                 self._connection_options.server_port))
 
             stream.set_nodelay(True)
 
@@ -490,7 +562,8 @@ class PropertyEstimatorClient:
             await stream.write(message_type + length + encoded_json)
 
             logging.info("Sent calculations to {}:{}. Waiting for a response from"
-                         " the server...".format(self._server_address, self._port))
+                         " the server...".format(self._connection_options.server_address,
+                                                 self._connection_options.server_port))
 
             # Wait for confirmation that the server has submitted
             # the jobs. The first four bytes of the response should
@@ -512,7 +585,8 @@ class PropertyEstimatorClient:
 
             # Handle no connections to the server gracefully.
             logging.info("Error connecting to {}:{} : {}. Please ensure the server is running and"
-                         "that the server address / port is correct.".format(self._server_address, self._port, e))
+                         "that the server address / port is correct.".format(self._connection_options.server_address,
+                                                                             self._connection_options.server_port, e))
 
         # Return the ids of the submitted jobs.
         return request_id
@@ -543,9 +617,13 @@ class PropertyEstimatorClient:
         try:
 
             # Attempt to establish a connection to the server.
-            logging.info("Attempting Connection to {}:{}".format(self._server_address, self._port))
-            stream = await self._tcp_client.connect(self._server_address, self._port)
-            logging.info("Connected to {}:{}".format(self._server_address, self._port))
+            logging.info("Attempting Connection to {}:{}".format(self._connection_options.server_address,
+                                                                 self._connection_options.server_port))
+            stream = await self._tcp_client.connect(self._connection_options.server_address,
+                                                    self._connection_options.server_port)
+
+            logging.info("Connected to {}:{}".format(self._connection_options.server_address,
+                                                     self._connection_options.server_port))
 
             stream.set_nodelay(True)
 
@@ -557,7 +635,8 @@ class PropertyEstimatorClient:
 
             await stream.write(message_type + length + encoded_request_id)
 
-            logging.info("Querying the server {}:{}...".format(self._server_address, self._port))
+            logging.info("Querying the server {}:{}...".format(self._connection_options.server_address,
+                                                               self._connection_options.server_port))
 
             # Wait for the server response.
             header = await stream.read_bytes(4)
@@ -579,7 +658,8 @@ class PropertyEstimatorClient:
 
             # Handle no connections to the server gracefully.
             logging.info("Error connecting to {}:{} : {}. Please ensure the server is running and"
-                         "that the server address / port is correct.".format(self._server_address, self._port, e))
+                         "that the server address / port is correct.".format(self._connection_options.server_address,
+                                                                             self._connection_options.server_port, e))
 
         if server_response is not None:
 
