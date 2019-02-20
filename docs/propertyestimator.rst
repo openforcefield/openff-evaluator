@@ -9,7 +9,7 @@ Estimating properties
 .. warning:: This text is now out of date, but will be updated in future to reflect the
              latest version of the framework.
 
-The ``PropertyEstimator`` class creates objects that handle property estimation of all of the properties in a dataset,
+The :obj:`PropertyEstimatorClient` class creates objects that handle property estimation of all of the properties in a dataset,
 given a set or sets of parameters. The implementation will isolate the user from whatever backend (local machine,
 HPC cluster, `XSEDE resources <http://xsede.org>`_, `Amazon EC2 <https://aws.amazon.com/ec2>`_) is being used to compute
 the properties, as well as whether new simulations are being launched and analyzed or existing simulation data is being
@@ -20,15 +20,15 @@ processes on a cluster:
 
 .. code-block:: python
 
-    estimator = PropertyEstimator(nworkers=10) # NOTE: multiple backends will be supported in the future
-    computed_properties = estimator.computeProperties(dataset, parameter_sets)
+    estimator = PropertyEstimatorClient(nworkers=10) # NOTE: multiple backends will be supported in the future
+    computed_properties = estimator.computeProperties(dataset, force_fields)
 
-Here, ``dataset`` is a ``PhysicalPropertyDataset`` or subclass, and ``parameter_sets`` is a list containing
+Here, ``dataset`` is a ``PhysicalPropertyDataset`` or subclass, and ``force_fields`` is a list containing
 ``ForceField`` objects used to parameterize the physical systems in the dataset.
 
 This can be a single parameter set or multiple (usually closely related) parameter sets.
 
-``PropertyEstimator.computeProperties(...)`` returns a list of ``ComputedPhysicalProperty`` objects that provide access
+``PropertyEstimatorClient.computeProperties(...)`` returns a list of ``ComputedPhysicalProperty`` objects that provide access
 to several pieces of information:
 
 * ``property.value`` - the computed property value, with appropriate units
@@ -45,7 +45,7 @@ This API can be extended in the future to provide access to the simulation data 
 .. code-block:: python
 
     # Attach to my compute and storage resources
-    estimator = PropertyEstimator(...)
+    estimator = PropertyEstimatorClient(...)
     # Estimate some properties
 
     computed_properties = estimator.computeProperties(dataset, parameters)
@@ -94,11 +94,11 @@ printed.
                                                                                      # `eTemperature` in specified range
 
     # Load an initial parameter set
-    parameter_set = [ SMIRFFParameterSet('smarty-initial.xml') ]
+    force_field = [ SMIRFFParameterSet('smarty-initial.xml') ]
 
     # Compute physical properties for these measurements
-    estimator = PropertyEstimator(nworkers=10) # NOTE: multiple backends will be supported in the future
-    computed_properties = estimator.computeProperties(dataset, parameter_set)
+    estimator = PropertyEstimatorClient(nworkers=10) # NOTE: multiple backends will be supported in the future
+    computed_properties = estimator.computeProperties(dataset, force_field)
 
     # Write out statistics about errors in computed properties
     for (computed, measured) in (computed_properties, dataset):
@@ -108,64 +108,3 @@ printed.
         print('%24s : experiment %8.3f (%.3f) | calculated %8.3f (%.3f) %s' % (measured.value / property_unit,
             measured.uncertainty / property_unit, computed.value / property_unit, computed.uncertainty / property_unit,
             str(property_unit))
-
-Client Side API
----------------
-
-.. currentmodule:: propertyestimator.client
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    PropertyEstimator
-    PropertyEstimatorOptions
-    PropertyEstimatorSubmission
-    PropertyEstimatorResult
-
-Server Side API
----------------
-
-.. currentmodule:: propertyestimator.server
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    PropertyCalculationRunner
-    PropertyRunnerDataModel
-
-Calculation Layers
-------------------
-
-.. currentmodule:: propertyestimator.layers
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    PropertyCalculationLayer
-    register_calculation_layer
-    SurrogateLayer
-    ReweightingLayer
-    SimulationLayer
-
-Calculation Backends
---------------------
-
-.. currentmodule:: propertyestimator.backends
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    PropertyEstimatorBackendResources
-    PropertyEstimatorBackend
-    DaskLocalClusterBackend
-
-Storage Backends
-----------------
-
-.. currentmodule:: propertyestimator.storage
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    PropertyEstimatorStorage
-    LocalFileStorage

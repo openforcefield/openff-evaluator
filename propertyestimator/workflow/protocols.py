@@ -135,7 +135,7 @@ class BaseProtocol:
         ----------
         directory: str
             The directory to store output data in.
-        available_resources: PropertyEstimatorBackendResources
+        available_resources: ComputeResources
             The resources available to execute on.
 
         Returns
@@ -397,7 +397,7 @@ class BaseProtocol:
 
         Parameters
         ----------
-        input_path: ProtocolPath
+        input_path: :obj:`propertyestimator.workflow.utils.ProtocolPath`
             The input value to check.
 
         Returns
@@ -646,10 +646,10 @@ class BuildSmirnoffTopology(BaseProtocol):
 
         pdb_file = app.PDBFile(self._coordinate_file_path)
 
-        parameter_set = None
+        force_field = None
 
         with open(self._force_field_path, 'rb') as file:
-            parameter_set = deserialize_force_field(pickle.load(file))
+            force_field = deserialize_force_field(pickle.load(file))
 
         molecules = []
 
@@ -665,7 +665,7 @@ class BuildSmirnoffTopology(BaseProtocol):
 
         from openforcefield.typing.engines import smirnoff
 
-        system = parameter_set.createSystem(pdb_file.topology,
+        system = force_field.createSystem(pdb_file.topology,
                                             molecules,
                                             nonbondedMethod=smirnoff.PME,
                                             chargeMethod='OECharges_AM1BCCSym')
@@ -909,7 +909,7 @@ class RunOpenMMSimulation(BaseProtocol):
             The temperature at which to run the simulation
         pressure: unit.Quantiy
             The pressure at which to run the simulation
-        available_resources: PropertyEstimatorBackendResources
+        available_resources: ComputeResources
             The resources available to run on.
         """
 

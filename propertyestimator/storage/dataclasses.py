@@ -25,7 +25,7 @@ class StoredSimulationData:
 
         self.trajectory_data: Trajectory = None
 
-        self.parameter_set_id: str = None
+        self.force_field_id: str = None
 
     @classmethod
     def __get_validators__(cls):
