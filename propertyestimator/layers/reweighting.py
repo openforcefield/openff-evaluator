@@ -9,7 +9,6 @@ from simtk import unit
 
 from propertyestimator.layers import register_calculation_layer, PropertyCalculationLayer
 from propertyestimator.layers.layers import CalculationLayerResult
-from propertyestimator.storage import StoredSimulationData
 from propertyestimator.utils import create_molecule_from_smiles
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import serialize_force_field, deserialize_force_field

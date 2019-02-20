@@ -4,6 +4,7 @@ import logging
 from openforcefield.typing.engines import smirnoff
 
 from propertyestimator import client
+from propertyestimator.client import PropertyEstimatorOptions
 from propertyestimator.datasets import ThermoMLDataSet
 from propertyestimator.utils import get_data_filename, setup_timestamp_logging
 
@@ -34,10 +35,13 @@ def compute_estimate_async():
     # Load in the force field to use.
     force_field = smirnoff.ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
 
+    # Modify the submission options
+    options = PropertyEstimatorOptions(relative_uncertainty_tolerance=0.1)
+
     # Create the client object.
     property_estimator = client.PropertyEstimatorClient()
     # Submit the request to a running server.
-    request = property_estimator.request_estimate(data_set, force_field)
+    request = property_estimator.request_estimate(data_set, force_field, options)
 
     logging.info('Request info: {}'.format(str(request)))
 

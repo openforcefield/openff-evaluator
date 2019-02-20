@@ -192,22 +192,6 @@ class EstimatedQuantity:
 
         return EstimatedQuantity(result_value, result_uncertainty, *result_sources)
 
-    def __gt__(self, other):
-        assert isinstance(other, EstimatedQuantity)
-
-        self_ufloat = EstimatedQuantity._get_uncertainty_object(self)
-        other_ufloat = EstimatedQuantity._get_uncertainty_object(other)
-
-        return self_ufloat > other_ufloat
-
-    def __lt__(self, other):
-        assert isinstance(other, EstimatedQuantity)
-
-        self_ufloat = EstimatedQuantity._get_uncertainty_object(self)
-        other_ufloat = EstimatedQuantity._get_uncertainty_object(other)
-
-        return self_ufloat < other_ufloat
-
     def __getstate__(self):
 
         return {

@@ -4,8 +4,6 @@ A collection of enthalpy physical property definitions.
 
 from collections import namedtuple
 
-from simtk import unit
-
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.properties.properties import PhysicalProperty
