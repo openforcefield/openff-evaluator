@@ -402,7 +402,7 @@ class BaseProtocol:
 
         Returns
         -------
-        List[:obj:`propertyestimator.workflow.utils.ProtocolPath`]
+        List[ProtocolPath]
             A list of path pointed to by the value specified by `input_path`. If the value is a
             constant, an empty list is returned.
         """
