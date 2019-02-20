@@ -14,20 +14,29 @@ def start_property_estimator_server():
 
     setup_timestamp_logging()
 
+    # Set the name of the directory in which all temporary files
+    # will be generated.
     working_directory = 'working_directory'
 
     # Remove any existing data.
     if path.isdir(working_directory):
         shutil.rmtree(working_directory)
 
-    calculation_backend = DaskLocalClusterBackend(1, 1)
+    # Create a calculation backend to perform workflow
+    # calculations on.
+    calculation_backend = DaskLocalClusterBackend(1)
+    # Create a backend to handle storing and retrieving
+    # cached simulation data.
     storage_backend = LocalFileStorage()
 
-    property_server = server.PropertyCalculationRunner(calculation_backend,
+    # Create a server instance.
+    property_server = server.PropertyEstimatorServer(calculation_backend,
                                                        storage_backend,
                                                        working_directory=working_directory)
 
-    property_server.run_until_killed()
+    # Tell the server to start listening for incoming
+    # estimation requests.
+    property_server.start_listening_loop()
 
 
 if __name__ == "__main__":

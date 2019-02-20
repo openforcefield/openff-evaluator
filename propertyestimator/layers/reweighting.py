@@ -28,7 +28,7 @@ class ReweightingLayer(PropertyCalculationLayer):
     def schedule_calculation(calculation_backend, storage_backend, layer_directory,
                              data_model, callback, synchronous=False):
 
-        parameter_set = storage_backend.retrieve_force_field(data_model.parameter_set_id)
+        force_field = storage_backend.retrieve_force_field(data_model.force_field_id)
 
         reweighting_futures = []
 
@@ -56,26 +56,26 @@ class ReweightingLayer(PropertyCalculationLayer):
 
                     temporary_data_paths[substance_id].append(temporary_data_path)
 
-                    temporary_force_field_path = path.join(layer_directory, data.parameter_set_id)
-                    existing_force_field = storage_backend.retrieve_force_field(data.parameter_set_id)
+                    temporary_force_field_path = path.join(layer_directory, data.force_field_id)
+                    existing_force_field = storage_backend.retrieve_force_field(data.force_field_id)
 
                     with open(temporary_force_field_path, 'wb') as file:
                         pickle.dump(serialize_force_field(existing_force_field), file)
 
-                    temporary_force_field_paths[data.parameter_set_id] = temporary_force_field_path
+                    temporary_force_field_paths[data.force_field_id] = temporary_force_field_path
 
-            temporary_force_field_path = path.join(layer_directory, data_model.parameter_set_id)
+            temporary_force_field_path = path.join(layer_directory, data_model.force_field_id)
 
             with open(temporary_force_field_path, 'wb') as file:
-                pickle.dump(serialize_force_field(parameter_set), file)
+                pickle.dump(serialize_force_field(force_field), file)
 
-            temporary_force_field_paths[data_model.parameter_set_id] = temporary_force_field_path
+            temporary_force_field_paths[data_model.force_field_id] = temporary_force_field_path
 
             # Pass this data to the backend to attempt to reweight.
             reweighting_future = calculation_backend.submit_task(ReweightingLayer.perform_reweighting,
                                                                  physical_property,
                                                                  data_model.options,
-                                                                 data_model.parameter_set_id,
+                                                                 data_model.force_field_id,
                                                                  temporary_data_paths,
                                                                  temporary_force_field_paths)
 
@@ -90,9 +90,8 @@ class ReweightingLayer(PropertyCalculationLayer):
                                                 synchronous)
 
     @staticmethod
-    def perform_reweighting(physical_property, options, parameter_set_id, existing_data_paths,
+    def perform_reweighting(physical_property, options, force_field_id, existing_data_paths,
                             existing_force_field_paths, available_resources, **kwargs):
-
         """A placeholder method that would be used to attempt
         to reweight previous calculations to yield the desired
         property.
@@ -105,7 +104,7 @@ class ReweightingLayer(PropertyCalculationLayer):
         ----------
         physical_property: :obj:`propertyestimator.properties.PhysicalProperty`
             The physical property to attempt to estimate by reweighting.
-        parameter_set_id: :obj:`str`
+        force_field_id: :obj:`str`
             The id of the force field parameters which the property should be
             estimated with.
         existing_data: :obj:`dict` of :obj:`str` and :obj:`str`
@@ -137,7 +136,7 @@ class ReweightingLayer(PropertyCalculationLayer):
             with open(existing_force_field_paths[force_field_id], 'rb') as file:
                 existing_force_fields[force_field_id] = deserialize_force_field(pickle.load(file))
 
-        reweighted_property = property_class.reweight(physical_property, options, parameter_set_id, existing_data,
+        reweighted_property = property_class.reweight(physical_property, options, force_field_id, existing_data,
                                                       existing_force_fields, available_resources)
 
         return_object = CalculationLayerResult()
@@ -175,7 +174,7 @@ class ReweightingLayer(PropertyCalculationLayer):
         # If the parameters haven't changed, we only need to swap out the T / P?
         potential_energies = existing_data.statistics_data.get_observable(ObservableType.PotentialEnergy)
 
-        if target_force_field_id != existing_data.parameter_set_id:
+        if target_force_field_id != existing_data.force_field_id:
 
             potential_energies = ReweightingLayer.resample_data(substance, existing_data.trajectory_data,
                                                                 target_force_field, available_resources)

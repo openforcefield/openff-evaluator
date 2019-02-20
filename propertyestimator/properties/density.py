@@ -165,7 +165,7 @@ class Density(PhysicalProperty):
         return schema
 
     @staticmethod
-    def reweight(physical_property, options, parameter_set_id, existing_data,
+    def reweight(physical_property, options, force_field_id, existing_data,
                  existing_force_fields, available_resources):
 
         """A placeholder method that would be used to attempt
@@ -180,7 +180,7 @@ class Density(PhysicalProperty):
         ----------
         physical_property: :obj:`propertyestimator.properties.PhysicalProperty`
             The physical property to attempt to estimate by reweighting.
-        parameter_set_id: :obj:`str`
+        force_field_id: :obj:`str`
             The id of the force field parameters which the property should be
             estimated with.
         existing_data: :obj:`dict` of :obj:`str` and :obj:`propertyestimator.storage.StoredSimulationData`
@@ -193,7 +193,7 @@ class Density(PhysicalProperty):
 
         from propertyestimator.layers import ReweightingLayer
 
-        target_force_field = existing_force_fields[parameter_set_id]
+        target_force_field = existing_force_fields[force_field_id]
 
         # Only retain data which has the same number of molecules. For now
         # we choose the data which was calculated using the most molecules,
@@ -218,14 +218,14 @@ class Density(PhysicalProperty):
 
         for index_k, data_k in enumerate(useable_data):
 
-            reference_force_field = existing_force_fields[data_k.parameter_set_id]
+            reference_force_field = existing_force_fields[data_k.force_field_id]
 
             for index_l, data_l in enumerate(useable_data):
 
                 # Compute the reference state energies.
                 reference_reduced_energies_k_l = ReweightingLayer.get_reduced_potential(data_k.substance,
                                                                                         data_k.thermodynamic_state,
-                                                                                        data_k.parameter_set_id,
+                                                                                        data_k.force_field_id,
                                                                                         reference_force_field,
                                                                                         data_l,
                                                                                         available_resources)
@@ -238,7 +238,7 @@ class Density(PhysicalProperty):
             # Compute the target state energies.
             target_reduced_energies_k = ReweightingLayer.get_reduced_potential(data_k.substance,
                                                                                physical_property.thermodynamic_state,
-                                                                               parameter_set_id,
+                                                                               force_field_id,
                                                                                target_force_field,
                                                                                data_k,
                                                                                available_resources)

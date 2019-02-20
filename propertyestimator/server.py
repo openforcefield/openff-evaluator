@@ -10,7 +10,7 @@ from typing import List, Dict
 
 from pydantic import BaseModel
 from simtk import unit
-from tornado.ioloop import IOLoop, PeriodicCallback
+from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
 from tornado.tcpserver import TCPServer
 
@@ -25,34 +25,34 @@ from propertyestimator.utils.tcp import PropertyEstimatorMessageTypes, pack_int,
 from propertyestimator.workflow.utils import ProtocolPath
 
 
-class PropertyRunnerDataModel(BaseModel):
-    """Represents a data packet to be calculated by the runner, along with
+class PropertyEstimatorServerData(BaseModel):
+    """Represents a data packet to be calculated by the server, along with
     the options which should be used when running the calculations.
 
     Attributes
     ----------
-    id: str
-        A unique id assigned to this calculation packet.
-    queued_properties: List[PhysicalProperty]
-        A list of physical properties waiting to be calculated.
-    calculated_properties: Dict[str, PhysicalProperty]
-        A dictionary of physical properties which have (or attempted to have) been calculated.
-    options: PropertyEstimatorOptions
-        The options used to calculate the properties.
-    parameter_set_id: str
-        The unique server side id of the force field parameters used to calculate the properties.
+    id: `str`
+        A unique id assigned to this estimation request.
+    queued_properties: `list` of `PhysicalProperty`
+        A list of physical properties waiting to be estimated.
+    estimated_properties: `dict` of `str` and `PhysicalProperty`
+        A dictionary of physical properties which have (or attempted to have) been estimated.
+    options: `PropertyEstimatorOptions`
+        The options used to estimate the properties.
+    force_field_id: `str`
+        The unique server side id of the force field parameters used to estimate the properties.
     """
 
     id: str
 
     queued_properties: List[PhysicalProperty] = []
 
-    calculated_properties: Dict[str, PhysicalProperty] = {}
+    estimated_properties: Dict[str, PhysicalProperty] = {}
     unsuccessful_properties: Dict[str, PropertyEstimatorException] = {}
 
     options: PropertyEstimatorOptions = None
 
-    parameter_set_id: str = None
+    force_field_id: str = None
 
     class Config:
 
@@ -66,13 +66,17 @@ class PropertyRunnerDataModel(BaseModel):
         }
 
 
-class PropertyCalculationRunner(TCPServer):
-    """The class responsible for coordinating all calculations to be ran using
-    the property estimator, in addition to deciding at which fidelity a property
-    will be calculated.
+class PropertyEstimatorServer(TCPServer):
+    """The object responsible for coordinating all properties estimations to to
+    be ran using the property estimator, in addition to deciding at which fidelity
+    a property will be calculated.
 
     It acts as a server, which receives submitted jobs from clients
     launched via the property estimator.
+
+    Warnings
+    --------
+    This class is still heavily under development and is subject to rapid changes.
 
     Notes
     -----
@@ -84,20 +88,20 @@ class PropertyCalculationRunner(TCPServer):
     Setting up a general server instance using a dask LocalCluster backend:
 
     >>> # Create the backend which will be responsible for distributing the calculations
-    >>> from propertyestimator.backends import DaskLocalClusterBackend, PropertyEstimatorBackendResources
-    >>> calculation_backend = DaskLocalClusterBackend(1, 1, PropertyEstimatorBackendResources(1, 0))
+    >>> from propertyestimator.backends import DaskLocalClusterBackend, ComputeResources
+    >>> calculation_backend = DaskLocalClusterBackend(1)
     >>>
     >>> # Calculate the backend which will be responsible for storing and retrieving
     >>> # the data from previous calculations
     >>> from propertyestimator.storage import LocalFileStorage
     >>> storage_backend = LocalFileStorage()
     >>>
-    >>> # Create the server to which all calculations will be submitted
-    >>> from propertyestimator.server import PropertyCalculationRunner
-    >>> property_server = PropertyCalculationRunner(calculation_backend, storage_backend)
+    >>> # Create the server to which all estimation requests will be submitted
+    >>> from propertyestimator.server import PropertyEstimatorServer
+    >>> property_server = PropertyEstimatorServer(calculation_backend, storage_backend)
     >>>
-    >>> # Instruct the server to listen for incoming submissions
-    >>> property_server.run_until_killed()
+    >>> # Instruct the server to listen for incoming requests
+    >>> property_server.start_listening_loop()
     """
 
     @property
@@ -110,18 +114,18 @@ class PropertyCalculationRunner(TCPServer):
 
     def __init__(self, calculation_backend, storage_backend,
                  port=8000, working_directory='working-data'):
-        """Constructs a new PropertyCalculationRunner object.
+        """Constructs a new PropertyEstimatorServer object.
 
         Parameters
         ----------
-        calculation_backend: PropertyEstimatorBackend
+        calculation_backend: `PropertyEstimatorBackend`
             The backend to use for executing calculations.
-        storage_backend: PropertyEstimatorStorage
+        storage_backend: `PropertyEstimatorStorage`
             The backend to use for storing information from any calculations.
-        port: int
+        port: `int`
             The port one which to listen for incoming client
             requests.
-        working_directory: str
+        working_directory: `str`
             The local directory in which to store all local, temporary calculation data.
         """
         self._calculation_backend = calculation_backend
@@ -147,7 +151,7 @@ class PropertyCalculationRunner(TCPServer):
 
         calculation_backend.start()
 
-    async def handle_job_submission(self, stream, address, message_length):
+    async def _handle_job_submission(self, stream, address, message_length):
         """An asynchronous routine for handling the receiving and processing
         of job submissions from a client.
 
@@ -209,9 +213,9 @@ class PropertyCalculationRunner(TCPServer):
         logging.info('Jobs ids sent to the client ({}): {}'.format(address, calculation_id))
 
         if should_launch:
-            self.schedule_calculation(runner_data_model)
+            self._schedule_calculation(runner_data_model)
 
-    async def handle_job_query(self, stream, address, message_length):
+    async def _handle_job_query(self, stream, message_length):
         """An asynchronous routine for handling the receiving and processing
         of job queries from a client
 
@@ -220,30 +224,28 @@ class PropertyCalculationRunner(TCPServer):
         stream: IOStream
             An IO stream used to pass messages between the
             server and client.
-        address: str
-            The address from which the request came.
         message_length: int
             The length of the message being recieved.
         """
 
         # logging.info('Received job query from {}'.format(address))
 
-        encoded_ticket_id = await stream.read_bytes(message_length)
-        ticket_id = encoded_ticket_id.decode()
+        encoded_request_id = await stream.read_bytes(message_length)
+        request_id = encoded_request_id.decode()
 
-        # logging.info('Looking up ticket id {}'.format(ticket_id))
+        logging.info('Looking up request id {}'.format(request_id))
 
         response = None
 
-        if (ticket_id not in self._queued_calculations and
-            ticket_id not in self._finished_calculations):
+        if (request_id not in self._queued_calculations and
+            request_id not in self._finished_calculations):
 
             response = PropertyEstimatorException(directory='',
-                                                  message='The {} ticket id was not found '
-                                                           'on the server.'.format(ticket_id)).json()
+                                                  message='The {} request id was not found '
+                                                           'on the server.'.format(request_id)).json()
 
-        elif ticket_id in self._finished_calculations:
-            response = self._finished_calculations[ticket_id].json()
+        elif request_id in self._finished_calculations:
+            response = self._finished_calculations[request_id].json()
 
         else:
             response = ''
@@ -294,9 +296,9 @@ class PropertyCalculationRunner(TCPServer):
                     message_type = PropertyEstimatorMessageTypes(message_type_int)
                     # logging.info('Message type: {}'.format(message_type))
 
-                except Exception as e:
+                except ValueError as e:
 
-                    # logging.info('Bad message type recieved: {}'.format(e))
+                    logging.info('Bad message type recieved: {}'.format(e))
 
                     # Discard the unrecognised message.
                     if message_length > 0:
@@ -305,11 +307,11 @@ class PropertyCalculationRunner(TCPServer):
                     continue
 
                 if message_type is PropertyEstimatorMessageTypes.Submission:
-                    await self.handle_job_submission(stream, address, message_length)
+                    await self._handle_job_submission(stream, address, message_length)
                 elif message_type is PropertyEstimatorMessageTypes.Query:
-                    await self.handle_job_query(stream, address, message_length)
+                    await self._handle_job_query(stream, message_length)
 
-        except StreamClosedError as e:
+        except StreamClosedError:
 
             # Handle client disconnections gracefully.
             # logging.info("Lost connection to {}:{} : {}.".format(address, self._port, e))
@@ -326,18 +328,18 @@ class PropertyCalculationRunner(TCPServer):
 
         Returns
         -------
-        PropertyRunnerDataModel
+        PropertyEstimatorServerData
             The server side data model.
         """
 
-        parameter_set = deserialize_force_field(client_data_model.parameter_set)
+        force_field = deserialize_force_field(client_data_model.force_field)
 
-        parameter_set_id = self._storage_backend.has_force_field(parameter_set)
+        force_field_id = self._storage_backend.has_force_field(force_field)
 
-        if parameter_set_id is None:
+        if force_field_id is None:
 
-            parameter_set_id = str(uuid.uuid4())
-            self._storage_backend.store_force_field(parameter_set_id, parameter_set)
+            force_field_id = str(uuid.uuid4())
+            self._storage_backend.store_force_field(force_field_id, force_field)
 
         calculation_id = str(uuid.uuid4())
 
@@ -346,33 +348,33 @@ class PropertyCalculationRunner(TCPServer):
         while calculation_id in self._queued_calculations:
             calculation_id = str(uuid.uuid4())
 
-        runner_data = PropertyRunnerDataModel(id=calculation_id,
-                                              queued_properties=client_data_model.properties,
-                                              options=client_data_model.options,
-                                              parameter_set_id=parameter_set_id)
+        runner_data = PropertyEstimatorServerData(id=calculation_id,
+                                                  queued_properties=client_data_model.properties,
+                                                  options=client_data_model.options,
+                                                  force_field_id=force_field_id)
 
         return runner_data
 
-    def _prepare_output_model(self, server_data_model):
+    @staticmethod
+    def _prepare_output_model(server_data_model):
 
         output_model = PropertyEstimatorResult(id=server_data_model.id)
 
-        output_model.calculated_properties = server_data_model.calculated_properties
+        output_model.estimated_properties = server_data_model.estimated_properties
         output_model.unsuccessful_properties = server_data_model.unsuccessful_properties
-
-        output_model.parameter_set_id = server_data_model.parameter_set_id
 
         return output_model
 
-    def schedule_calculation(self, data_model):
-        """Schedules the calculation of the given properties using the passed parameters.
+    def _schedule_calculation(self, data_model):
+        """Schedules the calculation of the given properties using the passed
+        parameters.
 
         This method will recursively cascade through all allowed calculation
         layers or until all properties have been calculated.
 
         Parameters
         ----------
-        data_model : PropertyRunnerDataModel
+        data_model : PropertyEstimatorServerData
             The object containing instructions about which calculations
             should be performed.
         """
@@ -401,7 +403,7 @@ class PropertyCalculationRunner(TCPServer):
             data_model.options.allowed_calculation_layers.append(current_layer_type)
             data_model.queued_properties = []
 
-            self.schedule_calculation(data_model)
+            self._schedule_calculation(data_model)
             return
 
         logging.info('Launching calculation {} using the {} layer'.format(data_model.id,
@@ -418,9 +420,9 @@ class PropertyCalculationRunner(TCPServer):
                                            self._storage_backend,
                                            layer_directory,
                                            data_model,
-                                           self.schedule_calculation)
+                                           self._schedule_calculation)
 
-    def run_until_killed(self):
+    def start_listening_loop(self):
         """Starts the main (blocking) server IOLoop which will run until
         the user kills the process.
         """
@@ -430,25 +432,6 @@ class PropertyCalculationRunner(TCPServer):
             IOLoop.current().start()
         except KeyboardInterrupt:
             self.stop()
-
-    def run_until_complete(self):
-        """Run the server loop until no more jobs are left in the queue.
-
-        This is mainly made available for debug purposes for now.
-        """
-        def check_if_queue_empty():
-
-            if len(self._queued_calculations) > 0:
-                return
-
-            logging.info('The queue is now empty - closing the server.')
-            self.stop()
-
-        check_callback = PeriodicCallback(check_if_queue_empty, 5000)
-        self._periodic_loops.append(check_callback)
-
-        check_callback.start()
-        self.run_until_killed()
 
     def stop(self):
         """Stops the property calculation server and it's

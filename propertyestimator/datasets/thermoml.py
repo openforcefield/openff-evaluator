@@ -1199,12 +1199,12 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
     For example, we can use the DOI `10.1016/j.jct.2005.03.012` as a key
     for retrieving the dataset from the ThermoML Archive:
 
-    >>> dataset = ThermoMLDataSet.from_doi_list('10.1016/j.jct.2005.03.012')
+    >>> dataset = ThermoMLDataSet.from_doi('10.1016/j.jct.2005.03.012')
 
     You can also specify multiple ThermoML Archive keys to create a dataset from multiple ThermoML files:
 
     >>> thermoml_keys = ['10.1021/acs.jced.5b00365', '10.1021/acs.jced.5b00474']
-    >>> dataset = ThermoMLDataSet.from_doi_list(*thermoml_keys)
+    >>> dataset = ThermoMLDataSet.from_doi(*thermoml_keys)
 
     """
 
@@ -1213,7 +1213,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
         super().__init__()
 
     @classmethod
-    def from_doi_list(cls, *doi_list):
+    def from_doi(cls, *doi_list):
         """Load a ThermoML data set from a list of DOIs
         
         Parameters
@@ -1246,7 +1246,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
         return return_value
 
     @classmethod
-    def from_url_list(cls, *url_list):
+    def from_url(cls, *url_list):
         """Load a ThermoML data set from a list of URLs
 
         Parameters
@@ -1309,7 +1309,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
         return return_value
 
     @classmethod
-    def from_file_list(cls, *file_list):
+    def from_file(cls, *file_list):
         """Load a ThermoML data set from a list of files
 
         Parameters

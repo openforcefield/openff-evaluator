@@ -41,6 +41,7 @@ release = ''
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.napoleon',
     'sphinx.ext.autosummary',
     'numpydoc',
     'sphinx.ext.doctest',

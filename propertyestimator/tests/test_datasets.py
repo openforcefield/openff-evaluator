@@ -18,18 +18,18 @@ from propertyestimator.datasets import ThermoMLDataSet
 
 def test_from_url():
 
-    data_set = ThermoMLDataSet.from_url_list('https://trc.nist.gov/journals/jct/2005v37/i04/j.jct.2004.09.022.xml')
+    data_set = ThermoMLDataSet.from_url('https://trc.nist.gov/journals/jct/2005v37/i04/j.jct.2004.09.022.xml')
     assert data_set is not None
 
     assert len(data_set.properties) > 0
 
-    data_set = ThermoMLDataSet.from_url_list('https://trc.nist.gov/journals/jct/2005v37/i04/j.jct.2004.09.022.xmld')
+    data_set = ThermoMLDataSet.from_url('https://trc.nist.gov/journals/jct/2005v37/i04/j.jct.2004.09.022.xmld')
     assert data_set is None
 
 
 def test_serialization():
 
-    data_set = ThermoMLDataSet.from_doi_list('10.1016/j.jct.2016.10.001')
+    data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
     assert data_set is not None
 
     assert len(data_set.properties) > 0
@@ -46,7 +46,7 @@ def test_serialization():
 
 def test_from_doi():
 
-    data_set = ThermoMLDataSet.from_doi_list('10.1016/j.jct.2016.10.001')
+    data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
     assert data_set is not None
 
     assert len(data_set.properties) > 0
@@ -61,23 +61,23 @@ def test_from_doi():
             physical_property_recreated = PhysicalProperty.parse_raw(physical_property_json)
             print(physical_property_recreated)
 
-    data_set = ThermoMLDataSet.from_doi_list('10.1016/j.jct.2016.12.009')
+    data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.12.009')
     assert data_set is None
 
-    data_set = ThermoMLDataSet.from_doi_list('10.1016/j.jct.2016.12.009x')
+    data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.12.009x')
     assert data_set is None
 
 
 def test_from_files():
 
-    data_set = ThermoMLDataSet.from_file_list(get_data_filename('properties/j.jct.2004.09.014.xml'),
-                                              get_data_filename('properties/j.jct.2004.09.022.xml'),
-                                              get_data_filename('properties/j.jct.2007.09.004.xml'))
+    data_set = ThermoMLDataSet.from_file(get_data_filename('properties/j.jct.2004.09.014.xml'),
+                                         get_data_filename('properties/j.jct.2004.09.022.xml'),
+                                         get_data_filename('properties/j.jct.2007.09.004.xml'))
     assert data_set is not None
 
     assert len(data_set.properties) > 0
 
-    data_set = ThermoMLDataSet.from_file_list('properties/j.jct.2004.09.014.xmld')
+    data_set = ThermoMLDataSet.from_file('properties/j.jct.2004.09.014.xmld')
     assert data_set is None
 
 
@@ -98,11 +98,11 @@ def parse_all_jct_files():
 
         thermoml_files.append(full_path)
 
-    data_set = ThermoMLDataSet.from_file_list(*thermoml_files)
+    data_set = ThermoMLDataSet.from_file(*thermoml_files)
 
     from propertyestimator.properties.density import Density
     from propertyestimator.properties.dielectric import DielectricConstant
-    from propertyestimator.properties.enthalpy import Enthalpy, EnthalpyOfMixing
+    from propertyestimator.properties.enthalpy import EnthalpyOfMixing
 
     properties_by_type = {Density.__name__: [], DielectricConstant.__name__: [], Enthalpy.__name__: [],
                           EnthalpyOfMixing.__name__: []}

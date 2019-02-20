@@ -252,7 +252,7 @@ class ProtocolGroup(BaseProtocol):
         ----------
         directory : str
             The root directory in which to run the protocols
-        available_resources: PropertyEstimatorBackendResources
+        available_resources: ComputeResources
             The resources available to execute on.
         Returns
         -------
@@ -773,7 +773,7 @@ class ConditionalGroup(ProtocolGroup):
         ----------
         directory : str
             The root directory in which to run the protocols
-        available_resources: PropertyEstimatorBackendResources
+        available_resources: ComputeResources
             The resources available to execute on.
 
         Returns
