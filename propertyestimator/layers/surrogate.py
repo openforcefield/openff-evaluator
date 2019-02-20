@@ -18,7 +18,7 @@ class SurrogateLayer(PropertyCalculationLayer):
     def schedule_calculation(calculation_backend, storage_backend, layer_directory,
                              data_model, callback, synchronous=False):
 
-        parameter_set = storage_backend.retrieve_force_field(data_model.parameter_set_id)
+        force_field = storage_backend.retrieve_force_field(data_model.force_field_id)
 
         surrogate_futures = []
 
@@ -26,7 +26,7 @@ class SurrogateLayer(PropertyCalculationLayer):
 
             surrogate_future = calculation_backend.submit_task(SurrogateLayer.perform_surrogate_extrapolation,
                                                                physical_property,
-                                                               serialize_force_field(parameter_set))
+                                                               serialize_force_field(force_field))
 
             surrogate_futures.append(surrogate_future)
 
@@ -39,7 +39,7 @@ class SurrogateLayer(PropertyCalculationLayer):
                                                 synchronous)
 
     @staticmethod
-    def perform_surrogate_extrapolation(physical_property, parameter_set_dict, **kwargs):
+    def perform_surrogate_extrapolation(physical_property, force_field_dict, **kwargs):
         """A placeholder method that would be used to spawn the surrogate
         model backend.
 

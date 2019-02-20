@@ -18,7 +18,7 @@ class ReweightingLayer(PropertyCalculationLayer):
     def schedule_calculation(calculation_backend, storage_backend, layer_directory,
                              data_model, callback, synchronous=False):
 
-        parameter_set = storage_backend.retrieve_force_field(data_model.parameter_set_id)
+        force_field = storage_backend.retrieve_force_field(data_model.force_field_id)
 
         reweighting_futures = []
 
@@ -28,7 +28,7 @@ class ReweightingLayer(PropertyCalculationLayer):
 
             reweighting_future = calculation_backend.submit_task(ReweightingLayer.perform_reweighting,
                                                                  physical_property,
-                                                                 serialize_force_field(parameter_set),
+                                                                 serialize_force_field(force_field),
                                                                  existing_data)
 
             reweighting_futures.append(reweighting_future)
@@ -42,7 +42,7 @@ class ReweightingLayer(PropertyCalculationLayer):
                                                 synchronous)
 
     @staticmethod
-    def perform_reweighting(physical_property, parameter_set, existing_data, **kwargs):
+    def perform_reweighting(physical_property, force_field, existing_data, **kwargs):
         """A placeholder method that would be used to attempt
         to reweight previous calculations to yield the desired
         property.
@@ -53,7 +53,7 @@ class ReweightingLayer(PropertyCalculationLayer):
         ----------
         physical_property: PhysicalProperty
             The physical property to attempt to estimate by reweighting.
-        parameter_set: ForceField
+        force_field: ForceField
             The force field parameters to use when estimating the property.
         existing_data: list of StoredSimulationData
             Data which has been stored from previous calculations on systems

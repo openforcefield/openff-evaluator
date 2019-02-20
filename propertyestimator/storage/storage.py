@@ -323,7 +323,7 @@ class PropertyEstimatorStorage:
                 if simulation_data.thermodynamic_state != stored_data.thermodynamic_state:
                     continue
 
-                if simulation_data.parameter_set_id != stored_data.parameter_set_id:
+                if simulation_data.force_field_id != stored_data.force_field_id:
                     continue
 
                 if stored_data.autocorrelation_time < simulation_data.autocorrelation_time:
