@@ -85,34 +85,28 @@ def pack_box(molecules,
     # Create PDB files for all components
     pdb_filenames = list()
 
-    pdb_flavor = (oechem.OEOFlavor_PDB_CurrentResidues
-                  | oechem.OEOFlavor_PDB_ELEMENT
-                  | oechem.OEOFlavor_PDB_BONDS
-                  | oechem.OEOFlavor_PDB_HETBONDS
-                  | oechem.OEOFlavor_PDB_BOTH
-                  | oechem.OEIFlavor_PDB_Connect)
+    pdb_flavor = oechem.OEOFlavor_PDB_Default
 
-    for molecule in molecules:
+    for index, molecule in enumerate(molecules):
 
         tmp_filename = tempfile.mktemp(suffix=".pdb")
         pdb_filenames.append(tmp_filename)
 
         # Write PDB file
-        mol_copy = copy.deepcopy(molecule)
         ofs = oechem.oemolostream(tmp_filename)
         ofs.SetFlavor(oechem.OEFormat_PDB, pdb_flavor)
 
         # Fix residue names
         residue_name = "".join([random.choice(string.ascii_uppercase) for i in range(3)])
 
-        for atom in mol_copy.GetAtoms():
-
-            residue = oechem.OEAtomGetResidue(atom)
-            residue.SetName(residue_name)
-            oechem.OEAtomSetResidue(atom, residue)
-
-        oechem.OEWriteMolecule(ofs, mol_copy)
+        oechem.OEWriteConstMolecule(ofs, molecule)
         ofs.close()
+
+        with open(tmp_filename, 'rb') as file:
+            pdb_contents = file.read().decode().replace('UNL', residue_name)
+
+        with open(tmp_filename, 'wb') as file:
+            file.write(pdb_contents.encode())
 
     # Run packmol
     if PACKMOL_PATH is None:
@@ -161,7 +155,7 @@ def pack_box(molecules,
 
         if verbose:
             print(result)
-
+    
         packmol_succeeded = result.find('Success!') > 0
 
     os.unlink(packmol_filename)

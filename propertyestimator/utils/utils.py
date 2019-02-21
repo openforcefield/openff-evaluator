@@ -104,7 +104,7 @@ def create_molecule_from_smiles(smiles):
     # Normalize molecule
     oechem.OEAssignAromaticFlags(molecule, oechem.OEAroModelOpenEye)
     oechem.OEAddExplicitHydrogens(molecule)
-    oechem.OETriposAtomNames(molecule)
+    # oechem.OETriposAtomNames(molecule)
 
     # Create configuration
     omega = oeomega.OEOmega()
