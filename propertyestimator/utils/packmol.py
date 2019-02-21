@@ -6,7 +6,6 @@ Notes
 Based on the `SolvationToolkit <https://github.com/MobleyLab/SolvationToolkit>`_.
 """
 
-import copy
 import logging
 import os
 import random
@@ -155,7 +154,7 @@ def pack_box(molecules,
 
         if verbose:
             print(result)
-    
+
         packmol_succeeded = result.find('Success!') > 0
 
     os.unlink(packmol_filename)
