@@ -8,7 +8,6 @@ import logging
 import math
 import pickle
 from os import path
-from pickle import UnpicklingError
 
 import mdtraj
 import numpy as np
@@ -654,7 +653,7 @@ class BuildSmirnoffTopology(BaseProtocol):
             with open(self._force_field_path, 'rb') as file:
                 force_field = deserialize_force_field(pickle.load(file))
 
-        except UnpicklingError as e:
+        except pickle.UnpicklingError as e:
 
             try:
 
