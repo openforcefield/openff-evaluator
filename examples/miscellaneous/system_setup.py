@@ -23,7 +23,6 @@ def build_solvated_system():
     # In this case we add a molecule of paracetamol.
     mixed_system.add_component(smiles='CC(=O)NC1=CC=C(C=C1)O', mole_fraction=0.0, impurity=True)
 
-
     # Create an object which under the hood calls the packmol utility
     # in a friendlier way:
     print('Building the coordinates (this may take a while...)')
@@ -40,7 +39,6 @@ def build_solvated_system():
     # Build the coordinates, creating a file called output.pdb
     build_coordinates.execute('', None)
 
-
     # Assign some smirnoff force field parameters to the
     # coordinates
     print('Assigning some parameters.')
@@ -51,7 +49,6 @@ def build_solvated_system():
     assign_force_field_parameters.substance = mixed_system
 
     assign_force_field_parameters.execute('', None)
-
 
     # Do a simple energy minimisation
     print('Performing energy minimisation.')
