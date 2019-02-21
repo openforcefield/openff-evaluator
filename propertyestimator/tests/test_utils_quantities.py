@@ -95,25 +95,6 @@ def test_estimated_quantity_correlated_exception():
         _ = quantity_a - quantity_c
 
 
-def test_estimated_quantity_comparision():
-    """Tests <, > comparision of quantities."""
-
-    a = 5 * unit.angstrom
-    delta_a = 0.03 * unit.angstrom
-
-    b = 10 * unit.angstrom
-    delta_b = 0.04 * unit.angstrom
-
-    quantity_a = quantities.EstimatedQuantity(a, delta_a, '325262315:npt_production')
-    quantity_b = quantities.EstimatedQuantity(b, delta_b, '893487693:npt_production')
-
-    # Less than testing:
-    assert quantity_a < quantity_b
-
-    # Greater than testing:
-    assert quantity_b > quantity_a
-
-
 def test_estimated_quantity_serialization():
     """Tests the (de)serialization of an EstimatedQuantity"""
 

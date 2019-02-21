@@ -730,7 +730,8 @@ class RunEnergyMinimisation(BaseProtocol):
 
         if available_resources.number_of_gpus > 0:
 
-            gpu_platform = Platform.getPlatformByName('CUDA')
+            # noinspection PyTypeChecker,PyCallByClass
+            gpu_platform = Platform.getPlatformByName(str(available_resources.preferred_gpu_toolkit))
             properties = {'DeviceIndex': ','.join(range(available_resources.number_of_gpus))}
 
             simulation = app.Simulation(input_pdb_file.topology, self._system, integrator, gpu_platform, properties)
@@ -739,6 +740,7 @@ class RunEnergyMinimisation(BaseProtocol):
 
         else:
 
+            # noinspection PyTypeChecker,PyCallByClass
             cpu_platform = Platform.getPlatformByName('CPU')
             properties = {'Threads': str(available_resources.number_of_threads)}
 
@@ -936,7 +938,8 @@ class RunOpenMMSimulation(BaseProtocol):
 
         if available_resources.number_of_gpus > 0:
 
-            gpu_platform = Platform.getPlatformByName('CUDA')
+            # noinspection PyTypeChecker,PyCallByClass
+            gpu_platform = Platform.getPlatformByName(str(available_resources.preferred_gpu_toolkit))
             properties = {'DeviceIndex': ','.join(range(available_resources.number_of_gpus))}
 
             simulation = app.Simulation(input_pdb_file.topology, system, integrator, gpu_platform, properties)
@@ -945,6 +948,7 @@ class RunOpenMMSimulation(BaseProtocol):
 
         else:
 
+            # noinspection PyTypeChecker,PyCallByClass
             cpu_platform = Platform.getPlatformByName('CPU')
             properties = {'Threads': str(available_resources.number_of_threads)}
 
@@ -1315,10 +1319,10 @@ class ExtractUncorrelatedStatisticsData(ExtractUncorrelatedData):
 
         statistics = StatisticsArray.from_pandas_csv(self._input_statistics_path)
 
-        uncorrelated_indices = timeseries.get_uncorrelated_indices(statistics.number_of_items,
+        uncorrelated_indices = timeseries.get_uncorrelated_indices(len(statistics),
                                                                    self._statistical_inefficiency)
 
-        uncorrelated_statistics = statistics.from_existing(statistics, uncorrelated_indices)
+        uncorrelated_statistics = statistics.from_statistics_array(statistics, uncorrelated_indices)
 
         self._output_statistics_path = path.join(directory, 'uncorrelated_statistics.csv')
         uncorrelated_statistics.save_as_pandas_csv(self._output_statistics_path)

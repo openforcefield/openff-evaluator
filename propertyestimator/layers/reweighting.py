@@ -1,6 +1,7 @@
 """
 The simulation reweighting estimation layer.
 """
+import copy
 import pickle
 from os import path
 
@@ -20,7 +21,8 @@ class ReweightingLayer(PropertyCalculationLayer):
     """A calculation layer which aims to calculate physical properties by
     reweighting the results of previous calculations.
 
-    .. warning :: This class has not yet been implemented.
+    .. warning :: This class is still heavily under development and is subject to
+                 rapid changes.
     """
 
     @staticmethod
@@ -95,23 +97,23 @@ class ReweightingLayer(PropertyCalculationLayer):
         to reweight previous calculations to yield the desired
         property.
 
-        Warnings
-        --------
-        This method has not yet been implemented.
-
         Parameters
         ----------
-        physical_property: :obj:`propertyestimator.properties.PhysicalProperty`
+        physical_property: PhysicalProperty
             The physical property to attempt to estimate by reweighting.
-        force_field_id: :obj:`str`
+        options: PropertyEstimatorOptions
+            The options to use when executing the reweighting layer.
+        force_field_id: str
             The id of the force field parameters which the property should be
             estimated with.
-        existing_data: :obj:`dict` of :obj:`str` and :obj:`str`
-            A file path to data which has been stored from previous calculations on
-            systems of the same composition as the desired property.
-        existing_force_fields: :obj:`dict` of :obj:`str` and :obj:`str`
-            A path to a dictionary of all of the force field parameters referenced by the
-            `existing_data`, which have been serialized with `serialize_force_field`
+        existing_data_paths: dict of str and str
+            A dictionary of file path to data which has been stored from previous calculations
+            on systems of the same composition as the desired property.
+        existing_force_field_paths: dict of str and str
+            A dictionary of file paths to the force field parameters referenced by the
+            `existing_data_paths`, which have been serialized with `serialize_force_field`
+        available_resources: ComputeResources
+            The compute resources available for this reweighting calculation.
         """
         property_class = physical_property.__class__
 
@@ -155,49 +157,48 @@ class ReweightingLayer(PropertyCalculationLayer):
 
         Parameters
         ----------
-        thermodynamic_state: The thermodynamic state to use when reducing the
-            energies.
+        substance: Mixture
+            The substance for which to get reduced energies for.
+        thermodynamic_state: ThermodynamicState
+            The thermodynamic state to use when reducing the energies.
         target_force_field_id: str
             The id of the target force field parameters.
-        target_force_field: ForceField
+        target_force_field: openforcefield.typing.engines.smirnoff.ForceField
             The target set of force field parameters.
         existing_data: StoredSimulationData
             The reference data to get the energies from.
+        available_resources: ComputeResources
+            The compute resources available when generating the reduced potentials.
 
         Returns
         -------
-        :obj:`numpy.ndarray`
+        numpy.ndarray shape=(num_frames), dtype=float
             The reduced potential of the target state.
         """
 
-        # If the parameters haven't changed, we only need to swap out the T / P?
-        potential_energies = existing_data.statistics_data.get_observable(ObservableType.PotentialEnergy)
+        potential_energies = None
 
         if target_force_field_id != existing_data.force_field_id:
 
             potential_energies = ReweightingLayer.resample_data(substance, existing_data.trajectory_data,
                                                                 target_force_field, available_resources)
 
-        reduced_potentials = []
+        else:
+            potential_energies = copy.deepcopy(existing_data.statistics_data.get_observable(
+                ObservableType.PotentialEnergy))
 
-        for index, potential_energy in enumerate(potential_energies):
-            reduced_potentials.append(potential_energy / unit.kilojoule_per_mole)
+        beta = 1.0 / (thermodynamic_state.temperature * unit.MOLAR_GAS_CONSTANT_R)
+
+        reduced_potentials = potential_energies
 
         if thermodynamic_state.pressure is not None:
 
             volumes = existing_data.statistics_data.get_observable(ObservableType.Volume)
+            reduced_potentials += volumes * thermodynamic_state.pressure * unit.AVOGADRO_CONSTANT_NA
 
-            for index, volume in enumerate(volumes):
+        reduced_potentials *= beta
 
-                reduced_potentials[index] += (volume * thermodynamic_state.pressure *
-                                              unit.AVOGADRO_CONSTANT_NA) / unit.kilojoule_per_mole
-
-        beta = 1.0 / (thermodynamic_state.temperature * unit.MOLAR_GAS_CONSTANT_R)
-
-        for index, reduced_potential in enumerate(reduced_potentials):
-            reduced_potentials[index] = (reduced_potential * unit.kilojoule_per_mole) * beta
-
-        return np.array(reduced_potentials)
+        return reduced_potentials
 
     @staticmethod
     def resample_data(substance, trajectory_to_resample,
@@ -210,17 +211,17 @@ class ReweightingLayer(PropertyCalculationLayer):
         ----------
         substance: Mixture
             The substance being resampled.
-        trajectory_to_resample: :obj:`mdtraj.Trajectory`
+        trajectory_to_resample: mdtraj.Trajectory
             The trajectory to resample.
-        thermodynamic_state: :obj:`propertyestimator.thermodynamics.ThermodynamicState`
-            The thermodynamic state to resample the statistics at.
-        force_field: :obj:`openforcefield.typing.engines.smirnoff.ForceField`
+        force_field: openforcefield.typing.engines.smirnoff.ForceField
             The force field to use when calculating the energy of the frames of
             the trajectory.
+        available_resources: ComputeResources
+            The compute resources available when resampling the data.
 
         Returns
         -------
-        :obj:`numpy.ndarray`
+        numpy.ndarray
             The resampled energies.
         """
 
@@ -247,13 +248,15 @@ class ReweightingLayer(PropertyCalculationLayer):
 
         if available_resources.number_of_gpus > 0:
 
-            gpu_platform = Platform.getPlatformByName('CUDA')
+            # noinspection PyTypeChecker,PyCallByClass
+            gpu_platform = Platform.getPlatformByName(str(available_resources.preferred_gpu_toolkit))
             properties = {'DeviceIndex': ','.join(range(available_resources.number_of_gpus))}
 
             context = Context(system, integrator, gpu_platform, properties)
 
         else:
 
+            # noinspection PyTypeChecker,PyCallByClass
             cpu_platform = Platform.getPlatformByName('CPU')
             properties = {'Threads': str(available_resources.number_of_threads)}
 
@@ -263,8 +266,8 @@ class ReweightingLayer(PropertyCalculationLayer):
 
         for frame_index in range(trajectory_to_resample.n_frames):
 
-            positions = trajectory_to_resample.positions[frame_index]
-            box_vectors = trajectory_to_resample.box_vectors[frame_index]
+            positions = trajectory_to_resample.openmm_positions(frame_index)
+            box_vectors = trajectory_to_resample.openmm_boxes(frame_index)
 
             context.context.setPeriodicBoxVectors(*box_vectors)
             context.context.setPositions(positions)

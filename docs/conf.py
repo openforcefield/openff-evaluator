@@ -43,11 +43,11 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
     'sphinx.ext.autosummary',
-    'numpydoc',
     'sphinx.ext.doctest',
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
+    'sphinx.ext.intersphinx',
     'nbsphinx',
     'm2r'
 ]
@@ -56,9 +56,6 @@ extensions = [
 autosummary_generate = True
 autodoc_default_flags = ['members', 'inherited-members']
 autodoc_member_order = 'bysource' # preserve ordering in source
-
-# Numpydoc settings
-numpydoc_class_members_toctree = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -89,6 +86,17 @@ pygments_style = 'sphinx'
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
+
+# Set up the intershinx mappings.
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/', None),
+    'numpy': ('https://docs.scipy.org/doc/numpy/', None),
+    'mdtraj': ('http://mdtraj.org/latest/', None),
+    'tornado': ('https://www.tornadoweb.org/en/stable/', None),
+    'dask': ('http://docs.dask.org/en/latest/', None),
+    'dask.distributed': ('https://distributed.dask.org/en/latest/', None),
+    'openforcefield': ('https://open-forcefield-toolkit.readthedocs.io/en/latest/', None),
+}
 
 
 # -- Options for HTML output -------------------------------------------------

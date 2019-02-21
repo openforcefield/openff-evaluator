@@ -1,11 +1,16 @@
 """
 Defines the base API for the property estimator task calculation backend.
 """
+from enum import Enum
 
 
 class ComputeResources:
     """An object which stores how many of each type of computational resource
     (threads or gpu's) is available to a calculation task."""
+
+    class GPUToolkit(Enum):
+        CUDA = 'CUDA'
+        OpenCL = 'OpenCL'
 
     @property
     def number_of_threads(self):
@@ -15,24 +20,36 @@ class ComputeResources:
     def number_of_gpus(self):
         return self._number_of_gpus
 
-    def __init__(self, number_of_threads=1, number_of_gpus=0):
+    @property
+    def preferred_gpu_toolkit(self):
+        """GPUToolkit: The toolkit to use when running on gpus."""
+        return self._preferred_gpu_toolkit
+
+    def __init__(self, number_of_threads=1, number_of_gpus=0, preferred_gpu_toolkit=None):
         """Constructs a new ComputeResources object.
 
         Parameters
         ----------
         number_of_threads: int
             The number of the threads available.
-        number_of_gpus
+        number_of_gpus: int
             The number of the gpu's available.
+        preferred_gpu_toolkit: ComputeResources.GPUToolkit, optional
+            The preferred toolkit to use when running on gpus.
         """
 
         self._number_of_threads = number_of_threads
         self._number_of_gpus = number_of_gpus
+
+        self._preferred_gpu_toolkit = preferred_gpu_toolkit
         
         assert self._number_of_threads >= 0
         assert self._number_of_gpus >= 0
 
         assert self._number_of_threads > 0 or self._number_of_gpus > 0
+
+        if self._number_of_gpus > 0:
+            assert self._preferred_gpu_toolkit is not None
 
     def dict(self):
         return self.__getstate__()
@@ -40,17 +57,20 @@ class ComputeResources:
     def __getstate__(self):
         return {
             'number_of_threads': self.number_of_threads,
-            'number_of_gpus': self.number_of_gpus
+            'number_of_gpus': self.number_of_gpus,
+            'preferred_gpu_toolkit': self.preferred_gpu_toolkit
         }
 
     def __setstate__(self, state):
 
         self._number_of_threads = state['number_of_threads']
         self._number_of_gpus = state['number_of_gpus']
+        self._preferred_gpu_toolkit = state['preferred_gpu_toolkit']
 
     def __eq__(self, other):
         return self.number_of_threads == other.number_of_threads and \
-               self.number_of_gpus == other.number_of_gpus
+               self.number_of_gpus == other.number_of_gpus and \
+               self.preferred_gpu_toolkit == other.preferred_gpu_toolkit
 
     def __ne__(self, other):
         return not self.__eq__(other)

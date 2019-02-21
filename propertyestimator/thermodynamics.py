@@ -23,7 +23,7 @@ class ThermodynamicState(BaseModel):
     """
     Data specifying a physical thermodynamic state obeying Boltzmann statistics.
 
-    Properties
+    Attributes
     ----------
     temperature : simtk.unit.Quantity with units compatible with kelvin
         The external temperature
