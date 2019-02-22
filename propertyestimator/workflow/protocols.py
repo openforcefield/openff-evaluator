@@ -648,8 +648,22 @@ class BuildSmirnoffTopology(BaseProtocol):
 
         force_field = None
 
-        with open(self._force_field_path, 'rb') as file:
-            force_field = deserialize_force_field(pickle.load(file))
+        try:
+
+            with open(self._force_field_path, 'rb') as file:
+                force_field = deserialize_force_field(pickle.load(file))
+
+        except pickle.UnpicklingError as e:
+
+            try:
+
+                from openforcefield.typing.engines.smirnoff import ForceField
+                force_field = ForceField(self._force_field_path)
+
+            except Exception as e:
+
+                return PropertyEstimatorException(directory=directory,
+                                                  message='{} could not load the ForceField'.format(self.id))
 
         molecules = []
 
