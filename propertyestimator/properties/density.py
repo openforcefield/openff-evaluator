@@ -25,7 +25,7 @@ class Density(PhysicalProperty):
     """A class representation of a density property"""
 
     @staticmethod
-    def get_default_calculation_schema():
+    def get_default_workflow_schema():
 
         schema = WorkflowSchema(property_type=Density.__name__)
         schema.id = '{}{}'.format(Density.__name__, 'Schema')
@@ -93,7 +93,7 @@ class Density(PhysicalProperty):
 
         condition = groups.ConditionalGroup.Condition()
 
-        condition.left_hand_value = ProtocolPath('value',
+        condition.left_hand_value = ProtocolPath('value.uncertainty',
                                                  converge_uncertainty.id,
                                                  extract_density.id)
 
@@ -178,17 +178,21 @@ class Density(PhysicalProperty):
 
         Parameters
         ----------
-        physical_property: :obj:`propertyestimator.properties.PhysicalProperty`
+        physical_property: PhysicalProperty
             The physical property to attempt to estimate by reweighting.
-        force_field_id: :obj:`str`
+        options: PropertyEstimatorOptions
+            The options to use when performing the reweighting.
+        force_field_id: str
             The id of the force field parameters which the property should be
             estimated with.
-        existing_data: :obj:`dict` of :obj:`str` and :obj:`propertyestimator.storage.StoredSimulationData`
+        existing_data: dict of str and StoredSimulationData
             Data which has been stored from previous calculations on systems
             of the same composition as the desired property.
-        existing_force_fields: :obj:`dict` of :obj:`str` and ForceField
+        existing_force_fields: dict of str and ForceField
             A dictionary of all of the force field parameters referenced by the
             `existing_data`, which have been serialized with `serialize_force_field`
+        available_resources: ComputeResources
+            The compute resources available for this reweighting calculation.
         """
 
         from propertyestimator.layers import ReweightingLayer
@@ -260,7 +264,7 @@ class Density(PhysicalProperty):
         value = results[0][0] * unit.gram / unit.milliliter
         uncertainty = results[1][0] * unit.gram / unit.milliliter
 
-        if uncertainty < physical_property.uncertainty * options.relative_uncertainty:
+        if uncertainty < physical_property.uncertainty * options.relative_uncertainty_tolerance:
 
             physical_property.value = value
             physical_property.uncertainty = uncertainty

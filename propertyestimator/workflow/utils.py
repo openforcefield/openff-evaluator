@@ -90,8 +90,7 @@ class ProtocolPath(PlaceholderInput):
 
         assert property_name is not None and isinstance(property_name, str)
 
-        assert property_name.find(ProtocolPath.property_separator) < 0 and \
-               property_name.find(ProtocolPath.path_separator) < 0
+        assert property_name.find(ProtocolPath.path_separator) < 0
 
         for protocol_id in protocol_ids:
 
@@ -119,11 +118,6 @@ class ProtocolPath(PlaceholderInput):
 
             raise ValueError('A protocol path must contain a {} followed by the '
                              'property name this path represents'.format(ProtocolPath.property_separator))
-
-        if existing_path_string.find(ProtocolPath.property_separator, property_name_index + 1) >= 0:
-
-            raise ValueError('A protocol path must contain at most one '
-                             'property separator ({})'.format(ProtocolPath.property_separator))
 
         property_name, protocol_ids = ProtocolPath.to_components(existing_path_string)
 

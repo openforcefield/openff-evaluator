@@ -26,6 +26,7 @@ dependencies:
     - tornado
     - pydantic
     - uncertainties
+    - openmmtools
 
     - pip:
         - sphinx_rtd_theme

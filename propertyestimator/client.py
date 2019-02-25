@@ -440,7 +440,7 @@ class PropertyEstimatorClient:
                 property_type = registered_properties[type_name]()
 
                 options.workflow_schemas[type_name] = \
-                    property_type.get_default_calculation_schema()
+                    property_type.get_default_workflow_schema()
 
         for property_schema_name in options.workflow_schemas:
 

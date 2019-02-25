@@ -171,7 +171,7 @@ class PhysicalProperty(TypedBaseModel):
         self.uncertainty = uncertainty
 
     @staticmethod
-    def get_default_calculation_schema():
+    def get_default_workflow_schema():
         """Returns the set of steps needed to calculate
         this property by direct simulation methods.
 

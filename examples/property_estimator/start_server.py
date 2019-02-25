@@ -31,8 +31,8 @@ def start_property_estimator_server():
 
     # Create a server instance.
     property_server = server.PropertyEstimatorServer(calculation_backend,
-                                                       storage_backend,
-                                                       working_directory=working_directory)
+                                                     storage_backend,
+                                                     working_directory=working_directory)
 
     # Tell the server to start listening for incoming
     # estimation requests.

@@ -156,7 +156,7 @@ class DielectricConstant(PhysicalProperty):
     """A class representation of a dielectric property"""
 
     @staticmethod
-    def get_default_calculation_schema():
+    def get_default_workflow_schema():
 
         schema = WorkflowSchema(property_type=DielectricConstant.__name__)
         schema.id = '{}{}'.format(DielectricConstant.__name__, 'Schema')
@@ -227,7 +227,7 @@ class DielectricConstant(PhysicalProperty):
 
         condition = groups.ConditionalGroup.Condition()
 
-        condition.left_hand_value = ProtocolPath('uncertainty',
+        condition.left_hand_value = ProtocolPath('value.uncertainty',
                                                  converge_uncertainty.id,
                                                  extract_dielectric.id)
 

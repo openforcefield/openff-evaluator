@@ -64,13 +64,13 @@ class PropertyCalculationLayer:
 
         Parameters
         ----------
-        calculation_backend: propertyestimator.backends.PropertyEstimatorBackend
+        calculation_backend: PropertyEstimatorBackend
             The backend to the submit the calculations to.
-        storage_backend: propertyestimator.storage.PropertyEstimatorStorage
+        storage_backend: PropertyEstimatorStorage
             The backend used to store / retrieve data from previous calculations.
         layer_directory: str
             The local directory in which to store all local, temporary calculation data from this layer.
-        data_model: propertyestimator.server.PropertyEstimatorServerData
+        data_model: PropertyEstimatorServerData
             The data model encoding the awaited calculation.
         callback: function
             The function to call when the backend returns the results (or an error).

@@ -162,7 +162,7 @@ class EnthalpyOfMixing(PhysicalProperty):
 
         condition = groups.ConditionalGroup.Condition()
 
-        condition.left_hand_value = ProtocolPath('value', converge_uncertainty.id, extract_enthalpy.id)
+        condition.left_hand_value = ProtocolPath('value.uncertainty', converge_uncertainty.id, extract_enthalpy.id)
         condition.right_hand_value = ProtocolPath('target_uncertainty', 'global')
         condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
 
@@ -219,7 +219,7 @@ class EnthalpyOfMixing(PhysicalProperty):
                                                  extract_uncorrelated_statistics)
 
     @staticmethod
-    def get_default_calculation_schema():
+    def get_default_workflow_schema():
 
         schema = WorkflowSchema(property_type=EnthalpyOfMixing.__name__)
         schema.id = '{}{}'.format(EnthalpyOfMixing.__name__, 'Schema')

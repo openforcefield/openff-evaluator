@@ -12,8 +12,94 @@ from propertyestimator.layers import register_calculation_layer, PropertyCalcula
 from propertyestimator.layers.layers import CalculationLayerResult
 from propertyestimator.utils import create_molecule_from_smiles
 from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import serialize_force_field, deserialize_force_field
 from propertyestimator.utils.statistics import ObservableType
+from propertyestimator.workflow.decorators import protocol_input, protocol_output
+from propertyestimator.workflow.plugins import register_calculation_protocol
+from propertyestimator.workflow.protocols import BaseProtocol
+
+
+@register_calculation_protocol()
+class ReweightWithMBARProtocol(BaseProtocol):
+    """Calculates the reduced potential for a given
+    set of configurations.
+    """
+
+    @protocol_input(list)
+    def reference_reduced_potentials(self):
+        pass
+
+    @protocol_input(list)
+    def reference_observables(self):
+        pass
+
+    @protocol_input(list)
+    def target_reduced_potentials(self):
+        pass
+
+    @protocol_output(EstimatedQuantity)
+    def value(self):
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new ReweightWithMBARProtocol object."""
+        super().__init__(protocol_id)
+
+        self._reference_reduced_potentials = None
+        self._reference_observables = None
+
+        self._target_reduced_potentials = None
+
+        self._value = None
+
+    def execute(self, directory, available_resources):
+
+        # for index_k, data_k in enumerate(useable_data):
+        #
+        #     reference_force_field = existing_force_fields[data_k.force_field_id]
+        #
+        #     for index_l, data_l in enumerate(useable_data):
+        #
+        #         # Compute the reference state energies.
+        #         reference_reduced_energies_k_l = ReweightingLayer.get_reduced_potential(data_k.substance,
+        #                                                                                 data_k.thermodynamic_state,
+        #                                                                                 data_k.force_field_id,
+        #                                                                                 reference_force_field,
+        #                                                                                 data_l,
+        #                                                                                 available_resources)
+        #
+        #         start_index = np.array(frame_counts[0:index_l]).sum()
+        #
+        #         for index in range(0, frame_counts[index_l]):
+        #             reference_reduced_energies[index_k][start_index + index] = reference_reduced_energies_k_l[index]
+        #
+        #     # Compute the target state energies.
+        #     target_reduced_energies_k = ReweightingLayer.get_reduced_potential(data_k.substance,
+        #                                                                        physical_property.thermodynamic_state,
+        #                                                                        force_field_id,
+        #                                                                        target_force_field,
+        #                                                                        data_k,
+        #                                                                        available_resources)
+        #
+        #     # Calculate the observables.
+        #     reference_densities = data_k.statistics_data.get_observable(ObservableType.Density)
+        #
+        #     start_index = np.array(frame_counts[0:index_k]).sum()
+        #
+        #     for index in range(0, frame_counts[index_k]):
+        #
+        #         target_reduced_energies[0][start_index + index] = target_reduced_energies_k[index]
+        #         observables[0][start_index + index] = reference_densities[index] / unit.gram * unit.milliliter
+        #
+        # # Construct the mbar object.
+        # mbar = pymbar.MBAR(reference_reduced_energies, frame_counts, verbose=False, relative_tolerance=1e-12)
+        # results = mbar.computeExpectations(observables, target_reduced_energies, state_dependent=True)
+        #
+        # value = results[0][0] * unit.gram / unit.milliliter
+        # uncertainty = results[1][0] * unit.gram / unit.milliliter
+
+        return self._get_output_dictionary()
 
 
 @register_calculation_layer()
@@ -269,8 +355,8 @@ class ReweightingLayer(PropertyCalculationLayer):
             positions = trajectory_to_resample.openmm_positions(frame_index)
             box_vectors = trajectory_to_resample.openmm_boxes(frame_index)
 
-            context.context.setPeriodicBoxVectors(*box_vectors)
-            context.context.setPositions(positions)
+            context.setPeriodicBoxVectors(*box_vectors)
+            context.setPositions(positions)
 
             # set box vectors
             resampled_energies[frame_index] = context.getState(getEnergy=True).getPotentialEnergy()

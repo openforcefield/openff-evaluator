@@ -114,8 +114,16 @@ Storage Backends API
 
     LocalFileStorage
 
-Workflow Components API
------------------------
+Workflow API
+------------
+
+.. currentmodule:: propertyestimator.workflow
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    Workflow
+    WorkflowGraph
 
 **Schema**
 
@@ -156,6 +164,7 @@ Workflow Components API
     ExtractUncorrelatedTrajectoryData
     AddQuantities
     SubtractQuantities
+    UnpackStoredSimulationData
 
 **Protocol Groups**
 

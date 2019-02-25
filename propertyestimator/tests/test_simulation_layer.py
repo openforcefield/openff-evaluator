@@ -9,7 +9,7 @@ import pytest
 from simtk import unit
 
 from propertyestimator.client import PropertyEstimatorOptions
-from propertyestimator.layers.simulation import DirectCalculation, DirectCalculationGraph
+from propertyestimator.layers.simulation import Workflow, WorkflowGraph
 from propertyestimator.properties import PropertyPhase
 from propertyestimator.properties.density import Density
 from propertyestimator.properties.dielectric import DielectricConstant
@@ -27,7 +27,7 @@ def create_dummy_property(property_class):
     substance.add_component('CO', 0.5)
 
     dummy_property = property_class(thermodynamic_state=ThermodynamicState(temperature=298 * unit.kelvin,
-                                                                          pressure=1 * unit.atmosphere),
+                                                                           pressure=1 * unit.atmosphere),
                                     phase=PropertyPhase.Liquid,
                                     substance=substance,
                                     value=10 * unit.gram,
@@ -38,12 +38,12 @@ def create_dummy_property(property_class):
 
 
 @pytest.mark.parametrize("registered_property_name", registered_properties)
-def test_calculation_schema(registered_property_name):
+def test_workflow_schema(registered_property_name):
     """Tests serialisation and deserialization of a calculation schema."""
 
     registered_property = registered_properties[registered_property_name]
 
-    schema = registered_property.get_default_calculation_schema()
+    schema = registered_property.get_default_workflow_schema()
     schema.validate_interfaces()
 
     json_schema = schema.json()
@@ -59,7 +59,7 @@ def test_calculation_schema(registered_property_name):
 @pytest.mark.parametrize("registered_property_name", registered_properties)
 def test_cloned_schema_merging(registered_property_name):
     """Tests that two, the exact the same, calculations get merged into one
-    by the `DirectCalculationGraph`."""
+    by the `WorkflowGraph`."""
 
     registered_property = registered_properties[registered_property_name]
 
@@ -68,40 +68,40 @@ def test_cloned_schema_merging(registered_property_name):
 
     dummy_property = create_dummy_property(registered_property)
 
-    calculation_schema = dummy_property.get_default_calculation_schema()
+    workflow_schema = dummy_property.get_default_workflow_schema()
 
-    calculation_a = DirectCalculation(dummy_property,
-                                      get_data_filename('forcefield/smirnoff99Frosst.offxml'),
-                                      calculation_schema,
-                                      PropertyEstimatorOptions())
+    global_metadata = Workflow.generate_default_metadata(dummy_property,
+                                                         get_data_filename('forcefield/smirnoff99Frosst.offxml'),
+                                                         PropertyEstimatorOptions())
 
-    calculation_b = DirectCalculation(dummy_property,
-                                      get_data_filename('forcefield/smirnoff99Frosst.offxml'),
-                                      calculation_schema,
-                                      PropertyEstimatorOptions())
+    workflow_a = Workflow(dummy_property, global_metadata)
+    workflow_a.schema = workflow_schema
 
-    calculation_graph = DirectCalculationGraph()
+    workflow_b = Workflow(dummy_property, global_metadata)
+    workflow_b.schema = workflow_schema
 
-    calculation_graph.add_calculation(calculation_a)
-    calculation_graph.add_calculation(calculation_b)
+    workflow_graph = WorkflowGraph()
 
-    ordered_dict_a = OrderedDict(sorted(calculation_a.dependants_graph.items()))
-    ordered_dict_b = OrderedDict(sorted(calculation_b.dependants_graph.items()))
+    workflow_graph.add_workflow(workflow_a)
+    workflow_graph.add_workflow(workflow_b)
+
+    ordered_dict_a = OrderedDict(sorted(workflow_a.dependants_graph.items()))
+    ordered_dict_b = OrderedDict(sorted(workflow_b.dependants_graph.items()))
 
     merge_order_a = graph.topological_sort(ordered_dict_a)
     merge_order_b = graph.topological_sort(ordered_dict_b)
 
-    assert len(calculation_graph._nodes_by_id) == len(calculation_a.protocols)
+    assert len(workflow_graph._protocols_by_id) == len(workflow_a.protocols)
 
-    for protocol_id in calculation_a.protocols:
-        assert protocol_id in calculation_graph._nodes_by_id
+    for protocol_id in workflow_a.protocols:
+        assert protocol_id in workflow_graph._protocols_by_id
 
     for protocol_id_A, protocol_id_B in zip(merge_order_a, merge_order_b):
 
         assert protocol_id_A == protocol_id_B
 
-        assert calculation_a.protocols[protocol_id_A].schema.json() == \
-               calculation_b.protocols[protocol_id_B].schema.json()
+        assert workflow_a.protocols[protocol_id_A].schema.json() == \
+               workflow_b.protocols[protocol_id_B].schema.json()
 
 
 def test_density_dielectric_merging():
@@ -125,38 +125,42 @@ def test_density_dielectric_merging():
                                     uncertainty=1*unit.gram/unit.mole,
                                     id=str(uuid.uuid4()))
 
-    density_schema = density.get_default_calculation_schema()
-    dielectric_schema = dielectric.get_default_calculation_schema()
+    density_schema = density.get_default_workflow_schema()
+    dielectric_schema = dielectric.get_default_workflow_schema()
 
-    density_calculation = DirectCalculation(density,
-                                            get_data_filename('forcefield/smirnoff99Frosst.offxml'),
-                                            density_schema,
-                                            PropertyEstimatorOptions())
+    density_metadata = Workflow.generate_default_metadata(density,
+                                                          get_data_filename('forcefield/smirnoff99Frosst.offxml'),
+                                                          PropertyEstimatorOptions())
 
-    dielectric_calculation = DirectCalculation(dielectric,
-                                               get_data_filename('forcefield/smirnoff99Frosst.offxml'),
-                                               dielectric_schema,
-                                               PropertyEstimatorOptions())
+    dielectric_metadata = Workflow.generate_default_metadata(density,
+                                                             get_data_filename('forcefield/smirnoff99Frosst.offxml'),
+                                                             PropertyEstimatorOptions())
 
-    calculation_graph = DirectCalculationGraph('')
+    density_workflow = Workflow(density, density_metadata)
+    density_workflow.schema = density_schema
 
-    calculation_graph.add_calculation(density_calculation)
-    calculation_graph.add_calculation(dielectric_calculation)
+    dielectric_workflow = Workflow(dielectric, dielectric_metadata)
+    dielectric_workflow.schema = dielectric_schema
 
-    merge_order_a = graph.topological_sort(density_calculation.dependants_graph)
-    merge_order_b = graph.topological_sort(dielectric_calculation.dependants_graph)
+    workflow_graph = WorkflowGraph('')
+
+    workflow_graph.add_workflow(density_workflow)
+    workflow_graph.add_workflow(dielectric_workflow)
+
+    merge_order_a = graph.topological_sort(density_workflow.dependants_graph)
+    merge_order_b = graph.topological_sort(dielectric_workflow.dependants_graph)
 
     for protocol_id_A, protocol_id_B in zip(merge_order_a, merge_order_b):
 
         if protocol_id_A.find('extract_traj') < 0 and protocol_id_A.find('extract_stats') < 0:
 
-            assert density_calculation.protocols[protocol_id_A].schema.json() == \
-                   dielectric_calculation.protocols[protocol_id_B].schema.json()
+            assert density_workflow.protocols[protocol_id_A].schema.json() == \
+                   dielectric_workflow.protocols[protocol_id_B].schema.json()
 
         else:
 
-            assert density_calculation.protocols[protocol_id_A].schema.json() != \
-                   dielectric_calculation.protocols[protocol_id_B].schema.json()
+            assert density_workflow.protocols[protocol_id_A].schema.json() != \
+                   dielectric_workflow.protocols[protocol_id_B].schema.json()
 
 
 def test_simulation_layer():

@@ -140,22 +140,22 @@ class ProtocolGroup(BaseProtocol):
                 if grouped_path in self.required_inputs:
                     continue
 
-                input_values = protocol.get_value_references(input_path)
+                reference_values = protocol.get_value_references(input_path)
 
-                if len(input_values) == 0:
+                if len(reference_values) == 0:
                     self.required_inputs.append(grouped_path)
 
-                for input_value in input_values:
+                for source_path, reference_value in reference_values.items():
 
-                    if input_value.start_protocol not in self._protocols:
+                    if reference_value.start_protocol not in self._protocols:
 
                         self.required_inputs.append(grouped_path)
                         continue
 
-                    if protocol_id in self._dependants_graph[input_value.start_protocol]:
+                    if protocol_id in self._dependants_graph[reference_value.start_protocol]:
                         continue
 
-                    self._dependants_graph[input_value.start_protocol].append(protocol_id)
+                    self._dependants_graph[reference_value.start_protocol].append(protocol_id)
 
         # Figure out the order in which grouped protocols should be executed.
         self._root_protocols = graph.find_root_nodes(self._dependants_graph)
@@ -272,37 +272,17 @@ class ProtocolGroup(BaseProtocol):
 
             for input_path in protocol_to_execute.required_inputs:
 
-                target_paths = protocol_to_execute.get_value_references(input_path)
-                values = {}
+                value_references = protocol_to_execute.get_value_references(input_path)
 
-                for target_path in target_paths:
+                for source_path, value_reference in value_references.items():
 
-                    if (target_path.start_protocol == input_path.start_protocol or
-                        target_path.start_protocol == protocol_to_execute.id):
+                    if (value_reference.start_protocol == input_path.start_protocol or
+                        value_reference.start_protocol == protocol_to_execute.id):
 
                         continue
 
-                    values[target_path] = self._protocols[target_path.start_protocol].get_value(target_path)
-
-                input_value = protocol_to_execute.get_value(input_path)
-
-                if isinstance(input_value, ProtocolPath) and input_value in values:
-                    protocol_to_execute.set_value(input_path, values[input_value])
-
-                elif isinstance(input_value, list):
-
-                    value_list = []
-
-                    for target_value in input_value:
-
-                        if not isinstance(target_value, ProtocolPath):
-                            value_list.append(target_value)
-                        elif target_value in values:
-                            value_list.append(values[target_value])
-                        else:
-                            value_list.append(target_value)
-
-                    protocol_to_execute.set_value(input_path, value_list)
+                    value = self._protocols[value_reference.start_protocol].get_value(value_reference)
+                    protocol_to_execute.set_value(source_path, value)
 
             return_value = protocol_to_execute.execute(working_directory, available_resources)
 
@@ -712,32 +692,6 @@ class ConditionalGroup(ProtocolGroup):
     def conditions(self):
         return self._conditions
 
-    @property
-    def dependencies(self):
-        """list of ProtocolPath: A list of pointers to the protocols which this
-        protocol takes input from.
-        """
-
-        return_dependencies = super(ConditionalGroup, self).dependencies
-
-        for condition in self._conditions:
-
-            if (isinstance(condition.left_hand_value, ProtocolPath) and
-                condition.left_hand_value.start_protocol is not None and
-                condition.left_hand_value.start_protocol != self.id and
-                condition.left_hand_value not in return_dependencies):
-                
-                return_dependencies.append(condition.left_hand_value)
-
-            if (isinstance(condition.right_hand_value, ProtocolPath) and
-                condition.right_hand_value.start_protocol is not None and
-                condition.right_hand_value.start_protocol != self.id and
-                condition.right_hand_value not in return_dependencies):
-                
-                return_dependencies.append(condition.right_hand_value)
-
-        return return_dependencies
-
     def __init__(self, protocol_id):
         """Constructs a new ConditionalGroup
         """
@@ -748,16 +702,25 @@ class ConditionalGroup(ProtocolGroup):
 
         self.required_inputs.append(ProtocolPath('conditions'))
 
+    def _set_schema(self, schema_value):
+
+        conditions = None
+
+        if '.conditions' in schema_value.inputs:
+            conditions = schema_value.inputs.pop('.conditions')
+
+            for condition in conditions.value:
+                self.add_condition(copy.deepcopy(condition))
+
+        super(ConditionalGroup, self)._set_schema(schema_value)
+
+        if conditions is not None:
+            schema_value.inputs['.conditions'] = conditions
+
     def _evaluate_condition(self, condition_type, left_hand_value, right_hand_value):
 
         if left_hand_value is None or right_hand_value is None:
             return False
-
-        if isinstance(left_hand_value, EstimatedQuantity):
-            left_hand_value = left_hand_value.uncertainty
-            
-        if isinstance(right_hand_value, EstimatedQuantity):
-            right_hand_value = right_hand_value.uncertainty
 
         if condition_type == self.ConditionType.LessThan:
             return left_hand_value < right_hand_value
@@ -879,6 +842,7 @@ class ConditionalGroup(ProtocolGroup):
                 return
 
         self._conditions.append(condition_to_add)
+        insertion_index = len(self._conditions) - 1
 
     def set_uuid(self, value):
         """Store the uuid of the calculation this protocol belongs to
@@ -971,3 +935,24 @@ class ConditionalGroup(ProtocolGroup):
                 return
 
         super(ConditionalGroup, self).set_value(reference_path, value)
+
+    def get_value_references(self, input_path):
+
+        if input_path.property_name != 'conditions':
+            return super(ConditionalGroup, self).get_value_references(input_path)
+
+        value_references = {}
+
+        for index, condition in enumerate(self.conditions):
+
+            if isinstance(condition.left_hand_value, ProtocolPath):
+
+                source_path = ProtocolPath('conditions[{}].left_hand_value'.format(index))
+                value_references[source_path] = condition.left_hand_value
+
+            if isinstance(condition.right_hand_value, ProtocolPath):
+
+                source_path = ProtocolPath('conditions[{}].right_hand_value'.format(index))
+                value_references[source_path] = condition.right_hand_value
+
+        return value_references

@@ -26,6 +26,7 @@ dependencies:
   - pydantic
   - coverage >=4.4
   - uncertainties
+  - openmmtools
 
     # Pip-only installs
   - pip:

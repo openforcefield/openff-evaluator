@@ -287,37 +287,35 @@ class WorkflowSchema(BaseModel):
 
             for input_path in protocol_object.required_inputs:
 
-                input_values = protocol_object.get_value_references(input_path)
+                value_references = protocol_object.get_value_references(input_path)
 
-                for input_value in input_values:
+                for source_path, value_reference in value_references.items():
 
-                    if input_value.is_global:
+                    if value_reference.is_global:
                         # We handle global input validation separately
                         continue
 
                     # Make sure the other protocol whose output we are interested
                     # in actually exists.
-                    if input_value.start_protocol not in self.protocols:
+                    if value_reference.start_protocol not in self.protocols:
 
                         raise Exception('The {} protocol of the {} schema tries to take input from a non-existent '
-                                        'protocol: {}'.format(protocol_object.id, self.id, input_value.start_protocol))
+                                        'protocol: {}'.format(protocol_object.id, self.id, value_reference.start_protocol))
 
-                    other_protocol_schema = self.protocols[input_value.start_protocol]
+                    other_protocol_schema = self.protocols[value_reference.start_protocol]
 
                     other_protocol_object = available_protocols[other_protocol_schema.type](other_protocol_schema.id)
                     other_protocol_object.schema = other_protocol_schema
 
                     # Will throw the correct exception if missing.
-                    other_protocol_object.get_value(input_value)
+                    other_protocol_object.get_value(value_reference)
 
-                    expected_input_type = protocol_object.get_attribute_type(input_path)
-                    expected_output_type = other_protocol_object.get_attribute_type(input_value)
+                    expected_input_type = protocol_object.get_attribute_type(source_path)
+                    expected_output_type = other_protocol_object.get_attribute_type(value_reference)
 
-                    if isinstance(protocol_object.get_value(input_path), list):
-                        continue
-
-                    if expected_input_type != expected_output_type and expected_input_type is not None:
+                    if (expected_input_type is not None and expected_output_type is not None and
+                        expected_input_type != expected_output_type):
 
                         raise Exception('The output type ({}) of {} does not match the requested '
-                                        'input type ({}) of {}'.format(expected_output_type, input_value,
-                                                                       expected_input_type, input_path))
+                                        'input type ({}) of {}'.format(expected_output_type, value_reference,
+                                                                       expected_input_type, source_path))

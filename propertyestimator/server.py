@@ -233,7 +233,7 @@ class PropertyEstimatorServer(TCPServer):
         encoded_request_id = await stream.read_bytes(message_length)
         request_id = encoded_request_id.decode()
 
-        logging.info('Looking up request id {}'.format(request_id))
+        # logging.info('Looking up request id {}'.format(request_id))
 
         response = None
 

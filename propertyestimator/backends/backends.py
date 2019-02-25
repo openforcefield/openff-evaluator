@@ -104,6 +104,19 @@ class PropertyEstimatorBackend:
         self._number_of_workers = number_of_workers
         self._resources_per_worker = resources_per_worker
 
+    def _get_worker_resources_dict(self):
+        """Get dict representation of the resources requested
+        by a worker.
+
+        Returns
+        -------
+        dict of str and int
+        """
+        return {
+            'number_of_threads': self._resources_per_worker.number_of_threads,
+            'number_of_gpus': self._resources_per_worker.number_of_gpus,
+        }
+
     def start(self):
         """Start the calculation backend."""
         pass

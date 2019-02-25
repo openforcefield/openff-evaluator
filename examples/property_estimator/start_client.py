@@ -31,12 +31,13 @@ def compute_estimate_async():
     setup_timestamp_logging()
 
     # Load in the data set of interest.
-    data_set = ThermoMLDataSet.from_file(get_data_filename('properties/single_density.xml'))
+    data_set = ThermoMLDataSet.from_file(get_data_filename('properties/single_enthalpy_mixing.xml'))
     # Load in the force field to use.
     force_field = smirnoff.ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
 
     # Modify the submission options
-    options = PropertyEstimatorOptions(relative_uncertainty_tolerance=0.1)
+    options = PropertyEstimatorOptions(relative_uncertainty_tolerance=100000)
+    options.allowed_calculation_layers = ['SimulationLayer']
 
     # Create the client object.
     property_estimator = client.PropertyEstimatorClient()
