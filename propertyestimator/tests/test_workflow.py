@@ -1,7 +1,8 @@
 """
 Units tests for propertyestimator.layers.simulation
 """
-
+import inspect
+import re
 import uuid
 from collections import OrderedDict
 
@@ -17,7 +18,12 @@ from propertyestimator.properties.plugins import registered_properties
 from propertyestimator.substances import Mixture
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import get_data_filename, graph
+from propertyestimator.utils.serialization import PolymorphicDataType
 from propertyestimator.workflow import WorkflowSchema
+from propertyestimator.workflow.decorators import protocol_input
+from propertyestimator.workflow.protocols import BaseProtocol
+from propertyestimator.workflow.schemas import ProtocolReplicator
+from propertyestimator.workflow.utils import ReplicatorValue, ProtocolPath
 
 
 def create_dummy_property(property_class):
@@ -35,6 +41,23 @@ def create_dummy_property(property_class):
                                     id=str(uuid.uuid4()))
 
     return dummy_property
+
+
+class DummyReplicableProtocol(BaseProtocol):
+
+    @protocol_input(value_type=list)
+    def replicated_value_a(self):
+        pass
+
+    @protocol_input(value_type=list)
+    def replicated_value_b(self):
+        pass
+
+    def __init__(self, protocol_id):
+        super().__init__(protocol_id)
+
+        self._replicated_value_a = None
+        self._replicated_value_b = None
 
 
 @pytest.mark.parametrize("registered_property_name", registered_properties)
@@ -163,6 +186,51 @@ def test_density_dielectric_merging():
                    dielectric_workflow.protocols[protocol_id_B].schema.json()
 
 
+def test_nested_replicators():
+
+    dummy_schema = WorkflowSchema()
+
+    dummy_schema.id = 'DummyWorkflow'
+    dummy_schema.property_type = Density.__name__
+
+    dummy_schema.final_value_source = ProtocolPath('empty')
+
+    dummy_protocol = DummyReplicableProtocol('dummy_$(rep_a_index)_$(rep_b_index)')
+
+    dummy_protocol.replicated_value_a = ReplicatorValue('rep_a')
+    dummy_protocol.replicated_value_b = ReplicatorValue('rep_b')
+
+    dummy_schema.protocols[dummy_protocol.id] = dummy_protocol.schema
+
+    replicator_a = ProtocolReplicator(id='rep_a')
+
+    replicator_a.template_values = PolymorphicDataType(['a', 'b'])
+    replicator_a.protocols_to_replicate = PolymorphicDataType([ProtocolPath('', dummy_protocol.id)])
+
+    replicator_b = ProtocolReplicator(id='rep_b')
+
+    replicator_b.template_values = [1, 2]
+    replicator_b.protocols_to_replicate = [ProtocolPath('', dummy_protocol.id)]
+
+    dummy_schema.replicators = [
+        replicator_a,
+        replicator_b
+    ]
+
+    WorkflowSchema.parse_raw(dummy_schema.json())
+
+    dummy_property = create_dummy_property(Density)
+
+    dummy_metadata = Workflow.generate_default_metadata(dummy_property,
+                                                        get_data_filename('forcefield/smirnoff99Frosst.offxml'),
+                                                        PropertyEstimatorOptions())
+
+    dummy_workflow = Workflow(dummy_property, dummy_metadata)
+    dummy_workflow.schema = dummy_schema
+
+    print(dummy_schema.schema)
+
+
 def test_simulation_layer():
     """Test the simulation estimation layer."""
 
@@ -193,3 +261,7 @@ def test_simulation_layer():
     # simulation_layer = SimulationLayer()
     # simulation_layer.schedule_calculation(backend, data_model, {}, dummy_callback, True)
     pass
+
+
+if __name__ == "__main__":
+    test_nested_replicators()

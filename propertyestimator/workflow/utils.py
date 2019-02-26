@@ -19,14 +19,27 @@ class PlaceholderInput:
 
 
 class ReplicatorValue(PlaceholderInput):
-    """A placeholder value which will be set by a protocol replicator.
+    """A placeholder value which will be set by a protocol replicator
+    with the specified id.
     """
 
+    def __init__(self, non_default, replicator_id=''):
+        """Constructs a new ReplicatorValue object
+
+        Parameters
+        ----------
+        replicator_id: str
+            The id of the replicator which will set this value.
+        """
+        self.replicator_id = replicator_id
+
     def __getstate__(self):
-        return {}
+        return {
+            'replicator_id': self.replicator_id
+        }
 
     def __setstate__(self, state):
-        pass
+        self.replicator_id = state['replicator_id']
 
 
 class ProtocolPath(PlaceholderInput):

@@ -1,7 +1,7 @@
 """
 A collection of schemas which represent elements of a property calculation workflow.
 """
-
+import re
 from typing import Dict, List
 
 from pydantic import BaseModel
@@ -50,9 +50,10 @@ class ProtocolReplicator(BaseModel):
     will also have any ReplicatorValue inputs replaced with the actual value.
 
     Each of the protocols referenced in the `protocols_to_replicate` must have an id
-    which contains the '$index' string (e.g component_$index_build_coordinates) -
-    when the protocol is replicated, $index will be replaced by the protocols actual
-    index, which corresponds to a value in the `template_values` array.
+    which contains the '$(id_index)' string (e.g component_$(id_index)_build_coordinates)
+    where here *`id` is the id of the replicator* - when the protocol is replicated, $(id_index)
+    will be replaced by the protocols actual index, which corresponds to a value in the
+    `template_values` array.
 
     Any protocols which take input from a replicated protocol will be updated to
     instead take a list of value, populated by the outputs of the replicated
@@ -67,6 +68,8 @@ class ProtocolReplicator(BaseModel):
     """
     protocols_to_replicate: List[ProtocolPath] = []
     template_values: PolymorphicDataType = None
+
+    id: str = ''
 
     class Config:
 
@@ -161,6 +164,8 @@ class WorkflowSchema(BaseModel):
 
         for replicator in self.replicators:
 
+            assert replicator.id is not None and len(replicator.id) > 0
+
             if len(replicator.protocols_to_replicate) == 0:
                 raise ValueError('A replicator does not have any protocols to replicate.')
 
@@ -198,10 +203,10 @@ class WorkflowSchema(BaseModel):
 
                 protocol_schema = self.protocols[protocol_path.start_protocol]
 
-                if protocol_schema.id.find('$index') < 0:
+                if re.search(r'\$\(.*\)', protocol_schema.id) is None:
 
                     raise ValueError('Protocols which are being replicated must contain'
-                                     'the $index substring in their id.')
+                                     'the replicator id $(id) their protocol id.')
 
     def _validate_final_value(self):
 
@@ -241,10 +246,18 @@ class WorkflowSchema(BaseModel):
 
                 attribute_value = getattr(output_to_store, attribute_name)
 
-                if isinstance(attribute_value, ReplicatorValue) and len(self.replicators) == 0:
+                if isinstance(attribute_value, ReplicatorValue):
 
-                    raise ValueError('An output to store is trying to take its value from a'
-                                     'replicator, while this schema is no replicators.')
+                    if len(self.replicators) == 0:
+
+                        raise ValueError('An output to store is trying to take its value from a'
+                                         'replicator, while this schema is no replicators.')
+
+                    elif len([replicator for replicator in self.replicators if
+                              attribute_value.replicator_id == replicator.id]) == 0:
+
+                        raise ValueError('An output to store is trying to take its value from a'
+                                         'replicator {} which does not exist.'.format(attribute_value.replicator_id))
 
                 if not isinstance(attribute_value, ProtocolPath) or attribute_value.is_global:
                     continue

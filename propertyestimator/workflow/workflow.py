@@ -2,6 +2,7 @@
 Defines the core workflow object and execution graph.
 """
 import copy
+import re
 import traceback
 import uuid
 from os import path, makedirs
@@ -202,8 +203,16 @@ class Workflow:
 
             self._replicate_protocol(schema, protocol_path, replicator, template_values)
 
-        outputs_to_replicate = [output_label for output_label in self.outputs_to_store if
-                                output_label.find('$index') >= 0]
+        outputs_to_replicate = []
+
+        for output_label in self.outputs_to_store:
+
+            replicator_ids = self._find_replicator_ids(output_label)
+
+            if len(replicator_ids) <= 0 or replicator.id not in replicator_ids:
+                continue
+
+            outputs_to_replicate.append(output_label)
 
         # Check to see if there are any outputs to store pointing to
         # protocols which are being replicated.
@@ -213,7 +222,9 @@ class Workflow:
 
             for index, template_value in enumerate(template_values):
 
-                replicated_label = output_label.replace('$index', str(index))
+                replacement_string = '$({})'.format(replicator.id)
+
+                replicated_label = output_label.replace(replacement_string, str(index))
                 replicated_output = copy.deepcopy(output_to_replicate)
 
                 for attribute_key in replicated_output.__getstate__():
@@ -223,7 +234,7 @@ class Workflow:
                     if isinstance(attribute_value, ProtocolPath):
 
                         attribute_value = ProtocolPath.from_string(
-                            attribute_value.full_path.replace('$index', str(index)))
+                            attribute_value.full_path.replace(replacement_string, str(index)))
 
                     elif isinstance(attribute_value, ReplicatorValue):
 
@@ -236,6 +247,23 @@ class Workflow:
         # Find any non-replicated protocols which take input from the replication templates,
         # and redirect the path to point to the actual replicated protocol.
         self._update_references_to_replicated(schema, replicator, template_values)
+
+    @staticmethod
+    def _find_replicator_ids(string):
+        """Returns a list of any replicator ids (defined within a $(...))
+        that are present in a given string.
+
+        Parameters
+        ----------
+        string: str
+            The string to search for replicator ids
+
+        Returns
+        -------
+        list of str
+            A list of any found replicator ids
+        """
+        return re.findall('[$][(](.*?)[)]', string, flags=0)
 
     @staticmethod
     def _replicate_protocol(schema, protocol_path, replicator, template_values):
@@ -256,13 +284,14 @@ class Workflow:
             into the newly replicated protocols.
         """
         schema_to_replicate = schema.protocols[protocol_path.start_protocol]
+        replacement_string = '$({})'.format(replicator.id)
 
         if protocol_path.start_protocol == protocol_path.last_protocol:
 
             # If the protocol is not a group, replicate the protocol directly.
             for index in range(len(template_values)):
 
-                replicated_schema_id = schema_to_replicate.id.replace('$index', str(index))
+                replicated_schema_id = schema_to_replicate.id.replace(replacement_string, str(index))
 
                 protocol = available_protocols[schema_to_replicate.type](replicated_schema_id)
                 protocol.schema = schema_to_replicate
@@ -275,7 +304,7 @@ class Workflow:
 
                     for protocol_id_to_rename in other_path_components:
                         protocol.replace_protocol(protocol_id_to_rename,
-                                                  protocol_id_to_rename.replace('$index', str(index)))
+                                                  protocol_id_to_rename.replace(replacement_string, str(index)))
 
                 schema.protocols[protocol.id] = protocol.schema
 
@@ -294,7 +323,7 @@ class Workflow:
         # their references and their values if targeted by the replicator.
         for index, template_value in enumerate(template_values):
 
-            protocol_id = schema_to_replicate.id.replace('$index', str(index))
+            protocol_id = schema_to_replicate.id.replace(replacement_string, str(index))
 
             protocol_schema = schema.protocols[protocol_id]
 
@@ -331,6 +360,7 @@ class Workflow:
         template_values: :obj:`list` of :obj:`Any`
             The list of values that the protocols were replicated for.
         """
+        replacement_string = '$({})'.format(replicator.id)
 
         for protocol_id in schema.protocols:
 
@@ -361,7 +391,8 @@ class Workflow:
                 for source_path, value_reference in replicated_value_references.items():
                     # Replace the input value with a list of ProtocolPath's that point to
                     # the newly generated protocols.
-                    path_list = [ProtocolPath.from_string(value_reference.full_path.replace('$index', str(index)))
+                    path_list = [ProtocolPath.from_string(value_reference.full_path.replace(replacement_string,
+                                                                                            str(index)))
                                  for index in range(len(template_values))]
 
                     generated_path_list[value_reference] = path_list

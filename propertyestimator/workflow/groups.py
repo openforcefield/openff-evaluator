@@ -14,7 +14,6 @@ from os import path, makedirs
 
 from propertyestimator.utils import graph, serialization
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import plugins
 from propertyestimator.workflow.decorators import MergeBehaviour, protocol_input
 from propertyestimator.workflow.plugins import register_calculation_protocol, available_protocols
@@ -578,6 +577,8 @@ class ProtocolGroup(BaseProtocol):
         template_values
             The values to pass to each of the replicated protocols.
         """
+        replacement_string = '$({})'.format(replicator.id)
+
         for protocol_path in replicator.protocols_to_replicate:
 
             if protocol_path.full_path.find(self.id) < 0:
@@ -603,7 +604,7 @@ class ProtocolGroup(BaseProtocol):
             for index, template_value in enumerate(template_values):
 
                 protocol_schema = self.protocols[protocol_path_copied.start_protocol].schema
-                protocol_schema.id = protocol_schema.id.replace('$index', str(index))
+                protocol_schema.id = protocol_schema.id.replace(replacement_string, str(index))
 
                 protocol = plugins.available_protocols[protocol_schema.type](protocol_schema.id)
                 protocol.schema = protocol_schema
@@ -615,7 +616,7 @@ class ProtocolGroup(BaseProtocol):
                     for protocol_id_to_rename in other_path_components:
 
                         protocol.replace_protocol(protocol_id_to_rename,
-                                                  protocol_id_to_rename.replace('$index', str(index)))
+                                                  protocol_id_to_rename.replace(replacement_string, str(index)))
 
                 self.protocols[protocol.id] = protocol
 
@@ -842,7 +843,6 @@ class ConditionalGroup(ProtocolGroup):
                 return
 
         self._conditions.append(condition_to_add)
-        insertion_index = len(self._conditions) - 1
 
     def set_uuid(self, value):
         """Store the uuid of the calculation this protocol belongs to
