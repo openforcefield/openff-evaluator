@@ -12,7 +12,7 @@ import logging
 from enum import Enum, unique
 from os import path, makedirs
 
-from propertyestimator.utils import graph, serialization
+from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.workflow import plugins
 from propertyestimator.workflow.decorators import MergeBehaviour, protocol_input
@@ -663,16 +663,16 @@ class ConditionalGroup(ProtocolGroup):
 
             return {
                 'type': self.type.value,
-                'left_hand_value': serialization.PolymorphicDataType.serialize(self.left_hand_value),
-                'right_hand_value': serialization.PolymorphicDataType.serialize(self.right_hand_value)
+                'left_hand_value': self.left_hand_value,
+                'right_hand_value': self.right_hand_value
             }
 
         def __setstate__(self, state):
 
             self.type = ConditionalGroup.ConditionType(state['type'])
 
-            self.left_hand_value = serialization.PolymorphicDataType.deserialize(state['left_hand_value']).value
-            self.right_hand_value = serialization.PolymorphicDataType.deserialize(state['right_hand_value']).value
+            self.left_hand_value = state['left_hand_value']
+            self.right_hand_value = state['right_hand_value']
 
         def __eq__(self, other):
 
@@ -710,7 +710,7 @@ class ConditionalGroup(ProtocolGroup):
         if '.conditions' in schema_value.inputs:
             conditions = schema_value.inputs.pop('.conditions')
 
-            for condition in conditions.value:
+            for condition in conditions:
                 self.add_condition(copy.deepcopy(condition))
 
         super(ConditionalGroup, self)._set_schema(schema_value)

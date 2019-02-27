@@ -5,11 +5,9 @@ import math
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, validator
 from simtk import unit
 
-from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.utils.serialization import deserialize_quantity, serialize_quantity
+from propertyestimator.utils.serialization import TypedBaseModel
 
 
 class Ensemble(Enum):
@@ -19,7 +17,7 @@ class Ensemble(Enum):
     NPT = "NPT"
 
 
-class ThermodynamicState(BaseModel):
+class ThermodynamicState(TypedBaseModel):
     """
     Data specifying a physical thermodynamic state obeying Boltzmann statistics.
 
@@ -43,42 +41,10 @@ class ThermodynamicState(BaseModel):
     temperature: Optional[unit.Quantity] = None
     pressure: Optional[unit.Quantity] = None
 
-    class Config:
-
-        arbitrary_types_allowed = True
-
-        json_encoders = {
-            EstimatedQuantity: lambda value: value.__getstate__(),
-            unit.Quantity: lambda v: serialize_quantity(v),
-        }
-
-    @validator('temperature', pre=True, whole=True)
-    def validate_temperature(cls, v):
-
-        if isinstance(v, dict):
-            v = deserialize_quantity(v)
-
-        if isinstance(v, unit.Quantity):
-            v = v.in_units_of(unit.kelvin)
-
-        return v
-    
-    @validator('pressure', pre=True, whole=True)
-    def validate_pressure(cls, v):
-
-        if isinstance(v, dict):
-            v = deserialize_quantity(v)
-
-        if isinstance(v, unit.Quantity):
-            v = v.in_units_of(unit.atmospheres)
-
-        return v
-
     def __repr__(self):
         """
         Returns a string representation of a state.
         """
-
         return_value = "ThermodynamicState("
 
         if self.temperature is not None:

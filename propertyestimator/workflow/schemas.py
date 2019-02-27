@@ -2,13 +2,10 @@
 A collection of schemas which represent elements of a property calculation workflow.
 """
 import re
-from typing import Dict, List
-
-from pydantic import BaseModel
-from simtk import unit
+from typing import Dict, List, Any
 
 from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.utils.serialization import PolymorphicDataType, serialize_quantity, TypedBaseModel
+from propertyestimator.utils.serialization import TypedBaseModel
 from propertyestimator.workflow.plugins import available_protocols
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
@@ -20,18 +17,7 @@ class ProtocolSchema(TypedBaseModel):
     id: str = None
     type: str = None
 
-    inputs: Dict[str, PolymorphicDataType] = {}
-
-    class Config:
-
-        arbitrary_types_allowed = True
-
-        json_encoders = {
-            EstimatedQuantity: lambda value: value.__getstate__(),
-            unit.Quantity: lambda value: serialize_quantity(value),
-            ProtocolPath: lambda value: value.full_path,
-            PolymorphicDataType: lambda value: PolymorphicDataType.serialize(value)
-        }
+    inputs: Dict[str, Any] = {}
 
 
 class ProtocolGroupSchema(ProtocolSchema):
@@ -41,7 +27,7 @@ class ProtocolGroupSchema(ProtocolSchema):
     grouped_protocol_schemas: List[ProtocolSchema] = []
 
 
-class ProtocolReplicator(BaseModel):
+class ProtocolReplicator(TypedBaseModel):
     """A protocol replicator contains the information necessary to replicate
     parts of a property estimation workflow.
 
@@ -67,20 +53,9 @@ class ProtocolReplicator(BaseModel):
       or :obj:`ProtocolPath`'s which take their value from the `global` scope.
     """
     protocols_to_replicate: List[ProtocolPath] = []
-    template_values: PolymorphicDataType = None
+    template_values: Any = None
 
     id: str = ''
-
-    class Config:
-
-        arbitrary_types_allowed = True
-
-        json_encoders = {
-            EstimatedQuantity: lambda value: value.__getstate__(),
-            unit.Quantity: lambda value: serialize_quantity(value),
-            ProtocolPath: lambda value: value.full_path,
-            PolymorphicDataType: lambda value: PolymorphicDataType.serialize(value)
-        }
 
     def replicates_protocol_or_child(self, protocol_path):
         """Returns whether the protocol pointed to by `protocol_path` (or
@@ -112,23 +87,15 @@ class WorkflowOutputToStore:
     def __getstate__(self):
 
         return_value = {
-            'substance': PolymorphicDataType(self.substance),
-            'trajectory_file_path': PolymorphicDataType(self.trajectory_file_path),
-            'coordinate_file_path': PolymorphicDataType(self.coordinate_file_path),
-            'statistics_file_path': PolymorphicDataType(self.statistics_file_path),
-            'statistical_inefficiency': PolymorphicDataType(self.statistical_inefficiency),
+            'substance': self.substance,
+            'trajectory_file_path': self.trajectory_file_path,
+            'coordinate_file_path': self.coordinate_file_path,
+            'statistics_file_path': self.statistics_file_path,
+            'statistical_inefficiency': self.statistical_inefficiency,
         }
         return return_value
 
     def __setstate__(self, state):
-
-        for key in state:
-
-            if isinstance(state[key], PolymorphicDataType):
-                state[key] = state[key].value
-                continue
-
-            state[key] = PolymorphicDataType.deserialize(state[key]).value
 
         self.substance = state['substance']
         self.trajectory_file_path = state['trajectory_file_path']
@@ -137,28 +104,18 @@ class WorkflowOutputToStore:
         self.statistical_inefficiency = state['statistical_inefficiency']
 
 
-class WorkflowSchema(BaseModel):
+class WorkflowSchema(TypedBaseModel):
     """Outlines the workflow which should be followed when calculating a certain property.
     """
     property_type: str = None
     id: str = None
 
-    protocols: Dict[str, ProtocolSchema] = {}
+    protocols: Dict[str, Any] = {}
     replicators: List[ProtocolReplicator] = []
 
     final_value_source: ProtocolPath = None
 
-    outputs_to_store: Dict[str, PolymorphicDataType] = {}
-
-    class Config:
-        arbitrary_types_allowed = True
-
-        json_encoders = {
-            EstimatedQuantity: lambda value: value.__getstate__(),
-            unit.Quantity: lambda value: serialize_quantity(value),
-            ProtocolPath: lambda value: value.full_path,
-            PolymorphicDataType: lambda value: PolymorphicDataType.serialize(value)
-        }
+    outputs_to_store: Dict[str, Any] = {}
 
     def _validate_replicators(self):
 
@@ -169,15 +126,15 @@ class WorkflowSchema(BaseModel):
             if len(replicator.protocols_to_replicate) == 0:
                 raise ValueError('A replicator does not have any protocols to replicate.')
 
-            if (not isinstance(replicator.template_values.value, list) and
-                not isinstance(replicator.template_values.value, ProtocolPath)):
+            if (not isinstance(replicator.template_values, list) and
+                not isinstance(replicator.template_values, ProtocolPath)):
 
-                raise ValueError('The template values of a replicator must either be'
+                raise ValueError('The template values of a replicator must either be '
                                  'a list of values, or a reference to a list of values.')
 
-            if isinstance(replicator.template_values.value, list):
+            if isinstance(replicator.template_values, list):
 
-                for template_value in replicator.template_values.value:
+                for template_value in replicator.template_values:
 
                     if not isinstance(template_value, ProtocolPath):
                         continue
@@ -185,10 +142,10 @@ class WorkflowSchema(BaseModel):
                     if template_value.start_protocol not in self.protocols:
                         raise ValueError('The value source {} does not exist.'.format(template_value))
 
-            elif isinstance(replicator.template_values.value, ProtocolPath):
+            elif isinstance(replicator.template_values, ProtocolPath):
 
-                if not replicator.template_values.value.is_global:
-                    raise ValueError('Template values must either be a constant, or come from the global'
+                if not replicator.template_values.is_global:
+                    raise ValueError('Template values must either be a constant, or come from the global '
                                      'scope.')
 
             for protocol_path in replicator.protocols_to_replicate:
@@ -205,7 +162,7 @@ class WorkflowSchema(BaseModel):
 
                 if re.search(r'\$\(.*\)', protocol_schema.id) is None:
 
-                    raise ValueError('Protocols which are being replicated must contain'
+                    raise ValueError('Protocols which are being replicated must contain '
                                      'the replicator id $(id) their protocol id.')
 
     def _validate_final_value(self):
@@ -235,11 +192,11 @@ class WorkflowSchema(BaseModel):
 
         for output_label in self.outputs_to_store:
 
-            output_to_store = self.outputs_to_store[output_label].value
+            output_to_store = self.outputs_to_store[output_label]
 
             if not isinstance(output_to_store, WorkflowOutputToStore):
 
-                raise ValueError('Only WorkflowOutputToStore objects are allowed'
+                raise ValueError('Only WorkflowOutputToStore objects are allowed '
                                  'in the outputs_to_store dictionary at this time.')
 
             for attribute_name in attributes_to_check:
@@ -250,13 +207,13 @@ class WorkflowSchema(BaseModel):
 
                     if len(self.replicators) == 0:
 
-                        raise ValueError('An output to store is trying to take its value from a'
+                        raise ValueError('An output to store is trying to take its value from a '
                                          'replicator, while this schema is no replicators.')
 
                     elif len([replicator for replicator in self.replicators if
                               attribute_value.replicator_id == replicator.id]) == 0:
 
-                        raise ValueError('An output to store is trying to take its value from a'
+                        raise ValueError('An output to store is trying to take its value from a '
                                          'replicator {} which does not exist.'.format(attribute_value.replicator_id))
 
                 if not isinstance(attribute_value, ProtocolPath) or attribute_value.is_global:

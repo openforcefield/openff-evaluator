@@ -112,13 +112,3 @@ def test_estimated_quantity_serialization():
     assert quantity_a.uncertainty == quantity_b.uncertainty
 
     assert set(quantity_a.sources) == set(quantity_b.sources)
-
-    # Test the pydantic class validators
-    quantity_b = quantities.EstimatedQuantity.validate(state_a)
-
-    assert quantity_a.value == quantity_b.value
-    assert quantity_a.uncertainty == quantity_b.uncertainty
-
-    assert set(quantity_a.sources) == set(quantity_b.sources)
-
-    assert(quantities.EstimatedQuantity.validate(quantity_a) == quantity_a)

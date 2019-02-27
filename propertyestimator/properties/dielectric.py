@@ -15,7 +15,6 @@ from propertyestimator.properties.properties import PhysicalProperty
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils import timeseries
 from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.utils.serialization import PolymorphicDataType
 from propertyestimator.workflow import WorkflowSchema
 from propertyestimator.workflow import protocols, groups, plugins
 from propertyestimator.workflow.decorators import protocol_input
@@ -294,6 +293,6 @@ class DielectricConstant(PhysicalProperty):
         output_to_store.statistical_inefficiency = ProtocolPath('statistical_inefficiency', converge_uncertainty.id,
                                                                 extract_dielectric.id)
 
-        schema.outputs_to_store = {'full_system': PolymorphicDataType(output_to_store)}
+        schema.outputs_to_store = {'full_system': output_to_store}
 
         return schema

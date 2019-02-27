@@ -8,8 +8,6 @@ import uuid
 from os import path, makedirs
 from typing import List, Dict
 
-from pydantic import BaseModel
-from simtk import unit
 from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
 from tornado.tcpserver import TCPServer
@@ -19,13 +17,11 @@ from propertyestimator.client import PropertyEstimatorSubmission, PropertyEstima
 from propertyestimator.layers import available_layers
 from propertyestimator.properties import PhysicalProperty
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.utils.serialization import serialize_quantity, PolymorphicDataType, deserialize_force_field
+from propertyestimator.utils.serialization import TypedBaseModel
 from propertyestimator.utils.tcp import PropertyEstimatorMessageTypes, pack_int, unpack_int
-from propertyestimator.workflow.utils import ProtocolPath
 
 
-class PropertyEstimatorServerData(BaseModel):
+class PropertyEstimatorServerData(TypedBaseModel):
     """Represents a data packet to be calculated by the server, along with
     the options which should be used when running the calculations.
 
@@ -53,17 +49,6 @@ class PropertyEstimatorServerData(BaseModel):
     options: PropertyEstimatorOptions = None
 
     force_field_id: str = None
-
-    class Config:
-
-        arbitrary_types_allowed = True
-
-        json_encoders = {
-            EstimatedQuantity: lambda value: value.__getstate__(),
-            unit.Quantity: lambda v: serialize_quantity(v),
-            ProtocolPath: lambda v: v.full_path,
-            PolymorphicDataType: lambda value: PolymorphicDataType.serialize(value)
-        }
 
 
 class PropertyEstimatorServer(TCPServer):
@@ -332,7 +317,7 @@ class PropertyEstimatorServer(TCPServer):
             The server side data model.
         """
 
-        force_field = deserialize_force_field(client_data_model.force_field)
+        force_field = client_data_model.force_field
 
         force_field_id = self._storage_backend.has_force_field(force_field)
 

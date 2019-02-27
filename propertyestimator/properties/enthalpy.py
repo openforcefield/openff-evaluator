@@ -10,7 +10,6 @@ from propertyestimator.properties.properties import PhysicalProperty
 from propertyestimator.substances import Mixture
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.utils.serialization import PolymorphicDataType
 from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow import WorkflowSchema, plugins, groups
 from propertyestimator.workflow import protocols
@@ -184,7 +183,7 @@ class EnthalpyOfMixing(PhysicalProperty):
             weight_by_mole_fraction.full_substance = ProtocolPath('substance', 'global')
 
             # Again, set the component as a placeholder which will be set by the replicator.
-            weight_by_mole_fraction.component = ReplicatorValue()
+            weight_by_mole_fraction.component = ReplicatorValue('repl')
 
             converge_uncertainty.add_protocols(weight_by_mole_fraction)
 
@@ -228,12 +227,12 @@ class EnthalpyOfMixing(PhysicalProperty):
         # Here we affix a prefix which contains the special string $(comp_index). Protocols which are
         # replicated by a replicator will have the $(comp_index) tag in their id replaced by the index
         # of the replication.
-        component_workflow = EnthalpyOfMixing.get_enthalpy_workflow('component_$(comp_index)_', True)
+        component_workflow = EnthalpyOfMixing.get_enthalpy_workflow('component_$(repl)_', True)
 
         # Set the substance of the build_coordinates and assign_topology protocols
         # as a placeholder for now - these will be later set by the replicator.
-        component_workflow.build_coordinates.substance = ReplicatorValue()
-        component_workflow.assign_topology.substance = ReplicatorValue()
+        component_workflow.build_coordinates.substance = ReplicatorValue('repl')
+        component_workflow.assign_topology.substance = ReplicatorValue('repl')
 
         # Set up a workflow to calculate the enthalpy of the full, mixed system.
         mixed_system_workflow = EnthalpyOfMixing.get_enthalpy_workflow('mixed_')
@@ -247,7 +246,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         # will actually populate this list with references to all of the newly generated
         # protocols of the individual components.
         add_component_enthalpies.values = [ProtocolPath('weighted_value', component_workflow.converge_uncertainty.id,
-                                                                          'component_$(comp_index)_weight_by_mole_fraction')]
+                                                                          'component_$(repl)_weight_by_mole_fraction')]
 
         schema.protocols[add_component_enthalpies.id] = add_component_enthalpies.schema
 
@@ -267,7 +266,7 @@ class EnthalpyOfMixing(PhysicalProperty):
 
         # Create the replicator object which defines how the pure component
         # enthalpy estimation workflow will be replicated for each component.
-        component_replicator = ProtocolReplicator(id='comp')
+        component_replicator = ProtocolReplicator(id='repl')
 
         component_replicator.protocols_to_replicate = []
 
@@ -285,7 +284,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         # Tell the replicator to take the components of a properties substance,
         # and pass these to the replicated workflows being produced, and in particular,
         # the inputs specified by the `template_targets`
-        component_replicator.template_values = PolymorphicDataType(ProtocolPath('components', 'global'))
+        component_replicator.template_values = ProtocolPath('components', 'global')
 
         schema.replicators = [component_replicator]
 
@@ -310,25 +309,25 @@ class EnthalpyOfMixing(PhysicalProperty):
 
         component_output_to_store = WorkflowOutputToStore()
 
-        component_output_to_store.substance = ReplicatorValue()
+        component_output_to_store.substance = ReplicatorValue('repl')
 
         component_output_to_store.trajectory_file_path = ProtocolPath('output_trajectory_path',
                                                                       component_workflow.subsample_trajectory.id)
 
         component_output_to_store.coordinate_file_path = ProtocolPath('output_coordinate_file',
                                                                       component_workflow.converge_uncertainty.id,
-                                                                      'component_$(comp_index)_npt_production')
+                                                                      'component_$(repl)_npt_production')
 
         component_output_to_store.statistics_file_path = ProtocolPath('output_statistics_path',
                                                                       component_workflow.subsample_statistics.id)
 
         component_output_to_store.statistical_inefficiency = ProtocolPath('statistical_inefficiency',
                                                                           component_workflow.converge_uncertainty.id,
-                                                                          'component_$(comp_index)_extract_enthalpy')
+                                                                          'component_$(repl)_extract_enthalpy')
 
         schema.outputs_to_store = {
-            'mixed_system': PolymorphicDataType(mixed_output_to_store),
-            'component_$(comp_index)': PolymorphicDataType(component_output_to_store)
+            'mixed_system': mixed_output_to_store,
+            'component_$(repl)': component_output_to_store
         }
 
         return schema

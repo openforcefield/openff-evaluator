@@ -4,16 +4,12 @@ Properties base API.
 
 import uuid
 from enum import IntFlag, unique
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 
-from pydantic import validator
 from simtk import unit
 
-from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.utils.serialization import deserialize_quantity, serialize_quantity, TypedBaseModel, \
-    PolymorphicDataType
+from propertyestimator.utils.serialization import TypedBaseModel
 
 
 @unique
@@ -51,15 +47,7 @@ class Source(TypedBaseModel):
 
     .. todo:: Swap this out with a more general provenance class.
     """
-
-    class Config:
-        arbitrary_types_allowed = True
-
-        json_encoders = {
-            EstimatedQuantity: lambda value: value.__getstate__(),
-            unit.Quantity: lambda value: serialize_quantity(value),
-            PolymorphicDataType: lambda value: PolymorphicDataType.serialize(value)
-        }
+    pass
 
 
 class MeasurementSource(Source):
@@ -92,12 +80,12 @@ class CalculationSource(Source):
     ----------
     fidelity : str
         The fidelity at which the property was calculated
-    provenance : str
-        A JSON string containing information about how the property was calculated.
+    provenance : dict of str and Any
+        A dictionary containing information about how the property was calculated.
     """
 
     fidelity: str = None
-    provenance: Dict[str, PolymorphicDataType] = None
+    provenance: Dict[str, Any] = None
 
 
 class PhysicalProperty(TypedBaseModel):
@@ -112,40 +100,21 @@ class PhysicalProperty(TypedBaseModel):
     thermodynamic_state: ThermodynamicState = None
     phase: PropertyPhase = PropertyPhase.Undefined
 
-    substance: Substance = None
+    substance: Any = None
 
     value: unit.Quantity = None
     uncertainty: unit.Quantity = None
 
-    source: Source = None
+    source: Any = None
 
     id: str = ''
 
     def __init__(self, **data):
+        """
+        Constructs a new PhysicalProperty object.
+        """
         super().__init__(**data)
-
         self.id = str(uuid.uuid4())
-
-    @validator('value', 'uncertainty', pre=True, whole=True)
-    def validate_quantity(cls, v):
-
-        if isinstance(v, dict):
-
-            if 'unitless_value' in v:
-                v = deserialize_quantity(v)
-
-        return v
-
-    class Config:
-
-        # A dirty hack to allow simtk.unit.Quantities...
-        # TODO: Should really investigate QCElemental as an alternative.
-        arbitrary_types_allowed = True
-
-        json_encoders = {
-            EstimatedQuantity: lambda value: value.__getstate__(),
-            unit.Quantity: lambda v: serialize_quantity(v),
-        }
 
     @property
     def temperature(self):

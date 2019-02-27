@@ -7,7 +7,8 @@ import logging
 from time import sleep
 from typing import Dict, List
 
-from pydantic import BaseModel, ValidationError
+from openforcefield.typing.engines.smirnoff import ForceField
+from pydantic import ValidationError
 from simtk import unit
 from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
@@ -17,14 +18,12 @@ from propertyestimator.layers import SurrogateLayer, ReweightingLayer, Simulatio
 from propertyestimator.properties import PhysicalProperty
 from propertyestimator.properties.plugins import registered_properties
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.utils.serialization import serialize_quantity, PolymorphicDataType, serialize_force_field
+from propertyestimator.utils.serialization import TypedBaseModel
 from propertyestimator.utils.tcp import PropertyEstimatorMessageTypes, pack_int, unpack_int
 from propertyestimator.workflow import WorkflowSchema
-from propertyestimator.workflow.utils import ProtocolPath
 
 
-class PropertyEstimatorOptions(BaseModel):
+class PropertyEstimatorOptions(TypedBaseModel):
     """Represents the options options that can be passed to the
     property estimation server backend.
 
@@ -70,19 +69,8 @@ class PropertyEstimatorOptions(BaseModel):
 
     gradient_properties: List[str] = []
 
-    class Config:
 
-        arbitrary_types_allowed = True
-
-        json_encoders = {
-            EstimatedQuantity: lambda value: value.__getstate__(),
-            unit.Quantity: lambda v: serialize_quantity(v),
-            ProtocolPath: lambda v: v.full_path,
-            PolymorphicDataType: lambda value: PolymorphicDataType.serialize(value)
-        }
-
-
-class PropertyEstimatorSubmission(BaseModel):
+class PropertyEstimatorSubmission(TypedBaseModel):
     """Represents a set of properties to be estimated by the server backend,
     the parameters which will be used to estimate them, and options about
     how the properties will be estimated.
@@ -93,32 +81,20 @@ class PropertyEstimatorSubmission(BaseModel):
 
     Attributes
     ----------
-    properties: :obj:`list` of :obj:`PhysicalProperty`
+    properties: list of PhysicalProperty
         The list of physical properties to estimate.
-    options: :obj:`PropertyEstimatorOptions`
+    options: PropertyEstimatorOptions
         The options which control how the `properties` are estimated.
-    force_field: :obj:`dict` of :obj:`int` and :obj:`str`
-        The force field parameters used during the calculations. These should be
-        obtained by calling `serialize_force_field` on a `ForceField` object.
+    force_field: openforcefield.typing.engines.smirnoff.ForceField
+        The force field parameters used during the calculations.
     """
     properties: List[PhysicalProperty] = []
     options: PropertyEstimatorOptions = None
 
-    force_field: Dict[int, str] = None
-
-    class Config:
-
-        arbitrary_types_allowed = True
-
-        json_encoders = {
-            EstimatedQuantity: lambda value: value.__getstate__(),
-            unit.Quantity: lambda v: serialize_quantity(v),
-            ProtocolPath: lambda v: v.full_path,
-            PolymorphicDataType: lambda value: PolymorphicDataType.serialize(value)
-        }
+    force_field: ForceField = None
 
 
-class PropertyEstimatorResult(BaseModel):
+class PropertyEstimatorResult(TypedBaseModel):
     """Represents the results of attempting to estimate a set of physical
     properties using the property estimator server backend.
 
@@ -128,12 +104,12 @@ class PropertyEstimatorResult(BaseModel):
 
     Attributes
     ----------
-    id: :obj:`str`
+    id: str
         The unique id assigned to this result set by the server.
-    estimated_properties: :obj:`dict` of :obj:`str` and :obj:`PhysicalProperty`
+    estimated_properties: dict of str and PhysicalProperty
         A dictionary of the properties which were successfully estimated, where
         the dictionary key is the unique id of the property being estimated.
-    unsuccessful_properties: :obj:`dict` of :obj:`str` and :obj:`PropertyEstimatorException`
+    unsuccessful_properties: dict of str and PropertyEstimatorException
         A dictionary of the exceptions that were raised when unsuccessfully estimating a property.
         The dictionary key is the unique id of the property which could not be estimated.
     force_field_id:
@@ -144,18 +120,8 @@ class PropertyEstimatorResult(BaseModel):
     estimated_properties: Dict[str, PhysicalProperty] = {}
     unsuccessful_properties: Dict[str, PropertyEstimatorException] = {}
 
-    class Config:
-        arbitrary_types_allowed = True
 
-        json_encoders = {
-            EstimatedQuantity: lambda value: value.__getstate__(),
-            unit.Quantity: lambda v: serialize_quantity(v),
-            ProtocolPath: lambda v: v.full_path,
-            PolymorphicDataType: lambda value: PolymorphicDataType.serialize(value)
-        }
-
-
-class PropertyEstimatorConnectionOptions(BaseModel):
+class PropertyEstimatorConnectionOptions(TypedBaseModel):
     """The set of options to use when connecting to a
     `PropertyEstimatorServer`
 
@@ -169,13 +135,13 @@ class PropertyEstimatorConnectionOptions(BaseModel):
 
 
 class PropertyEstimatorClient:
-    """The :obj:`PropertyEstimatorClient` is the main object that users of the
+    """The PropertyEstimatorClient is the main object that users of the
     property estimator will interface with. It is responsible for requesting
-    that a :obj:`PropertyEstimatorServer` estimates a set of physical properties,
+    that a PropertyEstimatorServer estimates a set of physical properties,
     as well as querying for when those properties have been estimated.
 
-    The :obj:`PropertyEstimatorClient` supports two main workflows: one where
-    a :obj:`PropertyEstimatorServer` lives on a remote supercomputing cluster
+    The PropertyEstimatorClient supports two main workflows: one where
+    a PropertyEstimatorServer lives on a remote supercomputing cluster
     where all of the expensive calculations will be run, and one where
     the users local machine acts as both the server and the client, and
     all calculations will be performed locally.
@@ -193,7 +159,7 @@ class PropertyEstimatorClient:
     >>> from propertyestimator.client import PropertyEstimatorClient
     >>> property_estimator = PropertyEstimatorClient()
 
-    If the :obj:`PropertyEstimatorServer` is not running on the local machine, you will
+    If the PropertyEstimatorServer is not running on the local machine, you will
     need to specify its address and the port that it is listening on:
 
     >>> from propertyestimator.client import PropertyEstimatorConnectionOptions
@@ -230,7 +196,7 @@ class PropertyEstimatorClient:
     >>> results = request.results(synchronous=True)
 
     How the property set will be estimated can easily be controlled by passing a
-    :obj:`PropertyEstimatorOptions` object to the estimate commands.
+    PropertyEstimatorOptions object to the estimate commands.
 
     The calculations layers which will be used to estimate the properties can be
     controlled for example like so:
@@ -354,23 +320,23 @@ class PropertyEstimatorClient:
 
             Parameters
             ----------
-            synchronous: :obj:`bool`
+            synchronous: bool
                 If true, this method will block the main thread until the server
                 either returns a result or an error.
-            polling_interval: :obj:`int`
+            polling_interval: int
                 If running synchronously, this is the time interval (seconds) between
                 checking if the calculation has finished.
 
             Returns
             -------
             If the method is run synchronously then this method will block the main
-            thread until the server returns either an error (:obj:`PropertyCalculatorException`),
-            or the results of the requested estimate (:obj:`PropertyEstimatorResult`).
+            thread until the server returns either an error (PropertyCalculatorException),
+            or the results of the requested estimate (PropertyEstimatorResult).
 
             If the method is run asynchronously, it will return None if the
             estimate is still queued for calculation on the server, or either
-            an error (:obj:`PropertyCalculatorException`) or results
-            (:obj:`PropertyEstimatorResult`) object.
+            an error (PropertyCalculatorException) or results
+            (PropertyEstimatorResult) object.
             """
             return self._client._retrieve_estimate(self._id, synchronous, polling_interval)
 
@@ -379,7 +345,7 @@ class PropertyEstimatorClient:
 
         Parameters
         ----------
-        connection_options: :obj:`PropertyEstimatorConnectionOptions`
+        connection_options: PropertyEstimatorConnectionOptions
             The options used when connecting to the calculation server.
         """
 
@@ -393,16 +359,16 @@ class PropertyEstimatorClient:
         self._tcp_client = TCPClient()
 
     def request_estimate(self, property_set, force_field, options=None):
-        """Requests that a :obj:`PropertyEstimatorServer` attempt to estimate the
+        """Requests that a PropertyEstimatorServer attempt to estimate the
         provided property set using the supplied force field and estimator options.
 
         Parameters
         ----------
-        property_set : :obj:`PhysicalPropertyDataSet`
+        property_set : PhysicalPropertyDataSet
             The set of properties to attempt to estimate.
-        force_field : :obj:`ForceField`
+        force_field : ForceField
             The OpenFF force field to use for the calculations.
-        options : :obj:`PropertyEstimatorOptions`, optional
+        options : PropertyEstimatorOptions, optional
             A set of estimator options. If None, default options
             will be used.
 
@@ -449,10 +415,10 @@ class PropertyEstimatorClient:
             for protocol_schema_name in options.workflow_schemas[property_schema_name].protocols:
 
                 protocol_schema = options.workflow_schemas[property_schema_name].protocols[protocol_schema_name]
-                protocol_schema.inputs['.allow_merging'] = PolymorphicDataType(options.allow_protocol_merging)
+                protocol_schema.inputs['.allow_merging'] = options.allow_protocol_merging
 
         submission = PropertyEstimatorSubmission(properties=properties_list,
-                                                 force_field=serialize_force_field(force_field),
+                                                 force_field=force_field,
                                                  options=options)
 
         request_id = IOLoop.current().run_sync(lambda: self._send_calculations_to_server(submission))
@@ -468,26 +434,26 @@ class PropertyEstimatorClient:
 
         Parameters
         ----------
-        request_id: :obj:`str`
+        request_id: str
             The id of the estimate request which was returned by the server
             upon making the request.
-        synchronous: :obj:`bool`
+        synchronous: bool
             If true, this method will block the main thread until the server
             either returns a result or an error.
-        polling_interval: :obj:`int`
+        polling_interval: int
             If running synchronously, this is the time interval (seconds) between
             checking if the calculation has finished.
 
         Returns
         -------
         If the method is run synchronously then this method will block the main
-        thread until the server returns either an error (:obj:`PropertyCalculatorException`),
-        or the results of the requested estimate (:obj:`PropertyEstimatorResult`).
+        thread until the server returns either an error (PropertyCalculatorException),
+        or the results of the requested estimate (PropertyEstimatorResult).
 
         If the method is run asynchronously, it will return None if the
         estimate is still queued for calculation on the server, or either
-        an error (:obj:`PropertyCalculatorException`) or results
-        (:obj:`PropertyEstimatorResult`) object.
+        an error (PropertyCalculatorException) or results
+        (PropertyEstimatorResult) object.
         """
 
         # If running asynchronously, just return whatever the server

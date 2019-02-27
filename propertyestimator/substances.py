@@ -4,11 +4,10 @@ An API for defining and creating substances.
 
 from typing import List
 
-from pydantic import BaseModel
-from pydantic.validators import dict_validator
+from propertyestimator.utils.serialization import TypedBaseModel
 
 
-class Component(BaseModel):
+class Component(TypedBaseModel):
     """Represents a chemical component.
 
     .. todo:: Refactor this out?
@@ -21,26 +20,8 @@ class Component(BaseModel):
 
     smiles: str = None
 
-    @classmethod
-    def __get_validators__(cls):
-        # yield dict_validator
-        yield cls.validate
 
-    @classmethod
-    def validate(cls, value):
-        # A dirty hack to ensure proper inheritance..
-
-        if isinstance(value, cls):
-            return value
-        else:
-
-            if 'mole_fraction' in value and 'impurity' in value:
-                return Mixture.MixtureComponent(**value)
-
-            cls(**dict_validator(value))
-
-
-class Substance(BaseModel):
+class Substance(TypedBaseModel):
     """
     A substance, can be a pure chemical, or could be a Mixture.
 
@@ -55,24 +36,6 @@ class Substance(BaseModel):
 
     def __ne__(self, other):
         raise NotImplementedError('A Substance is a purely abstract base class.')
-
-    @classmethod
-    def __get_validators__(cls):
-        # yield dict_validator
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, value):
-        # A dirty hack to ensure proper inheritance..
-
-        if isinstance(value, cls):
-            return value
-        else:
-
-            if 'components' in value:
-                return Mixture(**value)
-
-            cls(**dict_validator(value))
 
 
 class Mixture(Substance):

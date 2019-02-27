@@ -23,7 +23,7 @@ class ReplicatorValue(PlaceholderInput):
     with the specified id.
     """
 
-    def __init__(self, non_default, replicator_id=''):
+    def __init__(self, replicator_id=''):
         """Constructs a new ReplicatorValue object
 
         Parameters
@@ -76,7 +76,7 @@ class ProtocolPath(PlaceholderInput):
     def is_global(self):
         return self.start_protocol == 'global'
 
-    def __init__(self, property_name, *protocol_ids):
+    def __init__(self, property_name='', *protocol_ids):
         """Constructs a new ProtocolPath object.
 
         Parameters
@@ -88,7 +88,12 @@ class ProtocolPath(PlaceholderInput):
         """
 
         self._full_path = ''
-        self._from_components(property_name, *protocol_ids)
+
+        if len(property_name) > 0 or len(protocol_ids) > 0:
+            self._from_components(property_name, *protocol_ids)
+
+        else:
+            self._full_path = '{}'.format(ProtocolPath.property_separator)
 
     def _from_components(self, property_name, *protocol_ids):
         """Sets this components path from individual components.

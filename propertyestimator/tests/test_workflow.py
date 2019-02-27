@@ -18,9 +18,10 @@ from propertyestimator.properties.plugins import registered_properties
 from propertyestimator.substances import Mixture
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import get_data_filename, graph
-from propertyestimator.utils.serialization import PolymorphicDataType
+from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import WorkflowSchema
 from propertyestimator.workflow.decorators import protocol_input
+from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 from propertyestimator.workflow.schemas import ProtocolReplicator
 from propertyestimator.workflow.utils import ReplicatorValue, ProtocolPath
@@ -43,6 +44,7 @@ def create_dummy_property(property_class):
     return dummy_property
 
 
+@register_calculation_protocol()
 class DummyReplicableProtocol(BaseProtocol):
 
     @protocol_input(value_type=list)
@@ -53,11 +55,17 @@ class DummyReplicableProtocol(BaseProtocol):
     def replicated_value_b(self):
         pass
 
+    @protocol_input(value_type=EstimatedQuantity)
+    def final_value(self):
+        pass
+
     def __init__(self, protocol_id):
         super().__init__(protocol_id)
 
         self._replicated_value_a = None
         self._replicated_value_b = None
+
+        self._final_value = EstimatedQuantity(1 * unit.kelvin, 0.1 * unit.kelvin, 'dummy')
 
 
 @pytest.mark.parametrize("registered_property_name", registered_properties)
@@ -190,22 +198,19 @@ def test_nested_replicators():
 
     dummy_schema = WorkflowSchema()
 
-    dummy_schema.id = 'DummyWorkflow'
-    dummy_schema.property_type = Density.__name__
-
-    dummy_schema.final_value_source = ProtocolPath('empty')
-
-    dummy_protocol = DummyReplicableProtocol('dummy_$(rep_a_index)_$(rep_b_index)')
+    dummy_protocol = DummyReplicableProtocol('dummy_$(rep_a)_$(rep_b)')
 
     dummy_protocol.replicated_value_a = ReplicatorValue('rep_a')
     dummy_protocol.replicated_value_b = ReplicatorValue('rep_b')
 
     dummy_schema.protocols[dummy_protocol.id] = dummy_protocol.schema
 
+    dummy_schema.final_value_source = ProtocolPath('final_value', dummy_protocol.id)
+
     replicator_a = ProtocolReplicator(id='rep_a')
 
-    replicator_a.template_values = PolymorphicDataType(['a', 'b'])
-    replicator_a.protocols_to_replicate = PolymorphicDataType([ProtocolPath('', dummy_protocol.id)])
+    replicator_a.template_values = ['a', 'b']
+    replicator_a.protocols_to_replicate = [ProtocolPath('', dummy_protocol.id)]
 
     replicator_b = ProtocolReplicator(id='rep_b')
 
@@ -217,7 +222,7 @@ def test_nested_replicators():
         replicator_b
     ]
 
-    WorkflowSchema.parse_raw(dummy_schema.json())
+    dummy_schema.validate_interfaces()
 
     dummy_property = create_dummy_property(Density)
 
@@ -228,40 +233,18 @@ def test_nested_replicators():
     dummy_workflow = Workflow(dummy_property, dummy_metadata)
     dummy_workflow.schema = dummy_schema
 
-    print(dummy_schema.schema)
+    assert len(dummy_workflow.protocols) == 4
 
+    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_0_0'].replicated_value_a == 'a'
+    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_0_1'].replicated_value_a == 'a'
 
-def test_simulation_layer():
-    """Test the simulation estimation layer."""
+    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_1_0'].replicated_value_a == 'b'
+    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_1_1'].replicated_value_a == 'b'
 
-    # if path.isdir('property-data'):
-    #     shutil.rmtree('property-data')
-    #
-    # # Set up time-based logging to help debug threading issues.
-    # formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s',
-    #                               datefmt='%H:%M:%S')
-    #
-    # screen_handler = logging.StreamHandler(stream=sys.stdout)
-    # screen_handler.setFormatter(formatter)
-    #
-    # logger = logging.getLogger()
-    # logger.setLevel(logging.INFO)
-    # logger.addHandler(screen_handler)
-    #
-    # dummy_pickle = b''
-    # data_model = pickle.loads(dummy_pickle)
-    #
-    # backend = DaskLocalClusterBackend(1, 1)
-    # backend.start()
-    #
-    # def dummy_callback(*args, **kwargs):
-    #     print(args, kwargs)
-    #     pass
-    #
-    # simulation_layer = SimulationLayer()
-    # simulation_layer.schedule_calculation(backend, data_model, {}, dummy_callback, True)
-    pass
+    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_0_0'].replicated_value_b == 1
+    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_0_1'].replicated_value_b == 2
 
+    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_1_0'].replicated_value_b == 1
+    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_1_1'].replicated_value_b == 2
 
-if __name__ == "__main__":
-    test_nested_replicators()
+    print(dummy_workflow.schema)

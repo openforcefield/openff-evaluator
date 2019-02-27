@@ -13,11 +13,10 @@ from simtk import unit
 from propertyestimator.storage import StoredSimulationData
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import PolymorphicDataType
 from propertyestimator.utils.statistics import StatisticsArray
 from propertyestimator.workflow.plugins import available_protocols
-from propertyestimator.workflow.schemas import WorkflowSchema
 from propertyestimator.workflow.protocols import BaseProtocol
+from propertyestimator.workflow.schemas import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
@@ -86,7 +85,9 @@ class Workflow:
         for substance_identifier in self.outputs_to_store:
 
             schema.outputs_to_store[substance_identifier] = \
-                PolymorphicDataType(copy.deepcopy(self.outputs_to_store[substance_identifier]))
+                copy.deepcopy(self.outputs_to_store[substance_identifier])
+
+        return schema
 
     def _set_schema(self, value):
         """Sets this workflows properties from a `WorkflowSchema`.
@@ -96,17 +97,6 @@ class Workflow:
         value: WorkflowSchema
             The schema which outlines this steps in this workflow.
         """
-
-        # property_type: str = None
-        # id: str = None
-        #
-        # protocols: Dict[str, ProtocolSchema] = {}
-        # replicators: List[ProtocolReplicator] = []
-        #
-        # final_value_source: ProtocolPath = None
-        #
-        # outputs_to_store: Dict[str, PolymorphicDataType] = {}
-
         schema = WorkflowSchema.parse_raw(value.json())
 
         self.final_value_source = ProtocolPath.from_string(schema.final_value_source.full_path)
@@ -116,7 +106,7 @@ class Workflow:
 
         for output_label in schema.outputs_to_store:
 
-            output_to_store = schema.outputs_to_store[output_label].value
+            output_to_store = schema.outputs_to_store[output_label]
 
             for attribute_key in output_to_store.__getstate__():
 
@@ -140,8 +130,29 @@ class Workflow:
         schema: WorkflowSchema
             The schema to use when creating the protocols
         """
+
+        applied_replicators = []
+
         for replicator in schema.replicators:
+
+            updated_protocols_to_replicate = []
+
+            for protocol_to_replicate in replicator.protocols_to_replicate:
+
+                for applied_replicator in applied_replicators:
+
+                    for index in range(len(applied_replicator.template_values)):
+
+                        replacement_string = '$({})'.format(applied_replicator.id)
+
+                        updated_path = protocol_to_replicate.full_path.replace(replacement_string, str(index))
+                        updated_protocols_to_replicate.append(ProtocolPath.from_string(updated_path))
+
+            if len(updated_protocols_to_replicate) > 0:
+                replicator.protocols_to_replicate = updated_protocols_to_replicate
+
             self._build_replicated_protocols(schema, replicator)
+            applied_replicators.append(replicator)
 
         for protocol_name in schema.protocols:
 
@@ -179,7 +190,7 @@ class Workflow:
             be created.
         """
 
-        template_values = replicator.template_values.value
+        template_values = replicator.template_values
 
         # Get the list of values which will be passed to the newly created protocols -
         # in particular those specified by `generator_protocol.template_targets`
@@ -237,6 +248,9 @@ class Workflow:
                             attribute_value.full_path.replace(replacement_string, str(index)))
 
                     elif isinstance(attribute_value, ReplicatorValue):
+
+                        if attribute_value.replicator_id != replicator.id:
+                            continue
 
                         attribute_value = template_value
 
@@ -338,6 +352,9 @@ class Workflow:
                 input_value = protocol.get_value(required_input)
 
                 if not isinstance(input_value, ReplicatorValue):
+                    continue
+
+                if input_value.replicator_id != replicator.id:
                     continue
 
                 protocol.set_value(required_input, template_value)
@@ -765,7 +782,7 @@ class WorkflowGraph:
             for protocol_id in workflow.protocols:
                 
                 protocol = workflow.protocols[protocol_id]
-                provenance[protocol_id] = PolymorphicDataType(protocol.schema)
+                provenance[protocol_id] = protocol.schema
 
             # from propertyestimator.properties import workflowSource
             #

@@ -1,8 +1,7 @@
 """
 A collection of commonly raised python exceptions.
 """
-
-from pydantic import BaseModel
+from propertyestimator.utils.serialization import TypedBaseModel
 
 
 class XmlNodeMissingException(Exception):
@@ -13,7 +12,7 @@ class XmlNodeMissingException(Exception):
         super().__init__(message)
 
 
-class PropertyEstimatorException(BaseModel):
+class PropertyEstimatorException(TypedBaseModel):
     """A json serializable object wrapper containing information about
     a failed property calculation.
 

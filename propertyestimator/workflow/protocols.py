@@ -19,7 +19,7 @@ from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils import packmol, graph, utils, statistics, timeseries, create_molecule_from_smiles
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.utils.serialization import serialize_quantity, deserialize_quantity, PolymorphicDataType, \
+from propertyestimator.utils.serialization import deserialize_quantity, \
     deserialize_force_field
 from propertyestimator.utils.statistics import StatisticsArray
 from propertyestimator.utils.string import extract_variable_index_and_name
@@ -176,12 +176,7 @@ class BaseProtocol:
 
                 continue
 
-            value = self.get_value(input_path)
-
-            if isinstance(value, unit.Quantity):
-                value = serialize_quantity(value)
-
-            schema.inputs[input_path.full_path] = PolymorphicDataType(value)
+            schema.inputs[input_path.full_path] = self.get_value(input_path)
 
         return schema
 
@@ -203,7 +198,7 @@ class BaseProtocol:
 
         for input_full_path in schema_value.inputs:
 
-            value = copy.deepcopy(schema_value.inputs[input_full_path].value)
+            value = copy.deepcopy(schema_value.inputs[input_full_path])
 
             if isinstance(value, dict) and 'unit' in value and 'unitless_value' in value:
                 value = deserialize_quantity(value)

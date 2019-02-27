@@ -6,8 +6,6 @@ import numpy as np
 from simtk import unit
 from uncertainties import ufloat
 
-from propertyestimator.utils.serialization import serialize_quantity, deserialize_quantity
-
 
 class EstimatedQuantity:
     """A representation of an estimated quantity, which contains both the value of
@@ -195,32 +193,16 @@ class EstimatedQuantity:
     def __getstate__(self):
 
         return {
-            'value': serialize_quantity(self.value),
-            'uncertainty': serialize_quantity(self.uncertainty),
+            'value': self.value,
+            'uncertainty': self.uncertainty,
             'sources': self.sources
         }
 
     def __setstate__(self, state):
 
-        self._value = deserialize_quantity(state['value'])
-        self._uncertainty = deserialize_quantity(state['uncertainty'])
+        self._value = state['value']
+        self._uncertainty = state['uncertainty']
         self._sources = state['sources']
-
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, value):
-
-        if isinstance(value, cls):
-            return value
-
-        quantity_value = deserialize_quantity(value['value'])
-        quantity_uncertainty = deserialize_quantity(value['uncertainty'])
-        quantity_sources = value['sources']
-
-        return EstimatedQuantity(quantity_value, quantity_uncertainty, *quantity_sources)
 
     @staticmethod
     def _get_uncertainty_object(estimated_quantity):

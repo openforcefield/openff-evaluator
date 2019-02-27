@@ -11,7 +11,6 @@ from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.properties.properties import PhysicalProperty, CalculationSource
 from propertyestimator.thermodynamics import Ensemble
-from propertyestimator.utils.serialization import PolymorphicDataType
 from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow import WorkflowSchema
 from propertyestimator.workflow import protocols, groups
@@ -160,7 +159,7 @@ class Density(PhysicalProperty):
         output_to_store.statistical_inefficiency = ProtocolPath('statistical_inefficiency', converge_uncertainty.id,
                                                                                             extract_density.id)
 
-        schema.outputs_to_store = {'full_system': PolymorphicDataType(output_to_store)}
+        schema.outputs_to_store = {'full_system': output_to_store}
 
         return schema
 
@@ -273,7 +272,7 @@ class Density(PhysicalProperty):
 
             physical_property.source.fidelity = ReweightingLayer.__name__
             physical_property.source.provenance = {
-                'data_sources': PolymorphicDataType(json.dumps([data.unique_id for data in useable_data]))
+                'data_sources': json.dumps([data.unique_id for data in useable_data])
             }
 
             return physical_property
