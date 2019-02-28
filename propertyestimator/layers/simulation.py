@@ -48,7 +48,10 @@ class SimulationLayer(PropertyCalculationLayer):
 
                 continue
 
-            schema = options.workflow_schemas[property_type]
+            if SimulationLayer.__name__ not in options.workflow_schemas[property_type]:
+                continue
+
+            schema = options.workflow_schemas[property_type][SimulationLayer.__name__]
 
             global_metadata = Workflow.generate_default_metadata(property_to_calculate,
                                                                  force_field_path, options)

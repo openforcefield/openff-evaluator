@@ -7,6 +7,8 @@ from os.path import isfile, join
 
 import logging
 
+import pytest
+
 from propertyestimator.utils import get_data_filename
 
 from propertyestimator.properties import PhysicalProperty
@@ -16,6 +18,8 @@ from propertyestimator.datasets import ThermoMLDataSet
 #          These may need to be hand written.
 
 
+@pytest.mark.skip(reason="Uncertainties have been unexpectedly removed from ThermoML "
+                         "so these tests will fail until they have been re-added")
 def test_from_url():
 
     data_set = ThermoMLDataSet.from_url('https://trc.nist.gov/journals/jct/2005v37/i04/j.jct.2004.09.022.xml')
@@ -27,6 +31,8 @@ def test_from_url():
     assert data_set is None
 
 
+@pytest.mark.skip(reason="Uncertainties have been unexpectedly removed from ThermoML "
+                         "so these tests will fail until they have been re-added")
 def test_serialization():
 
     data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
@@ -44,6 +50,8 @@ def test_serialization():
             print(physical_property_recreated)
 
 
+@pytest.mark.skip(reason="Uncertainties have been unexpectedly removed from ThermoML "
+                         "so these tests will fail until they have been re-added")
 def test_from_doi():
 
     data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
@@ -104,7 +112,7 @@ def parse_all_jct_files():
     from propertyestimator.properties.dielectric import DielectricConstant
     from propertyestimator.properties.enthalpy import EnthalpyOfMixing
 
-    properties_by_type = {Density.__name__: [], DielectricConstant.__name__: [], Enthalpy.__name__: [],
+    properties_by_type = {Density.__name__: [], DielectricConstant.__name__: [],
                           EnthalpyOfMixing.__name__: []}
 
     for substance_key in data_set.properties:

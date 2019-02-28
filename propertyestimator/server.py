@@ -6,7 +6,7 @@ import json
 import logging
 import uuid
 from os import path, makedirs
-from typing import List, Dict
+from typing import List, Dict, Any
 
 from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
@@ -17,7 +17,7 @@ from propertyestimator.client import PropertyEstimatorSubmission, PropertyEstima
 from propertyestimator.layers import available_layers
 from propertyestimator.properties import PhysicalProperty
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import TypedBaseModel
+from propertyestimator.utils.serialization import TypedBaseModel, deserialize_force_field
 from propertyestimator.utils.tcp import PropertyEstimatorMessageTypes, pack_int, unpack_int
 
 
@@ -41,9 +41,9 @@ class PropertyEstimatorServerData(TypedBaseModel):
 
     id: str
 
-    queued_properties: List[PhysicalProperty] = []
+    queued_properties: List[Any] = []
 
-    estimated_properties: Dict[str, PhysicalProperty] = {}
+    estimated_properties: Dict[str, Any] = {}
     unsuccessful_properties: Dict[str, PropertyEstimatorException] = {}
 
     options: PropertyEstimatorOptions = None
@@ -317,7 +317,7 @@ class PropertyEstimatorServer(TCPServer):
             The server side data model.
         """
 
-        force_field = client_data_model.force_field
+        force_field = deserialize_force_field(client_data_model.force_field)
 
         force_field_id = self._storage_backend.has_force_field(force_field)
 

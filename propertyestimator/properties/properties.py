@@ -140,13 +140,19 @@ class PhysicalProperty(TypedBaseModel):
         self.uncertainty = uncertainty
 
     @staticmethod
-    def get_default_workflow_schema():
-        """Returns the set of steps needed to calculate
-        this property by direct simulation methods.
+    def get_default_workflow_schema(calculation_layer):
+        """Returns the default workflow schema to use for
+        a specific calculation layer.
+
+        Parameters
+        ----------
+        calculation_layer: str
+            The calculation layer which will attempt to execute the workflow
+            defined by this schema.
 
         Returns
         -------
-        propertyestimator.WorkflowSchema
-            The calculation schema to follow.
+        WorkflowSchema
+            The default workflow schema.
         """
         raise NotImplementedError()

@@ -1,105 +1,24 @@
 """
 The simulation reweighting estimation layer.
 """
-import copy
+import abc
+import logging
 import pickle
 from os import path
 
-import numpy as np
-from simtk import unit
+from openmmtools.utils import SubhookedABCMeta
 
 from propertyestimator.layers import register_calculation_layer, PropertyCalculationLayer
-from propertyestimator.layers.layers import CalculationLayerResult
-from propertyestimator.utils import create_molecule_from_smiles
-from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.utils.serialization import serialize_force_field, deserialize_force_field
-from propertyestimator.utils.statistics import ObservableType
-from propertyestimator.workflow.decorators import protocol_input, protocol_output
-from propertyestimator.workflow.plugins import register_calculation_protocol
-from propertyestimator.workflow.protocols import BaseProtocol
+from propertyestimator.utils.serialization import serialize_force_field
+from propertyestimator.workflow import WorkflowGraph, Workflow
+from propertyestimator.workflow.workflow import IWorkflowProperty
 
 
-@register_calculation_protocol()
-class ReweightWithMBARProtocol(BaseProtocol):
-    """Calculates the reduced potential for a given
-    set of configurations.
-    """
+class IReweightable(SubhookedABCMeta):
 
-    @protocol_input(list)
-    def reference_reduced_potentials(self):
-        pass
-
-    @protocol_input(list)
-    def reference_observables(self):
-        pass
-
-    @protocol_input(list)
-    def target_reduced_potentials(self):
-        pass
-
-    @protocol_output(EstimatedQuantity)
-    def value(self):
-        pass
-
-    def __init__(self, protocol_id):
-        """Constructs a new ReweightWithMBARProtocol object."""
-        super().__init__(protocol_id)
-
-        self._reference_reduced_potentials = None
-        self._reference_observables = None
-
-        self._target_reduced_potentials = None
-
-        self._value = None
-
-    def execute(self, directory, available_resources):
-
-        # for index_k, data_k in enumerate(useable_data):
-        #
-        #     reference_force_field = existing_force_fields[data_k.force_field_id]
-        #
-        #     for index_l, data_l in enumerate(useable_data):
-        #
-        #         # Compute the reference state energies.
-        #         reference_reduced_energies_k_l = ReweightingLayer.get_reduced_potential(data_k.substance,
-        #                                                                                 data_k.thermodynamic_state,
-        #                                                                                 data_k.force_field_id,
-        #                                                                                 reference_force_field,
-        #                                                                                 data_l,
-        #                                                                                 available_resources)
-        #
-        #         start_index = np.array(frame_counts[0:index_l]).sum()
-        #
-        #         for index in range(0, frame_counts[index_l]):
-        #             reference_reduced_energies[index_k][start_index + index] = reference_reduced_energies_k_l[index]
-        #
-        #     # Compute the target state energies.
-        #     target_reduced_energies_k = ReweightingLayer.get_reduced_potential(data_k.substance,
-        #                                                                        physical_property.thermodynamic_state,
-        #                                                                        force_field_id,
-        #                                                                        target_force_field,
-        #                                                                        data_k,
-        #                                                                        available_resources)
-        #
-        #     # Calculate the observables.
-        #     reference_densities = data_k.statistics_data.get_observable(ObservableType.Density)
-        #
-        #     start_index = np.array(frame_counts[0:index_k]).sum()
-        #
-        #     for index in range(0, frame_counts[index_k]):
-        #
-        #         target_reduced_energies[0][start_index + index] = target_reduced_energies_k[index]
-        #         observables[0][start_index + index] = reference_densities[index] / unit.gram * unit.milliliter
-        #
-        # # Construct the mbar object.
-        # mbar = pymbar.MBAR(reference_reduced_energies, frame_counts, verbose=False, relative_tolerance=1e-12)
-        # results = mbar.computeExpectations(observables, target_reduced_energies, state_dependent=True)
-        #
-        # value = results[0][0] * unit.gram / unit.milliliter
-        # uncertainty = results[1][0] * unit.gram / unit.milliliter
-
-        return self._get_output_dictionary()
+    @property
+    @abc.abstractmethod
+    def multi_component_property(self): pass
 
 
 @register_calculation_layer()
@@ -115,250 +34,176 @@ class ReweightingLayer(PropertyCalculationLayer):
     def schedule_calculation(calculation_backend, storage_backend, layer_directory,
                              data_model, callback, synchronous=False):
 
-        force_field = storage_backend.retrieve_force_field(data_model.force_field_id)
+        # Make a local copy of the target force field.
+        target_force_field = storage_backend.retrieve_force_field(data_model.force_field_id)
 
-        reweighting_futures = []
+        target_force_field_path = path.join(layer_directory, data_model.force_field_id)
 
-        for physical_property in data_model.queued_properties:
+        with open(target_force_field_path, 'wb') as file:
+            pickle.dump(serialize_force_field(target_force_field), file)
 
-            existing_data = storage_backend.retrieve_simulation_data(physical_property.substance, True)
+        stored_data_paths = ReweightingLayer._retrieve_stored_data(data_model.queued_properties,
+                                                                   storage_backend, layer_directory)
+
+        workflow_graph = ReweightingLayer._build_workflow_graph(layer_directory,
+                                                                data_model.queued_properties,
+                                                                target_force_field_path,
+                                                                stored_data_paths,
+                                                                data_model.options)
+
+        reweighting_futures = workflow_graph.submit(calculation_backend)
+
+        PropertyCalculationLayer._await_results(calculation_backend, storage_backend, layer_directory,
+                                                data_model, callback, reweighting_futures, synchronous)
+
+    @staticmethod
+    def _retrieve_stored_data(physical_properties, storage_backend, layer_directory):
+        """Extract all of the stored data from the backend which may be
+        used in reweighting
+
+        Parameters
+        ----------
+        physical_properties: list of PhysicalProperty
+            The physical properties to attempt to estimate.
+        storage_backend: PropertyEstimatorStorage
+            The storage backend to retrieve the data from.
+        layer_directory: str
+            The directory in which to store the retrieved data.
+
+        Returns
+        -------
+        dict of str and tuple(str, str)
+            A dictionary partitioned by substance identifiers, whose values
+            are a tuple of a path to a stored simulation data object, and
+            its corresponding force field path.
+        """
+
+        data_paths = {}
+
+        for physical_property in physical_properties:
+
+            if not isinstance(physical_property, IReweightable):
+                # Only properties which implement the IReweightable
+                # interface can be reweighted
+                continue
+
+            existing_data = storage_backend.retrieve_simulation_data(physical_property.substance,
+                                                                     physical_property.multi_component_property)
 
             if len(existing_data) == 0:
                 continue
 
             # Take data from the storage backend and save it in the working directory.
-            temporary_data_paths = {}
-            temporary_force_field_paths = {}
-
             for substance_id in existing_data:
 
-                temporary_data_paths[substance_id] = []
+                if substance_id not in data_paths:
+                    data_paths[substance_id] = []
 
                 for data in existing_data[substance_id]:
 
-                    temporary_data_path = path.join(layer_directory, data.unique_id)
+                    data_path = path.join(layer_directory, data.unique_id)
+                    force_field_path = path.join(layer_directory, data.force_field_id)
 
-                    with open(temporary_data_path, 'wb') as file:
+                    path_tuple = (data_path, force_field_path)
+
+                    if path_tuple in data_paths[substance_id]:
+                        continue
+
+                    with open(data_path, 'wb') as file:
                         pickle.dump(data, file)
 
-                    temporary_data_paths[substance_id].append(temporary_data_path)
+                    if not path.isfile(force_field_path):
 
-                    temporary_force_field_path = path.join(layer_directory, data.force_field_id)
-                    existing_force_field = storage_backend.retrieve_force_field(data.force_field_id)
+                        existing_force_field = storage_backend.retrieve_force_field(data.force_field_id)
 
-                    with open(temporary_force_field_path, 'wb') as file:
-                        pickle.dump(serialize_force_field(existing_force_field), file)
+                        with open(force_field_path, 'wb') as file:
+                            pickle.dump(serialize_force_field(existing_force_field), file)
 
-                    temporary_force_field_paths[data.force_field_id] = temporary_force_field_path
+                    data_paths[substance_id].append(path_tuple)
 
-            temporary_force_field_path = path.join(layer_directory, data_model.force_field_id)
-
-            with open(temporary_force_field_path, 'wb') as file:
-                pickle.dump(serialize_force_field(force_field), file)
-
-            temporary_force_field_paths[data_model.force_field_id] = temporary_force_field_path
-
-            # Pass this data to the backend to attempt to reweight.
-            reweighting_future = calculation_backend.submit_task(ReweightingLayer.perform_reweighting,
-                                                                 physical_property,
-                                                                 data_model.options,
-                                                                 data_model.force_field_id,
-                                                                 temporary_data_paths,
-                                                                 temporary_force_field_paths)
-
-            reweighting_futures.append(reweighting_future)
-
-        PropertyCalculationLayer._await_results(calculation_backend,
-                                                storage_backend,
-                                                layer_directory,
-                                                data_model,
-                                                callback,
-                                                reweighting_futures,
-                                                synchronous)
+            return data_paths
 
     @staticmethod
-    def perform_reweighting(physical_property, options, force_field_id, existing_data_paths,
-                            existing_force_field_paths, available_resources, **kwargs):
-        """A placeholder method that would be used to attempt
-        to reweight previous calculations to yield the desired
-        property.
+    def _build_workflow_graph(working_directory, properties, target_force_field_path,
+                              stored_data_paths, options):
+        """Construct a workflow graph, containing all of the workflows which should
+        be followed to estimate a set of properties by reweighting.
 
         Parameters
         ----------
-        physical_property: PhysicalProperty
-            The physical property to attempt to estimate by reweighting.
+        working_directory: str
+            The local directory in which to store all local,
+            temporary calculation data from this graph.
+        properties : list of PhysicalProperty
+            The properties to attempt to compute.
+        target_force_field_path : str
+            The path to the target force field parameters to use in the workflow.
+        stored_data_paths: dict of str and tuple(str, str)
+            A dictionary partitioned by substance identifiers, whose values
+            are a tuple of a path to a stored simulation data object, and
+            its corresponding force field path.
         options: PropertyEstimatorOptions
-            The options to use when executing the reweighting layer.
-        force_field_id: str
-            The id of the force field parameters which the property should be
-            estimated with.
-        existing_data_paths: dict of str and str
-            A dictionary of file path to data which has been stored from previous calculations
-            on systems of the same composition as the desired property.
-        existing_force_field_paths: dict of str and str
-            A dictionary of file paths to the force field parameters referenced by the
-            `existing_data_paths`, which have been serialized with `serialize_force_field`
-        available_resources: ComputeResources
-            The compute resources available for this reweighting calculation.
+            The options to run the workflows with.
         """
-        property_class = physical_property.__class__
+        workflow_graph = WorkflowGraph(working_directory)
 
-        if not hasattr(property_class, 'reweight'):
-            return None
+        for property_to_calculate in properties:
 
-        existing_data = {}
-        existing_force_fields = {}
+            if (not isinstance(property_to_calculate, IReweightable) or
+                not isinstance(property_to_calculate, IWorkflowProperty)):
+                # Only properties which implement the IReweightable and
+                # IWorkflowProperty interfaces can be reweighted
+                continue
 
-        for substance_id in existing_data_paths:
+            property_type = type(property_to_calculate).__name__
 
-            existing_data[substance_id] = []
+            if property_type not in options.workflow_schemas:
 
-            for data_path in existing_data_paths[substance_id]:
+                logging.warning('The reweighting layer does not support {} '
+                                'workflows.'.format(property_type))
 
-                with open(data_path, 'rb') as file:
-                    existing_data[substance_id].append(pickle.load(file))
+                continue
 
-        for force_field_id in existing_force_field_paths:
+            if ReweightingLayer.__name__ not in options.workflow_schemas[property_type]:
+                continue
 
-            with open(existing_force_field_paths[force_field_id], 'rb') as file:
-                existing_force_fields[force_field_id] = deserialize_force_field(pickle.load(file))
+            schema = options.workflow_schemas[property_type][ReweightingLayer.__name__]
 
-        reweighted_property = property_class.reweight(physical_property, options, force_field_id, existing_data,
-                                                      existing_force_fields, available_resources)
+            global_metadata = Workflow.generate_default_metadata(property_to_calculate,
+                                                                 target_force_field_path, options)
 
-        return_object = CalculationLayerResult()
-        return_object.property_id = physical_property.id
+            substance_identifiers = [property_to_calculate.substance.identifier]
 
-        return_object.calculated_property = reweighted_property
-        return_object.data_to_store = []
+            if property_to_calculate.multi_component_property:
 
-        return return_object
+                substance_identifiers.extend([component.identifier for
+                                              component in property_to_calculate.substance])
 
-    @staticmethod
-    def get_reduced_potential(substance, thermodynamic_state, target_force_field_id,
-                              target_force_field, existing_data, available_resources):
-        """Get the reduced potential from an existing data set. If the target force field
-        id does not match the force field id used by the existing data, the reduced potential
-        will be re-evaluated using the target force field.
+            global_metadata['full_system_data'] = []
+            global_metadata['component_data'] = {}
 
-        Parameters
-        ----------
-        substance: Mixture
-            The substance for which to get reduced energies for.
-        thermodynamic_state: ThermodynamicState
-            The thermodynamic state to use when reducing the energies.
-        target_force_field_id: str
-            The id of the target force field parameters.
-        target_force_field: openforcefield.typing.engines.smirnoff.ForceField
-            The target set of force field parameters.
-        existing_data: StoredSimulationData
-            The reference data to get the energies from.
-        available_resources: ComputeResources
-            The compute resources available when generating the reduced potentials.
+            has_data_for_property = True
 
-        Returns
-        -------
-        numpy.ndarray shape=(num_frames), dtype=float
-            The reduced potential of the target state.
-        """
+            for substance_identifier in substance_identifiers:
 
-        potential_energies = None
+                if substance_identifier not in stored_data_paths:
 
-        if target_force_field_id != existing_data.force_field_id:
+                    has_data_for_property = False
+                    break
 
-            potential_energies = ReweightingLayer.resample_data(substance, existing_data.trajectory_data,
-                                                                target_force_field, available_resources)
+                stored_data = stored_data_paths[substance_identifier]
 
-        else:
-            potential_energies = copy.deepcopy(existing_data.statistics_data.get_observable(
-                ObservableType.PotentialEnergy))
+                if substance_identifier == property_to_calculate.substance.identifier:
+                    global_metadata['full_system_data'] = stored_data
+                else:
+                    global_metadata['component_data'][substance_identifier] = stored_data
 
-        beta = 1.0 / (thermodynamic_state.temperature * unit.MOLAR_GAS_CONSTANT_R)
+            if not has_data_for_property:
+                continue
 
-        reduced_potentials = potential_energies
+            workflow = Workflow(property_to_calculate, global_metadata)
+            workflow.schema = schema
 
-        if thermodynamic_state.pressure is not None:
+            workflow_graph.add_workflow(workflow)
 
-            volumes = existing_data.statistics_data.get_observable(ObservableType.Volume)
-            reduced_potentials += volumes * thermodynamic_state.pressure * unit.AVOGADRO_CONSTANT_NA
-
-        reduced_potentials *= beta
-
-        return reduced_potentials
-
-    @staticmethod
-    def resample_data(substance, trajectory_to_resample,
-                      force_field, available_resources):
-        """Resample the frames of a trajectory using a different set
-        of force field parameters than were used when generating the
-        trajectory.
-
-        Parameters
-        ----------
-        substance: Mixture
-            The substance being resampled.
-        trajectory_to_resample: mdtraj.Trajectory
-            The trajectory to resample.
-        force_field: openforcefield.typing.engines.smirnoff.ForceField
-            The force field to use when calculating the energy of the frames of
-            the trajectory.
-        available_resources: ComputeResources
-            The compute resources available when resampling the data.
-
-        Returns
-        -------
-        numpy.ndarray
-            The resampled energies.
-        """
-
-        molecules = [create_molecule_from_smiles(component.smiles) for component in substance.components]
-
-        from openforcefield.typing.engines import smirnoff
-        from simtk.openmm import Platform, Context, VerletIntegrator
-
-        topology = trajectory_to_resample.topology.to_openmm
-
-        system = force_field.createSystem(topology,
-                                          molecules,
-                                          nonbondedMethod=smirnoff.PME,
-                                          chargeMethod='OECharges_AM1BCCSym')
-
-        if system is None:
-
-            return PropertyEstimatorException(directory='',
-                                              message='Failed to create a system from the'
-                                                      'provided topology and molecules')
-
-        context = None
-        integrator = VerletIntegrator(0.002 * unit.picoseconds)
-
-        if available_resources.number_of_gpus > 0:
-
-            # noinspection PyTypeChecker,PyCallByClass
-            gpu_platform = Platform.getPlatformByName(str(available_resources.preferred_gpu_toolkit))
-            properties = {'DeviceIndex': ','.join(range(available_resources.number_of_gpus))}
-
-            context = Context(system, integrator, gpu_platform, properties)
-
-        else:
-
-            # noinspection PyTypeChecker,PyCallByClass
-            cpu_platform = Platform.getPlatformByName('CPU')
-            properties = {'Threads': str(available_resources.number_of_threads)}
-
-            context = Context(system, integrator, cpu_platform, properties)
-
-        resampled_energies = np.zeros((1, trajectory_to_resample.n_frames))
-
-        for frame_index in range(trajectory_to_resample.n_frames):
-
-            positions = trajectory_to_resample.openmm_positions(frame_index)
-            box_vectors = trajectory_to_resample.openmm_boxes(frame_index)
-
-            context.setPeriodicBoxVectors(*box_vectors)
-            context.setPositions(positions)
-
-            # set box vectors
-            resampled_energies[frame_index] = context.getState(getEnergy=True).getPotentialEnergy()
-
-        return resampled_energies
+        return workflow_graph

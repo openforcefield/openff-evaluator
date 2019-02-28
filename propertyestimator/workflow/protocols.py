@@ -11,6 +11,7 @@ from os import path
 
 import mdtraj
 import numpy as np
+import pymbar
 from simtk import openmm, unit
 from simtk.openmm import app, System, Platform
 
@@ -19,8 +20,7 @@ from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils import packmol, graph, utils, statistics, timeseries, create_molecule_from_smiles
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.utils.serialization import deserialize_quantity, \
-    deserialize_force_field
+from propertyestimator.utils.serialization import deserialize_quantity, deserialize_force_field
 from propertyestimator.utils.statistics import StatisticsArray
 from propertyestimator.utils.string import extract_variable_index_and_name
 from propertyestimator.workflow.decorators import protocol_input, protocol_output, MergeBehaviour
@@ -1133,6 +1133,11 @@ class AveragePropertyProtocol(BaseProtocol):
         """The statistical inefficiency in the data set."""
         pass
 
+    @protocol_output(unit.Quantity)
+    def uncorrelated_values(self):
+        """The uncorrelated values which the average was calculated from."""
+        pass
+
     def __init__(self, protocol_id):
 
         super().__init__(protocol_id)
@@ -1144,6 +1149,8 @@ class AveragePropertyProtocol(BaseProtocol):
 
         self._equilibration_index = None
         self._statistical_inefficiency = None
+
+        self._uncorrelated_values = None
 
     def _bootstrap_function(self, sample_data):
         """The function to perform on the data set being sampled by
@@ -1298,7 +1305,7 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
                                                       'data.'.format(self._statistics_path))
 
         statistics_unit = values[0].unit
-        values /= statistics_unit
+        values.value_in_unit(statistics_unit)
 
         values = np.array(values)
 
@@ -1306,6 +1313,8 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
             timeseries.decorrelate_time_series(values)
 
         final_value, final_uncertainty = self._perform_bootstrapping(values)
+
+        self._uncorrelated_values = values * statistics_unit
 
         self._value = EstimatedQuantity(unit.Quantity(final_value, statistics_unit),
                                         unit.Quantity(final_uncertainty, statistics_unit), self.id)
@@ -1331,11 +1340,18 @@ class ExtractUncorrelatedData(BaseProtocol):
         """The statistical inefficiency in the data set."""
         pass
 
+    @protocol_output(int)
+    def number_of_uncorrelated_samples(self):
+        """The number of uncorrelated samples."""
+        pass
+
     def __init__(self, protocol_id):
         super().__init__(protocol_id)
 
         self._equilibration_index = None
         self._statistical_inefficiency = None
+
+        self._number_of_uncorrelated_samples = None
 
     def execute(self, directory, available_resources):
         raise NotImplementedError
@@ -1389,6 +1405,8 @@ class ExtractUncorrelatedTrajectoryData(ExtractUncorrelatedData):
         self._output_trajectory_path = path.join(directory, 'uncorrelated_trajectory.dcd')
         uncorrelated_trajectory.save_dcd(self._output_trajectory_path)
 
+        self._number_of_uncorrelated_samples = len(trajectory)
+
         logging.info('Trajectory subsampled: {}'.format(self.id))
 
         return self._get_output_dictionary()
@@ -1438,6 +1456,8 @@ class ExtractUncorrelatedStatisticsData(ExtractUncorrelatedData):
         uncorrelated_statistics.save_as_pandas_csv(self._output_statistics_path)
 
         logging.info('Statistics subsampled: {}'.format(self.id))
+
+        self._number_of_uncorrelated_samples = len(uncorrelated_statistics)
 
         return self._get_output_dictionary()
 
@@ -1528,9 +1548,10 @@ class UnpackStoredSimulationData(BaseProtocol):
     and makes its attributes easily accessible to other protocols.
     """
 
-    @protocol_input(str)
+    @protocol_input(tuple)
     def simulation_data_path(self):
-        """A path to the pickled simulation data object."""
+        """A tuple which contains both the path to the pickled simulation data object,
+        and the force field which was used to generate the stored data."""
         pass
 
     @protocol_output(Substance)
@@ -1564,8 +1585,9 @@ class UnpackStoredSimulationData(BaseProtocol):
         pass
 
     @protocol_output(str)
-    def force_field_id(self):
-        """A path to the pickled simulation data object."""
+    def force_field_path(self):
+        """A path to the force field parameters used to generate
+        the stored data."""
         pass
 
     def __init__(self, protocol_id):
@@ -1584,15 +1606,31 @@ class UnpackStoredSimulationData(BaseProtocol):
 
         self._statistics_file_path = None
 
-        self._force_field_id = None
+        self._force_field_path = None
 
     def execute(self, directory, available_resources):
 
+        if len(self._simulation_data_path) != 2:
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='The simulation data path should be a tuple'
+                                                      'of a path to the pickled data object, and'
+                                                      'a path to the force field used to generate it.')
+
         data_object = None
+
+        pickled_object_path = self._simulation_data_path[0]
+        force_field_path = self._simulation_data_path[1]
+
+        if not path.isfile(force_field_path):
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='The path to the force field'
+                                                      'is invalid: {}'.format(force_field_path))
 
         try:
 
-            with open(self._simulation_data_path, 'rb') as file:
+            with open(pickled_object_path, 'rb') as file:
                 data_object = pickle.load(file)
 
         except (IOError, pickle.UnpicklingError) as e:
@@ -1605,14 +1643,81 @@ class UnpackStoredSimulationData(BaseProtocol):
 
         self._statistical_inefficiency = data_object.statistical_inefficiency
 
-        self._coordinate_file_path = 'coordinates.pdb'
-        self._trajectory_file_path = 'trajectory.dcd'
+        self._coordinate_file_path = path.join(directory, 'coordinates.pdb')
+        self._trajectory_file_path = path.join(directory, 'trajectory.dcd')
 
         data_object.trajectory_data[0].save_pdb(self._coordinate_file_path)
         data_object.trajectory_data.save_dcd(self._trajectory_file_path)
 
-        self._statistics_file_path = 'statistics.csv'
+        self._statistics_file_path = path.join(directory, 'statistics.csv')
         data_object.statistics_data.save_as_pandas_csv(self._statistics_file_path)
+
+        self._force_field_path = force_field_path
+
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class ConcatenateTrajectories(BaseProtocol):
+    """A protocol which concatenates multiple trajectories into
+    a single one.
+    """
+
+    @protocol_input(list)
+    def input_coordinate_paths(self):
+        """A list of paths to the starting coordinates for each of the trajectories."""
+        pass
+
+    @protocol_input(list)
+    def input_trajectory_paths(self):
+        """A list of paths to the trajectories to concatenate."""
+        pass
+
+    @protocol_output(str)
+    def output_coordinate_path(self):
+        """The path the coordinate file which contains the topology of
+        the concatenated trajectory."""
+        pass
+
+    @protocol_output(str)
+    def output_trajectory_path(self):
+        """The path to the concatenated trajectory."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new AddQuantities object."""
+        super().__init__(protocol_id)
+
+        self._input_coordinate_paths = None
+        self._input_trajectory_paths = None
+
+        self._output_coordinate_path = None
+        self._output_trajectory_path = None
+
+    def execute(self, directory, available_resources):
+
+        if len(self._input_coordinate_paths) != len(self._input_trajectory_paths):
+
+            return PropertyEstimatorException(directory=directory, message='There should be the same number of '
+                                                                           'coordinate and trajectory paths.')
+
+        if len(self._input_trajectory_paths) == 0:
+
+            return PropertyEstimatorException(directory=directory, message='No trajectories were '
+                                                                           'given to concatenate.')
+
+        trajectories = []
+
+        for coordinate_path, trajectory_path in zip(self._input_coordinate_paths,
+                                                    self._input_trajectory_paths):
+
+            self._output_coordinate_path = self._output_coordinate_path or coordinate_path
+            trajectories.append(mdtraj.load_dcd(trajectory_path, coordinate_path))
+
+        output_trajectory = trajectories[0] if len(trajectories) == 1 else mdtraj.join(trajectories, True, False)
+
+        self._output_trajectory_path = path.join(directory, 'output_trajectory.dcd')
+        output_trajectory.save_dcd(self._output_trajectory_path)
 
         return self._get_output_dictionary()
 
@@ -1639,11 +1744,7 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
     def trajectory_file_path(self):
         pass
 
-    @protocol_input(str)
-    def statistics_file_path(self):
-        pass
-
-    @protocol_output(unit.Quantity)
+    @protocol_output(np.ndarray)
     def reduced_potentials(self):
         pass
 
@@ -1654,12 +1755,8 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         self._thermodynamic_state = None
         self._system = None
 
-        self._statistical_inefficiency = None
-
         self._coordinate_file_path = None
         self._trajectory_file_path = None
-
-        self._statistics_file_path = None
 
         self._reduced_potentials = None
 
@@ -1668,7 +1765,7 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         import openmmtools
 
         trajectory = mdtraj.load_dcd(self._trajectory_file_path, self._coordinate_file_path)
-        self.system.setDefaultPeriodicBoxVectors(trajectory.openmm_boxes(0))
+        self.system.setDefaultPeriodicBoxVectors(*trajectory.openmm_boxes(0))
 
         openmm_state = openmmtools.states.ThermodynamicState(system=self._system,
                                                              temperature=self._thermodynamic_state.temperature,
@@ -1687,10 +1784,96 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
             positions = trajectory.openmm_positions(frame_index)
             box_vectors = trajectory.openmm_boxes(frame_index)
 
-            openmm_context.context.setPeriodicBoxVectors(*box_vectors)
-            openmm_context.context.setPositions(positions)
+            openmm_context.setPeriodicBoxVectors(*box_vectors)
+            openmm_context.setPositions(positions)
 
             # set box vectors
             reduced_potentials[frame_index] = openmm_state.reduced_potential(openmm_context)
+
+        self._reduced_potentials = reduced_potentials
+
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class ReweightWithMBARProtocol(BaseProtocol):
+    """Calculates the reduced potential for a given
+    set of configurations.
+    """
+
+    @protocol_input(list)
+    def reference_reduced_potentials(self):
+        pass
+
+    @protocol_input(list)
+    def reference_observables(self):
+        pass
+
+    @protocol_input(list)
+    def target_reduced_potentials(self):
+        pass
+
+    @protocol_output(EstimatedQuantity)
+    def value(self):
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new ReweightWithMBARProtocol object."""
+        super().__init__(protocol_id)
+
+        self._reference_reduced_potentials = None
+        self._reference_observables = None
+
+        self._target_reduced_potentials = None
+
+        self._value = None
+
+    def execute(self, directory, available_resources):
+
+        if len(self._reference_observables) == 0:
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='There were no observables to reweight.')
+
+        if not isinstance(self._reference_observables[0], unit.Quantity):
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='The reference_observables input should be'
+                                                      'a list of unit.Quantity wrapped ndarray\'s.')
+
+        observable_unit = self._reference_observables[0].unit
+
+        for observable in self._reference_observables:
+
+            if not isinstance(self._reference_observables[0], unit.Quantity):
+
+                return PropertyEstimatorException(directory=directory,
+                                                  message='The reference_observables input should be'
+                                                          'a list of unit.Quantity wrapped ndarray\'s.')
+
+            if not observable_unit.is_compatible(observable.unit):
+
+                return PropertyEstimatorException(directory=directory,
+                                                  message='The reference_observables list contains'
+                                                          'entries with incompatible units.')
+
+        frame_counts = np.array([len(observable) for observable in self._reference_observables])
+
+        number_of_configurations = frame_counts.sum()
+        observables = np.zeros((1, number_of_configurations))
+
+        for index_k, observables_k in enumerate(self._reference_observables):
+
+            start_index = np.array(frame_counts[0:index_k]).sum()
+
+            for index in range(0, frame_counts[index_k]):
+                observables[0][start_index + index] = observables_k[index].value_in_unit(observable_unit)
+
+        # Construct the mbar object.
+        mbar = pymbar.MBAR(self._reference_reduced_potentials, frame_counts, verbose=False, relative_tolerance=1e-12)
+        results = mbar.computeExpectations(observables, self._target_reduced_potentials, state_dependent=True)
+
+        self._value = EstimatedQuantity(results[0][0] * observable_unit,
+                                        results[1][0] * observable_unit, self.id)
 
         return self._get_output_dictionary()

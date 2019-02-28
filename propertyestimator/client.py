@@ -5,9 +5,8 @@ Property estimator client side API.
 import json
 import logging
 from time import sleep
-from typing import Dict, List
+from typing import Dict, List, Any
 
-from openforcefield.typing.engines.smirnoff import ForceField
 from pydantic import ValidationError
 from simtk import unit
 from tornado.ioloop import IOLoop
@@ -18,7 +17,7 @@ from propertyestimator.layers import SurrogateLayer, ReweightingLayer, Simulatio
 from propertyestimator.properties import PhysicalProperty
 from propertyestimator.properties.plugins import registered_properties
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import TypedBaseModel
+from propertyestimator.utils.serialization import TypedBaseModel, serialize_force_field
 from propertyestimator.utils.tcp import PropertyEstimatorMessageTypes, pack_int, unpack_int
 from propertyestimator.workflow import WorkflowSchema
 
@@ -39,7 +38,7 @@ class PropertyEstimatorOptions(TypedBaseModel):
     allowed_calculation_layers: :obj:`list` of :obj:`str`
         A list of allowed calculation layers. The order of the layers in the list is the order
         that the calculator will attempt to execute the layers in.
-    workflow_schemas: :obj:`dict` of :obj:`str` and :obj:`WorkflowSchema`
+    workflow_schemas: :obj:`dict` of :obj:`str` and :obj:`dict` of str and :obj:`WorkflowSchema`
         A dictionary of the WorkflowSchema which will be used to calculate any properties.
         The dictionary key represents the type of property the schema will calculate. The
         dictionary will be automatically populated with defaults if no entries are added.
@@ -62,7 +61,7 @@ class PropertyEstimatorOptions(TypedBaseModel):
         SimulationLayer.__name__
     ]
 
-    workflow_schemas: Dict[str, WorkflowSchema] = {}
+    workflow_schemas: Dict[str, Dict[str, WorkflowSchema]] = {}
 
     relative_uncertainty_tolerance: float = 1.0
     allow_protocol_merging: bool = True
@@ -88,10 +87,10 @@ class PropertyEstimatorSubmission(TypedBaseModel):
     force_field: openforcefield.typing.engines.smirnoff.ForceField
         The force field parameters used during the calculations.
     """
-    properties: List[PhysicalProperty] = []
+    properties: List[Any] = []
     options: PropertyEstimatorOptions = None
 
-    force_field: ForceField = None
+    force_field: Dict[int, str] = None
 
 
 class PropertyEstimatorResult(TypedBaseModel):
@@ -115,7 +114,7 @@ class PropertyEstimatorResult(TypedBaseModel):
     force_field_id:
         The server assigned id of the parameter set used in the calculation.
     """
-    id: str
+    id: str = ''
 
     estimated_properties: Dict[str, PhysicalProperty] = {}
     unsuccessful_properties: Dict[str, PropertyEstimatorException] = {}
@@ -405,20 +404,33 @@ class PropertyEstimatorClient:
 
                 property_type = registered_properties[type_name]()
 
-                options.workflow_schemas[type_name] = \
-                    property_type.get_default_workflow_schema()
+                for calculation_layer in options.allowed_calculation_layers:
 
-        for property_schema_name in options.workflow_schemas:
+                    if type_name not in options.workflow_schemas:
+                        options.workflow_schemas[type_name] = {}
 
-            options.workflow_schemas[property_schema_name].validate_interfaces()
+                    if (calculation_layer not in options.workflow_schemas[type_name] or
+                        options.workflow_schemas[type_name][calculation_layer] is None):
 
-            for protocol_schema_name in options.workflow_schemas[property_schema_name].protocols:
+                        options.workflow_schemas[type_name][calculation_layer] = \
+                            property_type.get_default_workflow_schema(calculation_layer)
 
-                protocol_schema = options.workflow_schemas[property_schema_name].protocols[protocol_schema_name]
-                protocol_schema.inputs['.allow_merging'] = options.allow_protocol_merging
+                    workflow = property_type.get_default_workflow_schema(calculation_layer)
+
+                    if workflow is None:
+                        continue
+
+                    workflow.validate_interfaces()
+
+                    for protocol_schema_name in workflow.protocols:
+
+                        protocol_schema = workflow.protocols[protocol_schema_name]
+
+                        if not options.allow_protocol_merging:
+                            protocol_schema.inputs['.allow_merging'] = False
 
         submission = PropertyEstimatorSubmission(properties=properties_list,
-                                                 force_field=force_field,
+                                                 force_field=serialize_force_field(force_field),
                                                  options=options)
 
         request_id = IOLoop.current().run_sync(lambda: self._send_calculations_to_server(submission))

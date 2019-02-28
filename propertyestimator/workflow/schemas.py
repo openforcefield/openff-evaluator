@@ -167,6 +167,9 @@ class WorkflowSchema(TypedBaseModel):
 
     def _validate_final_value(self):
 
+        if self.final_value_source is None:
+            raise ValueError('The final value source must not be None.')
+
         if self.final_value_source.start_protocol not in self.protocols:
             raise ValueError('The value source {} does not exist.'.format(self.final_value_source))
 
@@ -234,9 +237,8 @@ class WorkflowSchema(TypedBaseModel):
         that inputs and outputs correctly match up.
         """
 
-        self._validate_replicators()
-
         self._validate_final_value()
+        self._validate_replicators()
         self._validate_outputs_to_store()
 
         for protocol_id in self.protocols:

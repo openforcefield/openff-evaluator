@@ -1,8 +1,6 @@
 """
 Units tests for propertyestimator.layers.simulation
 """
-import inspect
-import re
 import uuid
 from collections import OrderedDict
 
@@ -10,6 +8,7 @@ import pytest
 from simtk import unit
 
 from propertyestimator.client import PropertyEstimatorOptions
+from propertyestimator.layers import available_layers
 from propertyestimator.layers.simulation import Workflow, WorkflowGraph
 from propertyestimator.properties import PropertyPhase
 from propertyestimator.properties.density import Density
@@ -44,6 +43,23 @@ def create_dummy_property(property_class):
     return dummy_property
 
 
+def create_dummy_metadata(dummy_property, calculation_layer):
+
+    global_metadata = Workflow.generate_default_metadata(dummy_property,
+                                                         get_data_filename('forcefield/smirnoff99Frosst.offxml'),
+                                                         PropertyEstimatorOptions())
+
+    if calculation_layer == 'ReweightingLayer':
+
+        global_metadata['full_system_data'] = [
+            ('data_path_0', 'ff_path_0'),
+            ('data_path_1', 'ff_path_0'),
+            ('data_path_2', 'ff_path_1')
+        ]
+
+    return global_metadata
+
+
 @register_calculation_protocol()
 class DummyReplicableProtocol(BaseProtocol):
 
@@ -69,12 +85,17 @@ class DummyReplicableProtocol(BaseProtocol):
 
 
 @pytest.mark.parametrize("registered_property_name", registered_properties)
-def test_workflow_schema(registered_property_name):
+@pytest.mark.parametrize("available_layer", available_layers)
+def test_workflow_schema_simulation(registered_property_name, available_layer):
     """Tests serialisation and deserialization of a calculation schema."""
 
     registered_property = registered_properties[registered_property_name]
 
-    schema = registered_property.get_default_workflow_schema()
+    schema = registered_property.get_default_workflow_schema(available_layer)
+
+    if schema is None:
+        return
+
     schema.validate_interfaces()
 
     json_schema = schema.json()
@@ -88,7 +109,8 @@ def test_workflow_schema(registered_property_name):
 
 
 @pytest.mark.parametrize("registered_property_name", registered_properties)
-def test_cloned_schema_merging(registered_property_name):
+@pytest.mark.parametrize("available_layer", available_layers)
+def test_cloned_schema_merging_simulation(registered_property_name, available_layer):
     """Tests that two, the exact the same, calculations get merged into one
     by the `WorkflowGraph`."""
 
@@ -99,11 +121,12 @@ def test_cloned_schema_merging(registered_property_name):
 
     dummy_property = create_dummy_property(registered_property)
 
-    workflow_schema = dummy_property.get_default_workflow_schema()
+    workflow_schema = dummy_property.get_default_workflow_schema(available_layer)
 
-    global_metadata = Workflow.generate_default_metadata(dummy_property,
-                                                         get_data_filename('forcefield/smirnoff99Frosst.offxml'),
-                                                         PropertyEstimatorOptions())
+    if workflow_schema is None:
+        return
+
+    global_metadata = create_dummy_metadata(dummy_property, available_layer)
 
     workflow_a = Workflow(dummy_property, global_metadata)
     workflow_a.schema = workflow_schema
@@ -156,8 +179,8 @@ def test_density_dielectric_merging():
                                     uncertainty=1*unit.gram/unit.mole,
                                     id=str(uuid.uuid4()))
 
-    density_schema = density.get_default_workflow_schema()
-    dielectric_schema = dielectric.get_default_workflow_schema()
+    density_schema = density.get_default_workflow_schema('SimulationLayer')
+    dielectric_schema = dielectric.get_default_workflow_schema('SimulationLayer')
 
     density_metadata = Workflow.generate_default_metadata(density,
                                                           get_data_filename('forcefield/smirnoff99Frosst.offxml'),

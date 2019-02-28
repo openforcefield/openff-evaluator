@@ -1,6 +1,7 @@
 """
 Defines the core workflow object and execution graph.
 """
+import abc
 import copy
 import re
 import traceback
@@ -14,10 +15,18 @@ from propertyestimator.storage import StoredSimulationData
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.statistics import StatisticsArray
+from propertyestimator.utils.utils import SubhookedABCMeta
 from propertyestimator.workflow.plugins import available_protocols
 from propertyestimator.workflow.protocols import BaseProtocol
 from propertyestimator.workflow.schemas import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
+
+
+class IWorkflowProperty(SubhookedABCMeta):
+
+    @staticmethod
+    @abc.abstractmethod
+    def get_default_workflow_schema(calculation_layer): pass
 
 
 class Workflow:

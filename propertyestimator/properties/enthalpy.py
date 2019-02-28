@@ -218,7 +218,28 @@ class EnthalpyOfMixing(PhysicalProperty):
                                                  extract_uncorrelated_statistics)
 
     @staticmethod
-    def get_default_workflow_schema():
+    def get_default_workflow_schema(calculation_layer):
+        """Returns the default workflow schema to use for
+        a specific calculation layer.
+
+        Parameters
+        ----------
+        calculation_layer: str
+            The calculation layer which will attempt to execute the workflow
+            defined by this schema.
+
+        Returns
+        -------
+        WorkflowSchema
+            The default workflow schema.
+        """
+        if calculation_layer == 'SimulationLayer':
+            return EnthalpyOfMixing.get_default_simulation_workflow_schema()
+
+        return None
+
+    @staticmethod
+    def get_default_simulation_workflow_schema():
 
         schema = WorkflowSchema(property_type=EnthalpyOfMixing.__name__)
         schema.id = '{}{}'.format(EnthalpyOfMixing.__name__, 'Schema')

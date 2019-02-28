@@ -8,7 +8,6 @@ import json
 from enum import Enum
 from io import BytesIO
 
-from openforcefield.typing.engines.smirnoff import ForceField
 from pydantic import BaseModel
 from simtk import unit
 
@@ -159,6 +158,8 @@ def serialize_force_field(force_field):
         the values are the xml of the serialized force field trees.
     """
 
+    from openforcefield.typing.engines.smirnoff import ForceField
+
     if not isinstance(force_field, ForceField):
         raise ValueError('{} is not a ForceField'.format(type(force_field)))
 
@@ -202,7 +203,7 @@ def deserialize_force_field(force_field_dictionary):
     if '@type' in force_field_dictionary:
         force_field_dictionary.pop('@type')
 
-    file_buffers = [None] * len(force_field_dictionary)
+    file_buffers = []
 
     for index in force_field_dictionary:
 
@@ -211,7 +212,7 @@ def deserialize_force_field(force_field_dictionary):
         if isinstance(bytes_string, str):
             bytes_string = bytes_string.encode('utf-8')
 
-        file_buffers[index] = BytesIO(bytes_string)
+        file_buffers.append(BytesIO(bytes_string))
 
     from openforcefield.typing.engines.smirnoff import ForceField
 
@@ -261,7 +262,7 @@ class TypedJSONEncoder(json.JSONEncoder):
     _custom_supported_types = {
         Enum: serialize_enum,
         unit.Quantity: serialize_quantity,
-        ForceField: serialize_force_field,
+        'ForceField': serialize_force_field,
     }
 
     def default(self, value_to_serialize):
@@ -287,7 +288,12 @@ class TypedJSONEncoder(json.JSONEncoder):
 
         for encoder_type in TypedJSONEncoder._custom_supported_types:
 
-            if not issubclass(type_to_serialize, encoder_type):
+            if isinstance(encoder_type, str):
+
+                if encoder_type != str(type_to_serialize):
+                    continue
+
+            elif not issubclass(type_to_serialize, encoder_type):
                 continue
 
             custom_encoder = TypedJSONEncoder._custom_supported_types[encoder_type]
@@ -334,7 +340,7 @@ class TypedJSONDecoder(json.JSONDecoder):
         Enum: deserialize_enum,
         unit.Quantity: deserialize_quantity,
         EstimatedQuantity: deserialize_estimated_quantity,
-        ForceField: deserialize_force_field
+        'ForceField': deserialize_force_field
     }
 
     @staticmethod
@@ -352,7 +358,12 @@ class TypedJSONDecoder(json.JSONDecoder):
 
         for decoder_type in TypedJSONDecoder._custom_supported_types:
 
-            if not issubclass(class_type, decoder_type):
+            if isinstance(decoder_type, str):
+
+                if decoder_type != str(class_type):
+                    continue
+
+            elif not issubclass(class_type, decoder_type):
                 continue
 
             custom_decoder = TypedJSONDecoder._custom_supported_types[decoder_type]
@@ -424,6 +435,13 @@ class TypedBaseModel(BaseModel):
 
         return_object = cls.parse_obj(return_object_state)
         return return_object
+
+    @classmethod
+    def _get_value(cls, v, by_alias=False):
+        if issubclass(cls, TypedBaseModel) and isinstance(v, dict):
+            return v
+
+        return BaseModel._get_value(v, by_alias)
 
     class Config:
         arbitrary_types_allowed = True
