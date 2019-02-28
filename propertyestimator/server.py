@@ -15,7 +15,6 @@ from tornado.tcpserver import TCPServer
 from propertyestimator.client import PropertyEstimatorSubmission, PropertyEstimatorOptions, \
     PropertyEstimatorResult
 from propertyestimator.layers import available_layers
-from propertyestimator.properties import PhysicalProperty
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedBaseModel, deserialize_force_field
 from propertyestimator.utils.tcp import PropertyEstimatorMessageTypes, pack_int, unpack_int
