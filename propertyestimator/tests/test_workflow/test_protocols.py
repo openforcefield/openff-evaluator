@@ -1,6 +1,9 @@
 """
 Units tests for propertyestimator.workflow
 """
+import tempfile
+from os import path
+
 import pytest
 from simtk import unit
 
@@ -141,113 +144,117 @@ def test_base_simulation_protocols():
 
     thermodynamic_state = ThermodynamicState(298*unit.kelvin, 1*unit.atmosphere)
 
-    build_coordinates = BuildCoordinatesPackmol('')
+    with tempfile.TemporaryDirectory() as temporary_directory:
 
-    # Set the maximum number of molecules in the system.
-    build_coordinates.max_molecules = 10
-    # and the target density (the default 1.0 g/ml is normally fine)
-    build_coordinates.mass_density = 0.05 * unit.grams / unit.milliliters
-    # and finally the system which coordinates should be generated for.
-    build_coordinates.substance = mixed_system
+        build_coordinates = BuildCoordinatesPackmol('')
 
-    # Build the coordinates, creating a file called output.pdb
-    result = build_coordinates.execute('', None)
-    assert not isinstance(result, PropertyEstimatorException)
+        # Set the maximum number of molecules in the system.
+        build_coordinates.max_molecules = 10
+        # and the target density (the default 1.0 g/ml is normally fine)
+        build_coordinates.mass_density = 0.05 * unit.grams / unit.milliliters
+        # and finally the system which coordinates should be generated for.
+        build_coordinates.substance = mixed_system
 
-    # Assign some smirnoff force field parameters to the
-    # coordinates
-    print('Assigning some parameters.')
-    assign_force_field_parameters = BuildSmirnoffSystem('')
+        # Build the coordinates, creating a file called output.pdb
+        result = build_coordinates.execute(temporary_directory, None)
+        assert not isinstance(result, PropertyEstimatorException)
 
-    assign_force_field_parameters.force_field_path = get_data_filename('forcefield/smirnoff99Frosst.offxml')
-    assign_force_field_parameters.coordinate_file_path = 'output.pdb'
-    assign_force_field_parameters.substance = mixed_system
+        # Assign some smirnoff force field parameters to the
+        # coordinates
+        print('Assigning some parameters.')
+        assign_force_field_parameters = BuildSmirnoffSystem('')
 
-    result = assign_force_field_parameters.execute('', None)
-    assert not isinstance(result, PropertyEstimatorException)
+        assign_force_field_parameters.force_field_path = get_data_filename('forcefield/smirnoff99Frosst.offxml')
+        assign_force_field_parameters.coordinate_file_path = path.join(temporary_directory, 'output.pdb')
+        assign_force_field_parameters.substance = mixed_system
 
-    # Do a simple energy minimisation
-    print('Performing energy minimisation.')
-    energy_minimisation = RunEnergyMinimisation('')
+        result = assign_force_field_parameters.execute(temporary_directory, None)
+        assert not isinstance(result, PropertyEstimatorException)
 
-    energy_minimisation.input_coordinate_file = 'output.pdb'
-    energy_minimisation.system = assign_force_field_parameters.system
+        # Do a simple energy minimisation
+        print('Performing energy minimisation.')
+        energy_minimisation = RunEnergyMinimisation('')
 
-    result = energy_minimisation.execute('', ComputeResources())
-    assert not isinstance(result, PropertyEstimatorException)
+        energy_minimisation.input_coordinate_file = path.join(temporary_directory, 'output.pdb')
+        energy_minimisation.system = assign_force_field_parameters.system
 
-    npt_equilibration = RunOpenMMSimulation('npt_equilibration')
+        result = energy_minimisation.execute(temporary_directory, ComputeResources())
+        assert not isinstance(result, PropertyEstimatorException)
 
-    npt_equilibration.ensemble = Ensemble.NPT
+        npt_equilibration = RunOpenMMSimulation('npt_equilibration')
 
-    npt_equilibration.steps = 20  # Debug settings.
-    npt_equilibration.output_frequency = 2  # Debug settings.
+        npt_equilibration.ensemble = Ensemble.NPT
 
-    npt_equilibration.thermodynamic_state = thermodynamic_state
+        npt_equilibration.steps = 20  # Debug settings.
+        npt_equilibration.output_frequency = 2  # Debug settings.
 
-    npt_equilibration.input_coordinate_file = 'minimised.pdb'
-    npt_equilibration.system = assign_force_field_parameters.system
+        npt_equilibration.thermodynamic_state = thermodynamic_state
 
-    result = npt_equilibration.execute('', ComputeResources())
-    assert not isinstance(result, PropertyEstimatorException)
+        npt_equilibration.input_coordinate_file = path.join(temporary_directory, 'minimised.pdb')
+        npt_equilibration.system = assign_force_field_parameters.system
 
-    extract_density = ExtractAverageStatistic('extract_density')
+        result = npt_equilibration.execute(temporary_directory, ComputeResources())
+        assert not isinstance(result, PropertyEstimatorException)
 
-    extract_density.statistics_type = ObservableType.Density
-    extract_density.statistics_path = 'statistics.csv'
+        extract_density = ExtractAverageStatistic('extract_density')
 
-    result = extract_density.execute('', ComputeResources())
-    assert not isinstance(result, PropertyEstimatorException)
+        extract_density.statistics_type = ObservableType.Density
+        extract_density.statistics_path = path.join(temporary_directory, 'statistics.csv')
 
-    extract_dielectric = ExtractAverageDielectric('extract_dielectric')
+        result = extract_density.execute(temporary_directory, ComputeResources())
+        assert not isinstance(result, PropertyEstimatorException)
 
-    extract_dielectric.thermodynamic_state = thermodynamic_state
+        extract_dielectric = ExtractAverageDielectric('extract_dielectric')
 
-    extract_dielectric.input_coordinate_file = 'input.pdb'
-    extract_dielectric.trajectory_path = 'trajectory.dcd'
-    extract_dielectric.system = assign_force_field_parameters.system
+        extract_dielectric.thermodynamic_state = thermodynamic_state
 
-    result = extract_dielectric.execute('', ComputeResources())
-    assert not isinstance(result, PropertyEstimatorException)
+        extract_dielectric.input_coordinate_file = path.join(temporary_directory, 'input.pdb')
+        extract_dielectric.trajectory_path = path.join(temporary_directory, 'trajectory.dcd')
+        extract_dielectric.system = assign_force_field_parameters.system
 
-    extract_uncorrelated_trajectory = ExtractUncorrelatedTrajectoryData('extract_traj')
+        result = extract_dielectric.execute(temporary_directory, ComputeResources())
+        assert not isinstance(result, PropertyEstimatorException)
 
-    extract_uncorrelated_trajectory.statistical_inefficiency = extract_density.statistical_inefficiency
-    extract_uncorrelated_trajectory.equilibration_index = extract_density.equilibration_index
-    extract_uncorrelated_trajectory.input_coordinate_file = 'input.pdb'
-    extract_uncorrelated_trajectory.input_trajectory_path = 'trajectory.dcd'
+        extract_uncorrelated_trajectory = ExtractUncorrelatedTrajectoryData('extract_traj')
 
-    result = extract_uncorrelated_trajectory.execute('', ComputeResources())
-    assert not isinstance(result, PropertyEstimatorException)
+        extract_uncorrelated_trajectory.statistical_inefficiency = extract_density.statistical_inefficiency
+        extract_uncorrelated_trajectory.equilibration_index = extract_density.equilibration_index
+        extract_uncorrelated_trajectory.input_coordinate_file = path.join(temporary_directory, 'input.pdb')
+        extract_uncorrelated_trajectory.input_trajectory_path = path.join(temporary_directory, 'trajectory.dcd')
 
-    extract_uncorrelated_statistics = ExtractUncorrelatedStatisticsData('extract_stats')
+        result = extract_uncorrelated_trajectory.execute(temporary_directory, ComputeResources())
+        assert not isinstance(result, PropertyEstimatorException)
 
-    extract_uncorrelated_statistics.statistical_inefficiency = extract_density.statistical_inefficiency
-    extract_uncorrelated_statistics.equilibration_index = extract_density.equilibration_index
-    extract_uncorrelated_statistics.input_statistics_path = 'statistics.csv'
+        extract_uncorrelated_statistics = ExtractUncorrelatedStatisticsData('extract_stats')
 
-    result = extract_uncorrelated_statistics.execute('', ComputeResources())
-    assert not isinstance(result, PropertyEstimatorException)
+        extract_uncorrelated_statistics.statistical_inefficiency = extract_density.statistical_inefficiency
+        extract_uncorrelated_statistics.equilibration_index = extract_density.equilibration_index
+        extract_uncorrelated_statistics.input_statistics_path = path.join(temporary_directory, 'statistics.csv')
+
+        result = extract_uncorrelated_statistics.execute(temporary_directory, ComputeResources())
+        assert not isinstance(result, PropertyEstimatorException)
 
 
 def test_addition_subtract_protocols():
 
-    quantity_a = EstimatedQuantity(1*unit.kelvin, 0.1*unit.kelvin, 'dummy_source_1')
-    quantity_b = EstimatedQuantity(2*unit.kelvin, 0.2*unit.kelvin, 'dummy_source_2')
+    with tempfile.TemporaryDirectory() as temporary_directory:
 
-    add_quantities = AddQuantities('add')
-    add_quantities.values = [quantity_a, quantity_b]
+        quantity_a = EstimatedQuantity(1*unit.kelvin, 0.1*unit.kelvin, 'dummy_source_1')
+        quantity_b = EstimatedQuantity(2*unit.kelvin, 0.2*unit.kelvin, 'dummy_source_2')
 
-    result = add_quantities.execute('', ComputeResources())
+        add_quantities = AddQuantities('add')
+        add_quantities.values = [quantity_a, quantity_b]
 
-    assert not isinstance(result, PropertyEstimatorException)
-    assert add_quantities.result.value == 3 * unit.kelvin
+        result = add_quantities.execute(temporary_directory, ComputeResources())
 
-    sub_quantities = SubtractQuantities('sub')
-    sub_quantities.value_b = quantity_b
-    sub_quantities.value_a = quantity_a
+        assert not isinstance(result, PropertyEstimatorException)
+        assert add_quantities.result.value == 3 * unit.kelvin
 
-    result = sub_quantities.execute('', ComputeResources())
+        sub_quantities = SubtractQuantities('sub')
+        sub_quantities.value_b = quantity_b
+        sub_quantities.value_a = quantity_a
 
-    assert not isinstance(result, PropertyEstimatorException)
-    assert sub_quantities.result.value == 1 * unit.kelvin
+        result = sub_quantities.execute(temporary_directory, ComputeResources())
+
+        assert not isinstance(result, PropertyEstimatorException)
+        assert sub_quantities.result.value == 1 * unit.kelvin

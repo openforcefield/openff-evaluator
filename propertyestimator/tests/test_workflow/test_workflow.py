@@ -1,6 +1,7 @@
 """
 Units tests for propertyestimator.layers.simulation
 """
+import tempfile
 from collections import OrderedDict
 
 import pytest
@@ -237,19 +238,21 @@ def test_simple_workflow_graph():
     dummy_workflow = Workflow(dummy_property, {})
     dummy_workflow.schema = dummy_schema
 
-    workflow_graph = WorkflowGraph()
-    workflow_graph.add_workflow(dummy_workflow)
+    with tempfile.TemporaryDirectory() as temporary_directory:
 
-    dask_local_backend = DaskLocalClusterBackend(1, ComputeResources(1))
-    dask_local_backend.start()
+        workflow_graph = WorkflowGraph(temporary_directory)
+        workflow_graph.add_workflow(dummy_workflow)
 
-    results_futures = workflow_graph.submit(dask_local_backend)
+        dask_local_backend = DaskLocalClusterBackend(1, ComputeResources(1))
+        dask_local_backend.start()
 
-    assert len(results_futures) == 1
+        results_futures = workflow_graph.submit(dask_local_backend)
 
-    result = results_futures[0].result()
-    assert isinstance(result, CalculationLayerResult)
-    assert result.calculated_property.value == 1 * unit.kelvin
+        assert len(results_futures) == 1
+
+        result = results_futures[0].result()
+        assert isinstance(result, CalculationLayerResult)
+        assert result.calculated_property.value == 1 * unit.kelvin
 
 
 def test_simple_workflow_graph_with_groups():
@@ -285,16 +288,18 @@ def test_simple_workflow_graph_with_groups():
     dummy_workflow = Workflow(dummy_property, {})
     dummy_workflow.schema = dummy_schema
 
-    workflow_graph = WorkflowGraph()
-    workflow_graph.add_workflow(dummy_workflow)
+    with tempfile.TemporaryDirectory() as temporary_directory:
 
-    dask_local_backend = DaskLocalClusterBackend(1, ComputeResources(1))
-    dask_local_backend.start()
+        workflow_graph = WorkflowGraph(temporary_directory)
+        workflow_graph.add_workflow(dummy_workflow)
 
-    results_futures = workflow_graph.submit(dask_local_backend)
+        dask_local_backend = DaskLocalClusterBackend(1, ComputeResources(1))
+        dask_local_backend.start()
 
-    assert len(results_futures) == 1
+        results_futures = workflow_graph.submit(dask_local_backend)
 
-    result = results_futures[0].result()
-    assert isinstance(result, CalculationLayerResult)
-    assert result.calculated_property.value == 1 * unit.kelvin
+        assert len(results_futures) == 1
+
+        result = results_futures[0].result()
+        assert isinstance(result, CalculationLayerResult)
+        assert result.calculated_property.value == 1 * unit.kelvin
