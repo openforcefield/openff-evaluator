@@ -6,6 +6,7 @@ import hashlib
 import pickle
 import uuid
 
+from propertyestimator.substances import Mixture
 from propertyestimator.utils.serialization import serialize_force_field, deserialize_force_field
 
 
@@ -266,30 +267,50 @@ class PropertyEstimatorStorage:
         """
         self.store_object(self._simulation_data_by_substance_file, self._simulation_data_by_substance)
 
-    def retrieve_simulation_data(self, substance_id):
-        """Retrieves any data that has been stored
-        for a given substance.
+    def retrieve_simulation_data(self, substance, include_pure_data=True):
+        """Retrieves any data that has been stored for a given substance.
 
         Parameters
         ----------
-        substance_id: str
-            The id of the substance to check for.
+        substance: Substance
+            The substance to check for.
+        include_pure_data: bool
+            If the substance if a mixture where has multiple components and `include_pure_data`
+            is True, data will be returned for both the mixed system, and for the individual
+            components, otherwise only data for the mixed system will be returned.
 
         Returns
         -------
-        list of StoredSimulationData, optional
-            A list of the stored data if present in the storage system, otherwise None.
+        dict of str and StoredSimulationData
+            A dictionary of the stored data if present in the storage system, partitioned by
+             substance id.
         """
 
-        if substance_id not in self._simulation_data_by_substance:
-            return None
+        substance_ids = [substance.identifier]
 
-        returned_data = []
+        if isinstance(substance, Mixture) and include_pure_data is True:
 
-        for simulation_data_key in self._simulation_data_by_substance[substance_id]:
-            returned_data.append(self.retrieve_object(simulation_data_key))
+            for component in substance.components:
 
-        return returned_data
+                component_mixture = Mixture()
+                component_mixture.add_component(component.smiles, 1.0, False)
+
+                if component_mixture.identifier not in substance_ids:
+                    substance_ids.append(component_mixture.identifier)
+
+        return_data = {}
+
+        for substance_id in substance_ids:
+
+            if substance_id not in self._simulation_data_by_substance:
+                continue
+
+            return_data[substance_id] = []
+
+            for simulation_data_key in self._simulation_data_by_substance[substance_id]:
+                return_data[substance_id].append(self.retrieve_object(simulation_data_key))
+
+        return return_data
 
     def store_simulation_data(self, substance_id, simulation_data):
         """Store the simulation data.
@@ -326,12 +347,12 @@ class PropertyEstimatorStorage:
                 if simulation_data.force_field_id != stored_data.force_field_id:
                     continue
 
-                if stored_data.autocorrelation_time < simulation_data.autocorrelation_time:
+                if stored_data.statistical_inefficiency < simulation_data.statistical_inefficiency:
                     continue
 
-                if (simulation_data.autocorrelation_time == stored_data.autocorrelation_time and
-                    stored_data.effective_samples < simulation_data.effective_samples):
-                    continue
+                # if (simulation_data.statistical_inefficiency == stored_data.statistical_inefficiency and
+                #     stored_data.effective_samples < simulation_data.effective_samples):
+                #     continue
 
                 data_to_store = stored_data
                 simulation_data_key = stored_data_key
@@ -339,12 +360,14 @@ class PropertyEstimatorStorage:
         if simulation_data_key is None:
 
             simulation_data_key = "{}_{}".format(substance_id, uuid.uuid4())
+
             data_to_store = simulation_data
+            data_to_store.unique_id = simulation_data_key
 
         self.store_object(simulation_data_key, data_to_store)
 
         if (substance_id not in self._simulation_data_by_substance or
-                simulation_data_key not in self._simulation_data_by_substance[substance_id]):
+            simulation_data_key not in self._simulation_data_by_substance[substance_id]):
 
             if substance_id not in self._simulation_data_by_substance:
                 self._simulation_data_by_substance[substance_id] = []

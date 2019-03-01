@@ -1428,10 +1428,10 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
             for measured_property in properties:
 
-                substance_hash = str(measured_property.substance)
+                substance_id = measured_property.substance.identifier
 
-                if substance_hash not in return_value._properties:
-                    return_value._properties[substance_hash] = []
+                if substance_id not in return_value._properties:
+                    return_value._properties[substance_id] = []
 
                 if measured_property.type is None:
                     raise ValueError('An unexepected property type managed to slip through the cracks.')
@@ -1448,7 +1448,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
                 final_property.source = source
 
-                return_value._properties[substance_hash].append(final_property)
+                return_value._properties[substance_id].append(final_property)
 
         return_value._sources.append(source)
 

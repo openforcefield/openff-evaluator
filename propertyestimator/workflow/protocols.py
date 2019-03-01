@@ -11,6 +11,7 @@ from os import path
 
 import mdtraj
 import numpy as np
+import pymbar
 from simtk import openmm, unit
 from simtk.openmm import app, System, Platform
 
@@ -18,8 +19,10 @@ from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils import packmol, graph, utils, statistics, timeseries, create_molecule_from_smiles
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import serialize_quantity, deserialize_quantity, PolymorphicDataType, \
-    deserialize_force_field
+from propertyestimator.utils.quantities import EstimatedQuantity
+from propertyestimator.utils.serialization import deserialize_quantity, deserialize_force_field
+from propertyestimator.utils.statistics import StatisticsArray
+from propertyestimator.utils.string import extract_variable_index_and_name
 from propertyestimator.workflow.decorators import protocol_input, protocol_output, MergeBehaviour
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.schemas import ProtocolSchema
@@ -82,17 +85,22 @@ class BaseProtocol:
 
         for input_path in self.required_inputs:
 
-            input_values = self.get_value_references(input_path)
+            value_references = self.get_value_references(input_path)
 
-            if len(input_values) == 0:
+            if len(value_references) == 0:
                 continue
 
-            for input_value in input_values:
+            for value_reference in value_references.values():
 
-                if input_value in return_dependencies:
+                if value_reference in return_dependencies:
                     continue
 
-                return_dependencies.append(input_value)
+                if (value_reference.start_protocol is None or
+                    value_reference.start_protocol == self.id):
+
+                    continue
+
+                return_dependencies.append(value_reference)
 
         return return_dependencies
 
@@ -168,12 +176,7 @@ class BaseProtocol:
 
                 continue
 
-            value = self.get_value(input_path)
-
-            if isinstance(value, unit.Quantity):
-                value = serialize_quantity(value)
-
-            schema.inputs[input_path.full_path] = PolymorphicDataType(value)
+            schema.inputs[input_path.full_path] = self.get_value(input_path)
 
         return schema
 
@@ -195,7 +198,7 @@ class BaseProtocol:
 
         for input_full_path in schema_value.inputs:
 
-            value = copy.deepcopy(schema_value.inputs[input_full_path].value)
+            value = copy.deepcopy(schema_value.inputs[input_full_path])
 
             if isinstance(value, dict) and 'unit' in value and 'unitless_value' in value:
                 value = deserialize_quantity(value)
@@ -237,10 +240,10 @@ class BaseProtocol:
 
             input_path.append_uuid(value)
 
-            input_values = self.get_value_references(input_path)
+            value_references = self.get_value_references(input_path)
 
-            for input_value in input_values:
-                input_value.append_uuid(value)
+            for value_reference in value_references.values():
+                value_reference.append_uuid(value)
 
         for output_path in self.provided_outputs:
             output_path.append_uuid(value)
@@ -270,10 +273,10 @@ class BaseProtocol:
                                                          input_path.start_protocol != self.id):
                 continue
 
-            input_values = self.get_value_references(input_path)
+            value_references = self.get_value_references(input_path)
 
-            for input_value in input_values:
-                input_value.replace_protocol(old_id, new_id)
+            for value_reference in value_references.values():
+                value_reference.replace_protocol(old_id, new_id)
 
         for output_path in self.provided_outputs:
             output_path.replace_protocol(old_id, new_id)
@@ -316,6 +319,9 @@ class BaseProtocol:
             # If no merge behaviour flag is present (for example in the case of
             # ConditionalGroup conditions), simply assume this is handled explicitly
             # elsewhere.
+            if not hasattr(type(self), input_path.property_name):
+                continue
+
             if not hasattr(getattr(type(self), input_path.property_name), 'merge_behavior'):
                 continue
 
@@ -366,6 +372,9 @@ class BaseProtocol:
             # If no merge behaviour flag is present (for example in the case of
             # ConditionalGroup conditions), simply assume this is handled explicitly
             # elsewhere.
+            if not hasattr(type(self), input_path.property_name):
+                continue
+
             if not hasattr(getattr(type(self), input_path.property_name), 'merge_behavior'):
                 continue
 
@@ -386,14 +395,14 @@ class BaseProtocol:
         return {}
 
     def get_value_references(self, input_path):
-        """Returns a list of references to the protocols which one of this
+        """Returns a dictionary of references to the protocols which one of this
         protocols inputs (specified by `input_path`) takes its value from.
 
         Notes
         -----
         Currently this method only functions correctly for an input value which
-        is either currently a :obj:`ProtocolPath`, or a `list` which contains a
-        :obj:`ProtocolPath`.
+        is either currently a :obj:`ProtocolPath`, or a `list` / `dict` which contains
+        at least one :obj:`ProtocolPath`.
 
         Parameters
         ----------
@@ -402,24 +411,40 @@ class BaseProtocol:
 
         Returns
         -------
-        List[ProtocolPath]
-            A list of path pointed to by the value specified by `input_path`. If the value is a
-            constant, an empty list is returned.
+        dict of ProtocolPath and ProtocolPath
+            A dictionary of the protocol paths that the input targeted by `input_path` depends upon.
         """
         input_value = self.get_value(input_path)
 
         if isinstance(input_value, ProtocolPath):
-            return [input_value]
+            return {input_path: input_value}
 
-        if not isinstance(input_value, list):
-            return []
+        if not isinstance(input_value, list) and not isinstance(input_value, dict):
+            return {}
 
-        return_paths = []
+        property_name, protocols_ids = ProtocolPath.to_components(input_path.full_path)
 
-        for list_value in input_value:
+        return_paths = {}
 
-            if isinstance(list_value, ProtocolPath):
-                return_paths.append(list_value)
+        if isinstance(input_value, list):
+
+            for index, list_value in enumerate(input_value):
+
+                if not isinstance(list_value, ProtocolPath):
+                    continue
+
+                path_index = ProtocolPath(property_name + '[{}]'.format(index), *protocols_ids)
+                return_paths[path_index] = list_value
+
+        else:
+
+            for dict_key in input_value:
+
+                if not isinstance(input_value[dict_key], ProtocolPath):
+                    continue
+
+                path_index = ProtocolPath(property_name + '[{}]'.format(dict_key), *protocols_ids)
+                return_paths[path_index] = input_value[dict_key]
 
         return return_paths
 
@@ -440,10 +465,62 @@ class BaseProtocol:
         if reference_path.start_protocol is not None and reference_path.start_protocol != self.id:
             raise ValueError('The reference path {} does not point to this protocol'.format(reference_path))
 
+        if (reference_path.property_name.count(ProtocolPath.property_separator) >= 1 or
+            reference_path.property_name.find('[') > 0):
+
+            return None
+            # raise ValueError('The expected type cannot be found for '
+            #                  'nested property names: {}'.format(reference_path.property_name))
+
         return getattr(type(self), reference_path.property_name).value_type
 
+    def _get_nested_attribute(self, attribute_name):
+        """A recursive version of getattr, which has full support
+        for attribute names which contain list / dict indices
+
+        Parameters
+        ----------
+        attribute_name: str
+            The nested attribute name to get.
+        """
+        attribute_name_split = attribute_name.split(ProtocolPath.property_separator)
+
+        current_attribute = self
+
+        for index, full_attribute_name in enumerate(attribute_name_split):
+
+            array_index = None
+            attribute_name = full_attribute_name
+
+            if attribute_name.find('[') >= 0 or attribute_name.find(']') >= 0:
+                attribute_name, array_index = extract_variable_index_and_name(attribute_name)
+
+            if current_attribute is None:
+                return None
+
+            if not hasattr(current_attribute, attribute_name):
+                raise ValueError('This protocol does not have contain a {} '
+                                 'property.'.format('.'.join(attribute_name_split[:index + 1])))
+
+            current_attribute = getattr(current_attribute, attribute_name)
+
+            if array_index is not None:
+
+                if isinstance(current_attribute, list):
+
+                    try:
+                        array_index = int(array_index)
+                    except ValueError:
+                        raise ValueError('List indices must be an integer: '
+                                         '{}'.format('.'.join(attribute_name_split[:index + 1])))
+
+                array_value = current_attribute[array_index]
+                current_attribute = array_value
+
+        return current_attribute
+
     def get_value(self, reference_path):
-        """Returns the value of one of this protocols parameters / inputs.
+        """Returns the value of one of this protocols inputs / outputs.
 
         Parameters
         ----------
@@ -452,8 +529,8 @@ class BaseProtocol:
 
         Returns
         ----------
-        object:
-            The value of the input
+        Any:
+            The value of the input / output
         """
 
         if (reference_path.start_protocol is not None and
@@ -461,15 +538,13 @@ class BaseProtocol:
 
             raise ValueError('The reference path does not target this protocol.')
 
-        if not hasattr(self, reference_path.property_name):
+        if reference_path.property_name is None or reference_path.property_name == '':
+            raise ValueError('The reference path does specify a property to return.')
 
-            raise ValueError('This protocol does not have contain a {} '
-                             'property.'.format(reference_path.property_name))
-
-        return getattr(self, reference_path.property_name)
+        return self._get_nested_attribute(reference_path.property_name)
 
     def set_value(self, reference_path, value):
-        """Sets the value of one of this protocols parameters / inputs.
+        """Sets the value of one of this protocols inputs.
 
         Parameters
         ----------
@@ -484,15 +559,52 @@ class BaseProtocol:
 
             raise ValueError('The reference path does not target this protocol.')
 
-        if not hasattr(self, reference_path.property_name):
-
-            raise ValueError('This protocol does not have contain a {} '
-                             'property.'.format(reference_path.property_name))
+        if reference_path.property_name is None or reference_path.property_name == '':
+            raise ValueError('The reference path does specify a property to set.')
 
         if reference_path in self.provided_outputs:
             raise ValueError('Output values cannot be set by this method.')
 
-        setattr(self, reference_path.property_name, value)
+        current_attribute = self
+        attribute_name = reference_path.property_name
+
+        if attribute_name.find(ProtocolPath.property_separator) > 1:
+
+            last_separator_index = attribute_name.rfind(
+                ProtocolPath.property_separator)
+
+            current_attribute = self._get_nested_attribute(attribute_name[:last_separator_index])
+            attribute_name = attribute_name[last_separator_index + 1:]
+
+        if attribute_name.find('[') >= 0:
+
+            attribute_name, array_index = extract_variable_index_and_name(attribute_name)
+
+            if not hasattr(current_attribute, attribute_name):
+
+                raise ValueError('The {} protocol does not have a {} '
+                                 'property.'.format(self.id, reference_path.property_name))
+
+            current_attribute = getattr(current_attribute, attribute_name)
+
+            if isinstance(current_attribute, list):
+
+                try:
+                    array_index = int(array_index)
+                except ValueError:
+                    raise ValueError('List indices must be an integer: '
+                                     '{}'.format(reference_path.property_name))
+
+            current_attribute[array_index] = value
+
+        else:
+
+            if not hasattr(current_attribute, attribute_name):
+
+                raise ValueError('The {} protocol does not have a {} '
+                                 'property.'.format(self.id, reference_path.property_name))
+
+            setattr(current_attribute, attribute_name, value)
 
     def apply_replicator(self, replicator, template_values):
         """Applies a `ProtocolReplicator` to this protocol.
@@ -597,13 +709,13 @@ class BuildCoordinatesPackmol(BaseProtocol):
         with open(self._coordinate_file_path, 'w+') as minimised_file:
             app.PDBFile.writeFile(topology, positions, minimised_file)
 
-        logging.info('Coordinates generated: ' + str(self._substance))
+        logging.info('Coordinates generated: ' + self._substance.identifier)
 
         return self._get_output_dictionary()
 
 
 @register_calculation_protocol()
-class BuildSmirnoffTopology(BaseProtocol):
+class BuildSmirnoffSystem(BaseProtocol):
     """Parametrise a set of molecules with a given smirnoff force field.
     """
 
@@ -742,7 +854,8 @@ class RunEnergyMinimisation(BaseProtocol):
 
         if available_resources.number_of_gpus > 0:
 
-            gpu_platform = Platform.getPlatformByName('CUDA')
+            # noinspection PyTypeChecker,PyCallByClass
+            gpu_platform = Platform.getPlatformByName(str(available_resources.preferred_gpu_toolkit))
             properties = {'DeviceIndex': ','.join(range(available_resources.number_of_gpus))}
 
             simulation = app.Simulation(input_pdb_file.topology, self._system, integrator, gpu_platform, properties)
@@ -751,6 +864,7 @@ class RunEnergyMinimisation(BaseProtocol):
 
         else:
 
+            # noinspection PyTypeChecker,PyCallByClass
             cpu_platform = Platform.getPlatformByName('CPU')
             properties = {'Threads': str(available_resources.number_of_threads)}
 
@@ -895,7 +1009,7 @@ class RunOpenMMSimulation(BaseProtocol):
         # Save the newly generated statistics data as a pandas csv file.
         pressure = None if self._ensemble == Ensemble.NVT else self._thermodynamic_state.pressure
 
-        working_statistics = statistics.Statistics.from_openmm_csv(self._temporary_statistics_path, pressure)
+        working_statistics = statistics.StatisticsArray.from_openmm_csv(self._temporary_statistics_path, pressure)
         working_statistics.save_as_pandas_csv(self._statistics_file_path)
 
         positions = self._simulation_object.context.getState(getPositions=True).getPositions()
@@ -948,7 +1062,8 @@ class RunOpenMMSimulation(BaseProtocol):
 
         if available_resources.number_of_gpus > 0:
 
-            gpu_platform = Platform.getPlatformByName('CUDA')
+            # noinspection PyTypeChecker,PyCallByClass
+            gpu_platform = Platform.getPlatformByName(str(available_resources.preferred_gpu_toolkit))
             properties = {'DeviceIndex': ','.join(range(available_resources.number_of_gpus))}
 
             simulation = app.Simulation(input_pdb_file.topology, system, integrator, gpu_platform, properties)
@@ -957,6 +1072,7 @@ class RunOpenMMSimulation(BaseProtocol):
 
         else:
 
+            # noinspection PyTypeChecker,PyCallByClass
             cpu_platform = Platform.getPlatformByName('CPU')
             properties = {'Threads': str(available_resources.number_of_threads)}
 
@@ -1016,14 +1132,9 @@ class AveragePropertyProtocol(BaseProtocol):
         """The relative sample size to use for bootstrapping."""
         pass
 
-    @protocol_output(unit.Quantity)
+    @protocol_output(EstimatedQuantity)
     def value(self):
         """The averaged value."""
-        pass
-
-    @protocol_output(unit.Quantity)
-    def uncertainty(self):
-        """The uncertainty in the average, as calculated by bootstrapping."""
         pass
 
     @protocol_output(int)
@@ -1036,6 +1147,11 @@ class AveragePropertyProtocol(BaseProtocol):
         """The statistical inefficiency in the data set."""
         pass
 
+    @protocol_output(unit.Quantity)
+    def uncorrelated_values(self):
+        """The uncorrelated values which the average was calculated from."""
+        pass
+
     def __init__(self, protocol_id):
 
         super().__init__(protocol_id)
@@ -1044,10 +1160,11 @@ class AveragePropertyProtocol(BaseProtocol):
         self._bootstrap_sample_size = 1.0
 
         self._value = None
-        self._uncertainty = None
 
         self._equilibration_index = None
         self._statistical_inefficiency = None
+
+        self._uncorrelated_values = None
 
     def _bootstrap_function(self, sample_data):
         """The function to perform on the data set being sampled by
@@ -1167,7 +1284,7 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
         """The file path to the trajectory to average over."""
         pass
 
-    @protocol_input(statistics.AvailableQuantities)
+    @protocol_input(statistics.ObservableType)
     def statistics_type(self):
         """The file path to the trajectory to average over."""
         pass
@@ -1177,7 +1294,7 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
         super().__init__(protocol_id)
 
         self._statistics_path = None
-        self._statistics_type = statistics.AvailableQuantities.PotentialEnergy
+        self._statistics_type = statistics.ObservableType.PotentialEnergy
 
         self._statistics = None
 
@@ -1191,9 +1308,9 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
                                               message='The ExtractAverageStatistic protocol '
                                                        'requires a previously calculated statistics file')
 
-        self._statistics = statistics.Statistics.from_pandas_csv(self.statistics_path)
+        self._statistics = statistics.StatisticsArray.from_pandas_csv(self.statistics_path)
 
-        values = self._statistics.get_statistics(self._statistics_type)
+        values = self._statistics.get_observable(self._statistics_type)
 
         if values is None or len(values) == 0:
 
@@ -1202,17 +1319,19 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
                                                       'data.'.format(self._statistics_path))
 
         statistics_unit = values[0].unit
-        values /= statistics_unit
+        values.value_in_unit(statistics_unit)
 
         values = np.array(values)
 
         values, self._equilibration_index, self._statistical_inefficiency = \
             timeseries.decorrelate_time_series(values)
 
-        self._value, self._uncertainty = self._perform_bootstrapping(values)
+        final_value, final_uncertainty = self._perform_bootstrapping(values)
 
-        self._value = unit.Quantity(self._value, statistics_unit)
-        self._uncertainty = unit.Quantity(self._uncertainty, statistics_unit)
+        self._uncorrelated_values = values * statistics_unit
+
+        self._value = EstimatedQuantity(unit.Quantity(final_value, statistics_unit),
+                                        unit.Quantity(final_uncertainty, statistics_unit), self.id)
 
         logging.info('Extracted {}: {}'.format(self._statistics_type, self.id))
 
@@ -1235,11 +1354,18 @@ class ExtractUncorrelatedData(BaseProtocol):
         """The statistical inefficiency in the data set."""
         pass
 
+    @protocol_output(int)
+    def number_of_uncorrelated_samples(self):
+        """The number of uncorrelated samples."""
+        pass
+
     def __init__(self, protocol_id):
         super().__init__(protocol_id)
 
         self._equilibration_index = None
         self._statistical_inefficiency = None
+
+        self._number_of_uncorrelated_samples = None
 
     def execute(self, directory, available_resources):
         raise NotImplementedError
@@ -1293,7 +1419,59 @@ class ExtractUncorrelatedTrajectoryData(ExtractUncorrelatedData):
         self._output_trajectory_path = path.join(directory, 'uncorrelated_trajectory.dcd')
         uncorrelated_trajectory.save_dcd(self._output_trajectory_path)
 
+        self._number_of_uncorrelated_samples = len(trajectory)
+
         logging.info('Trajectory subsampled: {}'.format(self.id))
+
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class ExtractUncorrelatedStatisticsData(ExtractUncorrelatedData):
+    """A protocol which will subsample entries from a statistics array, yielding only uncorrelated
+    entries as determined from a provided statistical inefficiency and equilibration time.
+    """
+
+    @protocol_input(str)
+    def input_statistics_path(self):
+        """The file path to the statistics to subsample."""
+        pass
+
+    @protocol_output(str)
+    def output_statistics_path(self):
+        """The file path to the subsampled statistics."""
+        pass
+
+    def __init__(self, protocol_id):
+
+        super().__init__(protocol_id)
+
+        self._input_statistics_path = None
+        self._output_statistics_path = None
+
+    def execute(self, directory, available_resources):
+
+        logging.info('Subsampling statistics: {}'.format(self.id))
+
+        if self._input_statistics_path is None:
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='The ExtractUncorrelatedStatisticsData protocol '
+                                                       'requires a previously calculated statisitics file')
+
+        statistics = StatisticsArray.from_pandas_csv(self._input_statistics_path)
+
+        uncorrelated_indices = timeseries.get_uncorrelated_indices(len(statistics),
+                                                                   self._statistical_inefficiency)
+
+        uncorrelated_statistics = statistics.from_statistics_array(statistics, uncorrelated_indices)
+
+        self._output_statistics_path = path.join(directory, 'uncorrelated_statistics.csv')
+        uncorrelated_statistics.save_as_pandas_csv(self._output_statistics_path)
+
+        logging.info('Statistics subsampled: {}'.format(self.id))
+
+        self._number_of_uncorrelated_samples = len(uncorrelated_statistics)
 
         return self._get_output_dictionary()
 
@@ -1313,7 +1491,7 @@ class AddQuantities(BaseProtocol):
         """The values to add together."""
         pass
 
-    @protocol_output(unit.Quantity)
+    @protocol_output(EstimatedQuantity)
     def result(self):
         """The sum of the values."""
         pass
@@ -1348,17 +1526,17 @@ class SubtractQuantities(BaseProtocol):
     `result = value_b - value_a`
     """
 
-    @protocol_input(unit.Quantity)
+    @protocol_input(EstimatedQuantity)
     def value_a(self):
         """`value_a` in the formula `result = value_b - value_a`"""
         pass
 
-    @protocol_input(unit.Quantity)
+    @protocol_input(EstimatedQuantity)
     def value_b(self):
         """`value_b` in the formula  `result = value_b - value_a`"""
         pass
 
-    @protocol_output(unit.Quantity)
+    @protocol_output(EstimatedQuantity)
     def result(self):
         """The sum of the values."""
         pass
@@ -1375,4 +1553,341 @@ class SubtractQuantities(BaseProtocol):
     def execute(self, directory, available_resources):
 
         self._result = self._value_b - self._value_a
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class UnpackStoredSimulationData(BaseProtocol):
+    """Loads a pickled `StoredSimulationData` object from disk,
+    and makes its attributes easily accessible to other protocols.
+    """
+
+    @protocol_input(tuple)
+    def simulation_data_path(self):
+        """A tuple which contains both the path to the pickled simulation data object,
+        and the force field which was used to generate the stored data."""
+        pass
+
+    @protocol_output(Substance)
+    def substance(self):
+        """The substance which was stored."""
+        pass
+
+    @protocol_output(ThermodynamicState)
+    def thermodynamic_state(self):
+        """The thermodynamic state which was stored."""
+        pass
+
+    @protocol_output(float)
+    def statistical_inefficiency(self):
+        """The statistical inefficiency of the stored data."""
+        pass
+
+    @protocol_output(str)
+    def coordinate_file_path(self):
+        """A path to the stored simulation trajectory."""
+        pass
+
+    @protocol_output(str)
+    def trajectory_file_path(self):
+        """A path to the stored simulation trajectory."""
+        pass
+
+    @protocol_output(str)
+    def statistics_file_path(self):
+        """A path to the stored simulation statistics array."""
+        pass
+
+    @protocol_output(str)
+    def force_field_path(self):
+        """A path to the force field parameters used to generate
+        the stored data."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new UnpackStoredSimulationData object."""
+        super().__init__(protocol_id)
+
+        self._simulation_data_path = None
+
+        self._substance = None
+        self._thermodynamic_state = None
+
+        self._statistical_inefficiency = None
+
+        self._coordinate_file_path = None
+        self._trajectory_file_path = None
+
+        self._statistics_file_path = None
+
+        self._force_field_path = None
+
+    def execute(self, directory, available_resources):
+
+        if len(self._simulation_data_path) != 2:
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='The simulation data path should be a tuple'
+                                                      'of a path to the pickled data object, and'
+                                                      'a path to the force field used to generate it.')
+
+        data_object = None
+
+        pickled_object_path = self._simulation_data_path[0]
+        force_field_path = self._simulation_data_path[1]
+
+        if not path.isfile(force_field_path):
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='The path to the force field'
+                                                      'is invalid: {}'.format(force_field_path))
+
+        try:
+
+            with open(pickled_object_path, 'rb') as file:
+                data_object = pickle.load(file)
+
+        except (IOError, pickle.UnpicklingError) as e:
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='Failed to load the data object: {}'.format(e))
+
+        self._substance = data_object.substance
+        self._thermodynamic_state = data_object.thermodynamic_state
+
+        self._statistical_inefficiency = data_object.statistical_inefficiency
+
+        self._coordinate_file_path = path.join(directory, 'coordinates.pdb')
+        self._trajectory_file_path = path.join(directory, 'trajectory.dcd')
+
+        data_object.trajectory_data[0].save_pdb(self._coordinate_file_path)
+        data_object.trajectory_data.save_dcd(self._trajectory_file_path)
+
+        self._statistics_file_path = path.join(directory, 'statistics.csv')
+        data_object.statistics_data.save_as_pandas_csv(self._statistics_file_path)
+
+        self._force_field_path = force_field_path
+
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class ConcatenateTrajectories(BaseProtocol):
+    """A protocol which concatenates multiple trajectories into
+    a single one.
+    """
+
+    @protocol_input(list)
+    def input_coordinate_paths(self):
+        """A list of paths to the starting coordinates for each of the trajectories."""
+        pass
+
+    @protocol_input(list)
+    def input_trajectory_paths(self):
+        """A list of paths to the trajectories to concatenate."""
+        pass
+
+    @protocol_output(str)
+    def output_coordinate_path(self):
+        """The path the coordinate file which contains the topology of
+        the concatenated trajectory."""
+        pass
+
+    @protocol_output(str)
+    def output_trajectory_path(self):
+        """The path to the concatenated trajectory."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new AddQuantities object."""
+        super().__init__(protocol_id)
+
+        self._input_coordinate_paths = None
+        self._input_trajectory_paths = None
+
+        self._output_coordinate_path = None
+        self._output_trajectory_path = None
+
+    def execute(self, directory, available_resources):
+
+        if len(self._input_coordinate_paths) != len(self._input_trajectory_paths):
+
+            return PropertyEstimatorException(directory=directory, message='There should be the same number of '
+                                                                           'coordinate and trajectory paths.')
+
+        if len(self._input_trajectory_paths) == 0:
+
+            return PropertyEstimatorException(directory=directory, message='No trajectories were '
+                                                                           'given to concatenate.')
+
+        trajectories = []
+
+        for coordinate_path, trajectory_path in zip(self._input_coordinate_paths,
+                                                    self._input_trajectory_paths):
+
+            self._output_coordinate_path = self._output_coordinate_path or coordinate_path
+            trajectories.append(mdtraj.load_dcd(trajectory_path, coordinate_path))
+
+        output_trajectory = trajectories[0] if len(trajectories) == 1 else mdtraj.join(trajectories, True, False)
+
+        self._output_trajectory_path = path.join(directory, 'output_trajectory.dcd')
+        output_trajectory.save_dcd(self._output_trajectory_path)
+
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class CalculateReducedPotentialOpenMM(BaseProtocol):
+    """Calculates the reduced potential for a given
+    set of configurations.
+    """
+
+    @protocol_input(ThermodynamicState)
+    def thermodynamic_state(self):
+        pass
+
+    @protocol_input(System)
+    def system(self):
+        pass
+
+    @protocol_input(str)
+    def coordinate_file_path(self):
+        pass
+
+    @protocol_input(str)
+    def trajectory_file_path(self):
+        pass
+
+    @protocol_output(np.ndarray)
+    def reduced_potentials(self):
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new UnpackStoredSimulationData object."""
+        super().__init__(protocol_id)
+
+        self._thermodynamic_state = None
+        self._system = None
+
+        self._coordinate_file_path = None
+        self._trajectory_file_path = None
+
+        self._reduced_potentials = None
+
+    def execute(self, directory, available_resources):
+
+        import openmmtools
+
+        trajectory = mdtraj.load_dcd(self._trajectory_file_path, self._coordinate_file_path)
+        self.system.setDefaultPeriodicBoxVectors(*trajectory.openmm_boxes(0))
+
+        openmm_state = openmmtools.states.ThermodynamicState(system=self._system,
+                                                             temperature=self._thermodynamic_state.temperature,
+                                                             pressure=self._thermodynamic_state.pressure)
+
+        integrator = openmmtools.integrators.VelocityVerletIntegrator(0.01*unit.femtoseconds)
+
+        context_cache = openmmtools.cache.ContextCache()
+        openmm_context, openmm_context_integrator = context_cache.get_context(openmm_state,
+                                                                              integrator)
+
+        reduced_potentials = np.zeros(trajectory.n_frames)
+
+        for frame_index in range(trajectory.n_frames):
+
+            positions = trajectory.openmm_positions(frame_index)
+            box_vectors = trajectory.openmm_boxes(frame_index)
+
+            openmm_context.setPeriodicBoxVectors(*box_vectors)
+            openmm_context.setPositions(positions)
+
+            # set box vectors
+            reduced_potentials[frame_index] = openmm_state.reduced_potential(openmm_context)
+
+        self._reduced_potentials = reduced_potentials
+
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class ReweightWithMBARProtocol(BaseProtocol):
+    """Calculates the reduced potential for a given
+    set of configurations.
+    """
+
+    @protocol_input(list)
+    def reference_reduced_potentials(self):
+        pass
+
+    @protocol_input(list)
+    def reference_observables(self):
+        pass
+
+    @protocol_input(list)
+    def target_reduced_potentials(self):
+        pass
+
+    @protocol_output(EstimatedQuantity)
+    def value(self):
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new ReweightWithMBARProtocol object."""
+        super().__init__(protocol_id)
+
+        self._reference_reduced_potentials = None
+        self._reference_observables = None
+
+        self._target_reduced_potentials = None
+
+        self._value = None
+
+    def execute(self, directory, available_resources):
+
+        if len(self._reference_observables) == 0:
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='There were no observables to reweight.')
+
+        if not isinstance(self._reference_observables[0], unit.Quantity):
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='The reference_observables input should be'
+                                                      'a list of unit.Quantity wrapped ndarray\'s.')
+
+        observable_unit = self._reference_observables[0].unit
+
+        for observable in self._reference_observables:
+
+            if not isinstance(self._reference_observables[0], unit.Quantity):
+
+                return PropertyEstimatorException(directory=directory,
+                                                  message='The reference_observables input should be'
+                                                          'a list of unit.Quantity wrapped ndarray\'s.')
+
+            if not observable_unit.is_compatible(observable.unit):
+
+                return PropertyEstimatorException(directory=directory,
+                                                  message='The reference_observables list contains'
+                                                          'entries with incompatible units.')
+
+        frame_counts = np.array([len(observable) for observable in self._reference_observables])
+
+        number_of_configurations = frame_counts.sum()
+        observables = np.zeros((1, number_of_configurations))
+
+        for index_k, observables_k in enumerate(self._reference_observables):
+
+            start_index = np.array(frame_counts[0:index_k]).sum()
+
+            for index in range(0, frame_counts[index_k]):
+                observables[0][start_index + index] = observables_k[index].value_in_unit(observable_unit)
+
+        # Construct the mbar object.
+        mbar = pymbar.MBAR(self._reference_reduced_potentials, frame_counts, verbose=False, relative_tolerance=1e-12)
+        results = mbar.computeExpectations(observables, self._target_reduced_potentials, state_dependent=True)
+
+        self._value = EstimatedQuantity(results[0][0] * observable_unit,
+                                        results[1][0] * observable_unit, self.id)
+
         return self._get_output_dictionary()

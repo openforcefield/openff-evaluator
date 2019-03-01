@@ -2,12 +2,10 @@
 An API for defining and creating substances.
 """
 
-from pydantic import BaseModel
-from pydantic.validators import dict_validator
-from typing import List
+from propertyestimator.utils.serialization import TypedBaseModel
 
 
-class Component(BaseModel):
+class Component(TypedBaseModel):
     """Represents a chemical component.
 
     .. todo:: Refactor this out?
@@ -18,33 +16,35 @@ class Component(BaseModel):
          SMILES descriptor of the component
      """
 
-    smiles: str = None
+    def __init__(self, smiles=''):
+        """Constructs a new Component object.
 
-    @classmethod
-    def __get_validators__(cls):
-        # yield dict_validator
-        yield cls.validate
+        Parameters
+        ----------
+        smiles : str
+            SMILES descriptor of the component
+        """
 
-    @classmethod
-    def validate(cls, value):
-        # A dirty hack to ensure proper inheritance..
+        self.smiles = smiles
 
-        if isinstance(value, cls):
-            return value
-        else:
+    def __getstate__(self):
+        return {'smiles': self.smiles}
 
-            if 'mole_fraction' in value and 'impurity' in value:
-                return Mixture.MixtureComponent(**value)
-
-            cls(**dict_validator(value))
+    def __setstate__(self, state):
+        self.smiles = state['smiles']
 
 
-class Substance(BaseModel):
+class Substance(TypedBaseModel):
     """
     A substance, can be a pure chemical, or could be a Mixture.
 
     This class is not specific enough to be a chemical species all on its own
     """
+
+    def __getstate__(self):
+        return {}
+
+    def __setstate__(self, state): pass
 
     def __hash__(self):
         raise NotImplementedError('A Substance is a purely abstract base class.')
@@ -54,24 +54,6 @@ class Substance(BaseModel):
 
     def __ne__(self, other):
         raise NotImplementedError('A Substance is a purely abstract base class.')
-
-    @classmethod
-    def __get_validators__(cls):
-        # yield dict_validator
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, value):
-        # A dirty hack to ensure proper inheritance..
-
-        if isinstance(value, cls):
-            return value
-        else:
-
-            if 'components' in value:
-                return Mixture(**value)
-
-            cls(**dict_validator(value))
 
 
 class Mixture(Substance):
@@ -110,24 +92,68 @@ class Mixture(Substance):
     """
 
     class MixtureComponent(Component):
-        """Subclass of Component which has mole_fractions and impurity"""
+        """Subclass of Component which has mole_fractions and impurity
 
-        mole_fraction: float = 0.0
-        impurity: bool = False
+        Attributes
+        ----------
+        mole_fraction : float
+            The mole fraction of this component.
+        impurity : bool
+            If true, this component is treated as being a
+            single molecule (i.e infinitely diluted).
+        """
 
-        def __str__(self):
-
+        @property
+        def identifier(self):
             hash_value = self.smiles
 
             if self.mole_fraction is not None:
                 hash_value += "{%s}" % str(self.mole_fraction)
             elif self.impurity is not None:
-                hash_value += "{%s}" % str(self.impurity)
+                hash_value += "(%s)" % str(self.impurity)
 
             return hash_value
 
+        def __init__(self, smiles='', mole_fraction=0.0, impurity=False):
+            """Constructs a new MixtureComponent object.
+
+            Parameters
+            ----------
+            smiles : str
+                SMILES descriptor of the component
+            mole_fraction : float
+                The mole fraction of this component.
+            impurity : bool
+                If true, this component is treated as being a
+                single molecule (i.e infinitely diluted).
+            """
+            super().__init__(smiles)
+
+            self.mole_fraction = mole_fraction
+            self.impurity = impurity
+
+        def __getstate__(self):
+
+            parent_state = super(Mixture.MixtureComponent, self).__getstate__()
+            current_state = {
+                'mole_fraction': self.mole_fraction,
+                'impurity': self.impurity
+            }
+
+            current_state.update(parent_state)
+            return current_state
+
+        def __setstate__(self, state):
+            super(Mixture.MixtureComponent, self).__setstate__(state)
+
+            self.mole_fraction = state['mole_fraction']
+            self.impurity = state['impurity']
+
+        def __str__(self):
+            return self.identifier
+
         def __hash__(self):
-            return hash(str(self))
+            return hash(self.identifier)
 
         def __eq__(self, other):
 
@@ -138,21 +164,48 @@ class Mixture(Substance):
         def __ne__(self, other):
             return not (self == other)
 
-    components: List[MixtureComponent] = list()
+    @property
+    def identifier(self):
+
+        component_identifiers = [component.identifier for component in self._components]
+        component_identifiers.sort()
+
+        return "|".join(component_identifiers)
 
     @property
     def total_mole_fraction(self):
         """Compute the total mole fraction.
         """
-        return sum([component.mole_fraction for component in self.components])
+        return sum([component.mole_fraction for component in self._components])
+
+    @property
+    def components(self):
+        return self._components
 
     @property
     def number_of_components(self):
-        return len(self.components)
+        return len(self._components)
 
     @property
     def number_of_impurities(self):
-        return sum([1 for component in self.components if component.impurity is True])
+        return sum([1 for component in self._components if component.impurity is True])
+
+    def __init__(self):
+        """Constructs a new Mixture object.
+        """
+        super().__init__()
+        self._components = []
+
+    def __getstate__(self):
+        parent_state = super(Mixture, self).__getstate__()
+        current_state = {'components': self._components}
+
+        current_state.update(parent_state)
+        return current_state
+
+    def __setstate__(self, state):
+        super(Mixture, self).__setstate__(state)
+        self._components = state['components']
 
     def add_component(self, smiles, mole_fraction, impurity=False):
         """Add a component to the mixture.
@@ -172,7 +225,7 @@ class Mixture(Substance):
         mole_fraction, impurity = self._validate_mol_fraction(mole_fraction, impurity)
 
         component = self.MixtureComponent(smiles=smiles, mole_fraction=mole_fraction, impurity=impurity)
-        self.components.append(component)
+        self._components.append(component)
 
     def get_component(self, smiles: str):
         """Retrieve component by name.
@@ -221,14 +274,10 @@ class Mixture(Substance):
         return mole_fraction, impurity
 
     def __str__(self):
-
-        hash_tags = [str(component) for component in self.components]
-        hash_tags.sort()
-
-        return "|".join(hash_tags)
+        return self.identifier
 
     def __hash__(self):
-        return hash(str(self))
+        return hash(self.identifier)
 
     def __eq__(self, other):
         return hash(self) == hash(other)

@@ -12,7 +12,7 @@ import logging
 from enum import Enum, unique
 from os import path, makedirs
 
-from propertyestimator.utils import graph, serialization
+from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.workflow import plugins
 from propertyestimator.workflow.decorators import MergeBehaviour, protocol_input
@@ -80,7 +80,12 @@ class ProtocolGroup(BaseProtocol):
 
         base_schema = super(ProtocolGroup, self)._get_schema()
         # Convert the base schema to a group one.
-        schema = ProtocolGroupSchema.parse_obj(base_schema.dict())
+        schema = ProtocolGroupSchema()
+
+        schema_dict = schema.__getstate__()
+        schema_dict.update(base_schema.__getstate__())
+
+        schema.__setstate__(schema_dict)
 
         for protocol_id in self._protocols:
             schema.grouped_protocol_schemas.append(self._protocols[protocol_id].schema)
@@ -88,6 +93,12 @@ class ProtocolGroup(BaseProtocol):
         return schema
 
     def _set_schema(self, schema_value):
+        """
+        Parameters
+        ----------
+        schema_value: ProtocolGroupSchema
+            The schema from which this group should take its properties.
+        """
 
         super(ProtocolGroup, self)._set_schema(schema_value)
 
@@ -139,19 +150,22 @@ class ProtocolGroup(BaseProtocol):
                 if grouped_path in self.required_inputs:
                     continue
 
-                input_values = protocol.get_value_references(input_path)
+                reference_values = protocol.get_value_references(input_path)
 
-                for input_value in input_values:
+                if len(reference_values) == 0:
+                    self.required_inputs.append(grouped_path)
 
-                    if input_value.start_protocol not in self._protocols:
+                for source_path, reference_value in reference_values.items():
+
+                    if reference_value.start_protocol not in self._protocols:
 
                         self.required_inputs.append(grouped_path)
                         continue
 
-                    if protocol_id in self._dependants_graph[input_value.start_protocol]:
+                    if protocol_id in self._dependants_graph[reference_value.start_protocol]:
                         continue
 
-                    self._dependants_graph[input_value.start_protocol].append(protocol_id)
+                    self._dependants_graph[reference_value.start_protocol].append(protocol_id)
 
         # Figure out the order in which grouped protocols should be executed.
         self._root_protocols = graph.find_root_nodes(self._dependants_graph)
@@ -268,37 +282,17 @@ class ProtocolGroup(BaseProtocol):
 
             for input_path in protocol_to_execute.required_inputs:
 
-                target_paths = protocol_to_execute.get_value_references(input_path)
-                values = {}
+                value_references = protocol_to_execute.get_value_references(input_path)
 
-                for target_path in target_paths:
+                for source_path, value_reference in value_references.items():
 
-                    if (target_path.start_protocol == input_path.start_protocol or
-                        target_path.start_protocol == protocol_to_execute.id):
+                    if (value_reference.start_protocol == input_path.start_protocol or
+                        value_reference.start_protocol == protocol_to_execute.id):
 
                         continue
 
-                    values[target_path] = self._protocols[target_path.start_protocol].get_value(target_path)
-
-                input_value = protocol_to_execute.get_value(input_path)
-
-                if isinstance(input_value, ProtocolPath) and input_value in values:
-                    protocol_to_execute.set_value(input_path, values[input_value])
-
-                elif isinstance(input_value, list):
-
-                    value_list = []
-
-                    for target_value in input_value:
-
-                        if not isinstance(target_value, ProtocolPath):
-                            value_list.append(target_value)
-                        elif target_value in values:
-                            value_list.append(values[target_value])
-                        else:
-                            value_list.append(target_value)
-
-                    protocol_to_execute.set_value(input_path, value_list)
+                    value = self._protocols[value_reference.start_protocol].get_value(value_reference)
+                    protocol_to_execute.set_value(source_path, value)
 
             return_value = protocol_to_execute.execute(working_directory, available_resources)
 
@@ -594,6 +588,8 @@ class ProtocolGroup(BaseProtocol):
         template_values
             The values to pass to each of the replicated protocols.
         """
+        replacement_string = '$({})'.format(replicator.id)
+
         for protocol_path in replicator.protocols_to_replicate:
 
             if protocol_path.full_path.find(self.id) < 0:
@@ -619,7 +615,7 @@ class ProtocolGroup(BaseProtocol):
             for index, template_value in enumerate(template_values):
 
                 protocol_schema = self.protocols[protocol_path_copied.start_protocol].schema
-                protocol_schema.id = protocol_schema.id.replace('$index', str(index))
+                protocol_schema.id = protocol_schema.id.replace(replacement_string, str(index))
 
                 protocol = plugins.available_protocols[protocol_schema.type](protocol_schema.id)
                 protocol.schema = protocol_schema
@@ -631,7 +627,7 @@ class ProtocolGroup(BaseProtocol):
                     for protocol_id_to_rename in other_path_components:
 
                         protocol.replace_protocol(protocol_id_to_rename,
-                                                  protocol_id_to_rename.replace('$index', str(index)))
+                                                  protocol_id_to_rename.replace(replacement_string, str(index)))
 
                 self.protocols[protocol.id] = protocol
 
@@ -678,16 +674,16 @@ class ConditionalGroup(ProtocolGroup):
 
             return {
                 'type': self.type.value,
-                'left_hand_value': serialization.PolymorphicDataType.serialize(self.left_hand_value),
-                'right_hand_value': serialization.PolymorphicDataType.serialize(self.right_hand_value)
+                'left_hand_value': self.left_hand_value,
+                'right_hand_value': self.right_hand_value
             }
 
         def __setstate__(self, state):
 
             self.type = ConditionalGroup.ConditionType(state['type'])
 
-            self.left_hand_value = serialization.PolymorphicDataType.deserialize(state['left_hand_value']).value
-            self.right_hand_value = serialization.PolymorphicDataType.deserialize(state['right_hand_value']).value
+            self.left_hand_value = state['left_hand_value']
+            self.right_hand_value = state['right_hand_value']
 
         def __eq__(self, other):
 
@@ -708,32 +704,6 @@ class ConditionalGroup(ProtocolGroup):
     def conditions(self):
         return self._conditions
 
-    @property
-    def dependencies(self):
-        """list of ProtocolPath: A list of pointers to the protocols which this
-        protocol takes input from.
-        """
-
-        return_dependencies = super(ConditionalGroup, self).dependencies
-
-        for condition in self._conditions:
-
-            if (isinstance(condition.left_hand_value, ProtocolPath) and
-                condition.left_hand_value.start_protocol is not None and
-                condition.left_hand_value.start_protocol != self.id and
-                condition.left_hand_value not in return_dependencies):
-                
-                return_dependencies.append(condition.left_hand_value)
-
-            if (isinstance(condition.right_hand_value, ProtocolPath) and
-                condition.right_hand_value.start_protocol is not None and
-                condition.right_hand_value.start_protocol != self.id and
-                condition.right_hand_value not in return_dependencies):
-                
-                return_dependencies.append(condition.right_hand_value)
-
-        return return_dependencies
-
     def __init__(self, protocol_id):
         """Constructs a new ConditionalGroup
         """
@@ -743,6 +713,21 @@ class ConditionalGroup(ProtocolGroup):
         self._conditions = []
 
         self.required_inputs.append(ProtocolPath('conditions'))
+
+    def _set_schema(self, schema_value):
+
+        conditions = None
+
+        if '.conditions' in schema_value.inputs:
+            conditions = schema_value.inputs.pop('.conditions')
+
+            for condition in conditions:
+                self.add_condition(copy.deepcopy(condition))
+
+        super(ConditionalGroup, self)._set_schema(schema_value)
+
+        if conditions is not None:
+            schema_value.inputs['.conditions'] = conditions
 
     def _evaluate_condition(self, condition_type, left_hand_value, right_hand_value):
 
@@ -961,3 +946,24 @@ class ConditionalGroup(ProtocolGroup):
                 return
 
         super(ConditionalGroup, self).set_value(reference_path, value)
+
+    def get_value_references(self, input_path):
+
+        if input_path.property_name != 'conditions':
+            return super(ConditionalGroup, self).get_value_references(input_path)
+
+        value_references = {}
+
+        for index, condition in enumerate(self.conditions):
+
+            if isinstance(condition.left_hand_value, ProtocolPath):
+
+                source_path = ProtocolPath('conditions[{}].left_hand_value'.format(index))
+                value_references[source_path] = condition.left_hand_value
+
+            if isinstance(condition.right_hand_value, ProtocolPath):
+
+                source_path = ProtocolPath('conditions[{}].right_hand_value'.format(index))
+                value_references[source_path] = condition.right_hand_value
+
+        return value_references

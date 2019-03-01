@@ -3,266 +3,40 @@ A collection of classes which aid in serializing data types.
 """
 
 import importlib
+import inspect
 import json
-import sys
+from abc import ABC, abstractmethod
 from enum import Enum
 from io import BytesIO
 
-from pydantic import BaseModel, ValidationError
-from pydantic.validators import dict_validator
 from simtk import unit
 
+from propertyestimator.utils.quantities import EstimatedQuantity
 
-class TypedBaseModel(BaseModel):
 
-    module_metadata: str = ''
-    type_metadata: str = ''
+def _type_string_to_object(type_string):
+    last_period_index = type_string.rfind('.')
 
-    @classmethod
-    def __get_validators__(cls):
-        # yield dict_validator
-        yield cls.validate
+    if last_period_index < 0 or last_period_index == len(type_string) - 1:
+        raise ValueError('The type string is invalid - it should be of the form '
+                         'module_path.class_name: {}'.format(type_string))
 
-    @classmethod
-    def validate(cls, value):
-        if isinstance(value, cls):
-            return value
-        else:
-            class_type = getattr(sys.modules[value['module_metadata']], value['type_metadata'])
-            return class_type(**dict_validator(value))
+    module_name = type_string[0:last_period_index]
+    module = importlib.import_module(module_name)
 
-    def __init__(self, **data):
-        super().__init__(**data)
+    class_name = type_string[last_period_index + 1:]
 
-        self.module_metadata = type(self).__module__
-        self.type_metadata = type(self).__name__
+    if class_name == 'NoneType':
+        return None
 
+    class_name_split = class_name.split('->')
+    class_object = module
 
-class PolymorphicEncoder(json.JSONEncoder):
+    while len(class_name_split) > 0:
+        class_name_current = class_name_split.pop(0)
+        class_object = getattr(class_object, class_name_current)
 
-    def default(self, obj):
-
-        serializable_object = {}
-
-        value_to_serialize = obj
-        type_to_serialize = type(obj)
-
-        from simtk import unit
-
-        if isinstance(obj, PolymorphicDataType):
-
-            value_to_serialize = obj.value
-            type_to_serialize = obj.type
-
-        if isinstance(value_to_serialize, BaseModel):
-
-            serializable_object = value_to_serialize.dict()
-
-        elif isinstance(value_to_serialize, Enum):
-
-            serializable_object = value_to_serialize.value
-
-        elif isinstance(value_to_serialize, unit.Quantity):
-
-            serializable_object = serialize_quantity(value_to_serialize)
-
-        else:
-
-            try:
-
-                json.dumps(value_to_serialize)  # Check if the value is natively serializable.
-                serializable_object = value_to_serialize
-
-            except TypeError as e:
-
-                if isinstance(value_to_serialize, list):
-
-                    serializable_object = []
-                    list_object_type = None
-
-                    for value_in_list in value_to_serialize:
-
-                        if isinstance(value_in_list, PolymorphicDataType):
-                            raise ValueError("Nested lists of PolymorphicDataType's are not serializable.")
-
-                        if list_object_type is not None and type(value_in_list) != list_object_type:
-                            raise ValueError("Nested lists of PolymorphicDataType's are not serializable.")
-
-                        serializable_object.append(self.default(value_in_list))
-                        list_object_type = type(value_in_list)
-
-                else:
-
-                    serializable_object = value_to_serialize.__getstate__()
-
-        qualified_name = type_to_serialize.__qualname__
-        qualified_name = qualified_name.replace('.', '->')
-
-        return_value = {
-            '@type': '{}.{}'.format(type_to_serialize.__module__,
-                                    qualified_name),
-
-            'value': serializable_object
-        }
-
-        return return_value
-
-
-class PolymorphicDataType:
-    """A helper object wrap values which have a type unknown
-    ahead of time.
-    """
-
-    def __init__(self, value):
-        """Creates a new PolymorphicDataType object.
-
-        Parameters
-        ----------
-        value: Any
-            The value to wrap.
-        """
-
-        self.value = value
-        self.type = type(value)
-
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, value):
-        """A pydantic helper method for deserializing the object.
-        """
-        if isinstance(value, PolymorphicDataType):
-            return value
-
-        return PolymorphicDataType.deserialize(value)
-
-    @staticmethod
-    def deserialize(json_dictionary):
-        """A method to deserialize the polymorphic value from its
-        JSON dictionary representation.
-
-        Parameters
-        ----------
-        json_dictionary: Dict[str, Any]
-            The JSON dictionary to deserialize.
-
-        Returns
-        -------
-        Any
-            The deserialized object.
-        """
-
-        if '@type' not in json_dictionary or 'value' not in json_dictionary:
-            raise ValidationError('{} is not a valid PolymorphicDataType'.format(json_dictionary))
-
-        type_string = json_dictionary['@type']
-        last_period_index = type_string.rfind('.')
-
-        if last_period_index < 0:
-            raise ValidationError('{} is not a valid PolymorphicDataType'.format(json_dictionary))
-
-        module_name = type_string[0:last_period_index]
-        module = importlib.import_module(module_name)
-
-        class_name = type_string[last_period_index + 1:]
-
-        class_name_split = class_name.split('->')
-        class_object = module
-
-        while len(class_name_split) > 0:
-
-            class_name_current = class_name_split.pop(0)
-            class_object = getattr(class_object, class_name_current)
-
-        value_object = json_dictionary['value']
-
-        parsed_object = None
-
-        from simtk import unit
-
-        if issubclass(class_object, BaseModel):
-
-            parsed_object = class_object.parse_obj(value_object)
-
-        elif issubclass(class_object, Enum):
-
-            parsed_object = class_object(value_object)
-
-        elif issubclass(class_object, unit.Quantity):
-
-            parsed_object = deserialize_quantity(value_object)
-
-        elif issubclass(class_object, list):
-
-            parsed_object = []
-
-            for list_item in value_object:
-                parsed_object.append(PolymorphicDataType.deserialize(list_item).value)
-
-        else:
-
-            parsed_object = value_object
-
-            if hasattr(class_object, 'validate'):
-                parsed_object = class_object.validate(parsed_object)
-
-            elif not isinstance(parsed_object, class_object):
-
-                created_object = class_object()
-                created_object.__setstate__(parsed_object)
-
-                parsed_object = created_object
-
-        return PolymorphicDataType(parsed_object)
-
-    @staticmethod
-    def serialize(value_to_serialize):
-        """A method to serialize a polymorphic value, along with its
-        type in the form of a JSON dictionary.
-
-        Parameters
-        ----------
-        value_to_serialize: PolymorphicDataType
-            The value to serialize.
-
-        Returns
-        -------
-        str
-            The JSON serialized value.
-        """
-
-        # value_json = ''
-        #
-        # if isinstance(value_to_serialize.value, BaseModel):
-        #
-        #     value_json = value_to_serialize.value.json()
-        #
-        # elif isinstance(value_to_serialize.value, Enum):
-        #
-        #     value_json = value_to_serialize.value.value
-        #
-        # else:
-        #     try:
-        #         value_json = json.dumps(value_to_serialize.value)
-        #     except TypeError as e:
-        #         value_json = json.dumps(value_to_serialize.value.__getstate__())
-        #
-        # qualified_name = value_to_serialize.type.__qualname__
-        # qualified_name = qualified_name.replace('.', '->')
-        #
-        # return_value = {
-        #     '@type': '{}.{}'.format(value_to_serialize.type.__module__,
-        #                             qualified_name),
-        #
-        #     'value': value_json
-        # }
-
-        encoder = PolymorphicEncoder()
-
-        return_value = encoder.default(value_to_serialize)
-        return return_value
+    return class_object
 
 
 def serialize_quantity(quantity):
@@ -281,6 +55,9 @@ def serialize_quantity(quantity):
     serialzied : dict
         The serialized object
     """
+
+    if not isinstance(quantity, unit.Quantity):
+        raise ValueError('{} is not a Quantity'.format(type(quantity)))
 
     serialized = dict()
 
@@ -320,6 +97,10 @@ def deserialize_quantity(serialized):
     -------
     simtk.unit.Quantity
     """
+
+    if '@type' in serialized:
+        serialized.pop('@type')
+
     if (serialized['unitless_value'] is None) and (serialized['unit'] is None):
         return None
     quantity_unit = None
@@ -331,6 +112,30 @@ def deserialize_quantity(serialized):
             quantity_unit *= (getattr(unit, unit_name) ** power)
     quantity = unit.Quantity(serialized['unitless_value'], quantity_unit)
     return quantity
+
+
+def deserialize_estimated_quantity(quantity_dictionary):
+    """
+    Deserializes an EstimatedQuantity.
+
+    Parameters
+    ----------
+    quantity_dictionary : dict of str and Any
+        Serialized representation of an EstimatedQuantity, generated by the
+        `EstimatedQuantity.__getstate__` method
+
+    Returns
+    -------
+    EstimatedQuantity
+    """
+
+    if '@type' in quantity_dictionary:
+        quantity_dictionary.pop('@type')
+
+    return_object = EstimatedQuantity(unit.Quantity(), unit.Quantity(), 'empty_source')
+    return_object.__setstate__(quantity_dictionary)
+
+    return return_object
 
 
 def serialize_force_field(force_field):
@@ -352,6 +157,12 @@ def serialize_force_field(force_field):
         The serialised force field, where the keys are int indices, and
         the values are the xml of the serialized force field trees.
     """
+
+    from openforcefield.typing.engines.smirnoff import ForceField
+
+    if not isinstance(force_field, ForceField):
+        raise ValueError('{} is not a ForceField'.format(type(force_field)))
+
     file_buffers = tuple([BytesIO() for _ in force_field._XMLTrees])
 
     force_field.writeFile(file_buffers)
@@ -389,7 +200,10 @@ def deserialize_force_field(force_field_dictionary):
         The deserialized force field.
     """
 
-    file_buffers = [None] * len(force_field_dictionary)
+    if '@type' in force_field_dictionary:
+        force_field_dictionary.pop('@type')
+
+    file_buffers = []
 
     for index in force_field_dictionary:
 
@@ -398,9 +212,276 @@ def deserialize_force_field(force_field_dictionary):
         if isinstance(bytes_string, str):
             bytes_string = bytes_string.encode('utf-8')
 
-        file_buffers[index] = BytesIO(bytes_string)
+        file_buffers.append(BytesIO(bytes_string))
 
     from openforcefield.typing.engines.smirnoff import ForceField
 
     force_field = ForceField(*file_buffers)
     return force_field
+
+
+def serialize_enum(enum):
+
+    if not isinstance(enum, Enum):
+        raise ValueError('{} is not an Enum'.format(type(enum)))
+
+    return {
+        'value': enum.value
+    }
+
+
+def deserialize_enum(enum_dictionary):
+
+    if '@type' not in enum_dictionary:
+
+        raise ValueError('The serialized enum dictionary must include'
+                         'which type the enum is.')
+
+    if 'value' not in enum_dictionary:
+
+        raise ValueError('The serialized enum dictionary must include'
+                         'the enum value.')
+
+    enum_type_string = enum_dictionary['@type']
+    enum_value = enum_dictionary['value']
+
+    enum_class = _type_string_to_object(enum_type_string)
+
+    if not issubclass(enum_class, Enum):
+        raise ValueError('<{}> is not an Enum'.format(enum_class))
+
+    return enum_class(enum_value)
+
+
+class TypedJSONEncoder(json.JSONEncoder):
+
+    _natively_supported_types = [
+        dict, list, tuple, str, int, float, bool
+    ]
+
+    _custom_supported_types = {
+        Enum: serialize_enum,
+        unit.Quantity: serialize_quantity,
+        'ForceField': serialize_force_field,
+    }
+
+    def default(self, value_to_serialize):
+
+        if value_to_serialize is None:
+            return None
+
+        type_to_serialize = type(value_to_serialize)
+
+        if type_to_serialize in TypedJSONEncoder._natively_supported_types:
+            # If the value is a native type, then let the default serializer
+            # handle it.
+            return super(TypedJSONEncoder, self).default(value_to_serialize)
+
+        # Otherwise, we need to add a @type attribute to it.
+        qualified_name = type_to_serialize.__qualname__
+        qualified_name = qualified_name.replace('.', '->')
+
+        type_tag = '{}.{}'.format(type_to_serialize.__module__, qualified_name)
+        serializable_dictionary = {}
+
+        custom_encoder = None
+
+        for encoder_type in TypedJSONEncoder._custom_supported_types:
+
+            if isinstance(encoder_type, str):
+
+                if encoder_type != qualified_name:
+                    continue
+
+            elif not issubclass(type_to_serialize, encoder_type):
+                continue
+
+            custom_encoder = TypedJSONEncoder._custom_supported_types[encoder_type]
+            break
+
+        if custom_encoder is not None:
+
+            try:
+                serializable_dictionary = custom_encoder(value_to_serialize)
+
+            except Exception as e:
+
+                raise ValueError('{} ({}) could not be serialized '
+                                 'using a specialized custom encoder: {}'.format(value_to_serialize,
+                                                                                 type_to_serialize, e))
+
+        elif hasattr(value_to_serialize, '__getstate__'):
+
+            try:
+                serializable_dictionary = value_to_serialize.__getstate__()
+
+            except Exception as e:
+
+                raise ValueError('{} ({}) could not be serialized '
+                                 'using its __getstate__ method: {}'.format(value_to_serialize,
+                                                                            type_to_serialize, e))
+
+        else:
+
+            raise ValueError('Objects of type {} are not serializable, please either'
+                             'add a __getstate__ method, or add the object to the list'
+                             'of custom supported types.'.format(type_to_serialize))
+
+        serializable_dictionary['@type'] = type_tag
+        return serializable_dictionary
+
+
+class TypedJSONDecoder(json.JSONDecoder):
+
+    def __init__(self, *args, **kwargs):
+        json.JSONDecoder.__init__(self, object_hook=self.object_hook, *args, **kwargs)
+
+    _custom_supported_types = {
+        Enum: deserialize_enum,
+        unit.Quantity: deserialize_quantity,
+        EstimatedQuantity: deserialize_estimated_quantity,
+        'ForceField': deserialize_force_field
+    }
+
+    @staticmethod
+    def object_hook(object_dictionary):
+
+        if '@type' not in object_dictionary:
+            return object_dictionary
+
+        type_string = object_dictionary['@type']
+        class_type = _type_string_to_object(type_string)
+
+        deserialized_object = None
+
+        custom_decoder = None
+
+        for decoder_type in TypedJSONDecoder._custom_supported_types:
+
+            if isinstance(decoder_type, str):
+
+                if decoder_type != class_type.__qualname__:
+                    continue
+
+            elif not issubclass(class_type, decoder_type):
+                continue
+
+            custom_decoder = TypedJSONDecoder._custom_supported_types[decoder_type]
+            break
+
+        if custom_decoder is not None:
+
+            try:
+                deserialized_object = custom_decoder(object_dictionary)
+
+            except Exception as e:
+
+                raise ValueError('{} ({}) could not be deserialized '
+                                 'using a specialized custom decoder: {}'.format(object_dictionary,
+                                                                                 type(class_type), e))
+
+        elif hasattr(class_type, '__setstate__'):
+
+            try:
+
+                class_init_signature = inspect.signature(class_type)
+
+                for parameter in class_init_signature.parameters.values():
+
+                    if (parameter.default != inspect.Parameter.empty or
+                        parameter.kind == inspect.Parameter.VAR_KEYWORD or
+                        parameter.kind == inspect.Parameter.VAR_POSITIONAL):
+
+                        continue
+
+                    raise ValueError('Cannot deserialize objects which have '
+                                     'non-optional arguments {} in the constructor: {}.'.format(parameter.name,
+                                                                                                class_type))
+
+                deserialized_object = class_type()
+                deserialized_object.__setstate__(object_dictionary)
+
+            except Exception as e:
+
+                raise ValueError('{} ({}) could not be deserialized '
+                                 'using its __setstate__ method: {}'.format(object_dictionary,
+                                                                            type(class_type), e))
+
+        else:
+
+            raise ValueError('Objects of type {} are not deserializable, please either'
+                             'add a __setstate__ method, or add the object to the list'
+                             'of custom supported types.'.format(type(class_type)))
+
+        return deserialized_object
+
+
+class TypedBaseModel(ABC):
+    """An abstract base class which represents any object which
+    can be serialized to JSON.
+
+    JSON produced using this class will include extra @type tags
+    for any non-primitive typed values (e.g not a str, int...),
+    which ensure that the correct class structure is correctly
+    reproduced on deserialization.
+
+    EXAMPLE
+
+    It is a requirement that any classes inheriting from this one
+    must implement a valid `__getstate__` and `__setstate__` method,
+    as these are what determines the structure of the serialized
+    output.
+    """
+
+    def json(self):
+        """Creates a JSON representation of this class.
+
+        Returns
+        -------
+        str
+            The JSON representation of this class.
+        """
+        json_string = json.dumps(self, cls=TypedJSONEncoder)
+        return json_string
+
+    @classmethod
+    def parse_json(cls, string_contents, encoding='utf8'):
+        """Parses a typed json string into the corresponding class
+        structure.
+
+        Parameters
+        ----------
+        string_contents: str or bytes
+            The typed json string.
+        encoding: str
+            The encoding of the `string_contents`.
+
+        Returns
+        -------
+        Any
+            The parsed class.
+        """
+        return_object = json.loads(string_contents, encoding=encoding, cls=TypedJSONDecoder)
+        return return_object
+
+    @abstractmethod
+    def __getstate__(self):
+        """Returns a dictionary representation of this object.
+
+        Returns
+        -------
+        dict of str, Any
+            The dictionary representation of this object.
+        """
+        pass
+
+    @abstractmethod
+    def __setstate__(self, state):
+        """Sets the fields of this object from its dictionary representation.
+
+        Parameters
+        ----------
+        state: dict of str, Any
+            The dictionary representation of the object.
+        """
+        pass

@@ -38,7 +38,7 @@ class DaskLocalClusterBackend(PropertyEstimatorBackend):
         self._cluster = distributed.LocalCluster(self._number_of_workers,
                                                  1,
                                                  processes=False,
-                                                 resources=self._resources_per_worker.dict())
+                                                 resources=self._get_worker_resources_dict())
 
         self._client = distributed.Client(self._cluster,
                                           processes=False)
@@ -50,5 +50,5 @@ class DaskLocalClusterBackend(PropertyEstimatorBackend):
 
     def submit_task(self, function, *args):
 
-        return self._client.submit(function, *args, resources=self._resources_per_worker.dict(),
+        return self._client.submit(function, *args, resources=self._get_worker_resources_dict(),
                                    available_resources=self._resources_per_worker)

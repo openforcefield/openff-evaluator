@@ -3,6 +3,7 @@ Defines the base API for defining new property estimator estimation layers.
 """
 
 import logging
+from typing import List
 
 from propertyestimator.properties import PhysicalProperty
 from propertyestimator.storage import StoredSimulationData
@@ -43,7 +44,7 @@ class CalculationLayerResult:
         self.calculated_property: PhysicalProperty = None
         self.calculation_error: PropertyEstimatorException = None
 
-        self.data_to_store: StoredSimulationData = None
+        self.data_to_store: List[StoredSimulationData] = None
 
 
 class PropertyCalculationLayer:
@@ -63,13 +64,13 @@ class PropertyCalculationLayer:
 
         Parameters
         ----------
-        calculation_backend: propertyestimator.backends.PropertyEstimatorBackend
+        calculation_backend: PropertyEstimatorBackend
             The backend to the submit the calculations to.
-        storage_backend: propertyestimator.storage.PropertyEstimatorStorage
+        storage_backend: PropertyEstimatorStorage
             The backend used to store / retrieve data from previous calculations.
         layer_directory: str
             The local directory in which to store all local, temporary calculation data from this layer.
-        data_model: propertyestimator.server.PropertyEstimatorServerData
+        data_model: PropertyEstimatorServerData
             The data model encoding the awaited calculation.
         callback: function
             The function to call when the backend returns the results (or an error).
@@ -103,12 +104,14 @@ class PropertyCalculationLayer:
                 # Make sure to store any important calculation data.
                 if returned_output.data_to_store is not None and returned_output.calculated_property is not None:
 
-                    if returned_output.data_to_store.force_field_id is None:
-                        returned_output.data_to_store.force_field_id = data_model.force_field_id
+                    for data in returned_output.data_to_store:
 
-                    substance_id = str(returned_output.calculated_property.substance)
+                        if data.force_field_id is None:
+                            data.force_field_id = data_model.force_field_id
 
-                    storage_backend.store_simulation_data(substance_id, returned_output.data_to_store)
+                        substance_id = data.substance.identifier
+
+                        storage_backend.store_simulation_data(substance_id, data)
 
                 matches = [x for x in returned_data_model.queued_properties if x.id == returned_output.property_id]
 
@@ -139,13 +142,13 @@ class PropertyCalculationLayer:
 
         Parameters
         ----------
-        calculation_backend: propertyestimator.backends.PropertyEstimatorBackend
+        calculation_backend: PropertyEstimatorBackend
             The backend to the submit the calculations to.
-        storage_backend: propertyestimator.storage.PropertyEstimatorStorage
+        storage_backend: PropertyEstimatorStorage
             The backend used to store / retrieve data from previous calculations.
         layer_directory: str
             The local directory in which to store all local, temporary calculation data from this layer.
-        data_model: propertyestimator.server.PropertyEstimatorServerData
+        data_model: PropertyEstimatorServerData
             The data model encoding the proposed calculation.
         callback: function
             The function to call when the backend returns the results (or an error).

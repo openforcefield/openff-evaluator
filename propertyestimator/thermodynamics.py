@@ -1,14 +1,13 @@
 """
 Defines an API for defining thermodynamic states.
 """
-
+import math
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, validator
 from simtk import unit
 
-from propertyestimator.utils.serialization import deserialize_quantity, serialize_quantity
+from propertyestimator.utils.serialization import TypedBaseModel
 
 
 class Ensemble(Enum):
@@ -18,11 +17,11 @@ class Ensemble(Enum):
     NPT = "NPT"
 
 
-class ThermodynamicState(BaseModel):
+class ThermodynamicState(TypedBaseModel):
     """
     Data specifying a physical thermodynamic state obeying Boltzmann statistics.
 
-    Properties
+    Attributes
     ----------
     temperature : simtk.unit.Quantity with units compatible with kelvin
         The external temperature
@@ -42,41 +41,36 @@ class ThermodynamicState(BaseModel):
     temperature: Optional[unit.Quantity] = None
     pressure: Optional[unit.Quantity] = None
 
-    class Config:
+    def __init__(self, temperature=None, pressure=None):
+        """Constructs a new ThermodynamicState object.
 
-        arbitrary_types_allowed = True
+        Parameters
+        ----------
+        temperature : simtk.unit.Quantity with units compatible with kelvin
+            The external temperature
+        pressure : simtk.unit.Quantity with units compatible with atmospheres
+            The external pressure
+        """
 
-        json_encoders = {
-            unit.Quantity: lambda v: serialize_quantity(v),
+        self.temperature = temperature
+        self.pressure = pressure
+
+    def __getstate__(self):
+
+        return {
+            'temperature': self.temperature,
+            'pressure': self.pressure,
         }
 
-    @validator('temperature', pre=True, whole=True)
-    def validate_temperature(cls, v):
+    def __setstate__(self, state):
 
-        if isinstance(v, dict):
-            v = deserialize_quantity(v)
-
-        if isinstance(v, unit.Quantity):
-            v = v.in_units_of(unit.kelvin)
-
-        return v
-    
-    @validator('pressure', pre=True, whole=True)
-    def validate_pressure(cls, v):
-
-        if isinstance(v, dict):
-            v = deserialize_quantity(v)
-
-        if isinstance(v, unit.Quantity):
-            v = v.in_units_of(unit.atmospheres)
-
-        return v
+        self.temperature = state['temperature']
+        self.pressure = state['pressure']
 
     def __repr__(self):
         """
         Returns a string representation of a state.
         """
-
         return_value = "ThermodynamicState("
 
         if self.temperature is not None:
@@ -101,13 +95,10 @@ class ThermodynamicState(BaseModel):
 
         return return_value
 
-    def __hash__(self):
-        return hash((str(self.temperature), str(self.pressure)))
-
     def __eq__(self, other):
 
-        return (abs(self.temperature - other.temperature) < 0.0001 * unit.kelvin and
-                abs(self.pressure - other.pressure) < 0.0001 * unit.atmosphere)
+        return (math.isclose(self.temperature / unit.kelvin, other.temperature / unit.kelvin) and
+                math.isclose(self.pressure / unit.atmosphere, other.pressure / unit.atmosphere))
 
     def __ne__(self, other):
         return not (self == other)

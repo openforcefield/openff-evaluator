@@ -6,10 +6,7 @@ import json
 import logging
 import uuid
 from os import path, makedirs
-from typing import List, Dict
 
-from pydantic import BaseModel
-from simtk import unit
 from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
 from tornado.tcpserver import TCPServer
@@ -17,14 +14,12 @@ from tornado.tcpserver import TCPServer
 from propertyestimator.client import PropertyEstimatorSubmission, PropertyEstimatorOptions, \
     PropertyEstimatorResult
 from propertyestimator.layers import available_layers
-from propertyestimator.properties import PhysicalProperty
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import serialize_quantity, PolymorphicDataType, deserialize_force_field
+from propertyestimator.utils.serialization import TypedBaseModel
 from propertyestimator.utils.tcp import PropertyEstimatorMessageTypes, pack_int, unpack_int
-from propertyestimator.workflow.utils import ProtocolPath
 
 
-class PropertyEstimatorServerData(BaseModel):
+class PropertyEstimatorServerData(TypedBaseModel):
     """Represents a data packet to be calculated by the server, along with
     the options which should be used when running the calculations.
 
@@ -42,26 +37,58 @@ class PropertyEstimatorServerData(BaseModel):
         The unique server side id of the force field parameters used to estimate the properties.
     """
 
-    id: str
+    def __init__(self, estimation_id='', queued_properties=None, options=None, force_field_id=None):
+        """Constructs a new PropertyEstimatorServerData object.
 
-    queued_properties: List[PhysicalProperty] = []
+        Parameters
+        ----------
+        estimation_id: str
+            A unique id assigned to this estimation request.
+        queued_properties: `list` of `PhysicalProperty`, optional
+            A list of physical properties waiting to be estimated.
+        options: `PropertyEstimatorOptions`, optional
+            The options used to estimate the properties.
+        force_field_id: `str`
+            The unique server side id of the force field parameters used to estimate the properties.
+        """
+        self.id = estimation_id
 
-    estimated_properties: Dict[str, PhysicalProperty] = {}
-    unsuccessful_properties: Dict[str, PropertyEstimatorException] = {}
+        self.queued_properties = queued_properties or []
 
-    options: PropertyEstimatorOptions = None
+        self.estimated_properties = {}
+        self.unsuccessful_properties = {}
 
-    force_field_id: str = None
+        self.options = options
 
-    class Config:
+        self.force_field_id = force_field_id
 
-        arbitrary_types_allowed = True
+    def __getstate__(self):
 
-        json_encoders = {
-            unit.Quantity: lambda v: serialize_quantity(v),
-            ProtocolPath: lambda v: v.full_path,
-            PolymorphicDataType: lambda value: PolymorphicDataType.serialize(value)
+        return {
+            'id': self.id,
+
+            'queued_properties': self.queued_properties,
+
+            'estimated_properties': self.estimated_properties,
+            'unsuccessful_properties': self.unsuccessful_properties,
+
+            'options': self.options,
+
+            'force_field_id': self.force_field_id,
         }
+
+    def __setstate__(self, state):
+
+        self.id = state['id']
+
+        self.queued_properties = state['queued_properties']
+
+        self.estimated_properties = state['estimated_properties']
+        self.unsuccessful_properties = state['unsuccessful_properties']
+
+        self.options = state['options']
+
+        self.force_field_id = state['force_field_id']
 
 
 class PropertyEstimatorServer(TCPServer):
@@ -174,7 +201,7 @@ class PropertyEstimatorServer(TCPServer):
         json_model = encoded_json.decode()
 
         # TODO: Add exeception handling so the server can gracefully reject bad json.
-        client_data_model = PropertyEstimatorSubmission.parse_raw(json_model)
+        client_data_model = PropertyEstimatorSubmission.parse_json(json_model)
 
         runner_data_model = self._prepare_data_model(client_data_model)
         should_launch = True
@@ -213,7 +240,7 @@ class PropertyEstimatorServer(TCPServer):
         if should_launch:
             self._schedule_calculation(runner_data_model)
 
-    async def _handle_job_query(self, stream, address, message_length):
+    async def _handle_job_query(self, stream, message_length):
         """An asynchronous routine for handling the receiving and processing
         of job queries from a client
 
@@ -222,18 +249,16 @@ class PropertyEstimatorServer(TCPServer):
         stream: IOStream
             An IO stream used to pass messages between the
             server and client.
-        address: str
-            The address from which the request came.
         message_length: int
             The length of the message being recieved.
         """
 
-        logging.info('Received job query from {}'.format(address))
+        # logging.info('Received job query from {}'.format(address))
 
         encoded_request_id = await stream.read_bytes(message_length)
         request_id = encoded_request_id.decode()
 
-        logging.info('Looking up request id {}'.format(request_id))
+        # logging.info('Looking up request id {}'.format(request_id))
 
         response = None
 
@@ -255,7 +280,7 @@ class PropertyEstimatorServer(TCPServer):
 
         await stream.write(length + encoded_response)
 
-        logging.info('Job results sent to the client {}: {}'.format(address, response))
+        # logging.info('Job results sent to the client {}: {}'.format(address, response))
 
     async def handle_stream(self, stream, address):
         """A routine to handle incoming requests from
@@ -275,7 +300,7 @@ class PropertyEstimatorServer(TCPServer):
         address: str
             The address from which the request came.
         """
-        logging.info("Incoming connection from {}".format(address))
+        # logging.info("Incoming connection from {}".format(address))
 
         try:
             while True:
@@ -288,15 +313,15 @@ class PropertyEstimatorServer(TCPServer):
                 packed_message_length = await stream.read_bytes(4)
                 message_length = unpack_int(packed_message_length)[0]
 
-                logging.info('Introductory packet recieved: {} {}'.format(message_type_int, message_length))
+                # logging.info('Introductory packet recieved: {} {}'.format(message_type_int, message_length))
 
                 message_type = None
 
                 try:
                     message_type = PropertyEstimatorMessageTypes(message_type_int)
-                    logging.info('Message type: {}'.format(message_type))
+                    # logging.info('Message type: {}'.format(message_type))
 
-                except Exception as e:
+                except ValueError as e:
 
                     logging.info('Bad message type recieved: {}'.format(e))
 
@@ -309,12 +334,13 @@ class PropertyEstimatorServer(TCPServer):
                 if message_type is PropertyEstimatorMessageTypes.Submission:
                     await self._handle_job_submission(stream, address, message_length)
                 elif message_type is PropertyEstimatorMessageTypes.Query:
-                    await self._handle_job_query(stream, address, message_length)
+                    await self._handle_job_query(stream, message_length)
 
-        except StreamClosedError as e:
+        except StreamClosedError:
 
             # Handle client disconnections gracefully.
-            logging.info("Lost connection to {}:{} : {}.".format(address, self._port, e))
+            # logging.info("Lost connection to {}:{} : {}.".format(address, self._port, e))
+            pass
 
     def _prepare_data_model(self, client_data_model):
         """Turns a client data model into a form more useful to
@@ -331,7 +357,7 @@ class PropertyEstimatorServer(TCPServer):
             The server side data model.
         """
 
-        force_field = deserialize_force_field(client_data_model.force_field)
+        force_field = client_data_model.force_field
 
         force_field_id = self._storage_backend.has_force_field(force_field)
 
@@ -347,16 +373,17 @@ class PropertyEstimatorServer(TCPServer):
         while calculation_id in self._queued_calculations:
             calculation_id = str(uuid.uuid4())
 
-        runner_data = PropertyEstimatorServerData(id=calculation_id,
-                                              queued_properties=client_data_model.properties,
-                                              options=client_data_model.options,
-                                              force_field_id=force_field_id)
+        runner_data = PropertyEstimatorServerData(estimation_id=calculation_id,
+                                                  queued_properties=client_data_model.properties,
+                                                  options=client_data_model.options,
+                                                  force_field_id=force_field_id)
 
         return runner_data
 
-    def _prepare_output_model(self, server_data_model):
+    @staticmethod
+    def _prepare_output_model(server_data_model):
 
-        output_model = PropertyEstimatorResult(id=server_data_model.id)
+        output_model = PropertyEstimatorResult(result_id=server_data_model.id)
 
         output_model.estimated_properties = server_data_model.estimated_properties
         output_model.unsuccessful_properties = server_data_model.unsuccessful_properties

@@ -222,4 +222,4 @@ def get_uncorrelated_indices(time_series_length, statistical_inefficiency):
 
     # Extract a set of uncorrelated data points.
     stride = int(math.ceil(statistical_inefficiency))
-    return range(0, time_series_length, stride)
+    return [index for index in range(0, time_series_length, stride)]

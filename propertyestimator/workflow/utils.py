@@ -18,6 +18,30 @@ class PlaceholderInput:
         pass
 
 
+class ReplicatorValue(PlaceholderInput):
+    """A placeholder value which will be set by a protocol replicator
+    with the specified id.
+    """
+
+    def __init__(self, replicator_id=''):
+        """Constructs a new ReplicatorValue object
+
+        Parameters
+        ----------
+        replicator_id: str
+            The id of the replicator which will set this value.
+        """
+        self.replicator_id = replicator_id
+
+    def __getstate__(self):
+        return {
+            'replicator_id': self.replicator_id
+        }
+
+    def __setstate__(self, state):
+        self.replicator_id = state['replicator_id']
+
+
 class ProtocolPath(PlaceholderInput):
     """Represents a pointer to the output of another protocol.
     """
@@ -52,7 +76,7 @@ class ProtocolPath(PlaceholderInput):
     def is_global(self):
         return self.start_protocol == 'global'
 
-    def __init__(self, property_name, *protocol_ids):
+    def __init__(self, property_name='', *protocol_ids):
         """Constructs a new ProtocolPath object.
 
         Parameters
@@ -64,7 +88,12 @@ class ProtocolPath(PlaceholderInput):
         """
 
         self._full_path = ''
-        self._from_components(property_name, *protocol_ids)
+
+        if len(property_name) > 0 or len(protocol_ids) > 0:
+            self._from_components(property_name, *protocol_ids)
+
+        else:
+            self._full_path = '{}'.format(ProtocolPath.property_separator)
 
     def _from_components(self, property_name, *protocol_ids):
         """Sets this components path from individual components.
@@ -79,8 +108,7 @@ class ProtocolPath(PlaceholderInput):
 
         assert property_name is not None and isinstance(property_name, str)
 
-        assert property_name.find(ProtocolPath.property_separator) < 0 and \
-               property_name.find(ProtocolPath.path_separator) < 0
+        assert property_name.find(ProtocolPath.path_separator) < 0
 
         for protocol_id in protocol_ids:
 
@@ -108,11 +136,6 @@ class ProtocolPath(PlaceholderInput):
 
             raise ValueError('A protocol path must contain a {} followed by the '
                              'property name this path represents'.format(ProtocolPath.property_separator))
-
-        if existing_path_string.find(ProtocolPath.property_separator, property_name_index + 1) >= 0:
-
-            raise ValueError('A protocol path must contain at most one '
-                             'property separator ({})'.format(ProtocolPath.property_separator))
 
         property_name, protocol_ids = ProtocolPath.to_components(existing_path_string)
 

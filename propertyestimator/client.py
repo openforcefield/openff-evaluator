@@ -5,9 +5,7 @@ Property estimator client side API.
 import json
 import logging
 from time import sleep
-from typing import Dict, List
 
-from pydantic import BaseModel, ValidationError
 from simtk import unit
 from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
@@ -16,14 +14,11 @@ from tornado.tcpclient import TCPClient
 from propertyestimator.layers import SurrogateLayer, ReweightingLayer, SimulationLayer
 from propertyestimator.properties import PhysicalProperty
 from propertyestimator.properties.plugins import registered_properties
-from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import serialize_quantity, PolymorphicDataType, serialize_force_field
+from propertyestimator.utils.serialization import TypedBaseModel
 from propertyestimator.utils.tcp import PropertyEstimatorMessageTypes, pack_int, unpack_int
-from propertyestimator.workflow import WorkflowSchema
-from propertyestimator.workflow.utils import ProtocolPath
 
 
-class PropertyEstimatorOptions(BaseModel):
+class PropertyEstimatorOptions(TypedBaseModel):
     """Represents the options options that can be passed to the
     property estimation server backend.
 
@@ -39,7 +34,7 @@ class PropertyEstimatorOptions(BaseModel):
     allowed_calculation_layers: :obj:`list` of :obj:`str`
         A list of allowed calculation layers. The order of the layers in the list is the order
         that the calculator will attempt to execute the layers in.
-    workflow_schemas: :obj:`dict` of :obj:`str` and :obj:`WorkflowSchema`
+    workflow_schemas: :obj:`dict` of :obj:`str` and :obj:`dict` of str and :obj:`WorkflowSchema`
         A dictionary of the WorkflowSchema which will be used to calculate any properties.
         The dictionary key represents the type of property the schema will calculate. The
         dictionary will be automatically populated with defaults if no entries are added.
@@ -56,31 +51,65 @@ class PropertyEstimatorOptions(BaseModel):
         setting this to ['Density'] would calculate the gradients of any estimated
         densities.
     """
-    allowed_calculation_layers: List[str] = [
-        SurrogateLayer.__name__,
-        ReweightingLayer.__name__,
-        SimulationLayer.__name__
-    ]
 
-    workflow_schemas: Dict[str, WorkflowSchema] = {}
+    def __init__(self, allowed_calculation_layers=None, relative_uncertainty_tolerance=1.0,
+                 allow_protocol_merging=True):
+        """Constructs a new PropertyEstimatorServerData object.
 
-    relative_uncertainty_tolerance: float = 1.0
-    allow_protocol_merging: bool = True
+        Parameters
+        ----------
+        allowed_calculation_layers: :obj:`list` of :obj:`str`
+            A list of allowed calculation layers. The order of the layers in the list is the order
+            that the calculator will attempt to execute the layers in.
 
-    gradient_properties: List[str] = []
+            If None, all registered calculation layers are set as allowed.
+        relative_uncertainty_tolerance: :obj:`float`, default = 1.0
+            Controls the desired uncertainty of any calculated properties. The estimator will
+            attempt to estimate all properties to within an uncertainity equal to:
 
-    class Config:
+            `target_uncertainty = relative_uncertainty_tolerance * experimental_uncertainty`
+        allow_protocol_merging: :obj:`bool`, default = True
+            If true, allows individual identical steps in a property estimation workflow to be merged.
+        """
+        self.allowed_calculation_layers = allowed_calculation_layers or [
+            SurrogateLayer.__name__,
+            ReweightingLayer.__name__,
+            SimulationLayer.__name__
+        ]
 
-        arbitrary_types_allowed = True
+        self.workflow_schemas = {}
 
-        json_encoders = {
-            unit.Quantity: lambda v: serialize_quantity(v),
-            ProtocolPath: lambda v: v.full_path,
-            PolymorphicDataType: lambda value: PolymorphicDataType.serialize(value)
+        self.relative_uncertainty_tolerance = relative_uncertainty_tolerance
+        self.allow_protocol_merging = allow_protocol_merging
+
+        self.gradient_properties = []
+
+    def __getstate__(self):
+
+        return {
+            'allowed_calculation_layers': self.allowed_calculation_layers,
+
+            'workflow_schemas': self.workflow_schemas,
+
+            'relative_uncertainty_tolerance': self.relative_uncertainty_tolerance,
+            'allow_protocol_merging': self.allow_protocol_merging,
+
+            'gradient_properties': self.gradient_properties,
         }
 
+    def __setstate__(self, state):
 
-class PropertyEstimatorSubmission(BaseModel):
+        self.allowed_calculation_layers = state['allowed_calculation_layers']
+
+        self.workflow_schemas = state['workflow_schemas']
+
+        self.relative_uncertainty_tolerance = state['relative_uncertainty_tolerance']
+        self.allow_protocol_merging = state['allow_protocol_merging']
+
+        self.gradient_properties = state['gradient_properties']
+
+
+class PropertyEstimatorSubmission(TypedBaseModel):
     """Represents a set of properties to be estimated by the server backend,
     the parameters which will be used to estimate them, and options about
     how the properties will be estimated.
@@ -91,31 +120,48 @@ class PropertyEstimatorSubmission(BaseModel):
 
     Attributes
     ----------
-    properties: :obj:`list` of :obj:`PhysicalProperty`
+    properties: list of PhysicalProperty
         The list of physical properties to estimate.
-    options: :obj:`PropertyEstimatorOptions`
+    options: PropertyEstimatorOptions
         The options which control how the `properties` are estimated.
-    force_field: :obj:`dict` of :obj:`int` and :obj:`str`
-        The force field parameters used during the calculations. These should be
-        obtained by calling `serialize_force_field` on a `ForceField` object.
+    force_field: openforcefield.typing.engines.smirnoff.ForceField
+        The force field parameters used during the calculations.
     """
-    properties: List[PhysicalProperty] = []
-    options: PropertyEstimatorOptions = None
+    def __init__(self, properties=None, force_field=None, options=None):
+        """Constructs a new PropertyEstimatorSubmission object.
 
-    force_field: Dict[int, str] = None
+        Parameters
+        ----------
+        properties: list of PhysicalProperty
+            The list of physical properties to estimate.
+        options: PropertyEstimatorOptions
+            The options which control how the `properties` are estimated.
+        force_field: openforcefield.typing.engines.smirnoff.ForceField
+            The force field parameters used during the calculations.
+        """
+        self.properties = properties or []
+        self.options = options
 
-    class Config:
+        self.force_field = force_field
 
-        arbitrary_types_allowed = True
+    def __getstate__(self):
 
-        json_encoders = {
-            unit.Quantity: lambda v: serialize_quantity(v),
-            ProtocolPath: lambda v: v.full_path,
-            PolymorphicDataType: lambda value: PolymorphicDataType.serialize(value)
+        return {
+            'properties': self.properties,
+            'options': self.options,
+
+            'force_field': self.force_field,
         }
 
+    def __setstate__(self, state):
 
-class PropertyEstimatorResult(BaseModel):
+        self.properties = state['properties']
+        self.options = state['options']
+
+        self.force_field = state['force_field']
+
+
+class PropertyEstimatorResult(TypedBaseModel):
     """Represents the results of attempting to estimate a set of physical
     properties using the property estimator server backend.
 
@@ -125,35 +171,57 @@ class PropertyEstimatorResult(BaseModel):
 
     Attributes
     ----------
-    id: :obj:`str`
+    id: str
         The unique id assigned to this result set by the server.
-    estimated_properties: :obj:`dict` of :obj:`str` and :obj:`PhysicalProperty`
+    estimated_properties: dict of str and PhysicalProperty
         A dictionary of the properties which were successfully estimated, where
         the dictionary key is the unique id of the property being estimated.
-    unsuccessful_properties: :obj:`dict` of :obj:`str` and :obj:`PropertyEstimatorException`
+    unsuccessful_properties: dict of str and PropertyEstimatorException
         A dictionary of the exceptions that were raised when unsuccessfully estimating a property.
         The dictionary key is the unique id of the property which could not be estimated.
-    force_field_id:
-        The server assigned id of the parameter set used in the calculation.
     """
-    id: str
 
-    estimated_properties: Dict[str, PhysicalProperty] = {}
-    unsuccessful_properties: Dict[str, PropertyEstimatorException] = {}
+    def __init__(self, result_id=''):
+        """Constructs a new PropertyEstimatorResult object.
 
-    class Config:
-        arbitrary_types_allowed = True
+        Parameters
+        ----------
+        result_id: str
+            The unique id assigned to this result set by the server.
+        """
 
-        json_encoders = {
-            unit.Quantity: lambda v: serialize_quantity(v),
-            ProtocolPath: lambda v: v.full_path,
-            PolymorphicDataType: lambda value: PolymorphicDataType.serialize(value)
+        self.id = result_id
+
+        self.estimated_properties = {}
+        self.unsuccessful_properties = {}
+
+    def __getstate__(self):
+
+        return {
+            'id:': self.id,
+
+            'estimated_properties': self.estimated_properties,
+            'unsuccessful_properties': self.unsuccessful_properties,
         }
 
+    def __setstate__(self, state):
 
-class PropertyEstimatorConnectionOptions(BaseModel):
+        self.id = state['id:']
+
+        self.estimated_properties = state['estimated_properties']
+        self.unsuccessful_properties = state['unsuccessful_properties']
+
+
+class PropertyEstimatorConnectionOptions(TypedBaseModel):
     """The set of options to use when connecting to a
     `PropertyEstimatorServer`
+
+    Attributes
+    ----------
+    server_address: str
+        The address of the server to connect to.
+    server_port: int
+        The port number that the server is listening on.
 
     Warnings
     --------
@@ -163,15 +231,41 @@ class PropertyEstimatorConnectionOptions(BaseModel):
     server_address: str = 'localhost'
     server_port: int = 8000
 
+    def __init__(self, server_address='localhost', server_port=8000):
+        """Constructs a new PropertyEstimatorConnectionOptions object.
+
+        Parameters
+        ----------
+        server_address: str
+            The address of the server to connect to.
+        server_port: int
+            The port number that the server is listening on.
+        """
+
+        self.server_address = server_address
+        self.server_port = server_port
+
+    def __getstate__(self):
+
+        return {
+            'server_address': self.server_address,
+            'server_port': self.server_port,
+        }
+
+    def __setstate__(self, state):
+
+        self.server_address = state['server_address']
+        self.server_port = state['server_port']
+
 
 class PropertyEstimatorClient:
-    """The :obj:`PropertyEstimatorClient` is the main object that users of the
+    """The PropertyEstimatorClient is the main object that users of the
     property estimator will interface with. It is responsible for requesting
-    that a :obj:`PropertyEstimatorServer` estimates a set of physical properties,
+    that a PropertyEstimatorServer estimates a set of physical properties,
     as well as querying for when those properties have been estimated.
 
-    The :obj:`PropertyEstimatorClient` supports two main workflows: one where
-    a :obj:`PropertyEstimatorServer` lives on a remote supercomputing cluster
+    The PropertyEstimatorClient supports two main workflows: one where
+    a PropertyEstimatorServer lives on a remote supercomputing cluster
     where all of the expensive calculations will be run, and one where
     the users local machine acts as both the server and the client, and
     all calculations will be performed locally.
@@ -189,7 +283,7 @@ class PropertyEstimatorClient:
     >>> from propertyestimator.client import PropertyEstimatorClient
     >>> property_estimator = PropertyEstimatorClient()
 
-    If the :obj:`PropertyEstimatorServer` is not running on the local machine, you will
+    If the PropertyEstimatorServer is not running on the local machine, you will
     need to specify its address and the port that it is listening on:
 
     >>> from propertyestimator.client import PropertyEstimatorConnectionOptions
@@ -226,7 +320,7 @@ class PropertyEstimatorClient:
     >>> results = request.results(synchronous=True)
 
     How the property set will be estimated can easily be controlled by passing a
-    :obj:`PropertyEstimatorOptions` object to the estimate commands.
+    PropertyEstimatorOptions object to the estimate commands.
 
     The calculations layers which will be used to estimate the properties can be
     controlled for example like so:
@@ -350,23 +444,23 @@ class PropertyEstimatorClient:
 
             Parameters
             ----------
-            synchronous: :obj:`bool`
+            synchronous: bool
                 If true, this method will block the main thread until the server
                 either returns a result or an error.
-            polling_interval: :obj:`int`
+            polling_interval: int
                 If running synchronously, this is the time interval (seconds) between
                 checking if the calculation has finished.
 
             Returns
             -------
             If the method is run synchronously then this method will block the main
-            thread until the server returns either an error (:obj:`PropertyCalculatorException`),
-            or the results of the requested estimate (:obj:`PropertyEstimatorResult`).
+            thread until the server returns either an error (PropertyCalculatorException),
+            or the results of the requested estimate (PropertyEstimatorResult).
 
             If the method is run asynchronously, it will return None if the
             estimate is still queued for calculation on the server, or either
-            an error (:obj:`PropertyCalculatorException`) or results
-            (:obj:`PropertyEstimatorResult`) object.
+            an error (PropertyCalculatorException) or results
+            (PropertyEstimatorResult) object.
             """
             return self._client._retrieve_estimate(self._id, synchronous, polling_interval)
 
@@ -375,7 +469,7 @@ class PropertyEstimatorClient:
 
         Parameters
         ----------
-        connection_options: :obj:`PropertyEstimatorConnectionOptions`
+        connection_options: PropertyEstimatorConnectionOptions
             The options used when connecting to the calculation server.
         """
 
@@ -389,16 +483,16 @@ class PropertyEstimatorClient:
         self._tcp_client = TCPClient()
 
     def request_estimate(self, property_set, force_field, options=None):
-        """Requests that a :obj:`PropertyEstimatorServer` attempt to estimate the
+        """Requests that a PropertyEstimatorServer attempt to estimate the
         provided property set using the supplied force field and estimator options.
 
         Parameters
         ----------
-        property_set : :obj:`PhysicalPropertyDataSet`
+        property_set : PhysicalPropertyDataSet
             The set of properties to attempt to estimate.
-        force_field : :obj:`ForceField`
+        force_field : ForceField
             The OpenFF force field to use for the calculations.
-        options : :obj:`PropertyEstimatorOptions`, optional
+        options : PropertyEstimatorOptions, optional
             A set of estimator options. If None, default options
             will be used.
 
@@ -435,20 +529,33 @@ class PropertyEstimatorClient:
 
                 property_type = registered_properties[type_name]()
 
-                options.workflow_schemas[type_name] = \
-                    property_type.get_default_calculation_schema()
+                for calculation_layer in options.allowed_calculation_layers:
 
-        for property_schema_name in options.workflow_schemas:
+                    if type_name not in options.workflow_schemas:
+                        options.workflow_schemas[type_name] = {}
 
-            options.workflow_schemas[property_schema_name].validate_interfaces()
+                    if (calculation_layer not in options.workflow_schemas[type_name] or
+                        options.workflow_schemas[type_name][calculation_layer] is None):
 
-            for protocol_schema_name in options.workflow_schemas[property_schema_name].protocols:
+                        options.workflow_schemas[type_name][calculation_layer] = \
+                            property_type.get_default_workflow_schema(calculation_layer)
 
-                protocol_schema = options.workflow_schemas[property_schema_name].protocols[protocol_schema_name]
-                protocol_schema.inputs['.allow_merging'] = PolymorphicDataType(options.allow_protocol_merging)
+                    workflow = property_type.get_default_workflow_schema(calculation_layer)
+
+                    if workflow is None:
+                        continue
+
+                    workflow.validate_interfaces()
+
+                    for protocol_schema_name in workflow.protocols:
+
+                        protocol_schema = workflow.protocols[protocol_schema_name]
+
+                        if not options.allow_protocol_merging:
+                            protocol_schema.inputs['.allow_merging'] = False
 
         submission = PropertyEstimatorSubmission(properties=properties_list,
-                                                 force_field=serialize_force_field(force_field),
+                                                 force_field=force_field,
                                                  options=options)
 
         request_id = IOLoop.current().run_sync(lambda: self._send_calculations_to_server(submission))
@@ -464,26 +571,26 @@ class PropertyEstimatorClient:
 
         Parameters
         ----------
-        request_id: :obj:`str`
+        request_id: str
             The id of the estimate request which was returned by the server
             upon making the request.
-        synchronous: :obj:`bool`
+        synchronous: bool
             If true, this method will block the main thread until the server
             either returns a result or an error.
-        polling_interval: :obj:`int`
+        polling_interval: int
             If running synchronously, this is the time interval (seconds) between
             checking if the calculation has finished.
 
         Returns
         -------
         If the method is run synchronously then this method will block the main
-        thread until the server returns either an error (:obj:`PropertyCalculatorException`),
-        or the results of the requested estimate (:obj:`PropertyEstimatorResult`).
+        thread until the server returns either an error (PropertyCalculatorException),
+        or the results of the requested estimate (PropertyEstimatorResult).
 
         If the method is run asynchronously, it will return None if the
         estimate is still queued for calculation on the server, or either
-        an error (:obj:`PropertyCalculatorException`) or results
-        (:obj:`PropertyEstimatorResult`) object.
+        an error (PropertyCalculatorException) or results
+        (PropertyEstimatorResult) object.
         """
 
         # If running asynchronously, just return whatever the server
@@ -662,11 +769,7 @@ class PropertyEstimatorClient:
                                                                              self._connection_options.server_port, e))
 
         if server_response is not None:
-
-            try:
-                server_response = PropertyEstimatorResult.parse_raw(server_response)
-            except ValidationError:
-                server_response = PropertyEstimatorException.parse_raw(server_response)
+            server_response = TypedBaseModel.parse_json(server_response)
 
         # Return the ids of the submitted jobs.
         return server_response

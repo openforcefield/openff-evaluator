@@ -6,6 +6,7 @@ from mdtraj import Trajectory
 
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
+from propertyestimator.utils.statistics import StatisticsArray
 
 
 class StoredSimulationData:
@@ -14,16 +15,18 @@ class StoredSimulationData:
 
     def __init__(self):
 
+        self.unique_id: str = None
+
         self.substance: Substance = None
         self.thermodynamic_state: ThermodynamicState = None
 
         self.source_calculation_id: str = None
         self.provenance: str = None
 
-        self.autocorrelation_time: float = 0.0
-        self.effective_samples: int = 0
+        self.statistical_inefficiency: float = 0.0
 
         self.trajectory_data: Trajectory = None
+        self.statistics_data: StatisticsArray = None
 
         self.force_field_id: str = None
 

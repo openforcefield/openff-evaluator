@@ -31,12 +31,15 @@ Server Side API
 Physical Property API
 ---------------------
 
-.. currentmodule:: propertyestimator.properties
+.. currentmodule:: propertyestimator
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
-    PhysicalProperty
+    properties.PhysicalProperty
+    substances.Substance
+    substances.Mixture
+    thermodynamics.ThermodynamicState
 
 **Built-in Properties**
 
@@ -100,6 +103,7 @@ Storage Backends API
     :toctree: api/generated/
 
     PropertyEstimatorStorage
+    StoredSimulationData
 
 **Built-in Backends**
 
@@ -110,8 +114,16 @@ Storage Backends API
 
     LocalFileStorage
 
-Workflow Components API
------------------------
+Workflow API
+------------
+
+.. currentmodule:: propertyestimator.workflow
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    Workflow
+    WorkflowGraph
 
 **Schema**
 
@@ -143,7 +155,7 @@ Workflow Components API
     :toctree: api/generated/
 
     BuildCoordinatesPackmol
-    BuildSmirnoffTopology
+    BuildSmirnoffSystem
     RunEnergyMinimisation
     RunOpenMMSimulation
     AveragePropertyProtocol
@@ -152,6 +164,7 @@ Workflow Components API
     ExtractUncorrelatedTrajectoryData
     AddQuantities
     SubtractQuantities
+    UnpackStoredSimulationData
 
 **Protocol Groups**
 
