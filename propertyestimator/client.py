@@ -70,7 +70,11 @@ class PropertyEstimatorOptions(TypedBaseModel):
         allow_protocol_merging: :obj:`bool`, default = True
             If true, allows individual identical steps in a property estimation workflow to be merged.
         """
-        self.allowed_calculation_layers = allowed_calculation_layers or [
+        self.allowed_calculation_layers = allowed_calculation_layers
+
+        if self.allowed_calculation_layers is None:
+
+            self.allowed_calculation_layers = [
             SurrogateLayer.__name__,
             ReweightingLayer.__name__,
             SimulationLayer.__name__
@@ -597,14 +601,15 @@ class PropertyEstimatorClient:
         if synchronous is False:
             return IOLoop.current().run_sync(lambda: self._send_query_server(request_id))
 
-        assert polling_interval >= 1
+        assert polling_interval >= 0
 
         response = None
         should_run = True
 
         while should_run:
 
-            sleep(polling_interval)
+            if polling_interval > 0:
+                sleep(polling_interval)
 
             response = IOLoop.current().run_sync(lambda: self._send_query_server(request_id))
 
