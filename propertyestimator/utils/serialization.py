@@ -5,10 +5,10 @@ A collection of classes which aid in serializing data types.
 import importlib
 import inspect
 import json
+from abc import ABC, abstractmethod
 from enum import Enum
 from io import BytesIO
 
-from pydantic import BaseModel
 from simtk import unit
 
 from propertyestimator.utils.quantities import EstimatedQuantity
@@ -290,7 +290,7 @@ class TypedJSONEncoder(json.JSONEncoder):
 
             if isinstance(encoder_type, str):
 
-                if encoder_type != str(type_to_serialize):
+                if encoder_type != qualified_name:
                     continue
 
             elif not issubclass(type_to_serialize, encoder_type):
@@ -360,7 +360,7 @@ class TypedJSONDecoder(json.JSONDecoder):
 
             if isinstance(decoder_type, str):
 
-                if decoder_type != str(class_type):
+                if decoder_type != class_type.__qualname__:
                     continue
 
             elif not issubclass(class_type, decoder_type):
@@ -416,32 +416,72 @@ class TypedJSONDecoder(json.JSONDecoder):
         return deserialized_object
 
 
-class TypedBaseModel(BaseModel):
+class TypedBaseModel(ABC):
+    """An abstract base class which represents any object which
+    can be serialized to JSON.
 
-    def json(self, *, include=None, exclude=None, by_alias=False, encoder=TypedJSONEncoder,**dumps_kwargs,):
+    JSON produced using this class will include extra @type tags
+    for any non-primitive typed values (e.g not a str, int...),
+    which ensure that the correct class structure is correctly
+    reproduced on deserialization.
 
-        assert include is None and exclude is None and by_alias is False
-        json_string = json.dumps(self, cls=encoder or self._json_encoder, **dumps_kwargs,)
+    EXAMPLE
 
+    It is a requirement that any classes inheriting from this one
+    must implement a valid `__getstate__` and `__setstate__` method,
+    as these are what determines the structure of the serialized
+    output.
+    """
+
+    def json(self):
+        """Creates a JSON representation of this class.
+
+        Returns
+        -------
+        str
+            The JSON representation of this class.
+        """
+        json_string = json.dumps(self, cls=TypedJSONEncoder)
         return json_string
 
     @classmethod
-    def parse_raw(cls, byte_string, *, content_type=None, encoding='utf8', proto=None, allow_pickle=False,):
+    def parse_json(cls, string_contents, encoding='utf8'):
+        """Parses a typed json string into the corresponding class
+        structure.
 
-        return_object_state = json.loads(byte_string, encoding=encoding, cls=TypedJSONDecoder).__getstate__()
+        Parameters
+        ----------
+        string_contents: str or bytes
+            The typed json string.
+        encoding: str
+            The encoding of the `string_contents`.
 
-        if '@type' in return_object_state:
-            return_object_state.pop('@type')
-
-        return_object = cls.parse_obj(return_object_state)
+        Returns
+        -------
+        Any
+            The parsed class.
+        """
+        return_object = json.loads(string_contents, encoding=encoding, cls=TypedJSONDecoder)
         return return_object
 
-    @classmethod
-    def _get_value(cls, v, by_alias=False):
-        if issubclass(cls, TypedBaseModel) and isinstance(v, dict):
-            return v
+    @abstractmethod
+    def __getstate__(self):
+        """Returns a dictionary representation of this object.
 
-        return BaseModel._get_value(v, by_alias)
+        Returns
+        -------
+        dict of str, Any
+            The dictionary representation of this object.
+        """
+        pass
 
-    class Config:
-        arbitrary_types_allowed = True
+    @abstractmethod
+    def __setstate__(self, state):
+        """Sets the fields of this object from its dictionary representation.
+
+        Parameters
+        ----------
+        state: dict of str, Any
+            The dictionary representation of the object.
+        """
+        pass

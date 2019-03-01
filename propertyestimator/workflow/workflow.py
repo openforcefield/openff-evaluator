@@ -106,7 +106,7 @@ class Workflow:
         value: WorkflowSchema
             The schema which outlines this steps in this workflow.
         """
-        schema = WorkflowSchema.parse_raw(value.json())
+        schema = WorkflowSchema.parse_json(value.json())
 
         self.final_value_source = ProtocolPath.from_string(schema.final_value_source.full_path)
         self.final_value_source.append_uuid(self.uuid)

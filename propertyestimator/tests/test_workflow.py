@@ -37,8 +37,7 @@ def create_dummy_property(property_class):
                                     phase=PropertyPhase.Liquid,
                                     substance=substance,
                                     value=10 * unit.gram,
-                                    uncertainty=1 * unit.gram,
-                                    id=str(uuid.uuid4()))
+                                    uncertainty=1 * unit.gram)
 
     return dummy_property
 
@@ -101,7 +100,7 @@ def test_workflow_schema_simulation(registered_property_name, available_layer):
     json_schema = schema.json()
     print(json_schema)
 
-    schema_from_json = WorkflowSchema.parse_raw(json_schema)
+    schema_from_json = WorkflowSchema.parse_json(json_schema)
     print(schema_from_json)
 
     property_recreated_json = schema_from_json.json()
@@ -168,16 +167,14 @@ def test_density_dielectric_merging():
                       phase=PropertyPhase.Liquid,
                       substance=substance,
                       value=10*unit.gram/unit.mole,
-                      uncertainty=1*unit.gram/unit.mole,
-                      id=str(uuid.uuid4()))
+                      uncertainty=1*unit.gram/unit.mole)
 
     dielectric = DielectricConstant(thermodynamic_state=ThermodynamicState(temperature=298*unit.kelvin,
                                                                            pressure=1*unit.atmosphere),
                                     phase=PropertyPhase.Liquid,
                                     substance=substance,
                                     value=10*unit.gram/unit.mole,
-                                    uncertainty=1*unit.gram/unit.mole,
-                                    id=str(uuid.uuid4()))
+                                    uncertainty=1*unit.gram/unit.mole)
 
     density_schema = density.get_default_workflow_schema('SimulationLayer')
     dielectric_schema = dielectric.get_default_workflow_schema('SimulationLayer')
@@ -230,12 +227,12 @@ def test_nested_replicators():
 
     dummy_schema.final_value_source = ProtocolPath('final_value', dummy_protocol.id)
 
-    replicator_a = ProtocolReplicator(id='rep_a')
+    replicator_a = ProtocolReplicator(replicator_id='rep_a')
 
     replicator_a.template_values = ['a', 'b']
     replicator_a.protocols_to_replicate = [ProtocolPath('', dummy_protocol.id)]
 
-    replicator_b = ProtocolReplicator(id='rep_b')
+    replicator_b = ProtocolReplicator(replicator_id='rep_b')
 
     replicator_b.template_values = [1, 2]
     replicator_b.protocols_to_replicate = [ProtocolPath('', dummy_protocol.id)]

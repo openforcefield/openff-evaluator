@@ -80,7 +80,12 @@ class ProtocolGroup(BaseProtocol):
 
         base_schema = super(ProtocolGroup, self)._get_schema()
         # Convert the base schema to a group one.
-        schema = ProtocolGroupSchema.parse_obj(base_schema.dict())
+        schema = ProtocolGroupSchema()
+
+        schema_dict = schema.__getstate__()
+        schema_dict.update(base_schema.__getstate__())
+
+        schema.__setstate__(schema_dict)
 
         for protocol_id in self._protocols:
             schema.grouped_protocol_schemas.append(self._protocols[protocol_id].schema)
@@ -88,6 +93,12 @@ class ProtocolGroup(BaseProtocol):
         return schema
 
     def _set_schema(self, schema_value):
+        """
+        Parameters
+        ----------
+        schema_value: ProtocolGroupSchema
+            The schema from which this group should take its properties.
+        """
 
         super(ProtocolGroup, self)._set_schema(schema_value)
 

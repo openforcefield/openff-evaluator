@@ -287,7 +287,7 @@ class EnthalpyOfMixing(PhysicalProperty):
 
         # Create the replicator object which defines how the pure component
         # enthalpy estimation workflow will be replicated for each component.
-        component_replicator = ProtocolReplicator(id='repl')
+        component_replicator = ProtocolReplicator(replicator_id='repl')
 
         component_replicator.protocols_to_replicate = []
 

@@ -18,5 +18,29 @@ class PropertyEstimatorException(TypedBaseModel):
 
     .. todo:: Flesh out more fully.
     """
-    directory: str
-    message: str
+
+    def __init__(self, directory='', message=''):
+        """Constructs a new PropertyEstimatorException object.
+
+        Parameters
+        ----------
+        directory: str
+            The directory in which this exception was raised.
+        message:
+            Information about the raised exception.
+        """
+
+        self.directory = directory
+        self.message = message
+
+    def __getstate__(self):
+
+        return {
+            'directory': self.directory,
+            'message': self.message
+        }
+
+    def __setstate__(self, state):
+
+        self.directory = state['directory']
+        self.message = state['message']

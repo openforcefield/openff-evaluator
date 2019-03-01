@@ -2,7 +2,6 @@
 Units tests for propertyestimator.utils.serialization
 """
 from enum import Enum, IntEnum
-from typing import Dict, Any
 
 from simtk import unit
 
@@ -55,8 +54,22 @@ class FooInherited(Foo):
 
 class Bar(TypedBaseModel):
 
-    field1: str = 'field1'
-    field2: int = 2
+    def __init__(self):
+
+        self.field1 = 'field1'
+        self.field2 = 2
+
+    def __getstate__(self):
+
+        return {
+            'field1': self.field1,
+            'field2': self.field2,
+        }
+
+    def __setstate__(self, state):
+
+        self.field1 = state['field1']
+        self.field2 = state['field2']
 
 
 class BarInherited(Bar):
@@ -131,17 +144,44 @@ class ComplexObject:
         self.field2 = state['field2']
 
 
-class PydanticTestClass(TypedBaseModel):
+class TestClass(TypedBaseModel):
 
-    inputs: Dict[str, Any] = None
+    def __init__(self, inputs=None):
+        self.inputs = inputs
 
-    foo: Any = Foo()
-    bar: Any = Bar()
+        self.foo = Foo()
+        self.bar = Bar()
 
-    foo_inherited: Any = FooInherited()
-    bar_inherited: Any = BarInherited()
+        self.foo_inherited = FooInherited()
+        self.bar_inherited = BarInherited()
 
-    complex: Any = ComplexObject()
+        self.complex = ComplexObject()
+
+    def __getstate__(self):
+
+        return {
+            'inputs': self.inputs,
+
+            'foo': self.foo,
+            'bar': self.bar,
+    
+            'foo_inherited': self.foo_inherited,
+            'bar_inherited': self.bar_inherited,
+    
+            'complex': self.complex,
+        }
+
+    def __setstate__(self, state):
+
+        self.inputs = state['inputs']
+
+        self.foo = state['foo']
+        self.bar = state['bar']
+
+        self.foo_inherited = state['foo_inherited']
+        self.bar_inherited = state['bar_inherited']
+
+        self.complex = state['complex']
 
 
 def test_polymorphic_dictionary():
@@ -163,13 +203,13 @@ def test_polymorphic_dictionary():
         "test_Complex": ComplexObject()
     }
 
-    pydantic_object = PydanticTestClass(inputs=test_dictionary)
-    pydantic_json = pydantic_object.json()
+    test_object = TestClass(inputs=test_dictionary)
+    test_json = test_object.json()
 
-    pydantic_recreated = PydanticTestClass.parse_raw(pydantic_json)
-    pydantic_recreated_json = pydantic_recreated.json()
+    test_recreated = TestClass.parse_json(test_json)
+    test_recreated_json = test_recreated.json()
 
-    assert pydantic_json == pydantic_recreated_json
+    assert test_json == test_recreated_json
 
 
 def test_force_field_serialization():

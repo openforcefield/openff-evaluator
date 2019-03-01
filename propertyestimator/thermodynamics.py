@@ -41,6 +41,32 @@ class ThermodynamicState(TypedBaseModel):
     temperature: Optional[unit.Quantity] = None
     pressure: Optional[unit.Quantity] = None
 
+    def __init__(self, temperature=None, pressure=None):
+        """Constructs a new ThermodynamicState object.
+
+        Parameters
+        ----------
+        temperature : simtk.unit.Quantity with units compatible with kelvin
+            The external temperature
+        pressure : simtk.unit.Quantity with units compatible with atmospheres
+            The external pressure
+        """
+
+        self.temperature = temperature
+        self.pressure = pressure
+
+    def __getstate__(self):
+
+        return {
+            'temperature': self.temperature,
+            'pressure': self.pressure,
+        }
+
+    def __setstate__(self, state):
+
+        self.temperature = state['temperature']
+        self.pressure = state['pressure']
+
     def __repr__(self):
         """
         Returns a string representation of a state.
