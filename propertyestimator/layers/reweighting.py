@@ -121,7 +121,7 @@ class ReweightingLayer(PropertyCalculationLayer):
 
                     data_paths[substance_id].append(path_tuple)
 
-            return data_paths
+        return data_paths
 
     @staticmethod
     def _build_workflow_graph(working_directory, properties, target_force_field_path,

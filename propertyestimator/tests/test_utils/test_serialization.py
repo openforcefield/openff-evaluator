@@ -3,6 +3,7 @@ Units tests for propertyestimator.utils.serialization
 """
 from enum import Enum, IntEnum
 
+import pytest
 from simtk import unit
 
 from propertyestimator.utils import get_data_filename

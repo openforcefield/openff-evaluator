@@ -1,86 +1,32 @@
 """
 Units tests for propertyestimator.layers.simulation
 """
-import uuid
+import tempfile
 from collections import OrderedDict
 
 import pytest
 from simtk import unit
 
+from propertyestimator.backends import DaskLocalClusterBackend, ComputeResources
 from propertyestimator.client import PropertyEstimatorOptions
 from propertyestimator.layers import available_layers
+from propertyestimator.layers.layers import CalculationLayerResult
 from propertyestimator.layers.simulation import Workflow, WorkflowGraph
 from propertyestimator.properties import PropertyPhase
 from propertyestimator.properties.density import Density
 from propertyestimator.properties.dielectric import DielectricConstant
 from propertyestimator.properties.plugins import registered_properties
 from propertyestimator.substances import Mixture
+from propertyestimator.tests.test_workflow.utils import DummyReplicableProtocol, create_dummy_metadata, \
+    DummyEstimatedQuantityProtocol
+from propertyestimator.tests.utils import create_dummy_property
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import get_data_filename, graph
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import WorkflowSchema
-from propertyestimator.workflow.decorators import protocol_input
-from propertyestimator.workflow.plugins import register_calculation_protocol
-from propertyestimator.workflow.protocols import BaseProtocol
+from propertyestimator.workflow.groups import ConditionalGroup
 from propertyestimator.workflow.schemas import ProtocolReplicator
 from propertyestimator.workflow.utils import ReplicatorValue, ProtocolPath
-
-
-def create_dummy_property(property_class):
-
-    substance = Mixture()
-    substance.add_component('C', 0.5)
-    substance.add_component('CO', 0.5)
-
-    dummy_property = property_class(thermodynamic_state=ThermodynamicState(temperature=298 * unit.kelvin,
-                                                                           pressure=1 * unit.atmosphere),
-                                    phase=PropertyPhase.Liquid,
-                                    substance=substance,
-                                    value=10 * unit.gram,
-                                    uncertainty=1 * unit.gram)
-
-    return dummy_property
-
-
-def create_dummy_metadata(dummy_property, calculation_layer):
-
-    global_metadata = Workflow.generate_default_metadata(dummy_property,
-                                                         get_data_filename('forcefield/smirnoff99Frosst.offxml'),
-                                                         PropertyEstimatorOptions())
-
-    if calculation_layer == 'ReweightingLayer':
-
-        global_metadata['full_system_data'] = [
-            ('data_path_0', 'ff_path_0'),
-            ('data_path_1', 'ff_path_0'),
-            ('data_path_2', 'ff_path_1')
-        ]
-
-    return global_metadata
-
-
-@register_calculation_protocol()
-class DummyReplicableProtocol(BaseProtocol):
-
-    @protocol_input(value_type=list)
-    def replicated_value_a(self):
-        pass
-
-    @protocol_input(value_type=list)
-    def replicated_value_b(self):
-        pass
-
-    @protocol_input(value_type=EstimatedQuantity)
-    def final_value(self):
-        pass
-
-    def __init__(self, protocol_id):
-        super().__init__(protocol_id)
-
-        self._replicated_value_a = None
-        self._replicated_value_b = None
-
-        self._final_value = EstimatedQuantity(1 * unit.kelvin, 0.1 * unit.kelvin, 'dummy')
 
 
 @pytest.mark.parametrize("registered_property_name", registered_properties)
@@ -268,3 +214,92 @@ def test_nested_replicators():
     assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_1_1'].replicated_value_b == 2
 
     print(dummy_workflow.schema)
+
+
+def test_simple_workflow_graph():
+    dummy_schema = WorkflowSchema()
+
+    dummy_protocol_a = DummyEstimatedQuantityProtocol('protocol_a')
+    dummy_protocol_a.input_value = EstimatedQuantity(1 * unit.kelvin, 0.1 * unit.kelvin, 'dummy_source')
+
+    dummy_schema.protocols[dummy_protocol_a.id] = dummy_protocol_a.schema
+
+    dummy_protocol_b = DummyEstimatedQuantityProtocol('protocol_b')
+    dummy_protocol_b.input_value = ProtocolPath('output_value', dummy_protocol_a.id)
+
+    dummy_schema.protocols[dummy_protocol_b.id] = dummy_protocol_b.schema
+
+    dummy_schema.final_value_source = ProtocolPath('output_value', dummy_protocol_b.id)
+
+    dummy_schema.validate_interfaces()
+
+    dummy_property = create_dummy_property(Density)
+
+    dummy_workflow = Workflow(dummy_property, {})
+    dummy_workflow.schema = dummy_schema
+
+    with tempfile.TemporaryDirectory() as temporary_directory:
+
+        workflow_graph = WorkflowGraph(temporary_directory)
+        workflow_graph.add_workflow(dummy_workflow)
+
+        dask_local_backend = DaskLocalClusterBackend(1, ComputeResources(1))
+        dask_local_backend.start()
+
+        results_futures = workflow_graph.submit(dask_local_backend)
+
+        assert len(results_futures) == 1
+
+        result = results_futures[0].result()
+        assert isinstance(result, CalculationLayerResult)
+        assert result.calculated_property.value == 1 * unit.kelvin
+
+
+def test_simple_workflow_graph_with_groups():
+    dummy_schema = WorkflowSchema()
+
+    dummy_protocol_a = DummyEstimatedQuantityProtocol('protocol_a')
+    dummy_protocol_a.input_value = EstimatedQuantity(1 * unit.kelvin, 0.1 * unit.kelvin, 'dummy_source')
+
+    dummy_protocol_b = DummyEstimatedQuantityProtocol('protocol_b')
+    dummy_protocol_b.input_value = ProtocolPath('output_value', dummy_protocol_a.id)
+
+    conditional_group = ConditionalGroup('conditional_group')
+    conditional_group.add_protocols(dummy_protocol_a, dummy_protocol_b)
+
+    condition = ConditionalGroup.Condition()
+    condition.right_hand_value = 2*unit.kelvin
+    condition.type = ConditionalGroup.ConditionType.LessThan
+
+    condition.left_hand_value = ProtocolPath('output_value.value', conditional_group.id,
+                                                                   dummy_protocol_b.id)
+
+    conditional_group.add_condition(condition)
+
+    dummy_schema.protocols[conditional_group.id] = conditional_group.schema
+
+    dummy_schema.final_value_source = ProtocolPath('output_value', conditional_group.id,
+                                                                   dummy_protocol_b.id)
+
+    dummy_schema.validate_interfaces()
+
+    dummy_property = create_dummy_property(Density)
+
+    dummy_workflow = Workflow(dummy_property, {})
+    dummy_workflow.schema = dummy_schema
+
+    with tempfile.TemporaryDirectory() as temporary_directory:
+
+        workflow_graph = WorkflowGraph(temporary_directory)
+        workflow_graph.add_workflow(dummy_workflow)
+
+        dask_local_backend = DaskLocalClusterBackend(1, ComputeResources(1))
+        dask_local_backend.start()
+
+        results_futures = workflow_graph.submit(dask_local_backend)
+
+        assert len(results_futures) == 1
+
+        result = results_futures[0].result()
+        assert isinstance(result, CalculationLayerResult)
+        assert result.calculated_property.value == 1 * unit.kelvin

@@ -107,3 +107,11 @@ ENV/
 
 # PyChamr
 .idea
+
+# Estimator Specific
+examples/property_estimator/dask-worker-space/
+examples/property_estimator/stored_data/
+examples/property_estimator/working_directory/
+
+propertyestimator/data/properties/JCT/
+propertyestimator/tests/dask-worker-space/

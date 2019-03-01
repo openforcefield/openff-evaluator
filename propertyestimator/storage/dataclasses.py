@@ -29,11 +29,3 @@ class StoredSimulationData:
         self.statistics_data: StatisticsArray = None
 
         self.force_field_id: str = None
-
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, v):
-        return v

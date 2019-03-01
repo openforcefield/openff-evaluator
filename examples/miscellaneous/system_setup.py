@@ -4,7 +4,7 @@ from simtk import unit
 from propertyestimator.backends import ComputeResources
 from propertyestimator.substances import Mixture
 from propertyestimator.utils import get_data_filename
-from propertyestimator.workflow.protocols import BuildCoordinatesPackmol, BuildSmirnoffTopology, RunEnergyMinimisation
+from propertyestimator.workflow.protocols import BuildCoordinatesPackmol, BuildSmirnoffSystem, RunEnergyMinimisation
 
 
 def build_solvated_system():
@@ -42,7 +42,7 @@ def build_solvated_system():
     # Assign some smirnoff force field parameters to the
     # coordinates
     print('Assigning some parameters.')
-    assign_force_field_parameters = BuildSmirnoffTopology('')
+    assign_force_field_parameters = BuildSmirnoffSystem('')
 
     assign_force_field_parameters.force_field_path = get_data_filename('forcefield/smirnoff99Frosst.offxml')
     assign_force_field_parameters.coordinate_file_path = 'output.pdb'

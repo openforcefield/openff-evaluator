@@ -1,6 +1,7 @@
 """
 Units tests for propertyestimator.utils.statistics
 """
+import os
 
 from simtk import unit
 
@@ -15,6 +16,9 @@ def test_statistics_object():
 
     statistics_object = StatisticsArray.from_pandas_csv('stats_pandas.csv')
     subsampled_array = StatisticsArray.from_statistics_array(statistics_object, [1, 2, 3])
+
+    if os.path.isfile('stats_pandas.csv'):
+        os.unlink('stats_pandas.csv')
 
     assert statistics_object is not None
     assert subsampled_array is not None and len(subsampled_array) == 3
