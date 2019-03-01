@@ -18,8 +18,8 @@ from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import WorkflowSchema
 from propertyestimator.workflow import protocols, groups, plugins
 from propertyestimator.workflow.decorators import protocol_input
-from propertyestimator.workflow.schemas import WorkflowOutputToStore
-from propertyestimator.workflow.utils import ProtocolPath
+from propertyestimator.workflow.schemas import WorkflowOutputToStore, ProtocolReplicator
+from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
 @plugins.register_calculation_protocol()
@@ -130,6 +130,8 @@ class ExtractAverageDielectric(protocols.AverageTrajectoryProperty):
         dipole_moments, self._equilibration_index, self._statistical_inefficiency = \
             timeseries.decorrelate_time_series(dipole_moments)
 
+        self._uncorrelated_values = unit.Quantity(dipole_moments, None)
+
         dipole_moments_and_volume = np.zeros([dipole_moments.shape[0], 4])
 
         for index in range(dipole_moments.shape[0]):
@@ -154,6 +156,14 @@ class ExtractAverageDielectric(protocols.AverageTrajectoryProperty):
 class DielectricConstant(PhysicalProperty):
     """A class representation of a dielectric property"""
 
+    @property
+    def multi_component_property(self):
+        """Returns whether this property is dependant on properties of the
+        full mixed substance, or whether it is also dependant on the properties
+        of the individual components also.
+        """
+        return False
+
     @staticmethod
     def get_default_workflow_schema(calculation_layer):
         """Returns the default workflow schema to use for
@@ -172,6 +182,8 @@ class DielectricConstant(PhysicalProperty):
         """
         if calculation_layer == 'SimulationLayer':
             return DielectricConstant.get_default_simulation_workflow_schema()
+        elif calculation_layer == 'ReweightingLayer':
+            return DielectricConstant.get_default_reweighting_workflow_schema()
 
         return None
 
@@ -315,5 +327,130 @@ class DielectricConstant(PhysicalProperty):
                                                                 extract_dielectric.id)
 
         schema.outputs_to_store = {'full_system': output_to_store}
+
+        return schema
+
+    @staticmethod
+    def get_default_reweighting_workflow_schema():
+
+        schema = WorkflowSchema(property_type=DielectricConstant.__name__)
+        schema.id = '{}{}'.format(DielectricConstant.__name__, 'Schema')
+
+        # Unpack all the of the stored data.
+        unpack_stored_data = protocols.UnpackStoredSimulationData('unpack_data_$(data_repl)')
+        unpack_stored_data.simulation_data_path = ReplicatorValue('data_repl')
+
+        schema.protocols[unpack_stored_data.id] = unpack_stored_data.schema
+
+        # Calculate the autocorrelation time of each of the stored files for this property.
+        build_reference_system = protocols.BuildSmirnoffSystem('build_system_$(data_repl)')
+
+        build_reference_system.force_field_path = ProtocolPath('force_field_path', unpack_stored_data.id)
+        build_reference_system.substance = ProtocolPath('substance', unpack_stored_data.id)
+        build_reference_system.coordinate_file_path = ProtocolPath('coordinate_file_path',
+                                                                   unpack_stored_data.id)
+
+        dielectric_calculation = ExtractAverageDielectric('calc_dielectric_$(data_repl)')
+
+        dielectric_calculation.thermodynamic_state = ProtocolPath('thermodynamic_state',
+                                                                  unpack_stored_data.id)
+        dielectric_calculation.input_coordinate_file = ProtocolPath('coordinate_file_path',
+                                                                    unpack_stored_data.id)
+        dielectric_calculation.trajectory_path = ProtocolPath('trajectory_file_path',
+                                                              unpack_stored_data.id)
+        dielectric_calculation.system = ProtocolPath('system', build_reference_system.id)
+
+        schema.protocols[dielectric_calculation.id] = dielectric_calculation.schema
+
+        # Decorrelate the frames of the concatenated trajectory.
+        decorrelate_trajectory = protocols.ExtractUncorrelatedTrajectoryData('decorrelate_traj_$(data_repl)')
+
+        decorrelate_trajectory.statistical_inefficiency = ProtocolPath('statistical_inefficiency',
+                                                                       dielectric_calculation.id)
+        decorrelate_trajectory.equilibration_index = ProtocolPath('equilibration_index',
+                                                                  dielectric_calculation.id)
+        decorrelate_trajectory.input_coordinate_file = ProtocolPath('coordinate_file_path',
+                                                                    unpack_stored_data.id)
+        decorrelate_trajectory.input_trajectory_path = ProtocolPath('trajectory_file_path',
+                                                                    unpack_stored_data.id)
+
+        schema.protocols[decorrelate_trajectory.id] = decorrelate_trajectory.schema
+
+        # Stitch together all of the trajectories
+        concatenate_trajectories = protocols.ConcatenateTrajectories('concat_traj')
+
+        concatenate_trajectories.input_coordinate_paths = [ProtocolPath('coordinate_file_path',
+                                                                        unpack_stored_data.id)]
+
+        concatenate_trajectories.input_trajectory_paths = [ProtocolPath('output_trajectory_path',
+                                                                        decorrelate_trajectory.id)]
+
+        schema.protocols[concatenate_trajectories.id] = concatenate_trajectories.schema
+
+        # Calculate the reduced potentials for each of the reference states.
+        schema.protocols[build_reference_system.id] = build_reference_system.schema
+
+        reduced_reference_potential = protocols.CalculateReducedPotentialOpenMM('reduced_potential_$(data_repl)')
+
+        reduced_reference_potential.system = ProtocolPath('system', build_reference_system.id)
+        reduced_reference_potential.thermodynamic_state = ProtocolPath('thermodynamic_state',
+                                                                       unpack_stored_data.id)
+        reduced_reference_potential.coordinate_file_path = ProtocolPath('coordinate_file_path',
+                                                                        unpack_stored_data.id)
+        reduced_reference_potential.trajectory_file_path = ProtocolPath('output_trajectory_path',
+                                                                        concatenate_trajectories.id)
+
+        schema.protocols[reduced_reference_potential.id] = reduced_reference_potential.schema
+
+        # Calculate the reduced potential of the target state.
+        build_target_system = protocols.BuildSmirnoffSystem('build_system_target')
+
+        build_target_system.force_field_path = ProtocolPath('force_field_path', 'global')
+        build_target_system.substance = ProtocolPath('substance', 'global')
+        build_target_system.coordinate_file_path = ProtocolPath('output_coordinate_path',
+                                                                concatenate_trajectories.id)
+
+        schema.protocols[build_target_system.id] = build_target_system.schema
+
+        reduced_target_potential = protocols.CalculateReducedPotentialOpenMM('reduced_potential_target')
+
+        reduced_target_potential.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
+        reduced_target_potential.system = ProtocolPath('system', build_target_system.id)
+        reduced_target_potential.coordinate_file_path = ProtocolPath('output_coordinate_path',
+                                                                     concatenate_trajectories.id)
+        reduced_target_potential.trajectory_file_path = ProtocolPath('output_trajectory_path',
+                                                                     concatenate_trajectories.id)
+
+        schema.protocols[reduced_target_potential.id] = reduced_target_potential.schema
+
+        # Finally, apply MBAR to get the reweighted value.
+        mbar_protocol = protocols.ReweightWithMBARProtocol('mbar')
+
+        mbar_protocol.reference_reduced_potentials = [ProtocolPath('reduced_potentials',
+                                                                   reduced_reference_potential.id)]
+
+        mbar_protocol.reference_observables = [ProtocolPath('uncorrelated_values', dielectric_calculation.id)]
+        mbar_protocol.target_reduced_potentials = [ProtocolPath('reduced_potentials', reduced_target_potential.id)]
+
+        schema.protocols[mbar_protocol.id] = mbar_protocol.schema
+
+        # Create the replicator object.
+        component_replicator = ProtocolReplicator(replicator_id='data_repl')
+
+        component_replicator.protocols_to_replicate = []
+
+        # Pass it paths to the protocols to be replicated.
+        for protocol in schema.protocols.values():
+
+            if protocol.id.find('$(data_repl)') < 0:
+                continue
+
+            component_replicator.protocols_to_replicate.append(ProtocolPath('', protocol.id))
+
+        component_replicator.template_values = ProtocolPath('full_system_data', 'global')
+
+        schema.replicators = [component_replicator]
+
+        schema.final_value_source = ProtocolPath('value', mbar_protocol.id)
 
         return schema
