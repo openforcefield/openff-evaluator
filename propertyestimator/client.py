@@ -12,7 +12,6 @@ from tornado.iostream import StreamClosedError
 from tornado.tcpclient import TCPClient
 
 from propertyestimator.layers import SurrogateLayer, ReweightingLayer, SimulationLayer
-from propertyestimator.properties import PhysicalProperty
 from propertyestimator.properties.plugins import registered_properties
 from propertyestimator.utils.serialization import TypedBaseModel
 from propertyestimator.utils.tcp import PropertyEstimatorMessageTypes, pack_int, unpack_int

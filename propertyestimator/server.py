@@ -11,8 +11,7 @@ from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
 from tornado.tcpserver import TCPServer
 
-from propertyestimator.client import PropertyEstimatorSubmission, PropertyEstimatorOptions, \
-    PropertyEstimatorResult
+from propertyestimator.client import PropertyEstimatorSubmission, PropertyEstimatorResult
 from propertyestimator.layers import available_layers
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedBaseModel

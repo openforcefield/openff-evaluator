@@ -70,16 +70,15 @@ def pack_box(molecules,
     -------
     topology : simtk.openmm.Topology
         Topology of the resulting system
-    positions : simtk.unit.Quantity wrapped [natoms,3] numpy array with units compatible with angstroms
-        Single frame trajectory with mixture box.
+    positions : simtk.unit.Quantity
+        A numpy array (shape=[natoms,3]) which contains the create positions
+        with units compatible with angstroms.
 
     """
     from openeye import oechem
 
     if len(molecules) != len(n_copies):
-
-        logging.error("Length of 'molecules' and 'n_copies' must be identical")
-        return None, None
+        raise ValueError("Length of 'molecules' and 'n_copies' must be identical")
 
     # Create PDB files for all components
     pdb_filenames = list()
@@ -164,7 +163,7 @@ def pack_box(molecules,
 
     if not packmol_succeeded:
 
-        logging.error("Packmol failed to converge")
+        logging.warning("Packmol failed to converge")
         os.unlink(output_filename)
 
         return None, None

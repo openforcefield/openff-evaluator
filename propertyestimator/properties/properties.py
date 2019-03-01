@@ -5,9 +5,6 @@ Properties base API.
 import uuid
 from enum import IntFlag, unique
 
-from simtk import unit
-
-from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.serialization import TypedBaseModel
 
 
