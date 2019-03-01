@@ -2,8 +2,6 @@
 An API for defining and creating substances.
 """
 
-from typing import List
-
 from propertyestimator.utils.serialization import TypedBaseModel
 
 
@@ -18,7 +16,22 @@ class Component(TypedBaseModel):
          SMILES descriptor of the component
      """
 
-    smiles: str = None
+    def __init__(self, smiles=''):
+        """Constructs a new Component object.
+
+        Parameters
+        ----------
+        smiles : str
+            SMILES descriptor of the component
+        """
+
+        self.smiles = smiles
+
+    def __getstate__(self):
+        return {'smiles': self.smiles}
+
+    def __setstate__(self, state):
+        self.smiles = state['smiles']
 
 
 class Substance(TypedBaseModel):
@@ -27,6 +40,11 @@ class Substance(TypedBaseModel):
 
     This class is not specific enough to be a chemical species all on its own
     """
+
+    def __getstate__(self):
+        return {}
+
+    def __setstate__(self, state): pass
 
     def __hash__(self):
         raise NotImplementedError('A Substance is a purely abstract base class.')
@@ -74,10 +92,16 @@ class Mixture(Substance):
     """
 
     class MixtureComponent(Component):
-        """Subclass of Component which has mole_fractions and impurity"""
+        """Subclass of Component which has mole_fractions and impurity
 
-        mole_fraction: float = 0.0
-        impurity: bool = False
+        Attributes
+        ----------
+        mole_fraction : float
+            The mole fraction of this component.
+        impurity : bool
+            If true, this component is treated as being a
+            single molecule (i.e infinitely diluted).
+        """
 
         @property
         def identifier(self):
@@ -89,6 +113,41 @@ class Mixture(Substance):
                 hash_value += "(%s)" % str(self.impurity)
 
             return hash_value
+
+        def __init__(self, smiles='', mole_fraction=0.0, impurity=False):
+            """Constructs a new MixtureComponent object.
+
+            Parameters
+            ----------
+            smiles : str
+                SMILES descriptor of the component
+            mole_fraction : float
+                The mole fraction of this component.
+            impurity : bool
+                If true, this component is treated as being a
+                single molecule (i.e infinitely diluted).
+            """
+            super().__init__(smiles)
+
+            self.mole_fraction = mole_fraction
+            self.impurity = impurity
+
+        def __getstate__(self):
+
+            parent_state = super(Mixture.MixtureComponent, self).__getstate__()
+            current_state = {
+                'mole_fraction': self.mole_fraction,
+                'impurity': self.impurity
+            }
+
+            current_state.update(parent_state)
+            return current_state
+
+        def __setstate__(self, state):
+            super(Mixture.MixtureComponent, self).__setstate__(state)
+
+            self.mole_fraction = state['mole_fraction']
+            self.impurity = state['impurity']
 
         def __str__(self):
             return self.identifier
@@ -105,12 +164,10 @@ class Mixture(Substance):
         def __ne__(self, other):
             return not (self == other)
 
-    components: List[MixtureComponent] = list()
-
     @property
     def identifier(self):
 
-        component_identifiers = [component.identifier for component in self.components]
+        component_identifiers = [component.identifier for component in self._components]
         component_identifiers.sort()
 
         return "|".join(component_identifiers)
@@ -119,15 +176,36 @@ class Mixture(Substance):
     def total_mole_fraction(self):
         """Compute the total mole fraction.
         """
-        return sum([component.mole_fraction for component in self.components])
+        return sum([component.mole_fraction for component in self._components])
+
+    @property
+    def components(self):
+        return self._components
 
     @property
     def number_of_components(self):
-        return len(self.components)
+        return len(self._components)
 
     @property
     def number_of_impurities(self):
-        return sum([1 for component in self.components if component.impurity is True])
+        return sum([1 for component in self._components if component.impurity is True])
+
+    def __init__(self):
+        """Constructs a new Mixture object.
+        """
+        super().__init__()
+        self._components = []
+
+    def __getstate__(self):
+        parent_state = super(Mixture, self).__getstate__()
+        current_state = {'components': self._components}
+
+        current_state.update(parent_state)
+        return current_state
+
+    def __setstate__(self, state):
+        super(Mixture, self).__setstate__(state)
+        self._components = state['components']
 
     def add_component(self, smiles, mole_fraction, impurity=False):
         """Add a component to the mixture.
@@ -147,7 +225,7 @@ class Mixture(Substance):
         mole_fraction, impurity = self._validate_mol_fraction(mole_fraction, impurity)
 
         component = self.MixtureComponent(smiles=smiles, mole_fraction=mole_fraction, impurity=impurity)
-        self.components.append(component)
+        self._components.append(component)
 
     def get_component(self, smiles: str):
         """Retrieve component by name.

@@ -6,7 +6,6 @@ import json
 import logging
 import uuid
 from os import path, makedirs
-from typing import List, Dict, Any
 
 from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
@@ -16,7 +15,7 @@ from propertyestimator.client import PropertyEstimatorSubmission, PropertyEstima
     PropertyEstimatorResult
 from propertyestimator.layers import available_layers
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import TypedBaseModel, deserialize_force_field
+from propertyestimator.utils.serialization import TypedBaseModel
 from propertyestimator.utils.tcp import PropertyEstimatorMessageTypes, pack_int, unpack_int
 
 
@@ -38,16 +37,58 @@ class PropertyEstimatorServerData(TypedBaseModel):
         The unique server side id of the force field parameters used to estimate the properties.
     """
 
-    id: str
+    def __init__(self, estimation_id='', queued_properties=None, options=None, force_field_id=None):
+        """Constructs a new PropertyEstimatorServerData object.
 
-    queued_properties: List[Any] = []
+        Parameters
+        ----------
+        estimation_id: str
+            A unique id assigned to this estimation request.
+        queued_properties: `list` of `PhysicalProperty`, optional
+            A list of physical properties waiting to be estimated.
+        options: `PropertyEstimatorOptions`, optional
+            The options used to estimate the properties.
+        force_field_id: `str`
+            The unique server side id of the force field parameters used to estimate the properties.
+        """
+        self.id = estimation_id
 
-    estimated_properties: Dict[str, Any] = {}
-    unsuccessful_properties: Dict[str, PropertyEstimatorException] = {}
+        self.queued_properties = queued_properties or []
 
-    options: PropertyEstimatorOptions = None
+        self.estimated_properties = {}
+        self.unsuccessful_properties = {}
 
-    force_field_id: str = None
+        self.options = options
+
+        self.force_field_id = force_field_id
+
+    def __getstate__(self):
+
+        return {
+            'id': self.id,
+
+            'queued_properties': self.queued_properties,
+
+            'estimated_properties': self.estimated_properties,
+            'unsuccessful_properties': self.unsuccessful_properties,
+
+            'options': self.options,
+
+            'force_field_id': self.force_field_id,
+        }
+
+    def __setstate__(self, state):
+
+        self.id = state['id']
+
+        self.queued_properties = state['queued_properties']
+
+        self.estimated_properties = state['estimated_properties']
+        self.unsuccessful_properties = state['unsuccessful_properties']
+
+        self.options = state['options']
+
+        self.force_field_id = state['force_field_id']
 
 
 class PropertyEstimatorServer(TCPServer):
@@ -160,7 +201,7 @@ class PropertyEstimatorServer(TCPServer):
         json_model = encoded_json.decode()
 
         # TODO: Add exeception handling so the server can gracefully reject bad json.
-        client_data_model = PropertyEstimatorSubmission.parse_raw(json_model)
+        client_data_model = PropertyEstimatorSubmission.parse_json(json_model)
 
         runner_data_model = self._prepare_data_model(client_data_model)
         should_launch = True
@@ -316,7 +357,7 @@ class PropertyEstimatorServer(TCPServer):
             The server side data model.
         """
 
-        force_field = deserialize_force_field(client_data_model.force_field)
+        force_field = client_data_model.force_field
 
         force_field_id = self._storage_backend.has_force_field(force_field)
 
@@ -332,7 +373,7 @@ class PropertyEstimatorServer(TCPServer):
         while calculation_id in self._queued_calculations:
             calculation_id = str(uuid.uuid4())
 
-        runner_data = PropertyEstimatorServerData(id=calculation_id,
+        runner_data = PropertyEstimatorServerData(estimation_id=calculation_id,
                                                   queued_properties=client_data_model.properties,
                                                   options=client_data_model.options,
                                                   force_field_id=force_field_id)
@@ -342,7 +383,7 @@ class PropertyEstimatorServer(TCPServer):
     @staticmethod
     def _prepare_output_model(server_data_model):
 
-        output_model = PropertyEstimatorResult(id=server_data_model.id)
+        output_model = PropertyEstimatorResult(result_id=server_data_model.id)
 
         output_model.estimated_properties = server_data_model.estimated_properties
         output_model.unsuccessful_properties = server_data_model.unsuccessful_properties

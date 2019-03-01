@@ -289,7 +289,7 @@ class Density(PhysicalProperty):
         schema.protocols[mbar_protocol.id] = mbar_protocol.schema
 
         # Create the replicator object.
-        component_replicator = ProtocolReplicator(id='data_repl')
+        component_replicator = ProtocolReplicator(replicator_id='data_repl')
 
         component_replicator.protocols_to_replicate = []
 

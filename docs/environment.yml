@@ -24,7 +24,6 @@ dependencies:
     - mdtraj
     - dask
     - tornado
-    - pydantic
     - uncertainties
     - openmmtools
 

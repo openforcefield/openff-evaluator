@@ -46,7 +46,7 @@ def test_serialization():
             physical_property_json = physical_property.json()
             print(physical_property_json)
 
-            physical_property_recreated = PhysicalProperty.parse_raw(physical_property_json)
+            physical_property_recreated = PhysicalProperty.parse_json(physical_property_json)
             print(physical_property_recreated)
 
 
@@ -66,7 +66,7 @@ def test_from_doi():
             physical_property_json = physical_property.json()
             print(physical_property_json)
 
-            physical_property_recreated = PhysicalProperty.parse_raw(physical_property_json)
+            physical_property_recreated = PhysicalProperty.parse_json(physical_property_json)
             print(physical_property_recreated)
 
     data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.12.009')

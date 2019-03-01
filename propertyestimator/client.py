@@ -5,9 +5,7 @@ Property estimator client side API.
 import json
 import logging
 from time import sleep
-from typing import Dict, List, Any
 
-from pydantic import ValidationError
 from simtk import unit
 from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
@@ -16,10 +14,8 @@ from tornado.tcpclient import TCPClient
 from propertyestimator.layers import SurrogateLayer, ReweightingLayer, SimulationLayer
 from propertyestimator.properties import PhysicalProperty
 from propertyestimator.properties.plugins import registered_properties
-from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import TypedBaseModel, serialize_force_field
+from propertyestimator.utils.serialization import TypedBaseModel
 from propertyestimator.utils.tcp import PropertyEstimatorMessageTypes, pack_int, unpack_int
-from propertyestimator.workflow import WorkflowSchema
 
 
 class PropertyEstimatorOptions(TypedBaseModel):
@@ -55,18 +51,62 @@ class PropertyEstimatorOptions(TypedBaseModel):
         setting this to ['Density'] would calculate the gradients of any estimated
         densities.
     """
-    allowed_calculation_layers: List[str] = [
-        SurrogateLayer.__name__,
-        ReweightingLayer.__name__,
-        SimulationLayer.__name__
-    ]
 
-    workflow_schemas: Dict[str, Dict[str, WorkflowSchema]] = {}
+    def __init__(self, allowed_calculation_layers=None, relative_uncertainty_tolerance=1.0,
+                 allow_protocol_merging=True):
+        """Constructs a new PropertyEstimatorServerData object.
 
-    relative_uncertainty_tolerance: float = 1.0
-    allow_protocol_merging: bool = True
+        Parameters
+        ----------
+        allowed_calculation_layers: :obj:`list` of :obj:`str`
+            A list of allowed calculation layers. The order of the layers in the list is the order
+            that the calculator will attempt to execute the layers in.
 
-    gradient_properties: List[str] = []
+            If None, all registered calculation layers are set as allowed.
+        relative_uncertainty_tolerance: :obj:`float`, default = 1.0
+            Controls the desired uncertainty of any calculated properties. The estimator will
+            attempt to estimate all properties to within an uncertainity equal to:
+
+            `target_uncertainty = relative_uncertainty_tolerance * experimental_uncertainty`
+        allow_protocol_merging: :obj:`bool`, default = True
+            If true, allows individual identical steps in a property estimation workflow to be merged.
+        """
+        self.allowed_calculation_layers = allowed_calculation_layers or [
+            SurrogateLayer.__name__,
+            ReweightingLayer.__name__,
+            SimulationLayer.__name__
+        ]
+
+        self.workflow_schemas = {}
+
+        self.relative_uncertainty_tolerance = relative_uncertainty_tolerance
+        self.allow_protocol_merging = allow_protocol_merging
+
+        self.gradient_properties = []
+
+    def __getstate__(self):
+
+        return {
+            'allowed_calculation_layers': self.allowed_calculation_layers,
+
+            'workflow_schemas': self.workflow_schemas,
+
+            'relative_uncertainty_tolerance': self.relative_uncertainty_tolerance,
+            'allow_protocol_merging': self.allow_protocol_merging,
+
+            'gradient_properties': self.gradient_properties,
+        }
+
+    def __setstate__(self, state):
+
+        self.allowed_calculation_layers = state['allowed_calculation_layers']
+
+        self.workflow_schemas = state['workflow_schemas']
+
+        self.relative_uncertainty_tolerance = state['relative_uncertainty_tolerance']
+        self.allow_protocol_merging = state['allow_protocol_merging']
+
+        self.gradient_properties = state['gradient_properties']
 
 
 class PropertyEstimatorSubmission(TypedBaseModel):
@@ -87,10 +127,38 @@ class PropertyEstimatorSubmission(TypedBaseModel):
     force_field: openforcefield.typing.engines.smirnoff.ForceField
         The force field parameters used during the calculations.
     """
-    properties: List[Any] = []
-    options: PropertyEstimatorOptions = None
+    def __init__(self, properties=None, force_field=None, options=None):
+        """Constructs a new PropertyEstimatorSubmission object.
 
-    force_field: Dict[int, str] = None
+        Parameters
+        ----------
+        properties: list of PhysicalProperty
+            The list of physical properties to estimate.
+        options: PropertyEstimatorOptions
+            The options which control how the `properties` are estimated.
+        force_field: openforcefield.typing.engines.smirnoff.ForceField
+            The force field parameters used during the calculations.
+        """
+        self.properties = properties or []
+        self.options = options
+
+        self.force_field = force_field
+
+    def __getstate__(self):
+
+        return {
+            'properties': self.properties,
+            'options': self.options,
+
+            'force_field': self.force_field,
+        }
+
+    def __setstate__(self, state):
+
+        self.properties = state['properties']
+        self.options = state['options']
+
+        self.force_field = state['force_field']
 
 
 class PropertyEstimatorResult(TypedBaseModel):
@@ -111,18 +179,49 @@ class PropertyEstimatorResult(TypedBaseModel):
     unsuccessful_properties: dict of str and PropertyEstimatorException
         A dictionary of the exceptions that were raised when unsuccessfully estimating a property.
         The dictionary key is the unique id of the property which could not be estimated.
-    force_field_id:
-        The server assigned id of the parameter set used in the calculation.
     """
-    id: str = ''
 
-    estimated_properties: Dict[str, PhysicalProperty] = {}
-    unsuccessful_properties: Dict[str, PropertyEstimatorException] = {}
+    def __init__(self, result_id=''):
+        """Constructs a new PropertyEstimatorResult object.
+
+        Parameters
+        ----------
+        result_id: str
+            The unique id assigned to this result set by the server.
+        """
+
+        self.id = result_id
+
+        self.estimated_properties = {}
+        self.unsuccessful_properties = {}
+
+    def __getstate__(self):
+
+        return {
+            'id:': self.id,
+
+            'estimated_properties': self.estimated_properties,
+            'unsuccessful_properties': self.unsuccessful_properties,
+        }
+
+    def __setstate__(self, state):
+
+        self.id = state['id:']
+
+        self.estimated_properties = state['estimated_properties']
+        self.unsuccessful_properties = state['unsuccessful_properties']
 
 
 class PropertyEstimatorConnectionOptions(TypedBaseModel):
     """The set of options to use when connecting to a
     `PropertyEstimatorServer`
+
+    Attributes
+    ----------
+    server_address: str
+        The address of the server to connect to.
+    server_port: int
+        The port number that the server is listening on.
 
     Warnings
     --------
@@ -131,6 +230,32 @@ class PropertyEstimatorConnectionOptions(TypedBaseModel):
 
     server_address: str = 'localhost'
     server_port: int = 8000
+
+    def __init__(self, server_address='localhost', server_port=8000):
+        """Constructs a new PropertyEstimatorConnectionOptions object.
+
+        Parameters
+        ----------
+        server_address: str
+            The address of the server to connect to.
+        server_port: int
+            The port number that the server is listening on.
+        """
+
+        self.server_address = server_address
+        self.server_port = server_port
+
+    def __getstate__(self):
+
+        return {
+            'server_address': self.server_address,
+            'server_port': self.server_port,
+        }
+
+    def __setstate__(self, state):
+
+        self.server_address = state['server_address']
+        self.server_port = state['server_port']
 
 
 class PropertyEstimatorClient:
@@ -430,7 +555,7 @@ class PropertyEstimatorClient:
                             protocol_schema.inputs['.allow_merging'] = False
 
         submission = PropertyEstimatorSubmission(properties=properties_list,
-                                                 force_field=serialize_force_field(force_field),
+                                                 force_field=force_field,
                                                  options=options)
 
         request_id = IOLoop.current().run_sync(lambda: self._send_calculations_to_server(submission))
@@ -644,11 +769,7 @@ class PropertyEstimatorClient:
                                                                              self._connection_options.server_port, e))
 
         if server_response is not None:
-
-            try:
-                server_response = PropertyEstimatorResult.parse_raw(server_response)
-            except ValidationError:
-                server_response = PropertyEstimatorException.parse_raw(server_response)
+            server_response = TypedBaseModel.parse_json(server_response)
 
         # Return the ids of the submitted jobs.
         return server_response

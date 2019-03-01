@@ -4,7 +4,6 @@ Properties base API.
 
 import uuid
 from enum import IntFlag, unique
-from typing import Optional, Dict, Any
 
 from simtk import unit
 
@@ -47,7 +46,10 @@ class Source(TypedBaseModel):
 
     .. todo:: Swap this out with a more general provenance class.
     """
-    pass
+
+    def __getstate__(self): return {}
+
+    def __setstate__(self, state): pass
 
 
 class MeasurementSource(Source):
@@ -65,8 +67,32 @@ class MeasurementSource(Source):
         information is needed or wanted.
     """
 
-    doi: Optional[str] = None
-    reference: Optional[str] = None
+    def __init__(self, doi='', reference=''):
+        """Constructs a new MeasurementSource object.
+
+        Parameters
+        ----------
+        doi : str or None, default None
+            The DOI for the source, preferred way to identify for source
+        reference : str
+            The long form description of the source if no DOI is available, or more
+            information is needed or wanted.
+        """
+
+        self.doi = doi
+        self.reference = reference
+
+    def __getstate__(self):
+
+        return {
+            'doi': self.doi,
+            'reference': self.reference,
+        }
+
+    def __setstate__(self, state):
+
+        self.doi = state['doi']
+        self.reference = state['reference']
 
 
 class CalculationSource(Source):
@@ -84,8 +110,31 @@ class CalculationSource(Source):
         A dictionary containing information about how the property was calculated.
     """
 
-    fidelity: str = None
-    provenance: Dict[str, Any] = None
+    def __init__(self, fidelity=None, provenance=None):
+        """Constructs a new CalculationSource object.
+
+        Parameters
+        ----------
+        fidelity : str
+            The fidelity at which the property was calculated
+        provenance : dict of str and Any
+            A dictionary containing information about how the property was calculated.
+        """
+
+        self.fidelity = fidelity
+        self.provenance = provenance
+
+    def __getstate__(self):
+
+        return {
+            'fidelity': self.fidelity,
+            'provenance': self.provenance,
+        }
+
+    def __setstate__(self, state):
+
+        self.fidelity = state['fidelity']
+        self.provenance = state['provenance']
 
 
 class PhysicalProperty(TypedBaseModel):
@@ -97,24 +146,66 @@ class PhysicalProperty(TypedBaseModel):
     property was collected.
     """
 
-    thermodynamic_state: ThermodynamicState = None
-    phase: PropertyPhase = PropertyPhase.Undefined
+    def __init__(self, thermodynamic_state=None, phase=PropertyPhase.Undefined,
+                 substance=None, value=None, uncertainty=None, source=None):
+        """Constructs a new PhysicalProperty object.
 
-    substance: Any = None
-
-    value: unit.Quantity = None
-    uncertainty: unit.Quantity = None
-
-    source: Any = None
-
-    id: str = ''
-
-    def __init__(self, **data):
+        Parameters
+        ----------
+        thermodynamic_state : ThermodynamicState
+            The thermodynamic state that the property was measured in.
+        phase : PropertyPhase
+            The phase that the property was measured in.
+        substance : Substance
+            The composition of the substance that was measured.
+        value: unit.Quantity
+            The value of the measured physical property.
+        uncertainty: unit.Quantity
+            The uncertainty in the measured value.
+        source: Source
+            The source of this property.
         """
-        Constructs a new PhysicalProperty object.
-        """
-        super().__init__(**data)
         self.id = str(uuid.uuid4())
+
+        self.thermodynamic_state = thermodynamic_state
+        self.phase = phase
+
+        self.substance = substance
+
+        self.value = value
+        self.uncertainty = uncertainty
+
+        self.source = source
+
+    def __getstate__(self):
+
+        return {
+            'id': self.id,
+
+            'thermodynamic_state': self.thermodynamic_state,
+            'phase': self.phase,
+    
+            'substance': self.substance,
+    
+            'value': self.value,
+            'uncertainty': self.uncertainty,
+    
+            'source': self.source,
+        }
+
+    def __setstate__(self, state):
+
+        self.id = state['id']
+
+        self.thermodynamic_state = state['thermodynamic_state']
+        self.phase = state['phase']
+
+        self.substance = state['substance']
+
+        self.value = state['value']
+        self.uncertainty = state['uncertainty']
+
+        self.source = state['source']
 
     @property
     def temperature(self):

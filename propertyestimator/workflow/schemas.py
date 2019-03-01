@@ -2,7 +2,6 @@
 A collection of schemas which represent elements of a property calculation workflow.
 """
 import re
-from typing import Dict, List, Any
 
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedBaseModel
@@ -11,20 +10,59 @@ from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
 class ProtocolSchema(TypedBaseModel):
-    """A json serializable representation which stores the
-    user definable parameters of a protocol.
+    """A json serializable representation of a workflow protocol.
     """
-    id: str = None
-    type: str = None
 
-    inputs: Dict[str, Any] = {}
+    def __init__(self):
+        """Constructs a new ProtocolSchema object.
+        """
+        self.id = None
+        self.type = None
+
+        self.inputs = {}
+
+    def __getstate__(self):
+
+        return {
+            'id': self.id,
+            'type': self.type,
+
+            'inputs': self.inputs
+        }
+
+    def __setstate__(self, state):
+
+        self.id = state['id']
+        self.type = state['type']
+
+        self.inputs = state['inputs']
 
 
 class ProtocolGroupSchema(ProtocolSchema):
-    """A json serializable representation of a protocol
-    definition.
+    """A json serializable representation of a workflow protocol
+    group.
     """
-    grouped_protocol_schemas: List[ProtocolSchema] = []
+
+    def __init__(self):
+        """Constructs a new ProtocolGroupSchema object.
+        """
+        super().__init__()
+
+        self.grouped_protocol_schemas = []
+
+    def __getstate__(self):
+
+        state = super(ProtocolGroupSchema, self).__getstate__()
+        state.update({
+            'grouped_protocol_schemas': self.grouped_protocol_schemas,
+        })
+
+        return state
+
+    def __setstate__(self, state):
+
+        super(ProtocolGroupSchema, self).__setstate__(state)
+        self.grouped_protocol_schemas = state['grouped_protocol_schemas']
 
 
 class ProtocolReplicator(TypedBaseModel):
@@ -52,10 +90,35 @@ class ProtocolReplicator(TypedBaseModel):
     * The `template_values` property must be a list of either constant values,
       or :obj:`ProtocolPath`'s which take their value from the `global` scope.
     """
-    protocols_to_replicate: List[ProtocolPath] = []
-    template_values: Any = None
 
-    id: str = ''
+    def __init__(self, replicator_id=''):
+        """Constructs a new ProtocolReplicator object.
+
+        Parameters
+        ----------
+        replicator_id: str
+            The id of this replicator.
+        """
+        self.id = replicator_id
+
+        self.protocols_to_replicate = []
+        self.template_values = None
+
+    def __getstate__(self):
+
+        return {
+            'id': self.id,
+
+            'protocols_to_replicate': self.protocols_to_replicate,
+            'template_values': self.template_values
+        }
+
+    def __setstate__(self, state):
+
+        self.id = state['id']
+
+        self.protocols_to_replicate = state['protocols_to_replicate']
+        self.template_values = state['template_values']
 
     def replicates_protocol_or_child(self, protocol_path):
         """Returns whether the protocol pointed to by `protocol_path` (or
@@ -105,17 +168,53 @@ class WorkflowOutputToStore:
 
 
 class WorkflowSchema(TypedBaseModel):
-    """Outlines the workflow which should be followed when calculating a certain property.
+    """Outlines the workflow which should be followed when calculating
+    a certain property.
     """
-    property_type: str = None
-    id: str = None
 
-    protocols: Dict[str, Any] = {}
-    replicators: List[ProtocolReplicator] = []
+    def __init__(self,property_type=None):
+        """Constructs a new WorkflowSchema object.
 
-    final_value_source: ProtocolPath = None
+        Parameters
+        ----------
+        property_type: str
+            The type of property which this workflow aims to estimate.
+        """
+        self.property_type = property_type
+        self.id = None
 
-    outputs_to_store: Dict[str, Any] = {}
+        self.protocols = {}
+        self.replicators = []
+
+        self.final_value_source = None
+
+        self.outputs_to_store = {}
+
+    def __getstate__(self):
+
+        return {
+            'property_type': self.property_type,
+            'id': self.id,
+
+            'protocols': self.protocols,
+            'replicators': self.replicators,
+
+            'final_value_source': self.final_value_source,
+
+            'outputs_to_store': self.outputs_to_store,
+        }
+
+    def __setstate__(self, state):
+
+        self.property_type = state['property_type']
+        self.id = state['id']
+
+        self.protocols = state['protocols']
+        self.replicators = state['replicators']
+
+        self.final_value_source = state['final_value_source']
+
+        self.outputs_to_store = state['outputs_to_store']
 
     def _validate_replicators(self):
 
@@ -223,7 +322,7 @@ class WorkflowSchema(TypedBaseModel):
                     continue
 
                 if attribute_value.start_protocol not in self.protocols:
-                    raise ValueError('The value source {} does not exist.'.format(self.attribute_value))
+                    raise ValueError('The value source {} does not exist.'.format(attribute_value))
 
                 protocol_schema = self.protocols[attribute_value.start_protocol]
 
@@ -272,7 +371,8 @@ class WorkflowSchema(TypedBaseModel):
                     if value_reference.start_protocol not in self.protocols:
 
                         raise Exception('The {} protocol of the {} schema tries to take input from a non-existent '
-                                        'protocol: {}'.format(protocol_object.id, self.id, value_reference.start_protocol))
+                                        'protocol: {}'.format(protocol_object.id, self.id,
+                                                              value_reference.start_protocol))
 
                     other_protocol_schema = self.protocols[value_reference.start_protocol]
 
