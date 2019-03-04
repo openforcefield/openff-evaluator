@@ -475,6 +475,38 @@ class ProtocolGroup(BaseProtocol):
 
         return merged_ids
 
+    def _get_next_in_path(self, reference_path):
+        """Returns the id of the next protocol in a protocol path,
+        making sure that the targeted protocol is within this group.
+
+        Parameters
+        ----------
+        reference_path: ProtocolPath
+            The path being traversed.
+
+        Returns
+        -------
+        str
+            The id of the next protocol in the path.
+        ProtocolPath
+            The remainder of the path to be traversed.
+        """
+
+        # Make a copy of the path so we can alter it safely.
+        reference_path_clone = copy.deepcopy(reference_path)
+
+        if reference_path.start_protocol == self.id:
+            reference_path_clone.pop_next_in_path()
+
+        target_protocol_id = reference_path_clone.pop_next_in_path()
+
+        if target_protocol_id not in self._protocols:
+
+            raise ValueError('The reference path does not target this protocol'
+                             'or any of its children.')
+
+        return target_protocol_id, reference_path_clone
+
     def get_attribute_type(self, reference_path):
         """Returns the type of one of the protocol input/output attributes.
 
@@ -496,19 +528,8 @@ class ProtocolGroup(BaseProtocol):
 
             return super(ProtocolGroup, self).get_attribute_type(reference_path)
 
-        # Make a copy of the path so we can alter it safely.
-        reference_path_clone = copy.deepcopy(reference_path)
-
-        if reference_path.start_protocol == self.id:
-            reference_path_clone.pop_next_in_path()
-
-        target_protocol_id = reference_path_clone.pop_next_in_path()
-
-        if target_protocol_id not in self._protocols:
-            raise ValueError('The reference path does not target this protocol'
-                             'or any of its children.')
-
-        return self._protocols[target_protocol_id].get_attribute_type(reference_path_clone)
+        target_protocol_id, truncated_path = self._get_next_in_path(reference_path)
+        return self._protocols[target_protocol_id].get_attribute_type(truncated_path)
 
     def get_value(self, reference_path):
         """Returns the value of one of this protocols parameters / inputs.
@@ -531,20 +552,8 @@ class ProtocolGroup(BaseProtocol):
 
             return super(ProtocolGroup, self).get_value(reference_path)
 
-        # Make a copy of the path so we can alter it safely.
-        reference_path_clone = copy.deepcopy(reference_path)
-
-        if reference_path.start_protocol == self.id:
-            reference_path_clone.pop_next_in_path()
-
-        target_protocol_id = reference_path_clone.pop_next_in_path()
-
-        if target_protocol_id not in self._protocols:
-
-            raise ValueError('The reference path does not target this protocol'
-                             'or any of its children.')
-
-        return self._protocols[target_protocol_id].get_value(reference_path_clone)
+        target_protocol_id, truncated_path = self._get_next_in_path(reference_path)
+        return self._protocols[target_protocol_id].get_value(truncated_path)
 
     def set_value(self, reference_path, value):
         """Sets the value of one of this protocols parameters / inputs.
