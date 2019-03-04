@@ -4,7 +4,6 @@ A collection of dielectric physical property definitions.
 
 import logging
 
-import mdtraj
 import numpy as np
 from simtk import openmm, unit
 from simtk.openmm import System
@@ -100,6 +99,8 @@ class ExtractAverageDielectric(protocols.AverageTrajectoryProperty):
         return dielectric_constant
 
     def execute(self, directory, available_resources):
+
+        import mdtraj
 
         logging.info('Extracting dielectrics: ' + self.id)
 

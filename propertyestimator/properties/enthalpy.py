@@ -163,7 +163,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         condition = groups.ConditionalGroup.Condition()
 
         condition.left_hand_value = ProtocolPath('value.uncertainty', converge_uncertainty.id, extract_enthalpy.id)
-        condition.right_hand_value = ProtocolPath('target_uncertainty', 'global')
+        condition.right_hand_value = ProtocolPath('per_component_uncertainty', 'global')
         condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
 
         converge_uncertainty.add_condition(condition)

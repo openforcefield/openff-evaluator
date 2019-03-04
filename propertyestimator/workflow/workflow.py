@@ -6,9 +6,9 @@ import copy
 import re
 import traceback
 import uuid
+from math import sqrt
 from os import path, makedirs
 
-import mdtraj
 from simtk import unit
 
 from propertyestimator.storage import StoredSimulationData
@@ -597,6 +597,7 @@ class Workflow:
             - substance: `Mixture`
             - components: list of `Mixture`
             - target_uncertainty: simtk.unit.Quantity
+            - per_component_uncertainty: simtk.unit.Quantity
             - force_field_path: str
         """
         from propertyestimator.substances import Mixture
@@ -610,20 +611,24 @@ class Workflow:
 
             components.append(mixture)
 
+        target_uncertainty = physical_property.uncertainty * estimator_options.relative_uncertainty_tolerance
+
+        if (isinstance(physical_property.uncertainty, unit.Quantity) and not
+            isinstance(target_uncertainty, unit.Quantity)):
+
+            target_uncertainty = unit.Quantity(target_uncertainty, physical_property.uncertainty.unit)
+
+        per_component_uncertainty = target_uncertainty / sqrt(physical_property.substance.number_of_components)
+
         # Define a dictionary of accessible 'global' properties.
         global_metadata = {
             "thermodynamic_state": physical_property.thermodynamic_state,
             "substance": physical_property.substance,
             "components": components,
-            "target_uncertainty": physical_property.uncertainty * estimator_options.relative_uncertainty_tolerance,
+            "target_uncertainty": target_uncertainty,
+            "per_component_uncertainty": per_component_uncertainty,
             "force_field_path": force_field_path
         }
-
-        if (isinstance(physical_property.uncertainty, unit.Quantity) and not
-            isinstance(global_metadata['target_uncertainty'], unit.Quantity)):
-
-            global_metadata['target_uncertainty'] = unit.Quantity(global_metadata['target_uncertainty'],
-                                                                         physical_property.uncertainty.unit)
 
         return global_metadata
 
@@ -945,6 +950,7 @@ class WorkflowGraph:
         CalculationLayerResult
             The result of attempting to estimate this property from a workflow graph.
         """
+        import mdtraj
         from propertyestimator.layers.layers import CalculationLayerResult
 
         return_object = CalculationLayerResult()

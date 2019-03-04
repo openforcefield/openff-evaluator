@@ -9,7 +9,6 @@ import math
 import pickle
 from os import path
 
-import mdtraj
 import numpy as np
 import pymbar
 from simtk import openmm, unit
@@ -1178,6 +1177,8 @@ class AverageTrajectoryProperty(AveragePropertyProtocol):
 
     def execute(self, directory, available_resources):
 
+        import mdtraj
+
         if self._trajectory_path is None:
 
             return PropertyEstimatorException(directory=directory,
@@ -1318,6 +1319,8 @@ class ExtractUncorrelatedTrajectoryData(ExtractUncorrelatedData):
         self._output_trajectory_path = None
 
     def execute(self, directory, available_resources):
+
+        import mdtraj
 
         logging.info('Subsampling trajectory: {}'.format(self.id))
 
@@ -1626,6 +1629,8 @@ class ConcatenateTrajectories(BaseProtocol):
 
     def execute(self, directory, available_resources):
 
+        import mdtraj
+
         if len(self._input_coordinate_paths) != len(self._input_trajectory_paths):
 
             return PropertyEstimatorException(directory=directory, message='There should be the same number of '
@@ -1693,6 +1698,7 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
     def execute(self, directory, available_resources):
 
         import openmmtools
+        import mdtraj
 
         trajectory = mdtraj.load_dcd(self._trajectory_file_path, self._coordinate_file_path)
         self.system.setDefaultPeriodicBoxVectors(*trajectory.openmm_boxes(0))

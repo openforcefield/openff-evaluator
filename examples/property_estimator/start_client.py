@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 import logging
 
-from openforcefield.typing.engines import smirnoff
-
 from propertyestimator import client
 from propertyestimator.client import PropertyEstimatorOptions
 from propertyestimator.datasets import ThermoMLDataSet
@@ -11,6 +9,8 @@ from propertyestimator.utils import get_data_filename, setup_timestamp_logging
 
 def compute_estimate_sync():
     """Submit calculations to a running server instance"""
+    from openforcefield.typing.engines import smirnoff
+
     setup_timestamp_logging()
 
     # Load in the data set of interest.
@@ -28,6 +28,8 @@ def compute_estimate_sync():
 
 def compute_estimate_async():
     """Submit calculations to a running server instance"""
+    from openforcefield.typing.engines import smirnoff
+
     setup_timestamp_logging()
 
     # Load in the data set of interest.
