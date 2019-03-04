@@ -6,10 +6,9 @@ import logging
 import pickle
 from os import path
 
-from openmmtools.utils import SubhookedABCMeta
-
 from propertyestimator.layers import register_calculation_layer, PropertyCalculationLayer
 from propertyestimator.utils.serialization import serialize_force_field
+from propertyestimator.utils.utils import SubhookedABCMeta
 from propertyestimator.workflow import WorkflowGraph, Workflow
 from propertyestimator.workflow.workflow import IWorkflowProperty
 

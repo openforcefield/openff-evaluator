@@ -22,7 +22,7 @@ from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import deserialize_quantity, deserialize_force_field
 from propertyestimator.utils.statistics import StatisticsArray
-from propertyestimator.utils.string import extract_variable_index_and_name
+from propertyestimator.utils.utils import get_nested_attribute, set_nested_attribute
 from propertyestimator.workflow.decorators import protocol_input, protocol_output, MergeBehaviour
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.schemas import ProtocolSchema
@@ -474,51 +474,6 @@ class BaseProtocol:
 
         return getattr(type(self), reference_path.property_name).value_type
 
-    def _get_nested_attribute(self, attribute_name):
-        """A recursive version of getattr, which has full support
-        for attribute names which contain list / dict indices
-
-        Parameters
-        ----------
-        attribute_name: str
-            The nested attribute name to get.
-        """
-        attribute_name_split = attribute_name.split(ProtocolPath.property_separator)
-
-        current_attribute = self
-
-        for index, full_attribute_name in enumerate(attribute_name_split):
-
-            array_index = None
-            attribute_name = full_attribute_name
-
-            if attribute_name.find('[') >= 0 or attribute_name.find(']') >= 0:
-                attribute_name, array_index = extract_variable_index_and_name(attribute_name)
-
-            if current_attribute is None:
-                return None
-
-            if not hasattr(current_attribute, attribute_name):
-                raise ValueError('This protocol does not have contain a {} '
-                                 'property.'.format('.'.join(attribute_name_split[:index + 1])))
-
-            current_attribute = getattr(current_attribute, attribute_name)
-
-            if array_index is not None:
-
-                if isinstance(current_attribute, list):
-
-                    try:
-                        array_index = int(array_index)
-                    except ValueError:
-                        raise ValueError('List indices must be an integer: '
-                                         '{}'.format('.'.join(attribute_name_split[:index + 1])))
-
-                array_value = current_attribute[array_index]
-                current_attribute = array_value
-
-        return current_attribute
-
     def get_value(self, reference_path):
         """Returns the value of one of this protocols inputs / outputs.
 
@@ -541,7 +496,7 @@ class BaseProtocol:
         if reference_path.property_name is None or reference_path.property_name == '':
             raise ValueError('The reference path does specify a property to return.')
 
-        return self._get_nested_attribute(reference_path.property_name)
+        return get_nested_attribute(self, reference_path.property_name)
 
     def set_value(self, reference_path, value):
         """Sets the value of one of this protocols inputs.
@@ -565,46 +520,7 @@ class BaseProtocol:
         if reference_path in self.provided_outputs:
             raise ValueError('Output values cannot be set by this method.')
 
-        current_attribute = self
-        attribute_name = reference_path.property_name
-
-        if attribute_name.find(ProtocolPath.property_separator) > 1:
-
-            last_separator_index = attribute_name.rfind(
-                ProtocolPath.property_separator)
-
-            current_attribute = self._get_nested_attribute(attribute_name[:last_separator_index])
-            attribute_name = attribute_name[last_separator_index + 1:]
-
-        if attribute_name.find('[') >= 0:
-
-            attribute_name, array_index = extract_variable_index_and_name(attribute_name)
-
-            if not hasattr(current_attribute, attribute_name):
-
-                raise ValueError('The {} protocol does not have a {} '
-                                 'property.'.format(self.id, reference_path.property_name))
-
-            current_attribute = getattr(current_attribute, attribute_name)
-
-            if isinstance(current_attribute, list):
-
-                try:
-                    array_index = int(array_index)
-                except ValueError:
-                    raise ValueError('List indices must be an integer: '
-                                     '{}'.format(reference_path.property_name))
-
-            current_attribute[array_index] = value
-
-        else:
-
-            if not hasattr(current_attribute, attribute_name):
-
-                raise ValueError('The {} protocol does not have a {} '
-                                 'property.'.format(self.id, reference_path.property_name))
-
-            setattr(current_attribute, attribute_name, value)
+        set_nested_attribute(self, reference_path.property_name, value)
 
     def apply_replicator(self, replicator, template_values):
         """Applies a `ProtocolReplicator` to this protocol.

@@ -2,6 +2,7 @@
 A collection of utilities for manipulating strings.
 """
 
+
 def extract_variable_index_and_name(string):
     """Takes a string of the form variable_name[index] and
     returns the variable_name, and index.
@@ -29,11 +30,11 @@ def extract_variable_index_and_name(string):
     start_bracket_index = string.find('[')
     end_bracket_index = string.find(']')
 
-    if start_bracket_index >= 0 and end_bracket_index < 0:
+    if start_bracket_index >= 0 > end_bracket_index:
         raise ValueError('Property name containts a [ without a matching ]: '
                          '{}'.format('.'.join(string)))
 
-    if end_bracket_index >= 0 and start_bracket_index < 0:
+    if end_bracket_index >= 0 > start_bracket_index:
         raise ValueError('Property name containts a ] without a matching [: '
                          '{}'.format(string))
 

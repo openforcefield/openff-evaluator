@@ -15,7 +15,7 @@ from propertyestimator.storage import StoredSimulationData
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.statistics import StatisticsArray
-from propertyestimator.utils.utils import SubhookedABCMeta
+from propertyestimator.utils.utils import SubhookedABCMeta, get_nested_attribute
 from propertyestimator.workflow.plugins import available_protocols
 from propertyestimator.workflow.protocols import BaseProtocol
 from propertyestimator.workflow.schemas import WorkflowSchema
@@ -180,7 +180,7 @@ class Workflow:
                     if not value_reference.is_global:
                         continue
 
-                    value = self.global_metadata[value_reference.property_name]
+                    value = get_nested_attribute(self.global_metadata, value_reference.property_name)
                     protocol.set_value(source_path, value)
 
             protocol.set_uuid(self.uuid)
@@ -209,7 +209,7 @@ class Workflow:
                 raise ValueError('Template values must either be a constant or come'
                                  'from the global scope (and not from {})'.format(template_values))
 
-            template_values = self.global_metadata[template_values.property_name]
+            template_values = get_nested_attribute(self.global_metadata, template_values.property_name)
 
         replicated_protocols = []
 
