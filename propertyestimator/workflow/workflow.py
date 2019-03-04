@@ -140,28 +140,7 @@ class Workflow:
             The schema to use when creating the protocols
         """
 
-        applied_replicators = []
-
-        for replicator in schema.replicators:
-
-            updated_protocols_to_replicate = []
-
-            for protocol_to_replicate in replicator.protocols_to_replicate:
-
-                for applied_replicator in applied_replicators:
-
-                    for index in range(len(applied_replicator.template_values)):
-
-                        replacement_string = '$({})'.format(applied_replicator.id)
-
-                        updated_path = protocol_to_replicate.full_path.replace(replacement_string, str(index))
-                        updated_protocols_to_replicate.append(ProtocolPath.from_string(updated_path))
-
-            if len(updated_protocols_to_replicate) > 0:
-                replicator.protocols_to_replicate = updated_protocols_to_replicate
-
-            self._build_replicated_protocols(schema, replicator)
-            applied_replicators.append(replicator)
+        self._apply_replicators(schema)
 
         for protocol_name in schema.protocols:
 
@@ -186,6 +165,52 @@ class Workflow:
             protocol.set_uuid(self.uuid)
             self.protocols[protocol.id] = protocol
 
+    def _apply_replicators(self, schema):
+        """Applies each of the protocol replicators in turn to the schema.
+
+        Parameters
+        ----------
+        schema: WorkflowSchema
+            The schema to apply the replicators to.
+        """
+
+        applied_replicators = []
+
+        for replicator in schema.replicators:
+
+            # Get the list of values which will be passed to the newly created protocols -
+            # in particular those specified by `generator_protocol.template_targets`
+            if isinstance(replicator.template_values, ProtocolPath):
+
+                if not replicator.template_values.is_global:
+
+                    raise ValueError('Template values must either be a constant or come'
+                                     'from the global scope (and not from {})'.format(replicator.template_values))
+
+                replicator.template_values = get_nested_attribute(self.global_metadata,
+                                                                  replicator.template_values.property_name)
+
+            updated_protocols_to_replicate = []
+
+            for protocol_to_replicate in replicator.protocols_to_replicate:
+
+                for applied_replicator in applied_replicators:
+
+                    for index in range(len(applied_replicator.template_values)):
+                        replacement_string = '$({})'.format(applied_replicator.id)
+
+                        if protocol_to_replicate.full_path.find(replacement_string) < 0:
+                            continue
+
+                        updated_path = protocol_to_replicate.full_path.replace(replacement_string, str(index))
+                        updated_protocols_to_replicate.append(ProtocolPath.from_string(updated_path))
+
+            if len(updated_protocols_to_replicate) > 0:
+                replicator.protocols_to_replicate = updated_protocols_to_replicate
+
+            self._build_replicated_protocols(schema, replicator)
+            applied_replicators.append(replicator)
+
     def _build_replicated_protocols(self, schema, replicator):
         """A method to create a set of protocol schemas based on a ProtocolReplicator,
         and add them to the list of existing schemas.
@@ -203,13 +228,13 @@ class Workflow:
 
         # Get the list of values which will be passed to the newly created protocols -
         # in particular those specified by `generator_protocol.template_targets`
-        if isinstance(template_values, ProtocolPath):
-
-            if not template_values.is_global:
-                raise ValueError('Template values must either be a constant or come'
-                                 'from the global scope (and not from {})'.format(template_values))
-
-            template_values = get_nested_attribute(self.global_metadata, template_values.property_name)
+        # if isinstance(template_values, ProtocolPath):
+        #
+        #     if not template_values.is_global:
+        #         raise ValueError('Template values must either be a constant or come'
+        #                          'from the global scope (and not from {})'.format(template_values))
+        #
+        #     template_values = get_nested_attribute(self.global_metadata, template_values.property_name)
 
         replicated_protocols = []
 

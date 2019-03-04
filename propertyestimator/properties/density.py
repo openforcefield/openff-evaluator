@@ -5,12 +5,13 @@ A collection of density physical property definitions.
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.properties.properties import PhysicalProperty
+from propertyestimator.properties.utils import generate_base_reweighting_protocols
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow import WorkflowSchema
 from propertyestimator.workflow import protocols, groups
-from propertyestimator.workflow.schemas import WorkflowOutputToStore, ProtocolReplicator
-from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
+from propertyestimator.workflow.schemas import WorkflowOutputToStore
+from propertyestimator.workflow.utils import ProtocolPath
 
 
 @register_estimable_property()
@@ -192,119 +193,21 @@ class Density(PhysicalProperty):
     @staticmethod
     def get_default_reweighting_workflow_schema():
 
+        # The protocol which will be used to calculate the densities from
+        # the existing data.
+        density_calculation = protocols.ExtractAverageStatistic('calc_density_$(data_repl)')
+        base_reweighting_protocols, data_replicator = generate_base_reweighting_protocols(density_calculation)
+
+        density_calculation.statistics_type = ObservableType.Density
+        density_calculation.statistics_path = ProtocolPath('statistics_file_path',
+                                                           base_reweighting_protocols.unpack_stored_data.id)
+
         schema = WorkflowSchema(property_type=Density.__name__)
         schema.id = '{}{}'.format(Density.__name__, 'Schema')
 
-        # Unpack all the of the stored data.
-        unpack_stored_data = protocols.UnpackStoredSimulationData('unpack_data_$(data_repl)')
-        unpack_stored_data.simulation_data_path = ReplicatorValue('data_repl')
+        schema.protocols = {protocol.id: protocol.schema for protocol in base_reweighting_protocols}
+        schema.replicators = [data_replicator]
 
-        schema.protocols[unpack_stored_data.id] = unpack_stored_data.schema
-
-        # Calculate the autocorrelation time of each of the stored files for this property.
-        density_calculation = protocols.ExtractAverageStatistic('calc_density_$(data_repl)')
-
-        density_calculation.statistics_type = ObservableType.Density
-        density_calculation.statistics_path = ProtocolPath('statistics_file_path', unpack_stored_data.id)
-
-        schema.protocols[density_calculation.id] = density_calculation.schema
-
-        # Decorrelate the frames of the concatenated trajectory.
-        decorrelate_trajectory = protocols.ExtractUncorrelatedTrajectoryData('decorrelate_traj_$(data_repl)')
-
-        decorrelate_trajectory.statistical_inefficiency = ProtocolPath('statistical_inefficiency',
-                                                                       density_calculation.id)
-        decorrelate_trajectory.equilibration_index = ProtocolPath('equilibration_index',
-                                                                  density_calculation.id)
-        decorrelate_trajectory.input_coordinate_file = ProtocolPath('coordinate_file_path',
-                                                                    unpack_stored_data.id)
-        decorrelate_trajectory.input_trajectory_path = ProtocolPath('trajectory_file_path',
-                                                                    unpack_stored_data.id)
-
-        schema.protocols[decorrelate_trajectory.id] = decorrelate_trajectory.schema
-
-        # Stitch together all of the trajectories
-        concatenate_trajectories = protocols.ConcatenateTrajectories('concat_traj')
-
-        concatenate_trajectories.input_coordinate_paths = [ProtocolPath('coordinate_file_path',
-                                                                        unpack_stored_data.id)]
-
-        concatenate_trajectories.input_trajectory_paths = [ProtocolPath('output_trajectory_path',
-                                                                        decorrelate_trajectory.id)]
-
-        schema.protocols[concatenate_trajectories.id] = concatenate_trajectories.schema
-
-        # Calculate the reduced potentials for each of the reference states.
-        build_reference_system = protocols.BuildSmirnoffSystem('build_system_$(data_repl)')
-
-        build_reference_system.force_field_path = ProtocolPath('force_field_path', unpack_stored_data.id)
-        build_reference_system.substance = ProtocolPath('substance', unpack_stored_data.id)
-        build_reference_system.coordinate_file_path = ProtocolPath('coordinate_file_path',
-                                                                   unpack_stored_data.id)
-
-        schema.protocols[build_reference_system.id] = build_reference_system.schema
-
-        reduced_reference_potential = protocols.CalculateReducedPotentialOpenMM('reduced_potential_$(data_repl)')
-
-        reduced_reference_potential.system = ProtocolPath('system', build_reference_system.id)
-        reduced_reference_potential.thermodynamic_state = ProtocolPath('thermodynamic_state',
-                                                                       unpack_stored_data.id)
-        reduced_reference_potential.coordinate_file_path = ProtocolPath('coordinate_file_path',
-                                                                        unpack_stored_data.id)
-        reduced_reference_potential.trajectory_file_path = ProtocolPath('output_trajectory_path',
-                                                                        concatenate_trajectories.id)
-
-        schema.protocols[reduced_reference_potential.id] = reduced_reference_potential.schema
-
-        # Calculate the reduced potential of the target state.
-        build_target_system = protocols.BuildSmirnoffSystem('build_system_target')
-
-        build_target_system.force_field_path = ProtocolPath('force_field_path', 'global')
-        build_target_system.substance = ProtocolPath('substance', 'global')
-        build_target_system.coordinate_file_path = ProtocolPath('output_coordinate_path',
-                                                                concatenate_trajectories.id)
-
-        schema.protocols[build_target_system.id] = build_target_system.schema
-
-        reduced_target_potential = protocols.CalculateReducedPotentialOpenMM('reduced_potential_target')
-
-        reduced_target_potential.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
-        reduced_target_potential.system = ProtocolPath('system', build_target_system.id)
-        reduced_target_potential.coordinate_file_path = ProtocolPath('output_coordinate_path',
-                                                                     concatenate_trajectories.id)
-        reduced_target_potential.trajectory_file_path = ProtocolPath('output_trajectory_path',
-                                                                     concatenate_trajectories.id)
-
-        schema.protocols[reduced_target_potential.id] = reduced_target_potential.schema
-
-        # Finally, apply MBAR to get the reweighted value.
-        mbar_protocol = protocols.ReweightWithMBARProtocol('mbar')
-
-        mbar_protocol.reference_reduced_potentials = [ProtocolPath('reduced_potentials',
-                                                                   reduced_reference_potential.id)]
-
-        mbar_protocol.reference_observables = [ProtocolPath('uncorrelated_values', density_calculation.id)]
-        mbar_protocol.target_reduced_potentials = [ProtocolPath('reduced_potentials', reduced_target_potential.id)]
-
-        schema.protocols[mbar_protocol.id] = mbar_protocol.schema
-
-        # Create the replicator object.
-        component_replicator = ProtocolReplicator(replicator_id='data_repl')
-
-        component_replicator.protocols_to_replicate = []
-
-        # Pass it paths to the protocols to be replicated.
-        for protocol in schema.protocols.values():
-
-            if protocol.id.find('$(data_repl)') < 0:
-                continue
-
-            component_replicator.protocols_to_replicate.append(ProtocolPath('', protocol.id))
-
-        component_replicator.template_values = ProtocolPath('full_system_data', 'global')
-
-        schema.replicators = [component_replicator]
-
-        schema.final_value_source = ProtocolPath('value', mbar_protocol.id)
+        schema.final_value_source = ProtocolPath('value', base_reweighting_protocols.mbar_protocol.id)
 
         return schema
