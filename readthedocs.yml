@@ -7,7 +7,9 @@ build:
 
 python:
   version: 3.6 
-  setup_py_install: true 
+  install:
+    - method: setuptools
+      path: propertyestimator
 
 # Build PDF in addition to default HTML and JSON
 formats:
