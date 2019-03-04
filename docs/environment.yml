@@ -21,7 +21,7 @@ dependencies:
     - packmol
     - pymbar
     - dask
-    - tornado
+    - tornado <6
     - uncertainties
 
     - pip:
