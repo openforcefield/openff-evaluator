@@ -14,11 +14,12 @@ from simtk import unit
 from propertyestimator.storage import StoredSimulationData
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.serialization import TypedBaseModel
 from propertyestimator.utils.statistics import StatisticsArray
 from propertyestimator.utils.utils import SubhookedABCMeta, get_nested_attribute
 from propertyestimator.workflow.plugins import available_protocols
 from propertyestimator.workflow.protocols import BaseProtocol
-from propertyestimator.workflow.schemas import WorkflowSchema
+from propertyestimator.workflow.schemas import WorkflowSchema, ProtocolReplicator
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
@@ -174,42 +175,120 @@ class Workflow:
             The schema to apply the replicators to.
         """
 
-        applied_replicators = []
+        while len(schema.replicators) > 0:
 
-        for replicator in schema.replicators:
+            replicator = schema.replicators.pop(0)
 
-            # Get the list of values which will be passed to the newly created protocols -
-            # in particular those specified by `generator_protocol.template_targets`
-            if isinstance(replicator.template_values, ProtocolPath):
+            # Apply this replicator
+            self._build_replicated_protocols(schema, replicator)
 
-                if not replicator.template_values.is_global:
+            if len(schema.replicators) == 0:
+                continue
 
-                    raise ValueError('Template values must either be a constant or come'
-                                     'from the global scope (and not from {})'.format(replicator.template_values))
+            # Look over all of the replicators left to apply and update them
+            # to point to the newly replicated protocols where appropriate.
+            replacement_string = '$({})'.format(replicator.id)
+            new_indices = [str(index) for index in range(len(replicator.template_values))]
 
-                replicator.template_values = get_nested_attribute(self.global_metadata,
-                                                                  replicator.template_values.property_name)
+            updated_replicators = []
 
-            updated_protocols_to_replicate = []
+            for replicator_to_update in schema.replicators:
 
-            for protocol_to_replicate in replicator.protocols_to_replicate:
+                should_replicate_replicator = False
 
-                for applied_replicator in applied_replicators:
+                for protocol_path in replicator_to_update.protocols_to_replicate:
 
-                    for index in range(len(applied_replicator.template_values)):
-                        replacement_string = '$({})'.format(applied_replicator.id)
+                    if protocol_path.full_path.find(replacement_string) >= 0:
 
-                        if protocol_to_replicate.full_path.find(replacement_string) < 0:
+                        should_replicate_replicator = True
+                        break
+
+                # Check whether this replicator is nested, and hence should be replicated.
+                if not should_replicate_replicator:
+
+                    updated_replicators.append(replicator_to_update)
+                    continue
+
+                # Create the new replicators
+                for template_index in new_indices:
+
+                    new_replicator_id = '{}_{}'.format(replicator_to_update.id, template_index)
+                    new_replicator = ProtocolReplicator(new_replicator_id)
+
+                    if isinstance(replicator_to_update.template_values, ProtocolPath):
+
+                        updated_path = replicator_to_update.template_values.full_path.replace(replacement_string,
+                                                                                              template_index)
+
+                        new_replicator.template_values = ProtocolPath.from_string(updated_path)
+
+                    elif isinstance(replicator_to_update.template_values, list):
+
+                        updated_values = []
+
+                        for template_value in replicator_to_update.template_values:
+
+                            if not isinstance(template_value, ProtocolPath):
+
+                                updated_values.append(template_value)
+                                continue
+
+                            updated_path = template_value.full_path.replace(replacement_string,
+                                                                            template_index)
+
+                            updated_values.append(ProtocolPath.from_string(updated_path))
+
+                        new_replicator.template_values = updated_values
+
+                    else:
+
+                        new_replicator.template_values = replicator.template_values
+
+                    updated_replicators.append(new_replicator)
+
+                # Set up the protocols for each of the new replicators.
+                all_protocols_to_replicate = []
+
+                all_protocols_to_replicate.extend(replicator.protocols_to_replicate)
+                all_protocols_to_replicate.extend(x for x in replicator_to_update.protocols_to_replicate
+                                                  if x not in all_protocols_to_replicate)
+
+                for protocol_path in all_protocols_to_replicate:
+
+                    if protocol_path.start_protocol != protocol_path.last_protocol:
+
+                        raise ValueError('Cannot replicate replicators which replicate grouped'
+                                         'protocols...')
+
+                    for template_index in new_indices:
+
+                        replicated_path = ProtocolPath.from_string(protocol_path.full_path.replace(replacement_string,
+                                                                                                   template_index))
+
+                        protocol_schema_json = schema.protocols[replicated_path.start_protocol].json()
+
+                        if protocol_schema_json.find(replicator_to_update.id) < 0:
                             continue
 
-                        updated_path = protocol_to_replicate.full_path.replace(replacement_string, str(index))
-                        updated_protocols_to_replicate.append(ProtocolPath.from_string(updated_path))
+                        schema.protocols.pop(replicated_path.start_protocol)
 
-            if len(updated_protocols_to_replicate) > 0:
-                replicator.protocols_to_replicate = updated_protocols_to_replicate
+                        new_replicator_id = '{}_{}'.format(replicator_to_update.id, template_index)
 
-            self._build_replicated_protocols(schema, replicator)
-            applied_replicators.append(replicator)
+                        updated_schema_json = protocol_schema_json.replace(replicator_to_update.id,
+                                                                           new_replicator_id)
+
+                        updated_schema = TypedBaseModel.parse_json(updated_schema_json)
+                        schema.protocols[updated_schema.id] = updated_schema
+
+                        if protocol_path not in replicator_to_update.protocols_to_replicate:
+                            continue
+
+                        updated_path = replicated_path.full_path.replace(replicator_to_update.id, new_replicator_id)
+
+                        updated_replicators[int(template_index)].protocols_to_replicate.append(
+                            ProtocolPath.from_string(updated_path))
+
+            schema.replicators = updated_replicators
 
     def _build_replicated_protocols(self, schema, replicator):
         """A method to create a set of protocol schemas based on a ProtocolReplicator,
@@ -228,13 +307,34 @@ class Workflow:
 
         # Get the list of values which will be passed to the newly created protocols -
         # in particular those specified by `generator_protocol.template_targets`
-        # if isinstance(template_values, ProtocolPath):
-        #
-        #     if not template_values.is_global:
-        #         raise ValueError('Template values must either be a constant or come'
-        #                          'from the global scope (and not from {})'.format(template_values))
-        #
-        #     template_values = get_nested_attribute(self.global_metadata, template_values.property_name)
+        if isinstance(template_values, ProtocolPath):
+
+            if not template_values.is_global:
+                raise ValueError('Template values must either be a constant or come'
+                                 'from the global scope (and not from {})'.format(template_values))
+
+            template_values = get_nested_attribute(self.global_metadata, template_values.property_name)
+
+        elif isinstance(template_values, list):
+
+            new_values = []
+
+            for template_value in template_values:
+
+                if not isinstance(template_value, ProtocolPath):
+
+                    new_values.append(template_value)
+                    continue
+
+                if not template_value.is_global:
+                    raise ValueError('Template values must either be a constant or come'
+                                     'from the global scope (and not from {})'.format(template_value))
+
+                new_values.append(get_nested_attribute(self.global_metadata, template_value.property_name))
+
+            template_values = new_values
+
+        replicator.template_values = template_values
 
         replicated_protocols = []
 

@@ -7,6 +7,7 @@ import pickle
 from os import path
 
 from propertyestimator.layers import register_calculation_layer, PropertyCalculationLayer
+from propertyestimator.substances import Mixture
 from propertyestimator.utils.serialization import serialize_force_field
 from propertyestimator.utils.utils import SubhookedABCMeta
 from propertyestimator.workflow import WorkflowGraph, Workflow
@@ -171,34 +172,31 @@ class ReweightingLayer(PropertyCalculationLayer):
             global_metadata = Workflow.generate_default_metadata(property_to_calculate,
                                                                  target_force_field_path, options)
 
-            substance_identifiers = [property_to_calculate.substance.identifier]
+            if property_to_calculate.substance.identifier not in stored_data_paths:
+                continue
+
+            global_metadata['full_system_data'] = stored_data_paths[property_to_calculate.substance.identifier]
+            global_metadata['component_data'] = []
 
             if property_to_calculate.multi_component_property:
 
-                substance_identifiers.extend([component.identifier for
-                                              component in property_to_calculate.substance])
+                has_data_for_property = True
 
-            global_metadata['full_system_data'] = []
-            global_metadata['component_data'] = {}
+                for component in property_to_calculate.substance.components:
 
-            has_data_for_property = True
+                    temporary_component = Mixture.MixtureComponent(component.smiles,
+                                                                   mole_fraction=1.0,
+                                                                   impurity=False)
 
-            for substance_identifier in substance_identifiers:
+                    if temporary_component.identifier not in stored_data_paths:
 
-                if substance_identifier not in stored_data_paths:
+                        has_data_for_property = False
+                        break
 
-                    has_data_for_property = False
-                    break
+                    global_metadata['component_data'].append(stored_data_paths[temporary_component.identifier])
 
-                stored_data = stored_data_paths[substance_identifier]
-
-                if substance_identifier == property_to_calculate.substance.identifier:
-                    global_metadata['full_system_data'] = stored_data
-                else:
-                    global_metadata['component_data'][substance_identifier] = stored_data
-
-            if not has_data_for_property:
-                continue
+                if not has_data_for_property:
+                    continue
 
             workflow = Workflow(property_to_calculate, global_metadata)
             workflow.schema = schema

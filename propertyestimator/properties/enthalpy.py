@@ -86,6 +86,14 @@ class EnthalpyOfMixing(PhysicalProperty):
                                                     'subsample_trajectory '
                                                     'subsample_statistics ')
 
+    @property
+    def multi_component_property(self):
+        """Returns whether this property is dependant on properties of the
+        full mixed substance, or whether it is also dependant on the properties
+        of the individual components also.
+        """
+        return True
+
     @staticmethod
     def get_enthalpy_workflow(id_prefix='', weight_by_mole_fraction=False):
         """Returns the set of protocols which when combined in a workflow
@@ -383,8 +391,7 @@ class EnthalpyOfMixing(PhysicalProperty):
                                                              pure_protocols.unpack_stored_data.id)
 
         # Make sure the replicator is only replicating over data from the pure component.
-        # TODO.
-        pure_data_replicator.template_values = ProtocolPath('full_system_data', 'global')
+        pure_data_replicator.template_values = ProtocolPath('component_data[$(comp_repl)]', 'global')
 
         # Set up the protocols which will be responsible for adding together
         # the component enthalpies, and subtracting these from the mixed system enthalpy.

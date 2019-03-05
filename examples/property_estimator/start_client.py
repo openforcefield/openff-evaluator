@@ -33,7 +33,7 @@ def compute_estimate_async():
     setup_timestamp_logging()
 
     # Load in the data set of interest.
-    data_set = ThermoMLDataSet.from_file(get_data_filename('properties/single_dielectric.xml'))
+    data_set = ThermoMLDataSet.from_file(get_data_filename('properties/single_enthalpy_mixing.xml'))
     # Load in the force field to use.
     force_field = smirnoff.ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
 

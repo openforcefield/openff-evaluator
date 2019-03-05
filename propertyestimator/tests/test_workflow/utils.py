@@ -23,6 +23,11 @@ def create_dummy_metadata(dummy_property, calculation_layer):
             ('data_path_2', 'ff_path_1')
         ]
 
+        global_metadata['component_data'] = [
+            [('data_path_3', 'ff_path_3'), ('data_path_4', 'ff_path_4')],
+            [('data_path_5', 'ff_path_5'), ('data_path_6', 'ff_path_6')]
+        ]
+
     return global_metadata
 
 
