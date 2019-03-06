@@ -201,6 +201,10 @@ class ReweightingLayer(PropertyCalculationLayer):
             workflow = Workflow(property_to_calculate, global_metadata)
             workflow.schema = schema
 
+            from propertyestimator.properties import CalculationSource
+            workflow.physical_property.source = CalculationSource(fidelity=ReweightingLayer.__name__,
+                                                                           provenance={})
+
             workflow_graph.add_workflow(workflow)
 
         return workflow_graph

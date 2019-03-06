@@ -1,9 +1,5 @@
 #!/usr/bin/env python
-import copy
 import logging
-from uuid import uuid4
-
-from simtk import unit
 
 from propertyestimator import client
 from propertyestimator.client import PropertyEstimatorOptions

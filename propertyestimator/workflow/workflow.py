@@ -923,12 +923,7 @@ class WorkflowGraph:
                 protocol = workflow.protocols[protocol_id]
                 provenance[protocol_id] = protocol.schema
 
-            # from propertyestimator.properties import workflowSource
-            #
-            # source = CalculationSource(fidelity=SimulationLayer.__name__,
-            #                            provenance=provenance)
-            #
-            # workflow.physical_property.source = source
+            workflow.physical_property.source.provenance = provenance
 
             value_node_id = workflow.final_value_source.start_protocol
 
