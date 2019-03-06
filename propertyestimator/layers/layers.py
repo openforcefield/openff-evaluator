@@ -42,7 +42,7 @@ class CalculationLayerResult:
         self.property_id: str = None
 
         self.calculated_property: PhysicalProperty = None
-        self.calculation_error: PropertyEstimatorException = None
+        self.workflow_error: PropertyEstimatorException = None
 
         self.data_to_store: List[StoredSimulationData] = None
 
@@ -96,8 +96,8 @@ class PropertyCalculationLayer:
 
                 return_object = None
 
-                if returned_output.calculation_error is not None:
-                    return_object = returned_output.calculation_error
+                if returned_output.workflow_error is not None:
+                    return_object = returned_output.workflow_error
                 else:
                     return_object = returned_output.calculated_property
 

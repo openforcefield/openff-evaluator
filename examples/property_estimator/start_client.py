@@ -1,5 +1,9 @@
 #!/usr/bin/env python
+import copy
 import logging
+from uuid import uuid4
+
+from simtk import unit
 
 from propertyestimator import client
 from propertyestimator.client import PropertyEstimatorOptions
@@ -33,9 +37,21 @@ def compute_estimate_async():
     setup_timestamp_logging()
 
     # Load in the data set of interest.
-    data_set = ThermoMLDataSet.from_file(get_data_filename('properties/single_enthalpy_mixing.xml'))
+    data_set = ThermoMLDataSet.from_file(get_data_filename('properties/single_dielectric.xml'))
     # Load in the force field to use.
     force_field = smirnoff.ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
+
+    # new_property_0 = copy.deepcopy(data_set.properties['COCCO{1.0}'][0])
+    # new_property_0.thermodynamic_state.temperature -= 2.0 * unit.kelvin
+    # new_property_0.id = str(uuid4())
+    #
+    # data_set.properties['COCCO{1.0}'].append(new_property_0)
+    #
+    # new_property_1 = copy.deepcopy(data_set.properties['COCCO{1.0}'][0])
+    # new_property_1.thermodynamic_state.temperature += 2.0 * unit.kelvin
+    # new_property_1.id = str(uuid4())
+    #
+    # data_set.properties['COCCO{1.0}'].append(new_property_1)
 
     # Modify the submission options
     options = PropertyEstimatorOptions(relative_uncertainty_tolerance=100000)

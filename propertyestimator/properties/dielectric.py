@@ -5,43 +5,56 @@ A collection of dielectric physical property definitions.
 import logging
 
 import numpy as np
+
 from simtk import openmm, unit
 from simtk.openmm import System
 
-from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.datasets.plugins import register_thermoml_property
+from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.properties.properties import PhysicalProperty
+from propertyestimator.properties.utils import generate_base_reweighting_protocols, BaseReweightingProtocols
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils import timeseries
+from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
+from propertyestimator.utils.statistics import bootstrap
 from propertyestimator.workflow import WorkflowSchema
 from propertyestimator.workflow import protocols, groups, plugins
-from propertyestimator.workflow.decorators import protocol_input
-from propertyestimator.workflow.schemas import WorkflowOutputToStore, ProtocolReplicator
-from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
+from propertyestimator.workflow.decorators import protocol_input, protocol_output
+from propertyestimator.workflow.schemas import WorkflowOutputToStore
+from propertyestimator.workflow.utils import ProtocolPath
 
 
 @plugins.register_calculation_protocol()
 class ExtractAverageDielectric(protocols.AverageTrajectoryProperty):
     """Extracts the average dielectric constant from a simulation trajectory.
     """
+
     def __init__(self, protocol_id):
         super().__init__(protocol_id)
 
         self._system = None
         self._thermodynamic_state = None
 
+        self._uncorrelated_volumes = None
+
     @protocol_input(System)
-    def system(self, value):
+    def system(self):
         """The system object which defines the forces present in the system."""
         pass
 
     @protocol_input(ThermodynamicState)
-    def thermodynamic_state(self, value):
+    def thermodynamic_state(self):
         """The thermodynamic state at which the trajectory was generated."""
         pass
 
-    def _bootstrap_function(self, sample_data):
+    @protocol_output(unit.Quantity)
+    def uncorrelated_volumes(self):
+        """The uncorrelated volumes which were used in the dielect
+        calculation."""
+        pass
+
+    def _bootstrap_function(self, **sample_kwargs):
         """Calculates the static dielectric constant from an
         array of dipoles and volumes.
 
@@ -56,10 +69,11 @@ class ExtractAverageDielectric(protocols.AverageTrajectoryProperty):
 
         Parameters
         ----------
-        sample_data: np.ndarray, shape=(num_frames, 4), dtype=float
-            The dataset to bootstap. The data stored by trajectory frame is
-            four dimensional (Mx, My, Mz, V) where M is dipole moment and
-            V is volume.
+        sample_kwargs: dict of str and np.ndarray
+            A key words dictionary of the bootstrap sample data, where the
+            sample data is a numpy array of shape=(num_frames, num_dimensions)
+            with dtype=float. The kwargs should include the dipole moment and
+            the system volume
 
         Returns
         -------
@@ -67,21 +81,13 @@ class ExtractAverageDielectric(protocols.AverageTrajectoryProperty):
             The unitless static dielectric constant
         """
 
+        dipole_moments = sample_kwargs['dipoles']
+        volumes = sample_kwargs['volumes']
+
         temperature = self._thermodynamic_state.temperature
 
-        dipoles = np.zeros([sample_data.shape[0], 3])
-        volumes = np.zeros([sample_data.shape[0], 1])
-
-        for index in range(sample_data.shape[0]):
-
-            dipoles[index][0] = sample_data[index][0]
-            dipoles[index][1] = sample_data[index][1]
-            dipoles[index][2] = sample_data[index][2]
-
-            volumes[index] = sample_data[index][3]
-
-        dipole_mu = dipoles.mean(0)
-        shifted_dipoles = dipoles - dipole_mu
+        dipole_mu = dipole_moments.mean(0)
+        shifted_dipoles = dipole_moments - dipole_mu
 
         dipole_variance = (shifted_dipoles * shifted_dipoles).sum(-1).mean(0) * \
                           (unit.elementary_charge * unit.nanometers) ** 2
@@ -126,28 +132,154 @@ class ExtractAverageDielectric(protocols.AverageTrajectoryProperty):
                 charge_list.append(charge)
 
         dipole_moments = mdtraj.geometry.dipole_moments(self.trajectory, charge_list)
-        volumes = self.trajectory.unitcell_volumes
 
         dipole_moments, self._equilibration_index, self._statistical_inefficiency = \
             timeseries.decorrelate_time_series(dipole_moments)
 
+        sample_indices = timeseries.get_uncorrelated_indices(len(self.trajectory),
+                                                             self._statistical_inefficiency)
+
+        sample_indices = [index for index in sample_indices if index >= self._equilibration_index]
+
+        volumes = self.trajectory[sample_indices].unitcell_volumes
+
         self._uncorrelated_values = unit.Quantity(dipole_moments, None)
+        self._uncorrelated_volumes = volumes * unit.nanometer ** 3
 
-        dipole_moments_and_volume = np.zeros([dipole_moments.shape[0], 4])
-
-        for index in range(dipole_moments.shape[0]):
-
-            dipole = dipole_moments[index]
-            volume = volumes[index]
-
-            dipole_moments_and_volume[index] = np.array([dipole[0], dipole[1], dipole[2], volume])
-
-        value, uncertainty = self._perform_bootstrapping(dipole_moments_and_volume)
+        value, uncertainty = bootstrap(self._bootstrap_function,
+                                       self._bootstrap_iterations,
+                                       self._bootstrap_sample_size,
+                                       dipoles=dipole_moments,
+                                       volumes=volumes)
 
         self._value = EstimatedQuantity(unit.Quantity(value, None),
                                         unit.Quantity(uncertainty, None), self.id)
 
         logging.info('Extracted dielectrics: ' + self.id)
+
+        return self._get_output_dictionary()
+
+
+@plugins.register_calculation_protocol()
+class ReweightDielectricConstant(protocols.ReweightWithMBARProtocol):
+    """Reweights a set of dipole moments (`reference_observables`) and volumes
+    (`reference_volumes`) using MBAR, and then combines these to yeild the reweighted
+    dielectric constant. Uncertainties in the dielectric constant are determined
+    by bootstrapping.
+    """
+    @protocol_input(unit.Quantity)
+    def reference_volumes(self):
+        """The a Quantity wrapped np.ndarray of the volumes of each of the
+        reference states."""
+        pass
+
+    @protocol_input(ThermodynamicState)
+    def thermodynamic_state(self):
+        """The thermodynamic state at which the trajectory was generated."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new ReweightFluctuationWithMBARProtocol object."""
+
+        super().__init__(protocol_id)
+
+        self._thermodynamic_state = None
+
+        self._reference_volumes = None
+        self._bootstrap_uncertainties = True
+
+    def _bootstrap_function(self, reference_reduced_potentials, target_reduced_potentials, **reference_observables):
+
+        assert len(reference_observables) == 3
+
+        transposed_observables = {}
+
+        for key in reference_observables:
+            transposed_observables[key] = np.transpose(reference_observables[key])
+
+        values, _ = self._reweight_observables(np.transpose(reference_reduced_potentials),
+                                               np.transpose(target_reduced_potentials),
+                                               **transposed_observables)
+
+        average_squared_dipole = values['dipoles_sqr']
+        average_dipole_squared = np.linalg.norm(values['dipoles'])
+
+        dipole_variance = (average_squared_dipole - average_dipole_squared) * \
+                          (unit.elementary_charge * unit.nanometers) ** 2
+
+        volume = values['volumes'] * unit.nanometer ** 3
+
+        e0 = 8.854187817E-12 * unit.farad / unit.meter  # Taken from QCElemental
+
+        dielectric_constant = 1.0 + dipole_variance / (3 *
+                                                       unit.BOLTZMANN_CONSTANT_kB *
+                                                       self._thermodynamic_state.temperature *
+                                                       volume *
+                                                       e0)
+
+        return dielectric_constant
+
+    def execute(self, directory, available_resources):
+
+        logging.info('Reweighting dielectric: {}'.format(self.id))
+
+        if len(self._reference_observables) == 0:
+            return PropertyEstimatorException(directory=directory, message='There were no dipole moments to reweight.')
+
+        if len(self._reference_volumes) == 0:
+            return PropertyEstimatorException(directory=directory, message='There were no volumes to reweight.')
+
+        if (not isinstance(self._reference_observables[0], unit.Quantity) or
+            not isinstance(self._reference_volumes[0], unit.Quantity)):
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='The reference observables should be '
+                                                      'a list of unit.Quantity wrapped ndarray\'s.')
+
+        if len(self._reference_observables) != len(self._reference_volumes):
+            return PropertyEstimatorException(directory=directory, message='The number of reference dipoles does '
+                                                                           'not match the number of reference volumes.')
+
+        for reference_dipoles, reference_volumes in zip(self._reference_observables, self._reference_volumes):
+
+            if len(reference_dipoles) == len(reference_volumes):
+                continue
+
+            return PropertyEstimatorException(directory=directory, message='The number of reference dipoles does '
+                                                                           'not match the number of reference volumes.')
+
+        dipole_moments = self._prepare_observables_array(self._reference_observables)
+        dipole_moments_sqr = np.array([[np.dot(dipole, dipole) for dipole in np.transpose(dipole_moments)]])
+
+        volumes = self._prepare_observables_array(self._reference_volumes)
+
+        frame_counts = np.array([len(observable) for observable in self._reference_observables])
+
+        if self._bootstrap_uncertainties:
+
+            reference_potentials = np.transpose(np.array(self._reference_reduced_potentials))
+            target_potentials = np.transpose(np.array(self._target_reduced_potentials))
+
+            value, uncertainty = bootstrap(self._bootstrap_function,
+                                           self._bootstrap_iterations,
+                                           self._bootstrap_sample_size,
+                                           frame_counts,
+                                           reference_reduced_potentials=reference_potentials,
+                                           target_reduced_potentials=target_potentials,
+                                           dipoles=np.transpose(dipole_moments),
+                                           dipoles_sqr=np.transpose(dipole_moments_sqr),
+                                           volumes=np.transpose(volumes))
+
+            self._value = EstimatedQuantity(unit.Quantity(value, None),
+                                            unit.Quantity(uncertainty, None),
+                                            self.id)
+            
+        else:
+
+            return PropertyEstimatorException(directory=directory, message='Dielectric uncertainties may only'
+                                                                           'be bootstrapped.')
+
+        logging.info('Dielectric reweighted: {}'.format(self.id))
 
         return self._get_output_dictionary()
 
@@ -334,124 +466,52 @@ class DielectricConstant(PhysicalProperty):
     @staticmethod
     def get_default_reweighting_workflow_schema():
 
-        schema = WorkflowSchema(property_type=DielectricConstant.__name__)
-        schema.id = '{}{}'.format(DielectricConstant.__name__, 'Schema')
-
-        # Unpack all the of the stored data.
-        unpack_stored_data = protocols.UnpackStoredSimulationData('unpack_data_$(data_repl)')
-        unpack_stored_data.simulation_data_path = ReplicatorValue('data_repl')
-
-        schema.protocols[unpack_stored_data.id] = unpack_stored_data.schema
-
-        # Calculate the autocorrelation time of each of the stored files for this property.
-        build_reference_system = protocols.BuildSmirnoffSystem('build_system_$(data_repl)')
-
-        build_reference_system.force_field_path = ProtocolPath('force_field_path', unpack_stored_data.id)
-        build_reference_system.substance = ProtocolPath('substance', unpack_stored_data.id)
-        build_reference_system.coordinate_file_path = ProtocolPath('coordinate_file_path',
-                                                                   unpack_stored_data.id)
-
         dielectric_calculation = ExtractAverageDielectric('calc_dielectric_$(data_repl)')
+        base_reweighting_protocols, data_replicator = generate_base_reweighting_protocols(dielectric_calculation)
 
-        dielectric_calculation.thermodynamic_state = ProtocolPath('thermodynamic_state',
-                                                                  unpack_stored_data.id)
-        dielectric_calculation.input_coordinate_file = ProtocolPath('coordinate_file_path',
-                                                                    unpack_stored_data.id)
-        dielectric_calculation.trajectory_path = ProtocolPath('trajectory_file_path',
-                                                              unpack_stored_data.id)
-        dielectric_calculation.system = ProtocolPath('system', build_reference_system.id)
+        unpack_id = base_reweighting_protocols.unpack_stored_data.id
 
-        schema.protocols[dielectric_calculation.id] = dielectric_calculation.schema
+        dielectric_calculation.thermodynamic_state = ProtocolPath('thermodynamic_state', unpack_id)
+        dielectric_calculation.input_coordinate_file = ProtocolPath('coordinate_file_path', unpack_id)
+        dielectric_calculation.trajectory_path = ProtocolPath('trajectory_file_path', unpack_id)
+        dielectric_calculation.system = ProtocolPath('system', base_reweighting_protocols.build_reference_system.id)
 
-        # Decorrelate the frames of the concatenated trajectory.
-        decorrelate_trajectory = protocols.ExtractUncorrelatedTrajectoryData('decorrelate_traj_$(data_repl)')
-
-        decorrelate_trajectory.statistical_inefficiency = ProtocolPath('statistical_inefficiency',
-                                                                       dielectric_calculation.id)
-        decorrelate_trajectory.equilibration_index = ProtocolPath('equilibration_index',
-                                                                  dielectric_calculation.id)
-        decorrelate_trajectory.input_coordinate_file = ProtocolPath('coordinate_file_path',
-                                                                    unpack_stored_data.id)
-        decorrelate_trajectory.input_trajectory_path = ProtocolPath('trajectory_file_path',
-                                                                    unpack_stored_data.id)
-
-        schema.protocols[decorrelate_trajectory.id] = decorrelate_trajectory.schema
-
-        # Stitch together all of the trajectories
-        concatenate_trajectories = protocols.ConcatenateTrajectories('concat_traj')
-
-        concatenate_trajectories.input_coordinate_paths = [ProtocolPath('coordinate_file_path',
-                                                                        unpack_stored_data.id)]
-
-        concatenate_trajectories.input_trajectory_paths = [ProtocolPath('output_trajectory_path',
-                                                                        decorrelate_trajectory.id)]
-
-        schema.protocols[concatenate_trajectories.id] = concatenate_trajectories.schema
-
-        # Calculate the reduced potentials for each of the reference states.
-        schema.protocols[build_reference_system.id] = build_reference_system.schema
-
-        reduced_reference_potential = protocols.CalculateReducedPotentialOpenMM('reduced_potential_$(data_repl)')
-
-        reduced_reference_potential.system = ProtocolPath('system', build_reference_system.id)
-        reduced_reference_potential.thermodynamic_state = ProtocolPath('thermodynamic_state',
-                                                                       unpack_stored_data.id)
-        reduced_reference_potential.coordinate_file_path = ProtocolPath('coordinate_file_path',
-                                                                        unpack_stored_data.id)
-        reduced_reference_potential.trajectory_file_path = ProtocolPath('output_trajectory_path',
-                                                                        concatenate_trajectories.id)
-
-        schema.protocols[reduced_reference_potential.id] = reduced_reference_potential.schema
-
-        # Calculate the reduced potential of the target state.
-        build_target_system = protocols.BuildSmirnoffSystem('build_system_target')
-
-        build_target_system.force_field_path = ProtocolPath('force_field_path', 'global')
-        build_target_system.substance = ProtocolPath('substance', 'global')
-        build_target_system.coordinate_file_path = ProtocolPath('output_coordinate_path',
-                                                                concatenate_trajectories.id)
-
-        schema.protocols[build_target_system.id] = build_target_system.schema
-
-        reduced_target_potential = protocols.CalculateReducedPotentialOpenMM('reduced_potential_target')
-
-        reduced_target_potential.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
-        reduced_target_potential.system = ProtocolPath('system', build_target_system.id)
-        reduced_target_potential.coordinate_file_path = ProtocolPath('output_coordinate_path',
-                                                                     concatenate_trajectories.id)
-        reduced_target_potential.trajectory_file_path = ProtocolPath('output_trajectory_path',
-                                                                     concatenate_trajectories.id)
-
-        schema.protocols[reduced_target_potential.id] = reduced_target_potential.schema
-
-        # Finally, apply MBAR to get the reweighted value.
-        mbar_protocol = protocols.ReweightWithMBARProtocol('mbar')
+        # For the dielectric constant, we employ a slightly more advanced protocol
+        # set up for calculating fluctuation properties.
+        mbar_protocol = ReweightDielectricConstant('mbar')
 
         mbar_protocol.reference_reduced_potentials = [ProtocolPath('reduced_potentials',
+                                                                   base_reweighting_protocols.
                                                                    reduced_reference_potential.id)]
 
         mbar_protocol.reference_observables = [ProtocolPath('uncorrelated_values', dielectric_calculation.id)]
-        mbar_protocol.target_reduced_potentials = [ProtocolPath('reduced_potentials', reduced_target_potential.id)]
+        mbar_protocol.reference_volumes = [ProtocolPath('uncorrelated_volumes', dielectric_calculation.id)]
 
-        schema.protocols[mbar_protocol.id] = mbar_protocol.schema
+        mbar_protocol.target_reduced_potentials = [ProtocolPath('reduced_potentials', base_reweighting_protocols.
+                                                                                      reduced_target_potential.id)]
 
-        # Create the replicator object.
-        component_replicator = ProtocolReplicator(replicator_id='data_repl')
+        mbar_protocol.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 
-        component_replicator.protocols_to_replicate = []
+        mbar_protocol.bootstrap_uncertainties = True
+        mbar_protocol.bootstrap_iterations = 200
 
-        # Pass it paths to the protocols to be replicated.
-        for protocol in schema.protocols.values():
+        # Recreate the immutable tuple for convenience.
+        base_reweighting_protocols = BaseReweightingProtocols(base_reweighting_protocols.unpack_stored_data,
+                                                              base_reweighting_protocols.analysis_protocol,
+                                                              base_reweighting_protocols.decorrelate_trajectory,
+                                                              base_reweighting_protocols.concatenate_trajectories,
+                                                              base_reweighting_protocols.build_reference_system,
+                                                              base_reweighting_protocols.reduced_reference_potential,
+                                                              base_reweighting_protocols.build_target_system,
+                                                              base_reweighting_protocols.reduced_target_potential,
+                                                              mbar_protocol)
 
-            if protocol.id.find('$(data_repl)') < 0:
-                continue
+        schema = WorkflowSchema(property_type=DielectricConstant.__name__)
+        schema.id = '{}{}'.format(DielectricConstant.__name__, 'Schema')
 
-            component_replicator.protocols_to_replicate.append(ProtocolPath('', protocol.id))
+        schema.protocols = {protocol.id: protocol.schema for protocol in base_reweighting_protocols}
+        schema.replicators = [data_replicator]
 
-        component_replicator.template_values = ProtocolPath('full_system_data', 'global')
-
-        schema.replicators = [component_replicator]
-
-        schema.final_value_source = ProtocolPath('value', mbar_protocol.id)
+        schema.final_value_source = ProtocolPath('value', base_reweighting_protocols.mbar_protocol.id)
 
         return schema
