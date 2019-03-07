@@ -13,7 +13,6 @@ dependencies:
     - m2r >=0.2.1
 
     # Standard dependencies
-    - openforcefield
     - numpy
     - pandas
     - lxml
@@ -21,11 +20,9 @@ dependencies:
     - openmm
     - packmol
     - pymbar
-    - mdtraj
     - dask
-    - tornado
+    - tornado <6
     - uncertainties
-    - openmmtools
 
     - pip:
         - sphinx_rtd_theme

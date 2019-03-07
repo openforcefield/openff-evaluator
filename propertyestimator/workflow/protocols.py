@@ -5,11 +5,9 @@ form a larger property estimation workflow.
 
 import copy
 import logging
-import math
 import pickle
 from os import path
 
-import mdtraj
 import numpy as np
 import pymbar
 from simtk import openmm, unit
@@ -21,8 +19,8 @@ from propertyestimator.utils import packmol, graph, utils, statistics, timeserie
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import deserialize_quantity, deserialize_force_field
-from propertyestimator.utils.statistics import StatisticsArray
-from propertyestimator.utils.string import extract_variable_index_and_name
+from propertyestimator.utils.statistics import StatisticsArray, bootstrap
+from propertyestimator.utils.utils import get_nested_attribute, set_nested_attribute
 from propertyestimator.workflow.decorators import protocol_input, protocol_output, MergeBehaviour
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.schemas import ProtocolSchema
@@ -474,51 +472,6 @@ class BaseProtocol:
 
         return getattr(type(self), reference_path.property_name).value_type
 
-    def _get_nested_attribute(self, attribute_name):
-        """A recursive version of getattr, which has full support
-        for attribute names which contain list / dict indices
-
-        Parameters
-        ----------
-        attribute_name: str
-            The nested attribute name to get.
-        """
-        attribute_name_split = attribute_name.split(ProtocolPath.property_separator)
-
-        current_attribute = self
-
-        for index, full_attribute_name in enumerate(attribute_name_split):
-
-            array_index = None
-            attribute_name = full_attribute_name
-
-            if attribute_name.find('[') >= 0 or attribute_name.find(']') >= 0:
-                attribute_name, array_index = extract_variable_index_and_name(attribute_name)
-
-            if current_attribute is None:
-                return None
-
-            if not hasattr(current_attribute, attribute_name):
-                raise ValueError('This protocol does not have contain a {} '
-                                 'property.'.format('.'.join(attribute_name_split[:index + 1])))
-
-            current_attribute = getattr(current_attribute, attribute_name)
-
-            if array_index is not None:
-
-                if isinstance(current_attribute, list):
-
-                    try:
-                        array_index = int(array_index)
-                    except ValueError:
-                        raise ValueError('List indices must be an integer: '
-                                         '{}'.format('.'.join(attribute_name_split[:index + 1])))
-
-                array_value = current_attribute[array_index]
-                current_attribute = array_value
-
-        return current_attribute
-
     def get_value(self, reference_path):
         """Returns the value of one of this protocols inputs / outputs.
 
@@ -541,7 +494,7 @@ class BaseProtocol:
         if reference_path.property_name is None or reference_path.property_name == '':
             raise ValueError('The reference path does specify a property to return.')
 
-        return self._get_nested_attribute(reference_path.property_name)
+        return get_nested_attribute(self, reference_path.property_name)
 
     def set_value(self, reference_path, value):
         """Sets the value of one of this protocols inputs.
@@ -565,46 +518,7 @@ class BaseProtocol:
         if reference_path in self.provided_outputs:
             raise ValueError('Output values cannot be set by this method.')
 
-        current_attribute = self
-        attribute_name = reference_path.property_name
-
-        if attribute_name.find(ProtocolPath.property_separator) > 1:
-
-            last_separator_index = attribute_name.rfind(
-                ProtocolPath.property_separator)
-
-            current_attribute = self._get_nested_attribute(attribute_name[:last_separator_index])
-            attribute_name = attribute_name[last_separator_index + 1:]
-
-        if attribute_name.find('[') >= 0:
-
-            attribute_name, array_index = extract_variable_index_and_name(attribute_name)
-
-            if not hasattr(current_attribute, attribute_name):
-
-                raise ValueError('The {} protocol does not have a {} '
-                                 'property.'.format(self.id, reference_path.property_name))
-
-            current_attribute = getattr(current_attribute, attribute_name)
-
-            if isinstance(current_attribute, list):
-
-                try:
-                    array_index = int(array_index)
-                except ValueError:
-                    raise ValueError('List indices must be an integer: '
-                                     '{}'.format(reference_path.property_name))
-
-            current_attribute[array_index] = value
-
-        else:
-
-            if not hasattr(current_attribute, attribute_name):
-
-                raise ValueError('The {} protocol does not have a {} '
-                                 'property.'.format(self.id, reference_path.property_name))
-
-            setattr(current_attribute, attribute_name, value)
+        set_nested_attribute(self, reference_path.property_name, value)
 
     def apply_replicator(self, replicator, template_values):
         """Applies a `ProtocolReplicator` to this protocol.
@@ -765,7 +679,7 @@ class BuildSmirnoffSystem(BaseProtocol):
             with open(self._force_field_path, 'rb') as file:
                 force_field = deserialize_force_field(pickle.load(file))
 
-        except pickle.UnpicklingError as e:
+        except pickle.UnpicklingError:
 
             try:
 
@@ -775,7 +689,7 @@ class BuildSmirnoffSystem(BaseProtocol):
             except Exception as e:
 
                 return PropertyEstimatorException(directory=directory,
-                                                  message='{} could not load the ForceField'.format(self.id))
+                                                  message='{} could not load the ForceField: {}'.format(self.id, e))
 
         molecules = []
 
@@ -1166,70 +1080,27 @@ class AveragePropertyProtocol(BaseProtocol):
 
         self._uncorrelated_values = None
 
-    def _bootstrap_function(self, sample_data):
+    def _bootstrap_function(self, **sample_kwargs):
         """The function to perform on the data set being sampled by
         bootstrapping.
 
         Parameters
         ----------
-        sample_data: np.ndarray, shape=(num_frames, num_dimensions), dtype=float
-            A sample of the full data set.
+        sample_kwargs: dict of str and np.ndarray
+            A key words dictionary of the bootstrap sample data, where the
+            sample data is a numpy array of shape=(num_frames, num_dimensions)
+            with dtype=float.
 
         Returns
         -------
         float
             The result of evaluating the data.
         """
+
+        assert len(sample_kwargs) == 1
+        sample_data = next(iter(sample_kwargs.values()))
+
         return sample_data.mean()
-
-    def _perform_bootstrapping(self, data_set):
-        """Performs bootstrapping on a data set to calculate the
-        average value, and the standard error in the average,
-        bootstrapping.
-
-        Parameters
-        ----------
-        data_set: np.ndarray, shape=(num_frames, num_dimensions), dtype=float
-            The data set to perform bootstrapping on.
-
-        Returns
-        -------
-        float
-            The average of the data.
-        float
-            The uncertainty in the average.
-        """
-
-        if data_set is None:
-            raise ValueError('There is no data to bootstrap in protocol {}'.format(self.id))
-
-        # Make a copy of the data so we don't accidentally destroy anything.
-        data_to_bootstrap = np.array(data_set)
-
-        data_size = len(data_to_bootstrap)
-
-        # Choose the sample size as a percentage of the full data set.
-        sample_size = min(math.floor(data_size * self._bootstrap_sample_size), data_size)
-
-        average_values = np.zeros(self._bootstrap_iterations)
-
-        for bootstrap_iteration in range(self._bootstrap_iterations):
-
-            sample_indices = np.random.choice(data_size, sample_size)
-            sample_data = data_to_bootstrap[sample_indices]
-
-            average_values[bootstrap_iteration] = self._bootstrap_function(sample_data)
-
-        average_value = self._bootstrap_function(data_to_bootstrap)
-        uncertainty = average_values.std() * len(average_values) ** -0.5
-
-        if isinstance(average_value, np.float32) or isinstance(average_value, np.float64):
-            average_value = average_value.item()
-
-        if isinstance(uncertainty, np.float32) or isinstance(uncertainty, np.float64):
-            uncertainty = uncertainty.item()
-
-        return average_value, uncertainty
 
     def execute(self, directory, available_resources):
         return self._get_output_dictionary()
@@ -1261,6 +1132,8 @@ class AverageTrajectoryProperty(AveragePropertyProtocol):
         self.trajectory = None
 
     def execute(self, directory, available_resources):
+
+        import mdtraj
 
         if self._trajectory_path is None:
 
@@ -1326,7 +1199,10 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
         values, self._equilibration_index, self._statistical_inefficiency = \
             timeseries.decorrelate_time_series(values)
 
-        final_value, final_uncertainty = self._perform_bootstrapping(values)
+        final_value, final_uncertainty = bootstrap(self._bootstrap_function,
+                                                   self._bootstrap_iterations,
+                                                   self._bootstrap_sample_size,
+                                                   values=values)
 
         self._uncorrelated_values = values * statistics_unit
 
@@ -1403,6 +1279,8 @@ class ExtractUncorrelatedTrajectoryData(ExtractUncorrelatedData):
 
     def execute(self, directory, available_resources):
 
+        import mdtraj
+
         logging.info('Subsampling trajectory: {}'.format(self.id))
 
         if self._input_trajectory_path is None:
@@ -1412,6 +1290,7 @@ class ExtractUncorrelatedTrajectoryData(ExtractUncorrelatedData):
                                                        'requires a previously calculated trajectory')
 
         trajectory = mdtraj.load_dcd(filename=self._input_trajectory_path, top=self._input_coordinate_file)
+        trajectory = trajectory[self._equilibration_index:]
 
         uncorrelated_indices = timeseries.get_uncorrelated_indices(trajectory.n_frames, self._statistical_inefficiency)
         uncorrelated_trajectory = trajectory[uncorrelated_indices]
@@ -1463,6 +1342,8 @@ class ExtractUncorrelatedStatisticsData(ExtractUncorrelatedData):
 
         uncorrelated_indices = timeseries.get_uncorrelated_indices(len(statistics),
                                                                    self._statistical_inefficiency)
+
+        uncorrelated_indices = [index for index in uncorrelated_indices if index >= self._equilibration_index]
 
         uncorrelated_statistics = statistics.from_statistics_array(statistics, uncorrelated_indices)
 
@@ -1710,6 +1591,8 @@ class ConcatenateTrajectories(BaseProtocol):
 
     def execute(self, directory, available_resources):
 
+        import mdtraj
+
         if len(self._input_coordinate_paths) != len(self._input_trajectory_paths):
 
             return PropertyEstimatorException(directory=directory, message='There should be the same number of '
@@ -1777,6 +1660,7 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
     def execute(self, directory, available_resources):
 
         import openmmtools
+        import mdtraj
 
         trajectory = mdtraj.load_dcd(self._trajectory_file_path, self._coordinate_file_path)
         self.system.setDefaultPeriodicBoxVectors(*trajectory.openmm_boxes(0))
@@ -1811,8 +1695,9 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
 
 @register_calculation_protocol()
 class ReweightWithMBARProtocol(BaseProtocol):
-    """Calculates the reduced potential for a given
-    set of configurations.
+    """Reweights a set of observables using MBAR to calculate
+    the average value of the observables at a different state
+    than they were originally measured.
     """
 
     @protocol_input(list)
@@ -1827,6 +1712,18 @@ class ReweightWithMBARProtocol(BaseProtocol):
     def target_reduced_potentials(self):
         pass
 
+    @protocol_input(bool)
+    def bootstrap_uncertainties(self):
+        pass
+
+    @protocol_input(int)
+    def bootstrap_iterations(self):
+        pass
+
+    @protocol_input(float)
+    def bootstrap_sample_size(self):
+        pass
+
     @protocol_output(EstimatedQuantity)
     def value(self):
         pass
@@ -1839,6 +1736,10 @@ class ReweightWithMBARProtocol(BaseProtocol):
         self._reference_observables = None
 
         self._target_reduced_potentials = None
+
+        self._bootstrap_uncertainties = False
+        self._bootstrap_iterations = 1
+        self._bootstrap_sample_size = 1.0
 
         self._value = None
 
@@ -1855,39 +1756,161 @@ class ReweightWithMBARProtocol(BaseProtocol):
                                               message='The reference_observables input should be'
                                                       'a list of unit.Quantity wrapped ndarray\'s.')
 
-        observable_unit = self._reference_observables[0].unit
-
-        for observable in self._reference_observables:
-
-            if not isinstance(self._reference_observables[0], unit.Quantity):
-
-                return PropertyEstimatorException(directory=directory,
-                                                  message='The reference_observables input should be'
-                                                          'a list of unit.Quantity wrapped ndarray\'s.')
-
-            if not observable_unit.is_compatible(observable.unit):
-
-                return PropertyEstimatorException(directory=directory,
-                                                  message='The reference_observables list contains'
-                                                          'entries with incompatible units.')
-
         frame_counts = np.array([len(observable) for observable in self._reference_observables])
 
-        number_of_configurations = frame_counts.sum()
-        observables = np.zeros((1, number_of_configurations))
+        observables = self._prepare_observables_array(self._reference_observables)
+        observable_unit = self._reference_observables[0].unit
 
-        for index_k, observables_k in enumerate(self._reference_observables):
+        if self._bootstrap_uncertainties:
+
+            reference_potentials = np.transpose(np.array(self._reference_reduced_potentials))
+            target_potentials = np.transpose(np.array(self._target_reduced_potentials))
+
+            value, uncertainty = bootstrap(self._bootstrap_function,
+                                           self._bootstrap_iterations,
+                                           self._bootstrap_sample_size,
+                                           frame_counts,
+                                           reference_reduced_potentials=reference_potentials,
+                                           target_reduced_potentials=target_potentials,
+                                           observables=np.transpose(observables))
+
+            self._value = EstimatedQuantity(value * observable_unit,
+                                            uncertainty * observable_unit,
+                                            self.id)
+
+        else:
+
+            values, uncertainties = self._reweight_observables(self._reference_reduced_potentials,
+                                                               self._target_reduced_potentials,
+                                                               observables=observables)
+
+            self._value = EstimatedQuantity(values['observables'] * observable_unit,
+                                            uncertainties['observables'] * observable_unit,
+                                            self.id)
+
+        return self._get_output_dictionary()
+
+    @staticmethod
+    def _prepare_observables_array(reference_observables):
+        """Takes a list of reference observables, and concatenates them
+        into a single Quantity wrapped numpy array.
+
+        Parameters
+        ----------
+        reference_observables: List of unit.Quantity
+            A list of observables for each reference state,
+            which each observable is a Quantity wrapped numpy
+            array.
+
+        Returns
+        -------
+        np.ndarray
+            A unitless numpy array of all of the observables.
+        """
+        frame_counts = np.array([len(observable) for observable in reference_observables])
+        number_of_configurations = frame_counts.sum()
+
+        observable_dimensions = 1 if len(reference_observables[0].shape) == 1 else reference_observables[0].shape[1]
+        observable_unit = reference_observables[0].unit
+
+        observables = np.zeros((observable_dimensions, number_of_configurations))
+
+        # Build up an array which contains the observables from all
+        # of the reference states.
+        for index_k, observables_k in enumerate(reference_observables):
 
             start_index = np.array(frame_counts[0:index_k]).sum()
 
             for index in range(0, frame_counts[index_k]):
-                observables[0][start_index + index] = observables_k[index].value_in_unit(observable_unit)
+
+                value = observables_k[index].value_in_unit(observable_unit)
+
+                if not isinstance(value, np.ndarray):
+                    observables[0][start_index + index] = value
+                    continue
+
+                for dimension in range(observable_dimensions):
+                    observables[dimension][start_index + index] = value[dimension]
+
+        return observables
+
+    def _bootstrap_function(self, reference_reduced_potentials, target_reduced_potentials, **reference_observables):
+        """The function which will be called after each bootstrap
+        iteration, if bootstrapping is being employed to estimated
+        the reweighting uncertainty.
+
+        Parameters
+        ----------
+        reference_reduced_potentials
+        target_reduced_potentials
+        reference_observables
+
+        Returns
+        -------
+        float
+            The bootstrapped value,
+        """
+        assert len(reference_observables) == 1
+
+        transposed_observables = {}
+
+        for key in reference_observables:
+            transposed_observables[key] = np.transpose(reference_observables[key])
+
+        values, _ = self._reweight_observables(np.transpose(reference_reduced_potentials),
+                                               np.transpose(target_reduced_potentials),
+                                               **transposed_observables)
+
+        return next(iter(values.values()))
+
+    def _reweight_observables(self, reference_reduced_potentials, target_reduced_potentials, **reference_observables):
+        """Reweights a set of reference observables to
+        the target state.
+
+        Returns
+        -------
+        EstimatedQuantity
+            The reweighted value.
+        """
+
+        frame_counts = np.array([len(observable) for observable in self._reference_observables])
 
         # Construct the mbar object.
-        mbar = pymbar.MBAR(self._reference_reduced_potentials, frame_counts, verbose=False, relative_tolerance=1e-12)
-        results = mbar.computeExpectations(observables, self._target_reduced_potentials, state_dependent=True)
+        mbar = pymbar.MBAR(reference_reduced_potentials,
+                           frame_counts, verbose=False, relative_tolerance=1e-12)
 
-        self._value = EstimatedQuantity(results[0][0] * observable_unit,
-                                        results[1][0] * observable_unit, self.id)
+        values = {}
+        uncertainties = {}
 
-        return self._get_output_dictionary()
+        for observable_key in reference_observables:
+
+            observable = reference_observables[observable_key]
+            observable_dimensions = observable.shape[0]
+
+            if observable_dimensions == 1:
+
+                results = mbar.computeExpectations(observable,
+                                                   target_reduced_potentials,
+                                                   state_dependent=True)
+
+                values[observable_key] = results[0][0]
+                uncertainties[observable_key] = results[1][0]
+
+            else:
+
+                value = []
+                uncertainty = []
+
+                for dimension in range(observable_dimensions):
+
+                    results = mbar.computeExpectations(observable[dimension],
+                                                       target_reduced_potentials,
+                                                       state_dependent=True)
+
+                    value.append(results[0][0])
+                    uncertainty.append(results[1][0])
+
+                values[observable_key] = np.array(value)
+                uncertainties[observable_key] = np.array(uncertainty)
+
+        return values, uncertainties

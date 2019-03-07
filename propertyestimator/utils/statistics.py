@@ -2,6 +2,7 @@
 A collection of classes for loading and manipulating statistics data files.
 """
 import copy
+import math
 from enum import Enum
 from io import StringIO
 
@@ -288,3 +289,102 @@ class StatisticsArray:
                                         enthalpies[data_indices])
 
         return return_object
+
+
+def bootstrap(bootstrap_function, iterations=200, relative_sample_size=1.0, data_sub_counts=None, **data_kwargs):
+    """Performs bootstrapping on a data set to calculate the
+    average value, and the standard error in the average,
+    bootstrapping.
+
+    Parameters
+    ----------
+    bootstrap_function: function
+        The function to evaluate at each bootstrap iteration. The function
+        should take a kwargs array as input, and return a float.
+    iterations: int
+        The number of bootstrap iterations to perform.
+    relative_sample_size: float
+        The percentage sample size to bootstrap over, relative to the
+        size of the full data set.
+    data_sub_counts: np.ndarray, optional
+        If the data being bootstrapped contains arrays of concatenated sub data
+        (such as when reweighting), this variable can be used to the number of
+        items which belong to each subset. Data is then sampled with replacement
+        so that the bootstrap sample contains the correct proportion of data from
+        each subset.
+
+        If the data to bootstrap is of the form [x0, x1, x2, y0, y1] for example,
+        then `data_sub_counts=[3, 2]` and a possible sample may look like
+        [x0, x0, x2, y0, y0], but never [x0, x1, y0, y1, y1].
+    data_kwargs: np.ndarray, shape=(num_frames, num_dimensions), dtype=float
+        A key words dictionary of the data which will be passed to the
+         bootstrap function. Each kwargs argument should be a numpy array.
+
+    Returns
+    -------
+    float
+        The average of the data.
+    float
+        The uncertainty in the average.
+    """
+
+    if len(data_kwargs) is 0:
+        raise ValueError('There is no data to bootstrap')
+
+    # Make a copy of the data so we don't accidentally destroy anything.
+    data_to_bootstrap = {}
+    data_size = None
+
+    for keyword in data_kwargs:
+
+        assert isinstance(data_kwargs[keyword], np.ndarray)
+        data_to_bootstrap[keyword] = np.array(data_kwargs[keyword])
+
+        if data_size is None:
+            data_size = len(data_kwargs[keyword])
+        else:
+            assert data_size == len(data_kwargs[keyword])
+
+    if data_sub_counts is None:
+        data_sub_counts = np.array([data_size])
+
+    assert data_sub_counts.sum() == data_size
+
+    average_values = np.zeros(iterations)
+
+    for bootstrap_iteration in range(iterations):
+
+        sample_data = {}
+
+        for keyword in data_to_bootstrap:
+            sample_data[keyword] = np.zeros(data_to_bootstrap[keyword].shape)
+
+        start_index = 0
+
+        for sub_count in data_sub_counts:
+
+            # Choose the sample size as a percentage of the full data set.
+            sample_size = min(math.floor(sub_count * relative_sample_size), sub_count)
+            sample_indices = np.random.choice(sub_count, sample_size)
+
+            for keyword in data_to_bootstrap:
+
+                sub_data = data_to_bootstrap[keyword][start_index: start_index + sub_count]
+
+                for index in range(sub_count):
+                    sample_data[keyword][index + start_index] = sub_data[sample_indices][index]
+
+            start_index += sub_count
+
+        average_values[bootstrap_iteration] = bootstrap_function(**sample_data)
+
+    average_value = bootstrap_function(**data_to_bootstrap)
+    uncertainty = average_values.std() * len(average_values) ** -0.5
+
+    if isinstance(average_value, np.float32) or isinstance(average_value, np.float64):
+        average_value = average_value.item()
+
+    if isinstance(uncertainty, np.float32) or isinstance(uncertainty, np.float64):
+        uncertainty = uncertainty.item()
+
+    return average_value, uncertainty

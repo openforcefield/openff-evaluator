@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 import logging
 
-from openforcefield.typing.engines import smirnoff
-
 from propertyestimator import client
 from propertyestimator.client import PropertyEstimatorOptions
 from propertyestimator.datasets import ThermoMLDataSet
@@ -11,6 +9,8 @@ from propertyestimator.utils import get_data_filename, setup_timestamp_logging
 
 def compute_estimate_sync():
     """Submit calculations to a running server instance"""
+    from openforcefield.typing.engines import smirnoff
+
     setup_timestamp_logging()
 
     # Load in the data set of interest.
@@ -28,6 +28,8 @@ def compute_estimate_sync():
 
 def compute_estimate_async():
     """Submit calculations to a running server instance"""
+    from openforcefield.typing.engines import smirnoff
+
     setup_timestamp_logging()
 
     # Load in the data set of interest.
@@ -35,10 +37,22 @@ def compute_estimate_async():
     # Load in the force field to use.
     force_field = smirnoff.ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
 
+    # new_property_0 = copy.deepcopy(data_set.properties['COCCO{1.0}'][0])
+    # new_property_0.thermodynamic_state.temperature -= 2.0 * unit.kelvin
+    # new_property_0.id = str(uuid4())
+    #
+    # data_set.properties['COCCO{1.0}'].append(new_property_0)
+    #
+    # new_property_1 = copy.deepcopy(data_set.properties['COCCO{1.0}'][0])
+    # new_property_1.thermodynamic_state.temperature += 2.0 * unit.kelvin
+    # new_property_1.id = str(uuid4())
+    #
+    # data_set.properties['COCCO{1.0}'].append(new_property_1)
+
     # Modify the submission options
     options = PropertyEstimatorOptions(relative_uncertainty_tolerance=100000)
-    options.allowed_calculation_layers = ['SimulationLayer']
-    # options.allowed_calculation_layers = ['ReweightingLayer']
+    # options.allowed_calculation_layers = ['SimulationLayer']
+    options.allowed_calculation_layers = ['ReweightingLayer']
 
     # Create the client object.
     property_estimator = client.PropertyEstimatorClient()

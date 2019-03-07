@@ -2,12 +2,6 @@
 A collection of classes representing data stored by a storage backend.
 """
 
-from mdtraj import Trajectory
-
-from propertyestimator.substances import Substance
-from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils.statistics import StatisticsArray
-
 
 class StoredSimulationData:
     """A container class for storing data from a previous simulation.
@@ -15,17 +9,17 @@ class StoredSimulationData:
 
     def __init__(self):
 
-        self.unique_id: str = None
+        self.unique_id = None
 
-        self.substance: Substance = None
-        self.thermodynamic_state: ThermodynamicState = None
+        self.substance = None
+        self.thermodynamic_state = None
 
-        self.source_calculation_id: str = None
-        self.provenance: str = None
+        self.source_calculation_id = None
+        self.provenance = None
 
-        self.statistical_inefficiency: float = 0.0
+        self.statistical_inefficiency = 0.0
 
-        self.trajectory_data: Trajectory = None
-        self.statistics_data: StatisticsArray = None
+        self.trajectory_data = None
+        self.statistics_data = None
 
-        self.force_field_id: str = None
+        self.force_field_id = None
