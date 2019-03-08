@@ -769,8 +769,14 @@ class RunEnergyMinimisation(BaseProtocol):
             platform = Platform.getPlatformByName(platform_name)
 
             if available_resources.gpu_device_indices is not None:
-                device_indices = [str(gpu_index) for gpu_index in range(available_resources.number_of_gpus)]
-                platform.setPropertyDefaultValue(platform_name.lower().capitalize() + 'DeviceIndex', device_indices)
+
+                property_platform_name = platform_name
+
+                if available_resources.preferred_gpu_toolkit == 'CUDA':
+                    property_platform_name = platform_name.lower().capitalize()
+
+                platform.setPropertyDefaultValue(property_platform_name + 'DeviceIndex',
+                                                 available_resources.gpu_device_indices)
 
             logging.info('Setting up a simulation on GPU {}'.format(available_resources.gpu_device_indices or 0))
 
@@ -973,8 +979,13 @@ class RunOpenMMSimulation(BaseProtocol):
 
             if available_resources.gpu_device_indices is not None:
 
-                device_indices = [str(gpu_index) for gpu_index in range(available_resources.number_of_gpus)]
-                platform.setPropertyDefaultValue(platform_name.lower().capitalize() + 'DeviceIndex', device_indices)
+                property_platform_name = platform_name
+
+                if available_resources.preferred_gpu_toolkit == 'CUDA':
+                    property_platform_name = platform_name.lower().capitalize()
+
+                platform.setPropertyDefaultValue(property_platform_name + 'DeviceIndex',
+                                                 available_resources.gpu_device_indices)
 
             logging.info('Setting up a simulation on GPU {}'.format(available_resources.gpu_device_indices or 0))
 
