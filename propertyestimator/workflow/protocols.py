@@ -574,7 +574,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
         self._positions = None
 
         self._max_molecules = 2000
-        self._mass_density = 1.0 * unit.grams / unit.milliliters
+        self._mass_density = 0.95 * unit.grams / unit.milliliters
 
     def execute(self, directory, available_resources):
 
@@ -790,6 +790,12 @@ class RunEnergyMinimisation(BaseProtocol):
 
             logging.info('Setting up a simulation with {} threads'.format(available_resources.number_of_threads))
 
+        box_vectors = input_pdb_file.topology.getPeriodicBoxVectors()
+
+        if box_vectors is None:
+            box_vectors = simulation.system.getDefaultPeriodicBoxVectors()
+
+        simulation.context.setPeriodicBoxVectors(*box_vectors)
         simulation.context.setPositions(input_pdb_file.positions)
 
         simulation.minimizeEnergy()
@@ -958,56 +964,50 @@ class RunOpenMMSimulation(BaseProtocol):
         available_resources: ComputeResources
             The resources available to run on.
         """
+        import openmmtools
 
-        # For now set some 'best guess' thermostat parameters.
-        integrator = openmm.LangevinIntegrator(temperature,
-                                               self._thermostat_friction,
-                                               self._timestep)
-
-        system = self._system
-
-        if Ensemble(self._ensemble) == Ensemble.NPT:
-
-            barostat = openmm.MonteCarloBarostat(pressure, temperature)
-
-            # inputs are READONLY! Never directly alter an input
-            system = copy.deepcopy(system)
-            system.addForce(barostat)
-
-        input_pdb_file = app.PDBFile(self._input_coordinate_file)
-
-        simulation = None
-
+        # Setup the requested platform:
         if available_resources.number_of_gpus > 0:
 
             platform_name = 'CUDA' if available_resources.preferred_gpu_toolkit == 'CUDA' else 'OpenCL'
 
-            # noinspection PyTypeChecker,PyCallByClass
-            gpu_platform = Platform.getPlatformByName(platform_name)
+            # noinspection PyCallByClass,PyTypeChecker
+            platform = Platform.getPlatformByName(platform_name)
 
+            # TODO: Need to get the available device index from the available compute resource most
+            #       likely...
             device_indices = [str(gpu_index) for gpu_index in range(available_resources.number_of_gpus)]
-            properties = {'DeviceIndex': ','.join(device_indices)}
-
-            simulation = app.Simulation(input_pdb_file.topology, system, integrator, gpu_platform, properties)
+            platform.setPropertyDefaultValue('DeviceIndex', ','.join(device_indices))
 
             logging.info('Setting up a simulation with {} gpu\'s'.format(available_resources.number_of_gpus))
 
         else:
 
-            # noinspection PyTypeChecker,PyCallByClass
-            cpu_platform = Platform.getPlatformByName('CPU')
-            properties = {'Threads': str(available_resources.number_of_threads)}
-
-            simulation = app.Simulation(input_pdb_file.topology, system, integrator, cpu_platform, properties)
+            # noinspection PyCallByClass,PyTypeChecker
+            platform = Platform.getPlatformByName('CPU')
+            platform.setPropertyDefaultValue('Threads', str(available_resources.number_of_threads))
 
             logging.info('Setting up a simulation with {} threads'.format(available_resources.number_of_threads))
 
-        # simulation = app.Simulation(input_pdb_file.topology, system, integrator)
+        input_pdb_file = app.PDBFile(self._input_coordinate_file)
+
+        openmm_state = openmmtools.states.ThermodynamicState(system=self._system,
+                                                             temperature=temperature,
+                                                             pressure=pressure)
+
+        integrator = openmm.LangevinIntegrator(temperature,
+                                               self._thermostat_friction,
+                                               self._timestep)
+
+        simulation = app.Simulation(input_pdb_file.topology,
+                                    openmm_state.get_system(True),
+                                    integrator,
+                                    platform)
 
         box_vectors = input_pdb_file.topology.getPeriodicBoxVectors()
 
         if box_vectors is None:
-            box_vectors = system.getDefaultPeriodicBoxVectors()
+            box_vectors = simulation.system.getDefaultPeriodicBoxVectors()
 
         simulation.context.setPeriodicBoxVectors(*box_vectors)
         simulation.context.setPositions(input_pdb_file.positions)

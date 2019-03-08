@@ -129,7 +129,7 @@ class Density(PhysicalProperty):
 
         converge_uncertainty.add_condition(condition)
 
-        converge_uncertainty.max_iterations = 1
+        converge_uncertainty.max_iterations = 100
 
         schema.protocols[converge_uncertainty.id] = converge_uncertainty.schema
 

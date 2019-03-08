@@ -402,7 +402,7 @@ class DielectricConstant(PhysicalProperty):
 
         converge_uncertainty.add_condition(condition)
 
-        converge_uncertainty.max_iterations = 1
+        converge_uncertainty.max_iterations = 400
 
         schema.protocols[converge_uncertainty.id] = converge_uncertainty.schema
 
