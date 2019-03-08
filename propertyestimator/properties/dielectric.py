@@ -136,10 +136,10 @@ class ExtractAverageDielectric(protocols.AverageTrajectoryProperty):
         dipole_moments, self._equilibration_index, self._statistical_inefficiency = \
             timeseries.decorrelate_time_series(dipole_moments)
 
-        sample_indices = timeseries.get_uncorrelated_indices(len(self.trajectory),
+        sample_indices = timeseries.get_uncorrelated_indices(len(self.trajectory[self._equilibration_index:]),
                                                              self._statistical_inefficiency)
 
-        sample_indices = [index for index in sample_indices if index >= self._equilibration_index]
+        sample_indices = [index + self._equilibration_index for index in sample_indices]
 
         volumes = self.trajectory[sample_indices].unitcell_volumes
 

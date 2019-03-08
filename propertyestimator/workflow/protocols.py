@@ -1356,11 +1356,10 @@ class ExtractUncorrelatedStatisticsData(ExtractUncorrelatedData):
 
         statistics = StatisticsArray.from_pandas_csv(self._input_statistics_path)
 
-        uncorrelated_indices = timeseries.get_uncorrelated_indices(len(statistics),
+        uncorrelated_indices = timeseries.get_uncorrelated_indices(len(statistics) - self._equilibration_index,
                                                                    self._statistical_inefficiency)
 
-        uncorrelated_indices = [index for index in uncorrelated_indices if index >= self._equilibration_index]
-
+        uncorrelated_indices = [index + self._equilibration_index for index in uncorrelated_indices]
         uncorrelated_statistics = statistics.from_statistics_array(statistics, uncorrelated_indices)
 
         self._output_statistics_path = path.join(directory, 'uncorrelated_statistics.csv')

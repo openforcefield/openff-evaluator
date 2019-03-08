@@ -801,7 +801,7 @@ class ConditionalGroup(ProtocolGroup):
 
                 # Check to see if we have reached our goal.
                 if not self._evaluate_condition(condition.type, evaluated_left_hand_value, evaluated_right_hand_value):
-                    
+
                     reached_conditions = False
 
                     logging.info('{} condition not met: {} not {} than {}'.format(self.id,
