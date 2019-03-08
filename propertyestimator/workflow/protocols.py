@@ -760,35 +760,32 @@ class RunEnergyMinimisation(BaseProtocol):
 
         logging.info('Minimising energy: ' + self.id)
 
-        integrator = openmm.VerletIntegrator(0.002 * unit.picoseconds)
-
-        input_pdb_file = app.PDBFile(self._input_coordinate_file)
-
-        simulation = None
-
+        # Setup the requested platform:
         if available_resources.number_of_gpus > 0:
 
             platform_name = 'CUDA' if available_resources.preferred_gpu_toolkit == 'CUDA' else 'OpenCL'
 
-            # noinspection PyTypeChecker,PyCallByClass
-            gpu_platform = Platform.getPlatformByName(platform_name)
+            # noinspection PyCallByClass,PyTypeChecker
+            platform = Platform.getPlatformByName(platform_name)
 
-            device_indices = [str(gpu_index) for gpu_index in range(available_resources.number_of_gpus)]
-            properties = {'DeviceIndex': ','.join(device_indices)}
+            if available_resources.gpu_device_indices is not None:
+                device_indices = [str(gpu_index) for gpu_index in range(available_resources.number_of_gpus)]
+                platform.setPropertyDefaultValue(platform_name.lower().capitalize() + 'DeviceIndex', device_indices)
 
-            simulation = app.Simulation(input_pdb_file.topology, self._system, integrator, gpu_platform, properties)
-
-            logging.info('Setting up a simulation with {} gpu\'s'.format(available_resources.number_of_gpus))
+            logging.info('Setting up a simulation on GPU {}'.format(available_resources.gpu_device_indices or 0))
 
         else:
 
-            # noinspection PyTypeChecker,PyCallByClass
-            cpu_platform = Platform.getPlatformByName('CPU')
-            properties = {'Threads': str(available_resources.number_of_threads)}
-
-            simulation = app.Simulation(input_pdb_file.topology, self._system, integrator, cpu_platform, properties)
+            # noinspection PyCallByClass,PyTypeChecker
+            platform = Platform.getPlatformByName('CPU')
+            platform.setPropertyDefaultValue('Threads', str(available_resources.number_of_threads))
 
             logging.info('Setting up a simulation with {} threads'.format(available_resources.number_of_threads))
+
+        input_pdb_file = app.PDBFile(self._input_coordinate_file)
+
+        integrator = openmm.VerletIntegrator(0.002 * unit.picoseconds)
+        simulation = app.Simulation(input_pdb_file.topology, self._system, integrator, platform)
 
         box_vectors = input_pdb_file.topology.getPeriodicBoxVectors()
 
@@ -974,12 +971,12 @@ class RunOpenMMSimulation(BaseProtocol):
             # noinspection PyCallByClass,PyTypeChecker
             platform = Platform.getPlatformByName(platform_name)
 
-            # TODO: Need to get the available device index from the available compute resource most
-            #       likely...
-            device_indices = [str(gpu_index) for gpu_index in range(available_resources.number_of_gpus)]
-            platform.setPropertyDefaultValue('DeviceIndex', ','.join(device_indices))
+            if available_resources.gpu_device_indices is not None:
 
-            logging.info('Setting up a simulation with {} gpu\'s'.format(available_resources.number_of_gpus))
+                device_indices = [str(gpu_index) for gpu_index in range(available_resources.number_of_gpus)]
+                platform.setPropertyDefaultValue(platform_name.lower().capitalize() + 'DeviceIndex', device_indices)
+
+            logging.info('Setting up a simulation on GPU {}'.format(available_resources.gpu_device_indices or 0))
 
         else:
 

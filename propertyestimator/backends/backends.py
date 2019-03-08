@@ -25,6 +25,11 @@ class ComputeResources:
         """GPUToolkit: The toolkit to use when running on gpus."""
         return self._preferred_gpu_toolkit
 
+    @property
+    def gpu_device_indices(self):
+        """str: The indices of the GPUs to run on."""
+        return self._gpu_device_indices
+
     def __init__(self, number_of_threads=1, number_of_gpus=0, preferred_gpu_toolkit=None):
         """Constructs a new ComputeResources object.
 
@@ -42,6 +47,9 @@ class ComputeResources:
         self._number_of_gpus = number_of_gpus
 
         self._preferred_gpu_toolkit = preferred_gpu_toolkit
+        self._gpu_device_indices = None  # A workaround for when using a local cluster
+                                         # backend which is strictly for internal purposes
+                                         # only for now.
         
         assert self._number_of_threads >= 0
         assert self._number_of_gpus >= 0
@@ -58,7 +66,8 @@ class ComputeResources:
         return {
             'number_of_threads': self.number_of_threads,
             'number_of_gpus': self.number_of_gpus,
-            'preferred_gpu_toolkit': self.preferred_gpu_toolkit
+            'preferred_gpu_toolkit': self.preferred_gpu_toolkit,
+            '_gpu_device_indices': self._gpu_device_indices
         }
 
     def __setstate__(self, state):
@@ -66,6 +75,7 @@ class ComputeResources:
         self._number_of_threads = state['number_of_threads']
         self._number_of_gpus = state['number_of_gpus']
         self._preferred_gpu_toolkit = state['preferred_gpu_toolkit']
+        self._gpu_device_indices = state['_gpu_device_indices']
 
     def __eq__(self, other):
         return self.number_of_threads == other.number_of_threads and \
