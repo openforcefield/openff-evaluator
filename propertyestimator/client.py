@@ -728,13 +728,13 @@ class PropertyEstimatorClient:
         try:
 
             # Attempt to establish a connection to the server.
-            logging.info("Attempting Connection to {}:{}".format(self._connection_options.server_address,
-                                                                 self._connection_options.server_port))
+            # logging.info("Attempting Connection to {}:{}".format(self._connection_options.server_address,
+            #                                                      self._connection_options.server_port))
             stream = await self._tcp_client.connect(self._connection_options.server_address,
                                                     self._connection_options.server_port)
 
-            logging.info("Connected to {}:{}".format(self._connection_options.server_address,
-                                                     self._connection_options.server_port))
+            # logging.info("Connected to {}:{}".format(self._connection_options.server_address,
+            #                                          self._connection_options.server_port))
 
             stream.set_nodelay(True)
 
@@ -746,8 +746,8 @@ class PropertyEstimatorClient:
 
             await stream.write(message_type + length + encoded_request_id)
 
-            logging.info("Querying the server {}:{}...".format(self._connection_options.server_address,
-                                                               self._connection_options.server_port))
+            # logging.info("Querying the server {}:{}...".format(self._connection_options.server_address,
+            #                                                    self._connection_options.server_port))
 
             # Wait for the server response.
             header = await stream.read_bytes(4)
@@ -760,7 +760,7 @@ class PropertyEstimatorClient:
                 encoded_json = await stream.read_bytes(length)
                 server_response = encoded_json.decode()
 
-            logging.info('Received response from server of length {}'.format(length))
+            # logging.info('Received response from server of length {}'.format(length))
 
             stream.close()
             self._tcp_client.close()
