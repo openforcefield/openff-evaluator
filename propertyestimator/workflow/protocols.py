@@ -573,7 +573,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
         self._coordinate_file_path = None
         self._positions = None
 
-        self._max_molecules = 128
+        self._max_molecules = 2000
         self._mass_density = 1.0 * unit.grams / unit.milliliters
 
     def execute(self, directory, available_resources):
@@ -768,9 +768,13 @@ class RunEnergyMinimisation(BaseProtocol):
 
         if available_resources.number_of_gpus > 0:
 
+            platform_name = 'CUDA' if available_resources.preferred_gpu_toolkit == 'CUDA' else 'OpenCL'
+
             # noinspection PyTypeChecker,PyCallByClass
-            gpu_platform = Platform.getPlatformByName(str(available_resources.preferred_gpu_toolkit))
-            properties = {'DeviceIndex': ','.join(range(available_resources.number_of_gpus))}
+            gpu_platform = Platform.getPlatformByName(platform_name)
+
+            device_indices = [str(gpu_index) for gpu_index in range(available_resources.number_of_gpus)]
+            properties = {'DeviceIndex': ','.join(device_indices)}
 
             simulation = app.Simulation(input_pdb_file.topology, self._system, integrator, gpu_platform, properties)
 
@@ -976,9 +980,13 @@ class RunOpenMMSimulation(BaseProtocol):
 
         if available_resources.number_of_gpus > 0:
 
+            platform_name = 'CUDA' if available_resources.preferred_gpu_toolkit == 'CUDA' else 'OpenCL'
+
             # noinspection PyTypeChecker,PyCallByClass
-            gpu_platform = Platform.getPlatformByName(str(available_resources.preferred_gpu_toolkit))
-            properties = {'DeviceIndex': ','.join(range(available_resources.number_of_gpus))}
+            gpu_platform = Platform.getPlatformByName(platform_name)
+
+            device_indices = [str(gpu_index) for gpu_index in range(available_resources.number_of_gpus)]
+            properties = {'DeviceIndex': ','.join(device_indices)}
 
             simulation = app.Simulation(input_pdb_file.topology, system, integrator, gpu_platform, properties)
 

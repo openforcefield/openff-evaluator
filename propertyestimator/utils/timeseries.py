@@ -170,7 +170,7 @@ def detect_equilibration(time_series, minimum_samples=3):
 
     maximum_effective_samples = effect_samples_array.max()
     equilibration_time = effect_samples_array.argmax()
-    statistical_inefficiency = statistical_inefficiency_array[current_timestep]
+    statistical_inefficiency = statistical_inefficiency_array[equilibration_time]
 
     return equilibration_time, statistical_inefficiency, maximum_effective_samples
 
