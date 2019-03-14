@@ -30,7 +30,7 @@ class PropertyEstimatorOptions(TypedBaseModel):
 
     Attributes
     ----------
-    allowed_calculation_layers: :obj:`list` of :obj:`str`
+    allowed_calculation_layers: :obj:`list` of :obj:`str` or :obj:`list` of :obj:`class`
         A list of allowed calculation layers. The order of the layers in the list is the order
         that the calculator will attempt to execute the layers in.
     workflow_schemas: :obj:`dict` of :obj:`str` and :obj:`dict` of str and :obj:`WorkflowSchema`
@@ -70,15 +70,25 @@ class PropertyEstimatorOptions(TypedBaseModel):
         allow_protocol_merging: :obj:`bool`, default = True
             If true, allows individual identical steps in a property estimation workflow to be merged.
         """
-        self.allowed_calculation_layers = allowed_calculation_layers
 
-        if self.allowed_calculation_layers is None:
+        if allowed_calculation_layers is None:
 
             self.allowed_calculation_layers = [
-            SurrogateLayer.__name__,
-            ReweightingLayer.__name__,
-            SimulationLayer.__name__
-        ]
+                SurrogateLayer.__name__,
+                ReweightingLayer.__name__,
+                SimulationLayer.__name__
+            ]
+
+        else:
+
+            self.allowed_calculation_layers = []
+
+            for allowed_layer in allowed_calculation_layers:
+
+                if isinstance(allowed_layer, str):
+                    self.allowed_calculation_layers.append(allowed_layer)
+                else:
+                    self.allowed_calculation_layers.append(allowed_layer.__name__)
 
         self.workflow_schemas = {}
 
@@ -215,7 +225,7 @@ class PropertyEstimatorResult(TypedBaseModel):
         self.unsuccessful_properties = state['unsuccessful_properties']
 
 
-class PropertyEstimatorConnectionOptions(TypedBaseModel):
+class ConnectionOptions(TypedBaseModel):
     """The set of options to use when connecting to a
     `PropertyEstimatorServer`
 
@@ -289,9 +299,9 @@ class PropertyEstimatorClient:
     If the PropertyEstimatorServer is not running on the local machine, you will
     need to specify its address and the port that it is listening on:
 
-    >>> from propertyestimator.client import PropertyEstimatorConnectionOptions
+    >>> from propertyestimator.client import ConnectionOptions
     >>>
-    >>> connection_options = PropertyEstimatorConnectionOptions(server_address='server_address',
+    >>> connection_options = ConnectionOptions(server_address='server_address',
     >>>                                                         server_port=8000)
     >>> property_estimator = PropertyEstimatorClient(connection_options)
 
@@ -304,7 +314,7 @@ class PropertyEstimatorClient:
     >>> # Filter the dataset to only include densities measured between 130-260 K
     >>> from propertyestimator.properties import Density
     >>>
-    >>> data_set.filter_by_properties(types=[Density.__name__])
+    >>> data_set.filter_by_properties(types=[Density])
     >>> data_set.filter_by_temperature(min_temperature=130*unit.kelvin, max_temperature=260*unit.kelvin)
     >>>
     >>> # Load initial parameters
@@ -330,8 +340,8 @@ class PropertyEstimatorClient:
 
     >>> from propertyestimator.layers import ReweightingLayer, SimulationLayer
     >>>
-    >>> options = PropertyEstimatorOptions(allowed_calculation_layers = [ReweightingLayer.__name__,
-    >>>                                                                  SimulationLayer.__name__])
+    >>> options = PropertyEstimatorOptions(allowed_calculation_layers = [ReweightingLayer,
+    >>>                                                                  SimulationLayer])
     >>>
     >>> request = property_estimator.request_estimate(data_set, parameters, options)
 
@@ -376,7 +386,7 @@ class PropertyEstimatorClient:
             ----------
             request_id: str
                 The id of the submitted request.
-            connection_options: PropertyEstimatorConnectionOptions
+            connection_options: ConnectionOptions
                 The options that were used to connect to the server that the request was sent to.
             client: PropertyEstimatorClient, optional
                 The client that was used to submit the request.
@@ -390,7 +400,7 @@ class PropertyEstimatorClient:
 
             if client is None:
 
-                connection_options = PropertyEstimatorConnectionOptions(
+                connection_options = ConnectionOptions(
                     server_address=connection_options.server_address,
                     server_port=connection_options.server_port)
 
@@ -467,12 +477,12 @@ class PropertyEstimatorClient:
             """
             return self._client._retrieve_estimate(self._id, synchronous, polling_interval)
 
-    def __init__(self, connection_options=PropertyEstimatorConnectionOptions()):
+    def __init__(self, connection_options=ConnectionOptions()):
         """Constructs a new PropertyEstimatorClient object.
 
         Parameters
         ----------
-        connection_options: PropertyEstimatorConnectionOptions
+        connection_options: ConnectionOptions
             The options used when connecting to the calculation server.
         """
 
