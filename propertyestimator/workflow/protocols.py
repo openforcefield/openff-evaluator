@@ -6,6 +6,7 @@ form a larger property estimation workflow.
 import copy
 import logging
 import pickle
+import sys
 from os import path
 
 import numpy as np
@@ -1717,26 +1718,41 @@ class ReweightWithMBARProtocol(BaseProtocol):
 
     @protocol_input(list)
     def reference_reduced_potentials(self):
+        """A list of the reduced potentials of each reference state."""
         pass
 
     @protocol_input(list)
     def reference_observables(self):
+        """A list of the observables to be reweighted from each reference state."""
         pass
 
     @protocol_input(list)
     def target_reduced_potentials(self):
+        """The reduced potentials of the target state."""
         pass
 
     @protocol_input(bool)
     def bootstrap_uncertainties(self):
+        """If true, bootstrapping will be used to estimated the total uncertainty"""
         pass
 
     @protocol_input(int)
     def bootstrap_iterations(self):
+        """The number of bootstrap iterations to perform if bootstraped
+        uncertainties have been requested"""
         pass
 
     @protocol_input(float)
     def bootstrap_sample_size(self):
+        """The relative bootstrap sample size to use if bootstraped
+        uncertainties have been requested"""
+        pass
+
+    @protocol_input(int)
+    def required_effective_samples(self):
+        """The minimum number of MBAR effective samples for the reweighted
+        value to be trusted. If this minimum is not met then the uncertainty
+        will be set to sys.float_info.max"""
         pass
 
     @protocol_output(EstimatedQuantity)
@@ -1756,6 +1772,8 @@ class ReweightWithMBARProtocol(BaseProtocol):
         self._bootstrap_iterations = 1
         self._bootstrap_sample_size = 1.0
 
+        self._required_effective_samples = 50
+
         self._value = None
 
     def execute(self, directory, available_resources):
@@ -1771,8 +1789,6 @@ class ReweightWithMBARProtocol(BaseProtocol):
                                               message='The reference_observables input should be'
                                                       'a list of unit.Quantity wrapped ndarray\'s.')
 
-        frame_counts = np.array([len(observable) for observable in self._reference_observables])
-
         observables = self._prepare_observables_array(self._reference_observables)
         observable_unit = self._reference_observables[0].unit
 
@@ -1780,6 +1796,14 @@ class ReweightWithMBARProtocol(BaseProtocol):
 
             reference_potentials = np.transpose(np.array(self._reference_reduced_potentials))
             target_potentials = np.transpose(np.array(self._target_reduced_potentials))
+
+            frame_counts = np.array([len(observable) for observable in self._reference_observables])
+
+            # Construct an mbar object to get out the number of effective samples.
+            mbar = pymbar.MBAR(self._reference_reduced_potentials,
+                               frame_counts, verbose=False, relative_tolerance=1e-12)
+
+            effective_samples = mbar.computeEffectiveSampleNumber().max()
 
             value, uncertainty = bootstrap(self._bootstrap_function,
                                            self._bootstrap_iterations,
@@ -1789,18 +1813,26 @@ class ReweightWithMBARProtocol(BaseProtocol):
                                            target_reduced_potentials=target_potentials,
                                            observables=np.transpose(observables))
 
+            if effective_samples < self._required_effective_samples:
+                uncertainty = sys.float_info.max
+
             self._value = EstimatedQuantity(value * observable_unit,
                                             uncertainty * observable_unit,
                                             self.id)
 
         else:
 
-            values, uncertainties = self._reweight_observables(self._reference_reduced_potentials,
-                                                               self._target_reduced_potentials,
-                                                               observables=observables)
+            values, uncertainties, effective_samples = self._reweight_observables(self._reference_reduced_potentials,
+                                                                                  self._target_reduced_potentials,
+                                                                                  observables=observables)
+
+            uncertainty = uncertainties['observables']
+
+            if effective_samples < self._required_effective_samples:
+                uncertainty = sys.float_info.max
 
             self._value = EstimatedQuantity(values['observables'] * observable_unit,
-                                            uncertainties['observables'] * observable_unit,
+                                            uncertainty * observable_unit,
                                             self.id)
 
         return self._get_output_dictionary()
@@ -1872,9 +1904,9 @@ class ReweightWithMBARProtocol(BaseProtocol):
         for key in reference_observables:
             transposed_observables[key] = np.transpose(reference_observables[key])
 
-        values, _ = self._reweight_observables(np.transpose(reference_reduced_potentials),
-                                               np.transpose(target_reduced_potentials),
-                                               **transposed_observables)
+        values, _, _ = self._reweight_observables(np.transpose(reference_reduced_potentials),
+                                                               np.transpose(target_reduced_potentials),
+                                                               **transposed_observables)
 
         return next(iter(values.values()))
 
@@ -1893,6 +1925,8 @@ class ReweightWithMBARProtocol(BaseProtocol):
         # Construct the mbar object.
         mbar = pymbar.MBAR(reference_reduced_potentials,
                            frame_counts, verbose=False, relative_tolerance=1e-12)
+
+        max_effective_samples = mbar.computeEffectiveSampleNumber().max()
 
         values = {}
         uncertainties = {}
@@ -1928,4 +1962,4 @@ class ReweightWithMBARProtocol(BaseProtocol):
                 values[observable_key] = np.array(value)
                 uncertainties[observable_key] = np.array(uncertainty)
 
-        return values, uncertainties
+        return values, uncertainties, max_effective_samples

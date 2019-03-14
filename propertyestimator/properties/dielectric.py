@@ -3,6 +3,7 @@ A collection of dielectric physical property definitions.
 """
 
 import logging
+import sys
 
 import numpy as np
 
@@ -253,12 +254,19 @@ class ReweightDielectricConstant(protocols.ReweightWithMBARProtocol):
 
         volumes = self._prepare_observables_array(self._reference_volumes)
 
-        frame_counts = np.array([len(observable) for observable in self._reference_observables])
-
         if self._bootstrap_uncertainties:
 
             reference_potentials = np.transpose(np.array(self._reference_reduced_potentials))
             target_potentials = np.transpose(np.array(self._target_reduced_potentials))
+
+            frame_counts = np.array([len(observable) for observable in self._reference_observables])
+
+            # Construct an mbar object to get out the number of effective samples.
+            import pymbar
+            mbar = pymbar.MBAR(self._reference_reduced_potentials,
+                               frame_counts, verbose=False, relative_tolerance=1e-12)
+
+            effective_samples = mbar.computeEffectiveSampleNumber().max()
 
             value, uncertainty = bootstrap(self._bootstrap_function,
                                            self._bootstrap_iterations,
@@ -269,6 +277,9 @@ class ReweightDielectricConstant(protocols.ReweightWithMBARProtocol):
                                            dipoles=np.transpose(dipole_moments),
                                            dipoles_sqr=np.transpose(dipole_moments_sqr),
                                            volumes=np.transpose(volumes))
+
+            if effective_samples < self._required_effective_samples:
+                uncertainty = sys.float_info.max
 
             self._value = EstimatedQuantity(unit.Quantity(value, None),
                                             unit.Quantity(uncertainty, None),
