@@ -693,12 +693,18 @@ class Workflow:
             The metadata dictionary, with the following
             keys / types:
 
-            - thermodynamic_state: `ThermodynamicState`
-            - substance: `Mixture`
-            - components: list of `Mixture`
-            - target_uncertainty: simtk.unit.Quantity
-            - per_component_uncertainty: simtk.unit.Quantity
-            - force_field_path: str
+            - thermodynamic_state: `ThermodynamicState` - The state (T,p) at which the
+                                                          property is being computed
+            - substance: `Mixture` - The composition of the system of interest.
+            - components: list of `Mixture` - The components present in the system for
+                                              which the property is being estimated.
+            - target_uncertainty: simtk.unit.Quantity - The target uncertainty with which
+                                                        properties should be estimated.
+            - per_component_uncertainty: simtk.unit.Quantity - The target uncertainty divided
+                                                               by the sqrt of the number of
+                                                               components in the system + 1
+            - force_field_path: str - A path to the force field parameters with which the
+                                      property should be evaulated with.
         """
         from propertyestimator.substances import Mixture
 
@@ -718,7 +724,8 @@ class Workflow:
 
             target_uncertainty = unit.Quantity(target_uncertainty, physical_property.uncertainty.unit)
 
-        per_component_uncertainty = target_uncertainty / sqrt(physical_property.substance.number_of_components)
+        # +1 comes from inclusion of the full mixture as a possible component.
+        per_component_uncertainty = target_uncertainty / sqrt(physical_property.substance.number_of_components + 1)
 
         # Define a dictionary of accessible 'global' properties.
         global_metadata = {
@@ -874,13 +881,18 @@ class WorkflowGraph:
 
                 parent_protocol_ids[dependant].append(inserted_id)
 
-    def submit(self, backend):
+    def submit(self, backend, include_uncertainty_check=True):
         """Submits the protocol graph to the backend of choice.
 
         Parameters
         ----------
         backend: PropertyEstimatorBackend
             The backend to execute the graph on.
+        include_uncertainty_check: bool
+            If true, the uncertainty of each estimated property will be checked to
+            ensure it is below the target threshold set in the workflow metadata.
+            If an uncertainty is not included in the workflow metadata, then this
+            parameter will be ignored.
 
         Returns
         -------
@@ -944,11 +956,17 @@ class WorkflowGraph:
 
                     final_futures.append(submitted_futures[attribute_value.start_protocol])
 
+            target_uncertainty = None
+
+            if include_uncertainty_check and 'target_uncertainty' in workflow.global_metadata:
+                target_uncertainty = workflow.global_metadata['target_uncertainty']
+
             # Gather the values and uncertainties of each property being calculated.
             value_futures.append(backend.submit_task(WorkflowGraph._gather_results,
                                                      workflow.physical_property,
                                                      workflow.final_value_source,
                                                      workflow.outputs_to_store,
+                                                     target_uncertainty,
                                                      *final_futures))
 
         return value_futures
@@ -1025,25 +1043,31 @@ class WorkflowGraph:
 
     @staticmethod
     def _gather_results(property_to_return, value_reference, outputs_to_store,
-                        *protocol_results, **kwargs):
+                        target_uncertainty, *protocol_results, **kwargs):
         """Gather the value and uncertainty calculated from the submission graph
         and store them in the property to return.
 
         Parameters
         ----------
-        value_result: dict of string and Any
-            The result dictionary of the protocol which calculated the value of the property.
+        property_to_return: PhysicalProperty
+            The property to which the value and uncertainty belong.
         value_reference: ProtocolPath
             A reference to which property in the output dictionary is the actual value.
         outputs_to_store: dict of string and WorkflowOutputToStore
             A list of references to data which should be stored on the storage backend.
-        property_to_return: PhysicalProperty
-            The property to which the value and uncertainty belong.
+        target_uncertainty: unit.Quantity, optional
+            The uncertainty within which this property should have been estimated. If this
+            value is not `None` and the target has not been met, a `None` result will be returned
+            indicating that this property could not be estimated by the workflow, but not because
+            of an error.
+        protocol_results: dict of string and Any
+            The result dictionary of the protocol which calculated the value of the property.
 
         Returns
         -------
-        CalculationLayerResult
-            The result of attempting to estimate this property from a workflow graph.
+        CalculationLayerResult, optional
+            The result of attempting to estimate this property from a workflow graph. `None`
+            will be returned if the target uncertainty is set but not met.
         """
         import mdtraj
         from propertyestimator.layers.layers import CalculationLayerResult
@@ -1072,6 +1096,9 @@ class WorkflowGraph:
                 final_path = ProtocolPath(property_name, *protocol_ids)
                 results_by_id[final_path] = output_value
 
+        if target_uncertainty is not None and results_by_id[value_reference].uncertainty > target_uncertainty:
+            return None
+
         property_to_return.value = results_by_id[value_reference].value
         property_to_return.uncertainty = results_by_id[value_reference].uncertainty
 
@@ -1079,7 +1106,7 @@ class WorkflowGraph:
         return_object.data_to_store = []
 
         # TODO: At the moment it is assumed that the output of a WorkflowGraph is
-        #       a set of StoredSimulationData. This should be abstraced and made
+        #       a set of StoredSimulationData. This should be abstracted and made
         #       more general in future if possible.
         for output_label in outputs_to_store:
 

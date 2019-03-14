@@ -155,8 +155,6 @@ def detect_equilibration(time_series, minimum_samples=3):
 
     effect_samples_array = np.ones([number_of_timesteps - 1], np.float32)
 
-    current_timestep = 0
-
     for current_timestep in range(0, number_of_timesteps - 1):
 
         try:
