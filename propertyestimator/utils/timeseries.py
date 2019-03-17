@@ -83,7 +83,7 @@ def calculate_statistical_inefficiency(time_series, minimum_samples=3):
             break
 
         statistical_inefficiency += (2.0 * autocorrelation_function *
-                                     (1.0 - float(current_timestep) / float(number_of_timesteps)))
+                                    (1.0 - float(current_timestep) / float(number_of_timesteps)))
 
         current_timestep += 1
 

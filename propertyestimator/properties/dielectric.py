@@ -12,7 +12,7 @@ from simtk.openmm import System
 
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.properties.properties import PhysicalProperty
+from propertyestimator.properties.properties import PhysicalProperty, DefaultPropertyWorkflowOptions
 from propertyestimator.properties.utils import generate_base_reweighting_protocols, BaseReweightingProtocols
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils import timeseries
@@ -309,30 +309,30 @@ class DielectricConstant(PhysicalProperty):
         return False
 
     @staticmethod
-    def get_default_workflow_schema(calculation_layer):
-        """Returns the default workflow schema to use for
-        a specific calculation layer.
+    def get_default_workflow_schema(calculation_layer, options=DefaultPropertyWorkflowOptions()):
 
-        Parameters
-        ----------
-        calculation_layer: str
-            The calculation layer which will attempt to execute the workflow
-            defined by this schema.
-
-        Returns
-        -------
-        WorkflowSchema
-            The default workflow schema.
-        """
         if calculation_layer == 'SimulationLayer':
-            return DielectricConstant.get_default_simulation_workflow_schema()
+            return DielectricConstant.get_default_simulation_workflow_schema(options)
         elif calculation_layer == 'ReweightingLayer':
-            return DielectricConstant.get_default_reweighting_workflow_schema()
+            return DielectricConstant.get_default_reweighting_workflow_schema(options)
 
         return None
 
     @staticmethod
-    def get_default_simulation_workflow_schema():
+    def get_default_simulation_workflow_schema(options):
+        """Returns the default workflow to use when estimating this property
+        from direct simulations.
+
+        Parameters
+        ----------
+        options: DefaultPropertyWorkflowOptions
+            The default options to use when setting up the estimation workflow.
+
+        Returns
+        -------
+        WorkflowSchema
+            The schema to follow when estimating this property.
+        """
 
         schema = WorkflowSchema(property_type=DielectricConstant.__name__)
         schema.id = '{}{}'.format(DielectricConstant.__name__, 'Schema')
@@ -407,7 +407,12 @@ class DielectricConstant(PhysicalProperty):
                                                  converge_uncertainty.id,
                                                  extract_dielectric.id)
 
-        condition.right_hand_value = ProtocolPath('target_uncertainty', 'global')
+        if options.convergence_mode == DefaultPropertyWorkflowOptions.ConvergenceMode.RelativeUncertainty:
+            condition.right_hand_value = ProtocolPath('target_uncertainty', 'global')
+        elif options.convergence_mode == DefaultPropertyWorkflowOptions.ConvergenceMode.AbsoluteUncertainty:
+            condition.right_hand_value = options.absolute_uncertainty
+        else:
+            raise ValueError('The convergence mode {} is not supported.'.format(options.convergence_mode))
 
         condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
 
@@ -475,7 +480,20 @@ class DielectricConstant(PhysicalProperty):
         return schema
 
     @staticmethod
-    def get_default_reweighting_workflow_schema():
+    def get_default_reweighting_workflow_schema(options):
+        """Returns the default workflow to use when estimating this property
+        by reweighting existing data.
+
+        Parameters
+        ----------
+        options: DefaultPropertyWorkflowOptions
+            The default options to use when setting up the estimation workflow.
+
+        Returns
+        -------
+        WorkflowSchema
+            The schema to follow when estimating this property.
+        """
 
         dielectric_calculation = ExtractAverageDielectric('calc_dielectric_$(data_repl)')
         base_reweighting_protocols, data_replicator = generate_base_reweighting_protocols(dielectric_calculation)

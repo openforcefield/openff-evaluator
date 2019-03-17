@@ -6,7 +6,7 @@ from collections import namedtuple
 
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.properties.properties import PhysicalProperty
+from propertyestimator.properties.properties import PhysicalProperty, DefaultPropertyWorkflowOptions
 from propertyestimator.properties.utils import generate_base_reweighting_protocols
 from propertyestimator.substances import Mixture
 from propertyestimator.thermodynamics import Ensemble
@@ -95,7 +95,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         return True
 
     @staticmethod
-    def get_enthalpy_workflow(id_prefix='', weight_by_mole_fraction=False):
+    def get_enthalpy_workflow(id_prefix='', weight_by_mole_fraction=False, options=None):
         """Returns the set of protocols which when combined in a workflow
         will yield the enthalpy of a substance.
 
@@ -107,6 +107,8 @@ class EnthalpyOfMixing(PhysicalProperty):
             If true, an extra protocol will be added to weight the calculated
             enthalpy by the mole fraction of the component inside of the
             convergence loop.
+        options: DefaultPropertyWorkflowOptions
+            The options to use when setting up the workflows.
 
         Returns
         -------
@@ -171,7 +173,14 @@ class EnthalpyOfMixing(PhysicalProperty):
         condition = groups.ConditionalGroup.Condition()
 
         condition.left_hand_value = ProtocolPath('value.uncertainty', converge_uncertainty.id, extract_enthalpy.id)
-        condition.right_hand_value = ProtocolPath('per_component_uncertainty', 'global')
+
+        if options.convergence_mode == DefaultPropertyWorkflowOptions.ConvergenceMode.RelativeUncertainty:
+            condition.right_hand_value = ProtocolPath('per_component_uncertainty', 'global')
+        elif options.convergence_mode == DefaultPropertyWorkflowOptions.ConvergenceMode.AbsoluteUncertainty:
+            condition.right_hand_value = options.absolute_uncertainty
+        else:
+            raise ValueError('The convergence mode {} is not supported.'.format(options.convergence_mode))
+
         condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
 
         converge_uncertainty.add_condition(condition)
@@ -227,30 +236,30 @@ class EnthalpyOfMixing(PhysicalProperty):
                                                  extract_uncorrelated_statistics)
 
     @staticmethod
-    def get_default_workflow_schema(calculation_layer):
-        """Returns the default workflow schema to use for
-        a specific calculation layer.
+    def get_default_workflow_schema(calculation_layer, options=DefaultPropertyWorkflowOptions()):
 
-        Parameters
-        ----------
-        calculation_layer: str
-            The calculation layer which will attempt to execute the workflow
-            defined by this schema.
-
-        Returns
-        -------
-        WorkflowSchema
-            The default workflow schema.
-        """
         if calculation_layer == 'SimulationLayer':
-            return EnthalpyOfMixing.get_default_simulation_workflow_schema()
+            return EnthalpyOfMixing.get_default_simulation_workflow_schema(options)
         elif calculation_layer == 'ReweightingLayer':
-            return EnthalpyOfMixing.get_default_reweighting_workflow_schema()
+            return EnthalpyOfMixing.get_default_reweighting_workflow_schema(options)
 
         return None
 
     @staticmethod
-    def get_default_simulation_workflow_schema():
+    def get_default_simulation_workflow_schema(options):
+        """Returns the default workflow to use when estimating this property
+        from direct simulations.
+
+        Parameters
+        ----------
+        options: DefaultPropertyWorkflowOptions
+            The default options to use when setting up the estimation workflow.
+
+        Returns
+        -------
+        WorkflowSchema
+            The schema to follow when estimating this property.
+        """
 
         schema = WorkflowSchema(property_type=EnthalpyOfMixing.__name__)
         schema.id = '{}{}'.format(EnthalpyOfMixing.__name__, 'Schema')
@@ -259,7 +268,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         # Here we affix a prefix which contains the special string $(comp_index). Protocols which are
         # replicated by a replicator will have the $(comp_index) tag in their id replaced by the index
         # of the replication.
-        component_workflow = EnthalpyOfMixing.get_enthalpy_workflow('component_$(repl)_', True)
+        component_workflow = EnthalpyOfMixing.get_enthalpy_workflow('component_$(repl)_', True, options)
 
         # Set the substance of the build_coordinates and assign_topology protocols
         # as a placeholder for now - these will be later set by the replicator.
@@ -267,7 +276,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         component_workflow.assign_topology.substance = ReplicatorValue('repl')
 
         # Set up a workflow to calculate the enthalpy of the full, mixed system.
-        mixed_system_workflow = EnthalpyOfMixing.get_enthalpy_workflow('mixed_')
+        mixed_system_workflow = EnthalpyOfMixing.get_enthalpy_workflow('mixed_', False, options)
 
         # Finally, set up the protocols which will be responsible for adding together
         # the component enthalpies, and subtracting these from the mixed system enthalpy.
@@ -365,7 +374,20 @@ class EnthalpyOfMixing(PhysicalProperty):
         return schema
 
     @staticmethod
-    def get_default_reweighting_workflow_schema():
+    def get_default_reweighting_workflow_schema(options):
+        """Returns the default workflow to use when estimating this property
+        by reweighting existing data.
+
+        Parameters
+        ----------
+        options: DefaultPropertyWorkflowOptions
+            The default options to use when setting up the estimation workflow.
+
+        Returns
+        -------
+        WorkflowSchema
+            The schema to follow when estimating this property.
+        """
 
         # Set up the protocols which will reweight data for the full system.
         extract_mixed_enthalpy = protocols.ExtractAverageStatistic('extract_enthalpy_$(mix_data_repl)_mixture')

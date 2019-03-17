@@ -707,9 +707,9 @@ class BuildSmirnoffSystem(BaseProtocol):
         from openforcefield.typing.engines import smirnoff
 
         system = force_field.createSystem(pdb_file.topology,
-                                            molecules,
-                                            nonbondedMethod=smirnoff.PME,
-                                            chargeMethod='OECharges_AM1BCCSym')
+                                          molecules,
+                                          nonbondedMethod=smirnoff.PME,
+                                          chargeMethod='OECharges_AM1BCCSym')
 
         if system is None:
 

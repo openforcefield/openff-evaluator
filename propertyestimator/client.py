@@ -64,7 +64,7 @@ class PropertyEstimatorOptions(TypedBaseModel):
             If None, all registered calculation layers are set as allowed.
         relative_uncertainty_tolerance: :obj:`float`, default = 1.0
             Controls the desired uncertainty of any calculated properties. The estimator will
-            attempt to estimate all properties to within an uncertainity equal to:
+            attempt to estimate all properties to within an uncertainty equal to:
 
             `target_uncertainty = relative_uncertainty_tolerance * experimental_uncertainty`
         allow_protocol_merging: :obj:`bool`, default = True
@@ -523,7 +523,10 @@ class PropertyEstimatorClient:
             options = PropertyEstimatorOptions()
 
         properties_list = []
+        property_types = set()
 
+        # Refactor the properties into a list, and extract the types
+        # of properties to be estimated (e.g 'Denisty', 'DielectricConstant').
         for substance_tag in property_set.properties:
 
             for physical_property in property_set.properties[substance_tag]:
@@ -537,35 +540,45 @@ class PropertyEstimatorClient:
                     raise ValueError('The property estimator does not support {} '
                                      'properties.'.format(type_name))
 
-                if type_name in options.workflow_schemas:
+                if type_name in property_types:
                     continue
 
-                property_type = registered_properties[type_name]()
+                property_types.add(type_name)
 
-                for calculation_layer in options.allowed_calculation_layers:
+        # Assign default workflows in the cases where the user hasn't
+        # provided one, and validate all of the workflows to be used
+        # in the estimation.
+        for type_name in property_types:
 
-                    if type_name not in options.workflow_schemas:
-                        options.workflow_schemas[type_name] = {}
+            if type_name not in options.workflow_schemas:
+                options.workflow_schemas[type_name] = {}
 
-                    if (calculation_layer not in options.workflow_schemas[type_name] or
-                        options.workflow_schemas[type_name][calculation_layer] is None):
+            for calculation_layer in options.allowed_calculation_layers:
 
-                        options.workflow_schemas[type_name][calculation_layer] = \
-                            property_type.get_default_workflow_schema(calculation_layer)
+                if (calculation_layer not in options.workflow_schemas[type_name] or
+                    options.workflow_schemas[type_name][calculation_layer] is None):
 
-                    workflow = property_type.get_default_workflow_schema(calculation_layer)
+                    property_type = registered_properties[type_name]()
 
-                    if workflow is None:
-                        continue
+                    options.workflow_schemas[type_name][calculation_layer] = \
+                        property_type.get_default_workflow_schema(calculation_layer)
 
-                    workflow.validate_interfaces()
+                workflow = options.workflow_schemas[type_name][calculation_layer]
 
-                    for protocol_schema_name in workflow.protocols:
+                if workflow is None:
+                    # Not all properties may support every calculation layer.
+                    continue
 
-                        protocol_schema = workflow.protocols[protocol_schema_name]
+                # Will raise the correct exception for non-valid interfaces.
+                workflow.validate_interfaces()
 
-                        if not options.allow_protocol_merging:
-                            protocol_schema.inputs['.allow_merging'] = False
+                # Enforce the global option of whether to allow merging or not.
+                for protocol_schema_name in workflow.protocols:
+
+                    protocol_schema = workflow.protocols[protocol_schema_name]
+
+                    if not options.allow_protocol_merging:
+                        protocol_schema.inputs['.allow_merging'] = False
 
         submission = PropertyEstimatorSubmission(properties=properties_list,
                                                  force_field=force_field,

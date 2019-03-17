@@ -52,7 +52,7 @@ def compute_estimate_async():
     # Modify the submission options
     options = PropertyEstimatorOptions(relative_uncertainty_tolerance=100000)
     # options.allowed_calculation_layers = ['SimulationLayer']
-    options.allowed_calculation_layers = ['ReweightingLayer']
+    # options.allowed_calculation_layers = ['ReweightingLayer']
 
     # Create the client object.
     property_estimator = client.PropertyEstimatorClient()
