@@ -6,6 +6,7 @@ import json
 import logging
 from time import sleep
 
+from propertyestimator.properties.properties import PropertyWorkflowOptions
 from simtk import unit
 from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
@@ -37,11 +38,15 @@ class PropertyEstimatorOptions(TypedBaseModel):
         A dictionary of the WorkflowSchema which will be used to calculate any properties.
         The dictionary key represents the type of property the schema will calculate. The
         dictionary will be automatically populated with defaults if no entries are added.
-    relative_uncertainty_tolerance: :obj:`float`, default = 1.0
-        Controls the desired uncertainty of any calculated properties. The estimator will
-        attempt to estimate all properties to within an uncertainity equal to:
+    workflow_options: dict of str and DefaultPropertyWorkflowOptions, optional
+        The set of options which will be used when setting up the default estimation
+        workflows, where the string key here is the property for which the options apply.
+        As an example, the target (relative or absolute) uncertainty of each property may be set
+        using these options.
 
-        `target_uncertainty = relative_uncertainty_tolerance * experimental_uncertainty`
+        If None, a set of defaults will be applied when the properties are sent to a server for
+        estimation. The current set of defaults will ensure that properties are estimated with an
+        uncertainty which is less than or equal to the experimental uncertainty of a property.
     allow_protocol_merging: :obj:`bool`, default = True
         If true, allows individual identical steps in a property estimation workflow to be merged.
 
@@ -51,7 +56,7 @@ class PropertyEstimatorOptions(TypedBaseModel):
         densities.
     """
 
-    def __init__(self, allowed_calculation_layers=None, relative_uncertainty_tolerance=1.0,
+    def __init__(self, allowed_calculation_layers=None,
                  allow_protocol_merging=True):
         """Constructs a new PropertyEstimatorServerData object.
 
@@ -62,11 +67,6 @@ class PropertyEstimatorOptions(TypedBaseModel):
             that the calculator will attempt to execute the layers in.
 
             If None, all registered calculation layers are set as allowed.
-        relative_uncertainty_tolerance: :obj:`float`, default = 1.0
-            Controls the desired uncertainty of any calculated properties. The estimator will
-            attempt to estimate all properties to within an uncertainty equal to:
-
-            `target_uncertainty = relative_uncertainty_tolerance * experimental_uncertainty`
         allow_protocol_merging: :obj:`bool`, default = True
             If true, allows individual identical steps in a property estimation workflow to be merged.
         """
@@ -91,8 +91,8 @@ class PropertyEstimatorOptions(TypedBaseModel):
                     self.allowed_calculation_layers.append(allowed_layer.__name__)
 
         self.workflow_schemas = {}
+        self.workflow_options = None
 
-        self.relative_uncertainty_tolerance = relative_uncertainty_tolerance
         self.allow_protocol_merging = allow_protocol_merging
 
         self.gradient_properties = []
@@ -103,8 +103,8 @@ class PropertyEstimatorOptions(TypedBaseModel):
             'allowed_calculation_layers': self.allowed_calculation_layers,
 
             'workflow_schemas': self.workflow_schemas,
+            'workflow_options': self.workflow_options,
 
-            'relative_uncertainty_tolerance': self.relative_uncertainty_tolerance,
             'allow_protocol_merging': self.allow_protocol_merging,
 
             'gradient_properties': self.gradient_properties,
@@ -115,8 +115,8 @@ class PropertyEstimatorOptions(TypedBaseModel):
         self.allowed_calculation_layers = state['allowed_calculation_layers']
 
         self.workflow_schemas = state['workflow_schemas']
+        self.workflow_options = state['workflow_options']
 
-        self.relative_uncertainty_tolerance = state['relative_uncertainty_tolerance']
         self.allow_protocol_merging = state['allow_protocol_merging']
 
         self.gradient_properties = state['gradient_properties']
@@ -345,9 +345,29 @@ class PropertyEstimatorClient:
     >>>
     >>> request = property_estimator.request_estimate(data_set, parameters, options)
 
-    As can the uncertainty tolerance:
+    Options for how properties should be estimated can be set on a per property basis. For example
+    the relative uncertainty that properties should estimated to within can be set as:
 
-    >>> options = PropertyEstimatorOptions(relative_uncertainty_tolerance = 0.1)
+    >>> from propertyestimator.properties.properties import PropertyWorkflowOptions
+    >>>
+    >>> workflow_options = PropertyWorkflowOptions(PropertyWorkflowOptions.ConvergenceMode.RelativeUncertainty,
+    >>>                                            relative_uncertainty_fraction=0.1)
+    >>> options.workflow_options = {
+    >>>     'Density': workflow_options,
+    >>>     'Dielectric': workflow_options
+    >>> }
+
+    Or alternatively, as absolute uncertainty tolerance can be set as:
+
+    >>> density_options = PropertyWorkflowOptions(PropertyWorkflowOptions.ConvergenceMode.AbsoluteUncertainty,
+    >>>                                           absolute_uncertainty=0.0002 * unit.gram / unit.milliliter)
+    >>> dielectric_options = PropertyWorkflowOptions(PropertyWorkflowOptions.ConvergenceMode.AbsoluteUncertainty,
+    >>>                                              absolute_uncertainty=0.02 * unit.dimensionless)
+    >>>
+    >>> options.workflow_options = {
+    >>>     'Density': density_options,
+    >>>     'Dielectric': dielectric_options
+    >>> }
     """
 
     @property
@@ -545,6 +565,9 @@ class PropertyEstimatorClient:
 
                 property_types.add(type_name)
 
+        if options.workflow_options is None:
+            options.workflow_options = {}
+
         # Assign default workflows in the cases where the user hasn't
         # provided one, and validate all of the workflows to be used
         # in the estimation.
@@ -552,6 +575,9 @@ class PropertyEstimatorClient:
 
             if type_name not in options.workflow_schemas:
                 options.workflow_schemas[type_name] = {}
+
+            if type_name not in options.workflow_options:
+                options.workflow_options[type_name] = PropertyWorkflowOptions()
 
             for calculation_layer in options.allowed_calculation_layers:
 
@@ -561,7 +587,8 @@ class PropertyEstimatorClient:
                     property_type = registered_properties[type_name]()
 
                     options.workflow_schemas[type_name][calculation_layer] = \
-                        property_type.get_default_workflow_schema(calculation_layer)
+                        property_type.get_default_workflow_schema(calculation_layer,
+                                                                  options.workflow_options[type_name])
 
                 workflow = options.workflow_schemas[type_name][calculation_layer]
 

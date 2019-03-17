@@ -134,7 +134,7 @@ class CalculationSource(Source):
         self.provenance = state['provenance']
 
 
-class DefaultPropertyWorkflowOptions:
+class PropertyWorkflowOptions:
     """A set of convenience options used when creating
     estimation workflows.
     """
@@ -152,30 +152,58 @@ class DefaultPropertyWorkflowOptions:
 
     def __init__(self,
                  convergence_mode=ConvergenceMode.RelativeUncertainty,
-                 absolute_uncertainty=None):
+                 relative_uncertainty_fraction=1.0, absolute_uncertainty=None):
         """Constructs a new DefaultPropertyWorkflowOptions object.
 
         Parameters
         ----------
-        convergence_mode: DefaultPropertyWorkflowOptions.ConvergenceMode
+        convergence_mode: PropertyWorkflowOptions.ConvergenceMode
             The mode which governs how workflows should decide when they have
             reached convergence.
+        relative_uncertainty_fraction: float, optional
+            If the convergence mode is set to `RelativeUncertainty`, then workflows
+            will by default run simulations until the estimated uncertainty is less
+            than
+
+            `relative_uncertainty_fraction` * property_to_estimate.uncertainty
+        absolute_uncertainty: simtk.unit.Quantity, optional
+            If the convergence mode is set to `AbsoluteUncertainty`, then workflows
+            will by default run simulations until the estimated uncertainty is less
+            than the `absolute_uncertainty`
         """
 
         self.convergence_mode = convergence_mode
+
         self.absolute_uncertainty = absolute_uncertainty
+        self.relative_uncertainty_fraction = relative_uncertainty_fraction
 
         if (self.convergence_mode is self.ConvergenceMode.RelativeUncertainty and
-                self.absolute_uncertainty is not None):
+            self.relative_uncertainty_fraction is None):
 
-            raise ValueError('The relative convergence mode cannot be used with an'
-                             'absolute uncertainty.')
+            raise ValueError('The relative uncertainty fraction must be set when the convergence '
+                             'mode is set to RelativeUncertainty.')
 
         if (self.convergence_mode is self.ConvergenceMode.AbsoluteUncertainty and
             self.absolute_uncertainty is None):
 
-            raise ValueError('The absolute uncertainty convergence mode can only be used'
-                             ' when the absolute uncertainty is not None.')
+            raise ValueError('The absolute uncertainty must be set when the convergence '
+                             'mode is set to AbsoluteUncertainty.')
+
+    def __getstate__(self):
+
+        return {
+            'convergence_mode': self.convergence_mode,
+
+            'absolute_uncertainty': self.absolute_uncertainty,
+            'relative_uncertainty_fraction': self.relative_uncertainty_fraction
+        }
+
+    def __setstate__(self, state):
+
+        self.convergence_mode = state['convergence_mode']
+
+        self.absolute_uncertainty = state['absolute_uncertainty']
+        self.relative_uncertainty_fraction = state['relative_uncertainty_fraction']
 
 
 class PhysicalProperty(TypedBaseModel):
@@ -272,7 +300,7 @@ class PhysicalProperty(TypedBaseModel):
         self.uncertainty = uncertainty
 
     @staticmethod
-    def get_default_workflow_schema(calculation_layer, options=DefaultPropertyWorkflowOptions()):
+    def get_default_workflow_schema(calculation_layer, options):
         """Returns the default workflow schema to use for
         a specific calculation layer.
 
@@ -281,8 +309,8 @@ class PhysicalProperty(TypedBaseModel):
         calculation_layer: str
             The calculation layer which will attempt to execute the workflow
             defined by this schema.
-        options: DefaultPropertyWorkflowOptions
-            The default options to use when setting up the default workflows.
+        options: PropertyWorkflowOptions
+            The options to use when setting up the default workflows.
 
         Returns
         -------

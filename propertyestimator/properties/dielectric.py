@@ -12,7 +12,7 @@ from simtk.openmm import System
 
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.properties.properties import PhysicalProperty, DefaultPropertyWorkflowOptions
+from propertyestimator.properties.properties import PhysicalProperty, PropertyWorkflowOptions
 from propertyestimator.properties.utils import generate_base_reweighting_protocols, BaseReweightingProtocols
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils import timeseries
@@ -309,7 +309,7 @@ class DielectricConstant(PhysicalProperty):
         return False
 
     @staticmethod
-    def get_default_workflow_schema(calculation_layer, options=DefaultPropertyWorkflowOptions()):
+    def get_default_workflow_schema(calculation_layer, options):
 
         if calculation_layer == 'SimulationLayer':
             return DielectricConstant.get_default_simulation_workflow_schema(options)
@@ -325,7 +325,7 @@ class DielectricConstant(PhysicalProperty):
 
         Parameters
         ----------
-        options: DefaultPropertyWorkflowOptions
+        options: PropertyWorkflowOptions
             The default options to use when setting up the estimation workflow.
 
         Returns
@@ -407,12 +407,7 @@ class DielectricConstant(PhysicalProperty):
                                                  converge_uncertainty.id,
                                                  extract_dielectric.id)
 
-        if options.convergence_mode == DefaultPropertyWorkflowOptions.ConvergenceMode.RelativeUncertainty:
-            condition.right_hand_value = ProtocolPath('target_uncertainty', 'global')
-        elif options.convergence_mode == DefaultPropertyWorkflowOptions.ConvergenceMode.AbsoluteUncertainty:
-            condition.right_hand_value = options.absolute_uncertainty
-        else:
-            raise ValueError('The convergence mode {} is not supported.'.format(options.convergence_mode))
+        condition.right_hand_value = ProtocolPath('target_uncertainty', 'global')
 
         condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
 
@@ -486,7 +481,7 @@ class DielectricConstant(PhysicalProperty):
 
         Parameters
         ----------
-        options: DefaultPropertyWorkflowOptions
+        options: PropertyWorkflowOptions
             The default options to use when setting up the estimation workflow.
 
         Returns

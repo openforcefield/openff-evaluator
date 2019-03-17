@@ -6,7 +6,7 @@ from collections import namedtuple
 
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.properties.properties import PhysicalProperty, DefaultPropertyWorkflowOptions
+from propertyestimator.properties.properties import PhysicalProperty, PropertyWorkflowOptions
 from propertyestimator.properties.utils import generate_base_reweighting_protocols
 from propertyestimator.substances import Mixture
 from propertyestimator.thermodynamics import Ensemble
@@ -107,7 +107,7 @@ class EnthalpyOfMixing(PhysicalProperty):
             If true, an extra protocol will be added to weight the calculated
             enthalpy by the mole fraction of the component inside of the
             convergence loop.
-        options: DefaultPropertyWorkflowOptions
+        options: PropertyWorkflowOptions
             The options to use when setting up the workflows.
 
         Returns
@@ -173,14 +173,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         condition = groups.ConditionalGroup.Condition()
 
         condition.left_hand_value = ProtocolPath('value.uncertainty', converge_uncertainty.id, extract_enthalpy.id)
-
-        if options.convergence_mode == DefaultPropertyWorkflowOptions.ConvergenceMode.RelativeUncertainty:
-            condition.right_hand_value = ProtocolPath('per_component_uncertainty', 'global')
-        elif options.convergence_mode == DefaultPropertyWorkflowOptions.ConvergenceMode.AbsoluteUncertainty:
-            condition.right_hand_value = options.absolute_uncertainty
-        else:
-            raise ValueError('The convergence mode {} is not supported.'.format(options.convergence_mode))
-
+        condition.right_hand_value = ProtocolPath('per_component_uncertainty', 'global')
         condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
 
         converge_uncertainty.add_condition(condition)
@@ -236,7 +229,7 @@ class EnthalpyOfMixing(PhysicalProperty):
                                                  extract_uncorrelated_statistics)
 
     @staticmethod
-    def get_default_workflow_schema(calculation_layer, options=DefaultPropertyWorkflowOptions()):
+    def get_default_workflow_schema(calculation_layer, options):
 
         if calculation_layer == 'SimulationLayer':
             return EnthalpyOfMixing.get_default_simulation_workflow_schema(options)
@@ -252,7 +245,7 @@ class EnthalpyOfMixing(PhysicalProperty):
 
         Parameters
         ----------
-        options: DefaultPropertyWorkflowOptions
+        options: PropertyWorkflowOptions
             The default options to use when setting up the estimation workflow.
 
         Returns
@@ -380,7 +373,7 @@ class EnthalpyOfMixing(PhysicalProperty):
 
         Parameters
         ----------
-        options: DefaultPropertyWorkflowOptions
+        options: PropertyWorkflowOptions
             The default options to use when setting up the estimation workflow.
 
         Returns

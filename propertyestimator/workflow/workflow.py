@@ -9,6 +9,7 @@ import uuid
 from math import sqrt
 from os import path, makedirs
 
+from propertyestimator.properties.properties import PropertyWorkflowOptions
 from simtk import unit
 
 from propertyestimator.storage import StoredSimulationData
@@ -27,7 +28,7 @@ class IWorkflowProperty(SubhookedABCMeta):
 
     @staticmethod
     @abc.abstractmethod
-    def get_default_workflow_schema(calculation_layer): pass
+    def get_default_workflow_schema(calculation_layer, options): pass
 
 
 class Workflow:
@@ -717,7 +718,19 @@ class Workflow:
 
             components.append(mixture)
 
-        target_uncertainty = physical_property.uncertainty * estimator_options.relative_uncertainty_tolerance
+        if (estimator_options.workflow_options is not None and
+            type(physical_property).__name__ in estimator_options.workflow_options):
+
+            workflow_options = estimator_options.workflow_options[type(physical_property).__name__]
+        else:
+            workflow_options = PropertyWorkflowOptions()
+
+        if workflow_options.convergence_mode == PropertyWorkflowOptions.ConvergenceMode.RelativeUncertainty:
+            target_uncertainty = physical_property.uncertainty * workflow_options.relative_uncertainty_fraction
+        elif workflow_options.convergence_mode == PropertyWorkflowOptions.ConvergenceMode.AbsoluteUncertainty:
+            target_uncertainty = workflow_options.absolute_uncertainty
+        else:
+            raise ValueError('The convergence mode {} is not supported.'.format(workflow_options.convergence_mode))
 
         if (isinstance(physical_property.uncertainty, unit.Quantity) and not
             isinstance(target_uncertainty, unit.Quantity)):
