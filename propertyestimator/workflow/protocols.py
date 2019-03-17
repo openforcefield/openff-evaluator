@@ -574,7 +574,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
         self._coordinate_file_path = None
         self._positions = None
 
-        self._max_molecules = 2000
+        self._max_molecules = 1000
         self._mass_density = 0.95 * unit.grams / unit.milliliters
 
     def execute(self, directory, available_resources):
