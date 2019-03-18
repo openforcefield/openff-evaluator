@@ -942,14 +942,16 @@ class RunOpenMMSimulation(BaseProtocol):
 
         positions = self._simulation_object.context.getState(getPositions=True).getPositions()
 
-        input_pdb_file = app.PDBFile(self._input_coordinate_file)
+        topology = app.PDBFile(self._input_coordinate_file).topology
+        topology.setPeriodicBoxVectors(self._simulation_object.context.getState().getPeriodicBoxVectors())
+
         self._output_coordinate_file = path.join(directory, 'output.pdb')
 
         logging.info('Simulation performed in the ' + str(self._ensemble) + ' ensemble: ' + self.id)
 
         with open(self._output_coordinate_file, 'w+') as configuration_file:
 
-            app.PDBFile.writeFile(input_pdb_file.topology,
+            app.PDBFile.writeFile(topology,
                                   positions, configuration_file)
 
         return self._get_output_dictionary()
