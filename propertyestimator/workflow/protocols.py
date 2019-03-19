@@ -1089,7 +1089,7 @@ class AveragePropertyProtocol(BaseProtocol):
 
         super().__init__(protocol_id)
 
-        self._bootstrap_iterations = 100
+        self._bootstrap_iterations = 250
         self._bootstrap_sample_size = 1.0
 
         self._value = None
