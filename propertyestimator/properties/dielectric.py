@@ -19,10 +19,9 @@ from propertyestimator.utils import timeseries
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import bootstrap
-from propertyestimator.workflow import WorkflowSchema
 from propertyestimator.workflow import protocols, groups, plugins
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
-from propertyestimator.workflow.schemas import WorkflowOutputToStore
+from propertyestimator.workflow.schemas import WorkflowOutputToStore, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
 

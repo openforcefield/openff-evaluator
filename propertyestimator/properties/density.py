@@ -8,9 +8,8 @@ from propertyestimator.properties.properties import PhysicalProperty, PropertyWo
 from propertyestimator.properties.utils import generate_base_reweighting_protocols
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.statistics import ObservableType
-from propertyestimator.workflow import WorkflowSchema
 from propertyestimator.workflow import protocols, groups
-from propertyestimator.workflow.schemas import WorkflowOutputToStore
+from propertyestimator.workflow.schemas import WorkflowOutputToStore, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
 

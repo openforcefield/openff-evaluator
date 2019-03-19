@@ -12,10 +12,10 @@ from propertyestimator.substances import Mixture
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
-from propertyestimator.workflow import WorkflowSchema, plugins, groups
+from propertyestimator.workflow import plugins, groups
 from propertyestimator.workflow import protocols
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
-from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowOutputToStore
+from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowOutputToStore, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
