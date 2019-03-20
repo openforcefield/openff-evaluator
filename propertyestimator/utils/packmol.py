@@ -7,6 +7,7 @@ Based on the `SolvationToolkit <https://github.com/MobleyLab/SolvationToolkit>`_
 """
 
 import logging
+import mdtraj
 import os
 import random
 import string
@@ -82,10 +83,11 @@ def pack_box(molecules,
 
     # Create PDB files for all components
     pdb_filenames = list()
-
     pdb_flavor = oechem.OEOFlavor_PDB_Default
 
-    for index, molecule in enumerate(molecules):
+    mdtraj_topologies = []
+
+    for molecule in molecules:
 
         tmp_filename = tempfile.mktemp(suffix=".pdb")
         pdb_filenames.append(tmp_filename)
@@ -105,6 +107,8 @@ def pack_box(molecules,
 
         with open(tmp_filename, 'wb') as file:
             file.write(pdb_contents.encode())
+
+        mdtraj_topologies.append(mdtraj.load_pdb(tmp_filename).topology)
 
     # Run packmol
     if PACKMOL_PATH is None:
@@ -170,7 +174,7 @@ def pack_box(molecules,
 
     # Append missing connect statements to the end of the
     # output file.
-    _append_connect_statements(output_filename, molecules, n_copies)
+    _append_connect_statements(output_filename, mdtraj_topologies, n_copies)
 
     # Read the resulting PDB file.
     pdbfile = app.PDBFile(output_filename)
@@ -289,7 +293,7 @@ def approximate_volume_by_density(molecules,
     return box_edge
 
 
-def _append_connect_statements(file_name, molecules, n_copies):
+def _append_connect_statements(file_name, molecule_topologies, n_copies):
 
     lines = []
 
@@ -303,14 +307,14 @@ def _append_connect_statements(file_name, molecules, n_copies):
 
     # TODO: Does packmol always give the exact number of mols asked for?
     # In future may be better way to figure this out.
-    for (molecule, count) in zip(molecules, n_copies):
+    for (topology, count) in zip(molecule_topologies, n_copies):
 
         bonds = {}
 
-        for bond in molecule.GetBonds():
+        for bond in topology.bonds:
 
-            index_A = bond.GetBgnIdx()
-            index_B = bond.GetEndIdx()
+            index_A = bond[0].index
+            index_B = bond[1].index
 
             if index_A not in bonds:
                 bonds[index_A] = []
@@ -336,7 +340,7 @@ def _append_connect_statements(file_name, molecules, n_copies):
 
                 lines.append(connect_string)
 
-            atom_counter += molecule.NumAtoms()
+            atom_counter += topology.n_atoms
 
     lines.append('END')
 

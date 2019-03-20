@@ -650,6 +650,11 @@ class BuildSmirnoffSystem(BaseProtocol):
         """The composition of the system."""
         pass
 
+    @protocol_input(unit.Quantity)
+    def nonbonded_cutoff(self):
+        """The cutoff after which non-bonded interactions are truncated."""
+        pass
+
     @protocol_output(System)
     def system(self):
         """The assigned system."""
@@ -663,6 +668,8 @@ class BuildSmirnoffSystem(BaseProtocol):
         self._force_field_path = None
         self._coordinate_file_path = None
         self._substance = None
+
+        self._nonbonded_cutoff = 1.0 * unit.nanometer
 
         # outputs
         self._system = None
@@ -709,6 +716,7 @@ class BuildSmirnoffSystem(BaseProtocol):
         system = force_field.createSystem(pdb_file.topology,
                                           molecules,
                                           nonbondedMethod=smirnoff.PME,
+                                          nonbondedCutoff=self._nonbonded_cutoff,
                                           chargeMethod='OECharges_AM1BCCSym')
 
         if system is None:
