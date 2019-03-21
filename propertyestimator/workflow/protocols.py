@@ -725,6 +725,12 @@ class BuildSmirnoffSystem(BaseProtocol):
                                               message='Failed to create a system from the'
                                                        'provided topology and molecules')
 
+        from simtk.openmm import XmlSerializer
+        system_xml = XmlSerializer.serialize(system)
+
+        with open('system.xml', 'wb') as file:
+            file.write(system_xml.encode('utf-8'))
+
         self._system = system
 
         logging.info('Topology generated: ' + self.id)
