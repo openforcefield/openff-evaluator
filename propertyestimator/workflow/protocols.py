@@ -728,7 +728,7 @@ class BuildSmirnoffSystem(BaseProtocol):
         from simtk.openmm import XmlSerializer
         system_xml = XmlSerializer.serialize(system)
 
-        with open('system.xml', 'wb') as file:
+        with open(path.join(directory, 'system.xml'), 'wb') as file:
             file.write(system_xml.encode('utf-8'))
 
         self._system = system
