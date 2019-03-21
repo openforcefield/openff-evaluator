@@ -108,7 +108,15 @@ def pack_box(molecules,
         with open(tmp_filename, 'wb') as file:
             file.write(pdb_contents.encode())
 
-        mdtraj_topologies.append(mdtraj.load_pdb(tmp_filename).topology)
+        oe_pdb = mdtraj.load_pdb(tmp_filename)
+
+        # We definitely want to make sure the temp pdb file is identical to
+        # that stored in the topology to ensure the correct generation
+        # of CONNECT statements.
+        tmp_mdtraj_filename = tempfile.mktemp(suffix=".pdb")
+        oe_pdb.save_pdb(tmp_mdtraj_filename)
+
+        mdtraj_topologies.append(oe_pdb.topology)
 
     # Run packmol
     if PACKMOL_PATH is None:
