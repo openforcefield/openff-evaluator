@@ -1724,7 +1724,35 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
 
         integrator = openmmtools.integrators.VelocityVerletIntegrator(0.01*unit.femtoseconds)
 
-        context_cache = openmmtools.cache.ContextCache()
+        # Setup the requested platform:
+        if available_resources.number_of_gpus > 0:
+
+            platform_name = 'CUDA' if available_resources.preferred_gpu_toolkit == 'CUDA' else 'OpenCL'
+
+            # noinspection PyCallByClass,PyTypeChecker
+            platform = Platform.getPlatformByName(platform_name)
+
+            if available_resources.gpu_device_indices is not None:
+
+                property_platform_name = platform_name
+
+                if available_resources.preferred_gpu_toolkit == 'CUDA':
+                    property_platform_name = platform_name.lower().capitalize()
+
+                platform.setPropertyDefaultValue(property_platform_name + 'DeviceIndex',
+                                                 available_resources.gpu_device_indices)
+
+            logging.info('Setting up a simulation on GPU {}'.format(available_resources.gpu_device_indices or 0))
+
+        else:
+
+            # noinspection PyCallByClass,PyTypeChecker
+            platform = Platform.getPlatformByName('CPU')
+            platform.setPropertyDefaultValue('Threads', str(available_resources.number_of_threads))
+
+            logging.info('Setting up a simulation with {} threads'.format(available_resources.number_of_threads))
+
+        context_cache = openmmtools.cache.ContextCache(platform)
         openmm_context, openmm_context_integrator = context_cache.get_context(openmm_state,
                                                                               integrator)
 
