@@ -176,7 +176,7 @@ def test_base_simulation_protocols():
         energy_minimisation = RunEnergyMinimisation('')
 
         energy_minimisation.input_coordinate_file = path.join(temporary_directory, 'output.pdb')
-        energy_minimisation.system = assign_force_field_parameters.system
+        energy_minimisation.system_path = assign_force_field_parameters.system_path
 
         result = energy_minimisation.execute(temporary_directory, ComputeResources())
         assert not isinstance(result, PropertyEstimatorException)
@@ -191,7 +191,7 @@ def test_base_simulation_protocols():
         npt_equilibration.thermodynamic_state = thermodynamic_state
 
         npt_equilibration.input_coordinate_file = path.join(temporary_directory, 'minimised.pdb')
-        npt_equilibration.system = assign_force_field_parameters.system
+        npt_equilibration.system_path = assign_force_field_parameters.system_path
 
         result = npt_equilibration.execute(temporary_directory, ComputeResources())
         assert not isinstance(result, PropertyEstimatorException)
@@ -210,7 +210,7 @@ def test_base_simulation_protocols():
 
         extract_dielectric.input_coordinate_file = path.join(temporary_directory, 'input.pdb')
         extract_dielectric.trajectory_path = path.join(temporary_directory, 'trajectory.dcd')
-        extract_dielectric.system = assign_force_field_parameters.system
+        extract_dielectric.system_path = assign_force_field_parameters.system_path
 
         result = extract_dielectric.execute(temporary_directory, ComputeResources())
         assert not isinstance(result, PropertyEstimatorException)

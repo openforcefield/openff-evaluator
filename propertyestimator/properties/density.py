@@ -75,7 +75,7 @@ class Density(PhysicalProperty):
         energy_minimisation = protocols.RunEnergyMinimisation('energy_minimisation')
 
         energy_minimisation.input_coordinate_file = ProtocolPath('coordinate_file_path', build_coordinates.id)
-        energy_minimisation.system = ProtocolPath('system', assign_topology.id)
+        energy_minimisation.system_path = ProtocolPath('system_path', assign_topology.id)
 
         schema.protocols[energy_minimisation.id] = energy_minimisation.schema
 
@@ -89,7 +89,7 @@ class Density(PhysicalProperty):
         npt_equilibration.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 
         npt_equilibration.input_coordinate_file = ProtocolPath('output_coordinate_file', energy_minimisation.id)
-        npt_equilibration.system = ProtocolPath('system', assign_topology.id)
+        npt_equilibration.system_path = ProtocolPath('system_path', assign_topology.id)
 
         schema.protocols[npt_equilibration.id] = npt_equilibration.schema
 
@@ -104,7 +104,7 @@ class Density(PhysicalProperty):
         npt_production.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 
         npt_production.input_coordinate_file = ProtocolPath('output_coordinate_file', npt_equilibration.id)
-        npt_production.system = ProtocolPath('system', assign_topology.id)
+        npt_production.system_path = ProtocolPath('system_path', assign_topology.id)
 
         # Analysis
         extract_density = protocols.ExtractAverageStatistic('extract_density')

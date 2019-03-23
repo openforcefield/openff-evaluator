@@ -3,6 +3,8 @@ Defines the core workflow object and execution graph.
 """
 import abc
 import copy
+import json
+import logging
 import re
 import traceback
 import uuid
@@ -15,7 +17,7 @@ from simtk import unit
 from propertyestimator.storage import StoredSimulationData
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import TypedBaseModel
+from propertyestimator.utils.serialization import TypedBaseModel, TypedJSONEncoder, TypedJSONDecoder
 from propertyestimator.utils.statistics import StatisticsArray
 from propertyestimator.utils.utils import SubhookedABCMeta, get_nested_attribute
 from propertyestimator.workflow.plugins import available_protocols
@@ -985,15 +987,15 @@ class WorkflowGraph:
         return value_futures
 
     @staticmethod
-    def _execute_protocol(directory, protocol_schema, *previous_outputs, available_resources, **kwargs):
+    def _execute_protocol(directory, protocol_schema, *previous_output_paths, available_resources, **kwargs):
         """Executes a protocol whose state is defined by the ``protocol_schema``.
 
         Parameters
         ----------
         protocol_schema: protocols.ProtocolSchema
             The schema defining the protocol to execute.
-        previous_outputs: tuple of Any
-            The results of previous protocol executions.
+        previous_output_paths: tuple of str
+            Paths to the results of previous protocol executions.
 
         Returns
         -------
@@ -1007,7 +1009,25 @@ class WorkflowGraph:
         # If one of the results is a failure, propagate it up the chain!
         previous_outputs_by_path = {}
 
-        for parent_id, parent_output in previous_outputs:
+        for parent_id, previous_output_path in previous_output_paths:
+
+            parent_output = None
+
+            if isinstance(previous_output_path, PropertyEstimatorException):
+                return protocol_schema.id, previous_output_path
+
+            try:
+
+                with open(previous_output_path, 'r') as file:
+                    parent_output = json.load(file, cls=TypedJSONDecoder)
+
+            except json.JSONDecodeError as e:
+
+                formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+
+                return protocol_schema.id, PropertyEstimatorException(directory=directory,
+                                                  message='Could not load the output dictionary of {} ({}): {}'.format(
+                                                      parent_id, previous_output_path, formatted_exception))
 
             if isinstance(parent_output, PropertyEstimatorException):
                 return protocol_schema.id, parent_output
@@ -1042,6 +1062,8 @@ class WorkflowGraph:
 
                 protocol.set_value(source_path, previous_outputs_by_path[target_path])
 
+        logging.info('Executing protocol: {}'.format(protocol.id))
+
         try:
             output_dictionary = protocol.execute(directory, available_resources)
         except Exception as e:
@@ -1052,11 +1074,28 @@ class WorkflowGraph:
                                                            message='An unhandled exception occurred: '
                                                                    '{}'.format(formatted_exception))
 
-        return protocol.id, output_dictionary
+        logging.info('Protocol finished executing: {}'.format(protocol.id))
+
+        output_dictionary_path = path.join(directory, '{}_output.json'.format(protocol.id))
+
+        try:
+
+            with open(output_dictionary_path, 'w') as file:
+                json.dump(output_dictionary, file, cls=TypedJSONEncoder)
+
+        except TypeError as e:
+
+            formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+
+            return protocol.id, PropertyEstimatorException(directory=directory,
+                                              message='Could not save the output dictionary of {} ({}): {}'.format(
+                                                  protocol.id, output_dictionary_path, formatted_exception))
+
+        return protocol.id, output_dictionary_path
 
     @staticmethod
     def _gather_results(property_to_return, value_reference, outputs_to_store,
-                        target_uncertainty, *protocol_results, **kwargs):
+                        target_uncertainty, *protocol_result_paths, **kwargs):
         """Gather the value and uncertainty calculated from the submission graph
         and store them in the property to return.
 
@@ -1073,7 +1112,7 @@ class WorkflowGraph:
             value is not `None` and the target has not been met, a `None` result will be returned
             indicating that this property could not be estimated by the workflow, but not because
             of an error.
-        protocol_results: dict of string and Any
+        protocol_results: dict of string and str
             The result dictionary of the protocol which calculated the value of the property.
 
         Returns
@@ -1090,7 +1129,26 @@ class WorkflowGraph:
 
         results_by_id = {}
 
-        for protocol_id, protocol_results in protocol_results:
+        for protocol_id, protocol_result_path in protocol_result_paths:
+
+            protocol_results = None
+
+            if isinstance(protocol_result_path, PropertyEstimatorException):
+
+                return_object.workflow_error = protocol_result_path
+                return return_object
+
+            try:
+
+                with open(protocol_result_path, 'r') as file:
+                    protocol_results = json.load(file, cls=TypedJSONDecoder)
+
+            except json.JSONDecodeError as e:
+
+                formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+
+                return PropertyEstimatorException(message='Could not load the output dictionary of {} ({}): {}'.format(
+                                                      protocol_id, protocol_result_path, formatted_exception))
 
             # Make sure none of the protocols failed and we actually have a value
             # and uncertainty.
@@ -1110,6 +1168,10 @@ class WorkflowGraph:
                 results_by_id[final_path] = output_value
 
         if target_uncertainty is not None and results_by_id[value_reference].uncertainty > target_uncertainty:
+
+            logging.info('The final uncertainty ({}) was not less than the target threshold ({}).'.format(
+                results_by_id[value_reference].uncertainty, target_uncertainty))
+
             return None
 
         property_to_return.value = results_by_id[value_reference].value

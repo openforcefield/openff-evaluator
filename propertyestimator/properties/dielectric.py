@@ -30,17 +30,9 @@ class ExtractAverageDielectric(protocols.AverageTrajectoryProperty):
     """Extracts the average dielectric constant from a simulation trajectory.
     """
 
-    def __init__(self, protocol_id):
-        super().__init__(protocol_id)
-
-        self._system = None
-        self._thermodynamic_state = None
-
-        self._uncorrelated_volumes = None
-
-    @protocol_input(System)
-    def system(self):
-        """The system object which defines the forces present in the system."""
+    @protocol_input(str)
+    def system_path(self):
+        """The path to the XML system object which defines the forces present in the system."""
         pass
 
     @protocol_input(ThermodynamicState)
@@ -53,6 +45,16 @@ class ExtractAverageDielectric(protocols.AverageTrajectoryProperty):
         """The uncorrelated volumes which were used in the dielect
         calculation."""
         pass
+
+    def __init__(self, protocol_id):
+        super().__init__(protocol_id)
+
+        self._system_path = None
+        self._system = None
+
+        self._thermodynamic_state = None
+
+        self._uncorrelated_volumes = None
 
     def _bootstrap_function(self, **sample_kwargs):
         """Calculates the static dielectric constant from an
@@ -116,6 +118,11 @@ class ExtractAverageDielectric(protocols.AverageTrajectoryProperty):
             return base_exception
 
         charge_list = []
+
+        from simtk.openmm import XmlSerializer
+
+        with open(self._system_path, 'rb') as file:
+            self._system = XmlSerializer.deserialize(file.read().decode())
 
         for force_index in range(self._system.getNumForces()):
 
@@ -356,7 +363,7 @@ class DielectricConstant(PhysicalProperty):
         energy_minimisation = protocols.RunEnergyMinimisation('energy_minimisation')
 
         energy_minimisation.input_coordinate_file = ProtocolPath('coordinate_file_path', build_coordinates.id)
-        energy_minimisation.system = ProtocolPath('system', assign_topology.id)
+        energy_minimisation.system_path = ProtocolPath('system_path', assign_topology.id)
 
         schema.protocols[energy_minimisation.id] = energy_minimisation.schema
 
@@ -370,7 +377,7 @@ class DielectricConstant(PhysicalProperty):
         npt_equilibration.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 
         npt_equilibration.input_coordinate_file = ProtocolPath('output_coordinate_file', energy_minimisation.id)
-        npt_equilibration.system = ProtocolPath('system', assign_topology.id)
+        npt_equilibration.system_path = ProtocolPath('system_path', assign_topology.id)
 
         schema.protocols[npt_equilibration.id] = npt_equilibration.schema
 
@@ -385,7 +392,7 @@ class DielectricConstant(PhysicalProperty):
         npt_production.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 
         npt_production.input_coordinate_file = ProtocolPath('output_coordinate_file', npt_equilibration.id)
-        npt_production.system = ProtocolPath('system', assign_topology.id)
+        npt_production.system_path = ProtocolPath('system_path', assign_topology.id)
 
         # Analysis
         extract_dielectric = ExtractAverageDielectric('extract_dielectric')
@@ -394,7 +401,7 @@ class DielectricConstant(PhysicalProperty):
 
         extract_dielectric.input_coordinate_file = ProtocolPath('output_coordinate_file', npt_production.id)
         extract_dielectric.trajectory_path = ProtocolPath('trajectory_file_path', npt_production.id)
-        extract_dielectric.system = ProtocolPath('system', assign_topology.id)
+        extract_dielectric.system_path = ProtocolPath('system_path', assign_topology.id)
 
         # Set up a conditional group to ensure convergence of uncertainty
         converge_uncertainty = groups.ConditionalGroup('converge_uncertainty')
@@ -497,7 +504,7 @@ class DielectricConstant(PhysicalProperty):
         dielectric_calculation.thermodynamic_state = ProtocolPath('thermodynamic_state', unpack_id)
         dielectric_calculation.input_coordinate_file = ProtocolPath('coordinate_file_path', unpack_id)
         dielectric_calculation.trajectory_path = ProtocolPath('trajectory_file_path', unpack_id)
-        dielectric_calculation.system = ProtocolPath('system', base_reweighting_protocols.build_reference_system.id)
+        dielectric_calculation.system_path = ProtocolPath('system_path', base_reweighting_protocols.build_reference_system.id)
 
         # For the dielectric constant, we employ a slightly more advanced protocol
         # set up for calculating fluctuation properties.

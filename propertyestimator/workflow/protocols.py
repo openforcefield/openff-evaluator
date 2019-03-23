@@ -12,7 +12,7 @@ from os import path
 import numpy as np
 import pymbar
 from simtk import openmm, unit
-from simtk.openmm import app, System, Platform
+from simtk.openmm import app, Platform
 
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
@@ -655,8 +655,8 @@ class BuildSmirnoffSystem(BaseProtocol):
         """The cutoff after which non-bonded interactions are truncated."""
         pass
 
-    @protocol_output(System)
-    def system(self):
+    @protocol_output(str)
+    def system_path(self):
         """The assigned system."""
         pass
 
@@ -672,7 +672,7 @@ class BuildSmirnoffSystem(BaseProtocol):
         self._nonbonded_cutoff = 1.0 * unit.nanometer
 
         # outputs
-        self._system = None
+        self._system_path = None
 
     def execute(self, directory, available_resources):
 
@@ -728,10 +728,10 @@ class BuildSmirnoffSystem(BaseProtocol):
         from simtk.openmm import XmlSerializer
         system_xml = XmlSerializer.serialize(system)
 
-        with open(path.join(directory, 'system.xml'), 'wb') as file:
-            file.write(system_xml.encode('utf-8'))
+        self._system_path = path.join(directory, 'system.xml')
 
-        self._system = system
+        with open(self._system_path, 'wb') as file:
+            file.write(system_xml.encode('utf-8'))
 
         logging.info('Topology generated: ' + self.id)
 
@@ -750,9 +750,9 @@ class RunEnergyMinimisation(BaseProtocol):
         """The coordinates to minimise."""
         pass
 
-    @protocol_input(System)
-    def system(self, value):
-        """The system object which defines the forces present in the system."""
+    @protocol_input(str)
+    def system_path(self, value):
+        """The path to the XML system object which defines the forces present in the system."""
         pass
 
     @protocol_output(str)
@@ -766,6 +766,8 @@ class RunEnergyMinimisation(BaseProtocol):
 
         # inputs
         self._input_coordinate_file = None
+
+        self._system_path = None
         self._system = None
 
         # outputs
@@ -804,6 +806,11 @@ class RunEnergyMinimisation(BaseProtocol):
             logging.info('Setting up a simulation with {} threads'.format(available_resources.number_of_threads))
 
         input_pdb_file = app.PDBFile(self._input_coordinate_file)
+
+        from simtk.openmm import XmlSerializer
+
+        with open(self._system_path, 'rb') as file:
+            self._system = XmlSerializer.deserialize(file.read().decode())
 
         integrator = openmm.VerletIntegrator(0.002 * unit.picoseconds)
         simulation = app.Simulation(input_pdb_file.topology, self._system, integrator, platform)
@@ -871,9 +878,9 @@ class RunOpenMMSimulation(BaseProtocol):
         """The file path to the starting coordinates."""
         pass
 
-    @protocol_input(System)
-    def system(self):
-        """The system object which defines the forces present in the system."""
+    @protocol_input(str)
+    def system_path(self):
+        """A path to the XML system object which defines the forces present in the system."""
         pass
 
     @protocol_output(str)
@@ -910,7 +917,9 @@ class RunOpenMMSimulation(BaseProtocol):
         # inputs
         self._input_coordinate_file = None
         self._thermodynamic_state = None
+
         self._system = None
+        self._system_path = None
 
         # outputs
         self._output_coordinate_file = None
@@ -1015,6 +1024,11 @@ class RunOpenMMSimulation(BaseProtocol):
             logging.info('Setting up a simulation with {} threads'.format(available_resources.number_of_threads))
 
         input_pdb_file = app.PDBFile(self._input_coordinate_file)
+
+        from simtk.openmm import XmlSerializer
+
+        with open(self._system_path, 'rb') as file:
+            self._system = XmlSerializer.deserialize(file.read().decode())
 
         openmm_state = openmmtools.states.ThermodynamicState(system=self._system,
                                                              temperature=temperature,
@@ -1661,8 +1675,8 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
     def thermodynamic_state(self):
         pass
 
-    @protocol_input(System)
-    def system(self):
+    @protocol_input(str)
+    def system_path(self):
         pass
 
     @protocol_input(str)
@@ -1682,6 +1696,8 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         super().__init__(protocol_id)
 
         self._thermodynamic_state = None
+
+        self._system_path = None
         self._system = None
 
         self._coordinate_file_path = None
@@ -1694,8 +1710,13 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         import openmmtools
         import mdtraj
 
+        from simtk.openmm import XmlSerializer
+
+        with open(self._system_path, 'rb') as file:
+            self._system = XmlSerializer.deserialize(file.read().decode())
+
         trajectory = mdtraj.load_dcd(self._trajectory_file_path, self._coordinate_file_path)
-        self.system.setDefaultPeriodicBoxVectors(*trajectory.openmm_boxes(0))
+        self._system.setDefaultPeriodicBoxVectors(*trajectory.openmm_boxes(0))
 
         openmm_state = openmmtools.states.ThermodynamicState(system=self._system,
                                                              temperature=self._thermodynamic_state.temperature,
