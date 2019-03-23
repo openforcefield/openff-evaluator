@@ -57,8 +57,7 @@ class DaskLocalClusterBackend(PropertyEstimatorBackend):
 
         self._cluster = distributed.LocalCluster(self._number_of_workers,
                                                  1,
-                                                 processes=False,
-                                                 resources=self._get_worker_resources_dict())
+                                                 processes=False)
 
         if self._resources_per_worker.number_of_gpus > 0:
 
@@ -93,6 +92,5 @@ class DaskLocalClusterBackend(PropertyEstimatorBackend):
         return self._client.submit(DaskLocalClusterBackend._wrapped_function,
                                    function,
                                    *args,
-                                   resources=self._get_worker_resources_dict(),
                                    available_resources=self._resources_per_worker,
                                    gpu_assignments=self._gpu_device_indices_by_worker)
