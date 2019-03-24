@@ -1,6 +1,9 @@
 """
 Units tests for propertyestimator.utils.serialization
 """
+import numpy as np
+
+import json
 from enum import Enum, IntEnum
 
 import pytest
@@ -8,7 +11,7 @@ from simtk import unit
 
 from propertyestimator.utils import get_data_filename
 from propertyestimator.utils.serialization import serialize_force_field, deserialize_force_field, \
-    TypedBaseModel
+    TypedBaseModel, TypedJSONEncoder, TypedJSONDecoder
 
 
 class Foo:
@@ -226,3 +229,56 @@ def test_force_field_serialization():
     deserialized_generators = deserialized_force_field.getGenerators()
 
     assert len(original_generators) == len(deserialized_generators)
+
+
+@pytest.mark.parametrize("float_type", [np.float16, np.float32, np.float64])
+def test_numpy_float_serialization(float_type):
+
+    original_value = float_type(0.987654321)
+
+    serialized_value = json.dumps(original_value, cls=TypedJSONEncoder)
+    deserialized_value = json.loads(serialized_value, cls=TypedJSONDecoder)
+
+    assert original_value == deserialized_value
+
+
+@pytest.mark.parametrize("int_type", [np.int32, np.int64])
+def test_numpy_int_serialization(int_type):
+
+    original_value = int_type(987654321)
+
+    serialized_value = json.dumps(original_value, cls=TypedJSONEncoder)
+    deserialized_value = json.loads(serialized_value, cls=TypedJSONDecoder)
+
+    assert original_value == deserialized_value
+
+
+def test_numpy_array_serialization():
+
+    one_dimensional_array = np.array([1, 2, 3, 4, 5])
+
+    serialized_value = json.dumps(one_dimensional_array, cls=TypedJSONEncoder)
+    deserialized_value = json.loads(serialized_value, cls=TypedJSONDecoder)
+
+    assert np.allclose(one_dimensional_array, deserialized_value)
+
+    two_dimensional_array = np.array([[1, 9], [2, 8], [3, 7], [4, 6], [5, 5]])
+
+    serialized_value = json.dumps(two_dimensional_array, cls=TypedJSONEncoder)
+    deserialized_value = json.loads(serialized_value, cls=TypedJSONDecoder)
+
+    assert np.allclose(two_dimensional_array, deserialized_value)
+
+    one_dimensional_quantity_array = one_dimensional_array * unit.kelvin
+
+    serialized_value = json.dumps(one_dimensional_quantity_array, cls=TypedJSONEncoder)
+    deserialized_value = json.loads(serialized_value, cls=TypedJSONDecoder)
+
+    assert np.allclose(one_dimensional_quantity_array, deserialized_value)
+
+    two_dimensional_quantity_array = two_dimensional_array * unit.kelvin
+
+    serialized_value = json.dumps(two_dimensional_quantity_array, cls=TypedJSONEncoder)
+    deserialized_value = json.loads(serialized_value, cls=TypedJSONDecoder)
+
+    assert np.allclose(two_dimensional_quantity_array, deserialized_value)

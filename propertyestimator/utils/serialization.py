@@ -264,9 +264,9 @@ class TypedJSONEncoder(json.JSONEncoder):
         Enum: serialize_enum,
         unit.Quantity: serialize_quantity,
         'ForceField': serialize_force_field,
-        np.float16: lambda x: { 'value': float(x) },
-        np.float32: lambda x: { 'value': float(x) },
-        np.float64: lambda x: { 'value': float(x) },
+        np.float16: lambda x: {'value': float(x)},
+        np.float32: lambda x: {'value': float(x)},
+        np.float64: lambda x: {'value': float(x)},
         np.int32: lambda x: {'value': int(x)},
         np.int64: lambda x: {'value': int(x)},
         np.ndarray: lambda x: {'value': x.tolist()},
@@ -353,7 +353,7 @@ class TypedJSONDecoder(json.JSONDecoder):
         np.float64: lambda x: np.float64(x['value']),
         np.int32: lambda x: np.int32(x['value']),
         np.int64: lambda x: np.int64(x['value']),
-        np.ndarray: lambda x: np.array(x)
+        np.ndarray: lambda x: np.array(x['value'])
     }
 
     @staticmethod
