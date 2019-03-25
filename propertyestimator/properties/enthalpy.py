@@ -6,7 +6,7 @@ from collections import namedtuple
 
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.properties.properties import PhysicalProperty, PropertyWorkflowOptions
+from propertyestimator.properties.properties import PhysicalProperty
 from propertyestimator.properties.utils import generate_base_reweighting_protocols
 from propertyestimator.substances import Mixture
 from propertyestimator.thermodynamics import Ensemble

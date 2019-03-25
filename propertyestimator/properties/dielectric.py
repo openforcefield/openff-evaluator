@@ -6,13 +6,11 @@ import logging
 import sys
 
 import numpy as np
-
 from simtk import openmm, unit
-from simtk.openmm import System
 
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.properties.properties import PhysicalProperty, PropertyWorkflowOptions
+from propertyestimator.properties.properties import PhysicalProperty
 from propertyestimator.properties.utils import generate_base_reweighting_protocols, BaseReweightingProtocols
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils import timeseries
