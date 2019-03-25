@@ -1981,8 +1981,12 @@ class ReweightWithMBARProtocol(BaseProtocol):
 
         Returns
         -------
-        EstimatedQuantity
-            The reweighted value.
+        dict of str and float or list of float
+            The reweighted values.
+        dict of str and float or list of float
+            The MBAR calculated uncertainties in the reweighted values.
+        int
+            The number of effective samples.
         """
 
         frame_counts = np.array([len(observable) for observable in self._reference_observables])

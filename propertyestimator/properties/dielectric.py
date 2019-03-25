@@ -204,9 +204,9 @@ class ReweightDielectricConstant(protocols.ReweightWithMBARProtocol):
         for key in reference_observables:
             transposed_observables[key] = np.transpose(reference_observables[key])
 
-        values, _ = self._reweight_observables(np.transpose(reference_reduced_potentials),
-                                               np.transpose(target_reduced_potentials),
-                                               **transposed_observables)
+        values, _, _ = self._reweight_observables(np.transpose(reference_reduced_potentials),
+                                                  np.transpose(target_reduced_potentials),
+                                                  **transposed_observables)
 
         average_squared_dipole = values['dipoles_sqr']
         average_dipole_squared = np.linalg.norm(values['dipoles'])
