@@ -6,6 +6,7 @@ import copy
 import json
 import logging
 import re
+import time
 import traceback
 import uuid
 from math import sqrt
@@ -1064,6 +1065,8 @@ class WorkflowGraph:
 
         logging.info('Executing protocol: {}'.format(protocol.id))
 
+        start_time = time.perf_counter()
+
         try:
             output_dictionary = protocol.execute(directory, available_resources)
         except Exception as e:
@@ -1074,7 +1077,9 @@ class WorkflowGraph:
                                                            message='An unhandled exception occurred: '
                                                                    '{}'.format(formatted_exception))
 
-        logging.info('Protocol finished executing: {}'.format(protocol.id))
+        end_time = time.perf_counter()
+
+        logging.info('Protocol finished executing ({} ms): {}'.format((end_time-start_time)*1000, protocol.id))
 
         output_dictionary_path = path.join(directory, '{}_output.json'.format(protocol.id))
 
