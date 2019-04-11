@@ -1,7 +1,7 @@
 name: test
 channels:
-  - omnia
   - conda-forge
+  - omnia
 dependencies:
     # Base depends
   - python
@@ -12,7 +12,7 @@ dependencies:
   - pytest-cov
 
     # Standard dependencies
-  - openforcefield
+  - openforcefield ==0.0.4
   - numpy
   - pandas
   - lxml
