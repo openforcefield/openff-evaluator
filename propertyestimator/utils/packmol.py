@@ -87,9 +87,9 @@ def pack_box(molecules,
 
     mdtraj_topologies = []
 
-    for molecule in molecules:
+    for index, molecule in enumerate(molecules):
 
-        tmp_filename = tempfile.mktemp(suffix=".pdb")
+        tmp_filename = "{}.pdb".format(index)
         pdb_filenames.append(tmp_filename)
 
         # Write PDB file
@@ -113,8 +113,10 @@ def pack_box(molecules,
         # We definitely want to make sure the temp pdb file is identical to
         # that stored in the topology to ensure the correct generation
         # of CONNECT statements.
-        tmp_mdtraj_filename = tempfile.mktemp(suffix=".pdb")
+        tmp_mdtraj_filename = "tmp_mdtraj.pdb"
         oe_pdb.save_pdb(tmp_mdtraj_filename)
+
+        os.unlink(tmp_mdtraj_filename)
 
         mdtraj_topologies.append(oe_pdb.topology)
 
@@ -122,7 +124,7 @@ def pack_box(molecules,
     if PACKMOL_PATH is None:
         raise IOError("Packmol not found, cannot run pack_box()")
 
-    output_filename = tempfile.mktemp(suffix=".pdb")
+    output_filename = "output.pdb"
 
     # Approximate volume to initialize box
     if box_size is None:
@@ -150,7 +152,7 @@ def pack_box(molecules,
         print(header)
 
     # Write packmol input
-    packmol_filename = tempfile.mktemp(suffix=".txt")
+    packmol_filename = "packmol_input.txt"
 
     with open(packmol_filename, 'w') as file_handle:
         file_handle.write(header)

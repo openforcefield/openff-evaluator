@@ -12,12 +12,13 @@ from os import path
 import numpy as np
 import pymbar
 from simtk import openmm, unit
-from simtk.openmm import app, Platform
+from simtk.openmm import app
 
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils import packmol, graph, utils, statistics, timeseries, create_molecule_from_smiles
 from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.openmm import setup_platform_with_resources
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import deserialize_quantity, deserialize_force_field
 from propertyestimator.utils.statistics import StatisticsArray, bootstrap
@@ -777,33 +778,7 @@ class RunEnergyMinimisation(BaseProtocol):
 
         logging.info('Minimising energy: ' + self.id)
 
-        # Setup the requested platform:
-        if available_resources.number_of_gpus > 0:
-
-            platform_name = 'CUDA' if available_resources.preferred_gpu_toolkit == 'CUDA' else 'OpenCL'
-
-            # noinspection PyCallByClass,PyTypeChecker
-            platform = Platform.getPlatformByName(platform_name)
-
-            if available_resources.gpu_device_indices is not None:
-
-                property_platform_name = platform_name
-
-                if available_resources.preferred_gpu_toolkit == 'CUDA':
-                    property_platform_name = platform_name.lower().capitalize()
-
-                platform.setPropertyDefaultValue(property_platform_name + 'DeviceIndex',
-                                                 available_resources.gpu_device_indices)
-
-            logging.info('Setting up a simulation on GPU {}'.format(available_resources.gpu_device_indices or 0))
-
-        else:
-
-            # noinspection PyCallByClass,PyTypeChecker
-            platform = Platform.getPlatformByName('CPU')
-            platform.setPropertyDefaultValue('Threads', str(available_resources.number_of_threads))
-
-            logging.info('Setting up a simulation with {} threads'.format(available_resources.number_of_threads))
+        platform = setup_platform_with_resources(available_resources)
 
         input_pdb_file = app.PDBFile(self._input_coordinate_file)
 
@@ -995,33 +970,7 @@ class RunOpenMMSimulation(BaseProtocol):
         """
         import openmmtools
 
-        # Setup the requested platform:
-        if available_resources.number_of_gpus > 0:
-
-            platform_name = 'CUDA' if available_resources.preferred_gpu_toolkit == 'CUDA' else 'OpenCL'
-
-            # noinspection PyCallByClass,PyTypeChecker
-            platform = Platform.getPlatformByName(platform_name)
-
-            if available_resources.gpu_device_indices is not None:
-
-                property_platform_name = platform_name
-
-                if available_resources.preferred_gpu_toolkit == 'CUDA':
-                    property_platform_name = platform_name.lower().capitalize()
-
-                platform.setPropertyDefaultValue(property_platform_name + 'DeviceIndex',
-                                                 available_resources.gpu_device_indices)
-
-            logging.info('Setting up a simulation on GPU {}'.format(available_resources.gpu_device_indices or 0))
-
-        else:
-
-            # noinspection PyCallByClass,PyTypeChecker
-            platform = Platform.getPlatformByName('CPU')
-            platform.setPropertyDefaultValue('Threads', str(available_resources.number_of_threads))
-
-            logging.info('Setting up a simulation with {} threads'.format(available_resources.number_of_threads))
+        platform = setup_platform_with_resources(available_resources)
 
         input_pdb_file = app.PDBFile(self._input_coordinate_file)
 
@@ -1725,32 +1674,7 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         integrator = openmmtools.integrators.VelocityVerletIntegrator(0.01*unit.femtoseconds)
 
         # Setup the requested platform:
-        if available_resources.number_of_gpus > 0:
-
-            platform_name = 'CUDA' if available_resources.preferred_gpu_toolkit == 'CUDA' else 'OpenCL'
-
-            # noinspection PyCallByClass,PyTypeChecker
-            platform = Platform.getPlatformByName(platform_name)
-
-            if available_resources.gpu_device_indices is not None:
-
-                property_platform_name = platform_name
-
-                if available_resources.preferred_gpu_toolkit == 'CUDA':
-                    property_platform_name = platform_name.lower().capitalize()
-
-                platform.setPropertyDefaultValue(property_platform_name + 'DeviceIndex',
-                                                 available_resources.gpu_device_indices)
-
-            logging.info('Setting up a simulation on GPU {}'.format(available_resources.gpu_device_indices or 0))
-
-        else:
-
-            # noinspection PyCallByClass,PyTypeChecker
-            platform = Platform.getPlatformByName('CPU')
-            platform.setPropertyDefaultValue('Threads', str(available_resources.number_of_threads))
-
-            logging.info('Setting up a simulation with {} threads'.format(available_resources.number_of_threads))
+        platform = setup_platform_with_resources(available_resources)
 
         context_cache = openmmtools.cache.ContextCache(platform)
         openmm_context, openmm_context_integrator = context_cache.get_context(openmm_state,
