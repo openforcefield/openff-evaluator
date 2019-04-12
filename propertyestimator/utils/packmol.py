@@ -12,7 +12,6 @@ import os
 import random
 import string
 import subprocess
-import tempfile
 import shutil
 
 from distutils.spawn import find_executable
