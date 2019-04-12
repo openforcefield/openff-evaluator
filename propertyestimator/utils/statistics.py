@@ -379,7 +379,7 @@ def bootstrap(bootstrap_function, iterations=200, relative_sample_size=1.0, data
         average_values[bootstrap_iteration] = bootstrap_function(**sample_data)
 
     average_value = bootstrap_function(**data_to_bootstrap)
-    uncertainty = average_values.std() * len(average_values) ** -0.5
+    uncertainty = average_values.std()
 
     if isinstance(average_value, np.float32) or isinstance(average_value, np.float64):
         average_value = average_value.item()

@@ -6,6 +6,7 @@ import json
 import logging
 from time import sleep
 
+from propertyestimator.properties.properties import PropertyWorkflowOptions
 from simtk import unit
 from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
@@ -30,18 +31,22 @@ class PropertyEstimatorOptions(TypedBaseModel):
 
     Attributes
     ----------
-    allowed_calculation_layers: :obj:`list` of :obj:`str`
+    allowed_calculation_layers: :obj:`list` of :obj:`str` or :obj:`list` of :obj:`class`
         A list of allowed calculation layers. The order of the layers in the list is the order
         that the calculator will attempt to execute the layers in.
     workflow_schemas: :obj:`dict` of :obj:`str` and :obj:`dict` of str and :obj:`WorkflowSchema`
         A dictionary of the WorkflowSchema which will be used to calculate any properties.
         The dictionary key represents the type of property the schema will calculate. The
         dictionary will be automatically populated with defaults if no entries are added.
-    relative_uncertainty_tolerance: :obj:`float`, default = 1.0
-        Controls the desired uncertainty of any calculated properties. The estimator will
-        attempt to estimate all properties to within an uncertainity equal to:
+    workflow_options: dict of str and DefaultPropertyWorkflowOptions, optional
+        The set of options which will be used when setting up the default estimation
+        workflows, where the string key here is the property for which the options apply.
+        As an example, the target (relative or absolute) uncertainty of each property may be set
+        using these options.
 
-        `target_uncertainty = relative_uncertainty_tolerance * experimental_uncertainty`
+        If None, a set of defaults will be applied when the properties are sent to a server for
+        estimation. The current set of defaults will ensure that properties are estimated with an
+        uncertainty which is less than or equal to the experimental uncertainty of a property.
     allow_protocol_merging: :obj:`bool`, default = True
         If true, allows individual identical steps in a property estimation workflow to be merged.
 
@@ -51,7 +56,7 @@ class PropertyEstimatorOptions(TypedBaseModel):
         densities.
     """
 
-    def __init__(self, allowed_calculation_layers=None, relative_uncertainty_tolerance=1.0,
+    def __init__(self, allowed_calculation_layers=None,
                  allow_protocol_merging=True):
         """Constructs a new PropertyEstimatorServerData object.
 
@@ -62,27 +67,32 @@ class PropertyEstimatorOptions(TypedBaseModel):
             that the calculator will attempt to execute the layers in.
 
             If None, all registered calculation layers are set as allowed.
-        relative_uncertainty_tolerance: :obj:`float`, default = 1.0
-            Controls the desired uncertainty of any calculated properties. The estimator will
-            attempt to estimate all properties to within an uncertainity equal to:
-
-            `target_uncertainty = relative_uncertainty_tolerance * experimental_uncertainty`
         allow_protocol_merging: :obj:`bool`, default = True
             If true, allows individual identical steps in a property estimation workflow to be merged.
         """
-        self.allowed_calculation_layers = allowed_calculation_layers
 
-        if self.allowed_calculation_layers is None:
+        if allowed_calculation_layers is None:
 
             self.allowed_calculation_layers = [
-            SurrogateLayer.__name__,
-            ReweightingLayer.__name__,
-            SimulationLayer.__name__
-        ]
+                SurrogateLayer.__name__,
+                ReweightingLayer.__name__,
+                SimulationLayer.__name__
+            ]
+
+        else:
+
+            self.allowed_calculation_layers = []
+
+            for allowed_layer in allowed_calculation_layers:
+
+                if isinstance(allowed_layer, str):
+                    self.allowed_calculation_layers.append(allowed_layer)
+                else:
+                    self.allowed_calculation_layers.append(allowed_layer.__name__)
 
         self.workflow_schemas = {}
+        self.workflow_options = None
 
-        self.relative_uncertainty_tolerance = relative_uncertainty_tolerance
         self.allow_protocol_merging = allow_protocol_merging
 
         self.gradient_properties = []
@@ -93,8 +103,8 @@ class PropertyEstimatorOptions(TypedBaseModel):
             'allowed_calculation_layers': self.allowed_calculation_layers,
 
             'workflow_schemas': self.workflow_schemas,
+            'workflow_options': self.workflow_options,
 
-            'relative_uncertainty_tolerance': self.relative_uncertainty_tolerance,
             'allow_protocol_merging': self.allow_protocol_merging,
 
             'gradient_properties': self.gradient_properties,
@@ -105,8 +115,8 @@ class PropertyEstimatorOptions(TypedBaseModel):
         self.allowed_calculation_layers = state['allowed_calculation_layers']
 
         self.workflow_schemas = state['workflow_schemas']
+        self.workflow_options = state['workflow_options']
 
-        self.relative_uncertainty_tolerance = state['relative_uncertainty_tolerance']
         self.allow_protocol_merging = state['allow_protocol_merging']
 
         self.gradient_properties = state['gradient_properties']
@@ -215,7 +225,7 @@ class PropertyEstimatorResult(TypedBaseModel):
         self.unsuccessful_properties = state['unsuccessful_properties']
 
 
-class PropertyEstimatorConnectionOptions(TypedBaseModel):
+class ConnectionOptions(TypedBaseModel):
     """The set of options to use when connecting to a
     `PropertyEstimatorServer`
 
@@ -289,9 +299,9 @@ class PropertyEstimatorClient:
     If the PropertyEstimatorServer is not running on the local machine, you will
     need to specify its address and the port that it is listening on:
 
-    >>> from propertyestimator.client import PropertyEstimatorConnectionOptions
+    >>> from propertyestimator.client import ConnectionOptions
     >>>
-    >>> connection_options = PropertyEstimatorConnectionOptions(server_address='server_address',
+    >>> connection_options = ConnectionOptions(server_address='server_address',
     >>>                                                         server_port=8000)
     >>> property_estimator = PropertyEstimatorClient(connection_options)
 
@@ -304,7 +314,7 @@ class PropertyEstimatorClient:
     >>> # Filter the dataset to only include densities measured between 130-260 K
     >>> from propertyestimator.properties import Density
     >>>
-    >>> data_set.filter_by_properties(types=[Density.__name__])
+    >>> data_set.filter_by_properties(types=[Density])
     >>> data_set.filter_by_temperature(min_temperature=130*unit.kelvin, max_temperature=260*unit.kelvin)
     >>>
     >>> # Load initial parameters
@@ -330,14 +340,34 @@ class PropertyEstimatorClient:
 
     >>> from propertyestimator.layers import ReweightingLayer, SimulationLayer
     >>>
-    >>> options = PropertyEstimatorOptions(allowed_calculation_layers = [ReweightingLayer.__name__,
-    >>>                                                                  SimulationLayer.__name__])
+    >>> options = PropertyEstimatorOptions(allowed_calculation_layers = [ReweightingLayer,
+    >>>                                                                  SimulationLayer])
     >>>
     >>> request = property_estimator.request_estimate(data_set, parameters, options)
 
-    As can the uncertainty tolerance:
+    Options for how properties should be estimated can be set on a per property basis. For example
+    the relative uncertainty that properties should estimated to within can be set as:
 
-    >>> options = PropertyEstimatorOptions(relative_uncertainty_tolerance = 0.1)
+    >>> from propertyestimator.properties.properties import PropertyWorkflowOptions
+    >>>
+    >>> workflow_options = PropertyWorkflowOptions(PropertyWorkflowOptions.ConvergenceMode.RelativeUncertainty,
+    >>>                                            relative_uncertainty_fraction=0.1)
+    >>> options.workflow_options = {
+    >>>     'Density': workflow_options,
+    >>>     'Dielectric': workflow_options
+    >>> }
+
+    Or alternatively, as absolute uncertainty tolerance can be set as:
+
+    >>> density_options = PropertyWorkflowOptions(PropertyWorkflowOptions.ConvergenceMode.AbsoluteUncertainty,
+    >>>                                           absolute_uncertainty=0.0002 * unit.gram / unit.milliliter)
+    >>> dielectric_options = PropertyWorkflowOptions(PropertyWorkflowOptions.ConvergenceMode.AbsoluteUncertainty,
+    >>>                                              absolute_uncertainty=0.02 * unit.dimensionless)
+    >>>
+    >>> options.workflow_options = {
+    >>>     'Density': density_options,
+    >>>     'Dielectric': dielectric_options
+    >>> }
     """
 
     @property
@@ -376,7 +406,7 @@ class PropertyEstimatorClient:
             ----------
             request_id: str
                 The id of the submitted request.
-            connection_options: PropertyEstimatorConnectionOptions
+            connection_options: ConnectionOptions
                 The options that were used to connect to the server that the request was sent to.
             client: PropertyEstimatorClient, optional
                 The client that was used to submit the request.
@@ -390,7 +420,7 @@ class PropertyEstimatorClient:
 
             if client is None:
 
-                connection_options = PropertyEstimatorConnectionOptions(
+                connection_options = ConnectionOptions(
                     server_address=connection_options.server_address,
                     server_port=connection_options.server_port)
 
@@ -467,12 +497,12 @@ class PropertyEstimatorClient:
             """
             return self._client._retrieve_estimate(self._id, synchronous, polling_interval)
 
-    def __init__(self, connection_options=PropertyEstimatorConnectionOptions()):
+    def __init__(self, connection_options=ConnectionOptions()):
         """Constructs a new PropertyEstimatorClient object.
 
         Parameters
         ----------
-        connection_options: PropertyEstimatorConnectionOptions
+        connection_options: ConnectionOptions
             The options used when connecting to the calculation server.
         """
 
@@ -513,7 +543,10 @@ class PropertyEstimatorClient:
             options = PropertyEstimatorOptions()
 
         properties_list = []
+        property_types = set()
 
+        # Refactor the properties into a list, and extract the types
+        # of properties to be estimated (e.g 'Denisty', 'DielectricConstant').
         for substance_tag in property_set.properties:
 
             for physical_property in property_set.properties[substance_tag]:
@@ -527,35 +560,52 @@ class PropertyEstimatorClient:
                     raise ValueError('The property estimator does not support {} '
                                      'properties.'.format(type_name))
 
-                if type_name in options.workflow_schemas:
+                if type_name in property_types:
                     continue
 
-                property_type = registered_properties[type_name]()
+                property_types.add(type_name)
 
-                for calculation_layer in options.allowed_calculation_layers:
+        if options.workflow_options is None:
+            options.workflow_options = {}
 
-                    if type_name not in options.workflow_schemas:
-                        options.workflow_schemas[type_name] = {}
+        # Assign default workflows in the cases where the user hasn't
+        # provided one, and validate all of the workflows to be used
+        # in the estimation.
+        for type_name in property_types:
 
-                    if (calculation_layer not in options.workflow_schemas[type_name] or
-                        options.workflow_schemas[type_name][calculation_layer] is None):
+            if type_name not in options.workflow_schemas:
+                options.workflow_schemas[type_name] = {}
 
-                        options.workflow_schemas[type_name][calculation_layer] = \
-                            property_type.get_default_workflow_schema(calculation_layer)
+            if type_name not in options.workflow_options:
+                options.workflow_options[type_name] = PropertyWorkflowOptions()
 
-                    workflow = property_type.get_default_workflow_schema(calculation_layer)
+            for calculation_layer in options.allowed_calculation_layers:
 
-                    if workflow is None:
-                        continue
+                if (calculation_layer not in options.workflow_schemas[type_name] or
+                    options.workflow_schemas[type_name][calculation_layer] is None):
 
-                    workflow.validate_interfaces()
+                    property_type = registered_properties[type_name]()
 
-                    for protocol_schema_name in workflow.protocols:
+                    options.workflow_schemas[type_name][calculation_layer] = \
+                        property_type.get_default_workflow_schema(calculation_layer,
+                                                                  options.workflow_options[type_name])
 
-                        protocol_schema = workflow.protocols[protocol_schema_name]
+                workflow = options.workflow_schemas[type_name][calculation_layer]
 
-                        if not options.allow_protocol_merging:
-                            protocol_schema.inputs['.allow_merging'] = False
+                if workflow is None:
+                    # Not all properties may support every calculation layer.
+                    continue
+
+                # Will raise the correct exception for non-valid interfaces.
+                workflow.validate_interfaces()
+
+                # Enforce the global option of whether to allow merging or not.
+                for protocol_schema_name in workflow.protocols:
+
+                    protocol_schema = workflow.protocols[protocol_schema_name]
+
+                    if not options.allow_protocol_merging:
+                        protocol_schema.inputs['.allow_merging'] = False
 
         submission = PropertyEstimatorSubmission(properties=properties_list,
                                                  force_field=force_field,
@@ -728,13 +778,13 @@ class PropertyEstimatorClient:
         try:
 
             # Attempt to establish a connection to the server.
-            logging.info("Attempting Connection to {}:{}".format(self._connection_options.server_address,
-                                                                 self._connection_options.server_port))
+            # logging.info("Attempting Connection to {}:{}".format(self._connection_options.server_address,
+            #                                                      self._connection_options.server_port))
             stream = await self._tcp_client.connect(self._connection_options.server_address,
                                                     self._connection_options.server_port)
 
-            logging.info("Connected to {}:{}".format(self._connection_options.server_address,
-                                                     self._connection_options.server_port))
+            # logging.info("Connected to {}:{}".format(self._connection_options.server_address,
+            #                                          self._connection_options.server_port))
 
             stream.set_nodelay(True)
 
@@ -746,8 +796,8 @@ class PropertyEstimatorClient:
 
             await stream.write(message_type + length + encoded_request_id)
 
-            logging.info("Querying the server {}:{}...".format(self._connection_options.server_address,
-                                                               self._connection_options.server_port))
+            # logging.info("Querying the server {}:{}...".format(self._connection_options.server_address,
+            #                                                    self._connection_options.server_port))
 
             # Wait for the server response.
             header = await stream.read_bytes(4)
@@ -760,7 +810,7 @@ class PropertyEstimatorClient:
                 encoded_json = await stream.read_bytes(length)
                 server_response = encoded_json.decode()
 
-            logging.info('Received response from server of length {}'.format(length))
+            # logging.info('Received response from server of length {}'.format(length))
 
             stream.close()
             self._tcp_client.close()

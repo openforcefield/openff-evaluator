@@ -88,7 +88,7 @@ def generate_base_reweighting_protocols(analysis_protocol, replicator_id='data_r
     reduced_reference_potential = protocols.CalculateReducedPotentialOpenMM('reduced_potential{}'.format(
                                                                             replicator_suffix))
 
-    reduced_reference_potential.system = ProtocolPath('system', build_reference_system.id)
+    reduced_reference_potential.system_path = ProtocolPath('system_path', build_reference_system.id)
     reduced_reference_potential.thermodynamic_state = ProtocolPath('thermodynamic_state',
                                                                    unpack_stored_data.id)
     reduced_reference_potential.coordinate_file_path = ProtocolPath('coordinate_file_path',
@@ -107,7 +107,7 @@ def generate_base_reweighting_protocols(analysis_protocol, replicator_id='data_r
     reduced_target_potential = protocols.CalculateReducedPotentialOpenMM('reduced_potential_target' + id_suffix)
 
     reduced_target_potential.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
-    reduced_target_potential.system = ProtocolPath('system', build_target_system.id)
+    reduced_target_potential.system_path = ProtocolPath('system_path', build_target_system.id)
     reduced_target_potential.coordinate_file_path = ProtocolPath('output_coordinate_path',
                                                                  concatenate_trajectories.id)
     reduced_target_potential.trajectory_file_path = ProtocolPath('output_trajectory_path',

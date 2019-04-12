@@ -781,6 +781,8 @@ class ConditionalGroup(ProtocolGroup):
                 # Exit on exceptions.
                 return return_value
 
+            reached_conditions = True
+
             for condition in self._conditions:
 
                 evaluated_left_hand_value = None
@@ -798,11 +800,20 @@ class ConditionalGroup(ProtocolGroup):
                     evaluated_right_hand_value = self.get_value(condition.right_hand_value)
 
                 # Check to see if we have reached our goal.
-                if self._evaluate_condition(condition.type, evaluated_left_hand_value, evaluated_right_hand_value):
+                if not self._evaluate_condition(condition.type, evaluated_left_hand_value, evaluated_right_hand_value):
 
-                    logging.info('Conditional while loop finished after {} iterations: {}'.format(current_iteration,
-                                                                                                  self.id))
-                    return return_value
+                    reached_conditions = False
+
+                    logging.info('{} condition not met: {} not {} than {}'.format(self.id,
+                                                                                  evaluated_left_hand_value,
+                                                                                  condition.type,
+                                                                                  evaluated_right_hand_value))
+                    break
+
+            if reached_conditions:
+                logging.info('Conditional while loop finished after {} iterations: {}'.format(current_iteration,
+                                                                                              self.id))
+                return return_value
 
             if current_iteration >= self._max_iterations:
 

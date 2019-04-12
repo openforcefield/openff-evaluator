@@ -83,10 +83,19 @@ class PhysicalPropertyDataSet(object):
         >>>
         >>> # Filter the dataset to only include densities measured between 130-260 K
         >>> from propertyestimator.properties import Density, DielectricConstant
-        >>> data_set.filter_by_properties(types=[Density.__name__, DielectricConstant.__name__])
+        >>> data_set.filter_by_properties(types=[Density, DielectricConstant])
         """
+        property_types = []
+
+        for property_type in types:
+
+            if isinstance(property_type, str):
+                property_types.append(property_type)
+            else:
+                property_types.append(property_type.__name__)
+
         def filter_function(x):
-            return x.type in types
+            return x.type in property_types
 
         self.filter_by_function(filter_function)
 

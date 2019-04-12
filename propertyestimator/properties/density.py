@@ -8,9 +8,8 @@ from propertyestimator.properties.properties import PhysicalProperty
 from propertyestimator.properties.utils import generate_base_reweighting_protocols
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.statistics import ObservableType
-from propertyestimator.workflow import WorkflowSchema
 from propertyestimator.workflow import protocols, groups
-from propertyestimator.workflow.schemas import WorkflowOutputToStore
+from propertyestimator.workflow.schemas import WorkflowOutputToStore, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
 
@@ -28,30 +27,30 @@ class Density(PhysicalProperty):
         return False
 
     @staticmethod
-    def get_default_workflow_schema(calculation_layer):
-        """Returns the default workflow schema to use for
-        a specific calculation layer.
+    def get_default_workflow_schema(calculation_layer, options):
 
-        Parameters
-        ----------
-        calculation_layer: str
-            The calculation layer which will attempt to execute the workflow
-            defined by this schema.
-
-        Returns
-        -------
-        WorkflowSchema
-            The default workflow schema.
-        """
         if calculation_layer == 'SimulationLayer':
-            return Density.get_default_simulation_workflow_schema()
+            return Density.get_default_simulation_workflow_schema(options)
         elif calculation_layer == 'ReweightingLayer':
-            return Density.get_default_reweighting_workflow_schema()
+            return Density.get_default_reweighting_workflow_schema(options)
 
         return None
 
     @staticmethod
-    def get_default_simulation_workflow_schema():
+    def get_default_simulation_workflow_schema(options):
+        """Returns the default workflow to use when estimating this property
+        from direct simulations.
+
+        Parameters
+        ----------
+        options: PropertyWorkflowOptions
+            The default options to use when setting up the estimation workflow.
+
+        Returns
+        -------
+        WorkflowSchema
+            The schema to follow when estimating this property.
+        """
 
         schema = WorkflowSchema(property_type=Density.__name__)
         schema.id = '{}{}'.format(Density.__name__, 'Schema')
@@ -76,7 +75,7 @@ class Density(PhysicalProperty):
         energy_minimisation = protocols.RunEnergyMinimisation('energy_minimisation')
 
         energy_minimisation.input_coordinate_file = ProtocolPath('coordinate_file_path', build_coordinates.id)
-        energy_minimisation.system = ProtocolPath('system', assign_topology.id)
+        energy_minimisation.system_path = ProtocolPath('system_path', assign_topology.id)
 
         schema.protocols[energy_minimisation.id] = energy_minimisation.schema
 
@@ -84,13 +83,13 @@ class Density(PhysicalProperty):
 
         npt_equilibration.ensemble = Ensemble.NPT
 
-        npt_equilibration.steps = 2  # Debug settings.
-        npt_equilibration.output_frequency = 2  # Debug settings.
+        npt_equilibration.steps = 100000  # Debug settings.
+        npt_equilibration.output_frequency = 5000  # Debug settings.
 
         npt_equilibration.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 
         npt_equilibration.input_coordinate_file = ProtocolPath('output_coordinate_file', energy_minimisation.id)
-        npt_equilibration.system = ProtocolPath('system', assign_topology.id)
+        npt_equilibration.system_path = ProtocolPath('system_path', assign_topology.id)
 
         schema.protocols[npt_equilibration.id] = npt_equilibration.schema
 
@@ -99,13 +98,13 @@ class Density(PhysicalProperty):
 
         npt_production.ensemble = Ensemble.NPT
 
-        npt_production.steps = 200  # Debug settings.
-        npt_production.output_frequency = 20  # Debug settings.
+        npt_production.steps = 500000  # Debug settings.
+        npt_production.output_frequency = 5000  # Debug settings.
 
         npt_production.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 
         npt_production.input_coordinate_file = ProtocolPath('output_coordinate_file', npt_equilibration.id)
-        npt_production.system = ProtocolPath('system', assign_topology.id)
+        npt_production.system_path = ProtocolPath('system_path', assign_topology.id)
 
         # Analysis
         extract_density = protocols.ExtractAverageStatistic('extract_density')
@@ -129,7 +128,7 @@ class Density(PhysicalProperty):
 
         converge_uncertainty.add_condition(condition)
 
-        converge_uncertainty.max_iterations = 1
+        converge_uncertainty.max_iterations = 100
 
         schema.protocols[converge_uncertainty.id] = converge_uncertainty.schema
 
@@ -191,7 +190,20 @@ class Density(PhysicalProperty):
         return schema
 
     @staticmethod
-    def get_default_reweighting_workflow_schema():
+    def get_default_reweighting_workflow_schema(options):
+        """Returns the default workflow to use when estimating this property
+        by reweighting existing data.
+
+        Parameters
+        ----------
+        options: PropertyWorkflowOptions
+            The default options to use when setting up the estimation workflow.
+
+        Returns
+        -------
+        WorkflowSchema
+            The schema to follow when estimating this property.
+        """
 
         # The protocol which will be used to calculate the densities from
         # the existing data.

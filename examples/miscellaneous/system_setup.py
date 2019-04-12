@@ -55,7 +55,7 @@ def build_solvated_system():
     energy_minimisation = RunEnergyMinimisation('')
 
     energy_minimisation.input_coordinate_file = 'output.pdb'
-    energy_minimisation.system = assign_force_field_parameters.system
+    energy_minimisation.system_path = assign_force_field_parameters.system_path
 
     energy_minimisation.execute('', ComputeResources())
 

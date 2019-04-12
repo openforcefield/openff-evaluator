@@ -3,11 +3,10 @@ A collection of dielectric physical property definitions.
 """
 
 import logging
+import sys
 
 import numpy as np
-
 from simtk import openmm, unit
-from simtk.openmm import System
 
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.plugins import register_estimable_property
@@ -18,10 +17,9 @@ from propertyestimator.utils import timeseries
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import bootstrap
-from propertyestimator.workflow import WorkflowSchema
 from propertyestimator.workflow import protocols, groups, plugins
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
-from propertyestimator.workflow.schemas import WorkflowOutputToStore
+from propertyestimator.workflow.schemas import WorkflowOutputToStore, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
 
@@ -30,17 +28,9 @@ class ExtractAverageDielectric(protocols.AverageTrajectoryProperty):
     """Extracts the average dielectric constant from a simulation trajectory.
     """
 
-    def __init__(self, protocol_id):
-        super().__init__(protocol_id)
-
-        self._system = None
-        self._thermodynamic_state = None
-
-        self._uncorrelated_volumes = None
-
-    @protocol_input(System)
-    def system(self):
-        """The system object which defines the forces present in the system."""
+    @protocol_input(str)
+    def system_path(self):
+        """The path to the XML system object which defines the forces present in the system."""
         pass
 
     @protocol_input(ThermodynamicState)
@@ -53,6 +43,16 @@ class ExtractAverageDielectric(protocols.AverageTrajectoryProperty):
         """The uncorrelated volumes which were used in the dielect
         calculation."""
         pass
+
+    def __init__(self, protocol_id):
+        super().__init__(protocol_id)
+
+        self._system_path = None
+        self._system = None
+
+        self._thermodynamic_state = None
+
+        self._uncorrelated_volumes = None
 
     def _bootstrap_function(self, **sample_kwargs):
         """Calculates the static dielectric constant from an
@@ -117,6 +117,11 @@ class ExtractAverageDielectric(protocols.AverageTrajectoryProperty):
 
         charge_list = []
 
+        from simtk.openmm import XmlSerializer
+
+        with open(self._system_path, 'rb') as file:
+            self._system = XmlSerializer.deserialize(file.read().decode())
+
         for force_index in range(self._system.getNumForces()):
 
             force = self._system.getForce(force_index)
@@ -136,10 +141,10 @@ class ExtractAverageDielectric(protocols.AverageTrajectoryProperty):
         dipole_moments, self._equilibration_index, self._statistical_inefficiency = \
             timeseries.decorrelate_time_series(dipole_moments)
 
-        sample_indices = timeseries.get_uncorrelated_indices(len(self.trajectory),
+        sample_indices = timeseries.get_uncorrelated_indices(len(self.trajectory[self._equilibration_index:]),
                                                              self._statistical_inefficiency)
 
-        sample_indices = [index for index in sample_indices if index >= self._equilibration_index]
+        sample_indices = [index + self._equilibration_index for index in sample_indices]
 
         volumes = self.trajectory[sample_indices].unitcell_volumes
 
@@ -197,9 +202,9 @@ class ReweightDielectricConstant(protocols.ReweightWithMBARProtocol):
         for key in reference_observables:
             transposed_observables[key] = np.transpose(reference_observables[key])
 
-        values, _ = self._reweight_observables(np.transpose(reference_reduced_potentials),
-                                               np.transpose(target_reduced_potentials),
-                                               **transposed_observables)
+        values, _, _ = self._reweight_observables(np.transpose(reference_reduced_potentials),
+                                                  np.transpose(target_reduced_potentials),
+                                                  **transposed_observables)
 
         average_squared_dipole = values['dipoles_sqr']
         average_dipole_squared = np.linalg.norm(values['dipoles'])
@@ -253,12 +258,19 @@ class ReweightDielectricConstant(protocols.ReweightWithMBARProtocol):
 
         volumes = self._prepare_observables_array(self._reference_volumes)
 
-        frame_counts = np.array([len(observable) for observable in self._reference_observables])
-
         if self._bootstrap_uncertainties:
 
             reference_potentials = np.transpose(np.array(self._reference_reduced_potentials))
             target_potentials = np.transpose(np.array(self._target_reduced_potentials))
+
+            frame_counts = np.array([len(observable) for observable in self._reference_observables])
+
+            # Construct an mbar object to get out the number of effective samples.
+            import pymbar
+            mbar = pymbar.MBAR(self._reference_reduced_potentials,
+                               frame_counts, verbose=False, relative_tolerance=1e-12)
+
+            effective_samples = mbar.computeEffectiveSampleNumber().max()
 
             value, uncertainty = bootstrap(self._bootstrap_function,
                                            self._bootstrap_iterations,
@@ -269,6 +281,9 @@ class ReweightDielectricConstant(protocols.ReweightWithMBARProtocol):
                                            dipoles=np.transpose(dipole_moments),
                                            dipoles_sqr=np.transpose(dipole_moments_sqr),
                                            volumes=np.transpose(volumes))
+
+            if effective_samples < self._required_effective_samples:
+                uncertainty = sys.float_info.max
 
             self._value = EstimatedQuantity(unit.Quantity(value, None),
                                             unit.Quantity(uncertainty, None),
@@ -298,30 +313,30 @@ class DielectricConstant(PhysicalProperty):
         return False
 
     @staticmethod
-    def get_default_workflow_schema(calculation_layer):
-        """Returns the default workflow schema to use for
-        a specific calculation layer.
+    def get_default_workflow_schema(calculation_layer, options):
 
-        Parameters
-        ----------
-        calculation_layer: str
-            The calculation layer which will attempt to execute the workflow
-            defined by this schema.
-
-        Returns
-        -------
-        WorkflowSchema
-            The default workflow schema.
-        """
         if calculation_layer == 'SimulationLayer':
-            return DielectricConstant.get_default_simulation_workflow_schema()
+            return DielectricConstant.get_default_simulation_workflow_schema(options)
         elif calculation_layer == 'ReweightingLayer':
-            return DielectricConstant.get_default_reweighting_workflow_schema()
+            return DielectricConstant.get_default_reweighting_workflow_schema(options)
 
         return None
 
     @staticmethod
-    def get_default_simulation_workflow_schema():
+    def get_default_simulation_workflow_schema(options):
+        """Returns the default workflow to use when estimating this property
+        from direct simulations.
+
+        Parameters
+        ----------
+        options: PropertyWorkflowOptions
+            The default options to use when setting up the estimation workflow.
+
+        Returns
+        -------
+        WorkflowSchema
+            The schema to follow when estimating this property.
+        """
 
         schema = WorkflowSchema(property_type=DielectricConstant.__name__)
         schema.id = '{}{}'.format(DielectricConstant.__name__, 'Schema')
@@ -346,7 +361,7 @@ class DielectricConstant(PhysicalProperty):
         energy_minimisation = protocols.RunEnergyMinimisation('energy_minimisation')
 
         energy_minimisation.input_coordinate_file = ProtocolPath('coordinate_file_path', build_coordinates.id)
-        energy_minimisation.system = ProtocolPath('system', assign_topology.id)
+        energy_minimisation.system_path = ProtocolPath('system_path', assign_topology.id)
 
         schema.protocols[energy_minimisation.id] = energy_minimisation.schema
 
@@ -354,13 +369,13 @@ class DielectricConstant(PhysicalProperty):
 
         npt_equilibration.ensemble = Ensemble.NPT
 
-        npt_equilibration.steps = 2  # Debug settings.
-        npt_equilibration.output_frequency = 1  # Debug settings.
+        npt_equilibration.steps = 100000  # Debug settings.
+        npt_equilibration.output_frequency = 5000  # Debug settings.
 
         npt_equilibration.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 
         npt_equilibration.input_coordinate_file = ProtocolPath('output_coordinate_file', energy_minimisation.id)
-        npt_equilibration.system = ProtocolPath('system', assign_topology.id)
+        npt_equilibration.system_path = ProtocolPath('system_path', assign_topology.id)
 
         schema.protocols[npt_equilibration.id] = npt_equilibration.schema
 
@@ -369,13 +384,13 @@ class DielectricConstant(PhysicalProperty):
 
         npt_production.ensemble = Ensemble.NPT
 
-        npt_production.steps = 20  # Debug settings.
-        npt_production.output_frequency = 2  # Debug settings.
+        npt_production.steps = 500000  # Debug settings.
+        npt_production.output_frequency = 10000  # Debug settings.
 
         npt_production.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 
         npt_production.input_coordinate_file = ProtocolPath('output_coordinate_file', npt_equilibration.id)
-        npt_production.system = ProtocolPath('system', assign_topology.id)
+        npt_production.system_path = ProtocolPath('system_path', assign_topology.id)
 
         # Analysis
         extract_dielectric = ExtractAverageDielectric('extract_dielectric')
@@ -384,7 +399,7 @@ class DielectricConstant(PhysicalProperty):
 
         extract_dielectric.input_coordinate_file = ProtocolPath('output_coordinate_file', npt_production.id)
         extract_dielectric.trajectory_path = ProtocolPath('trajectory_file_path', npt_production.id)
-        extract_dielectric.system = ProtocolPath('system', assign_topology.id)
+        extract_dielectric.system_path = ProtocolPath('system_path', assign_topology.id)
 
         # Set up a conditional group to ensure convergence of uncertainty
         converge_uncertainty = groups.ConditionalGroup('converge_uncertainty')
@@ -402,7 +417,7 @@ class DielectricConstant(PhysicalProperty):
 
         converge_uncertainty.add_condition(condition)
 
-        converge_uncertainty.max_iterations = 1
+        converge_uncertainty.max_iterations = 400
 
         schema.protocols[converge_uncertainty.id] = converge_uncertainty.schema
 
@@ -464,7 +479,20 @@ class DielectricConstant(PhysicalProperty):
         return schema
 
     @staticmethod
-    def get_default_reweighting_workflow_schema():
+    def get_default_reweighting_workflow_schema(options):
+        """Returns the default workflow to use when estimating this property
+        by reweighting existing data.
+
+        Parameters
+        ----------
+        options: PropertyWorkflowOptions
+            The default options to use when setting up the estimation workflow.
+
+        Returns
+        -------
+        WorkflowSchema
+            The schema to follow when estimating this property.
+        """
 
         dielectric_calculation = ExtractAverageDielectric('calc_dielectric_$(data_repl)')
         base_reweighting_protocols, data_replicator = generate_base_reweighting_protocols(dielectric_calculation)
@@ -474,7 +502,7 @@ class DielectricConstant(PhysicalProperty):
         dielectric_calculation.thermodynamic_state = ProtocolPath('thermodynamic_state', unpack_id)
         dielectric_calculation.input_coordinate_file = ProtocolPath('coordinate_file_path', unpack_id)
         dielectric_calculation.trajectory_path = ProtocolPath('trajectory_file_path', unpack_id)
-        dielectric_calculation.system = ProtocolPath('system', base_reweighting_protocols.build_reference_system.id)
+        dielectric_calculation.system_path = ProtocolPath('system_path', base_reweighting_protocols.build_reference_system.id)
 
         # For the dielectric constant, we employ a slightly more advanced protocol
         # set up for calculating fluctuation properties.

@@ -6,17 +6,19 @@ form a larger property estimation workflow.
 import copy
 import logging
 import pickle
+import sys
 from os import path
 
 import numpy as np
 import pymbar
 from simtk import openmm, unit
-from simtk.openmm import app, System, Platform
+from simtk.openmm import app
 
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils import packmol, graph, utils, statistics, timeseries, create_molecule_from_smiles
 from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.openmm import setup_platform_with_resources
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import deserialize_quantity, deserialize_force_field
 from propertyestimator.utils.statistics import StatisticsArray, bootstrap
@@ -573,8 +575,8 @@ class BuildCoordinatesPackmol(BaseProtocol):
         self._coordinate_file_path = None
         self._positions = None
 
-        self._max_molecules = 128
-        self._mass_density = 1.0 * unit.grams / unit.milliliters
+        self._max_molecules = 1000
+        self._mass_density = 0.95 * unit.grams / unit.milliliters
 
     def execute(self, directory, available_resources):
 
@@ -649,8 +651,13 @@ class BuildSmirnoffSystem(BaseProtocol):
         """The composition of the system."""
         pass
 
-    @protocol_output(System)
-    def system(self):
+    @protocol_input(unit.Quantity)
+    def nonbonded_cutoff(self):
+        """The cutoff after which non-bonded interactions are truncated."""
+        pass
+
+    @protocol_output(str)
+    def system_path(self):
         """The assigned system."""
         pass
 
@@ -663,8 +670,10 @@ class BuildSmirnoffSystem(BaseProtocol):
         self._coordinate_file_path = None
         self._substance = None
 
+        self._nonbonded_cutoff = 1.0 * unit.nanometer
+
         # outputs
-        self._system = None
+        self._system_path = None
 
     def execute(self, directory, available_resources):
 
@@ -706,9 +715,10 @@ class BuildSmirnoffSystem(BaseProtocol):
         from openforcefield.typing.engines import smirnoff
 
         system = force_field.createSystem(pdb_file.topology,
-                                            molecules,
-                                            nonbondedMethod=smirnoff.PME,
-                                            chargeMethod='OECharges_AM1BCCSym')
+                                          molecules,
+                                          nonbondedMethod=smirnoff.PME,
+                                          nonbondedCutoff=self._nonbonded_cutoff,
+                                          chargeMethod='OECharges_AM1BCCSym')
 
         if system is None:
 
@@ -716,7 +726,13 @@ class BuildSmirnoffSystem(BaseProtocol):
                                               message='Failed to create a system from the'
                                                        'provided topology and molecules')
 
-        self._system = system
+        from simtk.openmm import XmlSerializer
+        system_xml = XmlSerializer.serialize(system)
+
+        self._system_path = path.join(directory, 'system.xml')
+
+        with open(self._system_path, 'wb') as file:
+            file.write(system_xml.encode('utf-8'))
 
         logging.info('Topology generated: ' + self.id)
 
@@ -735,9 +751,9 @@ class RunEnergyMinimisation(BaseProtocol):
         """The coordinates to minimise."""
         pass
 
-    @protocol_input(System)
-    def system(self, value):
-        """The system object which defines the forces present in the system."""
+    @protocol_input(str)
+    def system_path(self, value):
+        """The path to the XML system object which defines the forces present in the system."""
         pass
 
     @protocol_output(str)
@@ -751,6 +767,8 @@ class RunEnergyMinimisation(BaseProtocol):
 
         # inputs
         self._input_coordinate_file = None
+
+        self._system_path = None
         self._system = None
 
         # outputs
@@ -760,32 +778,24 @@ class RunEnergyMinimisation(BaseProtocol):
 
         logging.info('Minimising energy: ' + self.id)
 
-        integrator = openmm.VerletIntegrator(0.002 * unit.picoseconds)
+        platform = setup_platform_with_resources(available_resources)
 
         input_pdb_file = app.PDBFile(self._input_coordinate_file)
 
-        simulation = None
+        from simtk.openmm import XmlSerializer
 
-        if available_resources.number_of_gpus > 0:
+        with open(self._system_path, 'rb') as file:
+            self._system = XmlSerializer.deserialize(file.read().decode())
 
-            # noinspection PyTypeChecker,PyCallByClass
-            gpu_platform = Platform.getPlatformByName(str(available_resources.preferred_gpu_toolkit))
-            properties = {'DeviceIndex': ','.join(range(available_resources.number_of_gpus))}
+        integrator = openmm.VerletIntegrator(0.002 * unit.picoseconds)
+        simulation = app.Simulation(input_pdb_file.topology, self._system, integrator, platform)
 
-            simulation = app.Simulation(input_pdb_file.topology, self._system, integrator, gpu_platform, properties)
+        box_vectors = input_pdb_file.topology.getPeriodicBoxVectors()
 
-            logging.info('Setting up a simulation with {} gpu\'s'.format(available_resources.number_of_gpus))
+        if box_vectors is None:
+            box_vectors = simulation.system.getDefaultPeriodicBoxVectors()
 
-        else:
-
-            # noinspection PyTypeChecker,PyCallByClass
-            cpu_platform = Platform.getPlatformByName('CPU')
-            properties = {'Threads': str(available_resources.number_of_threads)}
-
-            simulation = app.Simulation(input_pdb_file.topology, self._system, integrator, cpu_platform, properties)
-
-            logging.info('Setting up a simulation with {} threads'.format(available_resources.number_of_threads))
-
+        simulation.context.setPeriodicBoxVectors(*box_vectors)
         simulation.context.setPositions(input_pdb_file.positions)
 
         simulation.minimizeEnergy()
@@ -843,9 +853,9 @@ class RunOpenMMSimulation(BaseProtocol):
         """The file path to the starting coordinates."""
         pass
 
-    @protocol_input(System)
-    def system(self):
-        """The system object which defines the forces present in the system."""
+    @protocol_input(str)
+    def system_path(self):
+        """A path to the XML system object which defines the forces present in the system."""
         pass
 
     @protocol_output(str)
@@ -882,7 +892,9 @@ class RunOpenMMSimulation(BaseProtocol):
         # inputs
         self._input_coordinate_file = None
         self._thermodynamic_state = None
+
         self._system = None
+        self._system_path = None
 
         # outputs
         self._output_coordinate_file = None
@@ -928,14 +940,16 @@ class RunOpenMMSimulation(BaseProtocol):
 
         positions = self._simulation_object.context.getState(getPositions=True).getPositions()
 
-        input_pdb_file = app.PDBFile(self._input_coordinate_file)
+        topology = app.PDBFile(self._input_coordinate_file).topology
+        topology.setPeriodicBoxVectors(self._simulation_object.context.getState().getPeriodicBoxVectors())
+
         self._output_coordinate_file = path.join(directory, 'output.pdb')
 
         logging.info('Simulation performed in the ' + str(self._ensemble) + ' ensemble: ' + self.id)
 
         with open(self._output_coordinate_file, 'w+') as configuration_file:
 
-            app.PDBFile.writeFile(input_pdb_file.topology,
+            app.PDBFile.writeFile(topology,
                                   positions, configuration_file)
 
         return self._get_output_dictionary()
@@ -954,52 +968,34 @@ class RunOpenMMSimulation(BaseProtocol):
         available_resources: ComputeResources
             The resources available to run on.
         """
+        import openmmtools
 
-        # For now set some 'best guess' thermostat parameters.
+        platform = setup_platform_with_resources(available_resources)
+
+        input_pdb_file = app.PDBFile(self._input_coordinate_file)
+
+        from simtk.openmm import XmlSerializer
+
+        with open(self._system_path, 'rb') as file:
+            self._system = XmlSerializer.deserialize(file.read().decode())
+
+        openmm_state = openmmtools.states.ThermodynamicState(system=self._system,
+                                                             temperature=temperature,
+                                                             pressure=pressure)
+
         integrator = openmm.LangevinIntegrator(temperature,
                                                self._thermostat_friction,
                                                self._timestep)
 
-        system = self._system
-
-        if Ensemble(self._ensemble) == Ensemble.NPT:
-
-            barostat = openmm.MonteCarloBarostat(pressure, temperature)
-
-            # inputs are READONLY! Never directly alter an input
-            system = copy.deepcopy(system)
-            system.addForce(barostat)
-
-        input_pdb_file = app.PDBFile(self._input_coordinate_file)
-
-        simulation = None
-
-        if available_resources.number_of_gpus > 0:
-
-            # noinspection PyTypeChecker,PyCallByClass
-            gpu_platform = Platform.getPlatformByName(str(available_resources.preferred_gpu_toolkit))
-            properties = {'DeviceIndex': ','.join(range(available_resources.number_of_gpus))}
-
-            simulation = app.Simulation(input_pdb_file.topology, system, integrator, gpu_platform, properties)
-
-            logging.info('Setting up a simulation with {} gpu\'s'.format(available_resources.number_of_gpus))
-
-        else:
-
-            # noinspection PyTypeChecker,PyCallByClass
-            cpu_platform = Platform.getPlatformByName('CPU')
-            properties = {'Threads': str(available_resources.number_of_threads)}
-
-            simulation = app.Simulation(input_pdb_file.topology, system, integrator, cpu_platform, properties)
-
-            logging.info('Setting up a simulation with {} threads'.format(available_resources.number_of_threads))
-
-        # simulation = app.Simulation(input_pdb_file.topology, system, integrator)
+        simulation = app.Simulation(input_pdb_file.topology,
+                                    openmm_state.get_system(True),
+                                    integrator,
+                                    platform)
 
         box_vectors = input_pdb_file.topology.getPeriodicBoxVectors()
 
         if box_vectors is None:
-            box_vectors = system.getDefaultPeriodicBoxVectors()
+            box_vectors = simulation.system.getDefaultPeriodicBoxVectors()
 
         simulation.context.setPeriodicBoxVectors(*box_vectors)
         simulation.context.setPositions(input_pdb_file.positions)
@@ -1070,7 +1066,7 @@ class AveragePropertyProtocol(BaseProtocol):
 
         super().__init__(protocol_id)
 
-        self._bootstrap_iterations = 100
+        self._bootstrap_iterations = 250
         self._bootstrap_sample_size = 1.0
 
         self._value = None
@@ -1340,11 +1336,10 @@ class ExtractUncorrelatedStatisticsData(ExtractUncorrelatedData):
 
         statistics = StatisticsArray.from_pandas_csv(self._input_statistics_path)
 
-        uncorrelated_indices = timeseries.get_uncorrelated_indices(len(statistics),
+        uncorrelated_indices = timeseries.get_uncorrelated_indices(len(statistics) - self._equilibration_index,
                                                                    self._statistical_inefficiency)
 
-        uncorrelated_indices = [index for index in uncorrelated_indices if index >= self._equilibration_index]
-
+        uncorrelated_indices = [index + self._equilibration_index for index in uncorrelated_indices]
         uncorrelated_statistics = statistics.from_statistics_array(statistics, uncorrelated_indices)
 
         self._output_statistics_path = path.join(directory, 'uncorrelated_statistics.csv')
@@ -1629,8 +1624,8 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
     def thermodynamic_state(self):
         pass
 
-    @protocol_input(System)
-    def system(self):
+    @protocol_input(str)
+    def system_path(self):
         pass
 
     @protocol_input(str)
@@ -1650,6 +1645,8 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         super().__init__(protocol_id)
 
         self._thermodynamic_state = None
+
+        self._system_path = None
         self._system = None
 
         self._coordinate_file_path = None
@@ -1662,8 +1659,13 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         import openmmtools
         import mdtraj
 
+        from simtk.openmm import XmlSerializer
+
+        with open(self._system_path, 'rb') as file:
+            self._system = XmlSerializer.deserialize(file.read().decode())
+
         trajectory = mdtraj.load_dcd(self._trajectory_file_path, self._coordinate_file_path)
-        self.system.setDefaultPeriodicBoxVectors(*trajectory.openmm_boxes(0))
+        self._system.setDefaultPeriodicBoxVectors(*trajectory.openmm_boxes(0))
 
         openmm_state = openmmtools.states.ThermodynamicState(system=self._system,
                                                              temperature=self._thermodynamic_state.temperature,
@@ -1671,7 +1673,10 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
 
         integrator = openmmtools.integrators.VelocityVerletIntegrator(0.01*unit.femtoseconds)
 
-        context_cache = openmmtools.cache.ContextCache()
+        # Setup the requested platform:
+        platform = setup_platform_with_resources(available_resources)
+
+        context_cache = openmmtools.cache.ContextCache(platform)
         openmm_context, openmm_context_integrator = context_cache.get_context(openmm_state,
                                                                               integrator)
 
@@ -1702,26 +1707,41 @@ class ReweightWithMBARProtocol(BaseProtocol):
 
     @protocol_input(list)
     def reference_reduced_potentials(self):
+        """A list of the reduced potentials of each reference state."""
         pass
 
     @protocol_input(list)
     def reference_observables(self):
+        """A list of the observables to be reweighted from each reference state."""
         pass
 
     @protocol_input(list)
     def target_reduced_potentials(self):
+        """The reduced potentials of the target state."""
         pass
 
     @protocol_input(bool)
     def bootstrap_uncertainties(self):
+        """If true, bootstrapping will be used to estimated the total uncertainty"""
         pass
 
     @protocol_input(int)
     def bootstrap_iterations(self):
+        """The number of bootstrap iterations to perform if bootstraped
+        uncertainties have been requested"""
         pass
 
     @protocol_input(float)
     def bootstrap_sample_size(self):
+        """The relative bootstrap sample size to use if bootstraped
+        uncertainties have been requested"""
+        pass
+
+    @protocol_input(int)
+    def required_effective_samples(self):
+        """The minimum number of MBAR effective samples for the reweighted
+        value to be trusted. If this minimum is not met then the uncertainty
+        will be set to sys.float_info.max"""
         pass
 
     @protocol_output(EstimatedQuantity)
@@ -1741,6 +1761,8 @@ class ReweightWithMBARProtocol(BaseProtocol):
         self._bootstrap_iterations = 1
         self._bootstrap_sample_size = 1.0
 
+        self._required_effective_samples = 50
+
         self._value = None
 
     def execute(self, directory, available_resources):
@@ -1756,8 +1778,6 @@ class ReweightWithMBARProtocol(BaseProtocol):
                                               message='The reference_observables input should be'
                                                       'a list of unit.Quantity wrapped ndarray\'s.')
 
-        frame_counts = np.array([len(observable) for observable in self._reference_observables])
-
         observables = self._prepare_observables_array(self._reference_observables)
         observable_unit = self._reference_observables[0].unit
 
@@ -1765,6 +1785,14 @@ class ReweightWithMBARProtocol(BaseProtocol):
 
             reference_potentials = np.transpose(np.array(self._reference_reduced_potentials))
             target_potentials = np.transpose(np.array(self._target_reduced_potentials))
+
+            frame_counts = np.array([len(observable) for observable in self._reference_observables])
+
+            # Construct an mbar object to get out the number of effective samples.
+            mbar = pymbar.MBAR(self._reference_reduced_potentials,
+                               frame_counts, verbose=False, relative_tolerance=1e-12)
+
+            effective_samples = mbar.computeEffectiveSampleNumber().max()
 
             value, uncertainty = bootstrap(self._bootstrap_function,
                                            self._bootstrap_iterations,
@@ -1774,18 +1802,26 @@ class ReweightWithMBARProtocol(BaseProtocol):
                                            target_reduced_potentials=target_potentials,
                                            observables=np.transpose(observables))
 
+            if effective_samples < self._required_effective_samples:
+                uncertainty = sys.float_info.max
+
             self._value = EstimatedQuantity(value * observable_unit,
                                             uncertainty * observable_unit,
                                             self.id)
 
         else:
 
-            values, uncertainties = self._reweight_observables(self._reference_reduced_potentials,
-                                                               self._target_reduced_potentials,
-                                                               observables=observables)
+            values, uncertainties, effective_samples = self._reweight_observables(self._reference_reduced_potentials,
+                                                                                  self._target_reduced_potentials,
+                                                                                  observables=observables)
+
+            uncertainty = uncertainties['observables']
+
+            if effective_samples < self._required_effective_samples:
+                uncertainty = sys.float_info.max
 
             self._value = EstimatedQuantity(values['observables'] * observable_unit,
-                                            uncertainties['observables'] * observable_unit,
+                                            uncertainty * observable_unit,
                                             self.id)
 
         return self._get_output_dictionary()
@@ -1857,9 +1893,9 @@ class ReweightWithMBARProtocol(BaseProtocol):
         for key in reference_observables:
             transposed_observables[key] = np.transpose(reference_observables[key])
 
-        values, _ = self._reweight_observables(np.transpose(reference_reduced_potentials),
-                                               np.transpose(target_reduced_potentials),
-                                               **transposed_observables)
+        values, _, _ = self._reweight_observables(np.transpose(reference_reduced_potentials),
+                                                               np.transpose(target_reduced_potentials),
+                                                               **transposed_observables)
 
         return next(iter(values.values()))
 
@@ -1869,8 +1905,12 @@ class ReweightWithMBARProtocol(BaseProtocol):
 
         Returns
         -------
-        EstimatedQuantity
-            The reweighted value.
+        dict of str and float or list of float
+            The reweighted values.
+        dict of str and float or list of float
+            The MBAR calculated uncertainties in the reweighted values.
+        int
+            The number of effective samples.
         """
 
         frame_counts = np.array([len(observable) for observable in self._reference_observables])
@@ -1878,6 +1918,8 @@ class ReweightWithMBARProtocol(BaseProtocol):
         # Construct the mbar object.
         mbar = pymbar.MBAR(reference_reduced_potentials,
                            frame_counts, verbose=False, relative_tolerance=1e-12)
+
+        max_effective_samples = mbar.computeEffectiveSampleNumber().max()
 
         values = {}
         uncertainties = {}
@@ -1913,4 +1955,4 @@ class ReweightWithMBARProtocol(BaseProtocol):
                 values[observable_key] = np.array(value)
                 uncertainties[observable_key] = np.array(uncertainty)
 
-        return values, uncertainties
+        return values, uncertainties, max_effective_samples

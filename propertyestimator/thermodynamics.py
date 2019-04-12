@@ -97,6 +97,9 @@ class ThermodynamicState(TypedBaseModel):
 
     def __eq__(self, other):
 
+        if not isinstance(other, ThermodynamicState):
+            return False
+
         return (math.isclose(self.temperature / unit.kelvin, other.temperature / unit.kelvin) and
                 math.isclose(self.pressure / unit.atmosphere, other.pressure / unit.atmosphere))
 

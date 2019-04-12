@@ -7,11 +7,11 @@ Based on the `SolvationToolkit <https://github.com/MobleyLab/SolvationToolkit>`_
 """
 
 import logging
+import mdtraj
 import os
 import random
 import string
 import subprocess
-import tempfile
 import shutil
 
 from distutils.spawn import find_executable
@@ -82,12 +82,13 @@ def pack_box(molecules,
 
     # Create PDB files for all components
     pdb_filenames = list()
-
     pdb_flavor = oechem.OEOFlavor_PDB_Default
+
+    mdtraj_topologies = []
 
     for index, molecule in enumerate(molecules):
 
-        tmp_filename = tempfile.mktemp(suffix=".pdb")
+        tmp_filename = "{}.pdb".format(index)
         pdb_filenames.append(tmp_filename)
 
         # Write PDB file
@@ -106,11 +107,23 @@ def pack_box(molecules,
         with open(tmp_filename, 'wb') as file:
             file.write(pdb_contents.encode())
 
+        oe_pdb = mdtraj.load_pdb(tmp_filename)
+
+        # We definitely want to make sure the temp pdb file is identical to
+        # that stored in the topology to ensure the correct generation
+        # of CONNECT statements.
+        tmp_mdtraj_filename = "tmp_mdtraj.pdb"
+        oe_pdb.save_pdb(tmp_mdtraj_filename)
+
+        os.unlink(tmp_mdtraj_filename)
+
+        mdtraj_topologies.append(oe_pdb.topology)
+
     # Run packmol
     if PACKMOL_PATH is None:
         raise IOError("Packmol not found, cannot run pack_box()")
 
-    output_filename = tempfile.mktemp(suffix=".pdb")
+    output_filename = "output.pdb"
 
     # Approximate volume to initialize box
     if box_size is None:
@@ -138,7 +151,7 @@ def pack_box(molecules,
         print(header)
 
     # Write packmol input
-    packmol_filename = tempfile.mktemp(suffix=".txt")
+    packmol_filename = "packmol_input.txt"
 
     with open(packmol_filename, 'w') as file_handle:
         file_handle.write(header)
@@ -170,7 +183,7 @@ def pack_box(molecules,
 
     # Append missing connect statements to the end of the
     # output file.
-    _append_connect_statements(output_filename, molecules, n_copies)
+    _append_connect_statements(output_filename, mdtraj_topologies, n_copies)
 
     # Read the resulting PDB file.
     pdbfile = app.PDBFile(output_filename)
@@ -289,7 +302,7 @@ def approximate_volume_by_density(molecules,
     return box_edge
 
 
-def _append_connect_statements(file_name, molecules, n_copies):
+def _append_connect_statements(file_name, molecule_topologies, n_copies):
 
     lines = []
 
@@ -303,14 +316,14 @@ def _append_connect_statements(file_name, molecules, n_copies):
 
     # TODO: Does packmol always give the exact number of mols asked for?
     # In future may be better way to figure this out.
-    for (molecule, count) in zip(molecules, n_copies):
+    for (topology, count) in zip(molecule_topologies, n_copies):
 
         bonds = {}
 
-        for bond in molecule.GetBonds():
+        for bond in topology.bonds:
 
-            index_A = bond.GetBgnIdx()
-            index_B = bond.GetEndIdx()
+            index_A = bond[0].index
+            index_B = bond[1].index
 
             if index_A not in bonds:
                 bonds[index_A] = []
@@ -336,7 +349,7 @@ def _append_connect_statements(file_name, molecules, n_copies):
 
                 lines.append(connect_string)
 
-            atom_counter += molecule.NumAtoms()
+            atom_counter += topology.n_atoms
 
     lines.append('END')
 

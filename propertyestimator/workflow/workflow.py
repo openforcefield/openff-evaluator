@@ -3,18 +3,22 @@ Defines the core workflow object and execution graph.
 """
 import abc
 import copy
+import json
+import logging
 import re
+import time
 import traceback
 import uuid
 from math import sqrt
 from os import path, makedirs
 
+from propertyestimator.properties.properties import PropertyWorkflowOptions
 from simtk import unit
 
 from propertyestimator.storage import StoredSimulationData
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import TypedBaseModel
+from propertyestimator.utils.serialization import TypedBaseModel, TypedJSONEncoder, TypedJSONDecoder
 from propertyestimator.utils.statistics import StatisticsArray
 from propertyestimator.utils.utils import SubhookedABCMeta, get_nested_attribute
 from propertyestimator.workflow.plugins import available_protocols
@@ -27,7 +31,7 @@ class IWorkflowProperty(SubhookedABCMeta):
 
     @staticmethod
     @abc.abstractmethod
-    def get_default_workflow_schema(calculation_layer): pass
+    def get_default_workflow_schema(calculation_layer, options): pass
 
 
 class Workflow:
@@ -693,12 +697,18 @@ class Workflow:
             The metadata dictionary, with the following
             keys / types:
 
-            - thermodynamic_state: `ThermodynamicState`
-            - substance: `Mixture`
-            - components: list of `Mixture`
-            - target_uncertainty: simtk.unit.Quantity
-            - per_component_uncertainty: simtk.unit.Quantity
-            - force_field_path: str
+            - thermodynamic_state: `ThermodynamicState` - The state (T,p) at which the
+                                                          property is being computed
+            - substance: `Mixture` - The composition of the system of interest.
+            - components: list of `Mixture` - The components present in the system for
+                                              which the property is being estimated.
+            - target_uncertainty: simtk.unit.Quantity - The target uncertainty with which
+                                                        properties should be estimated.
+            - per_component_uncertainty: simtk.unit.Quantity - The target uncertainty divided
+                                                               by the sqrt of the number of
+                                                               components in the system + 1
+            - force_field_path: str - A path to the force field parameters with which the
+                                      property should be evaulated with.
         """
         from propertyestimator.substances import Mixture
 
@@ -711,14 +721,27 @@ class Workflow:
 
             components.append(mixture)
 
-        target_uncertainty = physical_property.uncertainty * estimator_options.relative_uncertainty_tolerance
+        if (estimator_options.workflow_options is not None and
+            type(physical_property).__name__ in estimator_options.workflow_options):
+
+            workflow_options = estimator_options.workflow_options[type(physical_property).__name__]
+        else:
+            workflow_options = PropertyWorkflowOptions()
+
+        if workflow_options.convergence_mode == PropertyWorkflowOptions.ConvergenceMode.RelativeUncertainty:
+            target_uncertainty = physical_property.uncertainty * workflow_options.relative_uncertainty_fraction
+        elif workflow_options.convergence_mode == PropertyWorkflowOptions.ConvergenceMode.AbsoluteUncertainty:
+            target_uncertainty = workflow_options.absolute_uncertainty
+        else:
+            raise ValueError('The convergence mode {} is not supported.'.format(workflow_options.convergence_mode))
 
         if (isinstance(physical_property.uncertainty, unit.Quantity) and not
             isinstance(target_uncertainty, unit.Quantity)):
 
             target_uncertainty = unit.Quantity(target_uncertainty, physical_property.uncertainty.unit)
 
-        per_component_uncertainty = target_uncertainty / sqrt(physical_property.substance.number_of_components)
+        # +1 comes from inclusion of the full mixture as a possible component.
+        per_component_uncertainty = target_uncertainty / sqrt(physical_property.substance.number_of_components + 1)
 
         # Define a dictionary of accessible 'global' properties.
         global_metadata = {
@@ -874,13 +897,18 @@ class WorkflowGraph:
 
                 parent_protocol_ids[dependant].append(inserted_id)
 
-    def submit(self, backend):
+    def submit(self, backend, include_uncertainty_check=True):
         """Submits the protocol graph to the backend of choice.
 
         Parameters
         ----------
         backend: PropertyEstimatorBackend
             The backend to execute the graph on.
+        include_uncertainty_check: bool
+            If true, the uncertainty of each estimated property will be checked to
+            ensure it is below the target threshold set in the workflow metadata.
+            If an uncertainty is not included in the workflow metadata, then this
+            parameter will be ignored.
 
         Returns
         -------
@@ -944,25 +972,31 @@ class WorkflowGraph:
 
                     final_futures.append(submitted_futures[attribute_value.start_protocol])
 
+            target_uncertainty = None
+
+            if include_uncertainty_check and 'target_uncertainty' in workflow.global_metadata:
+                target_uncertainty = workflow.global_metadata['target_uncertainty']
+
             # Gather the values and uncertainties of each property being calculated.
             value_futures.append(backend.submit_task(WorkflowGraph._gather_results,
                                                      workflow.physical_property,
                                                      workflow.final_value_source,
                                                      workflow.outputs_to_store,
+                                                     target_uncertainty,
                                                      *final_futures))
 
         return value_futures
 
     @staticmethod
-    def _execute_protocol(directory, protocol_schema, *previous_outputs, available_resources, **kwargs):
+    def _execute_protocol(directory, protocol_schema, *previous_output_paths, available_resources, **kwargs):
         """Executes a protocol whose state is defined by the ``protocol_schema``.
 
         Parameters
         ----------
         protocol_schema: protocols.ProtocolSchema
             The schema defining the protocol to execute.
-        previous_outputs: tuple of Any
-            The results of previous protocol executions.
+        previous_output_paths: tuple of str
+            Paths to the results of previous protocol executions.
 
         Returns
         -------
@@ -976,7 +1010,25 @@ class WorkflowGraph:
         # If one of the results is a failure, propagate it up the chain!
         previous_outputs_by_path = {}
 
-        for parent_id, parent_output in previous_outputs:
+        for parent_id, previous_output_path in previous_output_paths:
+
+            parent_output = None
+
+            if isinstance(previous_output_path, PropertyEstimatorException):
+                return protocol_schema.id, previous_output_path
+
+            try:
+
+                with open(previous_output_path, 'r') as file:
+                    parent_output = json.load(file, cls=TypedJSONDecoder)
+
+            except json.JSONDecodeError as e:
+
+                formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+
+                return protocol_schema.id, PropertyEstimatorException(directory=directory,
+                                                  message='Could not load the output dictionary of {} ({}): {}'.format(
+                                                      parent_id, previous_output_path, formatted_exception))
 
             if isinstance(parent_output, PropertyEstimatorException):
                 return protocol_schema.id, parent_output
@@ -1011,6 +1063,10 @@ class WorkflowGraph:
 
                 protocol.set_value(source_path, previous_outputs_by_path[target_path])
 
+        logging.info('Executing protocol: {}'.format(protocol.id))
+
+        start_time = time.perf_counter()
+
         try:
             output_dictionary = protocol.execute(directory, available_resources)
         except Exception as e:
@@ -1021,29 +1077,54 @@ class WorkflowGraph:
                                                            message='An unhandled exception occurred: '
                                                                    '{}'.format(formatted_exception))
 
-        return protocol.id, output_dictionary
+        end_time = time.perf_counter()
+
+        logging.info('Protocol finished executing ({} ms): {}'.format((end_time-start_time)*1000, protocol.id))
+
+        output_dictionary_path = path.join(directory, '{}_output.json'.format(protocol.id))
+
+        try:
+
+            with open(output_dictionary_path, 'w') as file:
+                json.dump(output_dictionary, file, cls=TypedJSONEncoder)
+
+        except TypeError as e:
+
+            formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+
+            return protocol.id, PropertyEstimatorException(directory=directory,
+                                              message='Could not save the output dictionary of {} ({}): {}'.format(
+                                                  protocol.id, output_dictionary_path, formatted_exception))
+
+        return protocol.id, output_dictionary_path
 
     @staticmethod
     def _gather_results(property_to_return, value_reference, outputs_to_store,
-                        *protocol_results, **kwargs):
+                        target_uncertainty, *protocol_result_paths, **kwargs):
         """Gather the value and uncertainty calculated from the submission graph
         and store them in the property to return.
 
         Parameters
         ----------
-        value_result: dict of string and Any
-            The result dictionary of the protocol which calculated the value of the property.
+        property_to_return: PhysicalProperty
+            The property to which the value and uncertainty belong.
         value_reference: ProtocolPath
             A reference to which property in the output dictionary is the actual value.
         outputs_to_store: dict of string and WorkflowOutputToStore
             A list of references to data which should be stored on the storage backend.
-        property_to_return: PhysicalProperty
-            The property to which the value and uncertainty belong.
+        target_uncertainty: unit.Quantity, optional
+            The uncertainty within which this property should have been estimated. If this
+            value is not `None` and the target has not been met, a `None` result will be returned
+            indicating that this property could not be estimated by the workflow, but not because
+            of an error.
+        protocol_results: dict of string and str
+            The result dictionary of the protocol which calculated the value of the property.
 
         Returns
         -------
-        CalculationLayerResult
-            The result of attempting to estimate this property from a workflow graph.
+        CalculationLayerResult, optional
+            The result of attempting to estimate this property from a workflow graph. `None`
+            will be returned if the target uncertainty is set but not met.
         """
         import mdtraj
         from propertyestimator.layers.layers import CalculationLayerResult
@@ -1053,7 +1134,26 @@ class WorkflowGraph:
 
         results_by_id = {}
 
-        for protocol_id, protocol_results in protocol_results:
+        for protocol_id, protocol_result_path in protocol_result_paths:
+
+            protocol_results = None
+
+            if isinstance(protocol_result_path, PropertyEstimatorException):
+
+                return_object.workflow_error = protocol_result_path
+                return return_object
+
+            try:
+
+                with open(protocol_result_path, 'r') as file:
+                    protocol_results = json.load(file, cls=TypedJSONDecoder)
+
+            except json.JSONDecodeError as e:
+
+                formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+
+                return PropertyEstimatorException(message='Could not load the output dictionary of {} ({}): {}'.format(
+                                                      protocol_id, protocol_result_path, formatted_exception))
 
             # Make sure none of the protocols failed and we actually have a value
             # and uncertainty.
@@ -1072,6 +1172,13 @@ class WorkflowGraph:
                 final_path = ProtocolPath(property_name, *protocol_ids)
                 results_by_id[final_path] = output_value
 
+        if target_uncertainty is not None and results_by_id[value_reference].uncertainty > target_uncertainty:
+
+            logging.info('The final uncertainty ({}) was not less than the target threshold ({}).'.format(
+                results_by_id[value_reference].uncertainty, target_uncertainty))
+
+            return None
+
         property_to_return.value = results_by_id[value_reference].value
         property_to_return.uncertainty = results_by_id[value_reference].uncertainty
 
@@ -1079,7 +1186,7 @@ class WorkflowGraph:
         return_object.data_to_store = []
 
         # TODO: At the moment it is assumed that the output of a WorkflowGraph is
-        #       a set of StoredSimulationData. This should be abstraced and made
+        #       a set of StoredSimulationData. This should be abstracted and made
         #       more general in future if possible.
         for output_label in outputs_to_store:
 

@@ -5,6 +5,7 @@ import tempfile
 from collections import OrderedDict
 
 import pytest
+from propertyestimator.properties.properties import PropertyWorkflowOptions
 from simtk import unit
 
 from propertyestimator.backends import DaskLocalClusterBackend, ComputeResources
@@ -36,7 +37,7 @@ def test_workflow_schema_simulation(registered_property_name, available_layer):
 
     registered_property = registered_properties[registered_property_name]
 
-    schema = registered_property.get_default_workflow_schema(available_layer)
+    schema = registered_property.get_default_workflow_schema(available_layer, PropertyWorkflowOptions())
 
     if schema is None:
         return
@@ -66,7 +67,7 @@ def test_cloned_schema_merging_simulation(registered_property_name, available_la
 
     dummy_property = create_dummy_property(registered_property)
 
-    workflow_schema = dummy_property.get_default_workflow_schema(available_layer)
+    workflow_schema = dummy_property.get_default_workflow_schema(available_layer, PropertyWorkflowOptions())
 
     if workflow_schema is None:
         return
@@ -122,8 +123,8 @@ def test_density_dielectric_merging():
                                     value=10*unit.gram/unit.mole,
                                     uncertainty=1*unit.gram/unit.mole)
 
-    density_schema = density.get_default_workflow_schema('SimulationLayer')
-    dielectric_schema = dielectric.get_default_workflow_schema('SimulationLayer')
+    density_schema = density.get_default_workflow_schema('SimulationLayer', PropertyWorkflowOptions())
+    dielectric_schema = dielectric.get_default_workflow_schema('SimulationLayer', PropertyWorkflowOptions())
 
     density_metadata = Workflow.generate_default_metadata(density,
                                                           get_data_filename('forcefield/smirnoff99Frosst.offxml'),
