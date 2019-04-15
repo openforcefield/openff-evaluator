@@ -8,6 +8,7 @@ import os
 import shutil
 
 from dask import distributed
+from distributed import get_worker
 from simtk import unit
 
 from propertyestimator.workflow.plugins import available_protocols
@@ -156,10 +157,17 @@ class DaskLSFBackend(PropertyEstimatorBackend):
     def _wrapped_function(function, *args, **kwargs):
 
         available_resources = kwargs['available_resources']
+
         protocols_to_import = kwargs.pop('available_protocols')
+        per_worker_logging = kwargs.pop('per_worker_logging')
 
         gpu_assignments = kwargs.pop('gpu_assignments')
 
+        # Each spun up worker doesn't automatically import
+        # all of the modules which were imported in the main
+        # launch script, and as such custom plugins will no
+        # longer be registered. We re-import / register them
+        # here.
         for protocol_class in protocols_to_import:
 
             module_name = '.'.join(protocol_class.split('.')[:-1])
@@ -167,6 +175,20 @@ class DaskLSFBackend(PropertyEstimatorBackend):
 
             imported_module = importlib.import_module(module_name)
             available_protocols[class_name] = getattr(imported_module, class_name)
+
+        # Set up the logging per worker if the flag is set to True.
+        if per_worker_logging:
+
+            formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s',
+                                          datefmt='%H:%M:%S')
+
+            # Each worker should have its own log file.
+            logger_handler = logging.FileHandler('{}.log'.format(get_worker().id))
+            logger_handler.setFormatter(formatter)
+
+            logger = logging.getLogger()
+            logger.setLevel(logging.INFO)
+            logger.addHandler(logger_handler)
 
         if available_resources.number_of_gpus > 0:
 
@@ -191,7 +213,8 @@ class DaskLSFBackend(PropertyEstimatorBackend):
                                    *args,
                                    available_resources=self._resources_per_worker,
                                    available_protocols=protocols_to_import,
-                                   gpu_assignments={})
+                                   gpu_assignments={},
+                                   per_worker_logging=True)
 
 
 class DaskLocalClusterBackend(PropertyEstimatorBackend):
