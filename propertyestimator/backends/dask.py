@@ -183,7 +183,8 @@ class DaskLSFBackend(PropertyEstimatorBackend):
 
     def submit_task(self, function, *args):
 
-        protocols_to_import = [protocol_class.__qualname__ for protocol_class in available_protocols]
+        protocols_to_import = [protocol_class.__module__ + '.' +
+                               protocol_class.__qualname__ for protocol_class in available_protocols]
 
         return self._client.submit(DaskLSFBackend._wrapped_function,
                                    function,
