@@ -988,6 +988,12 @@ class WorkflowGraph:
         return value_futures
 
     @staticmethod
+    def _save_protocol_output(file_path, output_dictionary):
+
+        with open(file_path, 'w') as file:
+            json.dump(output_dictionary, file, cls=TypedJSONEncoder)
+
+    @staticmethod
     def _execute_protocol(directory, protocol_schema, *previous_output_paths, available_resources, **kwargs):
         """Executes a protocol whose state is defined by the ``protocol_schema``.
 
@@ -1006,6 +1012,15 @@ class WorkflowGraph:
             A dictionary which contains the outputs of the executed protocol.
         """
 
+        # The path where the output of this protocol is stored.
+        output_dictionary_path = path.join(directory, '{}_output.json'.format(protocol_schema.id))
+
+        # If the output dictionary file already exists, we can assume this protocol
+        # has already successfully been executed and we can return immediately without
+        # re-executing the protocol.
+        if path.isfile(output_dictionary_path):
+            return protocol_schema.id, output_dictionary_path
+
         # Store the results of the relevant previous protocols in a handy dictionary.
         # If one of the results is a failure, propagate it up the chain!
         previous_outputs_by_path = {}
@@ -1013,9 +1028,6 @@ class WorkflowGraph:
         for parent_id, previous_output_path in previous_output_paths:
 
             parent_output = None
-
-            if isinstance(previous_output_path, PropertyEstimatorException):
-                return protocol_schema.id, previous_output_path
 
             try:
 
@@ -1026,12 +1038,18 @@ class WorkflowGraph:
 
                 formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
-                return protocol_schema.id, PropertyEstimatorException(directory=directory,
-                                                  message='Could not load the output dictionary of {} ({}): {}'.format(
-                                                      parent_id, previous_output_path, formatted_exception))
+                exception = PropertyEstimatorException(directory,
+                                                       'Could not load the output dictionary of {} ({}): {}'.format(
+                                                           parent_id, previous_output_path, formatted_exception)
+                                                       )
+
+                WorkflowGraph._save_protocol_output(output_dictionary_path,
+                                                    exception.__getstate__())
+
+                return protocol_schema.id, output_dictionary_path
 
             if isinstance(parent_output, PropertyEstimatorException):
-                return protocol_schema.id, parent_output
+                return protocol_schema.id, previous_output_path
 
             for output_path, output_value in parent_output.items():
 
@@ -1073,28 +1091,29 @@ class WorkflowGraph:
             # Except the unexcepted...
             formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
-            return protocol.id, PropertyEstimatorException(directory=directory,
-                                                           message='An unhandled exception occurred: '
-                                                                   '{}'.format(formatted_exception))
+            exception = PropertyEstimatorException(directory=directory,
+                                                   message='An unhandled exception '
+                                                           'occurred: {}'.format(formatted_exception))
+
+            output_dictionary = exception.__getstate__()
 
         end_time = time.perf_counter()
 
         logging.info('Protocol finished executing ({} ms): {}'.format((end_time-start_time)*1000, protocol.id))
 
-        output_dictionary_path = path.join(directory, '{}_output.json'.format(protocol.id))
-
         try:
 
-            with open(output_dictionary_path, 'w') as file:
-                json.dump(output_dictionary, file, cls=TypedJSONEncoder)
+            WorkflowGraph._save_protocol_output(output_dictionary_path, output_dictionary)
 
         except TypeError as e:
 
             formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
-            return protocol.id, PropertyEstimatorException(directory=directory,
-                                              message='Could not save the output dictionary of {} ({}): {}'.format(
-                                                  protocol.id, output_dictionary_path, formatted_exception))
+            exception = PropertyEstimatorException(directory=directory,
+                                                   message='Could not save the output dictionary of {} ({}): {}'.format(
+                                                           protocol.id, output_dictionary_path, formatted_exception))
+
+            WorkflowGraph._save_protocol_output(output_dictionary_path, exception.__getstate__())
 
         return protocol.id, output_dictionary_path
 
@@ -1137,11 +1156,6 @@ class WorkflowGraph:
         for protocol_id, protocol_result_path in protocol_result_paths:
 
             protocol_results = None
-
-            if isinstance(protocol_result_path, PropertyEstimatorException):
-
-                return_object.workflow_error = protocol_result_path
-                return return_object
 
             try:
 
