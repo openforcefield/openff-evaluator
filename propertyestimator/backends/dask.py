@@ -140,7 +140,8 @@ class DaskLSFBackend(PropertyEstimatorBackend):
                                    walltime=self._resources_per_worker.wallclock_time_limit,
                                    mem=memory_bytes,
                                    job_extra=job_extra,
-                                   env_extra=self._extra_script_commands)
+                                   env_extra=self._extra_script_commands,
+                                   local_directory='dask-worker-space')
 
         self._cluster.adapt(minimum=self._minimum_number_of_workers,
                             maximum=self._maximum_number_of_workers)
