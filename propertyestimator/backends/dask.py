@@ -4,6 +4,7 @@ A collection of property estimator compute backends which use dask as the distri
 import logging
 import multiprocessing
 import os
+import shutil
 
 from dask import distributed
 from simtk import unit
@@ -237,6 +238,9 @@ class DaskLocalClusterBackend(PropertyEstimatorBackend):
 
         self._client.close()
         self._cluster.close()
+
+        if os.path.isdir('dask-worker-space'):
+            shutil.rmtree('dask-worker-space')
 
     @staticmethod
     def _wrapped_function(function, *args, **kwargs):
