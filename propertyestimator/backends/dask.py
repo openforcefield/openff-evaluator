@@ -183,12 +183,15 @@ class DaskLSFBackend(PropertyEstimatorBackend):
                                           datefmt='%H:%M:%S')
 
             # Each worker should have its own log file.
-            logger_handler = logging.FileHandler('{}.log'.format(get_worker().id))
-            logger_handler.setFormatter(formatter)
-
             logger = logging.getLogger()
-            logger.setLevel(logging.INFO)
-            logger.addHandler(logger_handler)
+
+            if not len(logger.handlers):
+
+                logger_handler = logging.FileHandler('{}.log'.format(get_worker().id))
+                logger_handler.setFormatter(formatter)
+
+                logger.setLevel(logging.INFO)
+                logger.addHandler(logger_handler)
 
         if available_resources.number_of_gpus > 0:
 
