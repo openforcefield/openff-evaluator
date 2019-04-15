@@ -1,6 +1,7 @@
 """
 A collection of property estimator compute backends which use dask as the distribution engine.
 """
+import importlib
 import logging
 import multiprocessing
 import os
@@ -9,6 +10,7 @@ import shutil
 from dask import distributed
 from simtk import unit
 
+from propertyestimator.workflow.plugins import available_protocols
 from .backends import PropertyEstimatorBackend, ComputeResources, QueueComputeResources
 
 
@@ -154,7 +156,17 @@ class DaskLSFBackend(PropertyEstimatorBackend):
     def _wrapped_function(function, *args, **kwargs):
 
         available_resources = kwargs['available_resources']
+        protocols_to_import = kwargs.pop('available_protocols')
+
         gpu_assignments = kwargs.pop('gpu_assignments')
+
+        for protocol_class in protocols_to_import:
+
+            module_name = '.'.join(protocol_class.split('.')[:-1])
+            class_name = protocol_class.split('.')[-1]
+
+            imported_module = importlib.import_module(module_name)
+            available_protocols[class_name] = getattr(imported_module, class_name)
 
         if available_resources.number_of_gpus > 0:
 
@@ -171,10 +183,13 @@ class DaskLSFBackend(PropertyEstimatorBackend):
 
     def submit_task(self, function, *args):
 
+        protocols_to_import = [protocol_class.__qualname__ for protocol_class in available_protocols]
+
         return self._client.submit(DaskLSFBackend._wrapped_function,
                                    function,
                                    *args,
                                    available_resources=self._resources_per_worker,
+                                   available_protocols=protocols_to_import,
                                    gpu_assignments={})
 
 
