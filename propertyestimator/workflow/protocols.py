@@ -928,10 +928,10 @@ class RunOpenMMSimulation(BaseProtocol):
             # (if this protocol is part of a conditional group for e.g.
             # the simulation object will most likely persist without the
             # need to recreate it at each iteration.)
-            self._simulation_object = self._setup_new_simulation(directory,
-                                                                 temperature,
-                                                                 pressure,
-                                                                 available_resources)
+            self._simulation_object = self._setup_simulation_object(directory,
+                                                                    temperature,
+                                                                    pressure,
+                                                                    available_resources)
 
         try:
             self._simulation_object.step(self._steps)
@@ -962,7 +962,7 @@ class RunOpenMMSimulation(BaseProtocol):
 
         return self._get_output_dictionary()
 
-    def _setup_new_simulation(self, directory, temperature, pressure, available_resources):
+    def _setup_simulation_object(self, directory, temperature, pressure, available_resources):
         """Creates a new OpenMM simulation object.
 
         Parameters
@@ -999,14 +999,25 @@ class RunOpenMMSimulation(BaseProtocol):
                                     integrator,
                                     platform)
 
-        box_vectors = input_pdb_file.topology.getPeriodicBoxVectors()
+        checkpoint_path = path.join(directory, 'trajectory.chk')
 
-        if box_vectors is None:
-            box_vectors = simulation.system.getDefaultPeriodicBoxVectors()
+        if path.isfile(checkpoint_path):
 
-        simulation.context.setPeriodicBoxVectors(*box_vectors)
-        simulation.context.setPositions(input_pdb_file.positions)
-        simulation.context.setVelocitiesToTemperature(temperature)
+            # Load the simulation state from a checkpoint file.
+            with open(checkpoint_path, 'rb') as f:
+                simulation.context.loadCheckpoint(f.read())
+
+        else:
+
+            # Populate the simulation object from the starting input files.
+            box_vectors = input_pdb_file.topology.getPeriodicBoxVectors()
+
+            if box_vectors is None:
+                box_vectors = simulation.system.getDefaultPeriodicBoxVectors()
+
+            simulation.context.setPeriodicBoxVectors(*box_vectors)
+            simulation.context.setPositions(input_pdb_file.positions)
+            simulation.context.setVelocitiesToTemperature(temperature)
 
         trajectory_path = path.join(directory, 'trajectory.dcd')
         statistics_path = path.join(directory, 'statistics.csv')
@@ -1029,6 +1040,8 @@ class RunOpenMMSimulation(BaseProtocol):
                                                           step=True, potentialEnergy=True, kineticEnergy=True,
                                                           totalEnergy=True, temperature=True, volume=True,
                                                           density=True))
+
+        simulation.reporters.append(app.CheckpointReporter(checkpoint_path, self._output_frequency))
 
         return simulation
 
