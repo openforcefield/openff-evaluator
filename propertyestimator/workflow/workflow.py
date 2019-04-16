@@ -1054,7 +1054,7 @@ class WorkflowGraph:
                                                        )
 
                 WorkflowGraph._save_protocol_output(output_dictionary_path,
-                                                    exception.__getstate__())
+                                                    exception)
 
                 return protocol_schema.id, output_dictionary_path
 
@@ -1109,7 +1109,7 @@ class WorkflowGraph:
                                                    message='An unhandled exception '
                                                            'occurred: {}'.format(formatted_exception))
 
-            output_dictionary = exception.__getstate__()
+            output_dictionary = exception
 
         end_time = time.perf_counter()
 
@@ -1127,7 +1127,7 @@ class WorkflowGraph:
                                                    message='Could not save the output dictionary of {} ({}): {}'.format(
                                                            protocol.id, output_dictionary_path, formatted_exception))
 
-            WorkflowGraph._save_protocol_output(output_dictionary_path, exception.__getstate__())
+            WorkflowGraph._save_protocol_output(output_dictionary_path, exception)
 
         return protocol.id, output_dictionary_path
 
