@@ -55,7 +55,7 @@ class DaskLSFBackend(PropertyEstimatorBackend):
         Examples
         --------
         To create an LSF queueing compute backend which will attempt to spin up
-        workers which have access to a GPU.
+        workers which have access to a single GPU.
 
         >>> # Create a resource object which will request a worker with
         >>> # one gpu which will stay alive for five hours.

@@ -989,6 +989,17 @@ class WorkflowGraph:
 
     @staticmethod
     def _save_protocol_output(file_path, output_dictionary):
+        """Saves the results of executing a protocol (whether these be the true
+        results or an exception) as a JSON file to disk.
+
+        Parameters
+        ----------
+        file_path: str
+            The path to save the output to.
+        output_dictionary: dict of str and Any
+            The results in the form of a dictionary which can be serialized
+            by the `TypedJSONEncoder`
+        """
 
         with open(file_path, 'w') as file:
             json.dump(output_dictionary, file, cls=TypedJSONEncoder)
@@ -1012,17 +1023,16 @@ class WorkflowGraph:
             A dictionary which contains the outputs of the executed protocol.
         """
 
-        # The path where the output of this protocol is stored.
+        # The path where the output of this protocol will be stored.
         output_dictionary_path = path.join(directory, '{}_output.json'.format(protocol_schema.id))
 
-        # If the output dictionary file already exists, we can assume this protocol
-        # has already successfully been executed and we can return immediately without
-        # re-executing the protocol.
+        # If the output file already exists, we can assume this protocol has already
+        # been executed and we can return immediately without re-executing.
         if path.isfile(output_dictionary_path):
             return protocol_schema.id, output_dictionary_path
 
         # Store the results of the relevant previous protocols in a handy dictionary.
-        # If one of the results is a failure, propagate it up the chain!
+        # If one of the results is a failure, propagate it up the chain.
         previous_outputs_by_path = {}
 
         for parent_id, previous_output_path in previous_output_paths:
@@ -1069,6 +1079,8 @@ class WorkflowGraph:
         if not path.isdir(directory):
             makedirs(directory)
 
+        # Pass the outputs of previously executed protocols as input to the
+        # protocol to execute.
         for input_path in protocol.required_inputs:
 
             value_references = protocol.get_value_references(input_path)
@@ -1076,7 +1088,8 @@ class WorkflowGraph:
             for source_path, target_path in value_references.items():
 
                 if (target_path.start_protocol == input_path.start_protocol or
-                        target_path.start_protocol == protocol.id):
+                    target_path.start_protocol == protocol.id):
+
                     continue
 
                 protocol.set_value(source_path, previous_outputs_by_path[target_path])
@@ -1088,6 +1101,7 @@ class WorkflowGraph:
         try:
             output_dictionary = protocol.execute(directory, available_resources)
         except Exception as e:
+
             # Except the unexcepted...
             formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 

@@ -923,7 +923,15 @@ class RunOpenMMSimulation(BaseProtocol):
         logging.info('Performing a simulation in the ' + str(self._ensemble) + ' ensemble: ' + self.id)
 
         if self._simulation_object is None:
-            self._simulation_object = self._setup_new_simulation(directory, temperature, pressure, available_resources)
+
+            # Set up the simulation object if one does not already exist
+            # (if this protocol is part of a conditional group for e.g.
+            # the simulation object will most likely persist without the
+            # need to recreate it at each iteration.)
+            self._simulation_object = self._setup_new_simulation(directory,
+                                                                 temperature,
+                                                                 pressure,
+                                                                 available_resources)
 
         try:
             self._simulation_object.step(self._steps)
@@ -969,12 +977,11 @@ class RunOpenMMSimulation(BaseProtocol):
             The resources available to run on.
         """
         import openmmtools
+        from simtk.openmm import XmlSerializer
 
         platform = setup_platform_with_resources(available_resources)
 
         input_pdb_file = app.PDBFile(self._input_coordinate_file)
-
-        from simtk.openmm import XmlSerializer
 
         with open(self._system_path, 'rb') as file:
             self._system = XmlSerializer.deserialize(file.read().decode())
