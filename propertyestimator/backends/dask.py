@@ -198,7 +198,7 @@ class DaskLSFBackend(PropertyEstimatorBackend):
 
             worker_id = distributed.get_worker().id
 
-            if gpu_assignments[worker_id] is not None:
+            if worker_id in gpu_assignments:
                 available_resources._gpu_device_indices = gpu_assignments[worker_id]
             else:
                 available_resources._gpu_device_indices = '0'
