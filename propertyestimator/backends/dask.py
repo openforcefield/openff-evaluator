@@ -198,12 +198,10 @@ class DaskLSFBackend(PropertyEstimatorBackend):
 
             worker_id = distributed.get_worker().id
 
-            if worker_id in gpu_assignments:
-                available_resources._gpu_device_indices = gpu_assignments[worker_id]
-            else:
-                available_resources._gpu_device_indices = '0'
+            available_resources._gpu_device_indices = ('0' if worker_id not in gpu_assignments
+                                                       else gpu_assignments[worker_id])
 
-            logging.info('Launching a job with access to GPUs {}'.format(gpu_assignments[worker_id]))
+            logging.info(f'Launching a job with access to GPUs {available_resources._gpu_device_indices}')
 
         return function(*args, **kwargs)
 
