@@ -582,9 +582,6 @@ class BuildCoordinatesPackmol(BaseProtocol):
 
         logging.info('Generating coordinates: ' + self.id)
 
-        return PropertyEstimatorException(directory=directory,
-                                          message='Fuck you thats why')
-
         if self._substance is None:
 
             return PropertyEstimatorException(directory=directory,
@@ -885,7 +882,7 @@ class RunOpenMMSimulation(BaseProtocol):
         self._thermostat_friction = 1.0 / unit.picoseconds
         self._timestep = 0.001 * unit.picoseconds
 
-        self._output_frequency = 1000
+        self._output_frequency = 500000
 
         self._ensemble = Ensemble.NPT
 
