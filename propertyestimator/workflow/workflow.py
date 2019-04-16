@@ -1049,9 +1049,8 @@ class WorkflowGraph:
                 formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
                 exception = PropertyEstimatorException(directory,
-                                                       'Could not load the output dictionary of {} ({}): {}'.format(
-                                                           parent_id, previous_output_path, formatted_exception)
-                                                       )
+                                                       f'Could not load the output dictionary of {parent_id} '
+                                                       f'({previous_output_path}): {formatted_exception}')
 
                 WorkflowGraph._save_protocol_output(output_dictionary_path,
                                                     exception)

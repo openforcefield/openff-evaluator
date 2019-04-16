@@ -913,7 +913,7 @@ class RunOpenMMSimulation(BaseProtocol):
 
             return PropertyEstimatorException(directory=directory,
                                               message='A temperature must be set to perform '
-                                                       'a simulation in any ensemble')
+                                                      'a simulation in any ensemble')
 
         if Ensemble(self._ensemble) == Ensemble.NPT and pressure is None:
 
