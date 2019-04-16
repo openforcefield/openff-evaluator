@@ -582,6 +582,9 @@ class BuildCoordinatesPackmol(BaseProtocol):
 
         logging.info('Generating coordinates: ' + self.id)
 
+        return PropertyEstimatorException(directory=directory,
+                                          message='Fuck you thats why')
+
         if self._substance is None:
 
             return PropertyEstimatorException(directory=directory,
