@@ -783,38 +783,48 @@ class ConditionalGroup(ProtocolGroup):
         raise NotImplementedError()
 
     @staticmethod
-    def _write_checkpoint(current_iteration):
+    def _write_checkpoint(directory, current_iteration):
         """Creates a checkpoint file for this group so that it can continue
         executing where it left off if it was killed for some reason (e.g the
         worker it was running on was killed).
 
         Parameters
         ----------
+        directory: str
+            The path to the working directory of this protocol
         current_iteration: int
             The number of iterations this group has performed so far.
         """
 
-        with open('checkpoint.json', 'wb') as file:
+        checkpoint_path = path.join(directory, 'checkpoint.json')
+
+        with open(checkpoint_path, 'w') as file:
             json.dump({'current_iteration': current_iteration}, file)
 
     @staticmethod
-    def _read_checkpoint():
+    def _read_checkpoint(directory):
         """Creates a checkpoint file for this group so that it can continue
         executing where it left off if it was killed for some reason (e.g the
         worker it was running on was killed).
 
-        Returns
+        Parameters
         ----------
+        directory: str
+            The path to the working directory of this protocol
+
+        Returns
+        -------
         int
             The number of iterations this group has performed so far.
         """
 
         current_iteration = 0
+        checkpoint_path = path.join(directory, 'checkpoint.json')
 
-        if not path.isfile('checkpoint.json'):
+        if not path.isfile(checkpoint_path):
             return current_iteration
 
-        with open('checkpoint.json', 'rb') as file:
+        with open(checkpoint_path, 'r') as file:
 
             checkpoint_dictionary = json.load(file)
             current_iteration = checkpoint_dictionary['current_iteration']
@@ -840,14 +850,14 @@ class ConditionalGroup(ProtocolGroup):
         logging.info('Starting conditional while loop: {}'.format(self.id))
 
         should_continue = True
-        current_iteration = self._read_checkpoint()
+        current_iteration = self._read_checkpoint(directory)
 
         while should_continue:
 
             # Create a checkpoint file so we can pick off where
             # we left off if this execution fails due to time
             # constraints for e.g.
-            self._write_checkpoint(current_iteration)
+            self._write_checkpoint(directory, current_iteration)
 
             current_iteration += 1
             return_value = super(ConditionalGroup, self).execute(directory, available_resources)
