@@ -625,8 +625,8 @@ class BuildCoordinatesPackmol(BaseProtocol):
                                                n_copies=n_copies,
                                                mass_density=self._mass_density,
                                                verbose=self._verbose_packmol,
-                                               working_directory=directory,
-                                               retain_working_files=self._verbose_packmol)
+                                               working_directory=None,
+                                               retain_working_files=False)
 
         if topology is None or positions is None:
 

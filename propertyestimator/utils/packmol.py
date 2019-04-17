@@ -68,7 +68,7 @@ def pack_box(molecules,
         Target mass density for final system, if available.
     verbose : bool, optional, default=False
         If True, verbose output is written.
-    working_directory: str
+    working_directory: str, optional
         The directory in which to generate the temporary working files. If none,
         a temporary one will be created.
     retain_working_files: bool
@@ -95,8 +95,6 @@ def pack_box(molecules,
 
         working_directory = mkdtemp()
         temporary_directory = True
-
-    working_directory = re.escape(working_directory).replace('\\\\', '\\')
 
     # Create PDB files for all components
     pdb_filenames = list()
