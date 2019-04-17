@@ -1101,6 +1101,8 @@ class WorkflowGraph:
             output_dictionary = protocol.execute(directory, available_resources)
         except Exception as e:
 
+            logging.info(f'Protocol failed to execute: {protocol.id}')
+
             # Except the unexcepted...
             formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
