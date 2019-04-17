@@ -175,8 +175,11 @@ def pack_box(molecules,
 
     if not packmol_succeeded:
 
-        logging.warning("Packmol failed to converge")
-        os.unlink(output_filename)
+        if verbose:
+            logging.info("Packmol failed to converge")
+
+        if os.path.isfile(output_filename):
+            os.unlink(output_filename)
 
         return None, None
 

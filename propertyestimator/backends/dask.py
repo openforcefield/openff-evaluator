@@ -144,7 +144,7 @@ class DaskLSFBackend(PropertyEstimatorBackend):
                                    local_directory='dask-worker-space')
 
         self._cluster.adapt(minimum=self._minimum_number_of_workers,
-                            maximum=self._maximum_number_of_workers)
+                            maximum=self._maximum_number_of_workers, interval='10000ms')
 
         self._client = distributed.Client(self._cluster,
                                           processes=False)
