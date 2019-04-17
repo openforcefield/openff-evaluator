@@ -7,15 +7,15 @@ Based on the `SolvationToolkit <https://github.com/MobleyLab/SolvationToolkit>`_
 """
 
 import logging
-import mdtraj
 import os
 import random
+import shutil
 import string
 import subprocess
-import shutil
-
 from distutils.spawn import find_executable
+from tempfile import mkdtemp
 
+import mdtraj
 from simtk import openmm
 from simtk import unit
 from simtk.openmm import app
@@ -45,6 +45,7 @@ def pack_box(molecules,
              box_size=None,
              mass_density=None,
              verbose=False,
+             working_directory=None,
              retain_working_files=False):
 
     """Run packmol to generate a box containing a mixture of molecules.
@@ -66,6 +67,9 @@ def pack_box(molecules,
         Target mass density for final system, if available.
     verbose : bool, optional, default=False
         If True, verbose output is written.
+    working_directory: str
+        The directory in which to generate the temporary working files. If none,
+        a temporary one will be created.
     retain_working_files: bool
         If True, all of the working files, such as individual molecule coordinate
         files will be retained.
@@ -84,17 +88,22 @@ def pack_box(molecules,
     if len(molecules) != len(n_copies):
         raise ValueError("Length of 'molecules' and 'n_copies' must be identical")
 
+    temporary_directory = False
+
+    if working_directory is None:
+
+        working_directory = mkdtemp()
+        temporary_directory = True
+
     # Create PDB files for all components
     pdb_filenames = list()
     pdb_flavor = oechem.OEOFlavor_PDB_Default
 
     mdtraj_topologies = []
 
-    for molecule in molecules:
+    for index, molecule in enumerate(molecules):
 
-        smiles = oechem.OEMolToSmiles(molecule)
-
-        tmp_filename = f'{smiles}.pdb'
+        tmp_filename = os.path.join(working_directory, f'{index}.pdb')
         pdb_filenames.append(tmp_filename)
 
         # Write PDB file
@@ -120,7 +129,7 @@ def pack_box(molecules,
     if PACKMOL_PATH is None:
         raise IOError("Packmol not found, cannot run pack_box()")
 
-    output_filename = "packmol_output.pdb"
+    output_filename = os.path.join(working_directory, "packmol_output.pdb")
 
     # Approximate volume to initialize box
     if box_size is None:
@@ -148,7 +157,7 @@ def pack_box(molecules,
         logging.info(header)
 
     # Write packmol input
-    packmol_filename = "packmol_input.txt"
+    packmol_filename = os.path.join(working_directory, "packmol_input.txt")
 
     with open(packmol_filename, 'w') as file_handle:
         file_handle.write(header)
@@ -181,6 +190,9 @@ def pack_box(molecules,
         if os.path.isfile(output_filename):
             os.unlink(output_filename)
 
+        if not retain_working_files and temporary_directory:
+            shutil.rmtree(working_directory)
+
         return None, None
 
     # Append missing connect statements to the end of the
@@ -192,6 +204,9 @@ def pack_box(molecules,
 
     if not retain_working_files:
         os.unlink(output_filename)
+
+        if temporary_directory:
+            shutil.rmtree(working_directory)
 
     # Extract topology and positions
     topology = pdbfile.getTopology()
