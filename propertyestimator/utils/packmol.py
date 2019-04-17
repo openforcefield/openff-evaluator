@@ -9,6 +9,7 @@ Based on the `SolvationToolkit <https://github.com/MobleyLab/SolvationToolkit>`_
 import logging
 import os
 import random
+import re
 import shutil
 import string
 import subprocess
@@ -94,6 +95,8 @@ def pack_box(molecules,
 
         working_directory = mkdtemp()
         temporary_directory = True
+
+    working_directory = re.escape(working_directory).replace('\\\\', '\\')
 
     # Create PDB files for all components
     pdb_filenames = list()
