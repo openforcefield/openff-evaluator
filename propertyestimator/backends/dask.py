@@ -26,7 +26,8 @@ class DaskLSFBackend(PropertyEstimatorBackend):
                  resources_per_worker=QueueComputeResources(),
                  default_memory_unit=unit.giga*unit.byte,
                  queue_name='default',
-                 extra_script_commands=None):
+                 extra_script_commands=None,
+                 adaptive_interval='10000ms'):
 
         """Constructs a new DaskLocalClusterBackend
 
@@ -51,6 +52,9 @@ class DaskLSFBackend(PropertyEstimatorBackend):
 
             This may include activating a python environment, or loading
             an environment module
+        adaptive_interval: str
+            The interval between attempting to either scale up or down
+            the cluster, of of the from 'XXXms'.
 
         Examples
         --------
@@ -110,6 +114,8 @@ class DaskLSFBackend(PropertyEstimatorBackend):
 
         self._extra_script_commands = extra_script_commands
 
+        self._adaptive_interval = adaptive_interval
+
     def start(self):
 
         from dask_jobqueue import LSFCluster
@@ -144,7 +150,7 @@ class DaskLSFBackend(PropertyEstimatorBackend):
                                    local_directory='dask-worker-space')
 
         self._cluster.adapt(minimum=self._minimum_number_of_workers,
-                            maximum=self._maximum_number_of_workers, interval='10000ms')
+                            maximum=self._maximum_number_of_workers, interval=self._adaptive_interval)
 
         self._client = distributed.Client(self._cluster,
                                           processes=False)
