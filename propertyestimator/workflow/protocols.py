@@ -559,6 +559,12 @@ class BuildCoordinatesPackmol(BaseProtocol):
         """The composition of the system to build."""
         pass
 
+    @protocol_input(bool)
+    def verbose_packmol(self):
+        """If True, packmol will be allowed to log verbose information to the logger,
+        and any working packmol files will be retained."""
+        pass
+
     @protocol_output(str)
     def coordinate_file_path(self):
         """The file path to the created PDB coordinate file."""
@@ -578,9 +584,11 @@ class BuildCoordinatesPackmol(BaseProtocol):
         self._max_molecules = 1000
         self._mass_density = 0.95 * unit.grams / unit.milliliters
 
+        self._verbose_packmol = False
+
     def execute(self, directory, available_resources):
 
-        logging.info('Generating coordinates: ' + self.id)
+        logging.info(f'Generating coordinates for {self._substance.identifier}: {self.id}')
 
         if self._substance is None:
 
@@ -613,7 +621,11 @@ class BuildCoordinatesPackmol(BaseProtocol):
                 n_copies[index] = 1
 
         # Create packed box
-        topology, positions = packmol.pack_box(molecules, n_copies, mass_density=self._mass_density)
+        topology, positions = packmol.pack_box(molecules=molecules,
+                                               n_copies=n_copies,
+                                               mass_density=self._mass_density,
+                                               verbose=self._verbose_packmol,
+                                               retain_working_files=self._verbose_packmol)
 
         if topology is None or positions is None:
 

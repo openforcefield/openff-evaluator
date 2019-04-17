@@ -44,7 +44,8 @@ def pack_box(molecules,
              tolerance=2.0,
              box_size=None,
              mass_density=None,
-             verbose=False):
+             verbose=False,
+             retain_working_files=False):
 
     """Run packmol to generate a box containing a mixture of molecules.
 
@@ -65,6 +66,9 @@ def pack_box(molecules,
         Target mass density for final system, if available.
     verbose : bool, optional, default=False
         If True, verbose output is written.
+    retain_working_files: bool
+        If True, all of the working files, such as individual molecule coordinate
+        files will be retained.
 
     Returns
     -------
@@ -86,9 +90,11 @@ def pack_box(molecules,
 
     mdtraj_topologies = []
 
-    for index, molecule in enumerate(molecules):
+    for molecule in molecules:
 
-        tmp_filename = "{}.pdb".format(index)
+        smiles = oechem.OEMolToSmiles(molecule)
+
+        tmp_filename = f'{smiles}.pdb'
         pdb_filenames.append(tmp_filename)
 
         # Write PDB file
@@ -108,22 +114,13 @@ def pack_box(molecules,
             file.write(pdb_contents.encode())
 
         oe_pdb = mdtraj.load_pdb(tmp_filename)
-
-        # We definitely want to make sure the temp pdb file is identical to
-        # that stored in the topology to ensure the correct generation
-        # of CONNECT statements.
-        tmp_mdtraj_filename = "tmp_mdtraj.pdb"
-        oe_pdb.save_pdb(tmp_mdtraj_filename)
-
-        os.unlink(tmp_mdtraj_filename)
-
         mdtraj_topologies.append(oe_pdb.topology)
 
     # Run packmol
     if PACKMOL_PATH is None:
         raise IOError("Packmol not found, cannot run pack_box()")
 
-    output_filename = "output.pdb"
+    output_filename = "packmol_output.pdb"
 
     # Approximate volume to initialize box
     if box_size is None:
@@ -148,7 +145,7 @@ def pack_box(molecules,
                                        unitless_box_angstrom)
 
     if verbose:
-        print(header)
+        logging.info(header)
 
     # Write packmol input
     packmol_filename = "packmol_input.txt"
@@ -165,14 +162,16 @@ def pack_box(molecules,
                                          stderr=subprocess.STDOUT).decode("utf-8")
 
         if verbose:
-            print(result)
+            logging.info(result)
 
         packmol_succeeded = result.find('Success!') > 0
 
-    os.unlink(packmol_filename)
+    if not retain_working_files:
 
-    for filename in pdb_filenames:
-        os.unlink(filename)
+        os.unlink(packmol_filename)
+
+        for filename in pdb_filenames:
+            os.unlink(filename)
 
     if not packmol_succeeded:
 
@@ -187,15 +186,15 @@ def pack_box(molecules,
 
     # Read the resulting PDB file.
     pdbfile = app.PDBFile(output_filename)
-    os.unlink(output_filename)
+
+    if not retain_working_files:
+        os.unlink(output_filename)
 
     # Extract topology and positions
     topology = pdbfile.getTopology()
     positions = pdbfile.getPositions()
 
     unitless_box_nm = box_size / unit.nanometers
-    # import numpy as np
-    # box_vectors = np.diag([box_size]*3)
 
     box_vector_x = openmm.Vec3(unitless_box_nm, 0, 0)
     box_vector_y = openmm.Vec3(0, unitless_box_nm, 0)
@@ -203,7 +202,6 @@ def pack_box(molecules,
 
     # Set the periodic box vectors.
     topology.setPeriodicBoxVectors([box_vector_x, box_vector_y, box_vector_z] * unit.nanometers)
-    # topology.setPeriodicBoxVectors(box_vectors)
 
     return topology, positions
 
