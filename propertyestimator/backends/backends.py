@@ -89,7 +89,7 @@ class ComputeResources:
         return not self.__eq__(other)
 
 
-class QueueComputeResources(ComputeResources):
+class QueueWorkerResources(ComputeResources):
     """An extended resource object with properties specific
     to calculations which will run on queue based resources,
     such as LSF, PBS or SLURM.
@@ -144,7 +144,7 @@ class QueueComputeResources(ComputeResources):
 
     def __getstate__(self):
 
-        base_dict = super(QueueComputeResources, self).__getstate__()
+        base_dict = super(QueueWorkerResources, self).__getstate__()
 
         base_dict.update({
             'per_thread_memory_limit': self.number_of_threads,
@@ -154,13 +154,13 @@ class QueueComputeResources(ComputeResources):
         return base_dict
 
     def __setstate__(self, state):
-        super(QueueComputeResources, self).__setstate__(state)
+        super(QueueWorkerResources, self).__setstate__(state)
 
         self._per_thread_memory_limit = state['per_thread_memory_limit']
         self._wallclock_time_limit = state['wallclock_time_limit']
 
     def __eq__(self, other):
-        return super(QueueComputeResources, self).__eq__(other) and \
+        return super(QueueWorkerResources, self).__eq__(other) and \
                self.per_thread_memory_limit == other.per_thread_memory_limit and \
                self.wallclock_time_limit == other.wallclock_time_limit
 

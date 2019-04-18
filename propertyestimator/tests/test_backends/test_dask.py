@@ -1,4 +1,4 @@
-from propertyestimator.backends import DaskLSFBackend, QueueComputeResources
+from propertyestimator.backends import DaskLSFBackend, QueueWorkerResources
 
 
 def test_dask_lsf_creation():
@@ -8,7 +8,7 @@ def test_dask_lsf_creation():
     cpu_backend.start()
     cpu_backend.stop()
 
-    gpu_resources = QueueComputeResources(1, 1, preferred_gpu_toolkit=QueueComputeResources.GPUToolkit.CUDA)
+    gpu_resources = QueueWorkerResources(1, 1, preferred_gpu_toolkit=QueueWorkerResources.GPUToolkit.CUDA)
 
     gpu_commands = [
         'module load cuda/9.2',

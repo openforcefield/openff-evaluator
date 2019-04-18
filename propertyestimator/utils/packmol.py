@@ -9,7 +9,6 @@ Based on the `SolvationToolkit <https://github.com/MobleyLab/SolvationToolkit>`_
 import logging
 import os
 import random
-import re
 import shutil
 import string
 import subprocess

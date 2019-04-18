@@ -12,7 +12,7 @@ from distributed import get_worker
 from simtk import unit
 
 from propertyestimator.workflow.plugins import available_protocols
-from .backends import PropertyEstimatorBackend, ComputeResources, QueueComputeResources
+from .backends import PropertyEstimatorBackend, ComputeResources, QueueWorkerResources
 
 
 class DaskLSFBackend(PropertyEstimatorBackend):
@@ -23,7 +23,7 @@ class DaskLSFBackend(PropertyEstimatorBackend):
     def __init__(self,
                  minimum_number_of_workers=1,
                  maximum_number_of_workers=1,
-                 resources_per_worker=QueueComputeResources(),
+                 resources_per_worker=QueueWorkerResources(),
                  default_memory_unit=unit.giga*unit.byte,
                  queue_name='default',
                  extra_script_commands=None,
@@ -37,7 +37,7 @@ class DaskLSFBackend(PropertyEstimatorBackend):
             The minimum number of workers to request from the queue system.
         maximum_number_of_workers: int
             The maximum number of workers to request from the queue system.
-        resources_per_worker: QueueComputeResources
+        resources_per_worker: QueueWorkerResources
             The resources to request per worker.
         default_memory_unit: simtk.Unit
             The default unit used by the LSF queuing system when
@@ -63,12 +63,12 @@ class DaskLSFBackend(PropertyEstimatorBackend):
 
         >>> # Create a resource object which will request a worker with
         >>> # one gpu which will stay alive for five hours.
-        >>> from propertyestimator.backends import QueueComputeResources
+        >>> from propertyestimator.backends import QueueWorkerResources
         >>>
-        >>> resources = QueueComputeResources(number_of_threads=1,
-        >>>                                   number_of_gpus=1,
-        >>>                                   preferred_gpu_toolkit=QueueComputeResources.GPUToolkit.CUDA,
-        >>>                                   wallclock_time_limit='05:00')
+        >>> resources = QueueWorkerResources(number_of_threads=1,
+        >>>                                  number_of_gpus=1,
+        >>>                                  preferred_gpu_toolkit=QueueWorkerResources.GPUToolkit.CUDA,
+        >>>                                  wallclock_time_limit='05:00')
         >>>
         >>> # Define the set of commands which will set up the correct environment
         >>> # for each of the workers.
@@ -90,7 +90,7 @@ class DaskLSFBackend(PropertyEstimatorBackend):
 
         super().__init__(minimum_number_of_workers, resources_per_worker)
 
-        assert isinstance(resources_per_worker, QueueComputeResources)
+        assert isinstance(resources_per_worker, QueueWorkerResources)
 
         assert minimum_number_of_workers <= maximum_number_of_workers
 
