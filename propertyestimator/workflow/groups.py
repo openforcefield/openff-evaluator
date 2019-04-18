@@ -770,10 +770,8 @@ class ConditionalGroup(ProtocolGroup):
         if left_hand_value is None or right_hand_value is None:
             return False
 
-        logging.info('Evaluating condition: {} {} {}'.format(self.id,
-                                                             left_hand_value,
-                                                             condition.type,
-                                                             right_hand_value))
+        logging.info(f'Evaluating condition for protocol {self.id}: '
+                     f'{left_hand_value} {condition.type} {right_hand_value}')
 
         if condition.type == self.ConditionType.LessThan:
             return left_hand_value < right_hand_value
@@ -886,7 +884,7 @@ class ConditionalGroup(ProtocolGroup):
                 return PropertyEstimatorException(directory=directory,
                                                   message=f'Conditional while loop failed to converge: {self.id}')
 
-            logging.info('Conditional criteria not yet met after {current_iteration} iterations')
+            logging.info(f'Conditional criteria not yet met after {current_iteration} iterations')
 
     def can_merge(self, other):
         return super(ConditionalGroup, self).can_merge(other)
