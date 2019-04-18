@@ -245,7 +245,7 @@ class ConnectionOptions(TypedBaseModel):
     server_port: int = 8000
 
     def __init__(self, server_address='localhost', server_port=8000):
-        """Constructs a new PropertyEstimatorConnectionOptions object.
+        """Constructs a new ConnectionOptions object.
 
         Parameters
         ----------

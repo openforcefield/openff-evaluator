@@ -559,6 +559,12 @@ class BuildCoordinatesPackmol(BaseProtocol):
         """The composition of the system to build."""
         pass
 
+    @protocol_input(bool)
+    def verbose_packmol(self):
+        """If True, packmol will be allowed to log verbose information to the logger,
+        and any working packmol files will be retained."""
+        pass
+
     @protocol_output(str)
     def coordinate_file_path(self):
         """The file path to the created PDB coordinate file."""
@@ -578,9 +584,11 @@ class BuildCoordinatesPackmol(BaseProtocol):
         self._max_molecules = 1000
         self._mass_density = 0.95 * unit.grams / unit.milliliters
 
+        self._verbose_packmol = False
+
     def execute(self, directory, available_resources):
 
-        logging.info('Generating coordinates: ' + self.id)
+        logging.info(f'Generating coordinates for {self._substance.identifier}: {self.id}')
 
         if self._substance is None:
 
@@ -613,7 +621,12 @@ class BuildCoordinatesPackmol(BaseProtocol):
                 n_copies[index] = 1
 
         # Create packed box
-        topology, positions = packmol.pack_box(molecules, n_copies, mass_density=self._mass_density)
+        topology, positions = packmol.pack_box(molecules=molecules,
+                                               n_copies=n_copies,
+                                               mass_density=self._mass_density,
+                                               verbose=self._verbose_packmol,
+                                               working_directory=None,
+                                               retain_working_files=False)
 
         if topology is None or positions is None:
 
@@ -882,7 +895,7 @@ class RunOpenMMSimulation(BaseProtocol):
         self._thermostat_friction = 1.0 / unit.picoseconds
         self._timestep = 0.001 * unit.picoseconds
 
-        self._output_frequency = 1000
+        self._output_frequency = 500000
 
         self._ensemble = Ensemble.NPT
 
@@ -913,7 +926,7 @@ class RunOpenMMSimulation(BaseProtocol):
 
             return PropertyEstimatorException(directory=directory,
                                               message='A temperature must be set to perform '
-                                                       'a simulation in any ensemble')
+                                                      'a simulation in any ensemble')
 
         if Ensemble(self._ensemble) == Ensemble.NPT and pressure is None:
 
@@ -923,7 +936,15 @@ class RunOpenMMSimulation(BaseProtocol):
         logging.info('Performing a simulation in the ' + str(self._ensemble) + ' ensemble: ' + self.id)
 
         if self._simulation_object is None:
-            self._simulation_object = self._setup_new_simulation(directory, temperature, pressure, available_resources)
+
+            # Set up the simulation object if one does not already exist
+            # (if this protocol is part of a conditional group for e.g.
+            # the simulation object will most likely persist without the
+            # need to recreate it at each iteration.)
+            self._simulation_object = self._setup_simulation_object(directory,
+                                                                    temperature,
+                                                                    pressure,
+                                                                    available_resources)
 
         try:
             self._simulation_object.step(self._steps)
@@ -954,7 +975,7 @@ class RunOpenMMSimulation(BaseProtocol):
 
         return self._get_output_dictionary()
 
-    def _setup_new_simulation(self, directory, temperature, pressure, available_resources):
+    def _setup_simulation_object(self, directory, temperature, pressure, available_resources):
         """Creates a new OpenMM simulation object.
 
         Parameters
@@ -969,12 +990,11 @@ class RunOpenMMSimulation(BaseProtocol):
             The resources available to run on.
         """
         import openmmtools
+        from simtk.openmm import XmlSerializer
 
         platform = setup_platform_with_resources(available_resources)
 
         input_pdb_file = app.PDBFile(self._input_coordinate_file)
-
-        from simtk.openmm import XmlSerializer
 
         with open(self._system_path, 'rb') as file:
             self._system = XmlSerializer.deserialize(file.read().decode())
@@ -992,14 +1012,25 @@ class RunOpenMMSimulation(BaseProtocol):
                                     integrator,
                                     platform)
 
-        box_vectors = input_pdb_file.topology.getPeriodicBoxVectors()
+        checkpoint_path = path.join(directory, 'checkpoint.chk')
 
-        if box_vectors is None:
-            box_vectors = simulation.system.getDefaultPeriodicBoxVectors()
+        if path.isfile(checkpoint_path):
 
-        simulation.context.setPeriodicBoxVectors(*box_vectors)
-        simulation.context.setPositions(input_pdb_file.positions)
-        simulation.context.setVelocitiesToTemperature(temperature)
+            # Load the simulation state from a checkpoint file.
+            with open(checkpoint_path, 'rb') as f:
+                simulation.context.loadCheckpoint(f.read())
+
+        else:
+
+            # Populate the simulation object from the starting input files.
+            box_vectors = input_pdb_file.topology.getPeriodicBoxVectors()
+
+            if box_vectors is None:
+                box_vectors = simulation.system.getDefaultPeriodicBoxVectors()
+
+            simulation.context.setPeriodicBoxVectors(*box_vectors)
+            simulation.context.setPositions(input_pdb_file.positions)
+            simulation.context.setVelocitiesToTemperature(temperature)
 
         trajectory_path = path.join(directory, 'trajectory.dcd')
         statistics_path = path.join(directory, 'statistics.csv')
@@ -1022,6 +1053,8 @@ class RunOpenMMSimulation(BaseProtocol):
                                                           step=True, potentialEnergy=True, kineticEnergy=True,
                                                           totalEnergy=True, temperature=True, volume=True,
                                                           density=True))
+
+        simulation.reporters.append(app.CheckpointReporter(checkpoint_path, self._output_frequency))
 
         return simulation
 

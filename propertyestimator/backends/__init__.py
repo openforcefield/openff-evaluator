@@ -1,2 +1,2 @@
-from .backends import PropertyEstimatorBackend, ComputeResources
-from .dask import DaskLocalClusterBackend
+from .backends import PropertyEstimatorBackend, ComputeResources, QueueWorkerResources
+from .dask import DaskLocalClusterBackend, DaskLSFBackend

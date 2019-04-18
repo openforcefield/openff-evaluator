@@ -46,6 +46,24 @@ class CalculationLayerResult:
 
         self.data_to_store: List[StoredSimulationData] = None
 
+    def __getstate__(self):
+
+        return {
+            'property_id': self.property_id,
+            'calculated_property': self.calculated_property,
+            'workflow_error': self.workflow_error,
+            'data_to_store': self.data_to_store
+        }
+
+    def __setstate__(self, state):
+
+        self.property_id = state['property_id']
+
+        self.calculated_property = state['calculated_property']
+        self.workflow_error = state['workflow_error']
+
+        self.data_to_store = state['data_to_store']
+
 
 class PropertyCalculationLayer:
     """An abstract representation of a calculation layer in the property calculation stack.
