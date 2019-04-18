@@ -23,7 +23,7 @@ def test_dask_lsf_creation():
 
     gpu_backend = DaskLSFBackend(resources_per_worker=gpu_resources,
                                  queue_name='gpuqueue',
-                                 extra_script_commands=gpu_commands)
+                                 setup_script_commands=gpu_commands)
 
     gpu_backend.start()
     gpu_backend.stop()
