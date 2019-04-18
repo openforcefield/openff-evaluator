@@ -111,6 +111,13 @@ class QueueWorkerResources(ComputeResources):
                  per_thread_memory_limit=1*(unit.giga*unit.bytes), wallclock_time_limit="01:00"):
         """Constructs a new ComputeResources object.
 
+        Notes
+        -----
+        Both the requested `number_of_threads` and the `number_of_gpus` must be less than
+        or equal to the number of threads (/cpus/cores) and GPUs available to each compute
+        node in the cluster respectively, such that a single worker is able to be accommodated
+        by a single compute node.
+
         Parameters
         ----------
         per_thread_memory_limit: simtk.Quantity

@@ -26,7 +26,7 @@ class DaskLSFBackend(PropertyEstimatorBackend):
                  resources_per_worker=QueueWorkerResources(),
                  default_memory_unit=unit.giga*unit.byte,
                  queue_name='default',
-                 extra_script_commands=None,
+                 setup_script_commands=None,
                  adaptive_interval='10000ms'):
 
         """Constructs a new DaskLocalClusterBackend
@@ -46,7 +46,7 @@ class DaskLSFBackend(PropertyEstimatorBackend):
         queue_name: str
             The name of the queue which the workers will be requested
             from.
-        extra_script_commands: list of str
+        setup_script_commands: list of str
             A list of bash script commands to call within the queue submission
             script before the call to launch the dask worker.
 
@@ -85,7 +85,7 @@ class DaskLSFBackend(PropertyEstimatorBackend):
         >>>                              resources_per_worker=resources,
         >>>                              default_memory_unit=unit.gigabyte,
         >>>                              queue_name='gpuqueue',
-        >>>                              extra_script_commands=worker_script_commands)
+        >>>                              setup_script_commands=worker_script_commands)
         """
 
         super().__init__(minimum_number_of_workers, resources_per_worker)
@@ -112,7 +112,7 @@ class DaskLSFBackend(PropertyEstimatorBackend):
 
         self._queue_name = queue_name
 
-        self._extra_script_commands = extra_script_commands
+        self._setup_script_commands = setup_script_commands
 
         self._adaptive_interval = adaptive_interval
 
@@ -146,7 +146,7 @@ class DaskLSFBackend(PropertyEstimatorBackend):
                                    walltime=self._resources_per_worker.wallclock_time_limit,
                                    mem=memory_bytes,
                                    job_extra=job_extra,
-                                   env_extra=self._extra_script_commands,
+                                   env_extra=self._setup_script_commands,
                                    local_directory='dask-worker-space')
 
         self._cluster.adapt(minimum=self._minimum_number_of_workers,

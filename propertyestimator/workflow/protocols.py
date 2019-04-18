@@ -1012,7 +1012,7 @@ class RunOpenMMSimulation(BaseProtocol):
                                     integrator,
                                     platform)
 
-        checkpoint_path = path.join(directory, 'trajectory.chk')
+        checkpoint_path = path.join(directory, 'checkpoint.chk')
 
         if path.isfile(checkpoint_path):
 
