@@ -31,10 +31,10 @@ class PropertyEstimatorOptions(TypedBaseModel):
 
     Attributes
     ----------
-    allowed_calculation_layers: :obj:`list` of :obj:`str` or :obj:`list` of :obj:`class`
+    allowed_calculation_layers: list of str or list of class
         A list of allowed calculation layers. The order of the layers in the list is the order
         that the calculator will attempt to execute the layers in.
-    workflow_schemas: :obj:`dict` of :obj:`str` and :obj:`dict` of str and :obj:`WorkflowSchema`
+    workflow_schemas: dict of str and dict of str and WorkflowSchema
         A dictionary of the WorkflowSchema which will be used to calculate any properties.
         The dictionary key represents the type of property the schema will calculate. The
         dictionary will be automatically populated with defaults if no entries are added.
@@ -47,27 +47,22 @@ class PropertyEstimatorOptions(TypedBaseModel):
         If None, a set of defaults will be applied when the properties are sent to a server for
         estimation. The current set of defaults will ensure that properties are estimated with an
         uncertainty which is less than or equal to the experimental uncertainty of a property.
-    allow_protocol_merging: :obj:`bool`, default = True
+    allow_protocol_merging: bool, default = True
         If true, allows individual identical steps in a property estimation workflow to be merged.
-
-    gradient_properties: :obj:`list` of :obj:`str`
-        A list of the types of properties to calculate gradients for. As an example
-        setting this to ['Density'] would calculate the gradients of any estimated
-        densities.
     """
 
     def __init__(self, allowed_calculation_layers=None,
                  allow_protocol_merging=True):
-        """Constructs a new PropertyEstimatorServerData object.
+        """Constructs a new PropertyEstimatorOptions object.
 
         Parameters
         ----------
-        allowed_calculation_layers: :obj:`list` of :obj:`str`
+        allowed_calculation_layers: list of str
             A list of allowed calculation layers. The order of the layers in the list is the order
             that the calculator will attempt to execute the layers in.
 
             If None, all registered calculation layers are set as allowed.
-        allow_protocol_merging: :obj:`bool`, default = True
+        allow_protocol_merging: bool, default = True
             If true, allows individual identical steps in a property estimation workflow to be merged.
         """
 
@@ -95,8 +90,6 @@ class PropertyEstimatorOptions(TypedBaseModel):
 
         self.allow_protocol_merging = allow_protocol_merging
 
-        self.gradient_properties = []
-
     def __getstate__(self):
 
         return {
@@ -105,9 +98,7 @@ class PropertyEstimatorOptions(TypedBaseModel):
             'workflow_schemas': self.workflow_schemas,
             'workflow_options': self.workflow_options,
 
-            'allow_protocol_merging': self.allow_protocol_merging,
-
-            'gradient_properties': self.gradient_properties,
+            'allow_protocol_merging': self.allow_protocol_merging
         }
 
     def __setstate__(self, state):
@@ -118,8 +109,6 @@ class PropertyEstimatorOptions(TypedBaseModel):
         self.workflow_options = state['workflow_options']
 
         self.allow_protocol_merging = state['allow_protocol_merging']
-
-        self.gradient_properties = state['gradient_properties']
 
 
 class PropertyEstimatorSubmission(TypedBaseModel):
