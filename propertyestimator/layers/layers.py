@@ -88,7 +88,7 @@ class PropertyCalculationLayer:
             The backend used to store / retrieve data from previous calculations.
         layer_directory: str
             The local directory in which to store all local, temporary calculation data from this layer.
-        data_model: PropertyEstimatorServer.SubstanceEstimationRequest
+        data_model: PropertyEstimatorServer.ServerEstimationRequest
             The data model encoding the awaited calculation.
         callback: function
             The function to call when the backend returns the results (or an error).
@@ -166,7 +166,7 @@ class PropertyCalculationLayer:
             The backend used to store / retrieve data from previous calculations.
         layer_directory: str
             The local directory in which to store all local, temporary calculation data from this layer.
-        data_model: PropertyEstimatorServer.SubstanceEstimationRequest
+        data_model: PropertyEstimatorServer.ServerEstimationRequest
             The data model encoding the proposed calculation.
         callback: function
             The function to call when the backend returns the results (or an error).

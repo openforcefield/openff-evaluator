@@ -56,13 +56,14 @@ class PropertyEstimatorServer(TCPServer):
     >>> property_server.start_listening_loop()
     """
 
-    class SubstanceEstimationRequest(TypedBaseModel):
-        """Represents a set of properties for a single substance to be estimated by the
-        server, along with the options which should be used when running the calculations.
+    class ServerEstimationRequest(TypedBaseModel):
+        """Represents a request for the server to estimate a set of properties. Such requests
+        are expected to only estimate properties for a single system (e.g. fixed components
+        in a fixed ratio)
         """
 
         def __init__(self, estimation_id='', queued_properties=None, options=None, force_field_id=None):
-            """Constructs a new SubstanceEstimationRequest object.
+            """Constructs a new ServerEstimationRequest object.
 
             Parameters
             ----------
@@ -79,11 +80,6 @@ class PropertyEstimatorServer(TCPServer):
 
             self.queued_properties = queued_properties or []
 
-            self.substance_identifier = None
-
-            if len(self.queued_properties) > 0:
-                self.substance_identifier = self.queued_properties[0].substance.identifier
-
             self.estimated_properties = {}
             self.unsuccessful_properties = {}
 
@@ -94,7 +90,6 @@ class PropertyEstimatorServer(TCPServer):
         def __getstate__(self):
             return {
                 'id': self.id,
-                'substance_identifier': self.substance_identifier,
 
                 'queued_properties': self.queued_properties,
 
@@ -108,7 +103,6 @@ class PropertyEstimatorServer(TCPServer):
 
         def __setstate__(self, state):
             self.id = state['id']
-            self.substance_identifier = state['substance_identifier']
 
             self.queued_properties = state['queued_properties']
 
@@ -135,72 +129,36 @@ class PropertyEstimatorServer(TCPServer):
             The local directory in which to store all local, temporary calculation data.
         """
 
-        assert self._calculation_backend is not None and self._storage_backend is not None
+        assert calculation_backend is not None and storage_backend is not None
 
         self._calculation_backend = calculation_backend
         self._storage_backend = storage_backend
 
-        self.working_directory = working_directory
-
-        if not path.isdir(self.working_directory):
-            makedirs(self.working_directory)
-
         self._port = port
+
+        self._working_directory = working_directory
+
+        if not path.isdir(self._working_directory):
+            makedirs(self._working_directory)
 
         self._queued_calculations = {}
         self._finished_calculations = {}
 
-        self._property_request_ids_per_id = {}
-
-        self._periodic_loops = []
+        # Each client request id (i.e an id relating to a client requesting
+        # that an entire data set of properties is estimated) is matched to
+        # a set of server set request ids.
+        #
+        # The main difference is that on the server, a request to estimate
+        # an entire data set is split into multiple requests to estimate
+        # properties per substance.
+        self._server_request_ids_per_client_id = {}
 
         super().__init__()
 
-        # self.listen(self._port)
         self.bind(self._port)
         self.start(1)
 
         calculation_backend.start()
-
-    def _find_calculation_request(self, request):
-        """Checks whether the server is currently, or has previously completed
-        a given request.
-
-        Parameters
-        ----------
-        request: PropertyEstimatorServer.SubstanceEstimationRequest
-            The request to check for
-
-        Returns
-        -------
-        str, optional
-            The id of the existing request if one exists, otherwise None.
-        """
-
-        cached_request_id = request.id
-
-        for existing_id in self._queued_calculations:
-
-            request.id = existing_id
-
-            if request.json() != self._queued_calculations[existing_id].json():
-                continue
-
-            request.id = cached_request_id
-            return existing_id
-
-        for existing_id in self._finished_calculations:
-
-            request.id = existing_id
-
-            if request.json() != self._finished_calculations[existing_id].json():
-                continue
-
-            request.id = cached_request_id
-            return existing_id
-
-        request.id = cached_request_id
-        return None
 
     async def _handle_job_submission(self, stream, address, message_length):
         """An asynchronous routine for handling the receiving and processing
@@ -214,10 +172,10 @@ class PropertyEstimatorServer(TCPServer):
         address: str
             The address from which the request came.
         message_length: int
-            The length of the message being recieved.
+            The length of the message being received.
         """
 
-        logging.info('Received job request from {}'.format(address))
+        logging.info('Received estimation request from {}'.format(address))
 
         # Read the incoming request from the server. The first four bytes
         # of the response should be the length of the message being sent.
@@ -228,41 +186,30 @@ class PropertyEstimatorServer(TCPServer):
 
         # TODO: Add exception handling so the server can gracefully reject bad json.
         client_data_model = PropertyEstimatorSubmission.parse_json(json_model)
-        per_substance_requests = self._prepare_per_substance_requests(client_data_model)
 
-        unique_id = str(uuid.uuid4())
-        self._property_request_ids_per_id[unique_id] = []
+        client_request_id = str(uuid.uuid4())
 
-        request_ids_to_launch = []
+        while client_request_id in self._server_request_ids_per_client_id:
+            client_request_id = str(uuid.uuid4())
 
-        # Make sure this request is not already in the queue / has
-        # already been completed, and if not add it to the list of
-        # things to be queued.
-        for per_substance_request_id in per_substance_requests:
-
-            per_substance_request = per_substance_requests[per_substance_request_id]
-            existing_id = self._find_calculation_request(per_substance_request)
-
-            if existing_id is None:
-
-                request_ids_to_launch.append(per_substance_request.id)
-                existing_id = per_substance_request_id.id
-
-                self._queued_calculations[existing_id] = per_substance_request
-
-            self._property_request_ids_per_id[unique_id].append(existing_id)
+        self._server_request_ids_per_client_id[client_request_id] = []
 
         # Pass the ids of the submitted calculations back to the
         # client.
-        encoded_job_ids = json.dumps(unique_id).encode()
+        encoded_job_ids = json.dumps(client_request_id).encode()
         length = pack_int(len(encoded_job_ids))
 
         await stream.write(length + encoded_job_ids)
 
-        logging.info('Jobs ids sent to the client ({}): {}'.format(address, unique_id))
+        logging.info('Request id sent to the client ({}): {}'.format(address, client_request_id))
 
+        server_requests, request_ids_to_launch = self._prepare_server_requests(client_data_model,
+                                                                               client_request_id)
+
+        # Keep track of which server request ids belong to which client
+        # request id.
         for request_id in request_ids_to_launch:
-            self._schedule_calculation(per_substance_requests[request_id])
+            self._schedule_server_request(server_requests[request_id])
 
     async def _handle_job_query(self, stream, message_length):
         """An asynchronous routine for handling the receiving and processing
@@ -274,36 +221,27 @@ class PropertyEstimatorServer(TCPServer):
             An IO stream used to pass messages between the
             server and client.
         message_length: int
-            The length of the message being recieved.
+            The length of the message being received.
         """
 
-        # logging.info('Received job query from {}'.format(address))
-
         encoded_request_id = await stream.read_bytes(message_length)
-        request_id = encoded_request_id.decode()
-
-        # logging.info('Looking up request id {}'.format(request_id))
+        client_request_id = encoded_request_id.decode()
 
         response = None
 
-        if request_id not in self._property_request_ids_per_id:
+        if client_request_id not in self._server_request_ids_per_client_id:
 
             response = PropertyEstimatorException(directory='',
-                                                  message='The {} request id was not found '
-                                                           'on the server.'.format(request_id)).json()
-
-        elif request_id in self._finished_calculations:
-            response = self._finished_calculations[request_id].json()
+                                                  message=f'The {client_request_id} request id was not found '
+                                                          f'on the server.')
 
         else:
-            response = ''
+            response = self._query_client_request_status(client_request_id)
 
-        encoded_response = response.encode()
+        encoded_response = response.json().encode()
         length = pack_int(len(encoded_response))
 
         await stream.write(length + encoded_response)
-
-        # logging.info('Job results sent to the client {}: {}'.format(address, response))
 
     async def handle_stream(self, stream, address):
         """A routine to handle incoming requests from
@@ -311,7 +249,6 @@ class PropertyEstimatorServer(TCPServer):
 
         Notes
         -----
-
         This method is based on the StackOverflow response from
         A. Jesse Jiryu Davis: https://stackoverflow.com/a/40257248
 
@@ -364,7 +301,47 @@ class PropertyEstimatorServer(TCPServer):
             # logging.info("Lost connection to {}:{} : {}.".format(address, self._port, e))
             pass
 
-    def _prepare_per_substance_requests(self, client_data_model):
+    def _find_server_estimation_request(self, request):
+        """Checks whether the server is currently, or has previously completed
+        a request to estimate a set of properties for a particular substance.
+
+        Parameters
+        ----------
+        request: PropertyEstimatorServer.ServerEstimationRequest
+            The request to check for.
+
+        Returns
+        -------
+        str, optional
+            The id of the existing request if one exists, otherwise None.
+        """
+
+        cached_request_id = request.id
+
+        for existing_id in self._queued_calculations:
+
+            request.id = existing_id
+
+            if request.json() != self._queued_calculations[existing_id].json():
+                continue
+
+            request.id = cached_request_id
+            return existing_id
+
+        for existing_id in self._finished_calculations:
+
+            request.id = existing_id
+
+            if request.json() != self._finished_calculations[existing_id].json():
+                continue
+
+            request.id = cached_request_id
+            return existing_id
+
+        request.id = cached_request_id
+        return None
+
+    def _prepare_server_requests(self, client_data_model, client_request_id):
         """Turns a client estimation submission request into a form more useful
         to the server, namely a list of properties to estimate separated by
         system composition.
@@ -373,15 +350,19 @@ class PropertyEstimatorServer(TCPServer):
         ----------
         client_data_model: PropertyEstimatorSubmission
             The client data model.
+        client_request_id: str
+            The id that was assigned to the client request.
 
         Returns
         -------
-        dict of str and PropertyEstimatorServer.SubstanceEstimationRequest
+        dict of str and PropertyEstimatorServer.ServerEstimationRequest
             A list of the requests to be calculated by the server.
+        list of str
+            The ids of the requests which haven't already been launched by
+            the server.
         """
 
         force_field = client_data_model.force_field
-
         force_field_id = self._storage_backend.has_force_field(force_field)
 
         if force_field_id is None:
@@ -389,61 +370,132 @@ class PropertyEstimatorServer(TCPServer):
             force_field_id = str(uuid.uuid4())
             self._storage_backend.store_force_field(force_field_id, force_field)
 
-        return_data = {}
+        server_requests = {}
 
-        for substance_identifier in client_data_model.properties:
+        properties_by_substance = {}
+
+        for physical_property in client_data_model.properties:
+
+            if physical_property.substance.identifier not in properties_by_substance:
+                properties_by_substance[physical_property.substance.identifier] = []
+
+            properties_by_substance[physical_property.substance.identifier].append(physical_property)
+
+        for substance_identifier in properties_by_substance:
 
             calculation_id = str(uuid.uuid4())
 
             # Make sure we don't somehow generate the same uuid
             # twice (although this is very unlikely to ever happen).
-            while calculation_id in self._queued_calculations or calculation_id in self._finished_calculations:
+            while (calculation_id in self._queued_calculations or
+                   calculation_id in self._finished_calculations):
+
                 calculation_id = str(uuid.uuid4())
 
-            properties_to_estimate = client_data_model.properties[substance_identifier]
+            properties_to_estimate = properties_by_substance[substance_identifier]
 
-            request = self.SubstanceEstimationRequest(estimation_id=calculation_id,
-                                                      queued_properties=properties_to_estimate,
-                                                      options=client_data_model.options,
-                                                      force_field_id=force_field_id)
+            request = self.ServerEstimationRequest(estimation_id=calculation_id,
+                                                   queued_properties=properties_to_estimate,
+                                                   options=client_data_model.options,
+                                                   force_field_id=force_field_id)
 
-            return_data[substance_identifier] = request
+            server_requests[calculation_id] = request
 
-        return return_data
+        request_ids_to_launch = []
 
-    def _gather_finished_calculations(self, request_id):
+        # Make sure this request is not already in the queue / has
+        # already been completed, and if not add it to the list of
+        # things to be queued.
+        for server_request_id in server_requests:
 
-        # output_model = PropertyEstimatorResult(result_id=server_data_model.id)
-        #
-        # output_model.estimated_properties = server_data_model.estimated_properties
-        # output_model.unsuccessful_properties = server_data_model.unsuccessful_properties
+            server_request = server_requests[server_request_id]
+            existing_id = self._find_server_estimation_request(server_request)
 
-        return None
+            if existing_id is None:
 
-    def _schedule_calculation(self, data_model):
-        """Schedules the calculation of the given properties using the passed
-        parameters.
+                request_ids_to_launch.append(server_request_id)
+                existing_id = server_request_id
+
+                self._queued_calculations[server_request_id] = server_request
+
+            self._server_request_ids_per_client_id[client_request_id].append(existing_id)
+
+        return server_requests, request_ids_to_launch
+
+    def _query_client_request_status(self, client_request_id):
+        """Queries the current status of a client request by querying
+        the state of the individual server requests it was split into.
+
+        Parameters
+        ----------
+        client_request_id: str
+            The id of the client request to query.
+
+        Returns
+        -------
+        PropertyEstimatorResult
+            The current results of the client request.
+        """
+
+        request_results = PropertyEstimatorResult(result_id=client_request_id)
+
+        for server_request_id in self._server_request_ids_per_client_id[client_request_id]:
+
+            server_request = None
+
+            if server_request_id in self._queued_calculations:
+                server_request = self._queued_calculations[server_request_id]
+
+            elif server_request_id in self._finished_calculations:
+
+                server_request = self._finished_calculations[server_request_id]
+
+                if len(server_request.queued_properties) > 0:
+
+                    return PropertyEstimatorException(message=f'An internal error occurred - the {server_request_id} '
+                                                              f'was prematurely marked us finished.')
+
+            else:
+
+                return PropertyEstimatorException(message=f'An internal error occurred - the {server_request_id} '
+                                                          f'request was not found on the server.')
+
+            for physical_property in server_request.queued_properties:
+                request_results.queued_properties[physical_property.substance.identifier] = physical_property
+
+            for substance_id in server_request.estimated_properties:
+                request_results.estimated_properties[substance_id] = server_request.estimated_properties[substance_id]
+
+            for substance_id in server_request.unsuccessful_properties:
+
+                request_results.unsuccessful_properties[substance_id] = \
+                    server_request.unsuccessful_properties[substance_id]
+
+        return request_results
+
+    def _schedule_server_request(self, server_request):
+        """Schedules the estimation of the requested properties.
 
         This method will recursively cascade through all allowed calculation
         layers or until all properties have been calculated.
 
         Parameters
         ----------
-        data_model : PropertyEstimatorServer.SubstanceEstimationRequest
+        server_request : PropertyEstimatorServer.ServerEstimationRequest
             The object containing instructions about which calculations
             should be performed.
         """
 
-        if len(data_model.options.allowed_calculation_layers) == 0 or \
-           len(data_model.queued_properties) == 0:
+        if len(server_request.options.allowed_calculation_layers) == 0 or \
+           len(server_request.queued_properties) == 0:
 
-            self._queued_calculations.pop(data_model.id)
-            self._finished_calculations[data_model.id] = data_model
+            self._queued_calculations.pop(server_request.id)
+            self._finished_calculations[server_request.id] = server_request
 
-            logging.info(f'Finished calculation {data_model.id}')
+            logging.info(f'Finished server request {server_request.id}')
             return
 
-        current_layer_type = data_model.options.allowed_calculation_layers.pop(0)
+        current_layer_type = server_request.options.allowed_calculation_layers.pop(0)
 
         if current_layer_type not in available_layers:
 
@@ -451,18 +503,18 @@ class PropertyEstimatorServer(TCPServer):
             error_object = PropertyEstimatorException(message=f'The {current_layer_type} layer is not '
                                                               f'supported by the server.')
 
-            for queued_calculation in data_model.queued_properties:
-                data_model.unsuccessful_properties[queued_calculation.id] = error_object
+            for queued_calculation in server_request.queued_properties:
+                server_request.unsuccessful_properties[queued_calculation.id] = error_object
 
-            data_model.options.allowed_calculation_layers.append(current_layer_type)
-            data_model.queued_properties = []
+            server_request.options.allowed_calculation_layers.append(current_layer_type)
+            server_request.queued_properties = []
 
-            self._schedule_calculation(data_model)
+            self._schedule_server_request(server_request)
             return
 
-        logging.info(f'Launching calculation {data_model.id} using the {current_layer_type} layer')
+        logging.info(f'Launching server request {server_request.id} using the {current_layer_type} layer')
 
-        layer_directory = path.join(self.working_directory, current_layer_type, data_model.id)
+        layer_directory = path.join(self._working_directory, current_layer_type, server_request.id)
 
         if not path.isdir(layer_directory):
             makedirs(layer_directory)
@@ -472,8 +524,8 @@ class PropertyEstimatorServer(TCPServer):
         current_layer.schedule_calculation(self._calculation_backend,
                                            self._storage_backend,
                                            layer_directory,
-                                           data_model,
-                                           self._schedule_calculation)
+                                           server_request,
+                                           self._schedule_server_request)
 
     def start_listening_loop(self):
         """Starts the main (blocking) server IOLoop which will run until
@@ -491,8 +543,4 @@ class PropertyEstimatorServer(TCPServer):
         provided backend.
         """
         self._calculation_backend.stop()
-
-        for periodic_loop in self._periodic_loops:
-            periodic_loop.stop()
-
         IOLoop.current().stop()
