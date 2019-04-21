@@ -1189,7 +1189,7 @@ class WorkflowGraph:
             # and uncertainty.
             if isinstance(protocol_results, PropertyEstimatorException):
 
-                return_object.workflow_error = protocol_results
+                return_object.exception = protocol_results
                 return return_object
 
             for output_path, output_value in protocol_results.items():
@@ -1213,7 +1213,7 @@ class WorkflowGraph:
         property_to_return.uncertainty = results_by_id[value_reference].uncertainty
 
         return_object.calculated_property = property_to_return
-        return_object.data_to_store = []
+        return_object.data_directories_to_store = []
 
         # TODO: At the moment it is assumed that the output of a WorkflowGraph is
         #       a set of StoredSimulationData. This should be abstracted and made
@@ -1227,7 +1227,7 @@ class WorkflowGraph:
                                                  property_to_return,
                                                  results_by_id)
 
-            return_object.data_to_store.append(results_directory)
+            return_object.data_directories_to_store.append(results_directory)
 
         return return_object
 

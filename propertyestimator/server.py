@@ -81,7 +81,7 @@ class PropertyEstimatorServer(TCPServer):
             self.queued_properties = queued_properties or []
 
             self.estimated_properties = {}
-            self.unsuccessful_properties = {}
+            self.exceptions = []
 
             self.options = options
 
@@ -94,7 +94,7 @@ class PropertyEstimatorServer(TCPServer):
                 'queued_properties': self.queued_properties,
 
                 'estimated_properties': self.estimated_properties,
-                'unsuccessful_properties': self.unsuccessful_properties,
+                'exceptions': self.exceptions,
 
                 'options': self.options,
 
@@ -107,7 +107,7 @@ class PropertyEstimatorServer(TCPServer):
             self.queued_properties = state['queued_properties']
 
             self.estimated_properties = state['estimated_properties']
-            self.unsuccessful_properties = state['unsuccessful_properties']
+            self.exceptions = state['exceptions']
 
             self.options = state['options']
 
@@ -469,10 +469,7 @@ class PropertyEstimatorServer(TCPServer):
             for substance_id in server_request.estimated_properties:
                 request_results.estimated_properties[substance_id] = server_request.estimated_properties[substance_id]
 
-            for substance_id in server_request.unsuccessful_properties:
-
-                request_results.unsuccessful_properties[substance_id] = \
-                    server_request.unsuccessful_properties[substance_id]
+            request_results.exceptions.extend(server_request.exceptions)
 
         return request_results
 
@@ -507,7 +504,7 @@ class PropertyEstimatorServer(TCPServer):
                                                               f'supported by the server.')
 
             for queued_calculation in server_request.queued_properties:
-                server_request.unsuccessful_properties[queued_calculation.id] = error_object
+                server_request.exceptions.append(error_object)
 
             server_request.options.allowed_calculation_layers.append(current_layer_type)
             server_request.queued_properties = []
