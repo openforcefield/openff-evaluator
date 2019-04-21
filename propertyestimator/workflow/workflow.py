@@ -1281,10 +1281,10 @@ class WorkflowGraph:
 
         copyfile(results_by_id[output_to_store.statistics_file_path], statistics_file_path)
 
-        stored_object.coordinate_path = coordinate_file_path
-        stored_object.trajectory_path = trajectory_file_path
+        stored_object.coordinate_file_name = coordinate_file_name
+        stored_object.trajectory_file_name = trajectory_file_name
 
-        stored_object.statistics_path = statistics_file_path
+        stored_object.statistics_file_name = statistics_file_name
 
         stored_object.statistical_inefficiency = results_by_id[output_to_store.statistical_inefficiency]
 

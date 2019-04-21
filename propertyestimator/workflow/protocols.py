@@ -4,6 +4,7 @@ form a larger property estimation workflow.
 """
 
 import copy
+import json
 import logging
 import pickle
 import sys
@@ -20,7 +21,7 @@ from propertyestimator.utils import packmol, graph, utils, statistics, timeserie
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.openmm import setup_platform_with_resources
 from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.utils.serialization import deserialize_quantity, deserialize_force_field
+from propertyestimator.utils.serialization import deserialize_quantity, deserialize_force_field, TypedJSONDecoder
 from propertyestimator.utils.statistics import StatisticsArray, bootstrap
 from propertyestimator.utils.utils import get_nested_attribute, set_nested_attribute
 from propertyestimator.workflow.decorators import protocol_input, protocol_output, MergeBehaviour
@@ -1467,7 +1468,7 @@ class SubtractQuantities(BaseProtocol):
 
 @register_calculation_protocol()
 class UnpackStoredSimulationData(BaseProtocol):
-    """Loads a pickled `StoredSimulationData` object from disk,
+    """Loads a `StoredSimulationData` object from disk,
     and makes its attributes easily accessible to other protocols.
     """
 
@@ -1540,10 +1541,14 @@ class UnpackStoredSimulationData(BaseProtocol):
                                                       'of a path to the pickled data object, and'
                                                       'a path to the force field used to generate it.')
 
-        data_object = None
-
-        pickled_object_path = self._simulation_data_path[0]
+        data_directory = self._simulation_data_path[0]
         force_field_path = self._simulation_data_path[1]
+
+        if not path.isdir(data_directory):
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='The path to the data directory'
+                                                      'is invalid: {}'.format(data_directory))
 
         if not path.isfile(force_field_path):
 
@@ -1551,29 +1556,20 @@ class UnpackStoredSimulationData(BaseProtocol):
                                               message='The path to the force field'
                                                       'is invalid: {}'.format(force_field_path))
 
-        try:
+        data_object = None
 
-            with open(pickled_object_path, 'rb') as file:
-                data_object = pickle.load(file)
-
-        except (IOError, pickle.UnpicklingError) as e:
-
-            return PropertyEstimatorException(directory=directory,
-                                              message='Failed to load the data object: {}'.format(e))
+        with open(path.join(data_directory, 'data.json'), 'r') as file:
+            data_object = json.load(file, cls=TypedJSONDecoder)
 
         self._substance = data_object.substance
         self._thermodynamic_state = data_object.thermodynamic_state
 
         self._statistical_inefficiency = data_object.statistical_inefficiency
 
-        self._coordinate_file_path = path.join(directory, 'coordinates.pdb')
-        self._trajectory_file_path = path.join(directory, 'trajectory.dcd')
+        self._coordinate_file_path = path.join(data_directory, data_object.coordinate_file_name)
+        self._trajectory_file_path = path.join(data_directory, data_object.trajectory_file_name)
 
-        data_object.trajectory_data[0].save_pdb(self._coordinate_file_path)
-        data_object.trajectory_data.save_dcd(self._trajectory_file_path)
-
-        self._statistics_file_path = path.join(directory, 'statistics.csv')
-        data_object.statistics_data.save_as_pandas_csv(self._statistics_file_path)
+        self._statistics_file_path = path.join(data_directory, data_object.statistics_file_name)
 
         self._force_field_path = force_field_path
 

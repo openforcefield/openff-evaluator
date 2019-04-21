@@ -131,6 +131,7 @@ class PropertyCalculationLayer:
         try:
 
             results = list(results_future.result())
+            results_future.release()
 
             for returned_output in results:
 
