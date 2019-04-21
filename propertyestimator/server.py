@@ -194,7 +194,7 @@ class PropertyEstimatorServer(TCPServer):
 
         self._server_request_ids_per_client_id[client_request_id] = []
 
-        # Pass the ids of the submitted calculations back to the
+        # Pass the ids of the submitted requests back to the
         # client.
         encoded_job_ids = json.dumps(client_request_id).encode()
         length = pack_int(len(encoded_job_ids))
@@ -303,7 +303,8 @@ class PropertyEstimatorServer(TCPServer):
 
     def _find_server_estimation_request(self, request):
         """Checks whether the server is currently, or has previously completed
-        a request to estimate a set of properties for a particular substance.
+        a request to estimate a set of properties for a particular substance
+        using the same force field parameters and estimation options.
 
         Parameters
         ----------
@@ -372,6 +373,8 @@ class PropertyEstimatorServer(TCPServer):
 
         server_requests = {}
 
+        # Split the full list of properties into lists partitioned by
+        # substance.
         properties_by_substance = {}
 
         for physical_property in client_data_model.properties:

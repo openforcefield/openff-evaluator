@@ -39,12 +39,12 @@ class CalculationLayerResult:
     def __init__(self):
         """Constructs a new CalculationLayerResult object.
         """
-        self.property_id: str = None
+        self.property_id = None
 
-        self.calculated_property: PhysicalProperty = None
-        self.workflow_error: PropertyEstimatorException = None
+        self.calculated_property = None
+        self.workflow_error = None
 
-        self.data_to_store: List[StoredSimulationData] = None
+        self.data_to_store = []
 
     def __getstate__(self):
 

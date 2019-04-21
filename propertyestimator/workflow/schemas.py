@@ -135,8 +135,13 @@ class ProtocolReplicator(TypedBaseModel):
 
 
 class WorkflowOutputToStore:
+    """An object which describes which data should be cached
+    after a workflow has finished executing, and from which
+    completed protocols should the data be collected from.
+    """
 
     def __init__(self):
+        """Constructs a new WorkflowOutputToStore object."""
 
         self.substance = None
 

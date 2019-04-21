@@ -12,14 +12,13 @@ import uuid
 from math import sqrt
 from os import path, makedirs
 
-from propertyestimator.properties.properties import PropertyWorkflowOptions
 from simtk import unit
 
+from propertyestimator.properties.properties import PropertyWorkflowOptions
 from propertyestimator.storage import StoredSimulationData
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedBaseModel, TypedJSONEncoder, TypedJSONDecoder
-from propertyestimator.utils.statistics import StatisticsArray
 from propertyestimator.utils.utils import SubhookedABCMeta, get_nested_attribute
 from propertyestimator.workflow.plugins import available_protocols
 from propertyestimator.workflow.protocols import BaseProtocol
@@ -979,6 +978,7 @@ class WorkflowGraph:
 
             # Gather the values and uncertainties of each property being calculated.
             value_futures.append(backend.submit_task(WorkflowGraph._gather_results,
+                                                     self._root_directory,
                                                      workflow.physical_property,
                                                      workflow.final_value_source,
                                                      workflow.outputs_to_store,
@@ -1133,13 +1133,15 @@ class WorkflowGraph:
         return protocol.id, output_dictionary_path
 
     @staticmethod
-    def _gather_results(property_to_return, value_reference, outputs_to_store,
+    def _gather_results(directory, property_to_return, value_reference, outputs_to_store,
                         target_uncertainty, *protocol_result_paths, **kwargs):
         """Gather the value and uncertainty calculated from the submission graph
         and store them in the property to return.
 
         Parameters
         ----------
+        directory: str
+            The directory to store any working files in.
         property_to_return: PhysicalProperty
             The property to which the value and uncertainty belong.
         value_reference: ProtocolPath
@@ -1160,7 +1162,6 @@ class WorkflowGraph:
             The result of attempting to estimate this property from a workflow graph. `None`
             will be returned if the target uncertainty is set but not met.
         """
-        import mdtraj
         from propertyestimator.layers.layers import CalculationLayerResult
 
         return_object = CalculationLayerResult()
@@ -1217,35 +1218,75 @@ class WorkflowGraph:
         # TODO: At the moment it is assumed that the output of a WorkflowGraph is
         #       a set of StoredSimulationData. This should be abstracted and made
         #       more general in future if possible.
-        for output_label in outputs_to_store:
+        for output_to_store in outputs_to_store.values():
 
-            output_to_store = outputs_to_store[output_label]
+            results_directory = path.join(directory, f'results_{property_to_return.id}')
 
-            data_to_store = StoredSimulationData()
+            WorkflowGraph._store_simulation_data(results_directory,
+                                                 output_to_store,
+                                                 property_to_return,
+                                                 results_by_id)
 
-            if output_to_store.substance is None:
-                data_to_store.substance = property_to_return.substance
-            elif isinstance(output_to_store.substance, ProtocolPath):
-                data_to_store.substance = results_by_id[output_to_store.substance]
-            else:
-                data_to_store.substance = output_to_store.substance
-
-            data_to_store.thermodynamic_state = property_to_return.thermodynamic_state
-
-            data_to_store.provenance = property_to_return.source
-
-            data_to_store.source_calculation_id = property_to_return.id
-
-            coordinate_path = results_by_id[output_to_store.coordinate_file_path]
-            trajectory_path = results_by_id[output_to_store.trajectory_file_path]
-
-            data_to_store.trajectory_data = mdtraj.load_dcd(trajectory_path, top=coordinate_path)
-
-            statistics_path = results_by_id[output_to_store.statistics_file_path]
-            data_to_store.statistics_data = StatisticsArray.from_pandas_csv(statistics_path)
-
-            data_to_store.statistical_inefficiency = results_by_id[output_to_store.statistical_inefficiency]
-
-            return_object.data_to_store.append(data_to_store)
+            return_object.data_to_store.append(results_directory)
 
         return return_object
+
+    @staticmethod
+    def _store_simulation_data(storage_directory, output_to_store, physical_property, results_by_id):
+        """Collects all of the simulation to store, and saves it into a directory
+        whose path will be passed to the storage backend to process.
+
+        Parameters
+        ----------
+        storage_directory: str
+            The directory to store the data in.
+        output_to_store: WorkflowOutputToStore
+            An object which contains `ProtocolPath`s pointing to the
+            data to store.
+        physical_property: PhysicalProperty
+            The property which was estimated while generating the
+            data to store.
+        results_by_id: dict of ProtocolPath and any
+            The results of the protocols which formed the property
+            estimation workflow.
+        """
+        from shutil import copyfile
+
+        stored_object = StoredSimulationData()
+
+        if output_to_store.substance is None:
+            stored_object.substance = physical_property.substance
+        elif isinstance(output_to_store.substance, ProtocolPath):
+            stored_object.substance = results_by_id[output_to_store.substance]
+        else:
+            stored_object.substance = output_to_store.substance
+
+        stored_object.thermodynamic_state = physical_property.thermodynamic_state
+        stored_object.provenance = physical_property.source
+        stored_object.source_calculation_id = physical_property.id
+
+        # Copy the files into the directory to store.
+        _, coordinate_file_name = path.split(results_by_id[output_to_store.coordinate_file_path])
+        _, trajectory_file_name = path.split(results_by_id[output_to_store.trajectory_file_path])
+
+        _, statistics_file_name = path.split(results_by_id[output_to_store.statistics_file_path])
+
+        coordinate_file_path = path.join(storage_directory, coordinate_file_name)
+        trajectory_file_path = path.join(storage_directory, trajectory_file_name)
+
+        statistics_file_path = path.join(storage_directory, statistics_file_name)
+
+        copyfile(results_by_id[output_to_store.coordinate_file_path], coordinate_file_path)
+        copyfile(results_by_id[output_to_store.trajectory_file_path], trajectory_file_path)
+
+        copyfile(results_by_id[output_to_store.statistics_file_path], statistics_file_path)
+
+        stored_object.coordinate_path = coordinate_file_path
+        stored_object.trajectory_path = trajectory_file_path
+
+        stored_object.statistics_path = statistics_file_path
+
+        stored_object.statistical_inefficiency = results_by_id[output_to_store.statistical_inefficiency]
+
+        with open(path.join(storage_directory, 'data.json'), 'w') as file:
+            json.dump(stored_object, file, cls=TypedJSONEncoder)
