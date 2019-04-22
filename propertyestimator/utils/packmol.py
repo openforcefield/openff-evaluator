@@ -15,7 +15,6 @@ import subprocess
 from distutils.spawn import find_executable
 from tempfile import mkdtemp
 
-import mdtraj
 from simtk import openmm
 from simtk import unit
 from simtk.openmm import app
@@ -121,6 +120,9 @@ def pack_box(molecules,
 
         with open(tmp_filename, 'wb') as file:
             file.write(pdb_contents.encode())
+
+        # Local import for RTD.
+        import mdtraj
 
         oe_pdb = mdtraj.load_pdb(tmp_filename)
         mdtraj_topologies.append(oe_pdb.topology)
