@@ -83,6 +83,8 @@ class PropertyEstimatorServer(TCPServer):
             self.estimated_properties = {}
             self.unsuccessful_properties = {}
 
+            self.exceptions = []
+
             self.options = options
 
             self.force_field_id = force_field_id
@@ -96,6 +98,8 @@ class PropertyEstimatorServer(TCPServer):
                 'estimated_properties': self.estimated_properties,
                 'unsuccessful_properties': self.unsuccessful_properties,
 
+                'exceptions': self.exceptions,
+
                 'options': self.options,
 
                 'force_field_id': self.force_field_id,
@@ -108,6 +112,8 @@ class PropertyEstimatorServer(TCPServer):
 
             self.estimated_properties = state['estimated_properties']
             self.unsuccessful_properties = state['unsuccessful_properties']
+
+            self.exceptions = state['exceptions']
 
             self.options = state['options']
 
@@ -194,7 +200,7 @@ class PropertyEstimatorServer(TCPServer):
 
         self._server_request_ids_per_client_id[client_request_id] = []
 
-        # Pass the ids of the submitted calculations back to the
+        # Pass the ids of the submitted requests back to the
         # client.
         encoded_job_ids = json.dumps(client_request_id).encode()
         length = pack_int(len(encoded_job_ids))
@@ -303,7 +309,8 @@ class PropertyEstimatorServer(TCPServer):
 
     def _find_server_estimation_request(self, request):
         """Checks whether the server is currently, or has previously completed
-        a request to estimate a set of properties for a particular substance.
+        a request to estimate a set of properties for a particular substance
+        using the same force field parameters and estimation options.
 
         Parameters
         ----------
@@ -372,6 +379,8 @@ class PropertyEstimatorServer(TCPServer):
 
         server_requests = {}
 
+        # Split the full list of properties into lists partitioned by
+        # substance.
         properties_by_substance = {}
 
         for physical_property in client_data_model.properties:
@@ -461,15 +470,33 @@ class PropertyEstimatorServer(TCPServer):
                                                           f'request was not found on the server.')
 
             for physical_property in server_request.queued_properties:
-                request_results.queued_properties[physical_property.substance.identifier] = physical_property
 
-            for substance_id in server_request.estimated_properties:
-                request_results.estimated_properties[substance_id] = server_request.estimated_properties[substance_id]
+                substance_id = physical_property.substance.identifier
+
+                if substance_id not in request_results.queued_properties:
+                    request_results.queued_properties[substance_id] = []
+
+                request_results.queued_properties[substance_id].append(physical_property)
 
             for substance_id in server_request.unsuccessful_properties:
 
-                request_results.unsuccessful_properties[substance_id] = \
-                    server_request.unsuccessful_properties[substance_id]
+                physical_property = server_request.unsuccessful_properties[substance_id]
+
+                if substance_id not in request_results.unsuccessful_properties:
+                    request_results.unsuccessful_properties[substance_id] = []
+
+                request_results.unsuccessful_properties[substance_id].append(physical_property)
+
+            for substance_id in server_request.estimated_properties:
+
+                physical_property = server_request.estimated_properties[substance_id]
+
+                if substance_id not in request_results.estimated_properties:
+                    request_results.estimated_properties[substance_id] = []
+
+                request_results.estimated_properties[substance_id].append(physical_property)
+
+            request_results.exceptions.extend(server_request.exceptions)
 
         return request_results
 
@@ -489,6 +516,18 @@ class PropertyEstimatorServer(TCPServer):
         if len(server_request.options.allowed_calculation_layers) == 0 or \
            len(server_request.queued_properties) == 0:
 
+            # Move any remaining properties to the unsuccessful list.
+            for physical_property in server_request.queued_properties:
+
+                substance_id = physical_property.substance.identifier
+
+                if substance_id not in server_request.unsuccessful_properties:
+                    server_request.unsuccessful_properties[substance_id] = []
+
+                server_request.unsuccessful_properties[substance_id].append(physical_property)
+
+                server_request.queued_properties = []
+
             self._queued_calculations.pop(server_request.id)
             self._finished_calculations[server_request.id] = server_request
 
@@ -501,10 +540,9 @@ class PropertyEstimatorServer(TCPServer):
 
             # Kill all remaining properties if we reach an unsupported calculation layer.
             error_object = PropertyEstimatorException(message=f'The {current_layer_type} layer is not '
-                                                              f'supported by the server.')
+                                                              f'supported by / available on the server.')
 
-            for queued_calculation in server_request.queued_properties:
-                server_request.unsuccessful_properties[queued_calculation.id] = error_object
+            server_request.exceptions.append(error_object)
 
             server_request.options.allowed_calculation_layers.append(current_layer_type)
             server_request.queued_properties = []

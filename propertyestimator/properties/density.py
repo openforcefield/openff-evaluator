@@ -27,7 +27,7 @@ class Density(PhysicalProperty):
         return False
 
     @staticmethod
-    def get_default_workflow_schema(calculation_layer, options):
+    def get_default_workflow_schema(calculation_layer, options=None):
 
         if calculation_layer == 'SimulationLayer':
             return Density.get_default_simulation_workflow_schema(options)
@@ -37,7 +37,7 @@ class Density(PhysicalProperty):
         return None
 
     @staticmethod
-    def get_default_simulation_workflow_schema(options):
+    def get_default_simulation_workflow_schema(options=None):
         """Returns the default workflow to use when estimating this property
         from direct simulations.
 
