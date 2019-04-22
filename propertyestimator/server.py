@@ -491,12 +491,12 @@ class PropertyEstimatorServer(TCPServer):
 
             for substance_id in server_request.estimated_properties:
 
-                physical_property = server_request.estimated_properties[substance_id]
+                physical_properties = server_request.estimated_properties[substance_id]
 
                 if substance_id not in request_results.estimated_properties:
                     request_results.estimated_properties[substance_id] = []
 
-                request_results.estimated_properties[substance_id].append(physical_property)
+                request_results.estimated_properties[substance_id].extend(physical_properties)
 
             request_results.exceptions.extend(server_request.exceptions)
 

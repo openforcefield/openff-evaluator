@@ -190,8 +190,12 @@ class PropertyCalculationLayer:
 
                 if returned_output.exception is None:
 
-                    server_request.estimated_properties[returned_output.property_id] = \
-                        returned_output.calculated_property
+                    substance_id = returned_output.calculated_property.substance.identifier
+
+                    if substance_id not in server_request.estimated_properties:
+                        server_request.estimated_properties[substance_id] = []
+
+                    server_request.estimated_properties[substance_id].append(returned_output.calculated_property)
 
         except Exception as e:
 
