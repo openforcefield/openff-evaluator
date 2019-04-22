@@ -1026,82 +1026,105 @@ class WorkflowGraph:
         # The path where the output of this protocol will be stored.
         output_dictionary_path = path.join(directory, '{}_output.json'.format(protocol_schema.id))
 
-        # If the output file already exists, we can assume this protocol has already
-        # been executed and we can return immediately without re-executing.
-        if path.isfile(output_dictionary_path):
-            return protocol_schema.id, output_dictionary_path
+        # We need to make sure ALL exceptions are handled within this method,
+        # or any function which will be executed on a calculation backend to
+        # avoid accidentally killing the backend.
+        try:
 
-        # Store the results of the relevant previous protocols in a handy dictionary.
-        # If one of the results is a failure, propagate it up the chain.
-        previous_outputs_by_path = {}
+            # If the output file already exists, we can assume this protocol has already
+            # been executed and we can return immediately without re-executing.
+            if path.isfile(output_dictionary_path):
+                return protocol_schema.id, output_dictionary_path
 
-        for parent_id, previous_output_path in previous_output_paths:
+            # Store the results of the relevant previous protocols in a handy dictionary.
+            # If one of the results is a failure, propagate it up the chain.
+            previous_outputs_by_path = {}
 
-            parent_output = None
+            for parent_id, previous_output_path in previous_output_paths:
+
+                parent_output = None
+
+                try:
+
+                    with open(previous_output_path, 'r') as file:
+                        parent_output = json.load(file, cls=TypedJSONDecoder)
+
+                except json.JSONDecodeError as e:
+
+                    formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+
+                    exception = PropertyEstimatorException(directory,
+                                                           f'Could not load the output dictionary of {parent_id} '
+                                                           f'({previous_output_path}): {formatted_exception}')
+
+                    WorkflowGraph._save_protocol_output(output_dictionary_path,
+                                                        exception)
+
+                    return protocol_schema.id, output_dictionary_path
+
+                if isinstance(parent_output, PropertyEstimatorException):
+                    return protocol_schema.id, previous_output_path
+
+                for output_path, output_value in parent_output.items():
+
+                    property_name, protocol_ids = ProtocolPath.to_components(output_path)
+
+                    if len(protocol_ids) == 0 or (len(protocol_ids) > 0 and protocol_ids[0] != parent_id):
+                        protocol_ids.insert(0, parent_id)
+
+                    final_path = ProtocolPath(property_name, *protocol_ids)
+                    previous_outputs_by_path[final_path] = output_value
+
+            # Recreate the protocol on the backend to bypass the need for static methods
+            # and awkward args and kwargs syntax.
+            protocol = available_protocols[protocol_schema.type](protocol_schema.id)
+            protocol.schema = protocol_schema
+
+            if not path.isdir(directory):
+                makedirs(directory)
+
+            # Pass the outputs of previously executed protocols as input to the
+            # protocol to execute.
+            for input_path in protocol.required_inputs:
+
+                value_references = protocol.get_value_references(input_path)
+
+                for source_path, target_path in value_references.items():
+
+                    if (target_path.start_protocol == input_path.start_protocol or
+                        target_path.start_protocol == protocol.id):
+
+                        continue
+
+                    protocol.set_value(source_path, previous_outputs_by_path[target_path])
+
+            logging.info('Executing protocol: {}'.format(protocol.id))
+
+            start_time = time.perf_counter()
+            output_dictionary = protocol.execute(directory, available_resources)
+            end_time = time.perf_counter()
+
+            logging.info('Protocol finished executing ({} ms): {}'.format((end_time-start_time)*1000, protocol.id))
 
             try:
 
-                with open(previous_output_path, 'r') as file:
-                    parent_output = json.load(file, cls=TypedJSONDecoder)
+                WorkflowGraph._save_protocol_output(output_dictionary_path, output_dictionary)
 
-            except json.JSONDecodeError as e:
+            except TypeError as e:
 
                 formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
-                exception = PropertyEstimatorException(directory,
-                                                       f'Could not load the output dictionary of {parent_id} '
-                                                       f'({previous_output_path}): {formatted_exception}')
+                exception = PropertyEstimatorException(directory=directory,
+                                                       message='Could not save the output dictionary of {} ({}): {}'.format(
+                                                               protocol.id, output_dictionary_path, formatted_exception))
 
-                WorkflowGraph._save_protocol_output(output_dictionary_path,
-                                                    exception)
+                WorkflowGraph._save_protocol_output(output_dictionary_path, exception)
 
-                return protocol_schema.id, output_dictionary_path
+            return protocol.id, output_dictionary_path
 
-            if isinstance(parent_output, PropertyEstimatorException):
-                return protocol_schema.id, previous_output_path
-
-            for output_path, output_value in parent_output.items():
-
-                property_name, protocol_ids = ProtocolPath.to_components(output_path)
-
-                if len(protocol_ids) == 0 or (len(protocol_ids) > 0 and protocol_ids[0] != parent_id):
-                    protocol_ids.insert(0, parent_id)
-
-                final_path = ProtocolPath(property_name, *protocol_ids)
-                previous_outputs_by_path[final_path] = output_value
-
-        # Recreate the protocol on the backend to bypass the need for static methods
-        # and awkward args and kwargs syntax.
-        protocol = available_protocols[protocol_schema.type](protocol_schema.id)
-        protocol.schema = protocol_schema
-
-        if not path.isdir(directory):
-            makedirs(directory)
-
-        # Pass the outputs of previously executed protocols as input to the
-        # protocol to execute.
-        for input_path in protocol.required_inputs:
-
-            value_references = protocol.get_value_references(input_path)
-
-            for source_path, target_path in value_references.items():
-
-                if (target_path.start_protocol == input_path.start_protocol or
-                    target_path.start_protocol == protocol.id):
-
-                    continue
-
-                protocol.set_value(source_path, previous_outputs_by_path[target_path])
-
-        logging.info('Executing protocol: {}'.format(protocol.id))
-
-        start_time = time.perf_counter()
-
-        try:
-            output_dictionary = protocol.execute(directory, available_resources)
         except Exception as e:
 
-            logging.info(f'Protocol failed to execute: {protocol.id}')
+            logging.info(f'Protocol failed to execute: {protocol_schema.id}')
 
             # Except the unexcepted...
             formatted_exception = traceback.format_exception(None, e, e.__traceback__)
@@ -1110,27 +1133,8 @@ class WorkflowGraph:
                                                    message='An unhandled exception '
                                                            'occurred: {}'.format(formatted_exception))
 
-            output_dictionary = exception
-
-        end_time = time.perf_counter()
-
-        logging.info('Protocol finished executing ({} ms): {}'.format((end_time-start_time)*1000, protocol.id))
-
-        try:
-
-            WorkflowGraph._save_protocol_output(output_dictionary_path, output_dictionary)
-
-        except TypeError as e:
-
-            formatted_exception = traceback.format_exception(None, e, e.__traceback__)
-
-            exception = PropertyEstimatorException(directory=directory,
-                                                   message='Could not save the output dictionary of {} ({}): {}'.format(
-                                                           protocol.id, output_dictionary_path, formatted_exception))
-
             WorkflowGraph._save_protocol_output(output_dictionary_path, exception)
-
-        return protocol.id, output_dictionary_path
+            return protocol_schema.id, output_dictionary_path
 
     @staticmethod
     def _gather_results(directory, property_to_return, value_reference, outputs_to_store,
@@ -1167,67 +1171,80 @@ class WorkflowGraph:
         return_object = CalculationLayerResult()
         return_object.property_id = property_to_return.id
 
-        results_by_id = {}
+        try:
+            results_by_id = {}
 
-        for protocol_id, protocol_result_path in protocol_result_paths:
+            for protocol_id, protocol_result_path in protocol_result_paths:
 
-            protocol_results = None
+                protocol_results = None
 
-            try:
+                try:
 
-                with open(protocol_result_path, 'r') as file:
-                    protocol_results = json.load(file, cls=TypedJSONDecoder)
+                    with open(protocol_result_path, 'r') as file:
+                        protocol_results = json.load(file, cls=TypedJSONDecoder)
 
-            except json.JSONDecodeError as e:
+                except json.JSONDecodeError as e:
 
-                formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+                    formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
-                return PropertyEstimatorException(message='Could not load the output dictionary of {} ({}): {}'.format(
-                                                      protocol_id, protocol_result_path, formatted_exception))
+                    exception = PropertyEstimatorException(message=f'Could not load the output dictionary of '
+                                                                   f'{protocol_id} ({protocol_result_path}): '
+                                                                   f'{formatted_exception}')
 
-            # Make sure none of the protocols failed and we actually have a value
-            # and uncertainty.
-            if isinstance(protocol_results, PropertyEstimatorException):
+                    return_object.exception = exception
+                    return return_object
 
-                return_object.exception = protocol_results
-                return return_object
+                # Make sure none of the protocols failed and we actually have a value
+                # and uncertainty.
+                if isinstance(protocol_results, PropertyEstimatorException):
 
-            for output_path, output_value in protocol_results.items():
+                    return_object.exception = protocol_results
+                    return return_object
 
-                property_name, protocol_ids = ProtocolPath.to_components(output_path)
+                for output_path, output_value in protocol_results.items():
 
-                if len(protocol_ids) == 0 or (len(protocol_ids) > 0 and protocol_ids[0] != protocol_id):
-                    protocol_ids.insert(0, protocol_id)
+                    property_name, protocol_ids = ProtocolPath.to_components(output_path)
 
-                final_path = ProtocolPath(property_name, *protocol_ids)
-                results_by_id[final_path] = output_value
+                    if len(protocol_ids) == 0 or (len(protocol_ids) > 0 and protocol_ids[0] != protocol_id):
+                        protocol_ids.insert(0, protocol_id)
 
-        if target_uncertainty is not None and results_by_id[value_reference].uncertainty > target_uncertainty:
+                    final_path = ProtocolPath(property_name, *protocol_ids)
+                    results_by_id[final_path] = output_value
 
-            logging.info('The final uncertainty ({}) was not less than the target threshold ({}).'.format(
-                results_by_id[value_reference].uncertainty, target_uncertainty))
+            if target_uncertainty is not None and results_by_id[value_reference].uncertainty > target_uncertainty:
 
-            return None
+                logging.info('The final uncertainty ({}) was not less than the target threshold ({}).'.format(
+                    results_by_id[value_reference].uncertainty, target_uncertainty))
 
-        property_to_return.value = results_by_id[value_reference].value
-        property_to_return.uncertainty = results_by_id[value_reference].uncertainty
+                return None
 
-        return_object.calculated_property = property_to_return
-        return_object.data_directories_to_store = []
+            property_to_return.value = results_by_id[value_reference].value
+            property_to_return.uncertainty = results_by_id[value_reference].uncertainty
 
-        # TODO: At the moment it is assumed that the output of a WorkflowGraph is
-        #       a set of StoredSimulationData. This should be abstracted and made
-        #       more general in future if possible.
-        for output_to_store in outputs_to_store.values():
+            return_object.calculated_property = property_to_return
+            return_object.data_directories_to_store = []
 
-            results_directory = path.join(directory, f'results_{property_to_return.id}')
+            # TODO: At the moment it is assumed that the output of a WorkflowGraph is
+            #       a set of StoredSimulationData. This should be abstracted and made
+            #       more general in future if possible.
+            for output_to_store in outputs_to_store.values():
 
-            WorkflowGraph._store_simulation_data(results_directory,
-                                                 output_to_store,
-                                                 property_to_return,
-                                                 results_by_id)
+                results_directory = path.join(directory, f'results_{property_to_return.id}')
 
-            return_object.data_directories_to_store.append(results_directory)
+                WorkflowGraph._store_simulation_data(results_directory,
+                                                     output_to_store,
+                                                     property_to_return,
+                                                     results_by_id)
+
+                return_object.data_directories_to_store.append(results_directory)
+
+        except Exception as e:
+
+            formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+
+            return_object.exception = PropertyEstimatorException(directory=directory,
+                                                                 message=f'An unhandled exception '
+                                                                         f'occurred: {formatted_exception}')
 
         return return_object
 
@@ -1250,7 +1267,10 @@ class WorkflowGraph:
             The results of the protocols which formed the property
             estimation workflow.
         """
-        from shutil import copyfile
+        from shutil import copy as file_copy
+
+        if not path.isdir(storage_directory):
+            makedirs(storage_directory)
 
         stored_object = StoredSimulationData()
 
@@ -1271,15 +1291,10 @@ class WorkflowGraph:
 
         _, statistics_file_name = path.split(results_by_id[output_to_store.statistics_file_path])
 
-        coordinate_file_path = path.join(storage_directory, coordinate_file_name)
-        trajectory_file_path = path.join(storage_directory, trajectory_file_name)
+        file_copy(results_by_id[output_to_store.coordinate_file_path], storage_directory)
+        file_copy(results_by_id[output_to_store.trajectory_file_path], storage_directory)
 
-        statistics_file_path = path.join(storage_directory, statistics_file_name)
-
-        copyfile(results_by_id[output_to_store.coordinate_file_path], coordinate_file_path)
-        copyfile(results_by_id[output_to_store.trajectory_file_path], trajectory_file_path)
-
-        copyfile(results_by_id[output_to_store.statistics_file_path], statistics_file_path)
+        file_copy(results_by_id[output_to_store.statistics_file_path], storage_directory)
 
         stored_object.coordinate_file_name = coordinate_file_name
         stored_object.trajectory_file_name = trajectory_file_name

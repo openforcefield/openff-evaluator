@@ -81,6 +81,8 @@ class PropertyEstimatorServer(TCPServer):
             self.queued_properties = queued_properties or []
 
             self.estimated_properties = {}
+            self.unsuccessful_properties = {}
+
             self.exceptions = []
 
             self.options = options
@@ -94,6 +96,8 @@ class PropertyEstimatorServer(TCPServer):
                 'queued_properties': self.queued_properties,
 
                 'estimated_properties': self.estimated_properties,
+                'unsuccessful_properties': self.unsuccessful_properties,
+
                 'exceptions': self.exceptions,
 
                 'options': self.options,
@@ -107,6 +111,8 @@ class PropertyEstimatorServer(TCPServer):
             self.queued_properties = state['queued_properties']
 
             self.estimated_properties = state['estimated_properties']
+            self.unsuccessful_properties = state['unsuccessful_properties']
+
             self.exceptions = state['exceptions']
 
             self.options = state['options']
@@ -464,10 +470,31 @@ class PropertyEstimatorServer(TCPServer):
                                                           f'request was not found on the server.')
 
             for physical_property in server_request.queued_properties:
-                request_results.queued_properties[physical_property.substance.identifier] = physical_property
+
+                substance_id = physical_property.substance.identifier
+
+                if substance_id not in request_results.queued_properties:
+                    request_results.queued_properties[substance_id] = []
+
+                request_results.queued_properties[substance_id].append(physical_property)
+
+            for substance_id in server_request.unsuccessful_properties:
+
+                physical_property = server_request.unsuccessful_properties[substance_id]
+
+                if substance_id not in request_results.unsuccessful_properties:
+                    request_results.unsuccessful_properties[substance_id] = []
+
+                request_results.unsuccessful_properties[substance_id].append(physical_property)
 
             for substance_id in server_request.estimated_properties:
-                request_results.estimated_properties[substance_id] = server_request.estimated_properties[substance_id]
+
+                physical_property = server_request.estimated_properties[substance_id]
+
+                if substance_id not in request_results.estimated_properties:
+                    request_results.estimated_properties[substance_id] = []
+
+                request_results.estimated_properties[substance_id].append(physical_property)
 
             request_results.exceptions.extend(server_request.exceptions)
 
@@ -489,6 +516,18 @@ class PropertyEstimatorServer(TCPServer):
         if len(server_request.options.allowed_calculation_layers) == 0 or \
            len(server_request.queued_properties) == 0:
 
+            # Move any remaining properties to the unsuccessful list.
+            for physical_property in server_request.queued_properties:
+
+                substance_id = physical_property.substance.identifier
+
+                if substance_id not in server_request.unsuccessful_properties:
+                    server_request.unsuccessful_properties[substance_id] = []
+
+                server_request.unsuccessful_properties[substance_id].append(physical_property)
+
+                server_request.queued_properties = []
+
             self._queued_calculations.pop(server_request.id)
             self._finished_calculations[server_request.id] = server_request
 
@@ -501,10 +540,9 @@ class PropertyEstimatorServer(TCPServer):
 
             # Kill all remaining properties if we reach an unsupported calculation layer.
             error_object = PropertyEstimatorException(message=f'The {current_layer_type} layer is not '
-                                                              f'supported by the server.')
+                                                              f'supported by / available on the server.')
 
-            for queued_calculation in server_request.queued_properties:
-                server_request.exceptions.append(error_object)
+            server_request.exceptions.append(error_object)
 
             server_request.options.allowed_calculation_layers.append(current_layer_type)
             server_request.queued_properties = []

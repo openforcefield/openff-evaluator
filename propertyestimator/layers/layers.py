@@ -167,17 +167,17 @@ class PropertyCalculationLayer:
                                 continue
 
                             # Attach any extra metadata which is missing.
-                            with open(data_file, 'rw') as file:
+                            with open(data_file, 'r') as file:
 
                                 data_object = json.load(file, cls=TypedJSONDecoder)
 
                                 if data_object.force_field_id is None:
                                     data_object.force_field_id = server_request.force_field_id
 
+                            with open(data_file, 'w') as file:
                                 json.dump(data_object, file, cls=TypedJSONEncoder)
 
-                                substance_id = data_object.substance.identifier
-
+                            substance_id = data_object.substance.identifier
                             storage_backend.store_simulation_data(substance_id, data_directory)
 
                 matches = [x for x in server_request.queued_properties if x.id == returned_output.property_id]

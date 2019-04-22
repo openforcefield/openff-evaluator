@@ -181,9 +181,11 @@ class PropertyEstimatorResult(TypedBaseModel):
     estimated_properties: dict of str and PhysicalProperty
         A dictionary of the properties which were successfully estimated, where
         the dictionary key is the unique id of the property being estimated.
+    unsuccessful_properties: dict of str and PhysicalProperty
+        A dictionary of the properties which could not be estimated by the server.
     exceptions: list of PropertyEstimatorException
-        A dictionary of the exceptions that were raised when unsuccessfully estimating a property.
-        The dictionary key is the unique id of the property which could not be estimated.
+        A list of the exceptions that were raised when unsuccessfully carrying out this
+        estimation request.
     """
 
     def __init__(self, result_id=''):
@@ -200,6 +202,8 @@ class PropertyEstimatorResult(TypedBaseModel):
         self.queued_properties = {}
 
         self.estimated_properties = {}
+        self.unsuccessful_properties = {}
+
         self.exceptions = []
 
     def __getstate__(self):
@@ -210,6 +214,8 @@ class PropertyEstimatorResult(TypedBaseModel):
             'queued_properties': self.queued_properties,
 
             'estimated_properties': self.estimated_properties,
+            'unsuccessful_properties': self.unsuccessful_properties,
+
             'exceptions': self.exceptions,
         }
 
@@ -220,6 +226,8 @@ class PropertyEstimatorResult(TypedBaseModel):
         self.queued_properties = state['queued_properties']
 
         self.estimated_properties = state['estimated_properties']
+        self.unsuccessful_properties = state['unsuccessful_properties']
+
         self.exceptions = state['exceptions']
 
 
