@@ -11,7 +11,7 @@ from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
 from tornado.tcpserver import TCPServer
 
-from propertyestimator.client import PropertyEstimatorSubmission, PropertyEstimatorResult
+from propertyestimator.client import PropertyEstimatorSubmission, PropertyEstimatorResult, PropertyEstimatorOptions
 from propertyestimator.layers import available_layers
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedBaseModel
@@ -403,9 +403,11 @@ class PropertyEstimatorServer(TCPServer):
 
             properties_to_estimate = properties_by_substance[substance_identifier]
 
+            options_copy = PropertyEstimatorOptions.parse_json(client_data_model.options.json())
+
             request = self.ServerEstimationRequest(estimation_id=calculation_id,
                                                    queued_properties=properties_to_estimate,
-                                                   options=client_data_model.options,
+                                                   options=options_copy,
                                                    force_field_id=force_field_id)
 
             server_requests[calculation_id] = request
