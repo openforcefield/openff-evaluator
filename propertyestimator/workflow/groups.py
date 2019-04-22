@@ -774,8 +774,8 @@ class ConditionalGroup(ProtocolGroup):
 
         right_hand_value_correct_units = right_hand_value
 
-        if isinstance(right_hand_value, unit.Quantity):
-            right_hand_value_correct_units = right_hand_value.in_units_of(left_hand_value)
+        if isinstance(right_hand_value, unit.Quantity) and isinstance(left_hand_value, unit.Quantity):
+            right_hand_value_correct_units = right_hand_value.in_units_of(left_hand_value.unit)
 
         logging.info(f'Evaluating condition for protocol {self.id}: '
                      f'{left_hand_value} {condition.type} {right_hand_value_correct_units}')
