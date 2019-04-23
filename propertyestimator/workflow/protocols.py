@@ -1832,6 +1832,10 @@ class ReweightWithMBARProtocol(BaseProtocol):
                                            observables=np.transpose(observables))
 
             if effective_samples < self._required_effective_samples:
+
+                logging.info(f'{self.id}: There was not enough effective samples '
+                             f'to reweight - {effective_samples} < {self._required_effective_samples}')
+
                 uncertainty = sys.float_info.max
 
             self._value = EstimatedQuantity(value * observable_unit,
@@ -1847,6 +1851,10 @@ class ReweightWithMBARProtocol(BaseProtocol):
             uncertainty = uncertainties['observables']
 
             if effective_samples < self._required_effective_samples:
+
+                logging.info(f'{self.id}: There was not enough effective samples '
+                             f'to reweight - {effective_samples} < {self._required_effective_samples}')
+
                 uncertainty = sys.float_info.max
 
             self._value = EstimatedQuantity(values['observables'] * observable_unit,
