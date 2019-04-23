@@ -188,14 +188,21 @@ class PropertyCalculationLayer:
                 for match in matches:
                     server_request.queued_properties.remove(match)
 
-                if returned_output.exception is None:
+                substance_id = returned_output.calculated_property.substance.identifier
 
-                    substance_id = returned_output.calculated_property.substance.identifier
+                if returned_output.exception is None:
 
                     if substance_id not in server_request.estimated_properties:
                         server_request.estimated_properties[substance_id] = []
 
                     server_request.estimated_properties[substance_id].append(returned_output.calculated_property)
+
+                else:
+
+                    if substance_id not in server_request.unsuccessful_properties:
+                        server_request.unsuccessful_properties[substance_id] = []
+
+                    server_request.unsuccessful_properties[substance_id].append(returned_output.calculated_property)
 
         except Exception as e:
 
