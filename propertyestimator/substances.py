@@ -108,9 +108,9 @@ class Mixture(Substance):
             hash_value = self.smiles
 
             if self.mole_fraction is not None:
-                hash_value += "{%s}" % str(self.mole_fraction)
+                hash_value += f"{{{self.mole_fraction:.6f}}}"
             elif self.impurity is not None:
-                hash_value += "(%s)" % str(self.impurity)
+                hash_value += f"({self.impurity})"
 
             return hash_value
 

@@ -229,7 +229,7 @@ class EnthalpyOfMixing(PhysicalProperty):
                                                  extract_uncorrelated_statistics)
 
     @staticmethod
-    def get_default_workflow_schema(calculation_layer, options):
+    def get_default_workflow_schema(calculation_layer, options=None):
 
         if calculation_layer == 'SimulationLayer':
             return EnthalpyOfMixing.get_default_simulation_workflow_schema(options)
@@ -239,7 +239,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         return None
 
     @staticmethod
-    def get_default_simulation_workflow_schema(options):
+    def get_default_simulation_workflow_schema(options=None):
         """Returns the default workflow to use when estimating this property
         from direct simulations.
 
@@ -367,7 +367,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         return schema
 
     @staticmethod
-    def get_default_reweighting_workflow_schema(options):
+    def get_default_reweighting_workflow_schema(options=None):
         """Returns the default workflow to use when estimating this property
         by reweighting existing data.
 

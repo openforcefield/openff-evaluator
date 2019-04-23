@@ -26,7 +26,6 @@ Server Side API
     :toctree: api/generated/
 
     PropertyEstimatorServer
-    PropertyEstimatorServerData
 
 Physical Property API
 ---------------------

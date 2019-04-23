@@ -300,7 +300,7 @@ class PhysicalProperty(TypedBaseModel):
         self.uncertainty = uncertainty
 
     @staticmethod
-    def get_default_workflow_schema(calculation_layer, options):
+    def get_default_workflow_schema(calculation_layer, options=None):
         """Returns the default workflow schema to use for
         a specific calculation layer.
 

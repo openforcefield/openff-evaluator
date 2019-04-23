@@ -31,10 +31,10 @@ class PropertyEstimatorOptions(TypedBaseModel):
 
     Attributes
     ----------
-    allowed_calculation_layers: :obj:`list` of :obj:`str` or :obj:`list` of :obj:`class`
+    allowed_calculation_layers: list of str or list of class
         A list of allowed calculation layers. The order of the layers in the list is the order
         that the calculator will attempt to execute the layers in.
-    workflow_schemas: :obj:`dict` of :obj:`str` and :obj:`dict` of str and :obj:`WorkflowSchema`
+    workflow_schemas: dict of str and dict of str and WorkflowSchema
         A dictionary of the WorkflowSchema which will be used to calculate any properties.
         The dictionary key represents the type of property the schema will calculate. The
         dictionary will be automatically populated with defaults if no entries are added.
@@ -47,27 +47,22 @@ class PropertyEstimatorOptions(TypedBaseModel):
         If None, a set of defaults will be applied when the properties are sent to a server for
         estimation. The current set of defaults will ensure that properties are estimated with an
         uncertainty which is less than or equal to the experimental uncertainty of a property.
-    allow_protocol_merging: :obj:`bool`, default = True
+    allow_protocol_merging: bool, default = True
         If true, allows individual identical steps in a property estimation workflow to be merged.
-
-    gradient_properties: :obj:`list` of :obj:`str`
-        A list of the types of properties to calculate gradients for. As an example
-        setting this to ['Density'] would calculate the gradients of any estimated
-        densities.
     """
 
     def __init__(self, allowed_calculation_layers=None,
                  allow_protocol_merging=True):
-        """Constructs a new PropertyEstimatorServerData object.
+        """Constructs a new PropertyEstimatorOptions object.
 
         Parameters
         ----------
-        allowed_calculation_layers: :obj:`list` of :obj:`str`
+        allowed_calculation_layers: list of str or list of class
             A list of allowed calculation layers. The order of the layers in the list is the order
             that the calculator will attempt to execute the layers in.
 
             If None, all registered calculation layers are set as allowed.
-        allow_protocol_merging: :obj:`bool`, default = True
+        allow_protocol_merging: bool, default = True
             If true, allows individual identical steps in a property estimation workflow to be merged.
         """
 
@@ -95,8 +90,6 @@ class PropertyEstimatorOptions(TypedBaseModel):
 
         self.allow_protocol_merging = allow_protocol_merging
 
-        self.gradient_properties = []
-
     def __getstate__(self):
 
         return {
@@ -105,9 +98,7 @@ class PropertyEstimatorOptions(TypedBaseModel):
             'workflow_schemas': self.workflow_schemas,
             'workflow_options': self.workflow_options,
 
-            'allow_protocol_merging': self.allow_protocol_merging,
-
-            'gradient_properties': self.gradient_properties,
+            'allow_protocol_merging': self.allow_protocol_merging
         }
 
     def __setstate__(self, state):
@@ -118,8 +109,6 @@ class PropertyEstimatorOptions(TypedBaseModel):
         self.workflow_options = state['workflow_options']
 
         self.allow_protocol_merging = state['allow_protocol_merging']
-
-        self.gradient_properties = state['gradient_properties']
 
 
 class PropertyEstimatorSubmission(TypedBaseModel):
@@ -186,12 +175,17 @@ class PropertyEstimatorResult(TypedBaseModel):
     ----------
     id: str
         The unique id assigned to this result set by the server.
+    queued_properties: dict of str and PhysicalProperty
+        A dictionary of the properties which have yet to be estimated by
+        the server.
     estimated_properties: dict of str and PhysicalProperty
         A dictionary of the properties which were successfully estimated, where
         the dictionary key is the unique id of the property being estimated.
-    unsuccessful_properties: dict of str and PropertyEstimatorException
-        A dictionary of the exceptions that were raised when unsuccessfully estimating a property.
-        The dictionary key is the unique id of the property which could not be estimated.
+    unsuccessful_properties: dict of str and PhysicalProperty
+        A dictionary of the properties which could not be estimated by the server.
+    exceptions: list of PropertyEstimatorException
+        A list of the exceptions that were raised when unsuccessfully carrying out this
+        estimation request.
     """
 
     def __init__(self, result_id=''):
@@ -205,24 +199,36 @@ class PropertyEstimatorResult(TypedBaseModel):
 
         self.id = result_id
 
+        self.queued_properties = {}
+
         self.estimated_properties = {}
         self.unsuccessful_properties = {}
+
+        self.exceptions = []
 
     def __getstate__(self):
 
         return {
             'id:': self.id,
 
+            'queued_properties': self.queued_properties,
+
             'estimated_properties': self.estimated_properties,
             'unsuccessful_properties': self.unsuccessful_properties,
+
+            'exceptions': self.exceptions,
         }
 
     def __setstate__(self, state):
 
         self.id = state['id:']
 
+        self.queued_properties = state['queued_properties']
+
         self.estimated_properties = state['estimated_properties']
         self.unsuccessful_properties = state['unsuccessful_properties']
+
+        self.exceptions = state['exceptions']
 
 
 class ConnectionOptions(TypedBaseModel):
@@ -387,17 +393,17 @@ class PropertyEstimatorClient:
         @property
         def id(self):
             """str: The id of the submitted request."""
-            return self.id
+            return self._id
 
         @property
         def server_address(self):
             """str: The address of the server that the request was sent to."""
-            return self.server_address
+            return self._server_address
 
         @property
         def server_port(self):
             """The port that the server is listening on."""
-            return self.server_port
+            return self._server_port
 
         def __init__(self, request_id, connection_options, client=None):
             """Constructs a new Request object.
@@ -486,14 +492,13 @@ class PropertyEstimatorClient:
 
             Returns
             -------
-            If the method is run synchronously then this method will block the main
-            thread until the server returns either an error (PropertyCalculatorException),
-            or the results of the requested estimate (PropertyEstimatorResult).
+            PropertyEstimatorResult or PropertyEstimatorException:
+                Returns either the results of the requested estimate, or any
+                exceptions which were raised.
 
-            If the method is run asynchronously, it will return None if the
-            estimate is still queued for calculation on the server, or either
-            an error (PropertyCalculatorException) or results
-            (PropertyEstimatorResult) object.
+                If the method is run synchronously then this method will block the main
+                thread until all of the requested properties have been estimated, or
+                an exception is returned.
             """
             return self._client._retrieve_estimate(self._id, synchronous, polling_interval)
 
@@ -542,6 +547,9 @@ class PropertyEstimatorClient:
         if options is None:
             options = PropertyEstimatorOptions()
 
+        if len(options.allowed_calculation_layers) == 0:
+            raise ValueError('A submission contains no allowed calculation layers.')
+
         properties_list = []
         property_types = set()
 
@@ -556,9 +564,7 @@ class PropertyEstimatorClient:
                 type_name = type(physical_property).__name__
 
                 if type_name not in registered_properties:
-
-                    raise ValueError('The property estimator does not support {} '
-                                     'properties.'.format(type_name))
+                    raise ValueError(f'The property estimator does not support {type_name} properties.')
 
                 if type_name in property_types:
                     continue
@@ -636,14 +642,13 @@ class PropertyEstimatorClient:
 
         Returns
         -------
-        If the method is run synchronously then this method will block the main
-        thread until the server returns either an error (PropertyCalculatorException),
-        or the results of the requested estimate (PropertyEstimatorResult).
+        PropertyEstimatorResult or PropertyEstimatorException:
+            Returns either the results of the requested estimate, or any
+            exceptions which were raised.
 
-        If the method is run asynchronously, it will return None if the
-        estimate is still queued for calculation on the server, or either
-        an error (PropertyCalculatorException) or results
-        (PropertyEstimatorResult) object.
+            If the method is run synchronously then this method will block the main
+            thread until all of the requested properties have been estimated, or
+            an exception is returned.
         """
 
         # If running asynchronously, just return whatever the server
@@ -663,10 +668,10 @@ class PropertyEstimatorClient:
 
             response = IOLoop.current().run_sync(lambda: self._send_query_server(request_id))
 
-            if response is None:
+            if isinstance(response, PropertyEstimatorResult) and len(response.queued_properties) > 0:
                 continue
 
-            logging.info('The server has returned a response.')
+            logging.info(f'The server has completed request {request_id}.')
             should_run = False
 
         return response
@@ -778,13 +783,8 @@ class PropertyEstimatorClient:
         try:
 
             # Attempt to establish a connection to the server.
-            # logging.info("Attempting Connection to {}:{}".format(self._connection_options.server_address,
-            #                                                      self._connection_options.server_port))
             stream = await self._tcp_client.connect(self._connection_options.server_address,
                                                     self._connection_options.server_port)
-
-            # logging.info("Connected to {}:{}".format(self._connection_options.server_address,
-            #                                          self._connection_options.server_port))
 
             stream.set_nodelay(True)
 
@@ -796,9 +796,6 @@ class PropertyEstimatorClient:
 
             await stream.write(message_type + length + encoded_request_id)
 
-            # logging.info("Querying the server {}:{}...".format(self._connection_options.server_address,
-            #                                                    self._connection_options.server_port))
-
             # Wait for the server response.
             header = await stream.read_bytes(4)
             length = unpack_int(header)[0]
@@ -809,8 +806,6 @@ class PropertyEstimatorClient:
 
                 encoded_json = await stream.read_bytes(length)
                 server_response = encoded_json.decode()
-
-            # logging.info('Received response from server of length {}'.format(length))
 
             stream.close()
             self._tcp_client.close()

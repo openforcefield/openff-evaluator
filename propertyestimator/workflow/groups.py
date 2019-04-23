@@ -18,6 +18,8 @@ from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.workflow import plugins
 from propertyestimator.workflow.decorators import MergeBehaviour, protocol_input
 from propertyestimator.workflow.plugins import register_calculation_protocol, available_protocols
+from simtk import unit
+
 from .protocols import BaseProtocol, ProtocolPath
 from .schemas import ProtocolGroupSchema
 
@@ -770,8 +772,13 @@ class ConditionalGroup(ProtocolGroup):
         if left_hand_value is None or right_hand_value is None:
             return False
 
+        right_hand_value_correct_units = right_hand_value
+
+        if isinstance(right_hand_value, unit.Quantity) and isinstance(left_hand_value, unit.Quantity):
+            right_hand_value_correct_units = right_hand_value.in_units_of(left_hand_value.unit)
+
         logging.info(f'Evaluating condition for protocol {self.id}: '
-                     f'{left_hand_value} {condition.type} {right_hand_value}')
+                     f'{left_hand_value} {condition.type} {right_hand_value_correct_units}')
 
         if condition.type == self.ConditionType.LessThan:
             return left_hand_value < right_hand_value
