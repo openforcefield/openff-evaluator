@@ -8,11 +8,86 @@ import os
 import shutil
 
 from dask import distributed
-from distributed import get_worker
+from dask_jobqueue import LSFCluster
+from distributed import get_worker, Adaptive
+from distributed.utils import ignoring
+from propertyestimator.workflow.plugins import available_protocols
 from simtk import unit
 
-from propertyestimator.workflow.plugins import available_protocols
 from .backends import PropertyEstimatorBackend, ComputeResources, QueueWorkerResources
+
+_logger = logging.getLogger(__name__)
+
+
+class _ImprovedAdaptive(Adaptive):
+    """A temporary extension to the dask distributed `Adaptive` object which
+    implements the changes proposed in the below dask distributed issue:
+
+    https://github.com/dask/distributed/issues/2329
+
+    Warnings
+    --------
+    When the PR which implements these changes gets merged into a release,
+    this class should be removed.
+    """
+
+    def needs_cpu(self):
+        """
+        Check if the cluster is CPU constrained (too many tasks per core)
+        Notes
+        -----
+        Returns ``True`` if the occupancy per core is some factor larger
+        than ``startup_cost`` and the number of tasks exceeds the number of
+        cores
+        """
+        total_occupancy = self.scheduler.total_occupancy
+        total_cores = self.scheduler.total_ncores
+
+        if total_occupancy / (total_cores + 1e-9) > self.startup_cost * 2:
+
+            _logger.info("CPU limit exceeded [%d occupancy / %d cores]",
+                         total_occupancy, total_cores)
+
+            tasks_processing = 0
+
+            for w in self.scheduler.workers.values():
+                tasks_processing += len(w.processing)
+
+                if tasks_processing > total_cores:
+
+                    _logger.info(
+                        "pending tasks exceed number of cores "
+                        "[%d tasks / %d cores]",
+                        tasks_processing, total_cores)
+
+                    return True
+
+        return False
+
+
+class _AdaptiveLSFCLuster(LSFCluster):
+    """A temporary extension to the dask job-queue `LSFCluster` object which
+    implements the changes proposed in the below dask distributed issue:
+
+    https://github.com/dask/distributed/issues/2329
+
+    Warnings
+    --------
+    When the PR which implements these changes gets merged into a release,
+    this class should be removed.
+    """
+
+    def adapt(self, **kwargs):
+
+        with ignoring(AttributeError):
+            self._adaptive.stop()
+
+        if not hasattr(self, '_adaptive_options'):
+            self._adaptive_options = {}
+
+        self._adaptive_options.update(kwargs)
+        self._adaptive = _ImprovedAdaptive(self.scheduler, self, **self._adaptive_options)
+        return self._adaptive
 
 
 class DaskLSFBackend(PropertyEstimatorBackend):
@@ -118,8 +193,6 @@ class DaskLSFBackend(PropertyEstimatorBackend):
 
     def start(self):
 
-        from dask_jobqueue import LSFCluster
-
         requested_memory = self._resources_per_worker.per_thread_memory_limit
 
         memory_default_unit = requested_memory.value_in_unit(self._default_memory_unit)
@@ -140,14 +213,14 @@ class DaskLSFBackend(PropertyEstimatorBackend):
                 '-gpu num={}:j_exclusive=yes:mode=shared:mps=no:'.format(self._resources_per_worker.number_of_gpus)
             ]
 
-        self._cluster = LSFCluster(queue=self._queue_name,
-                                   cores=self._resources_per_worker.number_of_threads,
-                                   memory=memory_string,
-                                   walltime=self._resources_per_worker.wallclock_time_limit,
-                                   mem=memory_bytes,
-                                   job_extra=job_extra,
-                                   env_extra=self._setup_script_commands,
-                                   local_directory='dask-worker-space')
+        self._cluster = _AdaptiveLSFCLuster(queue=self._queue_name,
+                                            cores=self._resources_per_worker.number_of_threads,
+                                            memory=memory_string,
+                                            walltime=self._resources_per_worker.wallclock_time_limit,
+                                            mem=memory_bytes,
+                                            job_extra=job_extra,
+                                            env_extra=self._setup_script_commands,
+                                            local_directory='dask-worker-space')
 
         self._cluster.adapt(minimum=self._minimum_number_of_workers,
                             maximum=self._maximum_number_of_workers, interval=self._adaptive_interval)
