@@ -16,7 +16,7 @@ from simtk import unit
 
 from .backends import PropertyEstimatorBackend, ComputeResources, QueueWorkerResources
 
-_logger = logging.getLogger(__name__)
+# _logger = logging.getLogger(__name__)
 
 
 class _ImprovedAdaptive(Adaptive):
@@ -45,8 +45,8 @@ class _ImprovedAdaptive(Adaptive):
 
         if total_occupancy / (total_cores + 1e-9) > self.startup_cost * 2:
 
-            _logger.info("CPU limit exceeded [%d occupancy / %d cores]",
-                         total_occupancy, total_cores)
+            # _logger.info("CPU limit exceeded [%d occupancy / %d cores]",
+            #              total_occupancy, total_cores)
 
             tasks_processing = 0
 
@@ -55,10 +55,10 @@ class _ImprovedAdaptive(Adaptive):
 
                 if tasks_processing > total_cores:
 
-                    _logger.info(
-                        "pending tasks exceed number of cores "
-                        "[%d tasks / %d cores]",
-                        tasks_processing, total_cores)
+                    # _logger.info(
+                    #     "pending tasks exceed number of cores "
+                    #     "[%d tasks / %d cores]",
+                    #     tasks_processing, total_cores)
 
                     return True
 
