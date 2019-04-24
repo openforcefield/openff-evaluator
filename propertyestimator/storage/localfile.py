@@ -74,6 +74,9 @@ class LocalFileStorage(PropertyEstimatorStorage):
 
     def store_simulation_data(self, substance_id, simulation_data_directory):
 
+        if not path.isdir(simulation_data_directory):
+            raise ValueError(f'The directory ({simulation_data_directory}) to store does not exist.')
+
         unique_id = super(LocalFileStorage, self).store_simulation_data(substance_id,
                                                                         simulation_data_directory)
 

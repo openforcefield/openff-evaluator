@@ -182,11 +182,27 @@ class PropertyCalculationLayer:
 
                 matches = [x for x in server_request.queued_properties if x.id == returned_output.property_id]
 
-                if len(matches) != 1:
-                    raise ValueError(f'A property id ({returned_output.property_id}) conflict occurred.')
-
                 for match in matches:
                     server_request.queued_properties.remove(match)
+
+                if len(matches) > 1:
+                    raise ValueError(f'A property id ({returned_output.property_id}) conflict occurred.')
+
+                elif len(matches) == 0:
+
+                    logging.info('A calculation layer returned results for a property not in the '
+                                 'queue. This sometimes and expectedly occurs when using queue based '
+                                 'calculation backends, but should be investigated.')
+
+                    continue
+
+                if returned_output.calculated_property is None and returned_output.exception is None:
+
+                    logging.info('A calculation layer did not return an estimated property nor did it'
+                                 'raise an Exception. This sometimes and expectedly occurs when using '
+                                 'queue based calculation backends, but should be investigated.')
+
+                    continue
 
                 substance_id = returned_output.calculated_property.substance.identifier
 
