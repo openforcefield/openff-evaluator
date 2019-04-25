@@ -98,7 +98,9 @@ class PropertyCalculationLayer:
             If true, this function will block until the calculation has completed.
         """
 
-        callback_future = calculation_backend.submit_task(return_args, *submitted_futures)
+        callback_future = calculation_backend.submit_task(return_args,
+                                                          *submitted_futures,
+                                                          key=f'return_{server_request.id}')
 
         def callback_wrapper(results_future):
             PropertyCalculationLayer._process_results(results_future, server_request, storage_backend, callback)
