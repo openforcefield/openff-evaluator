@@ -205,7 +205,7 @@ class DaskLSFBackend(BaseDaskBackend):
         # exceptions up as PropertyEstimatorExceptions and return these
         # gracefully (such that the task won't be marked as failed by
         # dask).
-        dask.config.set({'scheduler.allowed-failures': 500})
+        dask.config.set({'distributed.scheduler.work-stealing': True})
 
         self._minimum_number_of_workers = minimum_number_of_workers
         self._maximum_number_of_workers = maximum_number_of_workers
