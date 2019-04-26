@@ -206,6 +206,11 @@ class PropertyCalculationLayer:
 
                     continue
 
+                if returned_output.calculated_property is None:
+                    # An exception has been recorded above, but for some reason no property has
+                    # been associated with it.
+                    continue
+
                 substance_id = returned_output.calculated_property.substance.identifier
 
                 if returned_output.exception is None:
