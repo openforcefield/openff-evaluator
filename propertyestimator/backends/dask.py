@@ -108,6 +108,27 @@ class BaseDaskBackend(PropertyEstimatorBackend):
 
     @staticmethod
     def _wrapped_function(function, *args, **kwargs):
+        """A function which is wrapped around any function submitted via
+        `submit_task`, which adds extra meta data to the args and kwargs
+        (such as the compute resources available to the function) and may
+        perform extra validation before the function is passed to dask.
+
+        Parameters
+        ----------
+        function: function
+            The function which will be executed by dask.
+        args: Any
+            The list of args to pass to the function.
+        kwargs: Any
+            The list of kwargs to pass to the function.
+
+        Returns
+        -------
+        Any
+            Returns the output of the function without modification, unless
+            an uncaught exception is raised in which case a PropertyEstimatorException
+            is returned.
+        """
         raise NotImplementedError()
 
 
