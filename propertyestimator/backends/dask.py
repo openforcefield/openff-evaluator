@@ -7,6 +7,7 @@ import multiprocessing
 import os
 import shutil
 
+import dask
 from dask import distributed
 from dask_jobqueue import LSFCluster
 from distributed import get_worker, Adaptive
@@ -15,8 +16,6 @@ from propertyestimator.workflow.plugins import available_protocols
 from simtk import unit
 
 from .backends import PropertyEstimatorBackend, ComputeResources, QueueWorkerResources
-
-# _logger = logging.getLogger(__name__)
 
 
 class _ImprovedAdaptive(Adaptive):
@@ -45,21 +44,12 @@ class _ImprovedAdaptive(Adaptive):
 
         if total_occupancy / (total_cores + 1e-9) > self.startup_cost * 2:
 
-            # _logger.info("CPU limit exceeded [%d occupancy / %d cores]",
-            #              total_occupancy, total_cores)
-
             tasks_processing = 0
 
             for w in self.scheduler.workers.values():
                 tasks_processing += len(w.processing)
 
                 if tasks_processing > total_cores:
-
-                    # _logger.info(
-                    #     "pending tasks exceed number of cores "
-                    #     "[%d tasks / %d cores]",
-                    #     tasks_processing, total_cores)
-
                     return True
 
         return False
@@ -90,7 +80,59 @@ class _AdaptiveLSFCLuster(LSFCluster):
         return self._adaptive
 
 
-class DaskLSFBackend(PropertyEstimatorBackend):
+class BaseDaskBackend(PropertyEstimatorBackend):
+    """An base dask backend class, which implements functionality
+    which is common to all other dask backends.
+    """
+
+    def __init__(self, number_of_workers=1, resources_per_worker=ComputeResources()):
+        """Constructs a new BaseDaskBackend"""
+
+        super().__init__(number_of_workers, resources_per_worker)
+
+        self._cluster = None
+        self._client = None
+
+    def start(self):
+
+        self._client = distributed.Client(self._cluster,
+                                          processes=False)
+
+    def stop(self):
+
+        self._client.close()
+        self._cluster.close()
+
+        if os.path.isdir('dask-worker-space'):
+            shutil.rmtree('dask-worker-space')
+
+    @staticmethod
+    def _wrapped_function(function, *args, **kwargs):
+        """A function which is wrapped around any function submitted via
+        `submit_task`, which adds extra meta data to the args and kwargs
+        (such as the compute resources available to the function) and may
+        perform extra validation before the function is passed to dask.
+
+        Parameters
+        ----------
+        function: function
+            The function which will be executed by dask.
+        args: Any
+            The list of args to pass to the function.
+        kwargs: Any
+            The list of kwargs to pass to the function.
+
+        Returns
+        -------
+        Any
+            Returns the output of the function without modification, unless
+            an uncaught exception is raised in which case a PropertyEstimatorException
+            is returned.
+        """
+        raise NotImplementedError()
+
+
+class DaskLSFBackend(BaseDaskBackend):
     """A property estimator backend which uses a dask-jobqueue `LSFCluster`
     objects to run calculations within an existing LSF queue.
     """
@@ -177,8 +219,14 @@ class DaskLSFBackend(PropertyEstimatorBackend):
             if resources_per_worker.number_of_gpus > 1:
                 raise ValueError('Only one GPU per worker is currently supported.')
 
-        self._cluster = None
-        self._client = None
+        # For now we need to set this to some high number to ensure
+        # jobs restarting because of workers being killed (due to
+        # wall-clock time limits mainly) do not get terminated. This
+        # should mostly be safe as we most wrap genuinely thrown
+        # exceptions up as PropertyEstimatorExceptions and return these
+        # gracefully (such that the task won't be marked as failed by
+        # dask).
+        dask.config.set({'distributed.scheduler.allowed-failures': 500})
 
         self._minimum_number_of_workers = minimum_number_of_workers
         self._maximum_number_of_workers = maximum_number_of_workers
@@ -225,13 +273,7 @@ class DaskLSFBackend(PropertyEstimatorBackend):
         self._cluster.adapt(minimum=self._minimum_number_of_workers,
                             maximum=self._maximum_number_of_workers, interval=self._adaptive_interval)
 
-        self._client = distributed.Client(self._cluster,
-                                          processes=False)
-
-    def stop(self):
-
-        self._client.close()
-        self._cluster.close()
+        super(DaskLSFBackend, self).start()
 
     @staticmethod
     def _wrapped_function(function, *args, **kwargs):
@@ -284,7 +326,9 @@ class DaskLSFBackend(PropertyEstimatorBackend):
 
         return function(*args, **kwargs)
 
-    def submit_task(self, function, *args):
+    def submit_task(self, function, *args, **kwargs):
+
+        key = kwargs.pop('key', None)
 
         protocols_to_import = [protocol_class.__module__ + '.' +
                                protocol_class.__qualname__ for protocol_class in available_protocols.values()]
@@ -295,10 +339,11 @@ class DaskLSFBackend(PropertyEstimatorBackend):
                                    available_resources=self._resources_per_worker,
                                    available_protocols=protocols_to_import,
                                    gpu_assignments={},
-                                   per_worker_logging=True)
+                                   per_worker_logging=True,
+                                   key=key)
 
 
-class DaskLocalClusterBackend(PropertyEstimatorBackend):
+class DaskLocalClusterBackend(BaseDaskBackend):
     """A property estimator backend which uses a dask `LocalCluster` to
     run calculations.
     """
@@ -337,9 +382,6 @@ class DaskLocalClusterBackend(PropertyEstimatorBackend):
                 raise ValueError('The number of available GPUs {} must match '
                                  'the number of requested workers {}.')
 
-        self._cluster = None
-        self._client = None
-
     def start(self):
 
         self._cluster = distributed.LocalCluster(self._number_of_workers,
@@ -351,16 +393,7 @@ class DaskLocalClusterBackend(PropertyEstimatorBackend):
             for index, worker in enumerate(self._cluster.workers):
                 self._gpu_device_indices_by_worker[worker.id] = str(index)
 
-        self._client = distributed.Client(self._cluster,
-                                          processes=False)
-
-    def stop(self):
-
-        self._client.close()
-        self._cluster.close()
-
-        if os.path.isdir('dask-worker-space'):
-            shutil.rmtree('dask-worker-space')
+        super(DaskLocalClusterBackend, self).start()
 
     @staticmethod
     def _wrapped_function(function, *args, **kwargs):
@@ -377,10 +410,13 @@ class DaskLocalClusterBackend(PropertyEstimatorBackend):
 
         return function(*args, **kwargs)
 
-    def submit_task(self, function, *args):
+    def submit_task(self, function, *args, **kwargs):
+
+        key = kwargs.pop('key', None)
 
         return self._client.submit(DaskLocalClusterBackend._wrapped_function,
                                    function,
                                    *args,
+                                   key=key,
                                    available_resources=self._resources_per_worker,
                                    gpu_assignments=self._gpu_device_indices_by_worker)

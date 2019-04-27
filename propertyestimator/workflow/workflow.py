@@ -936,7 +936,8 @@ class WorkflowGraph:
             submitted_futures[node_id] = backend.submit_task(WorkflowGraph._execute_protocol,
                                                              node.directory,
                                                              node.schema,
-                                                             *dependency_futures)
+                                                             *dependency_futures,
+                                                             key=f'execute_{node_id}')
 
         for workflow_id in self._workflows_to_execute:
 
@@ -983,7 +984,8 @@ class WorkflowGraph:
                                                      workflow.final_value_source,
                                                      workflow.outputs_to_store,
                                                      target_uncertainty,
-                                                     *final_futures))
+                                                     *final_futures,
+                                                     key=f'gather_{workflow.physical_property.id}'))
 
         return value_futures
 
