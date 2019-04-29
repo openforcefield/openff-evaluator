@@ -4,7 +4,7 @@ import logging
 from propertyestimator import client
 from propertyestimator.client import PropertyEstimatorOptions
 from propertyestimator.datasets import ThermoMLDataSet
-from propertyestimator.properties.properties import PropertyWorkflowOptions
+from propertyestimator.workflow import WorkflowOptions
 from propertyestimator.utils import get_data_filename, setup_timestamp_logging
 
 
@@ -53,8 +53,8 @@ def compute_estimate_async():
     # Modify the submission options
     submission_options = PropertyEstimatorOptions()
 
-    workflow_options = PropertyWorkflowOptions(PropertyWorkflowOptions.ConvergenceMode.RelativeUncertainty,
-                                               relative_uncertainty_fraction=100000)
+    workflow_options = WorkflowOptions(WorkflowOptions.ConvergenceMode.RelativeUncertainty,
+                                       relative_uncertainty_fraction=100000)
 
     submission_options.workflow_options = {
         'Density': workflow_options,

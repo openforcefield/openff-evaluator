@@ -4,7 +4,7 @@ A set of utilities for setting up property estimation workflows.
 
 from collections import namedtuple
 
-from propertyestimator.workflow import protocols
+from propertyestimator.protocols import analysis, forcefield, reweighting
 from propertyestimator.workflow.schemas import ProtocolReplicator
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
@@ -45,19 +45,19 @@ def generate_base_reweighting_protocols(analysis_protocol, replicator_id='data_r
         stored data.
     """
 
-    assert isinstance(analysis_protocol, protocols.AveragePropertyProtocol)
+    assert isinstance(analysis_protocol, analysis.AveragePropertyProtocol)
 
     replicator_suffix = '_$({}){}'.format(replicator_id, id_suffix)
 
     # Unpack all the of the stored data.
-    unpack_stored_data = protocols.UnpackStoredSimulationData('unpack_data{}'.format(replicator_suffix))
+    unpack_stored_data = reweighting.UnpackStoredSimulationData('unpack_data{}'.format(replicator_suffix))
     unpack_stored_data.simulation_data_path = ReplicatorValue(replicator_id)
 
     # The autocorrelation time of each of the stored files will be calculated for this property
     # using the passed in analysis protocol.
 
     # Decorrelate the frames of the concatenated trajectory.
-    decorrelate_trajectory = protocols.ExtractUncorrelatedTrajectoryData('decorrelate_traj{}'.format(replicator_suffix))
+    decorrelate_trajectory = analysis.ExtractUncorrelatedTrajectoryData('decorrelate_traj{}'.format(replicator_suffix))
 
     decorrelate_trajectory.statistical_inefficiency = ProtocolPath('statistical_inefficiency',
                                                                    analysis_protocol.id)
@@ -69,7 +69,7 @@ def generate_base_reweighting_protocols(analysis_protocol, replicator_id='data_r
                                                                 unpack_stored_data.id)
 
     # Stitch together all of the trajectories
-    concatenate_trajectories = protocols.ConcatenateTrajectories('concat_traj' + id_suffix)
+    concatenate_trajectories = reweighting.ConcatenateTrajectories('concat_traj' + id_suffix)
 
     concatenate_trajectories.input_coordinate_paths = [ProtocolPath('coordinate_file_path',
                                                                     unpack_stored_data.id)]
@@ -78,15 +78,15 @@ def generate_base_reweighting_protocols(analysis_protocol, replicator_id='data_r
                                                                     decorrelate_trajectory.id)]
 
     # Calculate the reduced potentials for each of the reference states.
-    build_reference_system = protocols.BuildSmirnoffSystem('build_system{}'.format(replicator_suffix))
+    build_reference_system = forcefield.BuildSmirnoffSystem('build_system{}'.format(replicator_suffix))
 
     build_reference_system.force_field_path = ProtocolPath('force_field_path', unpack_stored_data.id)
     build_reference_system.substance = ProtocolPath('substance', unpack_stored_data.id)
     build_reference_system.coordinate_file_path = ProtocolPath('coordinate_file_path',
                                                                unpack_stored_data.id)
 
-    reduced_reference_potential = protocols.CalculateReducedPotentialOpenMM('reduced_potential{}'.format(
-                                                                            replicator_suffix))
+    reduced_reference_potential = reweighting.CalculateReducedPotentialOpenMM('reduced_potential{}'.format(
+                                                                              replicator_suffix))
 
     reduced_reference_potential.system_path = ProtocolPath('system_path', build_reference_system.id)
     reduced_reference_potential.thermodynamic_state = ProtocolPath('thermodynamic_state',
@@ -97,14 +97,14 @@ def generate_base_reweighting_protocols(analysis_protocol, replicator_id='data_r
                                                                     concatenate_trajectories.id)
 
     # Calculate the reduced potential of the target state.
-    build_target_system = protocols.BuildSmirnoffSystem('build_system_target' + id_suffix)
+    build_target_system = forcefield.BuildSmirnoffSystem('build_system_target' + id_suffix)
 
     build_target_system.force_field_path = ProtocolPath('force_field_path', 'global')
     build_target_system.substance = ProtocolPath('substance', 'global')
     build_target_system.coordinate_file_path = ProtocolPath('output_coordinate_path',
                                                             concatenate_trajectories.id)
 
-    reduced_target_potential = protocols.CalculateReducedPotentialOpenMM('reduced_potential_target' + id_suffix)
+    reduced_target_potential = reweighting.CalculateReducedPotentialOpenMM('reduced_potential_target' + id_suffix)
 
     reduced_target_potential.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
     reduced_target_potential.system_path = ProtocolPath('system_path', build_target_system.id)
@@ -114,7 +114,7 @@ def generate_base_reweighting_protocols(analysis_protocol, replicator_id='data_r
                                                                  concatenate_trajectories.id)
 
     # Finally, apply MBAR to get the reweighted value.
-    mbar_protocol = protocols.ReweightWithMBARProtocol('mbar' + id_suffix)
+    mbar_protocol = reweighting.ReweightWithMBARProtocol('mbar' + id_suffix)
 
     mbar_protocol.reference_reduced_potentials = [ProtocolPath('reduced_potentials',
                                                                reduced_reference_potential.id)]

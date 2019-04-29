@@ -9,6 +9,12 @@ from simtk import unit
 
 from propertyestimator.backends import ComputeResources
 from propertyestimator.properties.dielectric import ExtractAverageDielectric
+from propertyestimator.protocols.analysis import ExtractAverageStatistic, ExtractUncorrelatedTrajectoryData, \
+    ExtractUncorrelatedStatisticsData
+from propertyestimator.protocols.coordinates import BuildCoordinatesPackmol
+from propertyestimator.protocols.forcefield import BuildSmirnoffSystem
+from propertyestimator.protocols.miscellaneous import AddQuantities, SubtractQuantities
+from propertyestimator.protocols.simulation import RunEnergyMinimisation, RunOpenMMSimulation
 from propertyestimator.substances import Mixture
 from propertyestimator.tests.test_workflow.utils import DummyEstimatedQuantityProtocol, DummyProtocolWithDictInput
 from propertyestimator.thermodynamics import Ensemble, ThermodynamicState
@@ -17,9 +23,6 @@ from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow.plugins import available_protocols
-from propertyestimator.workflow.protocols import AddQuantities, BuildCoordinatesPackmol, BuildSmirnoffSystem, \
-    RunEnergyMinimisation, RunOpenMMSimulation, ExtractAverageStatistic, ExtractUncorrelatedTrajectoryData, \
-    ExtractUncorrelatedStatisticsData, SubtractQuantities
 from propertyestimator.workflow.utils import ProtocolPath
 
 

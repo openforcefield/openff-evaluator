@@ -9,12 +9,12 @@ import re
 import time
 import traceback
 import uuid
+from enum import Enum
 from math import sqrt
 from os import path, makedirs
 
 from simtk import unit
 
-from propertyestimator.properties.properties import PropertyWorkflowOptions
 from propertyestimator.storage import StoredSimulationData
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
@@ -31,6 +31,78 @@ class IWorkflowProperty(SubhookedABCMeta):
     @staticmethod
     @abc.abstractmethod
     def get_default_workflow_schema(calculation_layer, options): pass
+
+
+class WorkflowOptions:
+    """A set of convenience options used when creating
+    estimation workflows.
+    """
+
+    class ConvergenceMode(Enum):
+        """The available options for deciding when a workflow has converged.
+        For now, these options include running until the computed uncertainty
+        of a property is within a relative fraction of the measured uncertainty
+        (`ConvergenceMode.RelativeUncertainty`) or is less than some absolute
+        value (`ConvergenceMode.AbsoluteUncertainty`)."""
+
+        # NoChecks = 'NoChecks'
+        RelativeUncertainty = 'RelativeUncertainty'
+        AbsoluteUncertainty = 'AbsoluteUncertainty'
+
+    def __init__(self,
+                 convergence_mode=ConvergenceMode.RelativeUncertainty,
+                 relative_uncertainty_fraction=1.0, absolute_uncertainty=None):
+        """Constructs a new WorkflowOptions object.
+
+        Parameters
+        ----------
+        convergence_mode: WorkflowOptions.ConvergenceMode
+            The mode which governs how workflows should decide when they have
+            reached convergence.
+        relative_uncertainty_fraction: float, optional
+            If the convergence mode is set to `RelativeUncertainty`, then workflows
+            will by default run simulations until the estimated uncertainty is less
+            than
+
+            `relative_uncertainty_fraction` * property_to_estimate.uncertainty
+        absolute_uncertainty: simtk.unit.Quantity, optional
+            If the convergence mode is set to `AbsoluteUncertainty`, then workflows
+            will by default run simulations until the estimated uncertainty is less
+            than the `absolute_uncertainty`
+        """
+
+        self.convergence_mode = convergence_mode
+
+        self.absolute_uncertainty = absolute_uncertainty
+        self.relative_uncertainty_fraction = relative_uncertainty_fraction
+
+        if (self.convergence_mode is self.ConvergenceMode.RelativeUncertainty and
+            self.relative_uncertainty_fraction is None):
+
+            raise ValueError('The relative uncertainty fraction must be set when the convergence '
+                             'mode is set to RelativeUncertainty.')
+
+        if (self.convergence_mode is self.ConvergenceMode.AbsoluteUncertainty and
+            self.absolute_uncertainty is None):
+
+            raise ValueError('The absolute uncertainty must be set when the convergence '
+                             'mode is set to AbsoluteUncertainty.')
+
+    def __getstate__(self):
+
+        return {
+            'convergence_mode': self.convergence_mode,
+
+            'absolute_uncertainty': self.absolute_uncertainty,
+            'relative_uncertainty_fraction': self.relative_uncertainty_fraction
+        }
+
+    def __setstate__(self, state):
+
+        self.convergence_mode = state['convergence_mode']
+
+        self.absolute_uncertainty = state['absolute_uncertainty']
+        self.relative_uncertainty_fraction = state['relative_uncertainty_fraction']
 
 
 class Workflow:
@@ -707,7 +779,7 @@ class Workflow:
                                                                by the sqrt of the number of
                                                                components in the system + 1
             - force_field_path: str - A path to the force field parameters with which the
-                                      property should be evaulated with.
+                                      property should be evaluated with.
         """
         from propertyestimator.substances import Mixture
 
@@ -725,11 +797,11 @@ class Workflow:
 
             workflow_options = estimator_options.workflow_options[type(physical_property).__name__]
         else:
-            workflow_options = PropertyWorkflowOptions()
+            workflow_options = WorkflowOptions()
 
-        if workflow_options.convergence_mode == PropertyWorkflowOptions.ConvergenceMode.RelativeUncertainty:
+        if workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.RelativeUncertainty:
             target_uncertainty = physical_property.uncertainty * workflow_options.relative_uncertainty_fraction
-        elif workflow_options.convergence_mode == PropertyWorkflowOptions.ConvergenceMode.AbsoluteUncertainty:
+        elif workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.AbsoluteUncertainty:
             target_uncertainty = workflow_options.absolute_uncertainty
         else:
             raise ValueError('The convergence mode {} is not supported.'.format(workflow_options.convergence_mode))
@@ -751,6 +823,9 @@ class Workflow:
             "per_component_uncertainty": per_component_uncertainty,
             "force_field_path": force_field_path
         }
+
+        # Include the properties metadata
+        global_metadata.update(physical_property.metadata)
 
         return global_metadata
 
