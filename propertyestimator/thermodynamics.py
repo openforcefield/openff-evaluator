@@ -38,9 +38,6 @@ class ThermodynamicState(TypedBaseModel):
 
     """
 
-    temperature: Optional[unit.Quantity] = None
-    pressure: Optional[unit.Quantity] = None
-
     def __init__(self, temperature=None, pressure=None):
         """Constructs a new ThermodynamicState object.
 

@@ -770,8 +770,8 @@ class Workflow:
 
             - thermodynamic_state: `ThermodynamicState` - The state (T,p) at which the
                                                           property is being computed
-            - substance: `Mixture` - The composition of the system of interest.
-            - components: list of `Mixture` - The components present in the system for
+            - substance: `Substance` - The composition of the system of interest.
+            - components: list of `Substance` - The components present in the system for
                                               which the property is being estimated.
             - target_uncertainty: simtk.unit.Quantity - The target uncertainty with which
                                                         properties should be estimated.
@@ -781,16 +781,16 @@ class Workflow:
             - force_field_path: str - A path to the force field parameters with which the
                                       property should be evaluated with.
         """
-        from propertyestimator.substances import Mixture
+        from propertyestimator.substances import Substance
 
         components = []
 
         for component in physical_property.substance.components:
 
-            mixture = Mixture()
-            mixture.add_component(component.smiles, 1.0, False)
+            component_substance = Substance()
+            component_substance.add_component(component)
 
-            components.append(mixture)
+            components.append(component_substance)
 
         if (estimator_options.workflow_options is not None and
             type(physical_property).__name__ in estimator_options.workflow_options):

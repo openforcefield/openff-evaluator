@@ -9,7 +9,7 @@ from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.properties.properties import PhysicalProperty
 from propertyestimator.properties.utils import generate_base_reweighting_protocols
 from propertyestimator.protocols import analysis, coordinates, forcefield, groups, miscellaneous, simulation
-from propertyestimator.substances import Mixture
+from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
@@ -29,12 +29,12 @@ class WeightValueByMoleFraction(protocols.BaseProtocol):
         """The value to be weighted."""
         pass
 
-    @protocol_input(Mixture)
+    @protocol_input(Substance)
     def component(self, value):
         """The component (e.g water) to which this value belongs."""
         pass
 
-    @protocol_input(Mixture)
+    @protocol_input(Substance)
     def full_substance(self, value):
         """The full substance of which the component of interest is a part."""
         pass
@@ -59,14 +59,7 @@ class WeightValueByMoleFraction(protocols.BaseProtocol):
         assert len(self._component.components) == 1
 
         main_component = self._component.components[0]
-        mole_fraction = 0.0
-
-        for component in self._full_substance.components:
-
-            if component.smiles != main_component.smiles:
-                continue
-
-            mole_fraction = component.mole_fraction
+        mole_fraction = self._full_substance.get_mole_fraction(main_component)
 
         self._weighted_value = self.value * mole_fraction
 

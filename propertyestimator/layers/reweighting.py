@@ -8,7 +8,7 @@ import pickle
 from os import path
 
 from propertyestimator.layers import register_calculation_layer, PropertyCalculationLayer
-from propertyestimator.substances import Mixture
+from propertyestimator.substances import Substance
 from propertyestimator.utils.serialization import serialize_force_field, TypedJSONDecoder
 from propertyestimator.utils.utils import SubhookedABCMeta
 from propertyestimator.workflow import WorkflowGraph, Workflow
@@ -186,16 +186,15 @@ class ReweightingLayer(PropertyCalculationLayer):
 
                 for component in property_to_calculate.substance.components:
 
-                    temporary_component = Mixture.MixtureComponent(component.smiles,
-                                                                   mole_fraction=1.0,
-                                                                   impurity=False)
+                    temporary_substance = Substance()
+                    temporary_substance.add_component(component)
 
-                    if temporary_component.identifier not in stored_data_paths:
+                    if temporary_substance.identifier not in stored_data_paths:
 
                         has_data_for_property = False
                         break
 
-                    global_metadata['component_data'].append(stored_data_paths[temporary_component.identifier])
+                    global_metadata['component_data'].append(stored_data_paths[temporary_substance.identifier])
 
                 if not has_data_for_property:
                     continue

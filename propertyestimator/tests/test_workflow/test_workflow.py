@@ -17,7 +17,7 @@ from propertyestimator.properties.density import Density
 from propertyestimator.properties.dielectric import DielectricConstant
 from propertyestimator.properties.plugins import registered_properties
 from propertyestimator.protocols.groups import ConditionalGroup
-from propertyestimator.substances import Mixture
+from propertyestimator.substances import Substance
 from propertyestimator.tests.test_workflow.utils import DummyReplicableProtocol, create_dummy_metadata, \
     DummyEstimatedQuantityProtocol
 from propertyestimator.tests.utils import create_dummy_property
@@ -61,9 +61,6 @@ def test_cloned_schema_merging_simulation(registered_property_name, available_la
 
     registered_property = registered_properties[registered_property_name]
 
-    substance = Mixture()
-    substance.add_component('C', 1.0)
-
     dummy_property = create_dummy_property(registered_property)
 
     workflow_schema = dummy_property.get_default_workflow_schema(available_layer, WorkflowOptions())
@@ -105,8 +102,8 @@ def test_cloned_schema_merging_simulation(registered_property_name, available_la
 
 def test_density_dielectric_merging():
 
-    substance = Mixture()
-    substance.add_component('C', 1.0)
+    substance = Substance()
+    substance.add_component(Substance.Component(smiles='C'))
 
     density = Density(thermodynamic_state=ThermodynamicState(temperature=298*unit.kelvin,
                                                              pressure=1*unit.atmosphere),

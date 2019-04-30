@@ -2,164 +2,141 @@
 An API for defining and creating substances.
 """
 
+from enum import Enum
+
 from propertyestimator.utils.serialization import TypedBaseModel
 
 
-class Component(TypedBaseModel):
-    """Represents a chemical component.
-
-    .. todo:: Refactor this out?
-
-     Attributes
-     ----------
-     smiles : str
-         SMILES descriptor of the component
-     """
-
-    def __init__(self, smiles=''):
-        """Constructs a new Component object.
-
-        Parameters
-        ----------
-        smiles : str
-            SMILES descriptor of the component
-        """
-
-        self.smiles = smiles
-
-    def __getstate__(self):
-        return {'smiles': self.smiles}
-
-    def __setstate__(self, state):
-        self.smiles = state['smiles']
-
-
 class Substance(TypedBaseModel):
-    """
-    A substance, can be a pure chemical, or could be a Mixture.
-
-    This class is not specific enough to be a chemical species all on its own
-    """
-
-    def __getstate__(self):
-        return {}
-
-    def __setstate__(self, state): pass
-
-    def __hash__(self):
-        raise NotImplementedError('A Substance is a purely abstract base class.')
-
-    def __eq__(self, other):
-        raise NotImplementedError('A Substance is a purely abstract base class.')
-
-    def __ne__(self, other):
-        raise NotImplementedError('A Substance is a purely abstract base class.')
-
-
-class Mixture(Substance):
-    """Defines the components and their amounts in a mixture.
-
-    .. todo: The name is perhaps misleading as a mixture can be pure - should this
-             perhaps be renamed to SystemComposition or just Composition perhaps?
+    """Defines the components, their amounts, and their roles in a system.
 
     Examples
     --------
     A neat liquid has only one component:
 
-    >>> liquid = Mixture()
-    >>> liquid.add_component('water')
+    >>> liquid = Substance()
+    >>> liquid.add_component(Substance.Component(smiles='O'))
 
-    A binary mixture has two components:
+    A binary mixture has two components, where the mole fractions must be
+    explicitly stated:
 
-    >>> binary_mixture = Mixture()
-    >>> binary_mixture.add_component('water', mole_fraction=0.2)
-    >>> binary_mixture.add_component('methanol') # assumed to be rest of mixture if no mole_fraction specified
+    >>> binary_mixture = Substance()
+    >>> binary_mixture.add_component(Substance.Component(smiles='O'), mole_fraction=0.2)
+    >>> binary_mixture.add_component(Substance.Component(smiles='CO'), mole_fraction=0.8)
 
-    A ternary mixture has three components:
+    The infinite dilution of one solute within a solvent or mixture may also specified
+    as a `Substance` by setting the mole fraction of the solute equal to 0.0.
 
-    >>> ternary_mixture = Mixture()
-    >>> binary_mixture.add_component('ethanol', mole_fraction=0.2)
-    >>> binary_mixture.add_component('methanol', mole_fraction=0.2)
-    >>> ternary_mixture.add_component('water')
+    In this example we explicitly flag the benzene component as being the solute, and the
+    water component the solvent, to aid in setting up and performing solvation free energy
+    calculations:
 
-    The infinite dilution of one solute within a solvent or mixture is also specified as a `Mixture`, where the solute
-    has is treated as an impurity, and so only 1 atom is added:
+    >>> benzene = Substance.Component(smiles='C1=CC=CC=C1', role=Substance.ComponentRole.Solute)
+    >>> water = Substance.Component(smiles='O', role=Substance.ComponentRole.Solvent)
 
-    >>> infinite_dilution = Mixture()
-    >>> infinite_dilution.add_component('phenol', impurity=True) # infinite dilution
-    >>> infinite_dilution.add_component('water')
-
+    >>> infinite_dilution = Substance()
+    >>> infinite_dilution.add_component(component=benzene, mole_fraction=0.0) # Infinite dilution.
+    >>> infinite_dilution.add_component(component=water, mole_fraction=1.0)
     """
 
-    class MixtureComponent(Component):
-        """Subclass of Component which has mole_fractions and impurity
+    class ComponentRole(Enum):
+        """An enum which describes the role of a component in the system,
+        such as whether the component is a solvent, a solute, a receptor etc.
 
-        Attributes
-        ----------
-        mole_fraction : float
-            The mole fraction of this component.
-        impurity : bool
-            If true, this component is treated as being a
-            single molecule (i.e infinitely diluted).
+        These roles are mainly only used by specific protocols to identify
+        the correct species in a system, such as when doing docking or performing
+        solvation free energy calculations.
+        """
+        Solvent = 'Solvent'
+        Solute = 'Solute'
+
+        Ligand = 'Ligand'
+        Receptor = 'Receptor'
+
+    class Component(TypedBaseModel):
+        """Defines a single component in a system, as well as properties
+        such as it's relative proportion in the system.
         """
 
         @property
         def identifier(self):
-            hash_value = self.smiles
+            """str: A unique identifier for this component, which is either a
+            smiles descriptor or the supplied label."""
+            return self._smiles or self._label
 
-            if self.mole_fraction is not None:
-                hash_value += f"{{{self.mole_fraction:.6f}}}"
-            elif self.impurity is not None:
-                hash_value += f"({self.impurity})"
+        @property
+        def label(self):
+            """str: A string label which describes this compound, for example, CB8."""
+            return self._label
 
-            return hash_value
+        @property
+        def smiles(self):
+            """str: The smiles pattern which describes this component, which may be None
+            for complex (e.g protein) molecules."""
+            return self._smiles
 
-        def __init__(self, smiles='', mole_fraction=0.0, impurity=False):
-            """Constructs a new MixtureComponent object.
+        @property
+        def role(self):
+            """ComponentRole: The role of this component in the system, such as a
+            ligand or a receptor."""
+            return self._role
+
+        def __init__(self, smiles=None, label=None, role=None):
+            """Constructs a new Component object with either a label or
+            a smiles string, but not both.
+
+            Notes
+            -----
+            The `label` and `smiles` arguments are mutually exclusive, and only
+            one can be passed while the other should be `None`.
 
             Parameters
             ----------
-            smiles : str
-                SMILES descriptor of the component
-            mole_fraction : float
-                The mole fraction of this component.
-            impurity : bool
-                If true, this component is treated as being a
-                single molecule (i.e infinitely diluted).
+            smiles: str
+                A SMILES descriptor of the component
+            label: str
+                A string label which describes this compound, for example, CB8.
+            role: ComponentRole, optional
+                The role of this component in the system. If no role is specified,
+                a default role of solvent is applied.
             """
-            super().__init__(smiles)
 
-            self.mole_fraction = mole_fraction
-            self.impurity = impurity
+            if label == smiles:
+                label = None
+
+            assert ((label is None and smiles is not None) or
+                    (label is not None and smiles is None) or
+                    (label is None and smiles is None))
+
+            label = label if label is not None else smiles
+
+            self._label = label
+            self._smiles = smiles
+
+            self._role = role or Substance.ComponentRole.Solvent
 
         def __getstate__(self):
+            return {
+                'label': self.label,
+                'smiles': self.smiles,
 
-            parent_state = super(Mixture.MixtureComponent, self).__getstate__()
-            current_state = {
-                'mole_fraction': self.mole_fraction,
-                'impurity': self.impurity
+                'role': self.role
             }
 
-            current_state.update(parent_state)
-            return current_state
-
         def __setstate__(self, state):
-            super(Mixture.MixtureComponent, self).__setstate__(state)
+            self._label = state['label']
+            self._smiles = state['smiles']
 
-            self.mole_fraction = state['mole_fraction']
-            self.impurity = state['impurity']
+            self._role = state['role']
 
         def __str__(self):
             return self.identifier
 
         def __hash__(self):
-            return hash(self.identifier)
+            return hash((self.identifier, self._role))
 
         def __eq__(self, other):
-
-            return (self.smiles == other.smiles and
-                    self.mole_fraction == other.mole_fraction and
-                    self.impurity == other.impurity)
+            return hash(self) == hash(other)
 
         def __ne__(self, other):
             return not (self == other)
@@ -170,13 +147,23 @@ class Mixture(Substance):
         component_identifiers = [component.identifier for component in self._components]
         component_identifiers.sort()
 
-        return "|".join(component_identifiers)
+        sorted_component_identifiers = [component.identifier for component in self._components]
+        sorted_component_identifiers.sort()
 
-    @property
-    def total_mole_fraction(self):
-        """Compute the total mole fraction.
-        """
-        return sum([component.mole_fraction for component in self._components])
+        identifier_split = []
+
+        for component_identifier in sorted_component_identifiers:
+
+            component_fraction = self._mole_fractions[component_identifier]
+
+            identifier = f'{component_identifier}'
+
+            if component_fraction > 0.0:
+                identifier += f'{{{component_fraction:.6f}}}'
+
+            identifier_split.append(identifier)
+
+        return '|'.join(identifier_split)
 
     @property
     def components(self):
@@ -186,100 +173,97 @@ class Mixture(Substance):
     def number_of_components(self):
         return len(self._components)
 
-    @property
-    def number_of_impurities(self):
-        return sum([1 for component in self._components if component.impurity is True])
-
     def __init__(self):
-        """Constructs a new Mixture object.
-        """
-        super().__init__()
+        """Constructs a new Substance object."""
+
+        self._mole_fractions = {}
         self._components = []
 
-    def __getstate__(self):
-        parent_state = super(Mixture, self).__getstate__()
-        current_state = {'components': self._components}
-
-        current_state.update(parent_state)
-        return current_state
-
-    def __setstate__(self, state):
-        super(Mixture, self).__setstate__(state)
-        self._components = state['components']
-
-    def add_component(self, smiles, mole_fraction, impurity=False):
-        """Add a component to the mixture.
+    def add_component(self, component, mole_fraction=1.0):
+        """Add a component to the Substance. If the component is already present in
+        the substance, then the mole fraction will be added to the current mole
+        fraction of that component.
 
         Parameters
         ----------
-        smiles : str
-            SMILES pattern of the component
-        mole_fraction : float or None, optional, default=None
-            If specified, the mole fraction of this component as a float on the domain [0,1]
-            If not specified, this will be the last or only component of the mixture.
-        impurity : bool, optional, default=False
-            If True, the component represents an impurity (single molecule).
-            This is distinct from 0 mole fraction
+        component : Substance.Component
+            The component to add to the system.
+        mole_fraction : float
+            The mole fraction of this component in the range of [0,1]. If a value of
+            0.0 is provided, then the component will be treated as being infinitely
+            dilute (i.e only present as a single molecule).
         """
 
-        mole_fraction, impurity = self._validate_mol_fraction(mole_fraction, impurity)
+        assert isinstance(component, Substance.Component)
 
-        component = self.MixtureComponent(smiles=smiles, mole_fraction=mole_fraction, impurity=impurity)
+        if mole_fraction < 0.0 or mole_fraction > 1.0:
+            raise ValueError(f'The mole fraction ({mole_fraction} must be in the range [0.0, 1.0]')
+
+        total_mole_fraction = mole_fraction + sum([mole_fraction for mole_fraction in
+                                                   self._mole_fractions.values()])
+
+        if total_mole_fraction > 1.0:
+            raise ValueError(f'The total mole fraction of this substance {total_mole_fraction} exceeds 1.0')
+
+        if component.identifier not in self._mole_fractions:
+            self._mole_fractions[component.identifier] = 0.0
+
+        self._mole_fractions[component.identifier] += mole_fraction
         self._components.append(component)
 
-    def get_component(self, smiles: str):
-        """Retrieve component by name.
+    def get_mole_fraction(self, component):
+        """Returns the mole fraction of the component in this substance.
 
         Parameters
         ----------
-        smiles : str
-            The smiles of the component to retrieve
+        component: str or Substance.Component
+            The component (or it's identifier) to retrieve the mole fraction of.
 
+        Returns
+        -------
+        float
+            The mole fraction of the component in this substance.
         """
-        for component in self._components:
+        assert isinstance(component, str) or isinstance(component, Substance.Component)
+        identifier = component if isinstance(component, str) else component.identifier
 
-            if component.smiles != smiles:
-                continue
+        return self._mole_fractions[identifier]
 
-            return component
+    def __getstate__(self):
+        return {
+            'components': self._components,
+            'mole_fractions': self._mole_fractions
+        }
 
-        raise Exception("No component with smiles '{0:s}' found.".format(smiles))
-
-    def _validate_mol_fraction(self, mole_fraction, impurity):
-        """
-        Validates the mole_fraction and impurity, setting the defaults if need be.
-        See :func:``add_component`` for parameters.
-        """
-        if not impurity and mole_fraction is None:
-            raise ValueError("Either mole_fraction or impurity must be specified!")
-
-        elif impurity and mole_fraction != 0:
-            raise ValueError('Mole fraction must be 0.0 or None for impurities. '
-                             'Specified mole fraction of {0:f}'.format(mole_fraction))
-
-        elif mole_fraction is not None and not 0.0 <= mole_fraction <= 1.0:
-            raise ValueError('Mole fraction must be positive; specified {0:f}.'.format(mole_fraction))
-
-        if impurity:
-            mole_fraction = 0.0
-
-        # TODO: Check if this necessary? It is unreachable at the moment.
-        # if mole_fraction is None:
-        #     mole_fraction = 1.0 - self.total_mole_fraction
-
-        if (self.total_mole_fraction + mole_fraction) > 1.0:
-            raise ValueError("Total mole fraction would exceed "
-                             "unity ({0:f}); specified {1:f}".format(self.total_mole_fraction, mole_fraction))
-
-        return mole_fraction, impurity
+    def __setstate__(self, state):
+        self._components = state['components']
+        self._mole_fractions = state['mole_fractions']
 
     def __str__(self):
         return self.identifier
 
     def __hash__(self):
-        return hash(self.identifier)
+
+        sorted_component_identifiers = [component.identifier for component in self._components]
+        sorted_component_identifiers.sort()
+
+        component_by_id = {component.identifier: component for component in self._components}
+
+        string_hash_split = []
+
+        for identifier in sorted_component_identifiers:
+
+            component_role = component_by_id[identifier].role
+            component_fraction = self._mole_fractions[identifier]
+
+            string_hash_split.append(f'{identifier}_{component_role}_{component_fraction:.6f}')
+
+        string_hash = '|'.join(string_hash_split)
+
+        return hash(string_hash)
 
     def __eq__(self, other):
+
         return hash(self) == hash(other)
 
     def __ne__(self, other):

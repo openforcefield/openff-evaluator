@@ -10,10 +10,11 @@ from urllib.error import HTTPError
 from urllib.request import urlopen
 from xml.etree import ElementTree
 
+import numpy as np
 from simtk import unit
 
 from propertyestimator.properties import PropertyPhase, MeasurementSource
-from propertyestimator.substances import Mixture
+from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from .datasets import PhysicalPropertyDataSet
 from .plugins import registered_thermoml_properties
@@ -852,20 +853,20 @@ class ThermoMLPureOrMixtureData:
 
     @staticmethod
     def build_mixture(measured_property, constraints, compounds):
-        """Build a Mixture object from the extracted constraints and compounds.
+        """Build a Substance object from the extracted constraints and compounds.
 
         Parameters
         ----------
         measured_property : ThermoMLProperty
             The measured property to build the mixture for.
-        constraints : dict(int, ThermoMLConstraint
+        constraints : list of ThermoMLConstraint
             The ThermoML constraints.
-        compounds : dict(int, ThermoMLCompound)
+        compounds : dict of int and ThermoMLCompound
             A dictionary of the compounds this PureOrMixtureData was calculated for.
 
         Returns
         ----------
-        Mixture
+        Substance
             The constructed mixture.
         """
 
@@ -875,15 +876,6 @@ class ThermoMLPureOrMixtureData:
                             'are currently supported (' + str(measured_property.phase) + ').')
 
             return None
-
-        mixture = Mixture()
-
-        # Handle the easy case where the system has to
-        # be pure
-        if len(compounds) == 1:
-
-            mixture.add_component(next(iter(compounds.values())).smiles, 1.0)
-            return mixture
 
         mol_fractions = {}
 
@@ -902,9 +894,7 @@ class ThermoMLPureOrMixtureData:
             total_mol_fraction += mol_fractions[constraint.compound_index]
             number_of_constraints += 1
 
-        if number_of_constraints == len(compounds) and \
-            abs(total_mol_fraction - 1.0) > 0.00001:
-
+        if number_of_constraints == len(compounds) and not np.isclose(total_mol_fraction, 1.0):
             raise RuntimeError('The total mol fraction does not add to 1.0')
 
         elif number_of_constraints > len(compounds):
@@ -926,15 +916,16 @@ class ThermoMLPureOrMixtureData:
 
             raise RuntimeError('Unexpected edge case..')
 
+        substance = Substance()
+
         for compound_index in compounds:
 
-            if mol_fractions[compound_index] < 0.00001:
-                continue
-
             compound = compounds[compound_index]
-            mixture.add_component(compound.smiles, mol_fractions[compound_index])
 
-        return mixture
+            substance.add_component(component=Substance.Component(smiles=compound.smiles),
+                                    mole_fraction=mol_fractions[compound_index])
+
+        return substance
 
     @staticmethod
     def extract_measured_properties(node, namespace,

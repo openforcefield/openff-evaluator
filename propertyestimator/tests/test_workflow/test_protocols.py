@@ -15,7 +15,7 @@ from propertyestimator.protocols.coordinates import BuildCoordinatesPackmol
 from propertyestimator.protocols.forcefield import BuildSmirnoffSystem
 from propertyestimator.protocols.miscellaneous import AddQuantities, SubtractQuantities
 from propertyestimator.protocols.simulation import RunEnergyMinimisation, RunOpenMMSimulation
-from propertyestimator.substances import Mixture
+from propertyestimator.substances import Substance
 from propertyestimator.tests.test_workflow.utils import DummyEstimatedQuantityProtocol, DummyProtocolWithDictInput
 from propertyestimator.thermodynamics import Ensemble, ThermodynamicState
 from propertyestimator.utils import get_data_filename
@@ -119,31 +119,14 @@ def test_nested_protocol_paths():
 
     pass
 
-    # substance = Mixture()
-    #
-    # substance.add_component(smiles='C', mole_fraction=0.5)
-    # substance.add_component(smiles='O', mole_fraction=0.5)
-    #
-    # build_coordinates = BuildCoordinatesPackmol('build_coordinates')
-    # build_coordinates.substance = substance
-    #
-    # components = build_coordinates.get_value(ProtocolPath('substance.components', build_coordinates.id))
-    # assert isinstance(components, list) and len(components) == 2
-    #
-    # fist_component = build_coordinates.get_value(ProtocolPath('substance.components[0]', build_coordinates.id))
-    # assert isinstance(fist_component, Mixture.MixtureComponent) and fist_component.smiles == 'C'
-    #
-    # second_component = build_coordinates.get_value(ProtocolPath('substance.components[1]', build_coordinates.id))
-    # assert isinstance(fist_component, Mixture.MixtureComponent) and fist_component.smiles == 'O'
-
 
 def test_base_simulation_protocols():
     """Tests that the commonly chain build coordinates, assigned topology,
     energy minimise and perform simulation are able to work together without
     raising an exception."""
 
-    mixed_system = Mixture()
-    mixed_system.add_component(smiles='O', mole_fraction=1.0)
+    water_substance = Substance()
+    water_substance.add_component(Substance.Component(smiles='O'))
 
     thermodynamic_state = ThermodynamicState(298*unit.kelvin, 1*unit.atmosphere)
 
@@ -156,7 +139,7 @@ def test_base_simulation_protocols():
         # and the target density (the default 1.0 g/ml is normally fine)
         build_coordinates.mass_density = 0.05 * unit.grams / unit.milliliters
         # and finally the system which coordinates should be generated for.
-        build_coordinates.substance = mixed_system
+        build_coordinates.substance = water_substance
 
         # Build the coordinates, creating a file called output.pdb
         result = build_coordinates.execute(temporary_directory, None)
@@ -169,7 +152,7 @@ def test_base_simulation_protocols():
 
         assign_force_field_parameters.force_field_path = get_data_filename('forcefield/smirnoff99Frosst.offxml')
         assign_force_field_parameters.coordinate_file_path = path.join(temporary_directory, 'output.pdb')
-        assign_force_field_parameters.substance = mixed_system
+        assign_force_field_parameters.substance = water_substance
 
         result = assign_force_field_parameters.execute(temporary_directory, None)
         assert not isinstance(result, PropertyEstimatorException)
