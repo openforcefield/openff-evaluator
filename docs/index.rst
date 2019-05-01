@@ -54,3 +54,17 @@ Index
   :caption: Developer Documentation
 
   api
+  
+**Simulation Practices Documentation**
+
+* :doc: `general_simulation_practices`
+* :doc: `property_simulation_practices`
+
+.. toctree::
+  :maxdepth: 2
+  :hidden:
+  :caption: Simulation Practices
+  
+  general_simulation_practices
+  property_simulation_practices
+  
