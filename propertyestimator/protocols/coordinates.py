@@ -3,7 +3,6 @@ A collection of protocols for building coordinates for molecular systems.
 """
 
 import logging
-from enum import Enum
 from os import path
 
 import numpy as np
@@ -18,10 +17,10 @@ from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
 
-class SupportedFileFormat(Enum):
-
-    PDB = 'pdb'
-    MOL2 = 'mol2'
+# class SupportedFileFormat(Enum):
+#
+#     PDB = 'pdb'
+#     MOL2 = 'mol2'
 
 
 @register_calculation_protocol()
@@ -75,14 +74,25 @@ class BuildCoordinatesPackmol(BaseProtocol):
 
         self._verbose_packmol = False
 
-    def execute(self, directory, available_resources):
+    def _build_molecule_arrays(self, directory):
+        """Converts the input substance into a list of openeye OEMol's and a list of
+        counts for how many of each there should be as determined by the `max_molecules`
+        input and the molecules respective mole fractions.
 
-        logging.info(f'Generating coordinates for {self._substance.identifier}: {self.id}')
+        Parameters
+        ----------
+        directory: The directory in which this protocols working files are being saved.
 
-        if self._substance is None:
-
-            return PropertyEstimatorException(directory=directory,
-                                              message='The substance input is non-optional')
+        Returns
+        -------
+        list of openeye.oechem.OEMol
+            The list of openeye molecules.
+        np.ndarry
+            The number of each molecule which should be added to the system,
+            of shape (1, substance.number_of_components).
+        PropertyEstimatorException, optional
+            None if no exceptions occured, otherwise the exception.
+        """
 
         molecules = []
 
@@ -92,8 +102,9 @@ class BuildCoordinatesPackmol(BaseProtocol):
 
             if molecule is None:
 
-                return PropertyEstimatorException(directory=directory,
-                                                  message='{} could not be converted to a Molecule'.format(component))
+                return None, None, PropertyEstimatorException(directory=directory,
+                                                              message=f'{component} could not be converted '
+                                                                      f'to a Molecule')
 
             molecules.append(molecule)
 
@@ -113,11 +124,49 @@ class BuildCoordinatesPackmol(BaseProtocol):
                 message = f'The maximum number of molecules is not high enough to sufficiently ' \
                     f'capture the mole fraction ({mole_fraction}) of {component.identifier}'
 
-                return PropertyEstimatorException(directory=directory, message=message)
+                return None, None, PropertyEstimatorException(directory=directory, message=message)
+
+        return molecules, number_of_molecules, None
+
+    def _save_results(self, directory, topology, positions):
+        """Save the results of running PACKMOL in the working directory
+
+        Parameters
+        ----------
+        directory: str
+            The directory to save the results in.
+        topology : simtk.openmm.Topology
+            The topology of the created system.
+        positions : simtk.unit.Quantity
+            A `simtk.unit.Quantity` wrapped `numpy.ndarray` (shape=[natoms,3]) which contains
+            the created positions with units compatible with angstroms.
+        """
+
+        self._coordinate_file_path = path.join(directory, 'output.pdb')
+
+        with open(self._coordinate_file_path, 'w+') as minimised_file:
+            # noinspection PyTypeChecker
+            app.PDBFile.writeFile(topology, positions, minimised_file)
+
+        logging.info('Coordinates generated: ' + self._substance.identifier)
+
+    def execute(self, directory, available_resources):
+
+        logging.info(f'Generating coordinates for {self._substance.identifier}: {self.id}')
+
+        if self._substance is None:
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='The substance input is non-optional')
+
+        molecules, number_of_molecules, exception = self._build_molecule_arrays(directory)
+
+        if exception is not None:
+            return exception
 
         # Create packed box
         topology, positions = packmol.pack_box(molecules=molecules,
-                                               n_copies=number_of_molecules,
+                                               number_of_copies=number_of_molecules,
                                                mass_density=self._mass_density,
                                                verbose=self._verbose_packmol,
                                                working_directory=None,
@@ -128,10 +177,164 @@ class BuildCoordinatesPackmol(BaseProtocol):
             return PropertyEstimatorException(directory=directory,
                                               message='Packmol failed to complete.')
 
-        self._coordinate_file_path = path.join(directory, 'output.pdb')
+        self._save_results(directory, topology, positions)
 
-        with open(self._coordinate_file_path, 'w+') as minimised_file:
-            app.PDBFile.writeFile(topology, positions, minimised_file)
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class SolvateExistingStructure(BuildCoordinatesPackmol):
+    """Creates a set of 3D coordinates with a specified composition.
+
+    Notes
+    -----
+    The coordinates are created using packmol.
+    """
+
+    @protocol_input(str)
+    def solute_coordinate_file(self):
+        """A file path to the solute to solvate."""
+        pass
+
+    def __init__(self, protocol_id):
+
+        super().__init__(protocol_id)
+
+        self._solute_coordinate_file = None
+
+    def execute(self, directory, available_resources):
+
+        logging.info(f'Generating coordinates for {self._substance.identifier}: {self.id}')
+
+        if self._substance is None:
+            return PropertyEstimatorException(directory=directory,
+                                              message='The substance input is non-optional')
+
+        if self._solute_coordinate_file is None:
+            return PropertyEstimatorException(directory=directory,
+                                              message='The solute coordinate file input is non-optional')
+
+        molecules, number_of_molecules, exception = self._build_molecule_arrays(directory)
+
+        if exception is not None:
+            return exception
+
+        # Create packed box
+        topology, positions = packmol.pack_box(molecules=molecules,
+                                               number_of_copies=number_of_molecules,
+                                               structure_to_solvate=self._solute_coordinate_file,
+                                               mass_density=self._mass_density,
+                                               verbose=self._verbose_packmol,
+                                               working_directory=None,
+                                               retain_working_files=False)
+
+        if topology is None or positions is None:
+            return PropertyEstimatorException(directory=directory,
+                                              message='Packmol failed to complete.')
+
+        self._save_results(directory, topology, positions)
+
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class BuildDockedCoordinates(BaseProtocol):
+    """Creates a set of coordinates for a ligand bound to some receptor.
+
+    Notes
+    -----
+    This protocol currently only supports docking with the OpenEye OEDocking
+    framework.
+    """
+
+    @protocol_input(str)
+    def ligand_coordinate_file(self):
+        """The file path to the coordinates of the ligand molecule."""
+        pass
+
+    @protocol_input(str)
+    def receptor_coordinate_file(self):
+        """The file path to the coordinates of the receptor molecule."""
+        pass
+
+    @protocol_output(str)
+    def output_coordinate_file_path(self):
+        """The file path to the created PDB coordinate file, which contains the coordinates
+        of the ligand and the receptor."""
+        pass
+
+    def __init__(self, protocol_id):
+
+        super().__init__(protocol_id)
+
+        self._ligand_coordinate_file = None
+        self._receptor_coordinate_file = None
+
+        self._coordinate_file_path = None
+
+    def _create_receptor(self, binding_site_box):
+        """Create an OpenEye receptor from a PDB file.
+
+        Parameters
+        ----------
+        binding_site_box : list of float
+            The minimum and maximum values of the coordinates of the box
+            representing the binding site [xmin, ymin, zmin, xmax, ymax, zmax].
+
+        Returns
+        -------
+        receptor : openeye.oedocking.OEReceptor
+            The OpenEye receptor object.
+
+        """
+        from openeye import oechem, oedocking
+
+        input_stream = oechem.oemolistream(self._receptor_coordinate_file)
+
+        original_receptor_molecule = oechem.OEGraphMol()
+        oechem.OEReadMolecule(input_stream, original_receptor_molecule)
+
+        box = oedocking.OEBox(*binding_site_box)
+
+        receptor = oechem.OEGraphMol()
+        oedocking.OEMakeReceptor(receptor, original_receptor_molecule, box)
+
+        return receptor
+
+    @staticmethod
+    def _dock_molecule(receptor_molecule, ligand_molecule):
+        """Run the multi-conformer docker.
+
+        Parameters
+        ----------
+        receptor_molecule : openeye.oedocking.OEReceptor
+            The openeye receptor.
+        ligand_molecule : openeye.oechem.OEMol
+            The multi-conformer OpenEye molecule to dock.
+
+        Returns
+        -------
+        openeye.oechem.OEMol
+            The docked OpenEye molecule.
+        """
+        from openeye import oechem, oedocking
+
+        # Generate docked poses.
+        dock = oedocking.OEDock()
+        dock.Initialize(receptor_molecule)
+
+        docked_oemol = oechem.OEMol()
+        status = dock.DockMultiConformerMolecule(docked_oemol, ligand_molecule, 1)
+
+        # Check for errors
+        if status != oedocking.OEDockingReturnCode_Success:
+            return None
+
+        return docked_oemol
+
+    def execute(self, directory, available_resources):
+
+        logging.info(f'Generating coordinates for {self._substance.identifier}: {self.id}')
 
         logging.info('Coordinates generated: ' + self._substance.identifier)
 
@@ -238,107 +441,3 @@ class BuildCoordinatesPackmol(BaseProtocol):
 #         logging.info(f'Coordinates generated: {component.identifier}')
 #
 #         return self._get_output_dictionary()
-
-
-@register_calculation_protocol()
-class BuildDockedCoordinates(BaseProtocol):
-    """Creates a set of coordinates for a ligand bound to some receptor.
-
-    Notes
-    -----
-    This protocol currently only supports docking with the OpenEye OEDocking
-    framework.
-    """
-
-    @protocol_input(str)
-    def ligand_coordinate_file(self):
-        """The file path to the coordinates of the ligand molecule."""
-        pass
-
-    @protocol_input(str)
-    def receptor_coordinate_file(self):
-        """The file path to the coordinates of the receptor molecule."""
-        pass
-
-    @protocol_output(str)
-    def output_coordinate_file_path(self):
-        """The file path to the created PDB coordinate file, which contains the coordinates
-        of the ligand and the receptor."""
-        pass
-
-    def __init__(self, protocol_id):
-
-        super().__init__(protocol_id)
-
-        self._ligand_coordinate_file = None
-        self._receptor_coordinate_file = None
-
-        self._coordinate_file_path = None
-
-    def _create_receptor(self, binding_site_box):
-        """Create an OpenEye receptor from a PDB file.
-
-        Parameters
-        ----------
-        binding_site_box : list of float
-            The minimum and maximum values of the coordinates of the box
-            representing the binding site [xmin, ymin, zmin, xmax, ymax, zmax].
-
-        Returns
-        -------
-        receptor : openeye.oedocking.OEReceptor
-            The OpenEye receptor object.
-
-        """
-        from openeye import oechem, oedocking
-
-        input_stream = oechem.oemolistream(self._receptor_coordinate_file)
-
-        original_receptor_molecule = oechem.OEGraphMol()
-        oechem.OEReadMolecule(input_stream, original_receptor_molecule)
-
-        box = oedocking.OEBox(*binding_site_box)
-
-        receptor = oechem.OEGraphMol()
-        oedocking.OEMakeReceptor(receptor, original_receptor_molecule, box)
-
-        return receptor
-
-    @staticmethod
-    def _dock_molecule(self, receptor_molecule, ligand_molecule):
-        """Run the multi-conformer docker.
-
-        Parameters
-        ----------
-        receptor_molecule : openeye.oedocking.OEReceptor
-            The openeye receptor.
-        ligand_molecule : openeye.oechem.OEMol
-            The multi-conformer OpenEye molecule to dock.
-
-        Returns
-        -------
-        openeye.oechem.OEMol
-            The docked OpenEye molecule.
-        """
-        from openeye import oechem, oedocking
-
-        # Generate docked poses.
-        dock = oedocking.OEDock()
-        dock.Initialize(receptor_molecule)
-
-        docked_oemol = oechem.OEMol()
-        status = dock.DockMultiConformerMolecule(docked_oemol, ligand_molecule, 1)
-
-        # Check for errors
-        if status != oedocking.OEDockingReturnCode_Success:
-            return None
-
-        return docked_oemol
-
-    def execute(self, directory, available_resources):
-
-        logging.info(f'Generating coordinates for {self._substance.identifier}: {self.id}')
-
-        logging.info('Coordinates generated: ' + self._substance.identifier)
-
-        return self._get_output_dictionary()
