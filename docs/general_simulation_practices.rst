@@ -25,6 +25,8 @@ Molecular Dynamics Parameters
 
 - Long-range cutoff: The PME method for calculating long-range electrostatic interactions is used, with a cutoff distance of 0.95 nm.  The same cutoff is used for van der Waals interactions, with a long-range isotropic dispersion correction employed to correct for the truncation of Lennard-Jones interactions outside of the 0.95 nm cutoff.
 
+- Simulation length: Simulations are run until the relative uncertainty targets are met, with automatic analysis of the property values and uncertainties performed every 1 ns.
+
 
 Equilibration and detection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
