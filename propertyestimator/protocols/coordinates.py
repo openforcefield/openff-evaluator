@@ -53,6 +53,12 @@ class BuildCoordinatesPackmol(BaseProtocol):
         and any working packmol files will be retained."""
         pass
 
+    @protocol_input(bool)
+    def retain_packmol_files(self):
+        """If True, packmol will not delete all of the temporary files it creates
+        while building the coordinates."""
+        pass
+
     @protocol_output(str)
     def coordinate_file_path(self):
         """The file path to the created PDB coordinate file."""
@@ -73,6 +79,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
         self._mass_density = 0.95 * unit.grams / unit.milliliters
 
         self._verbose_packmol = False
+        self._retain_packmol_files = False
 
     def _build_molecule_arrays(self, directory):
         """Converts the input substance into a list of openeye OEMol's and a list of
@@ -164,13 +171,15 @@ class BuildCoordinatesPackmol(BaseProtocol):
         if exception is not None:
             return exception
 
+        packmol_directory = path.join(directory, 'packmol_files')
+
         # Create packed box
         topology, positions = packmol.pack_box(molecules=molecules,
                                                number_of_copies=number_of_molecules,
                                                mass_density=self._mass_density,
                                                verbose=self._verbose_packmol,
-                                               working_directory=None,
-                                               retain_working_files=False)
+                                               working_directory=packmol_directory,
+                                               retain_working_files=self._retain_packmol_files)
 
         if topology is None or positions is None:
 
@@ -219,14 +228,16 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
         if exception is not None:
             return exception
 
+        packmol_directory = path.join(directory, 'packmol_files')
+
         # Create packed box
         topology, positions = packmol.pack_box(molecules=molecules,
                                                number_of_copies=number_of_molecules,
                                                structure_to_solvate=self._solute_coordinate_file,
                                                mass_density=self._mass_density,
                                                verbose=self._verbose_packmol,
-                                               working_directory=None,
-                                               retain_working_files=False)
+                                               working_directory=packmol_directory,
+                                               retain_working_files=self._retain_packmol_files)
 
         if topology is None or positions is None:
             return PropertyEstimatorException(directory=directory,

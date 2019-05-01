@@ -107,6 +107,9 @@ def pack_box(molecules,
         working_directory = mkdtemp()
         temporary_directory = True
 
+    elif not os.path.isdir(working_directory):
+        os.mkdir(working_directory)
+
     # Create PDB files for all components.
     pdb_filenames = list()
     mdtraj_topologies = []
