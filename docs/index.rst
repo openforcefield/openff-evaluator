@@ -61,7 +61,7 @@ Index
 * :doc:`property_simulation_practices`
 
 .. toctree::
-  :maxdepth: 2
+  :maxdepth: 1
   :hidden:
   :caption: Simulation Practices
   
