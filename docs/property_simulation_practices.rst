@@ -7,7 +7,7 @@ Neat Liquid Densities
 Method of Calculation
 ~~~~~~~~~~~~~~~~~~~~~
 
-Densities are calculated based on the formula :math:`\frac{M}{\langle V \rangle}`, where \langle V \rangle is the timeseries average of the total volume of the simulation. 
+Densities are calculated based on the formula :math:`\frac{M}{\langle V \rangle}`, where :math:`\langle V \rangle` is the timeseries average of the total volume of the simulation. 
 
 Simulations Required
 ~~~~~~~~~~~~~~~~~~~~~
