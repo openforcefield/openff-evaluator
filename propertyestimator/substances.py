@@ -53,6 +53,8 @@ class Substance(TypedBaseModel):
         Ligand = 'Ligand'
         Receptor = 'Receptor'
 
+        Undefined = 'Undefined'
+
     class Component(TypedBaseModel):
         """Defines a single component in a system, as well as properties
         such as it's relative proportion in the system.
