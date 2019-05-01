@@ -57,8 +57,8 @@ Index
   
 **Simulation Practices Documentation**
 
-* :doc: `general_simulation_practices`
-* :doc: `property_simulation_practices`
+* :doc:`general_simulation_practices`
+* :doc:`property_simulation_practices`
 
 .. toctree::
   :maxdepth: 2
