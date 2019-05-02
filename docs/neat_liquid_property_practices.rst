@@ -14,10 +14,10 @@ Simulations Required
 
 To compute the liquid density, a single neat liquid NPT simulation at the temperature and pressure (T,P) is required.
 
-Relative Uncertainty Targets
+Uncertainty Targets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For this property, we choose a relative uncertainty target of 0.1% (i.e. 1000+-1).  This choice is based on....
+For this property, we choose a relative uncertainty target of 0.1% (i.e. 1000+-1).  This choice is based on a reasonably achievable level of uncertainty based on a 10-20 ns simulation.
 
 
 References
