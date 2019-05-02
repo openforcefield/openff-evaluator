@@ -1,4 +1,4 @@
-Property Specific Calculation Practices
+Neat Liquid Properties
 ======================================
 
 Neat Liquid Densities
@@ -18,6 +18,24 @@ Relative Uncertainty Targets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For this property, we choose a relative uncertainty target of 0.1% (i.e. 1000+-1).  This choice is based on....
+
+
+References
+~~~~~~~~~~~~
+
+Neat Liquid Dielectrics
+----------------
+
+Method of Calculation
+~~~~~~~~~~~~~~~~~~~~~
+
+
+Simulations Required
+~~~~~~~~~~~~~~~~~~~~~
+
+
+Relative Uncertainty Targets
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 References
