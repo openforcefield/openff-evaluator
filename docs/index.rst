@@ -55,7 +55,7 @@ Index
 
   api
 
-  **Simulation Practices Documentation**
+**Simulation Practices Documentation**
 
 * :doc:`general_simulation_practices`
 * :doc:`neat_liquid_property_practices`
