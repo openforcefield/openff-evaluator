@@ -55,5 +55,18 @@ Index
 
   api
 
+  **Simulation Practices Documentation**
 
+* :doc:`general_simulation_practices`
+* :doc:`neat_liquid_property_practices`
+* :doc:`liquid_mixture_property_practices`
+
+.. toctree::
+  :maxdepth: 1
+  :hidden:
+  :caption: Simulation Practices
+  
+  general_simulation_practices
+  neat_liquid_property_practices
+  liquid_mixture_property_practices
 
