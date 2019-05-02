@@ -58,7 +58,7 @@ Index
 **Simulation Practices Documentation**
 
 * :doc:`general_simulation_practices`
-* :doc:`property_simulation_practices`
+* :doc:`neat_liquid_property_practices`
 
 .. toctree::
   :maxdepth: 1
@@ -66,5 +66,5 @@ Index
   :caption: Simulation Practices
   
   general_simulation_practices
-  property_simulation_practices
+  neat_liquid_property_practices
   
