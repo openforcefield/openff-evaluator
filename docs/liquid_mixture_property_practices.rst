@@ -1,4 +1,4 @@
-Liquid Mixture Property Practics
+Liquid Mixture Property Practices
 ====================
 
 Liquid Mixture Densities
