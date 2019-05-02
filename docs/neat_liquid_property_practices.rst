@@ -23,6 +23,11 @@ For this property, we choose a relative uncertainty target of 0.1% (i.e. 1000+-1
 References
 ~~~~~~~~~~~~
 
+Toward Automated Benchmarking of Atomistic Force Fields: Neat Liquid Densities and Static Dielectric Constants from the ThermoML Data Archive
+Kyle A. Beauchamp, Julie M. Behr, Ariën S. Rustenburg, Christopher I. Bayly, Kenneth Kroenlein, and John D. Chodera
+The Journal of Physical Chemistry B 2015 119 (40), 12912-12920
+DOI: 10.1021/acs.jpcb.5b06703 
+
 Neat Liquid Dielectrics
 ----------------
 
