@@ -1,6 +1,8 @@
 General Simulation Practices
 ============================
 
+**Note: The contents and structure of this document are still under construction and subject to frequent change**
+
 Neat Liquid Simulations
 -----------------------
 
@@ -36,6 +38,11 @@ For production simulations, the `detectEquilibration` function from the `pymbar.
 References
 ~~~~~~~~~~
 Solvation Toolkit package: https://github.com/MobleyLab/SolvationToolkit/
+
+Toward Automated Benchmarking of Atomistic Force Fields: Neat Liquid Densities and Static Dielectric Constants from the ThermoML Data Archive
+Kyle A. Beauchamp, Julie M. Behr, Ariën S. Rustenburg, Christopher I. Bayly, Kenneth Kroenlein, and John D. Chodera
+The Journal of Physical Chemistry B 2015 119 (40), 12912-12920
+DOI: 10.1021/acs.jpcb.5b06703 
 
 Liquid Mixture Simulations
 -------------------------
