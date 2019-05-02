@@ -62,7 +62,7 @@ Index
 * :doc:`liquid_mixture_property_practices`
 
 .. toctree::
-  :maxdepth: 3
+  :maxdepth: 1
   :hidden:
   :caption: Simulation Practices
   
