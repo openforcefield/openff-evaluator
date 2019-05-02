@@ -36,3 +36,41 @@ For production simulations, the `detectEquilibration` function from the `pymbar.
 References
 ~~~~~~~~~~
 Solvation Toolkit package: https://github.com/MobleyLab/SolvationToolkit/
+
+Liquid Mixture Simulations
+-------------------------
+
+Simulation Box Setup
+~~~~~~~~~~~~~~~~~~~~
+
+Energy Minimization
+~~~~~~~~~~~~~~~~~~~~
+
+
+Molecular Dynamics Parameters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Equilibration and detection
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+References
+~~~~~~~~~~
+
+Host-Guest Simulations
+-------------------
+
+Simulation Box Setup
+~~~~~~~~~~~~~~~~~~~~
+
+Energy Minimization
+~~~~~~~~~~~~~~~~~~~~
+
+
+Molecular Dynamics Parameters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Equilibration and detection
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+References
+~~~~~~~~~~
