@@ -55,9 +55,9 @@ Index
 
   api
 
-**Simulation Practices Documentation**
+**Simulation Protocols**
 
-* :doc:`general_simulation_practices`
+* :doc:`simulation_protocols`
 * :doc:`neat_liquid_property_practices`
 * :doc:`liquid_mixture_property_practices`
 
@@ -66,7 +66,17 @@ Index
   :hidden:
   :caption: Simulation Practices
   
-  general_simulation_practices
+  simulation_protocols
+
+**Property Calculation Protocols**
+
+* :doc:`neat_liquid_property_practices`
+* :doc:`liquid_mixture_property_practices`
+
+.. toctree::
+  :maxdepth: 1
+  :hidden:
+  :caption: Property Calculation Protocols
+  
   neat_liquid_property_practices
   liquid_mixture_property_practices
-
