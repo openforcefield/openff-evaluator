@@ -57,16 +57,18 @@ Index
 
 **Simulation Protocols**
 
-* :doc:`simulation_protocols`
-* :doc:`neat_liquid_property_practices`
-* :doc:`liquid_mixture_property_practices`
+* :doc:`neat_liquid_simulation`
+* :doc:`liquid_mixture_simulations`
+* :doc:`host_guest_simulations`
 
 .. toctree::
   :maxdepth: 1
   :hidden:
-  :caption: Simulation Practices
+  :caption: Simulation Protocols
   
-  simulation_protocols
+  neat_liquid_simulation
+  liquid_mixture_simulations
+  host_guest_simulations
 
 **Property Calculation Protocols**
 
