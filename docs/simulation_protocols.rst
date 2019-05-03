@@ -1,4 +1,4 @@
-General Simulation Practices
+Simulation Protocols
 ============================
 
 **Note: The contents and structure of this document are still under construction and subject to frequent change**
