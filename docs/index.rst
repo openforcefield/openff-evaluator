@@ -76,7 +76,7 @@ Index
 * :doc:`liquid_mixture_property_practices`
 
 .. toctree::
-  :maxdepth: 1
+  :maxdepth: 2
   :hidden:
   :caption: Property Calculation Protocols
   
