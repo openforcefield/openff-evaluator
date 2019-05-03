@@ -57,7 +57,7 @@ Index
 
 **Simulation Protocols**
 
-* :doc:`neat_liquid_simulation`
+* :doc:`neat_liquid_simulations`
 * :doc:`liquid_mixture_simulations`
 * :doc:`host_guest_simulations`
 
@@ -66,7 +66,7 @@ Index
   :hidden:
   :caption: Simulation Protocols
   
-  neat_liquid_simulation
+  neat_liquid_simulations
   liquid_mixture_simulations
   host_guest_simulations
 
