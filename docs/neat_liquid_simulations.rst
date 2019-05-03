@@ -40,24 +40,3 @@ Toward Automated Benchmarking of Atomistic Force Fields: Neat Liquid Densities a
 Kyle A. Beauchamp, Julie M. Behr, Ariën S. Rustenburg, Christopher I. Bayly, Kenneth Kroenlein, and John D. Chodera
 The Journal of Physical Chemistry B 2015 119 (40), 12912-12920
 DOI: 10.1021/acs.jpcb.5b06703 
-
-
-
-Host-Guest Simulations
--------------------
-
-Simulation Box Setup
-~~~~~~~~~~~~~~~~~~~~
-
-Energy Minimization
-~~~~~~~~~~~~~~~~~~~~
-
-
-Molecular Dynamics Parameters
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Equilibration and detection
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-References
-~~~~~~~~~~
