@@ -3,6 +3,7 @@ A collection of protocols for building coordinates for molecular systems.
 """
 
 import logging
+from enum import Enum
 from os import path
 
 import numpy as np
@@ -15,12 +16,6 @@ from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
-
-
-# class SupportedFileFormat(Enum):
-#
-#     PDB = 'pdb'
-#     MOL2 = 'mol2'
 
 
 @register_calculation_protocol()
@@ -94,9 +89,8 @@ class BuildCoordinatesPackmol(BaseProtocol):
         -------
         list of openeye.oechem.OEMol
             The list of openeye molecules.
-        np.ndarry
-            The number of each molecule which should be added to the system,
-            of shape (1, substance.number_of_components).
+        list of int
+            The number of each molecule which should be added to the system.
         PropertyEstimatorException, optional
             None if no exceptions occured, otherwise the exception.
         """
@@ -116,7 +110,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
             molecules.append(molecule)
 
         # Determine how many molecules of each type will be present in the system.
-        number_of_molecules = np.zeros(self._substance.number_of_components, dtype=np.int)
+        number_of_molecules = [0] * self._substance.number_of_components
 
         for index, component in enumerate(self._substance.components):
 
@@ -257,10 +251,19 @@ class BuildDockedCoordinates(BaseProtocol):
     This protocol currently only supports docking with the OpenEye OEDocking
     framework.
     """
+    class ActivateSiteLocation(Enum):
+        """An enum which describes the methods by which a receptors
+        activate site(s) is located."""
+        ReceptorCenterOfMass = 'ReceptorCenterOfMass'
 
-    @protocol_input(str)
-    def ligand_coordinate_file(self):
-        """The file path to the coordinates of the ligand molecule."""
+    @protocol_input(Substance)
+    def ligand_substance(self):
+        """A substance containing only the ligand to dock."""
+        pass
+
+    @protocol_input(int)
+    def number_of_ligand_conformations(self):
+        """The number of conformers to try and dock into the receptor structure."""
         pass
 
     @protocol_input(str)
@@ -268,35 +271,43 @@ class BuildDockedCoordinates(BaseProtocol):
         """The file path to the coordinates of the receptor molecule."""
         pass
 
+    @protocol_input(ActivateSiteLocation)
+    def activate_site_location(self):
+        """Defines the method by which the activate site is identified. Currently the only available
+        option is `ActivateSiteLocation.ReceptorCenterOfMass`"""
+        pass
+
     @protocol_output(str)
-    def output_coordinate_file_path(self):
-        """The file path to the created PDB coordinate file, which contains the coordinates
-        of the ligand and the receptor."""
+    def docked_ligand_coordinate_path(self):
+        """The file path to the coordinates of the ligand in it's docked
+        pose, aligned with the initial `receptor_coordinate_file`."""
+        pass
+
+    @protocol_output(str)
+    def docked_complex_coordinate_path(self):
+        """The file path to the docked ligand-receptor complex."""
         pass
 
     def __init__(self, protocol_id):
 
         super().__init__(protocol_id)
 
-        self._ligand_coordinate_file = None
+        self._ligand_substance = None
+        self._number_of_ligand_conformations = 100
+
         self._receptor_coordinate_file = None
+        self._activate_site_location = self.ActivateSiteLocation.ReceptorCenterOfMass
 
-        self._coordinate_file_path = None
+        self._docked_ligand_coordinate_path = None
+        self._docked_complex_coordinate_path = None
 
-    def _create_receptor(self, binding_site_box):
-        """Create an OpenEye receptor from a PDB file.
-
-        Parameters
-        ----------
-        binding_site_box : list of float
-            The minimum and maximum values of the coordinates of the box
-            representing the binding site [xmin, ymin, zmin, xmax, ymax, zmax].
+    def _create_receptor(self):
+        """Create an OpenEye receptor from a mol2 file.
 
         Returns
         -------
-        receptor : openeye.oedocking.OEReceptor
+        openeye.oedocking.OEReceptor
             The OpenEye receptor object.
-
         """
         from openeye import oechem, oedocking
 
@@ -305,150 +316,133 @@ class BuildDockedCoordinates(BaseProtocol):
         original_receptor_molecule = oechem.OEGraphMol()
         oechem.OEReadMolecule(input_stream, original_receptor_molecule)
 
-        box = oedocking.OEBox(*binding_site_box)
+        center_of_mass = oechem.OEFloatArray(3)
+        oechem.OEGetCenterOfMass(original_receptor_molecule, center_of_mass)
 
         receptor = oechem.OEGraphMol()
-        oedocking.OEMakeReceptor(receptor, original_receptor_molecule, box)
+        oedocking.OEMakeReceptor(receptor, original_receptor_molecule,
+                                 center_of_mass[0], center_of_mass[1], center_of_mass[2])
 
         return receptor
 
-    @staticmethod
-    def _dock_molecule(receptor_molecule, ligand_molecule):
-        """Run the multi-conformer docker.
+    def _create_ligand(self):
 
-        Parameters
-        ----------
-        receptor_molecule : openeye.oedocking.OEReceptor
-            The openeye receptor.
-        ligand_molecule : openeye.oechem.OEMol
-            The multi-conformer OpenEye molecule to dock.
+        from openeye.oequacpac import OEAssignCharges, OEAM1BCCCharges, OESetNeutralpHModel
 
-        Returns
-        -------
-        openeye.oechem.OEMol
-            The docked OpenEye molecule.
-        """
-        from openeye import oechem, oedocking
+        ligand = create_molecule_from_smiles(self._ligand_substance.components[0].smiles,
+                                             self._number_of_ligand_conformations)
 
-        # Generate docked poses.
-        dock = oedocking.OEDock()
-        dock.Initialize(receptor_molecule)
+        if ligand is None:
 
-        docked_oemol = oechem.OEMol()
-        status = dock.DockMultiConformerMolecule(docked_oemol, ligand_molecule, 1)
-
-        # Check for errors
-        if status != oedocking.OEDockingReturnCode_Success:
+            logging.info(f'Could not generate the ligand ({self._ligand_substance}) and conformers'
+                         f'from the provided smiles.')
             return None
 
-        return docked_oemol
+        OESetNeutralpHModel(ligand)
+
+        # Assign AM1-BCC charges to the ligand just as an initial guess
+        # for docking.
+        OEAssignCharges(ligand, OEAM1BCCCharges())
+
+        return ligand
 
     def execute(self, directory, available_resources):
 
-        logging.info(f'Generating coordinates for {self._substance.identifier}: {self.id}')
+        if (len(self._ligand_substance.components) != 1 or
+            self._ligand_substance.components[0].role != Substance.ComponentRole.Ligand):
 
-        logging.info('Coordinates generated: ' + self._substance.identifier)
+            return PropertyEstimatorException(directory=directory,
+                                              message='The ligand substance must contain a single ligand component.')
+
+        import mdtraj
+        from openeye import oechem, oedocking
+
+        logging.info('Initializing the receptor molecule.')
+
+        receptor_molecule = self._create_receptor()
+
+        logging.info('Initializing the ligand molecule.')
+
+        ligand_molecule = self._create_ligand()
+
+        logging.info('Initializing the docking object.')
+
+        # Dock the ligand to the receptor.
+        dock = oedocking.OEDock()
+        dock.Initialize(receptor_molecule)
+
+        docked_ligand = oechem.OEGraphMol()
+
+        logging.info('Performing the docking.')
+
+        status = dock.DockMultiConformerMolecule(docked_ligand, ligand_molecule)
+
+        if status != oedocking.OEDockingReturnCode_Success:
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='The ligand could not be successfully docked')
+
+        docking_method = oedocking.OEDockMethodGetName(oedocking.OEDockMethod_Default)
+        oedocking.OESetSDScore(docked_ligand, dock, docking_method)
+
+        dock.AnnotatePose(docked_ligand)
+
+        self._docked_ligand_coordinate_path = path.join(directory, 'ligand.pdb')
+
+        output_stream = oechem.oemolostream(self._docked_ligand_coordinate_path)
+        oechem.OEWriteMolecule(output_stream, docked_ligand)
+        output_stream.close()
+
+        receptor_pdb_path = path.join(directory, 'receptor.pdb')
+
+        output_stream = oechem.oemolostream(receptor_pdb_path)
+        oechem.OEWriteMolecule(output_stream, receptor_molecule)
+        output_stream.close()
+
+        ligand_trajectory = mdtraj.load(self._docked_ligand_coordinate_path)
+
+        ligand_residue = ligand_trajectory.topology.residue(0)
+        ligand_residue.name = 'LIG'
+
+        # Save the ligand file with the correct residue name.
+        ligand_trajectory.save(self._docked_ligand_coordinate_path)
+        
+        receptor_trajectory = mdtraj.load(receptor_pdb_path)
+
+        receptor_residue = receptor_trajectory.topology.residue(0)
+        receptor_residue.name = 'REC'
+
+        # Create a merged ligand-receptor topology.
+        complex_topology = ligand_trajectory.topology.copy()
+
+        atom_mapping = {}
+
+        new_residue = complex_topology.add_residue(receptor_residue.name, complex_topology.chain(0))
+
+        for receptor_atom in receptor_residue.atoms:
+
+            new_atom = complex_topology.add_atom(receptor_atom.name, receptor_atom.element, new_residue,
+                                                 serial=receptor_atom.serial)
+
+            atom_mapping[receptor_atom] = new_atom
+
+        for bond in receptor_trajectory.topology.bonds:
+
+            complex_topology.add_bond(atom_mapping[bond[0]], atom_mapping[bond[1]],
+                                      type=bond.type, order=bond.order)
+
+        complex_positions = []
+
+        complex_positions.extend(ligand_trajectory.openmm_positions(0).value_in_unit(unit.angstrom))
+        complex_positions.extend(receptor_trajectory.openmm_positions(0).value_in_unit(unit.angstrom))
+
+        complex_positions *= unit.angstrom
+
+        self._docked_complex_coordinate_path = path.join(directory, 'complex.pdb')
+
+        with open(self._docked_complex_coordinate_path, 'w+') as file:
+
+            app.PDBFile.writeFile(complex_topology.to_openmm(),
+                                  complex_positions, file)
 
         return self._get_output_dictionary()
-
-
-# @register_calculation_protocol()
-# class BuildCoordinatesForComponent(BaseProtocol):
-#     """Creates a set of 3D coordinates for each molecule within a given
-#     substance. Optionally, the coordinates will only be generated for
-#     those components of a substance that satisfy a certain role, such as
-#     only ligands or solutes.
-#     """
-#     @protocol_input(Substance)
-#     def substance(self):
-#         """The substance which contains the component of interest."""
-#         pass
-#
-#     @protocol_input(Substance.ComponentRole)
-#     def component_role(self):
-#         """The substance which contains the component of interest."""
-#         pass
-#
-#     @protocol_input(SupportedFileFormat)
-#     def output_format(self):
-#         """The output coordinate file format."""
-#         pass
-#
-#     @protocol_output(str)
-#     def coordinate_file_path(self):
-#         """The file path to the created PDB coordinate file."""
-#         pass
-#
-#     def __init__(self, protocol_id):
-#
-#         super().__init__(protocol_id)
-#
-#         self._substance = None
-#         self._component_role = Substance.ComponentRole.Undefined
-#
-#         self._output_format = SupportedFileFormat.MOL2
-#
-#         self._coordinate_file_path = None
-#
-#     def execute(self, directory, available_resources):
-#
-#         from openeye import oechem
-#
-#         if self._output_format != SupportedFileFormat.MOL2:
-#
-#             message = 'The BuildCoordinatesForComponent protocol only supports ' \
-#                       'generating mol2 files at this time.'
-#
-#             return PropertyEstimatorException(directory=directory,
-#                                               message=message)
-#
-#         components = [] if self._component_role == Substance.ComponentRole.Undefined else self._substance.components
-#
-#         if self._component_role != Substance.ComponentRole.Undefined:
-#
-#             for component in self._substance.components:
-#
-#                 if component.role != self._component_role:
-#                     continue
-#
-#                 components.append(component)
-#
-#         if len(components) == 0:
-#
-#             message = 'The substance does not contain any components which meet' \
-#                       ' desired criteria.'
-#
-#             return PropertyEstimatorException(directory=directory,
-#                                               message=message)
-#
-#         if len(components) > 1:
-#
-#             message = 'Currently the BuildCoordinatesForComponent protocol ' \
-#                       'only supports building coordinates for a single component.'
-#
-#             return PropertyEstimatorException(directory=directory,
-#                                               message=message)
-#
-#         component = components[0]
-#
-#         logging.info(f'Generating coordinates for {component.identifier}: {self.id}')
-#
-#         oe_molecule = create_molecule_from_smiles(component.smiles)
-#
-#         if oe_molecule is None:
-#
-#             return PropertyEstimatorException(directory=directory,
-#                                               message=f'{component} could not be converted to an OEMol')
-#
-#         self._coordinate_file_path = path.join(directory, 'output.mol2')
-#
-#         # Create the file.
-#         ofs = oechem.oemolostream(self._coordinate_file_path)
-#         ofs.SetFlavor(oechem.OEFormat_MOL2, oechem.OEOFlavor_MOL2_DEFAULT)
-#
-#         oechem.OEWriteConstMolecule(ofs, oe_molecule)
-#         ofs.close()
-#
-#         logging.info(f'Coordinates generated: {component.identifier}')
-#
-#         return self._get_output_dictionary()

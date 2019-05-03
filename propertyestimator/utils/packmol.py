@@ -12,12 +12,14 @@ import random
 import shutil
 import string
 import subprocess
+
+import numpy as np
+
 from distutils.spawn import find_executable
 from tempfile import mkdtemp
 
 from simtk import openmm
 from simtk import unit
-from simtk.openmm import app
 
 PACKMOL_PATH = find_executable("packmol") or shutil.which("packmol") or \
                None if 'PACKMOL' not in os.environ else os.environ['PACKMOL']
@@ -40,7 +42,7 @@ end structure
 _SOLVATE_TEMPLATE = """
 structure {0:s}
   number 1
-  fixed 0. 0. 0. 0. 0. 0.
+  fixed {1:f} {2:f} {3:f} 0. 0. 0.
   centerofmass
 end structure
 """
@@ -154,7 +156,10 @@ def pack_box(molecules,
         if not os.path.isfile(structure_to_solvate):
             raise ValueError(f'The structure to solvate ({structure_to_solvate}) does not exist.')
 
-        packmol_input += _SOLVATE_TEMPLATE.format(structure_to_solvate)
+        packmol_input += _SOLVATE_TEMPLATE.format(structure_to_solvate,
+                                                  unitless_box_angstrom / 2.0,
+                                                  unitless_box_angstrom / 2.0,
+                                                  unitless_box_angstrom / 2.0)
 
     # Write packmol input
     packmol_filename = os.path.join(working_directory, "packmol_input.txt")
@@ -197,12 +202,10 @@ def pack_box(molecules,
 
     # Append missing connect statements to the end of the
     # output file.
-    _append_connect_statements(output_filename,
-                               mdtraj_topologies,
-                               number_of_copies)
-
-    # Read the resulting PDB file.
-    pdb_file = app.PDBFile(output_filename)
+    positions, topology = _correct_packmol_output(output_filename,
+                                                  mdtraj_topologies,
+                                                  number_of_copies,
+                                                  structure_to_solvate)
 
     if not retain_working_files:
 
@@ -210,10 +213,6 @@ def pack_box(molecules,
 
         if temporary_directory:
             shutil.rmtree(working_directory)
-
-    # Extract topology and positions
-    topology = pdb_file.getTopology()
-    positions = pdb_file.getPositions()
 
     unitless_box_nm = box_size / unit.nanometers
 
@@ -277,59 +276,80 @@ def _approximate_volume_by_density(molecules,
     return box_edge
 
 
-def _append_connect_statements(file_name, molecule_topologies, n_copies):
+def _correct_packmol_output(file_path, molecule_topologies,
+                            number_of_copies, structure_to_solvate):
+    """Corrects the PDB file output by packmol (i.e adds full connectivity
+    information, and extracts the topology and positions.
 
-    lines = []
+    Parameters
+    ----------
+    file_path: str
+        The file path to the packmol output file.
+    molecule_topologies: list of mdtraj.Topology
+        A list of topologies for the molecules which packmol has
+        added.
+    number_of_copies: list of int
+        The total number of each molecule which packmol should have
+        created.
+    structure_to_solvate: str
+        The file path to a preexisting structure which packmol
+        has solvated.
 
-    with open(file_name, 'r') as file:
-        lines = file.readlines()
+    Returns
+    -------
+    list
+        The positions determined by packmol.
+    simtk.openmm.app.Topology
+        The topology of the created system with full connectivity.
+    """
 
-    if lines[len(lines) - 1].find('END') == 0:
-        lines.pop()
+    import mdtraj
 
-    atom_counter = 0
+    trajectory = mdtraj.load(file_path)
 
-    # TODO: Does packmol always give the exact number of mols asked for?
-    # In future may be better way to figure this out.
-    for (topology, count) in zip(molecule_topologies, n_copies):
+    atoms_data_frame, _ = trajectory.topology.to_dataframe()
 
-        bonds = {}
+    all_bonds = []
+    all_positions = trajectory.openmm_positions(0)
 
-        for bond in topology.bonds:
+    all_topologies = []
+    all_copies = []
 
-            index_a = bond[0].index
-            index_b = bond[1].index
+    all_topologies.extend(molecule_topologies)
+    all_copies.extend(number_of_copies)
 
-            if index_a not in bonds:
-                bonds[index_a] = []
-            if index_b not in bonds:
-                bonds[index_b] = []
+    if structure_to_solvate is not None:
 
-            bonds[index_a].append(index_b)
-            bonds[index_b].append(index_a)
+        solvated_trajectory = mdtraj.load(structure_to_solvate)
+
+        all_topologies.append(solvated_trajectory.topology)
+        all_copies.append(1)
+
+    offset = 0
+
+    for (molecule_topology, count) in zip(all_topologies, all_copies):
+
+        _, molecule_bonds = molecule_topology.to_dataframe()
 
         for i in range(count):
 
-            for index_a in bonds:
+            for bond in molecule_bonds:
 
-                if len(bonds[index_a]) == 0:
-                    continue
+                all_bonds.append([int(bond[0].item()) + offset,
+                                  int(bond[1].item()) + offset])
 
-                connect_string = 'CONECT' + "%5d" % (index_a + atom_counter + 1)
+            offset += molecule_topology.n_atoms
 
-                for j in range(len(bonds[index_a])):
-                    connect_string += "%5d" % (bonds[index_a][j] + atom_counter + 1)
+    all_bonds = np.unique(all_bonds, axis=0).tolist()
 
-                connect_string += '\n'
+    for bond in all_bonds:
 
-                lines.append(connect_string)
+        atom_a = trajectory.topology.atom(bond[0])
+        atom_b = trajectory.topology.atom(bond[1])
 
-            atom_counter += topology.n_atoms
+        trajectory.topology.add_bond(atom_a, atom_b)
 
-    lines.append('END')
-
-    with open(file_name, 'w') as file:
-        file.writelines(lines)
+    return all_positions, trajectory.topology.to_openmm()
 
 
 def _create_pdb_and_topology(molecule, file_path):

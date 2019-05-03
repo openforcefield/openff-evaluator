@@ -92,7 +92,7 @@ class BuildSmirnoffSystem(BaseProtocol):
 
         for component in self._substance.components:
 
-            molecule = create_molecule_from_smiles(component.smiles)
+            molecule = create_molecule_from_smiles(component.smiles, 0)
 
             if molecule is None:
                 return PropertyEstimatorException(directory=directory,
