@@ -3,7 +3,6 @@ Defines an API for defining thermodynamic states.
 """
 import math
 from enum import Enum
-from typing import Optional
 
 from simtk import unit
 
