@@ -11,6 +11,7 @@ from propertyestimator.properties.utils import generate_base_reweighting_protoco
 from propertyestimator.protocols import analysis, coordinates, forcefield, groups, miscellaneous, simulation
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import Ensemble
+from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow import plugins, protocols
@@ -59,10 +60,15 @@ class WeightValueByMoleFraction(protocols.BaseProtocol):
         assert len(self._component.components) == 1
 
         main_component = self._component.components[0]
-        mole_fraction = self._full_substance.get_mole_fraction(main_component)
+        amount = self._full_substance.get_amount(main_component)
 
-        self._weighted_value = self.value * mole_fraction
+        if not isinstance(amount, Substance.MoleFraction):
 
+            return PropertyEstimatorException(directory=directory,
+                                              message=f'The component {main_component} was given in an '
+                                                      f'exact amount, and not a mole fraction')
+
+        self._weighted_value = self.value * amount.value
         return self._get_output_dictionary()
 
 

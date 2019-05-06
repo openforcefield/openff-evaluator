@@ -342,10 +342,31 @@ def _correct_packmol_output(file_path, molecule_topologies,
 
     all_bonds = np.unique(all_bonds, axis=0).tolist()
 
+    # We have to check whether there are any existing bonds, because mdtraj will
+    # sometimes automatically detect some based on residue names (e.g HOH), and
+    # this behaviour cannot be disabled.
+    existing_bonds = []
+
+    for bond in trajectory.topology.bonds:
+        existing_bonds.append(bond)
+
     for bond in all_bonds:
 
         atom_a = trajectory.topology.atom(bond[0])
         atom_b = trajectory.topology.atom(bond[1])
+
+        bond_exists = False
+
+        for existing_bond in existing_bonds:
+
+            if ((existing_bond.atom1 == atom_a and existing_bond.atom2 == atom_b) or
+                (existing_bond.atom2 == atom_a and existing_bond.atom1 == atom_b)):
+
+                bond_exists = True
+                break
+
+        if bond_exists:
+            continue
 
         trajectory.topology.add_bond(atom_a, atom_b)
 

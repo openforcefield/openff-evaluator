@@ -2,7 +2,11 @@
 An API for defining and creating substances.
 """
 
+import abc
+import math
 from enum import Enum
+
+import numpy as np
 
 from propertyestimator.utils.serialization import TypedBaseModel
 
@@ -15,14 +19,14 @@ class Substance(TypedBaseModel):
     A neat liquid has only one component:
 
     >>> liquid = Substance()
-    >>> liquid.add_component(Substance.Component(smiles='O'))
+    >>> liquid.add_component(Substance.Component(smiles='O'), Substance.MoleFraction(1.0))
 
     A binary mixture has two components, where the mole fractions must be
     explicitly stated:
 
     >>> binary_mixture = Substance()
-    >>> binary_mixture.add_component(Substance.Component(smiles='O'), mole_fraction=0.2)
-    >>> binary_mixture.add_component(Substance.Component(smiles='CO'), mole_fraction=0.8)
+    >>> binary_mixture.add_component(Substance.Component(smiles='O'), Substance.MoleFraction(0.2))
+    >>> binary_mixture.add_component(Substance.Component(smiles='CO'), Substance.MoleFraction(0.8))
 
     The infinite dilution of one solute within a solvent or mixture may also specified
     as a `Substance` by setting the mole fraction of the solute equal to 0.0.
@@ -35,8 +39,8 @@ class Substance(TypedBaseModel):
     >>> water = Substance.Component(smiles='O', role=Substance.ComponentRole.Solvent)
 
     >>> infinite_dilution = Substance()
-    >>> infinite_dilution.add_component(component=benzene, mole_fraction=0.0) # Infinite dilution.
-    >>> infinite_dilution.add_component(component=water, mole_fraction=1.0)
+    >>> infinite_dilution.add_component(component=benzene, amount=Substance.ExactAmount(1)) # Infinite dilution.
+    >>> infinite_dilution.add_component(component=water, amount=Substance.MoleFraction(1.0))
     """
 
     class ComponentRole(Enum):
@@ -143,6 +147,149 @@ class Substance(TypedBaseModel):
         def __ne__(self, other):
             return not (self == other)
 
+    class Amount(abc.ABC):
+        """An abstract representation of the amount of a given component
+        in a substance.
+        """
+
+        @property
+        def value(self):
+            """The value of this amount."""
+            return self._value
+
+        @property
+        def identifier(self):
+            """A string identifier for this amount."""
+            raise NotImplementedError()
+
+        def __init__(self, value=None):
+            """Constructs a new Amount object."""
+            self._value = value
+
+        @abc.abstractmethod
+        def to_number_of_molecules(self, total_substance_molecules, tolerance=None):
+            """Converts this amount to an exact number of molecules
+
+            Parameters
+            ----------
+            total_substance_molecules: int
+                The total number of molecules in the whole substance. This amount
+                will contribute to a portion of this total number.
+            tolerance: float
+                The tolerance with which this amount should be in. As an example,
+                when converting a mole fraction into a number of molecules, the
+                total number of molecules may not be sufficently large enough to
+                reproduce this amount.
+
+            Returns
+            -------
+            int
+                The number of molecules which this amount represents,
+                given the `total_substance_molecules`.
+            """
+            raise NotImplementedError()
+
+        def __getstate__(self):
+            return {'value': self._value}
+
+        def __setstate__(self, state):
+            self._value = state['value']
+
+        def __str__(self):
+            return self.identifier
+
+        def __eq__(self, other):
+            return np.isclose(self._value, other.value)
+
+    class MoleFraction(Amount):
+        """Represents the amount of a component in a substance as a
+        mole fraction."""
+
+        @property
+        def value(self):
+            """float: The value of this amount."""
+            return super(Substance.MoleFraction, self).value
+
+        @property
+        def identifier(self):
+            return f'{{{self._value:.6f}}}'
+
+        def __init__(self, value=1.0):
+            """Constructs a new MoleFraction object.
+
+            Parameters
+            ----------
+            value: float
+                A mole fraction in the range (0.0, 1.0]
+            """
+
+            if value <= 0.0 or value > 1.0:
+
+                raise ValueError('A mole fraction must be greater than zero, and less than or'
+                                 'equal to one.')
+
+            if math.floor(value * 1e6) < 1:
+
+                raise ValueError('Mole fractions are only precise to the sixth '
+                                 'decimal place.')
+
+            super().__init__(value)
+
+        def to_number_of_molecules(self, total_substance_molecules, tolerance=None):
+
+            # Determine how many molecules of each type will be present in the system.
+            number_of_molecules = int(round(self._value * total_substance_molecules))
+
+            if number_of_molecules == 0:
+                raise ValueError('The total number of substance molecules was not large enough, '
+                                 'such that this non-zero amount translates into zero molecules '
+                                 'of this component in the substance.')
+
+            if tolerance is not None:
+
+                mole_fraction = number_of_molecules / total_substance_molecules
+
+                if abs(mole_fraction - self._value) > tolerance:
+                    raise ValueError(f'The mole fraction ({mole_fraction}) given a total number of molecules '
+                                     f'({total_substance_molecules}) is outside of the tolerance {tolerance} '
+                                     f'of the target mole fraction {self._value}')
+
+            return number_of_molecules
+
+    class ExactAmount(Amount):
+        """Represents the amount of a component in a substance as an
+        exact number of molecules.
+
+        The expectation is that this amount should be used for components which
+        are infinitely dilute (such as ligands in binding calculations), and hence
+        do not contribute to the total mole fraction of a substance"""
+
+        @property
+        def value(self):
+            """int: The value of this amount."""
+            return super(Substance.ExactAmount, self).value
+
+        @property
+        def identifier(self):
+            return f'({int(round(self._value)):d})'
+
+        def __init__(self, value):
+            """Constructs a new ExactAmount object.
+
+            Parameters
+            ----------
+            value: int
+                An exact number of molecules.
+            """
+
+            if not np.isclose(int(round(value)), value):
+                raise ValueError('The value must be an integer.')
+
+            super().__init__(value)
+
+        def to_number_of_molecules(self, total_substance_molecules, tolerance=None):
+            return self._value
+
     @property
     def identifier(self):
 
@@ -156,13 +303,9 @@ class Substance(TypedBaseModel):
 
         for component_identifier in sorted_component_identifiers:
 
-            component_fraction = self._mole_fractions[component_identifier]
+            component_amount = self._amounts[component_identifier]
 
-            identifier = f'{component_identifier}'
-
-            if component_fraction > 0.0:
-                identifier += f'{{{component_fraction:.6f}}}'
-
+            identifier = f'{component_identifier}{component_amount.identifier}'
             identifier_split.append(identifier)
 
         return '|'.join(identifier_split)
@@ -178,10 +321,10 @@ class Substance(TypedBaseModel):
     def __init__(self):
         """Constructs a new Substance object."""
 
-        self._mole_fractions = {}
+        self._amounts = {}
         self._components = []
 
-    def add_component(self, component, mole_fraction=1.0):
+    def add_component(self, component, amount):
         """Add a component to the Substance. If the component is already present in
         the substance, then the mole fraction will be added to the current mole
         fraction of that component.
@@ -190,31 +333,41 @@ class Substance(TypedBaseModel):
         ----------
         component : Substance.Component
             The component to add to the system.
-        mole_fraction : float
-            The mole fraction of this component in the range of [0,1]. If a value of
-            0.0 is provided, then the component will be treated as being infinitely
-            dilute (i.e only present as a single molecule).
+        amount : Substance.Amount
+            The amount of this component in the substance.
         """
 
         assert isinstance(component, Substance.Component)
+        assert isinstance(amount, Substance.Amount)
 
-        if mole_fraction < 0.0 or mole_fraction > 1.0:
-            raise ValueError(f'The mole fraction ({mole_fraction} must be in the range [0.0, 1.0]')
+        if isinstance(amount, Substance.MoleFraction):
 
-        total_mole_fraction = mole_fraction + sum([mole_fraction for mole_fraction in
-                                                   self._mole_fractions.values()])
+            total_mole_fraction = amount.value + sum([amount.value for amount in self._amounts if
+                                                      isinstance(amount, Substance.MoleFraction)])
 
-        if total_mole_fraction > 1.0:
-            raise ValueError(f'The total mole fraction of this substance {total_mole_fraction} exceeds 1.0')
+            if total_mole_fraction > 1.0:
+                raise ValueError(f'The total mole fraction of this substance {total_mole_fraction} exceeds 1.0')
 
-        if component.identifier not in self._mole_fractions:
-            self._mole_fractions[component.identifier] = 0.0
+        if component.identifier not in self._amounts:
 
-        self._mole_fractions[component.identifier] += mole_fraction
-        self._components.append(component)
+            self._amounts[component.identifier] = amount
+            self._components.append(component)
 
-    def get_mole_fraction(self, component):
-        """Returns the mole fraction of the component in this substance.
+            return
+
+        existing_amount = self._amounts[component.identifier]
+
+        if not type(existing_amount) is type(amount):
+
+            raise ValueError(f'This component already exists in the substance, but in a '
+                             f'different amount type ({type(existing_amount)}) than that '
+                             f'specified ({type(amount)})')
+
+        new_amount = type(amount)(existing_amount.value + amount.value)
+        self._amounts[component.identifier] = new_amount
+
+    def get_amount(self, component):
+        """Returns the amount of the component in this substance.
 
         Parameters
         ----------
@@ -223,23 +376,58 @@ class Substance(TypedBaseModel):
 
         Returns
         -------
-        float
-            The mole fraction of the component in this substance.
+        Substance.Amount
+            The amount of the component in this substance.
         """
         assert isinstance(component, str) or isinstance(component, Substance.Component)
         identifier = component if isinstance(component, str) else component.identifier
 
-        return self._mole_fractions[identifier]
+        return self._amounts[identifier]
+
+    def get_molecules_per_component(self, maximum_molecules):
+        """Returns the number of molecules for each component in this substance,
+        given a maximum total number of molecules.
+
+        Parameters
+        ----------
+        maximum_molecules: int
+            The maximum number of molecules.
+
+        Returns
+        -------
+        dict of str and int
+            A dictionary of molecule counts per component, where each key is
+            a component identifier.
+        """
+
+        number_of_molecules = {}
+        remaining_molecule_slots = maximum_molecules
+
+        for index, component in enumerate(self._components):
+
+            amount = self._amounts[component.identifier]
+
+            if not isinstance(amount, Substance.ExactAmount):
+                continue
+
+            remaining_molecule_slots -= amount.value
+
+        for index, component in enumerate(self._components):
+
+            amount = self._amounts[component.identifier]
+            number_of_molecules[component.identifier] = amount.to_number_of_molecules(remaining_molecule_slots)
+
+        return number_of_molecules
 
     def __getstate__(self):
         return {
             'components': self._components,
-            'mole_fractions': self._mole_fractions
+            'amounts': self._amounts
         }
 
     def __setstate__(self, state):
         self._components = state['components']
-        self._mole_fractions = state['mole_fractions']
+        self._amounts = state['amounts']
 
     def __str__(self):
         return self.identifier
@@ -256,9 +444,9 @@ class Substance(TypedBaseModel):
         for identifier in sorted_component_identifiers:
 
             component_role = component_by_id[identifier].role
-            component_fraction = self._mole_fractions[identifier]
+            component_amount = self._amounts[identifier].identifier
 
-            string_hash_split.append(f'{identifier}_{component_role}_{component_fraction:.6f}')
+            string_hash_split.append(f'{identifier}_{component_role}_{component_amount}')
 
         string_hash = '|'.join(string_hash_split)
 

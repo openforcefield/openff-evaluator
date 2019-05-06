@@ -126,7 +126,8 @@ def test_base_simulation_protocols():
     raising an exception."""
 
     water_substance = Substance()
-    water_substance.add_component(Substance.Component(smiles='O'))
+    water_substance.add_component(Substance.Component(smiles='O'),
+                                  Substance.MoleFraction())
 
     thermodynamic_state = ThermodynamicState(298*unit.kelvin, 1*unit.atmosphere)
 

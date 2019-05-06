@@ -43,7 +43,8 @@ def test_local_simulation_storage():
     retrieved using the local storage backend."""
 
     substance = Substance()
-    substance.add_component(Substance.Component(smiles='C'))
+    substance.add_component(Substance.Component(smiles='C'),
+                            Substance.MoleFraction())
 
     dummy_simulation_data = StoredSimulationData()
 

@@ -922,8 +922,11 @@ class ThermoMLPureOrMixtureData:
 
             compound = compounds[compound_index]
 
+            if np.isclose(mol_fractions[compound_index], 0.0):
+                continue
+
             substance.add_component(component=Substance.Component(smiles=compound.smiles),
-                                    mole_fraction=mol_fractions[compound_index])
+                                    amount=Substance.MoleFraction(mol_fractions[compound_index]))
 
         return substance
 

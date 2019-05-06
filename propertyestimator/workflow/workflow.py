@@ -788,7 +788,7 @@ class Workflow:
         for component in physical_property.substance.components:
 
             component_substance = Substance()
-            component_substance.add_component(component)
+            component_substance.add_component(component, Substance.MoleFraction())
 
             components.append(component_substance)
 

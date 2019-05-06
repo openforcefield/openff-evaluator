@@ -92,7 +92,7 @@ class LocalFileStorage(PropertyEstimatorStorage):
             for component in substance.components:
 
                 component_substance = Substance()
-                component_substance.add_component(component)
+                component_substance.add_component(component, Substance.MoleFraction())
 
                 if component_substance.identifier not in substance_ids:
                     substance_ids.append(component_substance.identifier)

@@ -187,7 +187,7 @@ class ReweightingLayer(PropertyCalculationLayer):
                 for component in property_to_calculate.substance.components:
 
                     temporary_substance = Substance()
-                    temporary_substance.add_component(component)
+                    temporary_substance.add_component(component, amount=Substance.MoleFraction())
 
                     if temporary_substance.identifier not in stored_data_paths:
 

@@ -103,7 +103,8 @@ def test_cloned_schema_merging_simulation(registered_property_name, available_la
 def test_density_dielectric_merging():
 
     substance = Substance()
-    substance.add_component(Substance.Component(smiles='C'))
+    substance.add_component(Substance.Component(smiles='C'),
+                            Substance.MoleFraction())
 
     density = Density(thermodynamic_state=ThermodynamicState(temperature=298*unit.kelvin,
                                                              pressure=1*unit.atmosphere),

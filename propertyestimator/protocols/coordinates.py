@@ -6,7 +6,6 @@ import logging
 from enum import Enum
 from os import path
 
-import numpy as np
 from simtk import unit
 from simtk.openmm import app
 
@@ -110,22 +109,11 @@ class BuildCoordinatesPackmol(BaseProtocol):
             molecules.append(molecule)
 
         # Determine how many molecules of each type will be present in the system.
+        molecules_per_component = self._substance.get_molecules_per_component(self._max_molecules)
         number_of_molecules = [0] * self._substance.number_of_components
 
         for index, component in enumerate(self._substance.components):
-
-            mole_fraction = self._substance.get_mole_fraction(component)
-            number_of_molecules[index] = int(round(mole_fraction * self._max_molecules))
-
-            if np.isclose(mole_fraction, 0.0):
-                number_of_molecules[index] = 1
-
-            if mole_fraction > 0.0 and number_of_molecules[index] == 0:
-
-                message = f'The maximum number of molecules is not high enough to sufficiently ' \
-                    f'capture the mole fraction ({mole_fraction}) of {component.identifier}'
-
-                return None, None, PropertyEstimatorException(directory=directory, message=message)
+            number_of_molecules[index] = molecules_per_component[component.identifier]
 
         return molecules, number_of_molecules, None
 

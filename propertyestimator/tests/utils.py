@@ -9,8 +9,8 @@ def create_dummy_property(property_class):
 
     substance = Substance()
 
-    substance.add_component(Substance.Component(smiles='C'), mole_fraction=0.5)
-    substance.add_component(Substance.Component(smiles='CO'), mole_fraction=0.5)
+    substance.add_component(Substance.Component(smiles='C'), Substance.MoleFraction(0.5))
+    substance.add_component(Substance.Component(smiles='CO'), Substance.MoleFraction(0.5))
 
     dummy_property = property_class(thermodynamic_state=ThermodynamicState(temperature=298 * unit.kelvin,
                                                                            pressure=1 * unit.atmosphere),
