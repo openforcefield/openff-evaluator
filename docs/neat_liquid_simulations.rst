@@ -1,7 +1,7 @@
-**Note: The contents and structure of this document are still under construction and subject to frequent change**
-
 Neat Liquid Simulations
 =======================
+
+.. warning:: The contents and structure of this document are still under construction and subject to frequent change
 
 The following procedures are followed for neat liquid simulations.
 
