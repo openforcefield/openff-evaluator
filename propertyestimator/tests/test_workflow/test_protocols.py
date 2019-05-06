@@ -6,14 +6,15 @@ from os import path
 
 import pytest
 from simtk import unit
+from simtk.openmm.app import PDBFile
 
 from propertyestimator.backends import ComputeResources
 from propertyestimator.properties.dielectric import ExtractAverageDielectric
 from propertyestimator.protocols.analysis import ExtractAverageStatistic, ExtractUncorrelatedTrajectoryData, \
     ExtractUncorrelatedStatisticsData
-from propertyestimator.protocols.coordinates import BuildCoordinatesPackmol
+from propertyestimator.protocols.coordinates import BuildCoordinatesPackmol, SolvateExistingStructure
 from propertyestimator.protocols.forcefield import BuildSmirnoffSystem
-from propertyestimator.protocols.miscellaneous import AddQuantities, SubtractQuantities
+from propertyestimator.protocols.miscellaneous import AddQuantities, FilterSubstanceByRole, SubtractQuantities
 from propertyestimator.protocols.simulation import RunEnergyMinimisation, RunOpenMMSimulation
 from propertyestimator.substances import Substance
 from propertyestimator.tests.test_workflow.utils import DummyEstimatedQuantityProtocol, DummyProtocolWithDictInput
@@ -245,3 +246,70 @@ def test_addition_subtract_protocols():
 
         assert not isinstance(result, PropertyEstimatorException)
         assert sub_quantities.result.value == 1 * unit.kelvin
+
+
+@pytest.mark.parametrize("filter_role", [Substance.ComponentRole.Solute,
+                                         Substance.ComponentRole.Solvent,
+                                         Substance.ComponentRole.Ligand,
+                                         Substance.ComponentRole.Receptor])
+def test_substance_filtering_protocol(filter_role):
+    """Tests that the protocol to filter substances by
+    role correctly works."""
+
+    def create_substance():
+
+        test_substance = Substance()
+
+        test_substance.add_component(Substance.Component('C', role=Substance.ComponentRole.Solute),
+                                     Substance.ExactAmount(1))
+
+        test_substance.add_component(Substance.Component('CC', role=Substance.ComponentRole.Ligand),
+                                     Substance.ExactAmount(1))
+
+        test_substance.add_component(Substance.Component('CCC', role=Substance.ComponentRole.Receptor),
+                                     Substance.ExactAmount(1))
+
+        test_substance.add_component(Substance.Component('O', role=Substance.ComponentRole.Solvent),
+                                     Substance.MoleFraction(1.0))
+
+        return test_substance
+
+    filter_protocol = FilterSubstanceByRole('filter_protocol')
+    filter_protocol.input_substance = create_substance()
+
+    filter_protocol.component_role = filter_role
+    filter_protocol.execute('', ComputeResources())
+
+    assert len(filter_protocol.filtered_substance.components) == 1
+    assert filter_protocol.filtered_substance.components[0].role == filter_role
+
+
+def test_solvation_protocol():
+    """Tests solvating a single methanol molecule in water."""
+
+    methanol_substance = Substance()
+    methanol_substance.add_component(Substance.Component('CO'), Substance.ExactAmount(1))
+
+    water_substance = Substance()
+    water_substance.add_component(Substance.Component('O'), Substance.MoleFraction(1.0))
+
+    with tempfile.TemporaryDirectory() as temporary_directory:
+
+        build_methanol_coordinates = BuildCoordinatesPackmol('build_methanol')
+
+        build_methanol_coordinates.max_molecules = 1
+        build_methanol_coordinates.substance = methanol_substance
+
+        build_methanol_coordinates.execute(temporary_directory, ComputeResources())
+
+        solvate_coordinates = SolvateExistingStructure('solvate_methanol')
+
+        solvate_coordinates.max_molecules = 9
+        solvate_coordinates.substance = water_substance
+        solvate_coordinates.solute_coordinate_file = build_methanol_coordinates.coordinate_file_path
+
+        solvate_coordinates.execute(temporary_directory, ComputeResources())
+
+        solvated_pdb = PDBFile(solvate_coordinates.coordinate_file_path)
+
+        assert solvated_pdb.topology.getNumResidues() == 10
