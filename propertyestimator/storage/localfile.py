@@ -7,7 +7,7 @@ import pickle
 from os import path, makedirs
 from shutil import move
 
-from propertyestimator.substances import Mixture
+from propertyestimator.substances import Substance
 from .storage import PropertyEstimatorStorage
 
 
@@ -87,15 +87,15 @@ class LocalFileStorage(PropertyEstimatorStorage):
 
         substance_ids = [substance.identifier]
 
-        if isinstance(substance, Mixture) and include_pure_data is True:
+        if isinstance(substance, Substance) and include_pure_data is True:
 
             for component in substance.components:
 
-                component_mixture = Mixture()
-                component_mixture.add_component(component.smiles, 1.0, False)
+                component_substance = Substance()
+                component_substance.add_component(component, Substance.MoleFraction())
 
-                if component_mixture.identifier not in substance_ids:
-                    substance_ids.append(component_mixture.identifier)
+                if component_substance.identifier not in substance_ids:
+                    substance_ids.append(component_substance.identifier)
 
         return_paths = {}
 

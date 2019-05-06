@@ -9,7 +9,7 @@ from shutil import rmtree
 from simtk import unit
 
 from propertyestimator.storage import LocalFileStorage, StoredSimulationData
-from propertyestimator.substances import Mixture
+from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import get_data_filename
 from propertyestimator.utils.serialization import serialize_force_field, TypedJSONEncoder, TypedJSONDecoder
@@ -42,8 +42,9 @@ def test_local_simulation_storage():
     """A simple test to that force fields can be stored and
     retrieved using the local storage backend."""
 
-    substance = Mixture()
-    substance.add_component('C', 1.0, False)
+    substance = Substance()
+    substance.add_component(Substance.Component(smiles='C'),
+                            Substance.MoleFraction())
 
     dummy_simulation_data = StoredSimulationData()
 

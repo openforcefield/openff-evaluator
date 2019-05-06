@@ -20,8 +20,8 @@ from propertyestimator.workflow.decorators import MergeBehaviour, protocol_input
 from propertyestimator.workflow.plugins import register_calculation_protocol, available_protocols
 from simtk import unit
 
-from .protocols import BaseProtocol, ProtocolPath
-from .schemas import ProtocolGroupSchema
+from propertyestimator.workflow.protocols import BaseProtocol, ProtocolPath
+from propertyestimator.workflow.schemas import ProtocolGroupSchema
 
 
 @register_calculation_protocol()

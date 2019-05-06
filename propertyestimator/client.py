@@ -6,7 +6,7 @@ import json
 import logging
 from time import sleep
 
-from propertyestimator.properties.properties import PropertyWorkflowOptions
+from propertyestimator.workflow import WorkflowOptions
 from simtk import unit
 from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
@@ -38,7 +38,7 @@ class PropertyEstimatorOptions(TypedBaseModel):
         A dictionary of the WorkflowSchema which will be used to calculate any properties.
         The dictionary key represents the type of property the schema will calculate. The
         dictionary will be automatically populated with defaults if no entries are added.
-    workflow_options: dict of str and DefaultPropertyWorkflowOptions, optional
+    workflow_options: dict of str and WorkflowOptions, optional
         The set of options which will be used when setting up the default estimation
         workflows, where the string key here is the property for which the options apply.
         As an example, the target (relative or absolute) uncertainty of each property may be set
@@ -354,10 +354,10 @@ class PropertyEstimatorClient:
     Options for how properties should be estimated can be set on a per property basis. For example
     the relative uncertainty that properties should estimated to within can be set as:
 
-    >>> from propertyestimator.properties.properties import PropertyWorkflowOptions
+    >>> from propertyestimator.workflow import WorkflowOptions
     >>>
-    >>> workflow_options = PropertyWorkflowOptions(PropertyWorkflowOptions.ConvergenceMode.RelativeUncertainty,
-    >>>                                            relative_uncertainty_fraction=0.1)
+    >>> workflow_options = WorkflowOptions(WorkflowOptions.ConvergenceMode.RelativeUncertainty,
+>>>                                        relative_uncertainty_fraction=0.1)
     >>> options.workflow_options = {
     >>>     'Density': workflow_options,
     >>>     'Dielectric': workflow_options
@@ -365,10 +365,10 @@ class PropertyEstimatorClient:
 
     Or alternatively, as absolute uncertainty tolerance can be set as:
 
-    >>> density_options = PropertyWorkflowOptions(PropertyWorkflowOptions.ConvergenceMode.AbsoluteUncertainty,
-    >>>                                           absolute_uncertainty=0.0002 * unit.gram / unit.milliliter)
-    >>> dielectric_options = PropertyWorkflowOptions(PropertyWorkflowOptions.ConvergenceMode.AbsoluteUncertainty,
-    >>>                                              absolute_uncertainty=0.02 * unit.dimensionless)
+    >>> density_options = WorkflowOptions(WorkflowOptions.ConvergenceMode.AbsoluteUncertainty,
+    >>>                                   absolute_uncertainty=0.0002 * unit.gram / unit.milliliter)
+    >>> dielectric_options = WorkflowOptions(WorkflowOptions.ConvergenceMode.AbsoluteUncertainty,
+    >>>                                      absolute_uncertainty=0.02 * unit.dimensionless)
     >>>
     >>> options.workflow_options = {
     >>>     'Density': density_options,
@@ -583,7 +583,7 @@ class PropertyEstimatorClient:
                 options.workflow_schemas[type_name] = {}
 
             if type_name not in options.workflow_options:
-                options.workflow_options[type_name] = PropertyWorkflowOptions()
+                options.workflow_options[type_name] = WorkflowOptions()
 
             for calculation_layer in options.allowed_calculation_layers:
 

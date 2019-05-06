@@ -3,7 +3,6 @@ Defines an API for defining thermodynamic states.
 """
 import math
 from enum import Enum
-from typing import Optional
 
 from simtk import unit
 
@@ -37,9 +36,6 @@ class ThermodynamicState(TypedBaseModel):
     Note that the pressure is only relevant for periodic systems.
 
     """
-
-    temperature: Optional[unit.Quantity] = None
-    pressure: Optional[unit.Quantity] = None
 
     def __init__(self, temperature=None, pressure=None):
         """Constructs a new ThermodynamicState object.

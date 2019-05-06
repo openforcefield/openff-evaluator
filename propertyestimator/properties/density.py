@@ -3,12 +3,12 @@ A collection of density physical property definitions.
 """
 
 from propertyestimator.datasets.plugins import register_thermoml_property
+from propertyestimator.properties import PhysicalProperty
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.properties.properties import PhysicalProperty
 from propertyestimator.properties.utils import generate_base_reweighting_protocols
+from propertyestimator.protocols import analysis, coordinates, forcefield, groups, simulation
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.statistics import ObservableType
-from propertyestimator.workflow import protocols, groups
 from propertyestimator.workflow.schemas import WorkflowOutputToStore, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
@@ -43,7 +43,7 @@ class Density(PhysicalProperty):
 
         Parameters
         ----------
-        options: PropertyWorkflowOptions
+        options: WorkflowOptions
             The default options to use when setting up the estimation workflow.
 
         Returns
@@ -56,13 +56,13 @@ class Density(PhysicalProperty):
         schema.id = '{}{}'.format(Density.__name__, 'Schema')
 
         # Initial coordinate and topology setup.
-        build_coordinates = protocols.BuildCoordinatesPackmol('build_coordinates')
+        build_coordinates = coordinates.BuildCoordinatesPackmol('build_coordinates')
 
         build_coordinates.substance = ProtocolPath('substance', 'global')
 
         schema.protocols[build_coordinates.id] = build_coordinates.schema
 
-        assign_topology = protocols.BuildSmirnoffSystem('build_topology')
+        assign_topology = forcefield.BuildSmirnoffSystem('build_topology')
 
         assign_topology.force_field_path = ProtocolPath('force_field_path', 'global')
 
@@ -72,14 +72,14 @@ class Density(PhysicalProperty):
         schema.protocols[assign_topology.id] = assign_topology.schema
 
         # Equilibration
-        energy_minimisation = protocols.RunEnergyMinimisation('energy_minimisation')
+        energy_minimisation = simulation.RunEnergyMinimisation('energy_minimisation')
 
         energy_minimisation.input_coordinate_file = ProtocolPath('coordinate_file_path', build_coordinates.id)
         energy_minimisation.system_path = ProtocolPath('system_path', assign_topology.id)
 
         schema.protocols[energy_minimisation.id] = energy_minimisation.schema
 
-        npt_equilibration = protocols.RunOpenMMSimulation('npt_equilibration')
+        npt_equilibration = simulation.RunOpenMMSimulation('npt_equilibration')
 
         npt_equilibration.ensemble = Ensemble.NPT
 
@@ -94,7 +94,7 @@ class Density(PhysicalProperty):
         schema.protocols[npt_equilibration.id] = npt_equilibration.schema
 
         # Production
-        npt_production = protocols.RunOpenMMSimulation('npt_production')
+        npt_production = simulation.RunOpenMMSimulation('npt_production')
 
         npt_production.ensemble = Ensemble.NPT
 
@@ -107,7 +107,7 @@ class Density(PhysicalProperty):
         npt_production.system_path = ProtocolPath('system_path', assign_topology.id)
 
         # Analysis
-        extract_density = protocols.ExtractAverageStatistic('extract_density')
+        extract_density = analysis.ExtractAverageStatistic('extract_density')
 
         extract_density.statistics_type = ObservableType.Density
         extract_density.statistics_path = ProtocolPath('statistics_file_path', npt_production.id)
@@ -133,7 +133,7 @@ class Density(PhysicalProperty):
         schema.protocols[converge_uncertainty.id] = converge_uncertainty.schema
 
         # Finally, extract uncorrelated data
-        extract_uncorrelated_trajectory = protocols.ExtractUncorrelatedTrajectoryData('extract_traj')
+        extract_uncorrelated_trajectory = analysis.ExtractUncorrelatedTrajectoryData('extract_traj')
 
         extract_uncorrelated_trajectory.statistical_inefficiency = ProtocolPath('statistical_inefficiency',
                                                                                 converge_uncertainty.id,
@@ -153,7 +153,7 @@ class Density(PhysicalProperty):
 
         schema.protocols[extract_uncorrelated_trajectory.id] = extract_uncorrelated_trajectory.schema
 
-        extract_uncorrelated_statistics = protocols.ExtractUncorrelatedStatisticsData('extract_stats')
+        extract_uncorrelated_statistics = analysis.ExtractUncorrelatedStatisticsData('extract_stats')
 
         extract_uncorrelated_statistics.statistical_inefficiency = ProtocolPath('statistical_inefficiency',
                                                                                 converge_uncertainty.id,
@@ -196,7 +196,7 @@ class Density(PhysicalProperty):
 
         Parameters
         ----------
-        options: PropertyWorkflowOptions
+        options: WorkflowOptions
             The default options to use when setting up the estimation workflow.
 
         Returns
@@ -207,7 +207,7 @@ class Density(PhysicalProperty):
 
         # The protocol which will be used to calculate the densities from
         # the existing data.
-        density_calculation = protocols.ExtractAverageStatistic('calc_density_$(data_repl)')
+        density_calculation = analysis.ExtractAverageStatistic('calc_density_$(data_repl)')
         base_reweighting_protocols, data_replicator = generate_base_reweighting_protocols(density_calculation)
 
         density_calculation.statistics_type = ObservableType.Density

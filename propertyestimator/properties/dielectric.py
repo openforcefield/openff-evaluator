@@ -9,22 +9,23 @@ import numpy as np
 from simtk import openmm, unit
 
 from propertyestimator.datasets.plugins import register_thermoml_property
+from propertyestimator.properties import PhysicalProperty
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.properties.properties import PhysicalProperty
 from propertyestimator.properties.utils import generate_base_reweighting_protocols, BaseReweightingProtocols
+from propertyestimator.protocols import analysis, coordinates, forcefield, groups, reweighting, simulation
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils import timeseries
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import bootstrap
-from propertyestimator.workflow import protocols, groups, plugins
+from propertyestimator.workflow import plugins
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
 from propertyestimator.workflow.schemas import WorkflowOutputToStore, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
 
 @plugins.register_calculation_protocol()
-class ExtractAverageDielectric(protocols.AverageTrajectoryProperty):
+class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
     """Extracts the average dielectric constant from a simulation trajectory.
     """
 
@@ -166,7 +167,7 @@ class ExtractAverageDielectric(protocols.AverageTrajectoryProperty):
 
 
 @plugins.register_calculation_protocol()
-class ReweightDielectricConstant(protocols.ReweightWithMBARProtocol):
+class ReweightDielectricConstant(reweighting.ReweightWithMBARProtocol):
     """Reweights a set of dipole moments (`reference_observables`) and volumes
     (`reference_volumes`) using MBAR, and then combines these to yeild the reweighted
     dielectric constant. Uncertainties in the dielectric constant are determined
@@ -329,7 +330,7 @@ class DielectricConstant(PhysicalProperty):
 
         Parameters
         ----------
-        options: PropertyWorkflowOptions
+        options: WorkflowOptions
             The default options to use when setting up the estimation workflow.
 
         Returns
@@ -342,13 +343,13 @@ class DielectricConstant(PhysicalProperty):
         schema.id = '{}{}'.format(DielectricConstant.__name__, 'Schema')
 
         # Initial coordinate and topology setup.
-        build_coordinates = protocols.BuildCoordinatesPackmol('build_coordinates')
+        build_coordinates = coordinates.BuildCoordinatesPackmol('build_coordinates')
 
         build_coordinates.substance = ProtocolPath('substance', 'global')
 
         schema.protocols[build_coordinates.id] = build_coordinates.schema
 
-        assign_topology = protocols.BuildSmirnoffSystem('build_topology')
+        assign_topology = forcefield.BuildSmirnoffSystem('build_topology')
 
         assign_topology.force_field_path = ProtocolPath('force_field_path', 'global')
 
@@ -358,14 +359,14 @@ class DielectricConstant(PhysicalProperty):
         schema.protocols[assign_topology.id] = assign_topology.schema
 
         # Equilibration
-        energy_minimisation = protocols.RunEnergyMinimisation('energy_minimisation')
+        energy_minimisation = simulation.RunEnergyMinimisation('energy_minimisation')
 
         energy_minimisation.input_coordinate_file = ProtocolPath('coordinate_file_path', build_coordinates.id)
         energy_minimisation.system_path = ProtocolPath('system_path', assign_topology.id)
 
         schema.protocols[energy_minimisation.id] = energy_minimisation.schema
 
-        npt_equilibration = protocols.RunOpenMMSimulation('npt_equilibration')
+        npt_equilibration = simulation.RunOpenMMSimulation('npt_equilibration')
 
         npt_equilibration.ensemble = Ensemble.NPT
 
@@ -380,7 +381,7 @@ class DielectricConstant(PhysicalProperty):
         schema.protocols[npt_equilibration.id] = npt_equilibration.schema
 
         # Production
-        npt_production = protocols.RunOpenMMSimulation('npt_production')
+        npt_production = simulation.RunOpenMMSimulation('npt_production')
 
         npt_production.ensemble = Ensemble.NPT
 
@@ -422,7 +423,7 @@ class DielectricConstant(PhysicalProperty):
         schema.protocols[converge_uncertainty.id] = converge_uncertainty.schema
 
         # Finally, extract uncorrelated data
-        extract_uncorrelated_trajectory = protocols.ExtractUncorrelatedTrajectoryData('extract_traj')
+        extract_uncorrelated_trajectory = analysis.ExtractUncorrelatedTrajectoryData('extract_traj')
 
         extract_uncorrelated_trajectory.statistical_inefficiency = ProtocolPath('statistical_inefficiency',
                                                                                 converge_uncertainty.id,
@@ -442,7 +443,7 @@ class DielectricConstant(PhysicalProperty):
 
         schema.protocols[extract_uncorrelated_trajectory.id] = extract_uncorrelated_trajectory.schema
 
-        extract_uncorrelated_statistics = protocols.ExtractUncorrelatedStatisticsData('extract_stats')
+        extract_uncorrelated_statistics = analysis.ExtractUncorrelatedStatisticsData('extract_stats')
 
         extract_uncorrelated_statistics.statistical_inefficiency = ProtocolPath('statistical_inefficiency',
                                                                                 converge_uncertainty.id,
@@ -485,7 +486,7 @@ class DielectricConstant(PhysicalProperty):
 
         Parameters
         ----------
-        options: PropertyWorkflowOptions
+        options: WorkflowOptions
             The default options to use when setting up the estimation workflow.
 
         Returns
