@@ -54,31 +54,3 @@ Index
   :caption: Developer Documentation
 
   api
-
-**Simulation Protocols**
-
-* :doc:`neat_liquid_simulations`
-* :doc:`liquid_mixture_simulations`
-* :doc:`host_guest_simulations`
-
-.. toctree::
-  :maxdepth: 1
-  :hidden:
-  :caption: Simulation Protocols
-  
-  neat_liquid_simulations
-  liquid_mixture_simulations
-  host_guest_simulations
-
-**Property Calculation Protocols**
-
-* :doc:`neat_liquid_property_practices`
-* :doc:`liquid_mixture_property_practices`
-
-.. toctree::
-  :maxdepth: 1
-  :hidden:
-  :caption: Property Calculation Protocols
-  
-  neat_liquid_property_practices
-  liquid_mixture_property_practices
