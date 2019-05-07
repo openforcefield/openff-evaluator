@@ -3,11 +3,9 @@ The direct simulation estimation layer.
 """
 
 import logging
-import pickle
 from os import path
 
 from propertyestimator.layers import register_calculation_layer, PropertyCalculationLayer
-from propertyestimator.utils.serialization import serialize_force_field
 from propertyestimator.workflow import WorkflowGraph, Workflow
 
 
@@ -75,13 +73,13 @@ class SimulationLayer(PropertyCalculationLayer):
         force_field = storage_backend.retrieve_force_field(data_model.force_field_id)
         force_field_path = path.join(layer_directory, 'force_field_{}'.format(data_model.force_field_id))
 
-        with open(force_field_path, 'wb') as file_object:
-            pickle.dump(serialize_force_field(force_field), file_object)
+        force_field.to_file(force_field_path, io_format='XML',
+                            discard_cosmetic_attributes=False)
 
         workflow_graph = SimulationLayer._build_workflow_graph(layer_directory,
-                                                                     data_model.queued_properties,
-                                                                     force_field_path,
-                                                                     data_model.options)
+                                                               data_model.queued_properties,
+                                                               force_field_path,
+                                                               data_model.options)
 
         simulation_futures = workflow_graph.submit(calculation_backend)
 

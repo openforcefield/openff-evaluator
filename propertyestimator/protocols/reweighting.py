@@ -31,7 +31,7 @@ class UnpackStoredSimulationData(BaseProtocol):
 
     @protocol_input(tuple)
     def simulation_data_path(self):
-        """A tuple which contains both the path to the pickled simulation data object,
+        """A tuple which contains both the path to the simulation data directory,
         and the force field which was used to generate the stored data."""
         pass
 
@@ -94,9 +94,9 @@ class UnpackStoredSimulationData(BaseProtocol):
         if len(self._simulation_data_path) != 2:
 
             return PropertyEstimatorException(directory=directory,
-                                              message='The simulation data path should be a tuple'
-                                                      'of a path to the pickled data object, and'
-                                                      'a path to the force field used to generate it.')
+                                              message='The simulation data path should be a tuple '
+                                                      'of a path to the data directory, and a path '
+                                                      'to the force field used to generate it.')
 
         data_directory = self._simulation_data_path[0]
         force_field_path = self._simulation_data_path[1]

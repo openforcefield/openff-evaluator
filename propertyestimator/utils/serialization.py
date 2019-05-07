@@ -8,7 +8,6 @@ import json
 import numpy as np
 from abc import ABC, abstractmethod
 from enum import Enum
-from io import BytesIO
 
 from simtk import unit
 
@@ -141,12 +140,12 @@ def deserialize_estimated_quantity(quantity_dictionary):
 
 def serialize_force_field(force_field):
     """A method for turning an `openforcefield.typing.engines.smirnoff.ForceField`
-    object into a dictionary of int and str.
+    object into a dictionary of primitives.
 
     Notes
     -----
-    The value in the dictionary is
-    temporarily for now just the xml representation of the force field.
+    This method is subject to change when new force field formats become
+    available.
 
     Parameters
     ----------
@@ -154,9 +153,9 @@ def serialize_force_field(force_field):
         The force field to serialize.
     Returns
     -------
-    Dict[int, str]
-        The serialised force field, where the keys are int indices, and
-        the values are the xml of the serialized force field trees.
+    dict of str and str
+        A dictionary containing an XML string representation of the
+        force field.
     """
 
     from openforcefield.typing.engines.smirnoff import ForceField
@@ -164,18 +163,9 @@ def serialize_force_field(force_field):
     if not isinstance(force_field, ForceField):
         raise ValueError('{} is not a ForceField'.format(type(force_field)))
 
-    file_buffers = tuple([BytesIO() for _ in force_field._XMLTrees])
-
-    force_field.writeFile(file_buffers)
-
-    return_dictionary = {}
-
-    for index, file_buffer in enumerate(file_buffers):
-
-        string_value = file_buffer.getvalue().decode()
-        return_dictionary[index] = string_value
-
-        file_buffer.close()
+    return_dictionary = {
+        'xml': force_field.to_string(discard_cosmetic_attributes=False)
+    }
 
     return return_dictionary
 
@@ -186,14 +176,14 @@ def deserialize_force_field(force_field_dictionary):
 
     Notes
     -----
-    The value in the dictionary is temporarily for now just the xml
-    representation of the force field.
+    This method is subject to change when new force field formats become
+    available.
 
     Parameters
     ----------
-    force_field_dictionary: Dict[int, str]
-        The serialised force field, where each key of the dictionary is an int index,
-        each value is an xml representation of the force field.
+    force_field_dictionary: dict of str and str
+        A dictionary containing an XML string representation of the
+        force field, with key 'xml'.
 
     Returns
     -------
@@ -201,23 +191,14 @@ def deserialize_force_field(force_field_dictionary):
         The deserialized force field.
     """
 
+    from openforcefield.typing.engines.smirnoff import ForceField
+
     if '@type' in force_field_dictionary:
         force_field_dictionary.pop('@type')
 
-    file_buffers = []
+    xml_string = force_field_dictionary['xml']
 
-    for index in force_field_dictionary:
-
-        bytes_string = force_field_dictionary[index]
-
-        if isinstance(bytes_string, str):
-            bytes_string = bytes_string.encode('utf-8')
-
-        file_buffers.append(BytesIO(bytes_string))
-
-    from openforcefield.typing.engines.smirnoff import ForceField
-
-    force_field = ForceField(*file_buffers)
+    force_field = ForceField(xml_string, allow_cosmetic_attributes=True)
     return force_field
 
 

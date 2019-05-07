@@ -4,7 +4,6 @@ Defines the base API for the property estimator storage backend.
 
 import hashlib
 import json
-import pickle
 import uuid
 from os import path
 
@@ -159,8 +158,8 @@ class PropertyEstimatorStorage:
         str
             The hash key of the force field.
         """
-        force_field_pickle = pickle.dumps(serialize_force_field(force_field))
-        return hashlib.sha256(force_field_pickle).hexdigest()
+        force_field_string = force_field.to_string(discard_cosmetic_attributes=False)
+        return hashlib.sha256(force_field_string.encode()).hexdigest()
 
     def has_force_field(self, force_field):
         """Checks whether the force field has been previously

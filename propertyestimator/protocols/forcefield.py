@@ -3,16 +3,12 @@ A collection of protocols for assigning force field parameters to molecular syst
 """
 
 import logging
-import pickle
 from os import path
 
-from simtk import unit
 from simtk.openmm import app
 
 from propertyestimator.substances import Substance
-from propertyestimator.utils import create_molecule_from_smiles
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import deserialize_force_field
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
@@ -39,11 +35,6 @@ class BuildSmirnoffSystem(BaseProtocol):
         """The composition of the system."""
         pass
 
-    @protocol_input(unit.Quantity)
-    def nonbonded_cutoff(self):
-        """The cutoff after which non-bonded interactions are truncated."""
-        pass
-
     @protocol_output(str)
     def system_path(self):
         """The assigned system."""
@@ -58,12 +49,13 @@ class BuildSmirnoffSystem(BaseProtocol):
         self._coordinate_file_path = None
         self._substance = None
 
-        self._nonbonded_cutoff = 1.0 * unit.nanometer
-
         # outputs
         self._system_path = None
 
     def execute(self, directory, available_resources):
+
+        from openforcefield.typing.engines.smirnoff import ForceField
+        from openforcefield.topology import Molecule, Topology
 
         logging.info('Generating topology: ' + self.id)
 
@@ -73,40 +65,28 @@ class BuildSmirnoffSystem(BaseProtocol):
 
         try:
 
-            with open(self._force_field_path, 'rb') as file:
-                force_field = deserialize_force_field(pickle.load(file))
+            force_field = ForceField(self._force_field_path, allow_cosmetic_attributes=True)
 
-        except pickle.UnpicklingError:
+        except Exception as e:
 
-            try:
+            return PropertyEstimatorException(directory=directory,
+                                              message='{} could not load the ForceField: {}'.format(self.id, e))
 
-                from openforcefield.typing.engines.smirnoff import ForceField
-                force_field = ForceField(self._force_field_path)
-
-            except Exception as e:
-
-                return PropertyEstimatorException(directory=directory,
-                                                  message='{} could not load the ForceField: {}'.format(self.id, e))
-
-        molecules = []
+        unique_molecules = []
 
         for component in self._substance.components:
 
-            molecule = create_molecule_from_smiles(component.smiles, 0)
+            molecule = Molecule.from_smiles(smiles=component.smiles)
 
             if molecule is None:
+
                 return PropertyEstimatorException(directory=directory,
                                                   message='{} could not be converted to a Molecule'.format(component))
 
-            molecules.append(molecule)
+            unique_molecules.append(molecule)
 
-        from openforcefield.typing.engines import smirnoff
-
-        system = force_field.createSystem(pdb_file.topology,
-                                          molecules,
-                                          nonbondedMethod=smirnoff.PME,
-                                          nonbondedCutoff=self._nonbonded_cutoff,
-                                          chargeMethod='OECharges_AM1BCCSym')
+        topology = Topology.from_openmm(pdb_file.topology, unique_molecules=unique_molecules)
+        system = force_field.create_openmm_system(topology)
 
         if system is None:
 

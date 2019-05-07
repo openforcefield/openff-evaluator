@@ -325,7 +325,7 @@ class PropertyEstimatorClient:
     >>>
     >>> # Load initial parameters
     >>> from openforcefield.typing.engines.smirnoff import ForceField
-    >>> parameters = ForceField(['smirnoff99Frosst.offxml'])
+    >>> parameters = ForceField('smirnoff99Frosst.offxml')
     >>>
     >>> request = property_estimator.request_estimate(data_set, parameters)
 
