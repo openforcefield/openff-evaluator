@@ -28,6 +28,11 @@ before_install:
 install:
 - python devtools/scripts/create_conda_env.py -n=test -p=$PYTHON_VER devtools/conda-envs/test_env.yaml
 - conda activate test
+- conda install --only-deps openforcefield
+- git clone --single-branch --branch 0.3.0-branch git@github.com:openforcefield/openforcefield.git
+- cd openforcefield
+- python setup.py develop
+- cd ..
 - python setup.py develop --no-deps
 script:
 - pytest -v --cov=propertyestimator propertyestimator/tests/

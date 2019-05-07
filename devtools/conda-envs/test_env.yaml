@@ -12,7 +12,7 @@ dependencies:
   - pytest-cov
 
     # Standard dependencies
-  - openforcefield ==0.0.4
+#  - openforcefield ==0.0.4
   - numpy
   - pandas
   - lxml
