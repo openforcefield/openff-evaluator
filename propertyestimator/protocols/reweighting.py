@@ -550,3 +550,12 @@ class ReweightWithMBARProtocol(BaseProtocol):
                 uncertainties[observable_key] = np.array(uncertainty)
 
         return values, uncertainties, max_effective_samples
+
+
+@register_calculation_protocol()
+class CalculateMBARGradients(BaseProtocol):
+    """A protocol for estimating the gradient of some observable
+    with respect to a set of force field parameters, specified
+    through cosmetic attributes on a ForceField object.
+    """
+    pass
