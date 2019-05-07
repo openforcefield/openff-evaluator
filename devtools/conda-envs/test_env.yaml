@@ -2,21 +2,24 @@ name: test
 channels:
   - conda-forge
   - omnia
+  - openeye
 dependencies:
     # Base depends
   - python
   - pip
 
-    # Testing
+    # Testing and development
   - pytest
   - pytest-cov
+  - codecov
+
+    # Commercial
+  - openeye-toolkits
 
     # Standard dependencies
 #  - openforcefield ==0.0.4
   - numpy
   - pandas
-  - lxml
-  - icu 58*  # This is a lxml dependency but sometimes conda installs version 56
   - openmm
   - packmol
   - pymbar
@@ -30,9 +33,3 @@ dependencies:
   - openmmtools
   - yank
   - pyyaml
-
-    # Pip-only installs
-  - pip:
-    - codecov
-    - --extra-index-url https://pypi.anaconda.org/OpenEye/simple
-    - OpenEye-toolkits
