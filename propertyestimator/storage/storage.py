@@ -3,11 +3,13 @@ Defines the base API for the property estimator storage backend.
 """
 
 import hashlib
+import json
 import pickle
 import uuid
+from os import path
 
-from propertyestimator.substances import Mixture
-from propertyestimator.utils.serialization import serialize_force_field, deserialize_force_field
+from propertyestimator.utils.serialization import serialize_force_field, deserialize_force_field, TypedJSONDecoder, \
+    TypedJSONEncoder
 
 
 class PropertyEstimatorStorage:
@@ -281,38 +283,13 @@ class PropertyEstimatorStorage:
 
         Returns
         -------
-        dict of str and StoredSimulationData
-            A dictionary of the stored data if present in the storage system, partitioned by
-             substance id.
+        dict of str and str
+            A dictionary of directory paths to the stored data if present in the storage system,
+            partitioned by substance id.
         """
+        raise NotImplementedError()
 
-        substance_ids = [substance.identifier]
-
-        if isinstance(substance, Mixture) and include_pure_data is True:
-
-            for component in substance.components:
-
-                component_mixture = Mixture()
-                component_mixture.add_component(component.smiles, 1.0, False)
-
-                if component_mixture.identifier not in substance_ids:
-                    substance_ids.append(component_mixture.identifier)
-
-        return_data = {}
-
-        for substance_id in substance_ids:
-
-            if substance_id not in self._simulation_data_by_substance:
-                continue
-
-            return_data[substance_id] = []
-
-            for simulation_data_key in self._simulation_data_by_substance[substance_id]:
-                return_data[substance_id].append(self.retrieve_object(simulation_data_key))
-
-        return return_data
-
-    def store_simulation_data(self, substance_id, simulation_data):
+    def store_simulation_data(self, substance_id, simulation_data_directory):
         """Store the simulation data.
 
         Notes
@@ -325,9 +302,19 @@ class PropertyEstimatorStorage:
         ----------
         substance_id: str
             The id of the substance to which the data belongs.
-        simulation_data: StoredSimulationData
-            The simulation data to store.
+        simulation_data_directory: str
+            The simulation data directory to store.
+
+        Returns
+        -------
+        str
+            The unique id of the stored data.
         """
+
+        simulation_data_object = None
+
+        with open(path.join(simulation_data_directory, 'data.json'), 'r') as file:
+            simulation_data_object = json.load(file, cls=TypedJSONDecoder)
 
         simulation_data_key = None
         data_to_store = None
@@ -341,13 +328,13 @@ class PropertyEstimatorStorage:
                 if stored_data is None:
                     continue
 
-                if simulation_data.thermodynamic_state != stored_data.thermodynamic_state:
+                if simulation_data_object.thermodynamic_state != stored_data.thermodynamic_state:
                     continue
 
-                if simulation_data.force_field_id != stored_data.force_field_id:
+                if simulation_data_object.force_field_id != stored_data.force_field_id:
                     continue
 
-                if stored_data.statistical_inefficiency < simulation_data.statistical_inefficiency:
+                if stored_data.statistical_inefficiency < simulation_data_object.statistical_inefficiency:
                     continue
 
                 # if (simulation_data.statistical_inefficiency == stored_data.statistical_inefficiency and
@@ -361,8 +348,11 @@ class PropertyEstimatorStorage:
 
             simulation_data_key = "{}_{}".format(substance_id, uuid.uuid4())
 
-            data_to_store = simulation_data
+            data_to_store = simulation_data_object
             data_to_store.unique_id = simulation_data_key
+
+            with open(path.join(simulation_data_directory, 'data.json'), 'w') as file:
+                json.dump(data_to_store, file, cls=TypedJSONEncoder)
 
         self.store_object(simulation_data_key, data_to_store)
 
@@ -374,3 +364,5 @@ class PropertyEstimatorStorage:
 
             self._simulation_data_by_substance[substance_id].append(simulation_data_key)
             self._save_simulation_data_map()
+
+        return data_to_store.unique_id

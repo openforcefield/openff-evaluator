@@ -8,14 +8,15 @@ from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.properties.properties import PhysicalProperty
 from propertyestimator.properties.utils import generate_base_reweighting_protocols
-from propertyestimator.substances import Mixture
+from propertyestimator.protocols import analysis, coordinates, forcefield, groups, miscellaneous, simulation
+from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import Ensemble
+from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
-from propertyestimator.workflow import WorkflowSchema, plugins, groups
-from propertyestimator.workflow import protocols
+from propertyestimator.workflow import plugins, protocols
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
-from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowOutputToStore
+from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowOutputToStore, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
@@ -29,12 +30,12 @@ class WeightValueByMoleFraction(protocols.BaseProtocol):
         """The value to be weighted."""
         pass
 
-    @protocol_input(Mixture)
+    @protocol_input(Substance)
     def component(self, value):
         """The component (e.g water) to which this value belongs."""
         pass
 
-    @protocol_input(Mixture)
+    @protocol_input(Substance)
     def full_substance(self, value):
         """The full substance of which the component of interest is a part."""
         pass
@@ -59,17 +60,15 @@ class WeightValueByMoleFraction(protocols.BaseProtocol):
         assert len(self._component.components) == 1
 
         main_component = self._component.components[0]
-        mole_fraction = 0.0
+        amount = self._full_substance.get_amount(main_component)
 
-        for component in self._full_substance.components:
+        if not isinstance(amount, Substance.MoleFraction):
 
-            if component.smiles != main_component.smiles:
-                continue
+            return PropertyEstimatorException(directory=directory,
+                                              message=f'The component {main_component} was given in an '
+                                                      f'exact amount, and not a mole fraction')
 
-            mole_fraction = component.mole_fraction
-
-        self._weighted_value = self.value * mole_fraction
-
+        self._weighted_value = self.value * amount.value
         return self._get_output_dictionary()
 
 
@@ -95,7 +94,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         return True
 
     @staticmethod
-    def get_enthalpy_workflow(id_prefix='', weight_by_mole_fraction=False):
+    def get_enthalpy_workflow(id_prefix='', weight_by_mole_fraction=False, options=None):
         """Returns the set of protocols which when combined in a workflow
         will yield the enthalpy of a substance.
 
@@ -107,6 +106,8 @@ class EnthalpyOfMixing(PhysicalProperty):
             If true, an extra protocol will be added to weight the calculated
             enthalpy by the mole fraction of the component inside of the
             convergence loop.
+        options: WorkflowOptions
+            The options to use when setting up the workflows.
 
         Returns
         -------
@@ -114,11 +115,11 @@ class EnthalpyOfMixing(PhysicalProperty):
             The protocols used to estimate the enthalpy of a substance.
         """
 
-        build_coordinates = protocols.BuildCoordinatesPackmol(id_prefix + 'build_coordinates')
+        build_coordinates = coordinates.BuildCoordinatesPackmol(id_prefix + 'build_coordinates')
 
         build_coordinates.substance = ProtocolPath('substance', 'global')
 
-        assign_topology = protocols.BuildSmirnoffSystem(id_prefix + 'build_topology')
+        assign_topology = forcefield.BuildSmirnoffSystem(id_prefix + 'build_topology')
 
         assign_topology.force_field_path = ProtocolPath('force_field_path', 'global')
 
@@ -126,38 +127,38 @@ class EnthalpyOfMixing(PhysicalProperty):
         assign_topology.substance = ProtocolPath('substance', 'global')
 
         # Equilibration
-        energy_minimisation = protocols.RunEnergyMinimisation(id_prefix + 'energy_minimisation')
+        energy_minimisation = simulation.RunEnergyMinimisation(id_prefix + 'energy_minimisation')
 
         energy_minimisation.input_coordinate_file = ProtocolPath('coordinate_file_path', build_coordinates.id)
-        energy_minimisation.system = ProtocolPath('system', assign_topology.id)
+        energy_minimisation.system_path = ProtocolPath('system_path', assign_topology.id)
 
-        npt_equilibration = protocols.RunOpenMMSimulation(id_prefix + 'npt_equilibration')
+        npt_equilibration = simulation.RunOpenMMSimulation(id_prefix + 'npt_equilibration')
 
         npt_equilibration.ensemble = Ensemble.NPT
 
-        npt_equilibration.steps = 2  # Debug settings.
-        npt_equilibration.output_frequency = 1  # Debug settings.
+        npt_equilibration.steps = 100000  # Debug settings.
+        npt_equilibration.output_frequency = 5000  # Debug settings.
 
         npt_equilibration.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 
         npt_equilibration.input_coordinate_file = ProtocolPath('output_coordinate_file', energy_minimisation.id)
-        npt_equilibration.system = ProtocolPath('system', assign_topology.id)
+        npt_equilibration.system_path = ProtocolPath('system_path', assign_topology.id)
 
         # Production
-        npt_production = protocols.RunOpenMMSimulation(id_prefix + 'npt_production')
+        npt_production = simulation.RunOpenMMSimulation(id_prefix + 'npt_production')
 
         npt_production.ensemble = Ensemble.NPT
 
-        npt_production.steps = 2  # Debug settings.
-        npt_production.output_frequency = 1  # Debug settings.
+        npt_production.steps = 500000  # Debug settings.
+        npt_production.output_frequency = 5000  # Debug settings.
 
         npt_production.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 
         npt_production.input_coordinate_file = ProtocolPath('output_coordinate_file', npt_equilibration.id)
-        npt_production.system = ProtocolPath('system', assign_topology.id)
+        npt_production.system_path = ProtocolPath('system_path', assign_topology.id)
 
         # Analysis
-        extract_enthalpy = protocols.ExtractAverageStatistic(id_prefix + 'extract_enthalpy')
+        extract_enthalpy = analysis.ExtractAverageStatistic(id_prefix + 'extract_enthalpy')
 
         extract_enthalpy.statistics_type = ObservableType.Enthalpy
         extract_enthalpy.statistics_path = ProtocolPath('statistics_file_path', npt_production.id)
@@ -197,7 +198,7 @@ class EnthalpyOfMixing(PhysicalProperty):
             converge_uncertainty.add_protocols(weight_by_mole_fraction)
 
         # Extract the uncorrelated trajectory.
-        extract_uncorrelated_trajectory = protocols.ExtractUncorrelatedTrajectoryData(id_prefix + 'extract_traj')
+        extract_uncorrelated_trajectory = analysis.ExtractUncorrelatedTrajectoryData(id_prefix + 'extract_traj')
 
         extract_uncorrelated_trajectory.statistical_inefficiency = statistical_inefficiency
         extract_uncorrelated_trajectory.equilibration_index = equilibration_index
@@ -211,7 +212,7 @@ class EnthalpyOfMixing(PhysicalProperty):
                                                                              npt_production.id)
 
         # Extract the uncorrelated statistics.
-        extract_uncorrelated_statistics = protocols.ExtractUncorrelatedStatisticsData(id_prefix + 'extract_stats')
+        extract_uncorrelated_statistics = analysis.ExtractUncorrelatedStatisticsData(id_prefix + 'extract_stats')
 
         extract_uncorrelated_statistics.statistical_inefficiency = statistical_inefficiency
         extract_uncorrelated_statistics.equilibration_index = equilibration_index
@@ -227,30 +228,30 @@ class EnthalpyOfMixing(PhysicalProperty):
                                                  extract_uncorrelated_statistics)
 
     @staticmethod
-    def get_default_workflow_schema(calculation_layer):
-        """Returns the default workflow schema to use for
-        a specific calculation layer.
+    def get_default_workflow_schema(calculation_layer, options=None):
 
-        Parameters
-        ----------
-        calculation_layer: str
-            The calculation layer which will attempt to execute the workflow
-            defined by this schema.
-
-        Returns
-        -------
-        WorkflowSchema
-            The default workflow schema.
-        """
         if calculation_layer == 'SimulationLayer':
-            return EnthalpyOfMixing.get_default_simulation_workflow_schema()
+            return EnthalpyOfMixing.get_default_simulation_workflow_schema(options)
         elif calculation_layer == 'ReweightingLayer':
-            return EnthalpyOfMixing.get_default_reweighting_workflow_schema()
+            return EnthalpyOfMixing.get_default_reweighting_workflow_schema(options)
 
         return None
 
     @staticmethod
-    def get_default_simulation_workflow_schema():
+    def get_default_simulation_workflow_schema(options=None):
+        """Returns the default workflow to use when estimating this property
+        from direct simulations.
+
+        Parameters
+        ----------
+        options: WorkflowOptions
+            The default options to use when setting up the estimation workflow.
+
+        Returns
+        -------
+        WorkflowSchema
+            The schema to follow when estimating this property.
+        """
 
         schema = WorkflowSchema(property_type=EnthalpyOfMixing.__name__)
         schema.id = '{}{}'.format(EnthalpyOfMixing.__name__, 'Schema')
@@ -259,7 +260,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         # Here we affix a prefix which contains the special string $(comp_index). Protocols which are
         # replicated by a replicator will have the $(comp_index) tag in their id replaced by the index
         # of the replication.
-        component_workflow = EnthalpyOfMixing.get_enthalpy_workflow('component_$(repl)_', True)
+        component_workflow = EnthalpyOfMixing.get_enthalpy_workflow('component_$(repl)_', True, options)
 
         # Set the substance of the build_coordinates and assign_topology protocols
         # as a placeholder for now - these will be later set by the replicator.
@@ -267,11 +268,11 @@ class EnthalpyOfMixing(PhysicalProperty):
         component_workflow.assign_topology.substance = ReplicatorValue('repl')
 
         # Set up a workflow to calculate the enthalpy of the full, mixed system.
-        mixed_system_workflow = EnthalpyOfMixing.get_enthalpy_workflow('mixed_')
+        mixed_system_workflow = EnthalpyOfMixing.get_enthalpy_workflow('mixed_', False, options)
 
         # Finally, set up the protocols which will be responsible for adding together
         # the component enthalpies, and subtracting these from the mixed system enthalpy.
-        add_component_enthalpies = protocols.AddQuantities('add_component_enthalpies')
+        add_component_enthalpies = miscellaneous.AddQuantities('add_component_enthalpies')
 
         # Although we only give a list of a single ProtocolPath pointing to our template
         # component workflow's `weight_by_mole_fraction` protocol, the replicator
@@ -282,7 +283,7 @@ class EnthalpyOfMixing(PhysicalProperty):
 
         schema.protocols[add_component_enthalpies.id] = add_component_enthalpies.schema
 
-        calculate_enthalpy_of_mixing = protocols.SubtractQuantities('calculate_enthalpy_of_mixing')
+        calculate_enthalpy_of_mixing = miscellaneous.SubtractQuantities('calculate_enthalpy_of_mixing')
 
         calculate_enthalpy_of_mixing.value_b = ProtocolPath('value', mixed_system_workflow.converge_uncertainty.id,
                                                                      'mixed_extract_enthalpy')
@@ -365,10 +366,23 @@ class EnthalpyOfMixing(PhysicalProperty):
         return schema
 
     @staticmethod
-    def get_default_reweighting_workflow_schema():
+    def get_default_reweighting_workflow_schema(options=None):
+        """Returns the default workflow to use when estimating this property
+        by reweighting existing data.
+
+        Parameters
+        ----------
+        options: WorkflowOptions
+            The default options to use when setting up the estimation workflow.
+
+        Returns
+        -------
+        WorkflowSchema
+            The schema to follow when estimating this property.
+        """
 
         # Set up the protocols which will reweight data for the full system.
-        extract_mixed_enthalpy = protocols.ExtractAverageStatistic('extract_enthalpy_$(mix_data_repl)_mixture')
+        extract_mixed_enthalpy = analysis.ExtractAverageStatistic('extract_enthalpy_$(mix_data_repl)_mixture')
         extract_mixed_enthalpy.statistics_type = ObservableType.Enthalpy
 
         mixture_protocols, mixture_data_replicator = generate_base_reweighting_protocols(extract_mixed_enthalpy,
@@ -379,7 +393,7 @@ class EnthalpyOfMixing(PhysicalProperty):
                                                               mixture_protocols.unpack_stored_data.id)
 
         # Set up the protocols which will reweight data for each of the components.
-        extract_pure_enthalpy = protocols.ExtractAverageStatistic(
+        extract_pure_enthalpy = analysis.ExtractAverageStatistic(
             'extract_enthalpy_$(pure_data_repl)_comp_$(comp_repl)')
         extract_pure_enthalpy.statistics_type = ObservableType.Enthalpy
 
@@ -400,10 +414,10 @@ class EnthalpyOfMixing(PhysicalProperty):
         weight_by_mole_fraction.full_substance = ProtocolPath('substance', 'global')
         weight_by_mole_fraction.component = ReplicatorValue('comp_repl')
 
-        add_component_enthalpies = protocols.AddQuantities('add_component_enthalpies')
+        add_component_enthalpies = miscellaneous.AddQuantities('add_component_enthalpies')
         add_component_enthalpies.values = [ProtocolPath('weighted_value', weight_by_mole_fraction.id)]
 
-        calculate_enthalpy_of_mixing = protocols.SubtractQuantities('calculate_enthalpy_of_mixing')
+        calculate_enthalpy_of_mixing = miscellaneous.SubtractQuantities('calculate_enthalpy_of_mixing')
         calculate_enthalpy_of_mixing.value_b = ProtocolPath('value', mixture_protocols.mbar_protocol.id)
         calculate_enthalpy_of_mixing.value_a = ProtocolPath('result', add_component_enthalpies.id)
 

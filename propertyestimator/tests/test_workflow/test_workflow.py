@@ -16,15 +16,15 @@ from propertyestimator.properties import PropertyPhase
 from propertyestimator.properties.density import Density
 from propertyestimator.properties.dielectric import DielectricConstant
 from propertyestimator.properties.plugins import registered_properties
-from propertyestimator.substances import Mixture
+from propertyestimator.protocols.groups import ConditionalGroup
+from propertyestimator.substances import Substance
 from propertyestimator.tests.test_workflow.utils import DummyReplicableProtocol, create_dummy_metadata, \
     DummyEstimatedQuantityProtocol
 from propertyestimator.tests.utils import create_dummy_property
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import get_data_filename, graph
 from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.workflow import WorkflowSchema
-from propertyestimator.workflow.groups import ConditionalGroup
+from propertyestimator.workflow import WorkflowOptions, WorkflowSchema
 from propertyestimator.workflow.schemas import ProtocolReplicator
 from propertyestimator.workflow.utils import ReplicatorValue, ProtocolPath
 
@@ -36,7 +36,7 @@ def test_workflow_schema_simulation(registered_property_name, available_layer):
 
     registered_property = registered_properties[registered_property_name]
 
-    schema = registered_property.get_default_workflow_schema(available_layer)
+    schema = registered_property.get_default_workflow_schema(available_layer, WorkflowOptions())
 
     if schema is None:
         return
@@ -61,12 +61,9 @@ def test_cloned_schema_merging_simulation(registered_property_name, available_la
 
     registered_property = registered_properties[registered_property_name]
 
-    substance = Mixture()
-    substance.add_component('C', 1.0)
-
     dummy_property = create_dummy_property(registered_property)
 
-    workflow_schema = dummy_property.get_default_workflow_schema(available_layer)
+    workflow_schema = dummy_property.get_default_workflow_schema(available_layer, WorkflowOptions())
 
     if workflow_schema is None:
         return
@@ -105,8 +102,9 @@ def test_cloned_schema_merging_simulation(registered_property_name, available_la
 
 def test_density_dielectric_merging():
 
-    substance = Mixture()
-    substance.add_component('C', 1.0)
+    substance = Substance()
+    substance.add_component(Substance.Component(smiles='C'),
+                            Substance.MoleFraction())
 
     density = Density(thermodynamic_state=ThermodynamicState(temperature=298*unit.kelvin,
                                                              pressure=1*unit.atmosphere),
@@ -122,8 +120,8 @@ def test_density_dielectric_merging():
                                     value=10*unit.gram/unit.mole,
                                     uncertainty=1*unit.gram/unit.mole)
 
-    density_schema = density.get_default_workflow_schema('SimulationLayer')
-    dielectric_schema = dielectric.get_default_workflow_schema('SimulationLayer')
+    density_schema = density.get_default_workflow_schema('SimulationLayer', WorkflowOptions())
+    dielectric_schema = dielectric.get_default_workflow_schema('SimulationLayer', WorkflowOptions())
 
     density_metadata = Workflow.generate_default_metadata(density,
                                                           get_data_filename('forcefield/smirnoff99Frosst.offxml'),

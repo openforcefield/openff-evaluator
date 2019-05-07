@@ -15,7 +15,7 @@ Client Side API
     PropertyEstimatorOptions
     PropertyEstimatorSubmission
     PropertyEstimatorResult
-    PropertyEstimatorConnectionOptions
+    ConnectionOptions
 
 Server Side API
 ---------------
@@ -26,7 +26,6 @@ Server Side API
     :toctree: api/generated/
 
     PropertyEstimatorServer
-    PropertyEstimatorServerData
 
 Physical Property API
 ---------------------

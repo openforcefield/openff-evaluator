@@ -5,7 +5,9 @@ A local file based storage backend.
 import logging
 import pickle
 from os import path, makedirs
+from shutil import move
 
+from propertyestimator.substances import Substance
 from .storage import PropertyEstimatorStorage
 
 
@@ -69,3 +71,44 @@ class LocalFileStorage(PropertyEstimatorStorage):
             return False
 
         return True
+
+    def store_simulation_data(self, substance_id, simulation_data_directory):
+
+        if not path.isdir(simulation_data_directory):
+            raise ValueError(f'The directory ({simulation_data_directory}) to store does not exist.')
+
+        unique_id = super(LocalFileStorage, self).store_simulation_data(substance_id,
+                                                                        simulation_data_directory)
+
+        move(simulation_data_directory, path.join(self._root_directory, f'{unique_id}_data'))
+        return unique_id
+
+    def retrieve_simulation_data(self, substance, include_pure_data=True):
+
+        substance_ids = [substance.identifier]
+
+        if isinstance(substance, Substance) and include_pure_data is True:
+
+            for component in substance.components:
+
+                component_substance = Substance()
+                component_substance.add_component(component, Substance.MoleFraction())
+
+                if component_substance.identifier not in substance_ids:
+                    substance_ids.append(component_substance.identifier)
+
+        return_paths = {}
+
+        for substance_id in substance_ids:
+
+            if substance_id not in self._simulation_data_by_substance:
+                continue
+
+            return_paths[substance_id] = []
+
+            for simulation_data_key in self._simulation_data_by_substance[substance_id]:
+
+                stored_object = self.retrieve_object(simulation_data_key)
+                return_paths[substance_id].append(path.join(self._root_directory, f'{stored_object.unique_id}_data'))
+
+        return return_paths

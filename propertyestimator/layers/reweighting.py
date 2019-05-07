@@ -2,13 +2,14 @@
 The simulation reweighting estimation layer.
 """
 import abc
+import json
 import logging
 import pickle
 from os import path
 
 from propertyestimator.layers import register_calculation_layer, PropertyCalculationLayer
-from propertyestimator.substances import Mixture
-from propertyestimator.utils.serialization import serialize_force_field
+from propertyestimator.substances import Substance
+from propertyestimator.utils.serialization import serialize_force_field, TypedJSONDecoder
 from propertyestimator.utils.utils import SubhookedABCMeta
 from propertyestimator.workflow import WorkflowGraph, Workflow
 from propertyestimator.workflow.workflow import IWorkflowProperty
@@ -87,30 +88,31 @@ class ReweightingLayer(PropertyCalculationLayer):
                 # interface can be reweighted
                 continue
 
-            existing_data = storage_backend.retrieve_simulation_data(physical_property.substance,
-                                                                     physical_property.multi_component_property)
+            existing_data_paths = storage_backend.retrieve_simulation_data(physical_property.substance,
+                                                                           physical_property.multi_component_property)
 
-            if len(existing_data) == 0:
+            if len(existing_data_paths) == 0:
                 continue
 
             # Take data from the storage backend and save it in the working directory.
-            for substance_id in existing_data:
+            for substance_id in existing_data_paths:
 
                 if substance_id not in data_paths:
                     data_paths[substance_id] = []
 
-                for data in existing_data[substance_id]:
+                for data_directory in existing_data_paths[substance_id]:
 
-                    data_path = path.join(layer_directory, data.unique_id)
+                    data = None
+
+                    with open(path.join(data_directory, 'data.json'), 'r') as file:
+                        data = json.load(file, cls=TypedJSONDecoder)
+
                     force_field_path = path.join(layer_directory, data.force_field_id)
 
-                    path_tuple = (data_path, force_field_path)
+                    path_tuple = (data_directory, force_field_path)
 
                     if path_tuple in data_paths[substance_id]:
                         continue
-
-                    with open(data_path, 'wb') as file:
-                        pickle.dump(data, file)
 
                     if not path.isfile(force_field_path):
 
@@ -184,16 +186,15 @@ class ReweightingLayer(PropertyCalculationLayer):
 
                 for component in property_to_calculate.substance.components:
 
-                    temporary_component = Mixture.MixtureComponent(component.smiles,
-                                                                   mole_fraction=1.0,
-                                                                   impurity=False)
+                    temporary_substance = Substance()
+                    temporary_substance.add_component(component, amount=Substance.MoleFraction())
 
-                    if temporary_component.identifier not in stored_data_paths:
+                    if temporary_substance.identifier not in stored_data_paths:
 
                         has_data_for_property = False
                         break
 
-                    global_metadata['component_data'].append(stored_data_paths[temporary_component.identifier])
+                    global_metadata['component_data'].append(stored_data_paths[temporary_substance.identifier])
 
                 if not has_data_for_property:
                     continue

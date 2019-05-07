@@ -83,7 +83,7 @@ def calculate_statistical_inefficiency(time_series, minimum_samples=3):
             break
 
         statistical_inefficiency += (2.0 * autocorrelation_function *
-                                     (1.0 - float(current_timestep) / float(number_of_timesteps)))
+                                    (1.0 - float(current_timestep) / float(number_of_timesteps)))
 
         current_timestep += 1
 
@@ -155,8 +155,6 @@ def detect_equilibration(time_series, minimum_samples=3):
 
     effect_samples_array = np.ones([number_of_timesteps - 1], np.float32)
 
-    current_timestep = 0
-
     for current_timestep in range(0, number_of_timesteps - 1):
 
         try:
@@ -170,7 +168,7 @@ def detect_equilibration(time_series, minimum_samples=3):
 
     maximum_effective_samples = effect_samples_array.max()
     equilibration_time = effect_samples_array.argmax()
-    statistical_inefficiency = statistical_inefficiency_array[current_timestep]
+    statistical_inefficiency = statistical_inefficiency_array[equilibration_time]
 
     return equilibration_time, statistical_inefficiency, maximum_effective_samples
 

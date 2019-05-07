@@ -71,7 +71,7 @@ def get_data_filename(relative_path):
 _cached_molecules = {}
 
 
-def create_molecule_from_smiles(smiles):
+def create_molecule_from_smiles(smiles, number_of_conformers=1):
     """
     Create an ``OEMol`` molecule from a smiles pattern.
 
@@ -80,12 +80,15 @@ def create_molecule_from_smiles(smiles):
     Parameters
     ----------
     smiles : str
-        Smiles pattern
+        The smiles pattern to create the molecule from.
+    number_of_conformers: int
+        The number of conformers to generate for the molecule using Omega.
 
     Returns
     -------
     molecule : OEMol
-        OEMol with 3D coordinates, but no charges
+        OEMol with no charges, and a number of conformers as specified
+        by `number_of_conformers`
      """
 
     from openeye import oechem, oeomega
@@ -101,29 +104,30 @@ def create_molecule_from_smiles(smiles):
     if not oechem.OEParseSmiles(molecule, smiles, parse_smiles_options):
 
         logging.warning('Could not parse SMILES: ' + smiles)
-        return False
+        return None
 
     # Normalize molecule
     oechem.OEAssignAromaticFlags(molecule, oechem.OEAroModelOpenEye)
     oechem.OEAddExplicitHydrogens(molecule)
-    # oechem.OETriposAtomNames(molecule)
 
     # Create configuration
-    omega = oeomega.OEOmega()
+    if number_of_conformers > 0:
 
-    omega.SetMaxConfs(1)
-    omega.SetIncludeInput(False)
-    omega.SetCanonOrder(False)
-    omega.SetSampleHydrogens(True)
-    omega.SetStrictStereo(True)
-    omega.SetStrictAtomTypes(False)
+        omega = oeomega.OEOmega()
 
-    status = omega(molecule)
+        omega.SetMaxConfs(number_of_conformers)
+        omega.SetIncludeInput(False)
+        omega.SetCanonOrder(False)
+        omega.SetSampleHydrogens(True)
+        omega.SetStrictStereo(True)
+        omega.SetStrictAtomTypes(False)
 
-    if not status:
+        status = omega(molecule)
 
-        logging.warning('Could not generate a conformer for ' + smiles)
-        return False
+        if not status:
+
+            logging.warning('Could not generate a conformer for ' + smiles)
+            return None
 
     _cached_molecules[smiles] = molecule
 

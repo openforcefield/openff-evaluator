@@ -3,9 +3,13 @@ Defines the core workflow object and execution graph.
 """
 import abc
 import copy
+import json
+import logging
 import re
+import time
 import traceback
 import uuid
+from enum import Enum
 from math import sqrt
 from os import path, makedirs
 
@@ -14,8 +18,7 @@ from simtk import unit
 from propertyestimator.storage import StoredSimulationData
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import TypedBaseModel
-from propertyestimator.utils.statistics import StatisticsArray
+from propertyestimator.utils.serialization import TypedBaseModel, TypedJSONEncoder, TypedJSONDecoder
 from propertyestimator.utils.utils import SubhookedABCMeta, get_nested_attribute
 from propertyestimator.workflow.plugins import available_protocols
 from propertyestimator.workflow.protocols import BaseProtocol
@@ -27,7 +30,79 @@ class IWorkflowProperty(SubhookedABCMeta):
 
     @staticmethod
     @abc.abstractmethod
-    def get_default_workflow_schema(calculation_layer): pass
+    def get_default_workflow_schema(calculation_layer, options): pass
+
+
+class WorkflowOptions:
+    """A set of convenience options used when creating
+    estimation workflows.
+    """
+
+    class ConvergenceMode(Enum):
+        """The available options for deciding when a workflow has converged.
+        For now, these options include running until the computed uncertainty
+        of a property is within a relative fraction of the measured uncertainty
+        (`ConvergenceMode.RelativeUncertainty`) or is less than some absolute
+        value (`ConvergenceMode.AbsoluteUncertainty`)."""
+
+        # NoChecks = 'NoChecks'
+        RelativeUncertainty = 'RelativeUncertainty'
+        AbsoluteUncertainty = 'AbsoluteUncertainty'
+
+    def __init__(self,
+                 convergence_mode=ConvergenceMode.RelativeUncertainty,
+                 relative_uncertainty_fraction=1.0, absolute_uncertainty=None):
+        """Constructs a new WorkflowOptions object.
+
+        Parameters
+        ----------
+        convergence_mode: WorkflowOptions.ConvergenceMode
+            The mode which governs how workflows should decide when they have
+            reached convergence.
+        relative_uncertainty_fraction: float, optional
+            If the convergence mode is set to `RelativeUncertainty`, then workflows
+            will by default run simulations until the estimated uncertainty is less
+            than
+
+            `relative_uncertainty_fraction` * property_to_estimate.uncertainty
+        absolute_uncertainty: simtk.unit.Quantity, optional
+            If the convergence mode is set to `AbsoluteUncertainty`, then workflows
+            will by default run simulations until the estimated uncertainty is less
+            than the `absolute_uncertainty`
+        """
+
+        self.convergence_mode = convergence_mode
+
+        self.absolute_uncertainty = absolute_uncertainty
+        self.relative_uncertainty_fraction = relative_uncertainty_fraction
+
+        if (self.convergence_mode is self.ConvergenceMode.RelativeUncertainty and
+            self.relative_uncertainty_fraction is None):
+
+            raise ValueError('The relative uncertainty fraction must be set when the convergence '
+                             'mode is set to RelativeUncertainty.')
+
+        if (self.convergence_mode is self.ConvergenceMode.AbsoluteUncertainty and
+            self.absolute_uncertainty is None):
+
+            raise ValueError('The absolute uncertainty must be set when the convergence '
+                             'mode is set to AbsoluteUncertainty.')
+
+    def __getstate__(self):
+
+        return {
+            'convergence_mode': self.convergence_mode,
+
+            'absolute_uncertainty': self.absolute_uncertainty,
+            'relative_uncertainty_fraction': self.relative_uncertainty_fraction
+        }
+
+    def __setstate__(self, state):
+
+        self.convergence_mode = state['convergence_mode']
+
+        self.absolute_uncertainty = state['absolute_uncertainty']
+        self.relative_uncertainty_fraction = state['relative_uncertainty_fraction']
 
 
 class Workflow:
@@ -693,32 +768,51 @@ class Workflow:
             The metadata dictionary, with the following
             keys / types:
 
-            - thermodynamic_state: `ThermodynamicState`
-            - substance: `Mixture`
-            - components: list of `Mixture`
-            - target_uncertainty: simtk.unit.Quantity
-            - per_component_uncertainty: simtk.unit.Quantity
-            - force_field_path: str
+            - thermodynamic_state: `ThermodynamicState` - The state (T,p) at which the
+                                                          property is being computed
+            - substance: `Substance` - The composition of the system of interest.
+            - components: list of `Substance` - The components present in the system for
+                                              which the property is being estimated.
+            - target_uncertainty: simtk.unit.Quantity - The target uncertainty with which
+                                                        properties should be estimated.
+            - per_component_uncertainty: simtk.unit.Quantity - The target uncertainty divided
+                                                               by the sqrt of the number of
+                                                               components in the system + 1
+            - force_field_path: str - A path to the force field parameters with which the
+                                      property should be evaluated with.
         """
-        from propertyestimator.substances import Mixture
+        from propertyestimator.substances import Substance
 
         components = []
 
         for component in physical_property.substance.components:
 
-            mixture = Mixture()
-            mixture.add_component(component.smiles, 1.0, False)
+            component_substance = Substance()
+            component_substance.add_component(component, Substance.MoleFraction())
 
-            components.append(mixture)
+            components.append(component_substance)
 
-        target_uncertainty = physical_property.uncertainty * estimator_options.relative_uncertainty_tolerance
+        if (estimator_options.workflow_options is not None and
+            type(physical_property).__name__ in estimator_options.workflow_options):
+
+            workflow_options = estimator_options.workflow_options[type(physical_property).__name__]
+        else:
+            workflow_options = WorkflowOptions()
+
+        if workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.RelativeUncertainty:
+            target_uncertainty = physical_property.uncertainty * workflow_options.relative_uncertainty_fraction
+        elif workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.AbsoluteUncertainty:
+            target_uncertainty = workflow_options.absolute_uncertainty
+        else:
+            raise ValueError('The convergence mode {} is not supported.'.format(workflow_options.convergence_mode))
 
         if (isinstance(physical_property.uncertainty, unit.Quantity) and not
             isinstance(target_uncertainty, unit.Quantity)):
 
             target_uncertainty = unit.Quantity(target_uncertainty, physical_property.uncertainty.unit)
 
-        per_component_uncertainty = target_uncertainty / sqrt(physical_property.substance.number_of_components)
+        # +1 comes from inclusion of the full mixture as a possible component.
+        per_component_uncertainty = target_uncertainty / sqrt(physical_property.substance.number_of_components + 1)
 
         # Define a dictionary of accessible 'global' properties.
         global_metadata = {
@@ -729,6 +823,9 @@ class Workflow:
             "per_component_uncertainty": per_component_uncertainty,
             "force_field_path": force_field_path
         }
+
+        # Include the properties metadata
+        global_metadata.update(physical_property.metadata)
 
         return global_metadata
 
@@ -874,13 +971,18 @@ class WorkflowGraph:
 
                 parent_protocol_ids[dependant].append(inserted_id)
 
-    def submit(self, backend):
+    def submit(self, backend, include_uncertainty_check=True):
         """Submits the protocol graph to the backend of choice.
 
         Parameters
         ----------
         backend: PropertyEstimatorBackend
             The backend to execute the graph on.
+        include_uncertainty_check: bool
+            If true, the uncertainty of each estimated property will be checked to
+            ensure it is below the target threshold set in the workflow metadata.
+            If an uncertainty is not included in the workflow metadata, then this
+            parameter will be ignored.
 
         Returns
         -------
@@ -909,7 +1011,8 @@ class WorkflowGraph:
             submitted_futures[node_id] = backend.submit_task(WorkflowGraph._execute_protocol,
                                                              node.directory,
                                                              node.schema,
-                                                             *dependency_futures)
+                                                             *dependency_futures,
+                                                             key=f'execute_{node_id}')
 
         for workflow_id in self._workflows_to_execute:
 
@@ -944,25 +1047,50 @@ class WorkflowGraph:
 
                     final_futures.append(submitted_futures[attribute_value.start_protocol])
 
+            target_uncertainty = None
+
+            if include_uncertainty_check and 'target_uncertainty' in workflow.global_metadata:
+                target_uncertainty = workflow.global_metadata['target_uncertainty']
+
             # Gather the values and uncertainties of each property being calculated.
             value_futures.append(backend.submit_task(WorkflowGraph._gather_results,
+                                                     self._root_directory,
                                                      workflow.physical_property,
                                                      workflow.final_value_source,
                                                      workflow.outputs_to_store,
-                                                     *final_futures))
+                                                     target_uncertainty,
+                                                     *final_futures,
+                                                     key=f'gather_{workflow.physical_property.id}'))
 
         return value_futures
 
     @staticmethod
-    def _execute_protocol(directory, protocol_schema, *previous_outputs, available_resources, **kwargs):
+    def _save_protocol_output(file_path, output_dictionary):
+        """Saves the results of executing a protocol (whether these be the true
+        results or an exception) as a JSON file to disk.
+
+        Parameters
+        ----------
+        file_path: str
+            The path to save the output to.
+        output_dictionary: dict of str and Any
+            The results in the form of a dictionary which can be serialized
+            by the `TypedJSONEncoder`
+        """
+
+        with open(file_path, 'w') as file:
+            json.dump(output_dictionary, file, cls=TypedJSONEncoder)
+
+    @staticmethod
+    def _execute_protocol(directory, protocol_schema, *previous_output_paths, available_resources, **kwargs):
         """Executes a protocol whose state is defined by the ``protocol_schema``.
 
         Parameters
         ----------
         protocol_schema: protocols.ProtocolSchema
             The schema defining the protocol to execute.
-        previous_outputs: tuple of Any
-            The results of previous protocol executions.
+        previous_output_paths: tuple of str
+            Paths to the results of previous protocol executions.
 
         Returns
         -------
@@ -972,144 +1100,285 @@ class WorkflowGraph:
             A dictionary which contains the outputs of the executed protocol.
         """
 
-        # Store the results of the relevant previous protocols in a handy dictionary.
-        # If one of the results is a failure, propagate it up the chain!
-        previous_outputs_by_path = {}
+        # The path where the output of this protocol will be stored.
+        output_dictionary_path = path.join(directory, '{}_output.json'.format(protocol_schema.id))
 
-        for parent_id, parent_output in previous_outputs:
-
-            if isinstance(parent_output, PropertyEstimatorException):
-                return protocol_schema.id, parent_output
-
-            for output_path, output_value in parent_output.items():
-
-                property_name, protocol_ids = ProtocolPath.to_components(output_path)
-
-                if len(protocol_ids) == 0 or (len(protocol_ids) > 0 and protocol_ids[0] != parent_id):
-                    protocol_ids.insert(0, parent_id)
-
-                final_path = ProtocolPath(property_name, *protocol_ids)
-                previous_outputs_by_path[final_path] = output_value
-
-        # Recreate the protocol on the backend to bypass the need for static methods
-        # and awkward args and kwargs syntax.
-        protocol = available_protocols[protocol_schema.type](protocol_schema.id)
-        protocol.schema = protocol_schema
-
-        if not path.isdir(directory):
-            makedirs(directory)
-
-        for input_path in protocol.required_inputs:
-
-            value_references = protocol.get_value_references(input_path)
-
-            for source_path, target_path in value_references.items():
-
-                if (target_path.start_protocol == input_path.start_protocol or
-                        target_path.start_protocol == protocol.id):
-                    continue
-
-                protocol.set_value(source_path, previous_outputs_by_path[target_path])
-
+        # We need to make sure ALL exceptions are handled within this method,
+        # or any function which will be executed on a calculation backend to
+        # avoid accidentally killing the backend.
         try:
+
+            # If the output file already exists, we can assume this protocol has already
+            # been executed and we can return immediately without re-executing.
+            if path.isfile(output_dictionary_path):
+                return protocol_schema.id, output_dictionary_path
+
+            # Store the results of the relevant previous protocols in a handy dictionary.
+            # If one of the results is a failure, propagate it up the chain.
+            previous_outputs_by_path = {}
+
+            for parent_id, previous_output_path in previous_output_paths:
+
+                parent_output = None
+
+                try:
+
+                    with open(previous_output_path, 'r') as file:
+                        parent_output = json.load(file, cls=TypedJSONDecoder)
+
+                except json.JSONDecodeError as e:
+
+                    formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+
+                    exception = PropertyEstimatorException(directory,
+                                                           f'Could not load the output dictionary of {parent_id} '
+                                                           f'({previous_output_path}): {formatted_exception}')
+
+                    WorkflowGraph._save_protocol_output(output_dictionary_path,
+                                                        exception)
+
+                    return protocol_schema.id, output_dictionary_path
+
+                if isinstance(parent_output, PropertyEstimatorException):
+                    return protocol_schema.id, previous_output_path
+
+                for output_path, output_value in parent_output.items():
+
+                    property_name, protocol_ids = ProtocolPath.to_components(output_path)
+
+                    if len(protocol_ids) == 0 or (len(protocol_ids) > 0 and protocol_ids[0] != parent_id):
+                        protocol_ids.insert(0, parent_id)
+
+                    final_path = ProtocolPath(property_name, *protocol_ids)
+                    previous_outputs_by_path[final_path] = output_value
+
+            # Recreate the protocol on the backend to bypass the need for static methods
+            # and awkward args and kwargs syntax.
+            protocol = available_protocols[protocol_schema.type](protocol_schema.id)
+            protocol.schema = protocol_schema
+
+            if not path.isdir(directory):
+                makedirs(directory)
+
+            # Pass the outputs of previously executed protocols as input to the
+            # protocol to execute.
+            for input_path in protocol.required_inputs:
+
+                value_references = protocol.get_value_references(input_path)
+
+                for source_path, target_path in value_references.items():
+
+                    if (target_path.start_protocol == input_path.start_protocol or
+                        target_path.start_protocol == protocol.id):
+
+                        continue
+
+                    protocol.set_value(source_path, previous_outputs_by_path[target_path])
+
+            logging.info('Executing protocol: {}'.format(protocol.id))
+
+            start_time = time.perf_counter()
             output_dictionary = protocol.execute(directory, available_resources)
+            end_time = time.perf_counter()
+
+            logging.info('Protocol finished executing ({} ms): {}'.format((end_time-start_time)*1000, protocol.id))
+
+            try:
+
+                WorkflowGraph._save_protocol_output(output_dictionary_path, output_dictionary)
+
+            except TypeError as e:
+
+                formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+
+                exception = PropertyEstimatorException(directory=directory,
+                                                       message='Could not save the output dictionary of {} ({}): {}'.format(
+                                                               protocol.id, output_dictionary_path, formatted_exception))
+
+                WorkflowGraph._save_protocol_output(output_dictionary_path, exception)
+
+            return protocol.id, output_dictionary_path
+
         except Exception as e:
+
+            logging.info(f'Protocol failed to execute: {protocol_schema.id}')
+
             # Except the unexcepted...
             formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
-            return protocol.id, PropertyEstimatorException(directory=directory,
-                                                           message='An unhandled exception occurred: '
-                                                                   '{}'.format(formatted_exception))
+            exception = PropertyEstimatorException(directory=directory,
+                                                   message='An unhandled exception '
+                                                           'occurred: {}'.format(formatted_exception))
 
-        return protocol.id, output_dictionary
+            WorkflowGraph._save_protocol_output(output_dictionary_path, exception)
+            return protocol_schema.id, output_dictionary_path
 
     @staticmethod
-    def _gather_results(property_to_return, value_reference, outputs_to_store,
-                        *protocol_results, **kwargs):
+    def _gather_results(directory, property_to_return, value_reference, outputs_to_store,
+                        target_uncertainty, *protocol_result_paths, **kwargs):
         """Gather the value and uncertainty calculated from the submission graph
         and store them in the property to return.
 
         Parameters
         ----------
-        value_result: dict of string and Any
-            The result dictionary of the protocol which calculated the value of the property.
+        directory: str
+            The directory to store any working files in.
+        property_to_return: PhysicalProperty
+            The property to which the value and uncertainty belong.
         value_reference: ProtocolPath
             A reference to which property in the output dictionary is the actual value.
         outputs_to_store: dict of string and WorkflowOutputToStore
             A list of references to data which should be stored on the storage backend.
-        property_to_return: PhysicalProperty
-            The property to which the value and uncertainty belong.
+        target_uncertainty: unit.Quantity, optional
+            The uncertainty within which this property should have been estimated. If this
+            value is not `None` and the target has not been met, a `None` result will be returned
+            indicating that this property could not be estimated by the workflow, but not because
+            of an error.
+        protocol_results: dict of string and str
+            The result dictionary of the protocol which calculated the value of the property.
 
         Returns
         -------
-        CalculationLayerResult
-            The result of attempting to estimate this property from a workflow graph.
+        CalculationLayerResult, optional
+            The result of attempting to estimate this property from a workflow graph. `None`
+            will be returned if the target uncertainty is set but not met.
         """
-        import mdtraj
         from propertyestimator.layers.layers import CalculationLayerResult
 
         return_object = CalculationLayerResult()
         return_object.property_id = property_to_return.id
 
-        results_by_id = {}
+        try:
+            results_by_id = {}
 
-        for protocol_id, protocol_results in protocol_results:
+            for protocol_id, protocol_result_path in protocol_result_paths:
 
-            # Make sure none of the protocols failed and we actually have a value
-            # and uncertainty.
-            if isinstance(protocol_results, PropertyEstimatorException):
+                protocol_results = None
 
-                return_object.workflow_error = protocol_results
-                return return_object
+                try:
 
-            for output_path, output_value in protocol_results.items():
+                    with open(protocol_result_path, 'r') as file:
+                        protocol_results = json.load(file, cls=TypedJSONDecoder)
 
-                property_name, protocol_ids = ProtocolPath.to_components(output_path)
+                except json.JSONDecodeError as e:
 
-                if len(protocol_ids) == 0 or (len(protocol_ids) > 0 and protocol_ids[0] != protocol_id):
-                    protocol_ids.insert(0, protocol_id)
+                    formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
-                final_path = ProtocolPath(property_name, *protocol_ids)
-                results_by_id[final_path] = output_value
+                    exception = PropertyEstimatorException(message=f'Could not load the output dictionary of '
+                                                                   f'{protocol_id} ({protocol_result_path}): '
+                                                                   f'{formatted_exception}')
 
-        property_to_return.value = results_by_id[value_reference].value
-        property_to_return.uncertainty = results_by_id[value_reference].uncertainty
+                    return_object.exception = exception
+                    return return_object
 
-        return_object.calculated_property = property_to_return
-        return_object.data_to_store = []
+                # Make sure none of the protocols failed and we actually have a value
+                # and uncertainty.
+                if isinstance(protocol_results, PropertyEstimatorException):
 
-        # TODO: At the moment it is assumed that the output of a WorkflowGraph is
-        #       a set of StoredSimulationData. This should be abstraced and made
-        #       more general in future if possible.
-        for output_label in outputs_to_store:
+                    return_object.exception = protocol_results
+                    return return_object
 
-            output_to_store = outputs_to_store[output_label]
+                for output_path, output_value in protocol_results.items():
 
-            data_to_store = StoredSimulationData()
+                    property_name, protocol_ids = ProtocolPath.to_components(output_path)
 
-            if output_to_store.substance is None:
-                data_to_store.substance = property_to_return.substance
-            elif isinstance(output_to_store.substance, ProtocolPath):
-                data_to_store.substance = results_by_id[output_to_store.substance]
-            else:
-                data_to_store.substance = output_to_store.substance
+                    if len(protocol_ids) == 0 or (len(protocol_ids) > 0 and protocol_ids[0] != protocol_id):
+                        protocol_ids.insert(0, protocol_id)
 
-            data_to_store.thermodynamic_state = property_to_return.thermodynamic_state
+                    final_path = ProtocolPath(property_name, *protocol_ids)
+                    results_by_id[final_path] = output_value
 
-            data_to_store.provenance = property_to_return.source
+            if target_uncertainty is not None and results_by_id[value_reference].uncertainty > target_uncertainty:
 
-            data_to_store.source_calculation_id = property_to_return.id
+                logging.info('The final uncertainty ({}) was not less than the target threshold ({}).'.format(
+                    results_by_id[value_reference].uncertainty, target_uncertainty))
 
-            coordinate_path = results_by_id[output_to_store.coordinate_file_path]
-            trajectory_path = results_by_id[output_to_store.trajectory_file_path]
+                return None
 
-            data_to_store.trajectory_data = mdtraj.load_dcd(trajectory_path, top=coordinate_path)
+            property_to_return.value = results_by_id[value_reference].value
+            property_to_return.uncertainty = results_by_id[value_reference].uncertainty
 
-            statistics_path = results_by_id[output_to_store.statistics_file_path]
-            data_to_store.statistics_data = StatisticsArray.from_pandas_csv(statistics_path)
+            return_object.calculated_property = property_to_return
+            return_object.data_directories_to_store = []
 
-            data_to_store.statistical_inefficiency = results_by_id[output_to_store.statistical_inefficiency]
+            # TODO: At the moment it is assumed that the output of a WorkflowGraph is
+            #       a set of StoredSimulationData. This should be abstracted and made
+            #       more general in future if possible.
+            for output_to_store in outputs_to_store.values():
 
-            return_object.data_to_store.append(data_to_store)
+                results_directory = path.join(directory, f'results_{property_to_return.id}')
+
+                WorkflowGraph._store_simulation_data(results_directory,
+                                                     output_to_store,
+                                                     property_to_return,
+                                                     results_by_id)
+
+                return_object.data_directories_to_store.append(results_directory)
+
+        except Exception as e:
+
+            formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+
+            return_object.exception = PropertyEstimatorException(directory=directory,
+                                                                 message=f'An unhandled exception '
+                                                                         f'occurred: {formatted_exception}')
 
         return return_object
+
+    @staticmethod
+    def _store_simulation_data(storage_directory, output_to_store, physical_property, results_by_id):
+        """Collects all of the simulation to store, and saves it into a directory
+        whose path will be passed to the storage backend to process.
+
+        Parameters
+        ----------
+        storage_directory: str
+            The directory to store the data in.
+        output_to_store: WorkflowOutputToStore
+            An object which contains `ProtocolPath`s pointing to the
+            data to store.
+        physical_property: PhysicalProperty
+            The property which was estimated while generating the
+            data to store.
+        results_by_id: dict of ProtocolPath and any
+            The results of the protocols which formed the property
+            estimation workflow.
+        """
+        from shutil import copy as file_copy
+
+        if not path.isdir(storage_directory):
+            makedirs(storage_directory)
+
+        stored_object = StoredSimulationData()
+
+        if output_to_store.substance is None:
+            stored_object.substance = physical_property.substance
+        elif isinstance(output_to_store.substance, ProtocolPath):
+            stored_object.substance = results_by_id[output_to_store.substance]
+        else:
+            stored_object.substance = output_to_store.substance
+
+        stored_object.thermodynamic_state = physical_property.thermodynamic_state
+        stored_object.provenance = physical_property.source
+        stored_object.source_calculation_id = physical_property.id
+
+        # Copy the files into the directory to store.
+        _, coordinate_file_name = path.split(results_by_id[output_to_store.coordinate_file_path])
+        _, trajectory_file_name = path.split(results_by_id[output_to_store.trajectory_file_path])
+
+        _, statistics_file_name = path.split(results_by_id[output_to_store.statistics_file_path])
+
+        file_copy(results_by_id[output_to_store.coordinate_file_path], storage_directory)
+        file_copy(results_by_id[output_to_store.trajectory_file_path], storage_directory)
+
+        file_copy(results_by_id[output_to_store.statistics_file_path], storage_directory)
+
+        stored_object.coordinate_file_name = coordinate_file_name
+        stored_object.trajectory_file_name = trajectory_file_name
+
+        stored_object.statistics_file_name = statistics_file_name
+
+        stored_object.statistical_inefficiency = results_by_id[output_to_store.statistical_inefficiency]
+
+        with open(path.join(storage_directory, 'data.json'), 'w') as file:
+            json.dump(stored_object, file, cls=TypedJSONEncoder)

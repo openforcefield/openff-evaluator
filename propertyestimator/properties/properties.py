@@ -174,6 +174,8 @@ class PhysicalProperty(TypedBaseModel):
 
         self.source = source
 
+        self._metadata = {}
+
     def __getstate__(self):
 
         return {
@@ -214,6 +216,19 @@ class PhysicalProperty(TypedBaseModel):
         """simtk.unit.Quantity or None: The pressure at which the property was collected."""
         return None if self.thermodynamic_state is None else self.thermodynamic_state.pressure
 
+    @property
+    def metadata(self):
+        """dict of str and Any: Additional metadata associated with this property, such as
+        file paths to coordinate files or ...
+
+        All property metadata will be made accessible to property estimation workflows.
+        """
+        return self._metadata
+
+    @metadata.setter
+    def metadata(self, value):
+        self._metadata = value
+
     def set_value(self, value, uncertainty):
         """Set the value and uncertainty of this property.
 
@@ -228,7 +243,7 @@ class PhysicalProperty(TypedBaseModel):
         self.uncertainty = uncertainty
 
     @staticmethod
-    def get_default_workflow_schema(calculation_layer):
+    def get_default_workflow_schema(calculation_layer, options=None):
         """Returns the default workflow schema to use for
         a specific calculation layer.
 
@@ -237,6 +252,8 @@ class PhysicalProperty(TypedBaseModel):
         calculation_layer: str
             The calculation layer which will attempt to execute the workflow
             defined by this schema.
+        options: WorkflowOptions
+            The options to use when setting up the default workflows.
 
         Returns
         -------

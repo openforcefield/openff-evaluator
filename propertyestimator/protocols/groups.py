@@ -8,6 +8,7 @@ protocols until certain conditions have been met.
 """
 
 import copy
+import json
 import logging
 from enum import Enum, unique
 from os import path, makedirs
@@ -17,8 +18,10 @@ from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.workflow import plugins
 from propertyestimator.workflow.decorators import MergeBehaviour, protocol_input
 from propertyestimator.workflow.plugins import register_calculation_protocol, available_protocols
-from .protocols import BaseProtocol, ProtocolPath
-from .schemas import ProtocolGroupSchema
+from simtk import unit
+
+from propertyestimator.workflow.protocols import BaseProtocol, ProtocolPath
+from propertyestimator.workflow.schemas import ProtocolGroupSchema
 
 
 @register_calculation_protocol()
@@ -738,17 +741,100 @@ class ConditionalGroup(ProtocolGroup):
         if conditions is not None:
             schema_value.inputs['.conditions'] = conditions
 
-    def _evaluate_condition(self, condition_type, left_hand_value, right_hand_value):
+    def _evaluate_condition(self, condition):
+        """Evaluates whether a condition has been successfully met.
+
+        Parameters
+        ----------
+        condition: ConditionalGroup.Condition
+            The condition to evaluate.
+
+        Returns
+        -------
+        bool
+            True if the condition has been met.
+        """
+
+        left_hand_value = None
+
+        if not isinstance(condition.left_hand_value, ProtocolPath):
+            left_hand_value = condition.left_hand_value
+        else:
+            left_hand_value = self.get_value(condition.left_hand_value)
+
+        right_hand_value = None
+
+        if not isinstance(condition.right_hand_value, ProtocolPath):
+            right_hand_value = condition.right_hand_value
+        else:
+            right_hand_value = self.get_value(condition.right_hand_value)
 
         if left_hand_value is None or right_hand_value is None:
             return False
 
-        if condition_type == self.ConditionType.LessThan:
+        right_hand_value_correct_units = right_hand_value
+
+        if isinstance(right_hand_value, unit.Quantity) and isinstance(left_hand_value, unit.Quantity):
+            right_hand_value_correct_units = right_hand_value.in_units_of(left_hand_value.unit)
+
+        logging.info(f'Evaluating condition for protocol {self.id}: '
+                     f'{left_hand_value} {condition.type} {right_hand_value_correct_units}')
+
+        if condition.type == self.ConditionType.LessThan:
             return left_hand_value < right_hand_value
-        elif condition_type == self.ConditionType.GreaterThan:
+        elif condition.type == self.ConditionType.GreaterThan:
             return left_hand_value > right_hand_value
 
         raise NotImplementedError()
+
+    @staticmethod
+    def _write_checkpoint(directory, current_iteration):
+        """Creates a checkpoint file for this group so that it can continue
+        executing where it left off if it was killed for some reason (e.g the
+        worker it was running on was killed).
+
+        Parameters
+        ----------
+        directory: str
+            The path to the working directory of this protocol
+        current_iteration: int
+            The number of iterations this group has performed so far.
+        """
+
+        checkpoint_path = path.join(directory, 'checkpoint.json')
+
+        with open(checkpoint_path, 'w') as file:
+            json.dump({'current_iteration': current_iteration}, file)
+
+    @staticmethod
+    def _read_checkpoint(directory):
+        """Creates a checkpoint file for this group so that it can continue
+        executing where it left off if it was killed for some reason (e.g the
+        worker it was running on was killed).
+
+        Parameters
+        ----------
+        directory: str
+            The path to the working directory of this protocol
+
+        Returns
+        -------
+        int
+            The number of iterations this group has performed so far.
+        """
+
+        current_iteration = 0
+        checkpoint_path = path.join(directory, 'checkpoint.json')
+
+        if not path.isfile(checkpoint_path):
+            return current_iteration
+
+        with open(checkpoint_path, 'r') as file:
+
+            checkpoint_dictionary = json.load(file)
+            current_iteration = checkpoint_dictionary['current_iteration']
+
+        return current_iteration
 
     def execute(self, directory, available_resources):
         """Executes the protocols within this groups
@@ -769,10 +855,14 @@ class ConditionalGroup(ProtocolGroup):
         logging.info('Starting conditional while loop: {}'.format(self.id))
 
         should_continue = True
-
-        current_iteration = 0
+        current_iteration = self._read_checkpoint(directory)
 
         while should_continue:
+
+            # Create a checkpoint file so we can pick off where
+            # we left off if this execution fails due to time
+            # constraints for e.g.
+            self._write_checkpoint(directory, current_iteration)
 
             current_iteration += 1
             return_value = super(ConditionalGroup, self).execute(directory, available_resources)
@@ -781,36 +871,27 @@ class ConditionalGroup(ProtocolGroup):
                 # Exit on exceptions.
                 return return_value
 
+            conditions_met = True
+
             for condition in self._conditions:
 
-                evaluated_left_hand_value = None
-
-                if not isinstance(condition.left_hand_value, ProtocolPath):
-                    evaluated_left_hand_value = condition.left_hand_value
-                else:
-                    evaluated_left_hand_value = self.get_value(condition.left_hand_value)
-
-                evaluated_right_hand_value = None
-
-                if not isinstance(condition.right_hand_value, ProtocolPath):
-                    evaluated_right_hand_value = condition.right_hand_value
-                else:
-                    evaluated_right_hand_value = self.get_value(condition.right_hand_value)
-
                 # Check to see if we have reached our goal.
-                if self._evaluate_condition(condition.type, evaluated_left_hand_value, evaluated_right_hand_value):
+                if not self._evaluate_condition(condition):
 
-                    logging.info('Conditional while loop finished after {} iterations: {}'.format(current_iteration,
-                                                                                                  self.id))
-                    return return_value
+                    conditions_met = False
+                    break
+
+            if conditions_met:
+
+                logging.info(f'Conditional while loop finished after {current_iteration} iterations: {self.id}')
+                return return_value
 
             if current_iteration >= self._max_iterations:
 
                 return PropertyEstimatorException(directory=directory,
-                                                  message='Conditional while loop failed to '
-                                                           'converge: {}'.format(self.id))
+                                                  message=f'Conditional while loop failed to converge: {self.id}')
 
-            logging.info('Conditional criteria not yet met after {} iterations'.format(current_iteration))
+            logging.info(f'Conditional criteria not yet met after {current_iteration} iterations')
 
     def can_merge(self, other):
         return super(ConditionalGroup, self).can_merge(other)

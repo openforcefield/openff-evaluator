@@ -5,6 +5,7 @@ A collection of classes which aid in serializing data types.
 import importlib
 import inspect
 import json
+import numpy as np
 from abc import ABC, abstractmethod
 from enum import Enum
 from io import BytesIO
@@ -263,6 +264,12 @@ class TypedJSONEncoder(json.JSONEncoder):
         Enum: serialize_enum,
         unit.Quantity: serialize_quantity,
         'ForceField': serialize_force_field,
+        np.float16: lambda x: {'value': float(x)},
+        np.float32: lambda x: {'value': float(x)},
+        np.float64: lambda x: {'value': float(x)},
+        np.int32: lambda x: {'value': int(x)},
+        np.int64: lambda x: {'value': int(x)},
+        np.ndarray: lambda x: {'value': x.tolist()},
     }
 
     def default(self, value_to_serialize):
@@ -340,7 +347,13 @@ class TypedJSONDecoder(json.JSONDecoder):
         Enum: deserialize_enum,
         unit.Quantity: deserialize_quantity,
         EstimatedQuantity: deserialize_estimated_quantity,
-        'ForceField': deserialize_force_field
+        'ForceField': deserialize_force_field,
+        np.float16: lambda x: np.float16(x['value']),
+        np.float32: lambda x: np.float32(x['value']),
+        np.float64: lambda x: np.float64(x['value']),
+        np.int32: lambda x: np.int32(x['value']),
+        np.int64: lambda x: np.int64(x['value']),
+        np.ndarray: lambda x: np.array(x['value'])
     }
 
     @staticmethod
