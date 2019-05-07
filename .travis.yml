@@ -32,7 +32,7 @@ install:
 # Temporary addition until version 0.3.0 is released.
 - conda config --add channels omnia --add channels conda-forge
 - conda install --only-deps openforcefield
-- git clone --single-branch --branch 0.3.0-branch git@github.com:openforcefield/openforcefield.git
+- git clone --single-branch --branch 0.3.0-branch https://github.com/openforcefield/openforcefield.git
 - cd openforcefield
 - python setup.py develop
 - cd ..
