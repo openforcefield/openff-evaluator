@@ -22,6 +22,7 @@ dependencies:
   - pymbar
   - mdtraj
   - dask
+  - distributed >=1.27.1
   - dask-jobqueue
   - tornado
   - coverage >=4.4
