@@ -12,12 +12,10 @@ import random
 import shutil
 import string
 import subprocess
-
-import numpy as np
-
 from distutils.spawn import find_executable
 from tempfile import mkdtemp
 
+import numpy as np
 from simtk import openmm
 from simtk import unit
 
@@ -214,7 +212,8 @@ def pack_box(molecules,
         if temporary_directory:
             shutil.rmtree(working_directory)
 
-    unitless_box_nm = box_size / unit.nanometers
+    # Add a 2 angstrom buffer to help alleviate PBC issues.
+    unitless_box_nm = (box_size + 2.0 * unit.angstrom).value_in_unit(unit.nanometers)
 
     box_vector_x = openmm.Vec3(unitless_box_nm, 0, 0)
     box_vector_y = openmm.Vec3(0, unitless_box_nm, 0)
@@ -270,9 +269,7 @@ def _approximate_volume_by_density(molecules,
 
         volume += molecule_volume * number
 
-    # Add 2 angs to help ease PBC issues.
-    box_edge = volume**(1.0/3.0) * box_scaleup_factor + 2.0 * unit.angstrom
-
+    box_edge = volume**(1.0/3.0) * box_scaleup_factor
     return box_edge
 
 

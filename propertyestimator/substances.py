@@ -7,6 +7,7 @@ import math
 from enum import Enum
 
 import numpy as np
+from simtk import unit
 
 from propertyestimator.utils.serialization import TypedBaseModel
 
@@ -412,12 +413,40 @@ class Substance(TypedBaseModel):
 
             remaining_molecule_slots -= amount.value
 
+        if remaining_molecule_slots < 0:
+
+            raise ValueError(f'The required number of molecules {maximum_molecules - remaining_molecule_slots} '
+                             f'exceeds the provided maximum number ({maximum_molecules}).')
+
         for index, component in enumerate(self._components):
 
             amount = self._amounts[component.identifier]
             number_of_molecules[component.identifier] = amount.to_number_of_molecules(remaining_molecule_slots)
 
         return number_of_molecules
+
+    @staticmethod
+    def calculate_aqueous_ionic_mole_fraction(ionic_strength):
+        """Determines what mole fraction of ions is needed to yield
+         an aqueous system of a given ionic strength.
+
+        Parameters
+        ----------
+        ionic_strength: unit.Quantity
+            The ionic string in units of molar.
+
+        Returns
+        -------
+        float
+            The mole fraction of ions.
+        """
+
+        # Taken from YANK:
+        # https://github.com/choderalab/yank/blob/4dfcc8e127c51c20180fe6caeb49fcb1f21730c6/Yank/pipeline.py#L1869
+        water_molarity = (998.23 * unit.gram / unit.litre) / (18.01528 * unit.gram / unit.mole)
+
+        ionic_mole_fraction = ionic_strength / (ionic_strength + water_molarity)
+        return ionic_mole_fraction
 
     def __getstate__(self):
         return {

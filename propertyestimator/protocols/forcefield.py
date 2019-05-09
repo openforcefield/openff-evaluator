@@ -5,6 +5,8 @@ A collection of protocols for assigning force field parameters to molecular syst
 import logging
 from os import path
 
+import numpy as np
+from simtk import unit
 from simtk.openmm import app
 
 from propertyestimator.substances import Substance
@@ -30,6 +32,15 @@ class BuildSmirnoffSystem(BaseProtocol):
         force field parameters will be assigned."""
         pass
 
+    @protocol_input(dict)
+    def charged_molecule_paths(self):
+        """File paths to mol2 files which contain the charges assigned to molecules
+        in the system. This input is helpful when dealing with large molecules (such
+        as hosts in host-guest binding calculations) whose charges may by needed
+        in multiple places, and hence should only be calculated once. The key should
+        be the smiles or unique label of the molecule"""
+        pass
+
     @protocol_input(Substance)
     def substance(self):
         """The composition of the system."""
@@ -49,8 +60,41 @@ class BuildSmirnoffSystem(BaseProtocol):
         self._coordinate_file_path = None
         self._substance = None
 
+        self._charged_molecule_paths = {}
+
         # outputs
         self._system_path = None
+
+    @staticmethod
+    def _generate_known_charged_molecules():
+        """Generates a set of molecules whose charges are known a priori,
+        such as ions, for use in parameterised systems.
+
+        Notes
+        -----
+        These are solely to be used as a work around until library charges
+        are fully implemented in the openforcefield toolkit.
+
+        Returns
+        -------
+        list of openforcefield.topology.Molecule
+            The molecules with assigned charges.
+        """
+        from openforcefield.topology import Molecule
+
+        sodium = Molecule.from_smiles('[Na+]')
+        sodium.partial_charges = np.array([1.0]) * unit.elementary_charge
+
+        potassium = Molecule.from_smiles('[K+]')
+        potassium.partial_charges = np.array([1.0]) * unit.elementary_charge
+
+        calcium = Molecule.from_smiles('[Ca+2]')
+        calcium.partial_charges = np.array([2.0]) * unit.elementary_charge
+
+        chlorine = Molecule.from_smiles('[Cl-]')
+        chlorine.partial_charges = np.array([-1.0]) * unit.elementary_charge
+
+        return [sodium, potassium, calcium, chlorine]
 
     def execute(self, directory, available_resources):
 
@@ -74,6 +118,8 @@ class BuildSmirnoffSystem(BaseProtocol):
 
         unique_molecules = []
 
+        charged_molecules = self._generate_known_charged_molecules()
+
         for component in self._substance.components:
 
             molecule = Molecule.from_smiles(smiles=component.smiles)
@@ -85,8 +131,17 @@ class BuildSmirnoffSystem(BaseProtocol):
 
             unique_molecules.append(molecule)
 
+            if (self._charged_molecule_paths is not None and
+                component.label in self._charged_molecule_paths):
+
+                molecule_path = self._charged_molecule_paths[component.label]
+                charged_molecule = Molecule.from_file(molecule_path, 'MOL2')
+
+                charged_molecules.append(charged_molecule)
+
         topology = Topology.from_openmm(pdb_file.topology, unique_molecules=unique_molecules)
-        system = force_field.create_openmm_system(topology)
+
+        system = force_field.create_openmm_system(topology, charge_from_molecules=charged_molecules)
 
         if system is None:
 
