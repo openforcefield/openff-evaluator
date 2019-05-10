@@ -1,8 +1,10 @@
 """
 A collection of protocols for running molecular simulations.
 """
-
+import contextlib
 import logging
+import os
+import shutil
 from os import path
 
 import yaml
@@ -330,10 +332,50 @@ class BaseYankProtocol(BaseProtocol):
     methods.
     """
 
+    @protocol_input(ThermodynamicState)
+    def thermodynamic_state(self):
+        pass
+
+    @protocol_input(int, merge_behavior=MergeBehaviour.GreatestValue)
+    def number_of_iterations(self):
+        pass
+
+    @protocol_input(int, merge_behavior=MergeBehaviour.GreatestValue)
+    def steps_per_iteration(self):
+        pass
+
+    @protocol_input(int, merge_behavior=MergeBehaviour.SmallestValue)
+    def checkpoint_interval(self):
+        pass
+
+    @protocol_input(unit.Quantity, merge_behavior=MergeBehaviour.SmallestValue)
+    def timestep(self):
+        pass
+
+    @protocol_input(str)
+    def force_field_path(self):
+        pass
+
+    @protocol_input(bool)
+    def verbose(self):
+        pass
+
     def __init__(self, protocol_id):
+        """Constructs a new BaseYankProtocol object."""
+
         super().__init__(protocol_id)
 
-    def _get_yank_options(self):
+        self._thermodynamic_state = None
+        self._timestep = 1 * unit.femtosecond
+
+        self._number_of_iterations = 1
+
+        self._steps_per_iteration = 1000000
+        self._checkpoint_interval = 50000
+
+        self._verbose = False
+
+    def _get_options_dictionary(self):
         """Returns a dictionary of options which will be serialized
         to a yaml file and passed to YANK.
 
@@ -343,7 +385,124 @@ class BaseYankProtocol(BaseProtocol):
             A yaml compatible dictionary of YANK options.
         """
 
-        pass
+        # TODO: Should we be specifying `constraints` here?
+        #       I imagine we shouldn't when passing OMM
+        #       system.xml files.
+        #
+        # TODO: Same with `anisotropic_dispersion_cutoff`
+
+        from openforcefield.utils import quantity_to_string
+
+        return {
+            'verbose': self._verbose,
+            'output_dir': '.',
+
+            'temperature': quantity_to_string(self._thermodynamic_state.temperature),
+            'pressure': quantity_to_string(self._thermodynamic_state.pressure),
+
+            'minimize': True,
+
+            'default_number_of_iterations': self._number_of_iterations,
+            'default_nsteps_per_iteration': self._steps_per_iteration,
+            'checkpoint_interval': self._checkpoint_interval,
+
+            'default_timestep': quantity_to_string(self._timestep),
+
+            # TODO: Are these always sensible choices? I guess
+            #       implementations of this class can override
+            #       this where needed.
+            'annihilate_electrostatics': True,
+            'annihilate_sterics': False
+        }
+
+    def _get_solvent_dictionary(self):
+        """Returns a dictionary of the solvent which will be serialized
+        to a yaml file and passed to YANK. In most cases, this should
+        just be passing force field settings over, such as PME settings.
+
+        # TODO: Again, is this neccessary if we are using system.xml
+        #       files...
+
+        Returns
+        -------
+        dict of str and Any
+            A yaml compatible dictionary of YANK solvents.
+        """
+        return {'default': {'nonbonded_method': 'PME'}}
+
+    def _get_system_dictionary(self):
+        """Returns a dictionary of the system which will be serialized
+        to a yaml file and passed to YANK. Only a single system may be
+        specified.
+
+        Returns
+        -------
+        dict of str and Any
+            A yaml compatible dictionary of YANK systems.
+        """
+        raise NotImplementedError()
+
+    def _get_protocol_dictionary(self):
+        """Returns a dictionary of the protocol which will be serialized
+        to a yaml file and passed to YANK. Only a single protocol may be
+        specified.
+
+        Returns
+        -------
+        dict of str and Any
+            A yaml compatible dictionary of a YANK protocol.
+        """
+        raise NotImplementedError()
+
+    def _get_full_input_dictionary(self, directory):
+        """
+
+        Parameters
+        ----------
+        directory
+
+        Returns
+        -------
+
+        """
+
+        system_dictionary = self._get_system_dictionary()
+        system_key = next(iter(system_dictionary))
+
+        protocol_dictionary = self._get_protocol_dictionary()
+        protocol_key = next(iter(protocol_dictionary))
+
+        return {
+            'options': self._get_options_dictionary(),
+
+            'solvents': self._get_solvent_dictionary(),
+
+            'systems': system_dictionary,
+            'protocols': protocol_dictionary,
+
+            'experiments': {
+                'system': system_key,
+                'protocol': protocol_key
+            }
+        }
+
+    @staticmethod
+    @contextlib.contextmanager
+    def _temporarily_change_directory(file_path):
+        """A context to temporarily change the working directory.
+
+        Parameters
+        ----------
+        file_path: str
+            The file path to temporarily change into.
+        """
+        prev_dir = os.getcwd()
+        os.chdir(path.abspath(file_path))
+
+        try:
+            yield
+        finally:
+            os.chdir(prev_dir)
 
     def execute(self, directory, available_resources):
 
@@ -353,34 +512,117 @@ class BaseYankProtocol(BaseProtocol):
 
         # Create the yank yaml input file from a dictionary of options.
         with open(yaml_filename, 'w') as file:
-            yaml.dump(self._get_yank_options(), file)
+            yaml.dump(self._get_full_input_dictionary(directory), file)
 
-        exp_builder = ExperimentBuilder(yaml_filename)
-        exp_builder.setup_experiments()
+        with self._temporarily_change_directory(directory):
 
-        exp_builder.run_experiments()
+            exp_builder = ExperimentBuilder('yank.yaml')
+            exp_builder.run_experiments()
 
         return self._get_output_dictionary()
 
 
 @register_calculation_protocol()
-class RunHoseGuestYankProtocol(BaseProtocol):
-    """An abstract base class for protocols which will performs a set of alchemical
-    free energy simulations using the YANK framework.
+class LigandReceptorYankProtocol(BaseYankProtocol):
+    """An abstract base class for protocols which will performs a set of
+    alchemical free energy simulations using the YANK framework.
 
-    Protocols which inherit from this base must implement the abstract `_get_yank_options`
-    methods.
+    Protocols which inherit from this base must implement the abstract
+    `_get_*_dictionary` methods.
     """
 
-    def _get_yank_options(self):
-        """Returns a dictionary of options which will be serialized
-        to a yaml file and passed to YANK.
+    @protocol_input(str)
+    def ligand_residue_name(self):
+        """The residue name of the ligand."""
+        pass
+
+    @protocol_input(str)
+    def solvated_ligand_coordinates(self):
+        """The file path to the solvated ligand coordinates."""
+        pass
+
+    @protocol_input(str)
+    def solvated_ligand_system(self):
+        """The file path to the solvated ligand system object."""
+        pass
+
+    @protocol_input(str)
+    def solvated_complex_coordinates(self):
+        """The file path to the solvated complex coordinates."""
+        pass
+
+    @protocol_input(str)
+    def solvated_complex_system(self):
+        """The file path to the solvated complex system object."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new LigandReceptorYankProtocol object."""
+
+        super().__init__(protocol_id)
+
+        self._ligand_residue_name = None
+
+        self._solvated_ligand_coordinates = None
+        self._solvated_ligand_system = None
+
+        self._solvated_complex_coordinates = None
+        self._solvated_complex_system = None
+
+        self._local_ligand_coordinates = 'ligand.pdb'
+        self._local_ligand_system = 'ligand.xml'
+
+        self._local_complex_coordinates = 'complex.pdb'
+        self._local_complex_system = 'complex.xml'
+
+    def _get_system_dictionary(self):
+        """Returns a dictionary of the system which will be serialized
+        to a yaml file and passed to YANK. Only a single system may be
+        specified.
 
         Returns
         -------
         dict of str and Any
-            A yaml compatible dictionary of YANK options.
+            A yaml compatible dictionary of YANK systems.
         """
 
-        pass
+        solvent_dictionary = self._get_solvent_dictionary()
+        solvent_key = next(iter(solvent_dictionary))
 
+        host_guest_dictionary = {
+            'phase1_path': [self._local_complex_system, self._local_complex_coordinates],
+            'phase2_path': [self._local_ligand_system, self._local_ligand_coordinates],
+
+            'ligand_dsl': f'resname {self._ligand_residue_name}',
+            'solvent': solvent_key
+        }
+
+        return {'host-guest': host_guest_dictionary}
+
+    def _get_protocol_dictionary(self):
+        """Returns a dictionary of the protocol which will be serialized
+        to a yaml file and passed to YANK. Only a single protocol may be
+        specified.
+
+        Returns
+        -------
+        dict of str and Any
+            A yaml compatible dictionary of a YANK protocol.
+        """
+
+        absolute_binding_dictionary = {
+            'complex': {'alchemical_path': 'auto'},
+            'solvent': {'alchemical_path': 'auto'}
+        }
+
+        return {'absolute_binding_dictionary': absolute_binding_dictionary}
+
+    def execute(self, directory, available_resources):
+
+        shutil.copyfile(self._solvated_ligand_coordinates, path.join(directory, self._local_ligand_coordinates))
+        shutil.copyfile(self._solvated_ligand_system, path.join(directory, self._local_ligand_system))
+
+        shutil.copyfile(self._solvated_complex_coordinates, path.join(directory, self._local_complex_coordinates))
+        shutil.copyfile(self._solvated_complex_system, path.join(directory, self._local_complex_system))
+
+        super(LigandReceptorYankProtocol, self).execute(directory, available_resources)
