@@ -3,9 +3,9 @@ A collection of protocols for running molecular simulations.
 """
 
 import logging
-import yaml
 from os import path
 
+import yaml
 from simtk import unit, openmm
 from simtk.openmm import app
 
@@ -184,7 +184,7 @@ class RunOpenMMSimulation(BaseProtocol):
     def execute(self, directory, available_resources):
 
         temperature = self._thermodynamic_state.temperature
-        pressure = self._thermodynamic_state.pressure
+        pressure = None if self._ensemble == Ensemble.NVT else self._thermodynamic_state.pressure
 
         if temperature is None:
 
@@ -218,8 +218,6 @@ class RunOpenMMSimulation(BaseProtocol):
                                               message='Simulation failed: {}'.format(e))
 
         # Save the newly generated statistics data as a pandas csv file.
-        pressure = None if self._ensemble == Ensemble.NVT else self._thermodynamic_state.pressure
-
         working_statistics = statistics.StatisticsArray.from_openmm_csv(self._temporary_statistics_path, pressure)
         working_statistics.save_as_pandas_csv(self._statistics_file_path)
 
