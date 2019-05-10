@@ -3,6 +3,7 @@ A collection of protocols for assigning force field parameters to molecular syst
 """
 
 import logging
+from enum import Enum
 from os import path
 
 import numpy as np
@@ -20,6 +21,16 @@ from propertyestimator.workflow.protocols import BaseProtocol
 class BuildSmirnoffSystem(BaseProtocol):
     """Parametrise a set of molecules with a given smirnoff force field.
     """
+    class WaterModel(Enum):
+        """An enum which describes which water model is being
+        used, so that correct charges can be applied.
+
+        Warnings
+        --------
+        This is only a temporary addition until library charges
+        are introduced into the openforcefield toolkit.
+        """
+        TIP3P = 'TIP3P'
 
     @protocol_input(str)
     def force_field_path(self, value):
@@ -46,6 +57,18 @@ class BuildSmirnoffSystem(BaseProtocol):
         """The composition of the system."""
         pass
 
+    @protocol_input(WaterModel)
+    def water_model(self):
+        """The water model to apply, if any water molecules
+        are present.
+
+        Warnings
+        --------
+        This is only a temporary addition until library charges
+        are introduced into the openforcefield toolkit.
+        """
+        pass
+
     @protocol_output(str)
     def system_path(self):
         """The assigned system."""
@@ -59,6 +82,8 @@ class BuildSmirnoffSystem(BaseProtocol):
         self._force_field_path = None
         self._coordinate_file_path = None
         self._substance = None
+
+        self._water_model = BuildSmirnoffSystem.WaterModel.TIP3P
 
         self._charged_molecule_paths = {}
 
@@ -94,7 +119,10 @@ class BuildSmirnoffSystem(BaseProtocol):
         chlorine = Molecule.from_smiles('[Cl-]')
         chlorine.partial_charges = np.array([-1.0]) * unit.elementary_charge
 
-        return [sodium, potassium, calcium, chlorine]
+        water = Molecule.from_smiles('O')
+        water.partial_charges = np.array([-0.834, 0.417, 0.417]) * unit.elementary_charge
+
+        return [sodium, potassium, calcium, chlorine, water]
 
     def execute(self, directory, available_resources):
 
