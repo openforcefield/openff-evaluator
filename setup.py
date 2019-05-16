@@ -2,7 +2,7 @@
 propertyestimator
 Property calculation toolkit from the Open Forcefield Consortium.
 """
-from setuptools import setup
+from setuptools import setup, find_packages
 import versioneer
 
 short_description = __doc__.split("\n")
@@ -29,23 +29,16 @@ setup(
     # Which Python importable modules should be included when your package is installed
     # packages=['propertyestimator', "propertyestimator.tests"],
 
-    packages=[
-        'propertyestimator',
-        'propertyestimator.tests',
-        'propertyestimator.backends',
-        'propertyestimator.datasets',
-        'propertyestimator.layers',
-        'propertyestimator.properties',
-        'propertyestimator.storage',
-        'propertyestimator.utils',
-        'propertyestimator.workflow'
-    ],
+    packages=find_packages(),
 
     # Optional include package data to ship with your package
     # Comment out this line to prevent the files from being packaged with your software
     # Extend/modify the list to include/exclude other items as need be
-    package_data={'propertyestimator': ["data/*.dat"]
-                  },
+    # package_data={'propertyestimator': ["data/*.dat"]
+    #              },
+    # UPDATE -> Use MANIFEST.in and set include_package_data=True
+    # (https://blog.ionelmc.ro/presentations/packaging/#slide:13)
+    include_package_data=True,
 
     # Additional entries you may want simply uncomment the lines you want and fill in the data
     # author_email='me@place.org',      # Author email
