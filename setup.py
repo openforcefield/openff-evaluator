@@ -3,6 +3,7 @@ propertyestimator
 Property calculation toolkit from the Open Forcefield Consortium.
 """
 from setuptools import setup
+
 import versioneer
 
 short_description = __doc__.split("\n")
@@ -36,6 +37,7 @@ setup(
         'propertyestimator.datasets',
         'propertyestimator.layers',
         'propertyestimator.properties',
+        'propertyestimator.protocols',
         'propertyestimator.storage',
         'propertyestimator.utils',
         'propertyestimator.workflow'
