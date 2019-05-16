@@ -99,6 +99,11 @@ class BuildSmirnoffSystem(BaseProtocol):
         These are solely to be used as a work around until library charges
         are fully implemented in the openforcefield toolkit.
 
+        Todos
+        -----
+        Remove this method when library charges are fully implemented in
+        the openforcefield toolkit.
+
         Returns
         -------
         list of openforcefield.topology.Molecule
