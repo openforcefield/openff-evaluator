@@ -7,6 +7,7 @@ import os
 import shutil
 from os import path
 
+import numpy as np
 import yaml
 from simtk import unit, openmm
 from simtk.openmm import app
@@ -15,6 +16,7 @@ from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils import statistics
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.openmm import setup_platform_with_resources
+from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow.decorators import protocol_input, protocol_output, MergeBehaviour
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
@@ -334,30 +336,43 @@ class BaseYankProtocol(BaseProtocol):
 
     @protocol_input(ThermodynamicState)
     def thermodynamic_state(self):
+        """The state at which to run the calculations."""
         pass
 
     @protocol_input(int, merge_behavior=MergeBehaviour.GreatestValue)
     def number_of_iterations(self):
+        """The number of YANK iterations to perform."""
         pass
 
     @protocol_input(int, merge_behavior=MergeBehaviour.GreatestValue)
     def steps_per_iteration(self):
+        """The number of steps per YANK iteration to perform."""
         pass
 
     @protocol_input(int, merge_behavior=MergeBehaviour.SmallestValue)
     def checkpoint_interval(self):
+        """The number of iterations between saving YANK checkpoint files."""
         pass
 
     @protocol_input(unit.Quantity, merge_behavior=MergeBehaviour.SmallestValue)
     def timestep(self):
+        """The length of the timestep to take."""
         pass
 
     @protocol_input(str)
     def force_field_path(self):
+        """The path to the force field to use for the calculations"""
         pass
 
     @protocol_input(bool)
     def verbose(self):
+        """Controls whether or not to run YANK at high verbosity."""
+        pass
+
+    @protocol_output(EstimatedQuantity)
+    def estimated_free_energy(self):
+        """The estimated free energy value and its uncertainty returned
+        by YANK."""
         pass
 
     def __init__(self, protocol_id):
@@ -370,10 +385,14 @@ class BaseYankProtocol(BaseProtocol):
 
         self._number_of_iterations = 1
 
-        self._steps_per_iteration = 1000000
-        self._checkpoint_interval = 50000
+        self._steps_per_iteration = 500
+        self._checkpoint_interval = 50
+
+        self._force_field_path = None
 
         self._verbose = False
+
+        self._estimated_free_energy = None
 
     def _get_options_dictionary(self):
         """Returns a dictionary of options which will be serialized
@@ -428,7 +447,30 @@ class BaseYankProtocol(BaseProtocol):
         dict of str and Any
             A yaml compatible dictionary of YANK solvents.
         """
-        return {'default': {'nonbonded_method': 'PME'}}
+        from openforcefield.typing.engines.smirnoff.forcefield import ForceField
+
+        force_field = ForceField(self._force_field_path)
+
+        if not np.isclose(force_field.get_parameter_handler('Electrostatics').cutoff.value_in_unit(unit.angstrom),
+                          force_field.get_parameter_handler('vdW').cutoff.value_in_unit(unit.angstrom)):
+
+            raise ValueError('The electrostatic and vdW cutoffs must be identical.')
+
+        cutoff = force_field.get_parameter_handler('vdW').cutoff
+        switch_distance = force_field.get_parameter_handler('vdW').switch_width
+
+        charge_method = force_field.get_parameter_handler('Electrostatics').method
+
+        if charge_method.lower() != 'pme':
+            raise ValueError('Currently only PME electrostatics are supported.')
+
+        # Do we need to include `ewald_error_tolerance`?
+        return {'default': {
+            'nonbonded_method': charge_method,
+            'nonbonded_cutoff': cutoff.value_in_unit(unit.nanometers),
+
+            'switch_distance': switch_distance.value_in_unit(unit.nanometers),
+        }}
 
     def _get_system_dictionary(self):
         """Returns a dictionary of the system which will be serialized
@@ -454,16 +496,14 @@ class BaseYankProtocol(BaseProtocol):
         """
         raise NotImplementedError()
 
-    def _get_full_input_dictionary(self, directory):
-        """
-
-        Parameters
-        ----------
-        directory
+    def _get_full_input_dictionary(self):
+        """Returns a dictionary of the full YANK inputs which will be serialized
+        to a yaml file and passed to YANK
 
         Returns
         -------
-
+        dict of str and Any
+            A yaml compatible dictionary of a YANK input file.
         """
 
         system_dictionary = self._get_system_dictionary()
@@ -487,6 +527,24 @@ class BaseYankProtocol(BaseProtocol):
         }
 
     @staticmethod
+    def _extract_trajectory(checkpoint_path, output_trajectory_path):
+        """Extracts the stored trajectory of the 'initial' state from a
+        yank `.nc` checkpoint file and stores it to disk as a `.dcd` file.
+
+        Parameters
+        ----------
+        checkpoint_path: str
+            The path to the yank `.nc` file
+        output_trajectory_path: str
+            The path to store the extracted trajectory at.
+        """
+
+        from yank.analyze import extract_trajectory
+
+        mdtraj_trajectory = extract_trajectory(checkpoint_path, state_index=0)
+        mdtraj_trajectory.save_dcd(output_trajectory_path)
+
+    @staticmethod
     @contextlib.contextmanager
     def _temporarily_change_directory(file_path):
         """A context to temporarily change the working directory.
@@ -507,17 +565,28 @@ class BaseYankProtocol(BaseProtocol):
     def execute(self, directory, available_resources):
 
         from yank.experiment import ExperimentBuilder
+        from yank.analyze import ExperimentAnalyzer
 
         yaml_filename = path.join(directory, 'yank.yaml')
 
         # Create the yank yaml input file from a dictionary of options.
         with open(yaml_filename, 'w') as file:
-            yaml.dump(self._get_full_input_dictionary(directory), file)
+            yaml.dump(self._get_full_input_dictionary(), file)
 
         with self._temporarily_change_directory(directory):
 
             exp_builder = ExperimentBuilder('yank.yaml')
             exp_builder.run_experiments()
+
+            analyzer = ExperimentAnalyzer('experiments')
+            output = analyzer.auto_analyze()
+
+            free_energy = output['free_energy']['free_energy_diff_unit']
+            free_energy_uncertainty = output['free_energy']['free_energy_diff_error_unit']
+
+            self._estimated_free_energy = EstimatedQuantity(free_energy,
+                                                            free_energy_uncertainty,
+                                                            self._id)
 
         return self._get_output_dictionary()
 
@@ -556,6 +625,16 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         """The file path to the solvated complex system object."""
         pass
 
+    @protocol_output(str)
+    def solvated_ligand_trajectory_path(self):
+        """The file path to the generated ligand trajectory."""
+        pass
+
+    @protocol_output(str)
+    def solvated_complex_trajectory_path(self):
+        """The file path to the generated ligand trajectory."""
+        pass
+
     def __init__(self, protocol_id):
         """Constructs a new LigandReceptorYankProtocol object."""
 
@@ -574,6 +653,9 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
 
         self._local_complex_coordinates = 'complex.pdb'
         self._local_complex_system = 'complex.xml'
+
+        self._solvated_ligand_trajectory_path = None
+        self._solvated_complex_trajectory_path = None
 
     def _get_system_dictionary(self):
         """Returns a dictionary of the system which will be serialized
@@ -619,6 +701,9 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
 
     def execute(self, directory, available_resources):
 
+        # Because of quirks in where Yank looks files while doing temporary
+        # directory changes, we need to copy the coordinate files locally so
+        # they are correctly found.
         shutil.copyfile(self._solvated_ligand_coordinates, path.join(directory, self._local_ligand_coordinates))
         shutil.copyfile(self._solvated_ligand_system, path.join(directory, self._local_ligand_system))
 
@@ -626,3 +711,14 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         shutil.copyfile(self._solvated_complex_system, path.join(directory, self._local_complex_system))
 
         super(LigandReceptorYankProtocol, self).execute(directory, available_resources)
+
+        ligand_yank_path = path.join(directory, 'experiments', 'solvent.nc')
+        complex_yank_path = path.join(directory, 'experiments', 'complex.nc')
+
+        self._solvated_ligand_trajectory_path = path.join(directory, 'ligand.dcd')
+        self._solvated_complex_trajectory_path = path.join(directory, 'complex.dcd')
+
+        self._extract_trajectory(ligand_yank_path, self._solvated_ligand_trajectory_path)
+        self._extract_trajectory(complex_yank_path, self._solvated_complex_trajectory_path)
+
+        return self._get_output_dictionary()
