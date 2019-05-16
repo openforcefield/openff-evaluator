@@ -8,6 +8,7 @@ import traceback
 from os import path
 
 import numpy as np
+import yaml
 from simtk import unit, openmm
 from simtk.openmm import app
 
@@ -580,11 +581,11 @@ class BaseYankProtocol(BaseProtocol):
 
     def execute(self, directory, available_resources):
 
-        # yaml_filename = path.join(directory, 'yank.yaml')
-        #
-        # # Create the yank yaml input file from a dictionary of options.
-        # with open(yaml_filename, 'w') as file:
-        #     yaml.dump(self._get_full_input_dictionary(), file)
+        yaml_filename = path.join(directory, 'yank.yaml')
+
+        # Create the yank yaml input file from a dictionary of options.
+        with open(yaml_filename, 'w') as file:
+            yaml.dump(self._get_full_input_dictionary(), file)
 
         # Yank is not safe to be called from anything other than the main thread.
         # If the current thread is not detected as the main one, then yank should
