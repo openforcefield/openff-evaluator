@@ -129,10 +129,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
 
         yank_protocol.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 
-        yank_protocol.number_of_iterations = 1
-
-        yank_protocol.steps_per_iteration = 1000000
-        yank_protocol.checkpoint_interval = 1
+        yank_protocol.number_of_iterations = 2000
+        yank_protocol.steps_per_iteration = 500
+        yank_protocol.checkpoint_interval = 10
 
         yank_protocol.verbose = True
 
