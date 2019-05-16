@@ -9,9 +9,6 @@ from os import path
 
 import numpy as np
 import yaml
-from simtk import unit, openmm
-from simtk.openmm import app
-
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils import statistics
 from propertyestimator.utils.exceptions import PropertyEstimatorException
@@ -21,6 +18,8 @@ from propertyestimator.utils.utils import temporarily_change_directory
 from propertyestimator.workflow.decorators import protocol_input, protocol_output, MergeBehaviour
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
+from simtk import unit, openmm
+from simtk.openmm import app
 
 
 @register_calculation_protocol()
@@ -569,7 +568,7 @@ class BaseYankProtocol(BaseProtocol):
 
         from yank.analyze import extract_trajectory
 
-        mdtraj_trajectory = extract_trajectory(checkpoint_path, state_index=0)
+        mdtraj_trajectory = extract_trajectory(checkpoint_path, state_index=0, image_molecules=True)
         mdtraj_trajectory.save_dcd(output_trajectory_path)
 
     @staticmethod
