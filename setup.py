@@ -28,7 +28,7 @@ setup(
     license='MIT',
 
     # Which Python importable modules should be included when your package is installed
-    packages=find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
+    packages=find_packages(),
 
     # Optional include package data to ship with your package
     # Comment out this line to prevent the files from being packaged with your software
