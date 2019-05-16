@@ -519,9 +519,14 @@ class BaseYankProtocol(BaseProtocol):
         """
         raise NotImplementedError()
 
-    def _get_full_input_dictionary(self):
+    def _get_full_input_dictionary(self, available_resources):
         """Returns a dictionary of the full YANK inputs which will be serialized
         to a yaml file and passed to YANK
+
+        Parameters
+        ----------
+        available_resources: ComputeResources
+            The resources available to execute on.
 
         Returns
         -------
@@ -536,7 +541,7 @@ class BaseYankProtocol(BaseProtocol):
         protocol_key = next(iter(protocol_dictionary))
 
         return {
-            'options': self._get_options_dictionary(),
+            'options': self._get_options_dictionary(available_resources),
 
             'solvents': self._get_solvent_dictionary(),
 
@@ -649,7 +654,7 @@ class BaseYankProtocol(BaseProtocol):
 
         # Create the yank yaml input file from a dictionary of options.
         with open(yaml_filename, 'w') as file:
-            yaml.dump(self._get_full_input_dictionary(), file)
+            yaml.dump(self._get_full_input_dictionary(available_resources), file)
 
         # Yank is not safe to be called from anything other than the main thread.
         # If the current thread is not detected as the main one, then yank should
