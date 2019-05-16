@@ -26,17 +26,27 @@ from propertyestimator.workflow.protocols import BaseProtocol
 @register_calculation_protocol()
 class RunEnergyMinimisation(BaseProtocol):
     """A protocol to minimise the potential energy of a system.
-
-    .. todo:: Add arguments for max iterations + tolerance
     """
 
     @protocol_input(str)
-    def input_coordinate_file(self, value):
+    def input_coordinate_file(self):
         """The coordinates to minimise."""
         pass
 
+    @protocol_input(unit.Quantity)
+    def tolerance(self):
+        """The energy tolerance to which the system should be minimized."""
+        pass
+
+    @protocol_input(int)
+    def max_iterations(self):
+        """The maximum number of iterations to perform.  If this is 0,
+        minimization is continued until the results converge without regard
+        to how many iterations it takes."""
+        pass
+
     @protocol_input(str)
-    def system_path(self, value):
+    def system_path(self):
         """The path to the XML system object which defines the forces present in the system."""
         pass
 
@@ -49,13 +59,14 @@ class RunEnergyMinimisation(BaseProtocol):
 
         super().__init__(protocol_id)
 
-        # inputs
         self._input_coordinate_file = None
 
         self._system_path = None
         self._system = None
 
-        # outputs
+        self._tolerance = 10*unit.kilojoules_per_mole
+        self._max_iterations = 0
+
         self._output_coordinate_file = None
 
     def execute(self, directory, available_resources):
@@ -80,7 +91,7 @@ class RunEnergyMinimisation(BaseProtocol):
         simulation.context.setPeriodicBoxVectors(*box_vectors)
         simulation.context.setPositions(input_pdb_file.positions)
 
-        simulation.minimizeEnergy()
+        simulation.minimizeEnergy(self._tolerance, self._max_iterations)
 
         positions = simulation.context.getState(getPositions=True).getPositions()
 
@@ -428,9 +439,6 @@ class BaseYankProtocol(BaseProtocol):
 
             'default_timestep': quantity_to_string(self._timestep),
 
-            # TODO: Are these always sensible choices? I guess
-            #       implementations of this class can override
-            #       this where needed.
             'annihilate_electrostatics': True,
             'annihilate_sterics': False
         }
