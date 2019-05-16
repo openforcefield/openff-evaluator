@@ -548,6 +548,21 @@ class BaseYankProtocol(BaseProtocol):
 
     @staticmethod
     def _run_yank(directory):
+        """Runs YANK within the specified directory which contains a `yank.yaml`
+        input file.
+
+        Parameters
+        ----------
+        directory: str
+            The directory within which to run yank.
+
+        Returns
+        -------
+        simtk.unit.Quantity
+            The free energy returned by yank.
+        simtk.unit.Quantity
+            The uncertainty in the free energy returned by yank.
+        """
 
         from yank.experiment import ExperimentBuilder
         from yank.analyze import ExperimentAnalyzer
@@ -566,6 +581,29 @@ class BaseYankProtocol(BaseProtocol):
 
     @staticmethod
     def _run_yank_as_process(queue, directory):
+        """A wrapper around the `_run_yank` method which takes
+        a `multiprocessing.Queue` as input, thereby allowing it
+        to be launched from a separate process and still return
+        it's output back to the main process.
+
+        Parameters
+        ----------
+        queue: multiprocessing.Queue
+            The queue object which will communicate with the
+            launched process.
+        directory: str
+            The directory within which to run yank.
+
+        Returns
+        -------
+        simtk.unit.Quantity
+            The free energy returned by yank.
+        simtk.unit.Quantity
+            The uncertainty in the free energy returned by yank.
+        str, optional
+            The stringified errors which occurred on the other process,
+            or `None` if no exceptions were raised.
+        """
 
         free_energy = None
         free_energy_uncertainty = None
