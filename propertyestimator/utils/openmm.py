@@ -36,7 +36,7 @@ def setup_platform_with_resources(compute_resources):
 
             property_platform_name = platform_name
 
-            if compute_resources.preferred_gpu_toolkit == 'CUDA':
+            if toolkit_enum == ComputeResources.GPUToolkit.CUDA:
                 property_platform_name = platform_name.lower().capitalize()
 
             platform.setPropertyDefaultValue(property_platform_name + 'DeviceIndex',
