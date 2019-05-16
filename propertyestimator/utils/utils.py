@@ -2,6 +2,7 @@
 A collection of general utilities.
 """
 import abc
+import contextlib
 import copy
 import logging
 import os
@@ -286,6 +287,24 @@ def set_nested_attribute(containing_object, name, value):
                              'attribute.'.format(attribute_name))
 
         setattr(current_attribute, attribute_name, value)
+
+
+@contextlib.contextmanager
+def temporarily_change_directory(file_path):
+    """A context to temporarily change the working directory.
+
+    Parameters
+    ----------
+    file_path: str
+        The file path to temporarily change into.
+    """
+    prev_dir = os.getcwd()
+    os.chdir(os.path.abspath(file_path))
+
+    try:
+        yield
+    finally:
+        os.chdir(prev_dir)
 
 
 class SubhookedABCMeta(metaclass=abc.ABCMeta):

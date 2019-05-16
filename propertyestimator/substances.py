@@ -274,7 +274,7 @@ class Substance(TypedBaseModel):
         def identifier(self):
             return f'({int(round(self._value)):d})'
 
-        def __init__(self, value):
+        def __init__(self, value=1):
             """Constructs a new ExactAmount object.
 
             Parameters

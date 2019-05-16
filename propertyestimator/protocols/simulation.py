@@ -1,14 +1,13 @@
 """
 A collection of protocols for running molecular simulations.
 """
-import contextlib
 import logging
-import os
 import shutil
+import threading
+import traceback
 from os import path
 
 import numpy as np
-import yaml
 from simtk import unit, openmm
 from simtk.openmm import app
 
@@ -17,6 +16,7 @@ from propertyestimator.utils import statistics
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.openmm import setup_platform_with_resources
 from propertyestimator.utils.quantities import EstimatedQuantity
+from propertyestimator.utils.utils import temporarily_change_directory
 from propertyestimator.workflow.decorators import protocol_input, protocol_output, MergeBehaviour
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
@@ -448,6 +448,7 @@ class BaseYankProtocol(BaseProtocol):
             A yaml compatible dictionary of YANK solvents.
         """
         from openforcefield.typing.engines.smirnoff.forcefield import ForceField
+        from openforcefield.utils import quantity_to_string
 
         force_field = ForceField(self._force_field_path)
 
@@ -467,9 +468,9 @@ class BaseYankProtocol(BaseProtocol):
         # Do we need to include `ewald_error_tolerance`?
         return {'default': {
             'nonbonded_method': charge_method,
-            'nonbonded_cutoff': cutoff.value_in_unit(unit.nanometers),
+            'nonbonded_cutoff': quantity_to_string(cutoff.in_units_of(unit.nanometers)),
 
-            'switch_distance': switch_distance.value_in_unit(unit.nanometers),
+            'switch_distance': quantity_to_string(switch_distance.in_units_of(unit.nanometers)),
         }}
 
     def _get_system_dictionary(self):
@@ -545,36 +546,12 @@ class BaseYankProtocol(BaseProtocol):
         mdtraj_trajectory.save_dcd(output_trajectory_path)
 
     @staticmethod
-    @contextlib.contextmanager
-    def _temporarily_change_directory(file_path):
-        """A context to temporarily change the working directory.
-
-        Parameters
-        ----------
-        file_path: str
-            The file path to temporarily change into.
-        """
-        prev_dir = os.getcwd()
-        os.chdir(path.abspath(file_path))
-
-        try:
-            yield
-        finally:
-            os.chdir(prev_dir)
-
-    def execute(self, directory, available_resources):
+    def _run_yank(directory):
 
         from yank.experiment import ExperimentBuilder
         from yank.analyze import ExperimentAnalyzer
 
-        yaml_filename = path.join(directory, 'yank.yaml')
-
-        # Create the yank yaml input file from a dictionary of options.
-        with open(yaml_filename, 'w') as file:
-            yaml.dump(self._get_full_input_dictionary(), file)
-
-        with self._temporarily_change_directory(directory):
-
+        with temporarily_change_directory(directory):
             exp_builder = ExperimentBuilder('yank.yaml')
             exp_builder.run_experiments()
 
@@ -584,9 +561,59 @@ class BaseYankProtocol(BaseProtocol):
             free_energy = output['free_energy']['free_energy_diff_unit']
             free_energy_uncertainty = output['free_energy']['free_energy_diff_error_unit']
 
-            self._estimated_free_energy = EstimatedQuantity(free_energy,
-                                                            free_energy_uncertainty,
-                                                            self._id)
+        return free_energy, free_energy_uncertainty
+
+    @staticmethod
+    def _run_yank_as_process(queue, directory):
+
+        free_energy = None
+        free_energy_uncertainty = None
+
+        error = None
+
+        try:
+            free_energy, free_energy_uncertainty = BaseYankProtocol._run_yank(directory)
+        except Exception as e:
+            error = traceback.format_exception(None, e, e.__traceback__)
+
+        queue.put((free_energy, free_energy_uncertainty, error))
+
+    def execute(self, directory, available_resources):
+
+        # yaml_filename = path.join(directory, 'yank.yaml')
+        #
+        # # Create the yank yaml input file from a dictionary of options.
+        # with open(yaml_filename, 'w') as file:
+        #     yaml.dump(self._get_full_input_dictionary(), file)
+
+        # Yank is not safe to be called from anything other than the main thread.
+        # If the current thread is not detected as the main one, then yank should
+        # be spun up in a new process which should itself be safe to run yank in.
+        if threading.current_thread() is threading.main_thread():
+            logging.info('Launching YANK in the main thread.')
+            free_energy, free_energy_uncertainty = self._run_yank(directory)
+        else:
+
+            from multiprocessing import Process, Queue
+
+            logging.info('Launching YANK in a new process.')
+
+            # Create a queue to pass the results back to the main process.
+            queue = Queue()
+            # Create the process within which yank will run.
+            process = Process(target=BaseYankProtocol._run_yank_as_process, args=[queue, directory])
+
+            # Start the process and gather back the output.
+            process.start()
+            free_energy, free_energy_uncertainty, error = queue.get()
+            process.join()
+
+            if error is not None:
+                return PropertyEstimatorException(directory, error)
+
+        self._estimated_free_energy = EstimatedQuantity(free_energy,
+                                                        free_energy_uncertainty,
+                                                        self._id)
 
         return self._get_output_dictionary()
 

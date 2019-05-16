@@ -43,13 +43,12 @@ class BuildSmirnoffSystem(BaseProtocol):
         force field parameters will be assigned."""
         pass
 
-    @protocol_input(dict)
+    @protocol_input(list)
     def charged_molecule_paths(self):
         """File paths to mol2 files which contain the charges assigned to molecules
         in the system. This input is helpful when dealing with large molecules (such
         as hosts in host-guest binding calculations) whose charges may by needed
-        in multiple places, and hence should only be calculated once. The key should
-        be the smiles or unique label of the molecule"""
+        in multiple places, and hence should only be calculated once."""
         pass
 
     @protocol_input(Substance)
@@ -85,7 +84,7 @@ class BuildSmirnoffSystem(BaseProtocol):
 
         self._water_model = BuildSmirnoffSystem.WaterModel.TIP3P
 
-        self._charged_molecule_paths = {}
+        self._charged_molecule_paths = []
 
         # outputs
         self._system_path = None
@@ -148,6 +147,12 @@ class BuildSmirnoffSystem(BaseProtocol):
 
         charged_molecules = self._generate_known_charged_molecules()
 
+        # Load in any additional, user specified charged molecules.
+        for charged_molecule_path in self._charged_molecule_paths:
+
+            charged_molecule = Molecule.from_file(charged_molecule_path, 'MOL2')
+            charged_molecules.append(charged_molecule)
+
         for component in self._substance.components:
 
             molecule = Molecule.from_smiles(smiles=component.smiles)
@@ -158,14 +163,6 @@ class BuildSmirnoffSystem(BaseProtocol):
                                                   message='{} could not be converted to a Molecule'.format(component))
 
             unique_molecules.append(molecule)
-
-            if (self._charged_molecule_paths is not None and
-                component.label in self._charged_molecule_paths):
-
-                molecule_path = self._charged_molecule_paths[component.label]
-                charged_molecule = Molecule.from_file(molecule_path, 'MOL2')
-
-                charged_molecules.append(charged_molecule)
 
         topology = Topology.from_openmm(pdb_file.topology, unique_molecules=unique_molecules)
 
