@@ -406,9 +406,14 @@ class BaseYankProtocol(BaseProtocol):
 
         self._estimated_free_energy = None
 
-    def _get_options_dictionary(self):
+    def _get_options_dictionary(self, available_resources):
         """Returns a dictionary of options which will be serialized
         to a yaml file and passed to YANK.
+
+        Parameters
+        ----------
+        available_resources: ComputeResources
+            The resources available to execute on.
 
         Returns
         -------
@@ -423,6 +428,12 @@ class BaseYankProtocol(BaseProtocol):
         # TODO: Same with `anisotropic_dispersion_cutoff`
 
         from openforcefield.utils import quantity_to_string
+
+        platform_name = 'CPU'
+
+        if available_resources.number_of_gpus > 0:
+            # A platform which runs on GPUs has been requested.
+            platform_name = 'CUDA' if available_resources.preferred_gpu_toolkit == 'CUDA' else 'OpenCL'
 
         return {
             'verbose': self._verbose,
@@ -440,7 +451,9 @@ class BaseYankProtocol(BaseProtocol):
             'default_timestep': quantity_to_string(self._timestep),
 
             'annihilate_electrostatics': True,
-            'annihilate_sterics': False
+            'annihilate_sterics': False,
+
+            'platform': platform_name
         }
 
     def _get_solvent_dictionary(self):
@@ -555,7 +568,7 @@ class BaseYankProtocol(BaseProtocol):
         mdtraj_trajectory.save_dcd(output_trajectory_path)
 
     @staticmethod
-    def _run_yank(directory):
+    def _run_yank(directory, available_resources):
         """Runs YANK within the specified directory which contains a `yank.yaml`
         input file.
 
@@ -576,6 +589,11 @@ class BaseYankProtocol(BaseProtocol):
         from yank.analyze import ExperimentAnalyzer
 
         with temporarily_change_directory(directory):
+
+            # Set the default properties on the desired platform
+            # before calling into yank.
+            setup_platform_with_resources(available_resources)
+
             exp_builder = ExperimentBuilder('yank.yaml')
             exp_builder.run_experiments()
 
@@ -588,7 +606,7 @@ class BaseYankProtocol(BaseProtocol):
         return free_energy, free_energy_uncertainty
 
     @staticmethod
-    def _run_yank_as_process(queue, directory):
+    def _run_yank_as_process(queue, directory, available_resources):
         """A wrapper around the `_run_yank` method which takes
         a `multiprocessing.Queue` as input, thereby allowing it
         to be launched from a separate process and still return
@@ -619,7 +637,7 @@ class BaseYankProtocol(BaseProtocol):
         error = None
 
         try:
-            free_energy, free_energy_uncertainty = BaseYankProtocol._run_yank(directory)
+            free_energy, free_energy_uncertainty = BaseYankProtocol._run_yank(directory, available_resources)
         except Exception as e:
             error = traceback.format_exception(None, e, e.__traceback__)
 
@@ -638,7 +656,7 @@ class BaseYankProtocol(BaseProtocol):
         # be spun up in a new process which should itself be safe to run yank in.
         if threading.current_thread() is threading.main_thread():
             logging.info('Launching YANK in the main thread.')
-            free_energy, free_energy_uncertainty = self._run_yank(directory)
+            free_energy, free_energy_uncertainty = self._run_yank(directory, available_resources)
         else:
 
             from multiprocessing import Process, Queue
@@ -648,7 +666,8 @@ class BaseYankProtocol(BaseProtocol):
             # Create a queue to pass the results back to the main process.
             queue = Queue()
             # Create the process within which yank will run.
-            process = Process(target=BaseYankProtocol._run_yank_as_process, args=[queue, directory])
+            process = Process(target=BaseYankProtocol._run_yank_as_process, args=[queue, directory,
+                                                                                  available_resources])
 
             # Start the process and gather back the output.
             process.start()
