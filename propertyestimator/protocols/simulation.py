@@ -431,8 +431,14 @@ class BaseYankProtocol(BaseProtocol):
         platform_name = 'CPU'
 
         if available_resources.number_of_gpus > 0:
+
             # A platform which runs on GPUs has been requested.
-            platform_name = 'CUDA' if available_resources.preferred_gpu_toolkit == 'CUDA' else 'OpenCL'
+            from propertyestimator.backends import ComputeResources
+            toolkit_enum = ComputeResources.GPUToolkit(available_resources.preferred_gpu_toolkit)
+
+            # A platform which runs on GPUs has been requested.
+            platform_name = ('CUDA' if toolkit_enum == ComputeResources.GPUToolkit.CUDA else
+                                                       ComputeResources.GPUToolkit.OpenCL)
 
         return {
             'verbose': self._verbose,
