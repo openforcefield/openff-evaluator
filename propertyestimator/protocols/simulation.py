@@ -437,8 +437,8 @@ class BaseYankProtocol(BaseProtocol):
             toolkit_enum = ComputeResources.GPUToolkit(available_resources.preferred_gpu_toolkit)
 
             # A platform which runs on GPUs has been requested.
-            platform_name = ('CUDA' if toolkit_enum == ComputeResources.GPUToolkit.CUDA else
-                                                       ComputeResources.GPUToolkit.OpenCL)
+            platform_name = 'CUDA' if toolkit_enum == ComputeResources.GPUToolkit.CUDA else \
+                                                      ComputeResources.GPUToolkit.OpenCL
 
         return {
             'verbose': self._verbose,
@@ -813,7 +813,10 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         shutil.copyfile(self._solvated_complex_coordinates, path.join(directory, self._local_complex_coordinates))
         shutil.copyfile(self._solvated_complex_system, path.join(directory, self._local_complex_system))
 
-        super(LigandReceptorYankProtocol, self).execute(directory, available_resources)
+        result = super(LigandReceptorYankProtocol, self).execute(directory, available_resources)
+
+        if isinstance(result, PropertyEstimatorException):
+            return result
 
         ligand_yank_path = path.join(directory, 'experiments', 'solvent.nc')
         complex_yank_path = path.join(directory, 'experiments', 'complex.nc')
