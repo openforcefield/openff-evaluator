@@ -13,10 +13,10 @@ from simtk import unit, openmm
 from simtk.openmm import app
 
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
-from propertyestimator.utils import statistics
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.openmm import setup_platform_with_resources
 from propertyestimator.utils.quantities import EstimatedQuantity
+from propertyestimator.utils.statistics import StatisticsArray, ObservableType
 from propertyestimator.utils.utils import temporarily_change_directory
 from propertyestimator.workflow.decorators import protocol_input, protocol_output, MergeBehaviour
 from propertyestimator.workflow.plugins import register_calculation_protocol
@@ -197,6 +197,38 @@ class RunOpenMMSimulation(BaseProtocol):
 
         self._temporary_statistics_path = None
 
+    def _calculate_reduced_potential(self, statistics_array):
+        """Computes the reduced potential for the given thermodynamic
+        state and potential energies contained in the `statistics_array`,
+        and stores them in the statistics array.
+
+        Parameters
+        ----------
+        statistics_array: StatisticsArray
+            The statistics array which contains the potential energies,
+            and which will store the reduced potentials.
+
+        Returns
+        -------
+        StatisticsArray
+            The statistics array with the reduced potentials set.
+        """
+
+        potential_energies = statistics_array.get_observable(ObservableType.PotentialEnergy)
+        volumes = statistics_array.get_observable(ObservableType.Volume)
+
+        beta = 1.0 / (unit.BOLTZMANN_CONSTANT_kB * self._thermodynamic_state.temperature)
+
+        reduced_potential = potential_energies / unit.AVOGADRO_CONSTANT_NA
+
+        if self._thermodynamic_state.pressure is not None:
+            reduced_potential += self._thermodynamic_state.pressure * volumes
+
+        statistics_array.set_observable(ObservableType.ReducedPotential,
+                                        beta * reduced_potential * unit.dimensionless)
+
+        return statistics_array
+
     def execute(self, directory, available_resources):
 
         temperature = self._thermodynamic_state.temperature
@@ -234,7 +266,9 @@ class RunOpenMMSimulation(BaseProtocol):
                                               message='Simulation failed: {}'.format(e))
 
         # Save the newly generated statistics data as a pandas csv file.
-        working_statistics = statistics.StatisticsArray.from_openmm_csv(self._temporary_statistics_path, pressure)
+        working_statistics = StatisticsArray.from_openmm_csv(self._temporary_statistics_path, pressure)
+        working_statistics = self._calculate_reduced_potential(working_statistics)
+
         working_statistics.save_as_pandas_csv(self._statistics_file_path)
 
         positions = self._simulation_object.context.getState(getPositions=True).getPositions()

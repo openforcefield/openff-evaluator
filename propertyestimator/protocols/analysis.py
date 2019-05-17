@@ -325,13 +325,13 @@ class ExtractUncorrelatedStatisticsData(ExtractUncorrelatedData):
                                               message='The ExtractUncorrelatedStatisticsData protocol '
                                                        'requires a previously calculated statisitics file')
 
-        statistics = StatisticsArray.from_pandas_csv(self._input_statistics_path)
+        statistics_array = StatisticsArray.from_pandas_csv(self._input_statistics_path)
 
-        uncorrelated_indices = timeseries.get_uncorrelated_indices(len(statistics) - self._equilibration_index,
+        uncorrelated_indices = timeseries.get_uncorrelated_indices(len(statistics_array) - self._equilibration_index,
                                                                    self._statistical_inefficiency)
 
         uncorrelated_indices = [index + self._equilibration_index for index in uncorrelated_indices]
-        uncorrelated_statistics = statistics.from_statistics_array(statistics, uncorrelated_indices)
+        uncorrelated_statistics = StatisticsArray.from_existing(statistics_array, uncorrelated_indices)
 
         self._output_statistics_path = path.join(directory, 'uncorrelated_statistics.csv')
         uncorrelated_statistics.save_as_pandas_csv(self._output_statistics_path)
