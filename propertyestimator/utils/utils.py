@@ -2,6 +2,7 @@
 A collection of general utilities.
 """
 import abc
+import contextlib
 import copy
 import logging
 import os
@@ -134,17 +135,28 @@ def create_molecule_from_smiles(smiles, number_of_conformers=1):
     return molecule
 
 
-def setup_timestamp_logging():
-    """Set up timestamp-based logging."""
+def setup_timestamp_logging(file_path=None):
+    """Set up timestamp-based logging.
+
+    Parameters
+    ----------
+    file_path: str, optional
+        The file to write the log to. If none, the logger will
+        print to the terminal.
+    """
     formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s',
                                   datefmt='%H:%M:%S')
 
-    screen_handler = logging.StreamHandler(stream=sys.stdout)
-    screen_handler.setFormatter(formatter)
+    if file_path is None:
+        logger_handler = logging.StreamHandler(stream=sys.stdout)
+    else:
+        logger_handler = logging.FileHandler(file_path)
+
+    logger_handler.setFormatter(formatter)
 
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
-    logger.addHandler(screen_handler)
+    logger.addHandler(logger_handler)
 
 
 def get_nested_attribute(containing_object, name):
@@ -275,6 +287,24 @@ def set_nested_attribute(containing_object, name, value):
                              'attribute.'.format(attribute_name))
 
         setattr(current_attribute, attribute_name, value)
+
+
+@contextlib.contextmanager
+def temporarily_change_directory(file_path):
+    """A context to temporarily change the working directory.
+
+    Parameters
+    ----------
+    file_path: str
+        The file path to temporarily change into.
+    """
+    prev_dir = os.getcwd()
+    os.chdir(os.path.abspath(file_path))
+
+    try:
+        yield
+    finally:
+        os.chdir(prev_dir)
 
 
 class SubhookedABCMeta(metaclass=abc.ABCMeta):
