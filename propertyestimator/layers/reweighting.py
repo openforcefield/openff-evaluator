@@ -4,12 +4,11 @@ The simulation reweighting estimation layer.
 import abc
 import json
 import logging
-import pickle
 from os import path
 
 from propertyestimator.layers import register_calculation_layer, PropertyCalculationLayer
 from propertyestimator.substances import Substance
-from propertyestimator.utils.serialization import serialize_force_field, TypedJSONDecoder
+from propertyestimator.utils.serialization import TypedJSONDecoder
 from propertyestimator.utils.utils import SubhookedABCMeta
 from propertyestimator.workflow import WorkflowGraph, Workflow
 from propertyestimator.workflow.workflow import IWorkflowProperty
@@ -37,11 +36,10 @@ class ReweightingLayer(PropertyCalculationLayer):
 
         # Make a local copy of the target force field.
         target_force_field = storage_backend.retrieve_force_field(data_model.force_field_id)
-
         target_force_field_path = path.join(layer_directory, data_model.force_field_id)
 
-        with open(target_force_field_path, 'wb') as file:
-            pickle.dump(serialize_force_field(target_force_field), file)
+        target_force_field.to_file(target_force_field_path, io_format='XML',
+                                   discard_cosmetic_attributes=False)
 
         stored_data_paths = ReweightingLayer._retrieve_stored_data(data_model.queued_properties,
                                                                    storage_backend, layer_directory)
@@ -102,8 +100,6 @@ class ReweightingLayer(PropertyCalculationLayer):
 
                 for data_directory in existing_data_paths[substance_id]:
 
-                    data = None
-
                     with open(path.join(data_directory, 'data.json'), 'r') as file:
                         data = json.load(file, cls=TypedJSONDecoder)
 
@@ -118,8 +114,8 @@ class ReweightingLayer(PropertyCalculationLayer):
 
                         existing_force_field = storage_backend.retrieve_force_field(data.force_field_id)
 
-                        with open(force_field_path, 'wb') as file:
-                            pickle.dump(serialize_force_field(existing_force_field), file)
+                        existing_force_field.to_file(force_field_path, io_format='XML',
+                                                     discard_cosmetic_attributes=False)
 
                     data_paths[substance_id].append(path_tuple)
 

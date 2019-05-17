@@ -22,8 +22,12 @@ def setup_platform_with_resources(compute_resources):
     # Setup the requested platform:
     if compute_resources.number_of_gpus > 0:
 
+        from propertyestimator.backends import ComputeResources
+        toolkit_enum = ComputeResources.GPUToolkit(compute_resources.preferred_gpu_toolkit)
+
         # A platform which runs on GPUs has been requested.
-        platform_name = 'CUDA' if compute_resources.preferred_gpu_toolkit == 'CUDA' else 'OpenCL'
+        platform_name = 'CUDA' if toolkit_enum == ComputeResources.GPUToolkit.CUDA else \
+                                                  ComputeResources.GPUToolkit.OpenCL
 
         # noinspection PyCallByClass,PyTypeChecker
         platform = Platform.getPlatformByName(platform_name)
@@ -32,7 +36,7 @@ def setup_platform_with_resources(compute_resources):
 
             property_platform_name = platform_name
 
-            if compute_resources.preferred_gpu_toolkit == 'CUDA':
+            if toolkit_enum == ComputeResources.GPUToolkit.CUDA:
                 property_platform_name = platform_name.lower().capitalize()
 
             platform.setPropertyDefaultValue(property_platform_name + 'DeviceIndex',

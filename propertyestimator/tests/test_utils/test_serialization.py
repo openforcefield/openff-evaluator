@@ -225,10 +225,8 @@ def test_force_field_serialization():
     serialized_force_field = serialize_force_field(force_field)
     deserialized_force_field = deserialize_force_field(serialized_force_field)
 
-    original_generators = force_field.getGenerators()
-    deserialized_generators = deserialized_force_field.getGenerators()
-
-    assert len(original_generators) == len(deserialized_generators)
+    assert (force_field.to_string(discard_cosmetic_attributes=False) ==
+            deserialized_force_field.to_string(discard_cosmetic_attributes=False))
 
 
 @pytest.mark.parametrize("float_type", [np.float16, np.float32, np.float64])

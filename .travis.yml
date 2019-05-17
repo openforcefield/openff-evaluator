@@ -28,6 +28,17 @@ before_install:
 install:
 - python devtools/scripts/create_conda_env.py -n=test -p=$PYTHON_VER devtools/conda-envs/test_env.yaml
 - conda activate test
+
+# Temporary addition until version 0.3.0 of the OFF toolkit is released.
+- conda config --add channels omnia --add channels conda-forge
+- conda install --yes --only-deps openforcefield
+- pip install git+https://github.com/openforcefield/openforcefield.git@0.3.0-branch
+
+# Temporary addition until a version of yank which includes trailblaze checkpoints
+# is released
+- conda install --yes --only-deps yank
+- pip install git+https://github.com/choderalab/yank.git@trailblaze_checkpoint
+
 - python setup.py develop --no-deps
 script:
 - pytest -v --cov=propertyestimator propertyestimator/tests/

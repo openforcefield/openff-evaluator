@@ -11,9 +11,9 @@ import dask
 from dask import distributed
 from dask_jobqueue import LSFCluster
 from distributed import get_worker
+from propertyestimator.workflow.plugins import available_protocols
 from simtk import unit
 
-from propertyestimator.workflow.plugins import available_protocols
 from .backends import PropertyEstimatorBackend, ComputeResources, QueueWorkerResources
 
 
@@ -81,7 +81,8 @@ class DaskLSFBackend(BaseDaskBackend):
                  default_memory_unit=unit.giga*unit.byte,
                  queue_name='default',
                  setup_script_commands=None,
-                 adaptive_interval='10000ms'):
+                 adaptive_interval='10000ms',
+                 disable_nanny_process=True):
 
         """Constructs a new DaskLocalClusterBackend
 
@@ -109,6 +110,12 @@ class DaskLSFBackend(BaseDaskBackend):
         adaptive_interval: str
             The interval between attempting to either scale up or down
             the cluster, of of the from 'XXXms'.
+        disable_nanny_process: bool
+            If true, dask workers will be started in `--no-nanny` mode. This
+            is required if using multiprocessing code within submitted tasks.
+
+            This has not been fully tested yet and my lead to stability issues
+            with the workers.
 
         Examples
         --------
@@ -176,6 +183,8 @@ class DaskLSFBackend(BaseDaskBackend):
 
         self._adaptive_interval = adaptive_interval
 
+        self._disable_nanny_process = disable_nanny_process
+
     def start(self):
 
         requested_memory = self._resources_per_worker.per_thread_memory_limit
@@ -198,6 +207,8 @@ class DaskLSFBackend(BaseDaskBackend):
                 '-gpu num={}:j_exclusive=yes:mode=shared:mps=no:'.format(self._resources_per_worker.number_of_gpus)
             ]
 
+        extra = None if not self._disable_nanny_process else ['--no-nanny']
+
         self._cluster = LSFCluster(queue=self._queue_name,
                                    cores=self._resources_per_worker.number_of_threads,
                                    memory=memory_string,
@@ -205,6 +216,7 @@ class DaskLSFBackend(BaseDaskBackend):
                                    mem=memory_bytes,
                                    job_extra=job_extra,
                                    env_extra=self._setup_script_commands,
+                                   extra=extra,
                                    local_directory='dask-worker-space')
 
         self._cluster.adapt(minimum=self._minimum_number_of_workers,

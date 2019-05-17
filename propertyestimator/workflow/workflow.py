@@ -792,9 +792,10 @@ class Workflow:
 
             components.append(component_substance)
 
-        if (estimator_options.workflow_options is not None and
+        if estimator_options is None:
+            workflow_options = WorkflowOptions()
+        elif (estimator_options.workflow_options is not None and
             type(physical_property).__name__ in estimator_options.workflow_options):
-
             workflow_options = estimator_options.workflow_options[type(physical_property).__name__]
         else:
             workflow_options = WorkflowOptions()

@@ -250,7 +250,7 @@ class BuildDockedCoordinates(BaseProtocol):
         pass
 
     @protocol_input(int)
-    def number_of_ligand_conformations(self):
+    def number_of_ligand_conformers(self):
         """The number of conformers to try and dock into the receptor structure."""
         pass
 
@@ -276,18 +276,31 @@ class BuildDockedCoordinates(BaseProtocol):
         """The file path to the docked ligand-receptor complex."""
         pass
 
+    @protocol_output(str)
+    def ligand_residue_name(self):
+        """The residue name assigned to the docked ligand."""
+        return self._ligand_residue_name
+
+    @protocol_output(str)
+    def receptor_residue_name(self):
+        """The residue name assigned to the receptor."""
+        return self._receptor_residue_name
+
     def __init__(self, protocol_id):
 
         super().__init__(protocol_id)
 
         self._ligand_substance = None
-        self._number_of_ligand_conformations = 100
+        self._number_of_ligand_conformers = 100
 
         self._receptor_coordinate_file = None
         self._activate_site_location = self.ActivateSiteLocation.ReceptorCenterOfMass
 
         self._docked_ligand_coordinate_path = None
         self._docked_complex_coordinate_path = None
+
+        self._ligand_residue_name = 'LIG'
+        self._receptor_residue_name = 'REC'
 
     def _create_receptor(self):
         """Create an OpenEye receptor from a mol2 file.
@@ -314,25 +327,24 @@ class BuildDockedCoordinates(BaseProtocol):
         return receptor
 
     def _create_ligand(self):
+        """Create an OpenEye receptor from a mol2 file.
 
-        from openeye.oequacpac import OEAssignCharges, OEAM1BCCCharges, OESetNeutralpHModel
+        Returns
+        -------
+        openeye.oechem.OEMol
+            The OpenEye ligand object with multiple conformers.
+        """
+        from openforcefield.topology import Molecule
 
-        ligand = create_molecule_from_smiles(self._ligand_substance.components[0].smiles,
-                                             self._number_of_ligand_conformations)
-
-        if ligand is None:
-
-            logging.info(f'Could not generate the ligand ({self._ligand_substance}) and conformers'
-                         f'from the provided smiles.')
-            return None
-
-        OESetNeutralpHModel(ligand)
+        ligand = Molecule.from_smiles(self._ligand_substance.components[0].smiles)
+        ligand.generate_conformers(n_conformers=self._number_of_ligand_conformers)
 
         # Assign AM1-BCC charges to the ligand just as an initial guess
-        # for docking.
-        OEAssignCharges(ligand, OEAM1BCCCharges())
+        # for docking. In future, we may want to get the charge model
+        # directly from the force field.
+        ligand.compute_partial_charges_am1bcc()
 
-        return ligand
+        return ligand.to_openeye()
 
     def execute(self, directory, available_resources):
 
@@ -346,11 +358,9 @@ class BuildDockedCoordinates(BaseProtocol):
         from openeye import oechem, oedocking
 
         logging.info('Initializing the receptor molecule.')
-
         receptor_molecule = self._create_receptor()
 
         logging.info('Initializing the ligand molecule.')
-
         ligand_molecule = self._create_ligand()
 
         logging.info('Initializing the docking object.')
@@ -390,7 +400,7 @@ class BuildDockedCoordinates(BaseProtocol):
         ligand_trajectory = mdtraj.load(self._docked_ligand_coordinate_path)
 
         ligand_residue = ligand_trajectory.topology.residue(0)
-        ligand_residue.name = 'LIG'
+        ligand_residue.name = self._ligand_residue_name
 
         # Save the ligand file with the correct residue name.
         ligand_trajectory.save(self._docked_ligand_coordinate_path)
@@ -398,7 +408,7 @@ class BuildDockedCoordinates(BaseProtocol):
         receptor_trajectory = mdtraj.load(receptor_pdb_path)
 
         receptor_residue = receptor_trajectory.topology.residue(0)
-        receptor_residue.name = 'REC'
+        receptor_residue.name = self._receptor_residue_name
 
         # Create a merged ligand-receptor topology.
         complex_topology = ligand_trajectory.topology.copy()
