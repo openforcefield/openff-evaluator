@@ -114,3 +114,7 @@ examples/property_estimator/working_directory/
 
 propertyestimator/data/properties/JCT/
 *dask-worker-space/
+
+integration_tests*
+
+propertyestimator/tests/**/*dat

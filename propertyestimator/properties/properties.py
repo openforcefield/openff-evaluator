@@ -190,6 +190,8 @@ class PhysicalProperty(TypedBaseModel):
             'uncertainty': self.uncertainty,
     
             'source': self.source,
+
+            'metadata': self._metadata
         }
 
     def __setstate__(self, state):
@@ -205,6 +207,8 @@ class PhysicalProperty(TypedBaseModel):
         self.uncertainty = state['uncertainty']
 
         self.source = state['source']
+
+        self._metadata = state['metadata']
 
     @property
     def temperature(self):

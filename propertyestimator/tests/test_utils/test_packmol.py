@@ -2,7 +2,6 @@
 Units tests for propertyestimator.utils.packmol
 """
 import pytest
-
 from simtk import unit
 
 from propertyestimator.utils import create_molecule_from_smiles
@@ -48,9 +47,9 @@ def test_packmol_packbox():
     topology, positions = packmol.pack_box(molecules, [10], box_size=20*unit.angstrom)
     _validate_water_results(topology, positions)
 
-    assert topology.getPeriodicBoxVectors()[0] == (20, 0, 0) * unit.angstrom
-    assert topology.getPeriodicBoxVectors()[1] == (0, 20, 0) * unit.angstrom
-    assert topology.getPeriodicBoxVectors()[2] == (0, 0, 20) * unit.angstrom
+    assert topology.getPeriodicBoxVectors()[0] == (22, 0, 0) * unit.angstrom
+    assert topology.getPeriodicBoxVectors()[1] == (0, 22, 0) * unit.angstrom
+    assert topology.getPeriodicBoxVectors()[2] == (0, 0, 22) * unit.angstrom
 
     with pytest.raises(ValueError):
         packmol.pack_box(molecules, [10, 20], box_size=20*unit.angstrom)

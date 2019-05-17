@@ -12,14 +12,14 @@ import random
 import shutil
 import string
 import subprocess
-
-import numpy as np
-
 from distutils.spawn import find_executable
 from tempfile import mkdtemp
 
+import numpy as np
 from simtk import openmm
 from simtk import unit
+
+from propertyestimator.utils.utils import temporarily_change_directory
 
 PACKMOL_PATH = find_executable("packmol") or shutil.which("packmol") or \
                None if 'PACKMOL' not in os.environ else os.environ['PACKMOL']
@@ -113,21 +113,39 @@ def pack_box(molecules,
         os.mkdir(working_directory)
 
     # Create PDB files for all components.
-    pdb_filenames = list()
+    pdb_file_paths = []
+    pdb_file_names = []
+
     mdtraj_topologies = []
 
+    # Packmol does not like long file paths, so we need to store just file names
+    # and do a temporary cd into the working directory to get around this.
     for index, molecule in enumerate(molecules):
 
-        tmp_filename = os.path.join(working_directory, f'{index}.pdb')
-        pdb_filenames.append(tmp_filename)
+        tmp_file_name = f'{index}.pdb'
+        tmp_file_path = os.path.join(working_directory, tmp_file_name)
 
-        mdtraj_topologies.append(_create_pdb_and_topology(molecule, tmp_filename))
+        pdb_file_paths.append(tmp_file_path)
+        pdb_file_names.append(tmp_file_name)
+
+        mdtraj_topologies.append(_create_pdb_and_topology(molecule, tmp_file_path))
+
+    structure_to_solvate_file_name = None
+
+    if structure_to_solvate is not None:
+
+        if not os.path.isfile(structure_to_solvate):
+            raise ValueError(f'The structure to solvate ({structure_to_solvate}) does not exist.')
+
+        structure_to_solvate_file_name = os.path.basename(structure_to_solvate)
+        shutil.copyfile(structure_to_solvate, os.path.join(working_directory, structure_to_solvate_file_name))
 
     # Run packmol
     if PACKMOL_PATH is None:
         raise IOError("Packmol not found, cannot run pack_box()")
 
-    output_filename = os.path.join(working_directory, "packmol_output.pdb")
+    output_file_name = "packmol_output.pdb"
+    output_file_path = os.path.join(working_directory, output_file_name)
 
     # Approximate volume to initialize box
     if box_size is None:
@@ -139,61 +157,61 @@ def pack_box(molecules,
 
     unitless_box_angstrom = box_size.value_in_unit(unit.angstrom)
 
-    packmol_input = _HEADER_TEMPLATE.format(tolerance, output_filename)
+    packmol_input = _HEADER_TEMPLATE.format(tolerance, output_file_name)
 
-    for (pdb_filename, molecule, count) in zip(pdb_filenames,
-                                               molecules,
-                                               number_of_copies):
+    for (pdb_file_name, molecule, count) in zip(pdb_file_names,
+                                                molecules,
+                                                number_of_copies):
 
-        packmol_input += _BOX_TEMPLATE.format(pdb_filename,
+        packmol_input += _BOX_TEMPLATE.format(pdb_file_name,
                                               count,
                                               unitless_box_angstrom,
                                               unitless_box_angstrom,
                                               unitless_box_angstrom)
 
-    if structure_to_solvate is not None:
+    if structure_to_solvate_file_name is not None:
 
-        if not os.path.isfile(structure_to_solvate):
-            raise ValueError(f'The structure to solvate ({structure_to_solvate}) does not exist.')
-
-        packmol_input += _SOLVATE_TEMPLATE.format(structure_to_solvate,
+        packmol_input += _SOLVATE_TEMPLATE.format(structure_to_solvate_file_name,
                                                   unitless_box_angstrom / 2.0,
                                                   unitless_box_angstrom / 2.0,
                                                   unitless_box_angstrom / 2.0)
 
     # Write packmol input
-    packmol_filename = os.path.join(working_directory, "packmol_input.txt")
+    packmol_file_name = "packmol_input.txt"
+    packmol_file_path = os.path.join(working_directory, packmol_file_name)
 
-    with open(packmol_filename, 'w') as file_handle:
+    with open(packmol_file_path, 'w') as file_handle:
         file_handle.write(packmol_input)
 
     packmol_succeeded = False
 
-    with open(packmol_filename) as file_handle:
+    with temporarily_change_directory(working_directory):
 
-        result = subprocess.check_output(PACKMOL_PATH,
-                                         stdin=file_handle,
-                                         stderr=subprocess.STDOUT).decode("utf-8")
+        with open(packmol_file_name) as file_handle:
 
-        if verbose:
-            logging.info(result)
+            result = subprocess.check_output(PACKMOL_PATH,
+                                             stdin=file_handle,
+                                             stderr=subprocess.STDOUT).decode("utf-8")
 
-        packmol_succeeded = result.find('Success!') > 0
+            if verbose:
+                logging.info(result)
+
+            packmol_succeeded = result.find('Success!') > 0
 
     if not retain_working_files:
 
-        os.unlink(packmol_filename)
+        os.unlink(packmol_file_path)
 
-        for filename in pdb_filenames:
-            os.unlink(filename)
+        for file_path in pdb_file_paths:
+            os.unlink(file_path)
 
     if not packmol_succeeded:
 
         if verbose:
             logging.info("Packmol failed to converge")
 
-        if os.path.isfile(output_filename):
-            os.unlink(output_filename)
+        if os.path.isfile(output_file_path):
+            os.unlink(output_file_path)
 
         if temporary_directory and not retain_working_files:
             shutil.rmtree(working_directory)
@@ -202,19 +220,20 @@ def pack_box(molecules,
 
     # Append missing connect statements to the end of the
     # output file.
-    positions, topology = _correct_packmol_output(output_filename,
+    positions, topology = _correct_packmol_output(output_file_path,
                                                   mdtraj_topologies,
                                                   number_of_copies,
                                                   structure_to_solvate)
 
     if not retain_working_files:
 
-        os.unlink(output_filename)
+        os.unlink(output_file_path)
 
         if temporary_directory:
             shutil.rmtree(working_directory)
 
-    unitless_box_nm = box_size / unit.nanometers
+    # Add a 2 angstrom buffer to help alleviate PBC issues.
+    unitless_box_nm = (box_size + 2.0 * unit.angstrom).value_in_unit(unit.nanometers)
 
     box_vector_x = openmm.Vec3(unitless_box_nm, 0, 0)
     box_vector_y = openmm.Vec3(0, unitless_box_nm, 0)
@@ -270,9 +289,7 @@ def _approximate_volume_by_density(molecules,
 
         volume += molecule_volume * number
 
-    # Add 2 angs to help ease PBC issues.
-    box_edge = volume**(1.0/3.0) * box_scaleup_factor + 2.0 * unit.angstrom
-
+    box_edge = volume**(1.0/3.0) * box_scaleup_factor
     return box_edge
 
 
