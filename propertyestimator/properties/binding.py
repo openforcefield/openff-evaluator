@@ -138,6 +138,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         yank_protocol.force_field_path = ProtocolPath('force_field_path', 'global')
 
         yank_protocol.ligand_residue_name = ProtocolPath('ligand_residue_name', perform_docking.id)
+        yank_protocol.receptor_residue_name = ProtocolPath('receptor_residue_name', perform_docking.id)
 
         yank_protocol.solvated_ligand_coordinates = ProtocolPath('coordinate_file_path', solvate_ligand.id)
         yank_protocol.solvated_ligand_system = ProtocolPath('system_path', build_solvated_ligand_system.id)

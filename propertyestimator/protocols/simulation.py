@@ -5,10 +5,14 @@ import logging
 import shutil
 import threading
 import traceback
+from enum import Enum
 from os import path
 
 import numpy as np
 import yaml
+from simtk import unit, openmm
+from simtk.openmm import app
+
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils import statistics
 from propertyestimator.utils.exceptions import PropertyEstimatorException
@@ -18,8 +22,6 @@ from propertyestimator.utils.utils import temporarily_change_directory
 from propertyestimator.workflow.decorators import protocol_input, protocol_output, MergeBehaviour
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
-from simtk import unit, openmm
-from simtk.openmm import app
 
 
 @register_calculation_protocol()
@@ -524,6 +526,28 @@ class BaseYankProtocol(BaseProtocol):
         """
         raise NotImplementedError()
 
+    def _get_experiments_dictionary(self):
+        """Returns a dictionary of the experiments which will be serialized
+        to a yaml file and passed to YANK. Only a single experiment may be
+        specified.
+
+        Returns
+        -------
+        dict of str and Any
+            A yaml compatible dictionary of a YANK experiment.
+        """
+
+        system_dictionary = self._get_system_dictionary()
+        system_key = next(iter(system_dictionary))
+
+        protocol_dictionary = self._get_protocol_dictionary()
+        protocol_key = next(iter(protocol_dictionary))
+
+        return {
+            'system': system_key,
+            'protocol': protocol_key
+        }
+
     def _get_full_input_dictionary(self, available_resources):
         """Returns a dictionary of the full YANK inputs which will be serialized
         to a yaml file and passed to YANK
@@ -539,24 +563,15 @@ class BaseYankProtocol(BaseProtocol):
             A yaml compatible dictionary of a YANK input file.
         """
 
-        system_dictionary = self._get_system_dictionary()
-        system_key = next(iter(system_dictionary))
-
-        protocol_dictionary = self._get_protocol_dictionary()
-        protocol_key = next(iter(protocol_dictionary))
-
         return {
             'options': self._get_options_dictionary(available_resources),
 
             'solvents': self._get_solvent_dictionary(),
 
-            'systems': system_dictionary,
-            'protocols': protocol_dictionary,
+            'systems': self._get_system_dictionary(),
+            'protocols': self._get_protocol_dictionary(),
 
-            'experiments': {
-                'system': system_key,
-                'protocol': protocol_key
-            }
+            'experiments': self._get_experiments_dictionary()
         }
 
     @staticmethod
@@ -703,9 +718,20 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
     `_get_*_dictionary` methods.
     """
 
+    class RestraintType(Enum):
+        """The types of ligand restraints available within yank.
+        """
+        Harmonic = 'Harmonic'
+        FlatBottom = 'FlatBottom'
+
     @protocol_input(str)
     def ligand_residue_name(self):
         """The residue name of the ligand."""
+        pass
+
+    @protocol_input(str)
+    def receptor_residue_name(self):
+        """The residue name of the receptor."""
         pass
 
     @protocol_input(str)
@@ -728,6 +754,19 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         """The file path to the solvated complex system object."""
         pass
 
+    @protocol_input(bool)
+    def apply_restraints(self):
+        """Determines whether the ligand should be explicitly restrained to
+        the receptor in order to stop the ligand from temporarily unbinding.
+        """
+        pass
+
+    @protocol_input(RestraintType)
+    def restraint_type(self):
+        """The type of ligand restraint applied, provided that `apply_restraints`
+        is `True`"""
+        pass
+
     @protocol_output(str)
     def solvated_ligand_trajectory_path(self):
         """The file path to the generated ligand trajectory."""
@@ -744,6 +783,7 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         super().__init__(protocol_id)
 
         self._ligand_residue_name = None
+        self._receptor_residue_name = None
 
         self._solvated_ligand_coordinates = None
         self._solvated_ligand_system = None
@@ -760,16 +800,10 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         self._solvated_ligand_trajectory_path = None
         self._solvated_complex_trajectory_path = None
 
-    def _get_system_dictionary(self):
-        """Returns a dictionary of the system which will be serialized
-        to a yaml file and passed to YANK. Only a single system may be
-        specified.
+        self._apply_restraints = True
+        self._restraint_type = LigandReceptorYankProtocol.RestraintType.Harmonic
 
-        Returns
-        -------
-        dict of str and Any
-            A yaml compatible dictionary of YANK systems.
-        """
+    def _get_system_dictionary(self):
 
         solvent_dictionary = self._get_solvent_dictionary()
         solvent_key = next(iter(solvent_dictionary))
@@ -785,15 +819,6 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         return {'host-guest': host_guest_dictionary}
 
     def _get_protocol_dictionary(self):
-        """Returns a dictionary of the protocol which will be serialized
-        to a yaml file and passed to YANK. Only a single protocol may be
-        specified.
-
-        Returns
-        -------
-        dict of str and Any
-            A yaml compatible dictionary of a YANK protocol.
-        """
 
         absolute_binding_dictionary = {
             'complex': {'alchemical_path': 'auto'},
@@ -801,6 +826,21 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         }
 
         return {'absolute_binding_dictionary': absolute_binding_dictionary}
+
+    def _get_experiments_dictionary(self):
+
+        experiments_dictionary = super(LigandReceptorYankProtocol, self)._get_experiments_dictionary()
+
+        if self._apply_restraints:
+
+            experiments_dictionary['restraint'] = {
+                'restrained_ligand_atoms': f'(resname {self._ligand_residue_name}) and (mass > 1.5)',
+                'restrained_receptor_atoms': f'(resname {self._receptor_residue_name}) and (mass > 1.5)',
+
+                'type': self._restraint_type.value
+            }
+
+        return experiments_dictionary
 
     def execute(self, directory, available_resources):
 
