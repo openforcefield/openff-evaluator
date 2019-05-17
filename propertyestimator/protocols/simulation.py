@@ -214,8 +214,8 @@ class RunOpenMMSimulation(BaseProtocol):
             The statistics array with the reduced potentials set.
         """
 
-        potential_energies = statistics_array.get_observable(ObservableType.PotentialEnergy)
-        volumes = statistics_array.get_observable(ObservableType.Volume)
+        potential_energies = statistics_array[ObservableType.PotentialEnergy]
+        volumes = statistics_array[ObservableType.Volume]
 
         beta = 1.0 / (unit.BOLTZMANN_CONSTANT_kB * self._thermodynamic_state.temperature)
 
@@ -224,8 +224,7 @@ class RunOpenMMSimulation(BaseProtocol):
         if self._thermodynamic_state.pressure is not None:
             reduced_potential += self._thermodynamic_state.pressure * volumes
 
-        statistics_array.set_observable(ObservableType.ReducedPotential,
-                                        beta * reduced_potential * unit.dimensionless)
+        statistics_array[ObservableType.ReducedPotential] = beta * reduced_potential * unit.dimensionless
 
         return statistics_array
 
@@ -269,7 +268,7 @@ class RunOpenMMSimulation(BaseProtocol):
         working_statistics = StatisticsArray.from_openmm_csv(self._temporary_statistics_path, pressure)
         working_statistics = self._calculate_reduced_potential(working_statistics)
 
-        working_statistics.save_as_pandas_csv(self._statistics_file_path)
+        working_statistics.to_pandas_csv(self._statistics_file_path)
 
         positions = self._simulation_object.context.getState(getPositions=True).getPositions()
 

@@ -170,13 +170,13 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
 
         self._statistics = statistics.StatisticsArray.from_pandas_csv(self.statistics_path)
 
-        values = self._statistics.get_observable(self._statistics_type)
-
-        if values is None or len(values) == 0:
+        if self._statistics_type not in self._statistics:
 
             return PropertyEstimatorException(directory=directory,
-                                              message='The {} statistics file contains no '
-                                                      'data.'.format(self._statistics_path))
+                                              message=f'The {self._statistics_path} statistics file contains no '
+                                                      f'data of type {self._statistics_type}.')
+
+        values = self._statistics[self._statistics_type]
 
         statistics_unit = values[0].unit
         values.value_in_unit(statistics_unit)
@@ -334,7 +334,7 @@ class ExtractUncorrelatedStatisticsData(ExtractUncorrelatedData):
         uncorrelated_statistics = StatisticsArray.from_existing(statistics_array, uncorrelated_indices)
 
         self._output_statistics_path = path.join(directory, 'uncorrelated_statistics.csv')
-        uncorrelated_statistics.save_as_pandas_csv(self._output_statistics_path)
+        uncorrelated_statistics.to_pandas_csv(self._output_statistics_path)
 
         logging.info('Statistics subsampled: {}'.format(self.id))
 

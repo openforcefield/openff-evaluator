@@ -17,7 +17,7 @@ from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils import timeseries
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.utils.statistics import bootstrap
+from propertyestimator.utils.statistics import bootstrap, StatisticsArray, ObservableType
 from propertyestimator.workflow import plugins
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
 from propertyestimator.workflow.schemas import WorkflowOutputToStore, WorkflowSchema
@@ -259,16 +259,33 @@ class ReweightDielectricConstant(reweighting.ReweightWithMBARProtocol):
 
         volumes = self._prepare_observables_array(self._reference_volumes)
 
+        reference_reduced_potentials = []
+        target_reduced_potentials = []
+
+        for file_path in self._reference_reduced_potentials:
+
+            statistics_array = StatisticsArray.from_pandas_csv(file_path)
+            reduced_potentials = statistics_array[ObservableType.ReducedPotential]
+
+            reference_reduced_potentials.append(reduced_potentials.value_in_unit(unit.dimensionless))
+
+        for file_path in self._target_reduced_potentials:
+
+            statistics_array = StatisticsArray.from_pandas_csv(file_path)
+            reduced_potentials = statistics_array[ObservableType.ReducedPotential]
+
+            target_reduced_potentials.append(reduced_potentials.value_in_unit(unit.dimensionless))
+
         if self._bootstrap_uncertainties:
 
-            reference_potentials = np.transpose(np.array(self._reference_reduced_potentials))
-            target_potentials = np.transpose(np.array(self._target_reduced_potentials))
+            reference_potentials = np.transpose(np.array(reference_reduced_potentials))
+            target_potentials = np.transpose(np.array(target_reduced_potentials))
 
             frame_counts = np.array([len(observable) for observable in self._reference_observables])
 
             # Construct an mbar object to get out the number of effective samples.
             import pymbar
-            mbar = pymbar.MBAR(self._reference_reduced_potentials,
+            mbar = pymbar.MBAR(reference_reduced_potentials,
                                frame_counts, verbose=False, relative_tolerance=1e-12)
 
             effective_samples = mbar.computeEffectiveSampleNumber().max()

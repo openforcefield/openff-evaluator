@@ -17,7 +17,7 @@ from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.openmm import setup_platform_with_resources
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedJSONDecoder
-from propertyestimator.utils.statistics import bootstrap
+from propertyestimator.utils.statistics import bootstrap, StatisticsArray, ObservableType
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
@@ -222,8 +222,9 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
     def trajectory_file_path(self):
         pass
 
-    @protocol_output(np.ndarray)
-    def reduced_potentials(self):
+    @protocol_output(str)
+    def statistics_file_path(self):
+        """A file path to the StatisticsArray file which contains the reduced potentials."""
         pass
 
     def __init__(self, protocol_id):
@@ -238,7 +239,7 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         self._coordinate_file_path = None
         self._trajectory_file_path = None
 
-        self._reduced_potentials = None
+        self._statistics_file_path = None
 
     def execute(self, directory, available_resources):
 
@@ -279,7 +280,11 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
             # set box vectors
             reduced_potentials[frame_index] = openmm_state.reduced_potential(openmm_context)
 
-        self._reduced_potentials = reduced_potentials
+        statistics_array = StatisticsArray()
+        statistics_array[ObservableType.ReducedPotential] = reduced_potentials * unit.dimensionless
+
+        self._statistics_file_path = path.join(directory, 'statistics.csv')
+        statistics_array.to_pandas_csv(self._statistics_file_path)
 
         return self._get_output_dictionary()
 
@@ -293,7 +298,7 @@ class ReweightWithMBARProtocol(BaseProtocol):
 
     @protocol_input(list)
     def reference_reduced_potentials(self):
-        """A list of the reduced potentials of each reference state."""
+        """A list of paths to the reduced potentials of each reference state."""
         pass
 
     @protocol_input(list)
@@ -303,7 +308,7 @@ class ReweightWithMBARProtocol(BaseProtocol):
 
     @protocol_input(list)
     def target_reduced_potentials(self):
-        """The reduced potentials of the target state."""
+        """A list of paths to the reduced potentials of the target state."""
         pass
 
     @protocol_input(bool)
@@ -367,15 +372,32 @@ class ReweightWithMBARProtocol(BaseProtocol):
         observables = self._prepare_observables_array(self._reference_observables)
         observable_unit = self._reference_observables[0].unit
 
+        reference_reduced_potentials = []
+        target_reduced_potentials = []
+
+        for file_path in self._reference_reduced_potentials:
+
+            statistics_array = StatisticsArray.from_pandas_csv(file_path)
+            reduced_potentials = statistics_array[ObservableType.ReducedPotential]
+
+            reference_reduced_potentials.append(reduced_potentials.value_in_unit(unit.dimensionless))
+
+        for file_path in self._target_reduced_potentials:
+
+            statistics_array = StatisticsArray.from_pandas_csv(file_path)
+            reduced_potentials = statistics_array[ObservableType.ReducedPotential]
+
+            target_reduced_potentials.append(reduced_potentials.value_in_unit(unit.dimensionless))
+
         if self._bootstrap_uncertainties:
 
-            reference_potentials = np.transpose(np.array(self._reference_reduced_potentials))
-            target_potentials = np.transpose(np.array(self._target_reduced_potentials))
+            reference_potentials = np.transpose(np.array(reference_reduced_potentials))
+            target_potentials = np.transpose(np.array(target_reduced_potentials))
 
             frame_counts = np.array([len(observable) for observable in self._reference_observables])
 
             # Construct an mbar object to get out the number of effective samples.
-            mbar = pymbar.MBAR(self._reference_reduced_potentials,
+            mbar = pymbar.MBAR(reference_reduced_potentials,
                                frame_counts, verbose=False, relative_tolerance=1e-12)
 
             effective_samples = mbar.computeEffectiveSampleNumber().max()
@@ -401,8 +423,8 @@ class ReweightWithMBARProtocol(BaseProtocol):
 
         else:
 
-            values, uncertainties, effective_samples = self._reweight_observables(self._reference_reduced_potentials,
-                                                                                  self._target_reduced_potentials,
+            values, uncertainties, effective_samples = self._reweight_observables(reference_reduced_potentials,
+                                                                                  target_reduced_potentials,
                                                                                   observables=observables)
 
             uncertainty = uncertainties['observables']
@@ -550,12 +572,3 @@ class ReweightWithMBARProtocol(BaseProtocol):
                 uncertainties[observable_key] = np.array(uncertainty)
 
         return values, uncertainties, max_effective_samples
-
-
-@register_calculation_protocol()
-class CalculateMBARGradients(BaseProtocol):
-    """A protocol for estimating the gradient of some observable
-    with respect to a set of force field parameters, specified
-    through cosmetic attributes on a ForceField object.
-    """
-    pass

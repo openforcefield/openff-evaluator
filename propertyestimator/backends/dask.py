@@ -11,9 +11,9 @@ import dask
 from dask import distributed
 from dask_jobqueue import LSFCluster
 from distributed import get_worker
-from propertyestimator.workflow.plugins import available_protocols
 from simtk import unit
 
+from propertyestimator.workflow.plugins import available_protocols
 from .backends import PropertyEstimatorBackend, ComputeResources, QueueWorkerResources
 
 
@@ -30,6 +30,9 @@ class BaseDaskBackend(PropertyEstimatorBackend):
         self._cluster = None
         self._client = None
 
+    def __del__(self):
+        self.stop()
+
     def start(self):
 
         self._client = distributed.Client(self._cluster,
@@ -37,8 +40,10 @@ class BaseDaskBackend(PropertyEstimatorBackend):
 
     def stop(self):
 
-        self._client.close()
-        self._cluster.close()
+        if self._client is not None:
+            self._client.close()
+        if self._cluster is not None:
+            self._cluster.close()
 
         if os.path.isdir('dask-worker-space'):
             shutil.rmtree('dask-worker-space')
