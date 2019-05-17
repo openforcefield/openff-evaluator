@@ -8,7 +8,6 @@ import traceback
 from enum import Enum
 from os import path
 
-import numpy as np
 import yaml
 from simtk import unit, openmm
 from simtk.openmm import app
@@ -468,26 +467,28 @@ class BaseYankProtocol(BaseProtocol):
         to a yaml file and passed to YANK. In most cases, this should
         just be passing force field settings over, such as PME settings.
 
-        # TODO: Again, is this neccessary if we are using system.xml
-        #       files...
+        TODO: Check with Andrea which entries need to present here when
+              using OMM system.xml files.
 
         Returns
         -------
         dict of str and Any
             A yaml compatible dictionary of YANK solvents.
         """
+        # import numpy as np
+
         from openforcefield.typing.engines.smirnoff.forcefield import ForceField
-        from openforcefield.utils import quantity_to_string
+        # from openforcefield.utils import quantity_to_string
 
         force_field = ForceField(self._force_field_path)
-
-        if not np.isclose(force_field.get_parameter_handler('Electrostatics').cutoff.value_in_unit(unit.angstrom),
-                          force_field.get_parameter_handler('vdW').cutoff.value_in_unit(unit.angstrom)):
-
-            raise ValueError('The electrostatic and vdW cutoffs must be identical.')
-
-        cutoff = force_field.get_parameter_handler('vdW').cutoff
-        switch_distance = force_field.get_parameter_handler('vdW').switch_width
+        #
+        # if not np.isclose(force_field.get_parameter_handler('Electrostatics').cutoff.value_in_unit(unit.angstrom),
+        #                   force_field.get_parameter_handler('vdW').cutoff.value_in_unit(unit.angstrom)):
+        #
+        #     raise ValueError('The electrostatic and vdW cutoffs must be identical.')
+        #
+        # cutoff = force_field.get_parameter_handler('vdW').cutoff
+        # switch_distance = force_field.get_parameter_handler('vdW').switch_width
 
         charge_method = force_field.get_parameter_handler('Electrostatics').method
 
@@ -497,9 +498,9 @@ class BaseYankProtocol(BaseProtocol):
         # Do we need to include `ewald_error_tolerance`?
         return {'default': {
             'nonbonded_method': charge_method,
-            'nonbonded_cutoff': quantity_to_string(cutoff.in_units_of(unit.nanometers)),
-
-            'switch_distance': quantity_to_string(switch_distance.in_units_of(unit.nanometers)),
+            # 'nonbonded_cutoff': quantity_to_string(cutoff.in_units_of(unit.nanometers)),
+            #
+            # 'switch_distance': quantity_to_string(switch_distance.in_units_of(unit.nanometers)),
         }}
 
     def _get_system_dictionary(self):
