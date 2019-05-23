@@ -2,20 +2,18 @@
 Units tests for propertyestimator.datasets
 """
 
-from os import listdir
-from os.path import isfile, join
-
-import logging
-
 import pytest
+from simtk import unit
 
+from propertyestimator.datasets.thermoml import unit_from_thermoml_string
 from propertyestimator.utils import get_data_filename
 
 from propertyestimator.properties import PhysicalProperty
 from propertyestimator.datasets import ThermoMLDataSet
 
-# .. todo: Add tests for specific ThermoML data sets that give 100% coverage.
-#          These may need to be hand written.
+
+supported_units = ['K', 'kPa', 'kg/m3', 'mol/kg', 'mol/dm3', 'kJ/mol', 'm3/kg', 'mol/m3',
+                   'm3/mol', 'J/K/mol', 'J/K/kg', 'J/K/m3', '1/kPa', 'm/s', 'MHz']
 
 
 @pytest.mark.skip(reason="Uncertainties have been unexpectedly removed from ThermoML "
@@ -89,48 +87,10 @@ def test_from_files():
     assert data_set is None
 
 
-def parse_all_jct_files():
+@pytest.mark.parametrize("unit_string", supported_units)
+def test_unit_from_string(unit_string):
 
-    logging.basicConfig(filename='data_sets.log', filemode='w', level=logging.INFO)
+    dummy_string = f'Property, {unit_string}'
 
-    data_path = get_data_filename('properties/JCT')
-
-    thermoml_files = []
-
-    for file_path in listdir(data_path):
-
-        full_path = join(data_path, file_path)
-
-        if not isfile(full_path):
-            continue
-
-        thermoml_files.append(full_path)
-
-    data_set = ThermoMLDataSet.from_file(*thermoml_files)
-
-    from propertyestimator.properties.density import Density
-    from propertyestimator.properties.dielectric import DielectricConstant
-    from propertyestimator.properties.enthalpy import EnthalpyOfMixing
-
-    properties_by_type = {Density.__name__: [], DielectricConstant.__name__: [],
-                          EnthalpyOfMixing.__name__: []}
-
-    for substance_key in data_set.properties:
-
-        for data_property in data_set.properties[substance_key]:
-
-            if type(data_property).__name__ not in properties_by_type:
-                continue
-
-            properties_by_type[type(data_property).__name__].append(data_property.source.reference)
-
-    for type_key in properties_by_type:
-
-        with open('{}.dat'.format(type_key), 'w') as file:
-
-            for doi in properties_by_type[type_key]:
-                file.write('{}\n'.format(doi))
-
-
-if __name__ == "__main__":
-    parse_all_jct_files()
+    returned_unit = unit_from_thermoml_string(dummy_string)
+    assert returned_unit is not None and isinstance(returned_unit, unit.Unit)

@@ -51,6 +51,24 @@ def unit_from_thermoml_string(full_string):
         return unit.mole / unit.decimeter ** 3
     elif unit_string == 'kJ/mol':
         return unit.kilojoule_per_mole
+    elif unit_string == 'm3/kg':
+        return unit.meter ** 3 / unit.kilogram
+    elif unit_string == 'mol/m3':
+        return unit.mole / unit.meter ** 3
+    elif unit_string == 'm3/mol':
+        return unit.meter**3 / unit.mole
+    elif unit_string == 'J/K/mol':
+        return unit.joule / unit.kelvin / unit.mole
+    elif unit_string == 'J/K/kg':
+        return unit.joule / unit.kelvin / unit.kilogram
+    elif unit_string == 'J/K/m3':
+        return unit.joule / unit.kelvin / unit.meter ** 3
+    elif unit_string == '1/kPa':
+        return (1.0 / unit.kilopascal).unit
+    elif unit_string == 'm/s':
+        return unit.meter / unit.second
+    elif unit_string == 'MHz':
+        return (1.0 / unit.megasecond).unit
     elif len(unit_string) == 0:
         return None
     else:
