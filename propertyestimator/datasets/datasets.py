@@ -30,6 +30,10 @@ class PhysicalPropertyDataSet(object):
         """list of Source: The list of sources from which the properties were gathered"""
         return self._sources
 
+    @property
+    def number_of_properties(self):
+        return sum([len(properties) for properties in self._properties.values()])
+
     def merge(self, data_set):
         """Merge another data set into the current one.
 
@@ -128,9 +132,9 @@ class PhysicalPropertyDataSet(object):
 
         Parameters
         ----------
-        min_temperature : float
+        min_temperature : unit.Quantity
             The minimum temperature.
-        max_temperature : float
+        max_temperature : unit.Quantity
             The maximum temperature.
 
         Examples
@@ -144,8 +148,39 @@ class PhysicalPropertyDataSet(object):
         >>> from simtk import unit
         >>> data_set.filter_by_temperature(min_temperature=130*unit.kelvin, max_temperature=260*unit.kelvin)
         """
+
         def filter_function(x):
             return min_temperature <= x.thermodynamic_state.temperature <= max_temperature
+
+        self.filter_by_function(filter_function)
+
+    def filter_by_pressure(self, min_pressure, max_pressure):
+        """Filter the data set based on a minimum and maximum pressure.
+
+        Parameters
+        ----------
+        min_pressure : unit.Quantity
+            The minimum pressure.
+        max_pressure : unit.Quantity
+            The maximum pressure.
+
+        Examples
+        --------
+        Filter the dataset to only include properties measured between 70-150 kPa.
+
+        >>> # Load in the data set of properties which will be used for comparisons
+        >>> from propertyestimator.datasets import ThermoMLDataSet
+        >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
+        >>>
+        >>> from simtk import unit
+        >>> data_set.filter_by_temperature(min_pressure=70*unit.kilopascal, max_temperature=150*unit.kilopascal)
+        """
+        def filter_function(x):
+
+            if x.thermodynamic_state.pressure is None:
+                return True
+
+            return min_pressure <= x.thermodynamic_state.pressure <= max_pressure
 
         self.filter_by_function(filter_function)
 
