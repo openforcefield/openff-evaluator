@@ -97,8 +97,8 @@ class ThermoMLConstraintType(Enum):
     Undefined = 'Undefined'
     Temperature = 'Temperature, K'
     Pressure = 'Pressure, kPa'
-    ComponentMoleFraction = 'ComponentMoleFraction'
-    ComponentMassFraction = 'ComponentMassFraction'
+    ComponentMoleFraction = 'Mole fraction'
+    ComponentMassFraction = 'Mass fraction'
     ComponentMolality = 'Molality, mol/kg'
     SolventMoleFraction = 'Solvent: Mole fraction'
     SolventMassFraction = 'Solvent: Mass fraction'
@@ -145,6 +145,12 @@ class ThermoMLConstraintType(Enum):
             - `ThermoMLConstraintType.SolventMassFraction`
             - `ThermoMLConstraintType.SolventMolality`
         """
+        return (self == ThermoMLConstraintType.ComponentMoleFraction or
+                self == ThermoMLConstraintType.ComponentMassFraction or
+                self == ThermoMLConstraintType.ComponentMolality or
+                self == ThermoMLConstraintType.SolventMoleFraction or
+                self == ThermoMLConstraintType.SolventMassFraction or
+                self == ThermoMLConstraintType.SolventMolality)
 
 
 class ThermoMLConstraint:
@@ -400,7 +406,7 @@ class ThermoMLCompound:
         # Gather up all possible identifiers
         identifier_nodes = node.findall('ThermoML:sStandardInChI', namespace)
 
-        if len(identifier_nodes) == 0 or identifier_nodes[0].text:
+        if len(identifier_nodes) == 0 or identifier_nodes[0].text is None:
             # convert common name to smiles
             raise ValueError('A ThermoML:Compound node does not have a valid InChI identifier')
 
@@ -1012,6 +1018,9 @@ class ThermoMLPureOrMixtureData:
 
             return None
 
+        if constraint_type == ThermoMLConstraintType.Undefined:
+            constraint_type = ThermoMLConstraintType.ComponentMoleFraction
+
         mole_fractions = {}
 
         if constraint_type == ThermoMLConstraintType.ComponentMoleFraction:
@@ -1029,7 +1038,7 @@ class ThermoMLPureOrMixtureData:
             logging.warning('An not implemented but supported composition constraint was found. '
                             'It will for now be assumed all mole fractions are equal to zero.')
 
-            mole_fractions = {0.0 for compound_index in compounds}
+            mole_fractions = {compound_index: 0.0 for compound_index in compounds}
 
         substance = Substance()
 
