@@ -1020,33 +1020,62 @@ class ThermoMLPureOrMixtureData:
             The constructed mixture.
         """
 
-        constraint_type = ThermoMLConstraintType.Undefined
+        solvent_constraint_type = ThermoMLConstraintType.Undefined
+        component_constraint_type = ThermoMLConstraintType.Undefined
 
         for constraint in constraints:
 
             if not constraint.type.is_composition_constraint():
                 continue
 
-            if constraint_type == ThermoMLConstraintType.Undefined:
-                constraint_type = constraint.type
+            if (constraint.type == ThermoMLConstraintType.SolventMassFraction or
+                constraint.type == ThermoMLConstraintType.SolventMoleFraction or
+                constraint.type == ThermoMLConstraintType.SolventMolality):
 
-            if constraint_type == constraint.type:
-                continue
+                if solvent_constraint_type == ThermoMLConstraintType.Undefined:
+                    solvent_constraint_type = constraint.type
 
-            logging.warning(f'A property with different types of composition '
-                            f'was found - {constraint_type} vs {constraint.type}).')
+                if solvent_constraint_type != constraint.type:
+
+                    logging.warning(f'A property with different types of solvent composition constraints '
+                                    f'was found - {solvent_constraint_type} vs {constraint.type}).')
+
+                    return None
+
+            else:
+
+                if component_constraint_type == ThermoMLConstraintType.Undefined:
+                    component_constraint_type = constraint.type
+
+                if component_constraint_type != constraint.type:
+
+                    logging.warning(f'A property with different types of composition constraints '
+                                    f'was found - {component_constraint_type} vs {constraint.type}).')
+
+                    return None
+
+        if (component_constraint_type == ThermoMLConstraintType.Undefined and
+            solvent_constraint_type == ThermoMLConstraintType.Undefined):
+
+            component_constraint_type = ThermoMLConstraintType.ComponentMoleFraction
+
+        elif (component_constraint_type == ThermoMLConstraintType.Undefined and
+              solvent_constraint_type != ThermoMLConstraintType.Undefined):
+
+            logging.warning(f'A property with only solvent composition '
+
+                            f'constraints {solvent_constraint_type} was found.')
 
             return None
 
-        if constraint_type == ThermoMLConstraintType.Undefined:
-            constraint_type = ThermoMLConstraintType.ComponentMoleFraction
-
-        if constraint_type == ThermoMLConstraintType.ComponentMoleFraction:
+        if (component_constraint_type == ThermoMLConstraintType.ComponentMoleFraction and
+            solvent_constraint_type == ThermoMLConstraintType.Undefined):
 
             mole_fractions = ThermoMLPureOrMixtureData._mole_fraction_constraints_to_mole_fractions(constraints,
                                                                                                     compounds)
 
-        elif constraint_type == ThermoMLConstraintType.ComponentMoleFraction:
+        elif (component_constraint_type == ThermoMLConstraintType.ComponentMassFraction and
+              solvent_constraint_type == ThermoMLConstraintType.Undefined):
 
             mole_fractions = ThermoMLPureOrMixtureData._mass_fraction_constraints_to_mole_fractions(constraints,
                                                                                                     compounds)
