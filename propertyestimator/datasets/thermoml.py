@@ -192,7 +192,7 @@ class ThermoMLConstraint:
         ----------
         constraint_node : Element
             The xml node to convert.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
 
         Returns
@@ -275,7 +275,7 @@ class ThermoMLVariableDefinition:
         ----------
         variable_node : xml.etree.Element
             The xml node to convert.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
 
         Returns
@@ -328,7 +328,7 @@ class ThermoMLPropertyUncertainty:
         ----------
         node : Element
             The xml node to convert.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
 
         Returns
@@ -339,8 +339,6 @@ class ThermoMLPropertyUncertainty:
 
         coverage_factor_node = node.find('ThermoML:n' + cls.prefix + 'CoverageFactor', namespace)
         confidence_node = node.find('ThermoML:n' + cls.prefix + 'UncertLevOfConfid', namespace)
-
-        coverage_factor = None
 
         # As defined by https://www.nist.gov/pml/nist-technical-note-1297/nist-tn-1297-7-reporting-uncertainty
         if coverage_factor_node is not None:
@@ -413,7 +411,7 @@ class ThermoMLCompound:
         ----------
         node : Element
             The xml node to convert.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
 
         Returns
@@ -492,7 +490,7 @@ class ThermoMLProperty:
         ----------
         node : Element
             The xml node to convert.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
         property_uncertainty_definitions : list(ThermoMLPropertyUncertainty)
             A list of the extracted property uncertainties.
@@ -536,7 +534,7 @@ class ThermoMLProperty:
         ----------
         node : Element
             The xml node to convert.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
 
         Returns
@@ -587,16 +585,23 @@ class ThermoMLProperty:
 
             return None
 
-        property_type = registered_thermoml_properties[property_name_node.text]
+        registered_plugin = registered_thermoml_properties[property_name_node.text]
 
-        return_value = cls(property_type)
+        if (registered_plugin.supported_phases & phase) != phase:
+
+            logging.warning(f'The {property_name_node.text} property is currently only supported'
+                            f'when measured for {phase} phase properties.')
+
+            return None
+
+        return_value = cls(registered_plugin.class_type)
 
         return_value.index = property_index
         return_value.phase = phase
 
         return_value.default_unit = unit_from_thermoml_string(property_name_node.text)
 
-        return_value.type = property_type
+        return_value.type = registered_plugin.class_type
         return_value.method_name = method_name_node.text
 
         property_uncertainty_definitions = {}
@@ -651,7 +656,7 @@ class ThermoMLPureOrMixtureData:
         ----------
         node : Element
             The xml node to read.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
         compounds :
             The extracted compounds.
@@ -691,7 +696,7 @@ class ThermoMLPureOrMixtureData:
         ----------
         node : Element
             The xml node to read.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
 
         Returns
@@ -727,7 +732,7 @@ class ThermoMLPureOrMixtureData:
         ----------
         node : Element
             The xml node to read.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
         compounds : dict(int, ThermoMLCompound)
             A dictionary of the compounds this PureOrMixtureData was calculated for.
@@ -772,7 +777,7 @@ class ThermoMLPureOrMixtureData:
         ----------
         node : Element
             The xml node to read.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
         compounds : dict(int, ThermoMLCompound)
             A dictionary of the compounds this PureOrMixtureData was calculated for.
@@ -835,8 +840,6 @@ class ThermoMLPureOrMixtureData:
         prefix = ThermoMLCombinedUncertainty.prefix if combined \
             else ThermoMLPropertyUncertainty.prefix
 
-        index_node = None
-
         if combined:
             index_node = node.find('./ThermoML:CombinedUncertainty/ThermoML:nCombUncertAssessNum', namespace)
         else:
@@ -888,7 +891,12 @@ class ThermoMLPureOrMixtureData:
             if not constraint.type.is_composition_constraint():
                 continue
 
-            mol_fractions[constraint.compound_index] = constraint.value.value_in_unit(unit.dimensionless)
+            mole_fraction = constraint.value
+
+            if isinstance(mole_fraction, unit.Quantity):
+                mole_fraction = mole_fraction.value_in_unit(unit.dimensionless)
+
+            mol_fractions[constraint.compound_index] = mole_fraction
 
             total_mol_fraction += mol_fractions[constraint.compound_index]
             number_of_constraints += 1
@@ -946,12 +954,15 @@ class ThermoMLPureOrMixtureData:
             if not constraint.type.is_composition_constraint():
                 continue
 
-            mass_fraction = constraint.value.value_in_unit(unit.dimensionless)
+            mass_fraction = constraint.value
+
+            if isinstance(mass_fraction, unit.Quantity):
+                mass_fraction = mass_fraction.value_in_unit(unit.dimensionless)
+
+            mass_fractions[constraint.compound_index] = mass_fraction
+
             total_mass_fraction += mass_fraction
-
             number_of_constraints += 1
-
-            mass_fractions[constraint.compound_index] = constraint.value.value_in_unit(unit.dimensionless)
 
         if number_of_constraints == len(compounds) and not np.isclose(total_mass_fraction, 1.0):
             raise ValueError('The total mass fraction does not add to 1.0')
@@ -990,16 +1001,14 @@ class ThermoMLPureOrMixtureData:
 
     @staticmethod
     def _molality_constraints_to_mole_fractions(constraints):
-        return 0
+        raise NotImplementedError()
 
     @staticmethod
-    def build_mixture(measured_property, constraints, compounds, parsing_options):
+    def build_mixture(constraints, compounds):
         """Build a Substance object from the extracted constraints and compounds.
 
         Parameters
         ----------
-        measured_property : ThermoMLProperty
-            The measured property to build the mixture for.
         constraints : list of ThermoMLConstraint
             The ThermoML constraints.
         compounds : dict of int and ThermoMLCompound
@@ -1010,13 +1019,6 @@ class ThermoMLPureOrMixtureData:
         Substance
             The constructed mixture.
         """
-
-        if (measured_property.phase & parsing_options.allowed_phases) != measured_property.phase:
-
-            logging.warning(f'Only properties measured in the {parsing_options.allowed_phases} phases '
-                            f'are currently supported ({measured_property.phase}).')
-
-            return None
 
         constraint_type = ThermoMLConstraintType.Undefined
 
@@ -1038,8 +1040,6 @@ class ThermoMLPureOrMixtureData:
 
         if constraint_type == ThermoMLConstraintType.Undefined:
             constraint_type = ThermoMLConstraintType.ComponentMoleFraction
-
-        mole_fractions = {}
 
         if constraint_type == ThermoMLConstraintType.ComponentMoleFraction:
 
@@ -1077,8 +1077,7 @@ class ThermoMLPureOrMixtureData:
                                     property_definitions,
                                     global_constraints,
                                     variable_definitions,
-                                    compounds,
-                                    parsing_options):
+                                    compounds):
 
         """Extract the measured properties defined by a ThermoML PureOrMixtureData node.
 
@@ -1086,7 +1085,7 @@ class ThermoMLPureOrMixtureData:
         ----------
         node : Element
             The xml node to read.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
         property_definitions
             The extracted property definitions.
@@ -1161,15 +1160,14 @@ class ThermoMLPureOrMixtureData:
                 continue
 
             # Extract the thermodynamic state that the property was measured at.
-            if temperature_constraint is None or \
-               pressure_constraint is None:
+            if temperature_constraint is None:
 
-                logging.warning('A property did not state the T / p it was measured'
+                logging.warning('A property did not the temperature or the pressure it was measured '
                                 'at and will be ignored.')
                 continue
 
             temperature = temperature_constraint.value
-            pressure = pressure_constraint.value
+            pressure = None if pressure_constraint is None else pressure_constraint.value
 
             thermodynamic_state = ThermodynamicState(temperature=temperature, pressure=pressure)
 
@@ -1209,10 +1207,7 @@ class ThermoMLPureOrMixtureData:
                 measured_property.set_value(float(property_value_node.text),
                                             float(uncertainty))
 
-                mixture = ThermoMLPureOrMixtureData.build_mixture(measured_property,
-                                                                  constraints,
-                                                                  compounds,
-                                                                  parsing_options)
+                mixture = ThermoMLPureOrMixtureData.build_mixture(constraints, compounds)
 
                 if mixture is None:
 
@@ -1230,17 +1225,17 @@ class ThermoMLPureOrMixtureData:
         return measured_properties
 
     @staticmethod
-    def from_xml_node(node, namespace, compounds, parsing_options):
+    def from_xml_node(node, namespace, compounds):
         """Extracts all of the data in a ThermoML PureOrMixtureData node.
 
         Parameters
         ----------
         node : Element
             The xml node to read.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
-        namespace : dict(int, ThermoMLCompound
-            A list of the already extracted ThermoMLCompound's.
+        compounds : dict of int and ThermoMLCompound
+            A list of the already extracted `ThermoMLCompound`'s.
 
         Returns
         ----------
@@ -1282,7 +1277,7 @@ class ThermoMLPureOrMixtureData:
 
             if phase == PropertyPhase.Undefined:
                 # TODO: For now we just hope that the property defines the phase.
-                # This needs to be better supported however.
+                #       This needs to be better supported however.
                 logging.warning('A property was measured in an unsupported phase (' +
                                 phase_node.text + ') and will be skipped.')
 
@@ -1323,16 +1318,9 @@ class ThermoMLPureOrMixtureData:
                                                                                     property_definitions,
                                                                                     global_constraints,
                                                                                     variable_definitions,
-                                                                                    used_compounds,
-                                                                                    parsing_options)
+                                                                                    used_compounds)
 
         return measured_properties
-
-
-class ThermoMLParsingOptions:
-
-    def __init__(self):
-        self.allowed_phases = PropertyPhase.Liquid
 
 
 class ThermoMLDataSet(PhysicalPropertyDataSet):
@@ -1358,16 +1346,13 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
         super().__init__()
 
     @classmethod
-    def from_doi(cls, *doi_list, parsing_options=ThermoMLParsingOptions()):
+    def from_doi(cls, *doi_list):
         """Load a ThermoML data set from a list of DOIs
 
         Parameters
         ----------
         doi_list : *str
             The list of DOIs to pull data from
-        parsing_options: ThermoMLParsingOptions
-            Options used to parse the files, such as
-            to only include certain property phases.
 
         Returns
         ----------
@@ -1381,7 +1366,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
             # E.g https://trc.nist.gov/ThermoML/10.1016/j.jct.2016.12.009.xml
             doi_url = 'https://trc.nist.gov/ThermoML/' + doi + '.xml'
 
-            data_set = cls._from_url(doi_url, MeasurementSource(doi=doi), parsing_options)
+            data_set = cls._from_url(doi_url, MeasurementSource(doi=doi))
 
             if data_set is None or len(data_set.properties) == 0:
                 continue
@@ -1394,16 +1379,13 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
         return return_value
 
     @classmethod
-    def from_url(cls, *url_list, parsing_options=ThermoMLParsingOptions()):
+    def from_url(cls, *url_list):
         """Load a ThermoML data set from a list of URLs
 
         Parameters
         ----------
         url_list : *str
             The list of URLs to pull data from
-        parsing_options: ThermoMLParsingOptions
-            Options used to parse the files, such as
-            to only include certain property phases.
 
         Returns
         ----------
@@ -1415,7 +1397,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
         for url in url_list:
 
-            data_set = cls._from_url(url, parsing_options)
+            data_set = cls._from_url(url)
 
             if data_set is None or len(data_set.properties) == 0:
                 continue
@@ -1428,7 +1410,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
         return return_value
 
     @classmethod
-    def _from_url(cls, url, source=None, parsing_options=ThermoMLParsingOptions()):
+    def _from_url(cls, url, source=None):
         """Load a ThermoML data set from a given URL
 
         Parameters
@@ -1437,9 +1419,6 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
             The URL to pull data from
         source : Source, optional
             An optional source which gives more information (e.g DOIs) for the url.
-        parsing_options: ThermoMLParsingOptions
-            Options used to parse the files, such as
-            to only include certain property phases.
 
         Returns
         ----------
@@ -1452,27 +1431,23 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
         return_value = None
 
         try:
+
             with urlopen(url) as response:
+                return_value = cls.from_xml(response.read(), source)
 
-                return_value = cls.from_xml(response.read(), source, parsing_options)
-
-        except HTTPError as error:
-
+        except HTTPError:
             logging.warning('WARNING: No ThermoML file could not be found at ' + url)
 
         return return_value
 
     @classmethod
-    def from_file(cls, *file_list, parsing_options=ThermoMLParsingOptions()):
+    def from_file(cls, *file_list):
         """Load a ThermoML data set from a list of files
 
         Parameters
         ----------
         file_list : *str
             The list of files to pull data from
-        parsing_options: ThermoMLParsingOptions
-            Options used to parse the files, such as
-            to only include certain property phases.
 
         Returns
         ----------
@@ -1484,7 +1459,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
         for file in file_list:
 
-            data_set = cls._from_file(file, parsing_options)
+            data_set = cls._from_file(file)
 
             logging.info('Reading file ' + str(counter + 1) + ' of ' + str(len(file_list)) + ' (' + file + ')')
             counter += 1
@@ -1500,16 +1475,13 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
         return return_value
 
     @classmethod
-    def _from_file(cls, path, parsing_options=ThermoMLParsingOptions()):
+    def _from_file(cls, path):
         """Load a ThermoML data set from a given file
 
         Parameters
         ----------
         path : str
             The file path to pull data from
-        parsing_options: ThermoMLParsingOptions
-            Options used to parse the files, such as
-            to only include certain property phases.
 
         Returns
         ----------
@@ -1522,16 +1494,16 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
         try:
 
             with open(path) as file:
-                return_value = ThermoMLDataSet.from_xml(file.read(), source, parsing_options)
+                return_value = ThermoMLDataSet.from_xml(file.read(), source)
 
-        except FileNotFoundError as error:
+        except FileNotFoundError:
 
             logging.warning('No ThermoML file could not be found at ' + path)
 
         return return_value
 
     @classmethod
-    def from_xml(cls, xml, source, parsing_options=ThermoMLParsingOptions()):
+    def from_xml(cls, xml, source):
         """Load a ThermoML data set from an xml object.
 
         Parameters
@@ -1540,9 +1512,6 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
             The xml string to parse.
         source : Source
             The source of the xml object.
-        parsing_options: ThermoMLParsingOptions
-            Options used to parse the files, such as
-            to only include certain property phases.
 
         Returns
         ----------
@@ -1560,7 +1529,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
             return None
 
         # Extract the namespace that will prefix all type names
-        namespace_string = re.search('{.*\}', root_node.tag).group(0)[1:-1]
+        namespace_string = re.search(r'{.*\}', root_node.tag).group(0)[1:-1]
         namespace = {'ThermoML': namespace_string}
 
         return_value = ThermoMLDataSet()
@@ -1585,8 +1554,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
             properties = ThermoMLPureOrMixtureData.from_xml_node(node,
                                                                  namespace,
-                                                                 compounds,
-                                                                 parsing_options)
+                                                                 compounds)
 
             if properties is None or len(properties) == 0:
                 continue
