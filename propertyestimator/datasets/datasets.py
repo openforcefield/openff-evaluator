@@ -171,3 +171,15 @@ class PhysicalPropertyDataSet(object):
             return x.substance.number_of_components == number_of_components
 
         self.filter_by_function(filter_function)
+
+    def __getstate__(self):
+
+        return {
+            'properties': self._properties,
+            'sources': self._sources
+        }
+
+    def __setstate__(self, state):
+
+        self._properties = state['properties']
+        self._sources = state['sources']
