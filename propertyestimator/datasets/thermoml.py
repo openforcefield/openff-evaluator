@@ -69,6 +69,8 @@ def unit_from_thermoml_string(full_string):
         return unit.meter / unit.second
     elif unit_string == 'MHz':
         return (1.0 / unit.megasecond).unit
+    elif unit_string == 'N/m':
+        return unit.newton / unit.meter
     elif len(unit_string) == 0:
         return None
     else:
