@@ -120,11 +120,9 @@ class ThermoMLConstraintType(Enum):
     ComponentMoleFraction = 'Mole fraction'
     ComponentMassFraction = 'Mass fraction'
     ComponentMolality = 'Molality, mol/kg'
-    ComponentAmountConcentration = 'Amount concentration (molarity), mol/dm3'
     SolventMoleFraction = 'Solvent: Mole fraction'
     SolventMassFraction = 'Solvent: Mass fraction'
     SolventMolality = 'Solvent: Molality, mol/kg'
-    SolventAmountConcentration = 'Solvent: Amount concentration (molarity), mol/dm3'
 
     @staticmethod
     def from_node(node):
