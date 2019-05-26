@@ -1085,9 +1085,10 @@ class ThermoMLPureOrMixtureData:
         else:
 
             logging.warning('An not implemented but supported composition constraint was found. '
-                            'It will for now be assumed all mole fractions are equal to zero.')
+                            'It will for now be assumed all mole fractions are equal.')
 
-            mole_fractions = {compound_index: 0.0 for compound_index in compounds}
+            mole_fraction = 1.0 / len(compounds)
+            mole_fractions = {compound_index: mole_fraction for compound_index in compounds}
 
         substance = Substance()
 
