@@ -120,9 +120,11 @@ class ThermoMLConstraintType(Enum):
     ComponentMoleFraction = 'Mole fraction'
     ComponentMassFraction = 'Mass fraction'
     ComponentMolality = 'Molality, mol/kg'
+    ComponentAmountConcentration = 'Amount concentration (molarity), mol/dm3'
     SolventMoleFraction = 'Solvent: Mole fraction'
     SolventMassFraction = 'Solvent: Mass fraction'
     SolventMolality = 'Solvent: Molality, mol/kg'
+    SolventAmountConcentration = 'Solvent: Amount concentration (molarity), mol/dm3'
 
     @staticmethod
     def from_node(node):
@@ -766,6 +768,7 @@ class ThermoMLPureOrMixtureData:
 
                 logging.warning('An unsupported constraint has been ignored - composition constraints'
                                 'need to have a corresponding compound_index.')
+                return None
 
             constraints.append(constraint)
 
@@ -799,20 +802,20 @@ class ThermoMLPureOrMixtureData:
             if variable is None or variable.type is ThermoMLConstraintType.Undefined:
 
                 logging.warning('An unsupported variable has been ignored.')
-
                 continue
 
             if variable.compound_index is not None and \
                variable.compound_index not in compounds:
 
                 logging.warning('A constraint exists upon a non-existent compound and will be ignored.')
-
                 continue
 
             if variable.type.is_composition_constraint() and variable.compound_index is None:
 
                 logging.warning('An unsupported variable has been ignored - composition variables'
                                 'need to have a corresponding compound_index.')
+
+                continue
 
             variables[variable.index] = variable
 
@@ -1065,7 +1068,6 @@ class ThermoMLPureOrMixtureData:
               solvent_constraint_type != ThermoMLConstraintType.Undefined):
 
             logging.warning(f'A property with only solvent composition '
-
                             f'constraints {solvent_constraint_type} was found.')
 
             return None
@@ -1148,8 +1150,6 @@ class ThermoMLPureOrMixtureData:
 
             for global_constraint in global_constraints:
 
-                # constraint = copy.deepcopy(global_constraint)
-                # constraint = json.loads(json.dumps(global_constraint))
                 constraint = pickle.loads(pickle.dumps(global_constraint, -1))
                 constraints.append(constraint)
 
