@@ -1007,11 +1007,15 @@ class ThermoMLPureOrMixtureData:
         raise NotImplementedError()
 
     @staticmethod
-    def build_mixture(constraints, compounds):
+    def build_mixture(thermoml_property, constraints, compounds):
         """Build a Substance object from the extracted constraints and compounds.
+
+        TODO: Break up this monolithic method.
 
         Parameters
         ----------
+        thermoml_property: ThermoMLProperty
+            The property to which this mixture belongs.
         constraints : list of ThermoMLConstraint
             The ThermoML constraints.
         compounds : dict of int and ThermoMLCompound
@@ -1026,8 +1030,29 @@ class ThermoMLPureOrMixtureData:
         solvent_constraint_type = ThermoMLConstraintType.Undefined
         component_constraint_type = ThermoMLConstraintType.Undefined
 
+        solvent_indices = set()
+
+        for solvent_index in thermoml_property.solvents:
+
+            if solvent_index in solvent_indices:
+                continue
+
+            solvent_indices.add(solvent_index)
+
+        # Determine which types of solvent and component constraints are
+        # being applied.
         for constraint in constraints:
 
+            # Make sure we hunt down solvent indices.
+            for solvent_index in constraint.solvents:
+
+                if solvent_index in solvent_indices:
+                    continue
+
+                solvent_indices.add(solvent_index)
+
+            # Only composition type restraints apply here, skip
+            # the rest.
             if not constraint.type.is_composition_constraint():
                 continue
 
@@ -1057,6 +1082,20 @@ class ThermoMLPureOrMixtureData:
 
                     return None
 
+        for solvent_index in solvent_indices:
+
+            if solvent_index in compounds:
+                continue
+
+            logging.warning(f'The composition of a non-existent solvent was '
+                            f'found. This usually only occurs in cases were '
+                            f'the solvent component could not be understood '
+                            f'by the framework.')
+
+            return None
+
+        # If no constraint was applied, this likely means a pure substance
+        # was found.
         if (component_constraint_type == ThermoMLConstraintType.Undefined and
             solvent_constraint_type == ThermoMLConstraintType.Undefined):
 
@@ -1069,6 +1108,21 @@ class ThermoMLPureOrMixtureData:
                             f'constraints {solvent_constraint_type} was found.')
 
             return None
+
+        # Make sure all of the solvents have not been removed.
+        if solvent_constraint_type != ThermoMLConstraintType.Undefined and len(solvent_indices) == 0:
+
+            logging.warning(f'The composition of a solvent was found, however the '
+                            f'solvent list is empty. This usually only occurs in '
+                            f'cases were the solvent component could not be understood '
+                            f'by the framework.')
+
+            return None
+
+        solvent_mole_fractions = ThermoMLPureOrMixtureData.determine_solvent_mole_fractions(solvent_constraint_type,
+                                                                                            constraints,
+                                                                                            compounds,
+                                                                                            solvent_indices)
 
         if (component_constraint_type == ThermoMLConstraintType.ComponentMoleFraction and
             solvent_constraint_type == ThermoMLConstraintType.Undefined):
@@ -1237,7 +1291,9 @@ class ThermoMLPureOrMixtureData:
                 measured_property.set_value(float(property_value_node.text),
                                             float(uncertainty))
 
-                mixture = ThermoMLPureOrMixtureData.build_mixture(constraints, compounds)
+                mixture = ThermoMLPureOrMixtureData.build_mixture(measured_property,
+                                                                  constraints,
+                                                                  compounds)
 
                 if mixture is None:
 
