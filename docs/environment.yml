@@ -11,7 +11,6 @@ dependencies:
     - numpydoc
     - nbsphinx
     - m2r >=0.2.1
-    - sphinx_rtd_theme
 
     # Standard dependencies
     - numpy
@@ -22,3 +21,6 @@ dependencies:
     - dask
     - tornado <6
     - uncertainties
+
+    - pip:
+        - sphinx_rtd_theme
