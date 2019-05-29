@@ -18,10 +18,11 @@ for entry_point in pkg_resources.iter_entry_points('propertyestimator.plugins'):
         entry_point.load()
     except ImportError as e:
 
+        import logging
         import traceback
 
         formatted_exception = traceback.format_exception(None, e, e.__traceback__)
-        print(f'Could not load the {entry_point} plugin: {formatted_exception}')
+        logging.warning(f'Could not load the {entry_point} plugin: {formatted_exception}')
 
 # Handle versioneer
 versions = get_versions()
