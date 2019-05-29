@@ -30,15 +30,12 @@ Server Side API
 Physical Property API
 ---------------------
 
-.. currentmodule:: propertyestimator
+.. currentmodule:: propertyestimator.properties
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
-    properties.PhysicalProperty
-    substances.Substance
-    substances.Mixture
-    thermodynamics.ThermodynamicState
+    PhysicalProperty
 
 **Built-in Properties**
 
@@ -51,6 +48,44 @@ Physical Property API
     DielectricConstant
     EnthalpyOfMixing
 
+**Substance Definition**
+
+.. currentmodule:: propertyestimator.substances
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    Substance
+
+**State Definition**
+
+.. currentmodule:: propertyestimator.thermodynamics
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    ThermodynamicState
+
+Data Set API
+------------
+
+.. currentmodule:: propertyestimator.datasets
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    PhysicalPropertyDataSet
+
+**NIST ThermoML Archive**
+
+.. currentmodule:: propertyestimator.datasets
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    ThermoMLDataSet
+    register_thermoml_property
+
 Calculation Layers API
 ----------------------
 
@@ -62,7 +97,7 @@ Calculation Layers API
     PropertyCalculationLayer
     register_calculation_layer
 
-**Built-in Layers**
+**Built-in Calculation Layers**
 
 .. currentmodule:: propertyestimator.layers
 .. autosummary::
@@ -81,10 +116,11 @@ Calculation Backends API
     :nosignatures:
     :toctree: api/generated/
 
-    ComputeResources
     PropertyEstimatorBackend
+    ComputeResources
+    QueueWorkerResources
 
-**Built-in Backends**
+**Dask Backends**
 
 .. currentmodule:: propertyestimator.backends
 .. autosummary::
@@ -92,6 +128,7 @@ Calculation Backends API
     :toctree: api/generated/
 
     DaskLocalClusterBackend
+    DaskLSFBackend
 
 Storage Backends API
 --------------------
@@ -104,7 +141,7 @@ Storage Backends API
     PropertyEstimatorStorage
     StoredSimulationData
 
-**Built-in Backends**
+**Built-in Storage Backends**
 
 .. currentmodule:: propertyestimator.storage
 .. autosummary::
@@ -146,31 +183,85 @@ Workflow API
     protocols.BaseProtocol
     utils.ProtocolPath
 
-**Built in Protocols**
+Built-in Workflow Protocols
+---------------------------
 
-.. currentmodule:: propertyestimator.workflow.protocols
+**Coordinate Generation**
+
+.. currentmodule:: propertyestimator.protocols.coordinates
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
     BuildCoordinatesPackmol
+    SolvateExistingStructure
+    BuildDockedCoordinates
+
+**Force Field Assignment**
+
+.. currentmodule:: propertyestimator.protocols.forcefield
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
     BuildSmirnoffSystem
+
+**Simulation**
+
+.. currentmodule:: propertyestimator.protocols.simulation
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
     RunEnergyMinimisation
     RunOpenMMSimulation
+    BaseYankProtocol
+    LigandReceptorYankProtocol
+
+**Simulation Analysis**
+
+.. currentmodule:: propertyestimator.protocols.analysis
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
     AveragePropertyProtocol
     AverageTrajectoryProperty
+    ExtractAverageStatistic
     ExtractUncorrelatedData
     ExtractUncorrelatedTrajectoryData
-    AddQuantities
-    SubtractQuantities
+    ExtractUncorrelatedStatisticsData
+
+**Reweighting**
+
+.. currentmodule:: propertyestimator.protocols.reweighting
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
     UnpackStoredSimulationData
+    ConcatenateTrajectories
+    CalculateReducedPotentialOpenMM
+    ReweightWithMBARProtocol
 
-**Protocol Groups**
+**Groups**
 
-.. currentmodule:: propertyestimator.workflow.groups
+.. currentmodule:: propertyestimator.protocols.groups
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
     ProtocolGroup
     ConditionalGroup
+
+
+**Miscellaneous**
+
+.. currentmodule:: propertyestimator.protocols.miscellaneous
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    AddQuantities
+    SubtractQuantities
+    FilterSubstanceByRole

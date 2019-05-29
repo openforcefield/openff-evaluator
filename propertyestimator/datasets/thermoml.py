@@ -1212,11 +1212,11 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
         
         Parameters
         ----------
-        doi_list : *str
+        doi_list : str
             The list of DOIs to pull data from
         
         Returns
-        ----------
+        -------
         ThermoMLDataSet
             The loaded data set. 
         """
@@ -1245,11 +1245,11 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
         Parameters
         ----------
-        url_list : *str
+        url_list : str
             The list of URLs to pull data from
 
         Returns
-        ----------
+        -------
         ThermoMLDataSet
             The loaded data set. 
         """
@@ -1308,11 +1308,11 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
         Parameters
         ----------
-        file_list : *str
+        file_list : str
             The list of files to pull data from
 
         Returns
-        ----------
+        -------
         ThermoMLDataSet
             The loaded data set. 
         """
@@ -1346,7 +1346,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
             The file path to pull data from
 
         Returns
-        ----------
+        -------
         ThermoMLDataSet
             The loaded data set. 
         """
@@ -1377,7 +1377,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
             The source of the xml object.
 
         Returns
-        ----------
+        -------
         ThermoMLDataSet
             The loaded ThermoML data set.
         """

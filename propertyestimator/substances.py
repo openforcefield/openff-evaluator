@@ -17,31 +17,30 @@ class Substance(TypedBaseModel):
 
     Examples
     --------
-    A neat liquid has only one component:
+    A neat liquid containing only a single component:
 
     >>> liquid = Substance()
     >>> liquid.add_component(Substance.Component(smiles='O'), Substance.MoleFraction(1.0))
 
-    A binary mixture has two components, where the mole fractions must be
-    explicitly stated:
+    A binary mixture containing two components, where the mole fractions are explicitly stated:
 
     >>> binary_mixture = Substance()
     >>> binary_mixture.add_component(Substance.Component(smiles='O'), Substance.MoleFraction(0.2))
     >>> binary_mixture.add_component(Substance.Component(smiles='CO'), Substance.MoleFraction(0.8))
 
-    The infinite dilution of one solute within a solvent or mixture may also specified
-    as a `Substance` by setting the mole fraction of the solute equal to 0.0.
-
-    In this example we explicitly flag the benzene component as being the solute, and the
-    water component the solvent, to aid in setting up and performing solvation free energy
-    calculations:
+    The infinite dilution of one molecule within a bulk solvent or mixture may also be specified
+    by defining the exact number of copies of that molecule, rather than a mole fraction:
 
     >>> benzene = Substance.Component(smiles='C1=CC=CC=C1', role=Substance.ComponentRole.Solute)
     >>> water = Substance.Component(smiles='O', role=Substance.ComponentRole.Solvent)
-
+    >>>
     >>> infinite_dilution = Substance()
     >>> infinite_dilution.add_component(component=benzene, amount=Substance.ExactAmount(1)) # Infinite dilution.
     >>> infinite_dilution.add_component(component=water, amount=Substance.MoleFraction(1.0))
+
+    In this example we explicitly flag benzene as being the solute and the water component the solvent.
+    This enables workflow's to easily identify key molecules of interest, such as the molecule which should
+    be 'grown' into solution during solvation free energy calculations.
     """
 
     class ComponentRole(Enum):
@@ -293,6 +292,8 @@ class Substance(TypedBaseModel):
 
     @property
     def identifier(self):
+        """str: A unique str representation of this substance, which encodes all components
+        and their amounts in the substance."""
 
         component_identifiers = [component.identifier for component in self._components]
         component_identifiers.sort()
@@ -313,10 +314,12 @@ class Substance(TypedBaseModel):
 
     @property
     def components(self):
+        """list of Substance.Component: A list of all of the components in this substance."""
         return self._components
 
     @property
     def number_of_components(self):
+        """int: The number of different components in this substance."""
         return len(self._components)
 
     def __init__(self):

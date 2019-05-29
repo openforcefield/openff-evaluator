@@ -9,28 +9,38 @@ from simtk import unit
 
 class ComputeResources:
     """An object which stores how many of each type of computational resource
-    (threads or gpu's) is available to a calculation task."""
+    (threads or gpu's) is available to a calculation worker.
+
+    TODO: The use of the terminology here is questionable, and is used interchangable
+          with process which may lead to some confusion.
+    """
 
     class GPUToolkit(Enum):
+        """An enumeration of the different GPU toolkits to
+        make available to different calculations.
+        """
         CUDA = 'CUDA'
         OpenCL = 'OpenCL'
 
     @property
     def number_of_threads(self):
+        """int: The number of threads available to a calculation worker."""
         return self._number_of_threads
 
     @property
     def number_of_gpus(self):
+        """int: The number of GPUs available to a calculation worker."""
         return self._number_of_gpus
 
     @property
     def preferred_gpu_toolkit(self):
-        """GPUToolkit: The toolkit to use when running on gpus."""
+        """ComputeResources.GPUToolkit: The preferred toolkit to use when running on GPUs."""
         return self._preferred_gpu_toolkit
 
     @property
     def gpu_device_indices(self):
-        """str: The indices of the GPUs to run on."""
+        """str: The indices of the GPUs to run on. This is purely an internal
+        implementation detail and should not be relied upon externally."""
         return self._gpu_device_indices
 
     def __init__(self, number_of_threads=1, number_of_gpus=0, preferred_gpu_toolkit=None):
@@ -39,20 +49,20 @@ class ComputeResources:
         Parameters
         ----------
         number_of_threads: int
-            The number of the threads available.
+            The number of threads available to a calculation worker.
         number_of_gpus: int
-            The number of the gpu's available.
+            The number of GPUs available to a calculation worker.
         preferred_gpu_toolkit: ComputeResources.GPUToolkit, optional
-            The preferred toolkit to use when running on gpus.
+            The preferred toolkit to use when running on GPUs.
         """
 
         self._number_of_threads = number_of_threads
         self._number_of_gpus = number_of_gpus
 
         self._preferred_gpu_toolkit = preferred_gpu_toolkit
-        self._gpu_device_indices = None  # A workaround for when using a local cluster
-                                         # backend which is strictly for internal purposes
-                                         # only for now.
+        # A workaround for when using a local cluster backend which is
+        # strictly for internal purposes only for now.
+        self._gpu_device_indices = None
         
         assert self._number_of_threads >= 0
         assert self._number_of_gpus >= 0
@@ -61,9 +71,6 @@ class ComputeResources:
 
         if self._number_of_gpus > 0:
             assert self._preferred_gpu_toolkit is not None
-
-    def dict(self):
-        return self.__getstate__()
 
     def __getstate__(self):
         return {
@@ -146,9 +153,6 @@ class QueueWorkerResources(ComputeResources):
         wallclock_pattern = re.compile(r'\d\d:\d\d')
         assert wallclock_pattern.match(wallclock_time_limit) is not None
 
-    def dict(self):
-        return self.__getstate__()
-
     def __getstate__(self):
 
         base_dict = super(QueueWorkerResources, self).__getstate__()
@@ -176,10 +180,10 @@ class QueueWorkerResources(ComputeResources):
 
 
 class PropertyEstimatorBackend:
-    """An abstract base representation of a property estimator backend.
-
-    A backend will be responsible for coordinating and running calculations
-    on the available hardware.
+    """An abstract base representation of a property estimator backend. A backend is
+    responsible for coordinating, distributing and running calculations on the
+    available hardware. This may range from a single machine to a multinode cluster,
+    but *not* accross multiple cluster or physical locations.
 
     Notes
     -----

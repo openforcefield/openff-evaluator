@@ -12,8 +12,8 @@ from propertyestimator.utils.serialization import serialize_force_field, deseria
 
 
 class PropertyEstimatorStorage:
-    """An abstract base representation of how the property estimator will interact
-    with and store simulation data.
+    """An abstract base representation of how the property estimator will
+    interact with and store simulation data.
 
     Notes
     -----

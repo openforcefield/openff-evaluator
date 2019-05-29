@@ -357,7 +357,7 @@ class PropertyEstimatorClient:
     >>> from propertyestimator.workflow import WorkflowOptions
     >>>
     >>> workflow_options = WorkflowOptions(WorkflowOptions.ConvergenceMode.RelativeUncertainty,
->>>                                        relative_uncertainty_fraction=0.1)
+    >>>                                    relative_uncertainty_fraction=0.1)
     >>> options.workflow_options = {
     >>>     'Density': workflow_options,
     >>>     'Dielectric': workflow_options
@@ -374,6 +374,7 @@ class PropertyEstimatorClient:
     >>>     'Density': density_options,
     >>>     'Dielectric': dielectric_options
     >>> }
+
     """
 
     @property

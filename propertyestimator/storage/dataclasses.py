@@ -4,8 +4,8 @@ A collection of classes representing data stored by a storage backend.
 
 
 class StoredSimulationData:
-    """A class which describes a collection of data which has been cached
-    from a previous simulation.
+    """A base class which encodes a collection of data cached from
+    estimating a physical property using direct molecular simulation.
     """
 
     def __init__(self):

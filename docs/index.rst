@@ -20,33 +20,40 @@ Index
 
 * :doc:`install`
 * :doc:`gettingstarted`
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: User Guide
-
-   install
-   gettingstarted
-
-**Client Documentation**
-
-* :doc:`propertyestimator`
+* :doc:`overview`
 * :doc:`physicalproperties`
 * :doc:`propertydatasets`
 
 .. toctree::
   :maxdepth: 2
   :hidden:
-  :caption: Client Documentation
+  :caption: User Guide
 
-  propertyestimator
+  install
+  gettingstarted
+  overview
   physicalproperties
   propertydatasets
+
+
+**Server Documentation**
+
+* :doc:`calculationbackends`
+* :doc:`storagebackends`
+
+.. toctree::
+  :maxdepth: 2
+  :hidden:
+  :caption: Server Documentation
+
+  calculationbackends
+  storagebackends
 
 **Developer Documentation**
 
 * :doc:`api`
+* :doc:`builddocs`
+* :doc:`plugins`
 
 .. toctree::
   :maxdepth: 2
@@ -54,3 +61,5 @@ Index
   :caption: Developer Documentation
 
   api
+  builddocs
+  plugins
