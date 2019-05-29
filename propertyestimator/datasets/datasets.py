@@ -271,6 +271,51 @@ class PhysicalPropertyDataSet(object):
             logging.info(f'Removing substance with unwanted element - {substance_key}.')
             self._properties.pop(substance_key)
 
+    def filter_by_salts(self, include_salts):
+        """Filters properties based on whether they were estimated for
+         compounds which contain salts, depending on the `include_salts`
+         option.
+
+        Parameters
+        ----------
+        include_salts: bool
+            If `True`, only properties which were estimated for substances
+            containing salts will be retained, otherwise, they won't.
+        """
+        ignored_substance_keys = set()
+
+        for substance_key in self._properties:
+
+            if substance_key in ignored_substance_keys:
+                continue
+
+            if len(self._properties[substance_key]) == 0:
+                continue
+
+            contains_salt = False
+            substance = self._properties[substance_key][0].substance
+
+            for component in substance.components:
+
+                oe_molecule = create_molecule_from_smiles(component.smiles, 0)
+
+                for atom in oe_molecule.GetAtoms():
+
+                    atomic_charge = atom.GetFormalCharge()
+
+                    if atomic_charge != 0:
+                        contains_salt = True
+                        break
+
+            if ((contains_salt is True and include_salts is False) or
+                (contains_salt is False and include_salts is True)):
+
+                ignored_substance_keys.add(substance_key)
+
+        for substance_key in ignored_substance_keys:
+            logging.info(f'Removing substance {"without" if include_salts else "with"} salts - {substance_key}.')
+            self._properties.pop(substance_key)
+
     def __getstate__(self):
 
         return {
