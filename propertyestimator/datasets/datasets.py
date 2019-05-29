@@ -292,20 +292,7 @@ class PhysicalPropertyDataSet(object):
             if len(self._properties[substance_key]) == 0:
                 continue
 
-            contains_salt = False
-            substance = self._properties[substance_key][0].substance
-
-            for component in substance.components:
-
-                oe_molecule = create_molecule_from_smiles(component.smiles, 0)
-
-                for atom in oe_molecule.GetAtoms():
-
-                    atomic_charge = atom.GetFormalCharge()
-
-                    if atomic_charge != 0:
-                        contains_salt = True
-                        break
+            contains_salt = substance_key.find('-') >= 0 or substance_key.find('+') >= 0
 
             if ((contains_salt is True and include_salts is False) or
                 (contains_salt is False and include_salts is True)):
