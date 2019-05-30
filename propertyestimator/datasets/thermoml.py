@@ -1119,10 +1119,10 @@ class ThermoMLPureOrMixtureData:
 
             return None
 
-        solvent_mole_fractions = ThermoMLPureOrMixtureData.determine_solvent_mole_fractions(solvent_constraint_type,
-                                                                                            constraints,
-                                                                                            compounds,
-                                                                                            solvent_indices)
+        # solvent_mole_fractions = ThermoMLPureOrMixtureData.determine_solvent_mole_fractions(solvent_constraint_type,
+        #                                                                                     constraints,
+        #                                                                                     compounds,
+        #                                                                                     solvent_indices)
 
         if (component_constraint_type == ThermoMLConstraintType.ComponentMoleFraction and
             solvent_constraint_type == ThermoMLConstraintType.Undefined):
