@@ -1,7 +1,6 @@
 """
 An API for defining, storing, and loading collections of physical property data.
 """
-import logging
 
 from simtk.openmm.app import element
 
@@ -236,18 +235,9 @@ class PhysicalPropertyDataSet(object):
             retain.
         """
 
-        ignored_substance_keys = set()
+        def filter_function(physical_property):
 
-        for substance_key in self._properties:
-
-            if substance_key in ignored_substance_keys:
-                continue
-
-            if len(self._properties[substance_key]) == 0:
-                continue
-
-            allow_substance_key = True
-            substance = self._properties[substance_key][0].substance
+            substance = physical_property.substance
 
             for component in substance.components:
 
@@ -258,50 +248,14 @@ class PhysicalPropertyDataSet(object):
                     atomic_number = atom.GetAtomicNum()
                     atomic_element = element.Element.getByAtomicNumber(atomic_number).symbol
 
-                    if atomic_element not in allowed_elements:
+                    if atomic_element in allowed_elements:
+                        continue
 
-                        allow_substance_key = False
-                        break
+                    return False
 
-            if not allow_substance_key:
-                ignored_substance_keys.add(substance_key)
+            return True
 
-        for substance_key in ignored_substance_keys:
-
-            logging.info(f'Removing substance with unwanted element - {substance_key}.')
-            self._properties.pop(substance_key)
-
-    def filter_by_salts(self, include_salts):
-        """Filters properties based on whether they were estimated for
-         compounds which contain salts, depending on the `include_salts`
-         option.
-
-        Parameters
-        ----------
-        include_salts: bool
-            If `True`, only properties which were estimated for substances
-            containing salts will be retained, otherwise, they won't.
-        """
-        ignored_substance_keys = set()
-
-        for substance_key in self._properties:
-
-            if substance_key in ignored_substance_keys:
-                continue
-
-            if len(self._properties[substance_key]) == 0:
-                continue
-
-            contains_salt = substance_key.find('-') >= 0 or substance_key.find('+') >= 0
-
-            if ((contains_salt is True and include_salts is False) or
-                (contains_salt is False and include_salts is True)):
-
-                ignored_substance_keys.add(substance_key)
-
-        for substance_key in ignored_substance_keys:
-            logging.info(f'Removing substance {"without" if include_salts else "with"} salts - {substance_key}.')
-            self._properties.pop(substance_key)
+        self.filter_by_function(filter_function)
 
     def __getstate__(self):
 
