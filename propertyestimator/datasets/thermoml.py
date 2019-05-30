@@ -1030,26 +1030,26 @@ class ThermoMLPureOrMixtureData:
         solvent_constraint_type = ThermoMLConstraintType.Undefined
         component_constraint_type = ThermoMLConstraintType.Undefined
 
-        solvent_indices = set()
-
-        for solvent_index in thermoml_property.solvents:
-
-            if solvent_index in solvent_indices:
-                continue
-
-            solvent_indices.add(solvent_index)
+        # solvent_indices = set()
+        #
+        # for solvent_index in thermoml_property.solvents:
+        #
+        #     if solvent_index in solvent_indices:
+        #         continue
+        #
+        #     solvent_indices.add(solvent_index)
 
         # Determine which types of solvent and component constraints are
         # being applied.
         for constraint in constraints:
 
             # Make sure we hunt down solvent indices.
-            for solvent_index in constraint.solvents:
-
-                if solvent_index in solvent_indices:
-                    continue
-
-                solvent_indices.add(solvent_index)
+            # for solvent_index in constraint.solvents:
+            #
+            #     if solvent_index in solvent_indices:
+            #         continue
+            #
+            #     solvent_indices.add(solvent_index)
 
             # Only composition type restraints apply here, skip
             # the rest.
@@ -1082,17 +1082,17 @@ class ThermoMLPureOrMixtureData:
 
                     return None
 
-        for solvent_index in solvent_indices:
+        # for solvent_index in solvent_indices:
+        #
+        #     if solvent_index in compounds:
+        #         continue
+        #
+        #     logging.warning(f'The composition of a non-existent solvent was '
+        #                     f'found. This usually only occurs in cases were '
+        #                     f'the solvent component could not be understood '
+        #                     f'by the framework.')
 
-            if solvent_index in compounds:
-                continue
-
-            logging.warning(f'The composition of a non-existent solvent was '
-                            f'found. This usually only occurs in cases were '
-                            f'the solvent component could not be understood '
-                            f'by the framework.')
-
-            return None
+            # return None
 
         # If no constraint was applied, this likely means a pure substance
         # was found.
@@ -1110,14 +1110,14 @@ class ThermoMLPureOrMixtureData:
             return None
 
         # Make sure all of the solvents have not been removed.
-        if solvent_constraint_type != ThermoMLConstraintType.Undefined and len(solvent_indices) == 0:
-
-            logging.warning(f'The composition of a solvent was found, however the '
-                            f'solvent list is empty. This usually only occurs in '
-                            f'cases were the solvent component could not be understood '
-                            f'by the framework.')
-
-            return None
+        # if solvent_constraint_type != ThermoMLConstraintType.Undefined and len(solvent_indices) == 0:
+        #
+        #     logging.warning(f'The composition of a solvent was found, however the '
+        #                     f'solvent list is empty. This usually only occurs in '
+        #                     f'cases were the solvent component could not be understood '
+        #                     f'by the framework.')
+        #
+        #     return None
 
         # solvent_mole_fractions = ThermoMLPureOrMixtureData.determine_solvent_mole_fractions(solvent_constraint_type,
         #                                                                                     constraints,
