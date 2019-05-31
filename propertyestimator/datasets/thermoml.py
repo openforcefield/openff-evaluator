@@ -992,15 +992,13 @@ class ThermoMLPureOrMixtureData:
             mole_fractions[constraint.compound_index] = mole_fraction
             total_mol_fraction += mole_fractions[constraint.compound_index]
 
-        if number_of_constraints > len(compounds):
+        if ((number_of_constraints != len(compounds) and solvent_mole_fractions is not None) or
+            (number_of_constraints != len(compounds) - 1 and number_of_constraints != len(compounds) and
+             solvent_mole_fractions is None)):
 
-            raise ValueError(f'There are more mole fraction constraints ({number_of_constraints}) '
-                             f'than components ({len(compounds)}).')
-
-        elif number_of_constraints < len(compounds) - 1:
-
-            raise ValueError(f'There are too many unknown mole fractions '
-                             f'({number_of_constraints} and {len(compounds)}) components.')
+            raise ValueError(f'The number of mole fraction constraints ({number_of_constraints}) must be one '
+                             f'less than or equal to the number of compounds being constrained ({len(compounds)}) '
+                             f'if a solvent list is not present, otherwise there must be an equal number.')
 
         # Handle the case were a single mole fraction constraint is missing.
         if number_of_constraints == len(compounds) - 1:
@@ -1012,23 +1010,16 @@ class ThermoMLPureOrMixtureData:
 
                 mole_fractions[compound_index] = 1.0 - total_mol_fraction
 
+        # Recompute the total mole fraction to be safe.
+        total_mol_fraction = 0.0
+
+        for compound_index in mole_fractions:
+            total_mol_fraction += mole_fractions[compound_index]
+
         # Account for any solvent present.
-        if solvent_mole_fractions is not None and np.isclose(total_mol_fraction, 1.0):
+        if solvent_mole_fractions is not None:
 
-            logging.info('Mole fraction 50/50 split')
-
-            # Assume a 50/50 split.
-            for compound_index in mole_fractions:
-                mole_fractions[compound_index] /= 2.0
-
-            for solvent_index in solvent_mole_fractions:
-                mole_fractions[solvent_index] = solvent_mole_fractions[solvent_index] / 2.0
-
-        elif solvent_mole_fractions is not None and not np.isclose(total_mol_fraction, 1.0):
-
-            logging.info('Mole fraction x/y split')
-
-            # Assume the remained of the mole fraction is the solvent.
+            # Assume the remainder of the mole fraction is the solvent.
             remaining_mole_fraction = 1.0 - total_mol_fraction
 
             for solvent_index in solvent_mole_fractions:
