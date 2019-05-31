@@ -1297,6 +1297,10 @@ class ThermoMLPureOrMixtureData:
 
             return None
 
+        # TODO: Temporary While looking for test cases.
+        logging.info(f'Component Constraint {component_constraint_type} '
+                     f'Solvent Constraint {solvent_constraint_type}')
+
         solvent_mole_fractions = {}
 
         solvent_constraints = [constraint for constraint in constraints if
