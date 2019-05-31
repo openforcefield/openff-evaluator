@@ -5,6 +5,7 @@ An API for importing a ThermoML archive.
 import logging
 import pickle
 import re
+import traceback
 from enum import unique, Enum
 from urllib.error import HTTPError
 from urllib.request import urlopen
@@ -41,8 +42,14 @@ def unit_from_thermoml_string(full_string):
 
     if unit_string == 'K':
         return unit.kelvin
+    elif unit_string == '1/K':
+        return (1.0 / unit.kelvin).unit
     elif unit_string == 'kPa':
-        return unit.kilo * unit.pascal
+        return unit.kilopascal
+    elif unit_string == 'kPa*dm3/mol':
+        return unit.kilopascal * unit.decimeter**3 / unit.mole
+    elif unit_string == 'kPa*kg/mol':
+        return unit.kilopascal * unit.kilogram / unit.mole
     elif unit_string == 'kg/m3':
         return unit.kilogram / unit.meter**3
     elif unit_string == 'mol/kg':
@@ -888,7 +895,13 @@ class ThermoMLPureOrMixtureData:
         """
 
         from openforcefield.topology import Molecule
-        molecule = Molecule.from_smiles(smiles)
+
+        try:
+            molecule = Molecule.from_smiles(smiles)
+        except Exception as e:
+
+            formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+            raise ValueError(f'The toolkit raised an exception for the {smiles} smiles pattern: {formatted_exception}')
 
         molecular_weight = 0.0 * unit.dalton
 
