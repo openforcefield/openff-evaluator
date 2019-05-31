@@ -1262,7 +1262,9 @@ class ThermoMLPureOrMixtureData:
                 if solvent_constraint_type != constraint.type:
 
                     logging.warning(f'A property with different types of solvent composition constraints '
-                                    f'was found - {solvent_constraint_type} vs {constraint.type}).')
+                                    f'was found - {solvent_constraint_type} vs {constraint.type}). This '
+                                    f'is likely a bug in the ThermoML file and so this property will be '
+                                    f'skipped.')
 
                     return None
 
@@ -1274,7 +1276,9 @@ class ThermoMLPureOrMixtureData:
                 if component_constraint_type != constraint.type:
 
                     logging.warning(f'A property with different types of composition constraints '
-                                    f'was found - {component_constraint_type} vs {constraint.type}).')
+                                    f'was found - {component_constraint_type} vs {constraint.type}). This '
+                                    f'is likely a bug in the ThermoML file and so this property will be '
+                                    f'skipped.')
 
                     return None
 
@@ -1550,14 +1554,9 @@ class ThermoMLPureOrMixtureData:
                                                                   compounds)
 
                 if mixture is None:
-
-                    logging.warning('Could not build a mixture for a property (' +
-                                    str(property_definition.type) + ').')
-
                     continue
 
                 measured_property.substance = mixture
-
                 measured_properties.append(measured_property)
 
         # By this point we now have the measured properties and the thermodynamic state
