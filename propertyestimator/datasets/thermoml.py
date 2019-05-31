@@ -916,6 +916,46 @@ class ThermoMLPureOrMixtureData:
         return molecular_weight
 
     @staticmethod
+    def _solvent_mole_fractions_to_moles(solvent_mass, solvent_mole_fractions, solvent_compounds):
+        """Converts a set of solvent mole fractions to moles for a
+        given mass of solvent.
+
+        Parameters
+        ----------
+        solvent_mass: simtk.unit.Quantity
+            The total mass of the solvent in units compatible with kg.
+        solvent_mole_fractions: dict of int and float
+            The mole fractions of any solvent compounds in the system.
+        solvent_compounds: dict of int and float
+            A dictionary of any solvent compounds in the system.
+
+        Returns
+        -------
+        dict of int and unit.Quantity
+            A dictionary of the moles of each solvent compound.
+        """
+        weighted_molecular_weights = 0.0 * unit.dalton
+        number_of_moles = {}
+
+        for solvent_index in solvent_compounds:
+
+            solvent_smiles = solvent_compounds[solvent_index].smiles
+
+            solvent_fraction = solvent_mole_fractions[solvent_index]
+            solvent_weight = ThermoMLPureOrMixtureData._smiles_to_molecular_weight(solvent_smiles)
+
+            weighted_molecular_weights += solvent_weight * solvent_fraction
+
+        total_solvent_moles = solvent_mass / weighted_molecular_weights
+
+        for solvent_index in solvent_compounds:
+
+            moles = solvent_mole_fractions[solvent_index] * total_solvent_moles
+            number_of_moles[solvent_index] = moles
+
+        return number_of_moles
+
+    @staticmethod
     def _convert_mole_fractions(constraints, compounds, solvent_mole_fractions=None):
         """Converts a set of `ThermoMLConstraint` to mole fractions.
 
@@ -997,7 +1037,7 @@ class ThermoMLPureOrMixtureData:
         return mole_fractions
 
     @staticmethod
-    def _convert_mass_fractions(constraints, compounds):
+    def _convert_mass_fractions(constraints, compounds, solvent_mole_fractions=None, solvent_compounds=None):
         """Converts a set of `ThermoMLConstraint` to mole fractions.
 
         Parameters
@@ -1006,6 +1046,13 @@ class ThermoMLPureOrMixtureData:
             The constraints to convert.
         compounds: dict of int and ThermoMLCompound
             The compounds in the system.
+        solvent_mole_fractions: dict of int and float
+            The mole fractions of any solvent compounds in the system,
+            where the total mole fraction of all solvents must be equal
+            to one.
+        solvent_compounds: dict of int and float
+            A dictionary of any explicitly defined solvent compounds in the
+            system.
 
         Returns
         -------
@@ -1029,15 +1076,13 @@ class ThermoMLPureOrMixtureData:
             mass_fractions[constraint.compound_index] = mass_fraction
             total_mass_fraction += mass_fraction
 
-        if number_of_constraints > len(compounds):
+        if ((number_of_constraints != len(compounds) and solvent_mole_fractions is not None) or
+            (number_of_constraints != len(compounds) - 1 and number_of_constraints != len(compounds) and
+             solvent_mole_fractions is None)):
 
-            raise ValueError(f'There are more mass fraction constraints ({number_of_constraints}) '
-                             f'than components ({len(compounds)}).')
-
-        elif number_of_constraints < len(compounds) - 1:
-
-            raise ValueError(f'There are too many unknown mass fractions '
-                             f'({number_of_constraints} and {len(compounds)} components).')
+            raise ValueError(f'The number of mass fraction constraints ({number_of_constraints}) must be one '
+                             f'less than or equal to the number of compounds being constrained ({len(compounds)}) '
+                             f'if a solvent list is not present, otherwise there must be an equal number.')
 
         # Handle the case were a single mass fraction constraint is missing.
         if number_of_constraints == len(compounds) - 1:
@@ -1049,7 +1094,8 @@ class ThermoMLPureOrMixtureData:
 
                 mass_fractions[compound_index] = 1.0 - total_mass_fraction
 
-        base_mass = 1 * unit.gram
+        total_mass = 1 * unit.gram
+        total_solvent_mass = total_mass
 
         moles = {}
         total_moles = 0.0 * unit.mole
@@ -1059,8 +1105,21 @@ class ThermoMLPureOrMixtureData:
             compound_smiles = compounds[compound_index].smiles
             compound_weight = ThermoMLPureOrMixtureData._smiles_to_molecular_weight(compound_smiles)
 
-            moles[compound_index] = base_mass * mass_fractions[compound_index] / compound_weight
+            moles[compound_index] = total_mass * mass_fractions[compound_index] / compound_weight
             total_moles += moles[compound_index]
+
+            total_solvent_mass -= total_mass * mass_fractions[compound_index]
+
+        if number_of_constraints == len(compounds) and solvent_mole_fractions is not None:
+
+            solvent_moles = ThermoMLPureOrMixtureData._solvent_mole_fractions_to_moles(total_solvent_mass,
+                                                                                       solvent_mole_fractions,
+                                                                                       solvent_compounds)
+
+            for solvent_index in solvent_moles:
+
+                moles[solvent_index] = solvent_moles[solvent_index]
+                total_moles += solvent_moles[solvent_index]
 
         mole_fractions = {}
 
@@ -1115,7 +1174,8 @@ class ThermoMLPureOrMixtureData:
             (number_of_constraints != len(compounds) and solvent_mole_fractions is not None)):
 
             raise ValueError(f'The number of molality constraints ({number_of_constraints}) must be one '
-                             f'less than the number of compounds being constrained ({len(compounds)}).')
+                             f'less than the number of compounds being constrained ({len(compounds)}) if a '
+                             f'solvent list is not present, otherwise there must be an equal number.')
 
         if number_of_constraints == len(compounds) - 1 and solvent_mole_fractions is None:
 
@@ -1136,27 +1196,14 @@ class ThermoMLPureOrMixtureData:
 
         elif number_of_constraints == len(compounds) and solvent_mole_fractions is not None:
 
-            weighted_molecular_weights = 0.0 * unit.dalton
+            solvent_moles = ThermoMLPureOrMixtureData._solvent_mole_fractions_to_moles(total_solvent_mass,
+                                                                                       solvent_mole_fractions,
+                                                                                       solvent_compounds)
 
-            for solvent_index in solvent_compounds:
+            for solvent_index in solvent_moles:
 
-                solvent_smiles = solvent_compounds[solvent_index].smiles
-
-                solvent_fraction = solvent_mole_fractions[solvent_index]
-                solvent_weight = ThermoMLPureOrMixtureData._smiles_to_molecular_weight(solvent_smiles)
-
-                weighted_molecular_weights += solvent_weight * solvent_fraction
-
-            total_solvent_moles = total_solvent_mass / weighted_molecular_weights
-
-            for solvent_index in solvent_compounds:
-
-                solvent_fraction = solvent_mole_fractions[solvent_index]
-
-                moles = solvent_fraction * total_solvent_moles
-
-                number_of_moles[solvent_index] = moles
-                total_number_of_moles += moles
+                number_of_moles[solvent_index] = solvent_moles[solvent_index]
+                total_number_of_moles += solvent_moles[solvent_index]
 
         for compound_index in number_of_moles:
 
@@ -1332,15 +1379,10 @@ class ThermoMLPureOrMixtureData:
 
         elif component_constraint_type == ThermoMLConstraintType.ComponentMassFraction:
 
-            if solvent_mole_fractions is not None or solvent_compounds is not None:
-
-                raise NotImplementedError('It was assumed that mass fraction constraints would '
-                                          'not be used alongside solvent constraints and so '
-                                          'was not implemented. Please report this as an issue '
-                                          'on the GitHub issue tracker.')
-
             mole_fractions = ThermoMLPureOrMixtureData._convert_mass_fractions(remaining_constraints,
-                                                                               remaining_compounds)
+                                                                               remaining_compounds,
+                                                                               solvent_mole_fractions,
+                                                                               solvent_compounds)
 
         elif component_constraint_type == ThermoMLConstraintType.ComponentMolality:
 
