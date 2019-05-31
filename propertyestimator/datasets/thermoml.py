@@ -152,7 +152,7 @@ class ThermoMLConstraintType(Enum):
             constraint_type = ThermoMLConstraintType.Undefined
 
         if constraint_type == ThermoMLConstraintType.Undefined:
-            logging.warning(node.tag + '->' + node.text + ' is an unsupported constraint type.')
+            logging.debug(f'{node.tag}->{node.text} is an unsupported constraint type.')
 
         return constraint_type
 
@@ -573,8 +573,8 @@ class ThermoMLProperty:
 
             # TODO: For now we just hope that the property defines the phase.
             #       This needs to be better supported however.
-            logging.warning(f'A property was measured in an unsupported phase '
-                            f'({phase_node.text}) and will be skipped.')
+            logging.debug(f'A property was measured in an unsupported phase '
+                          f'({phase_node.text}) and will be skipped.')
 
             return None
 
@@ -595,8 +595,8 @@ class ThermoMLProperty:
 
         if property_name_node.text not in registered_thermoml_properties:
 
-            logging.warning('An unsupported property was found ({}) and '
-                            'will be skipped.'.format(property_name_node.text))
+            logging.debug(f'An unsupported property was found '
+                          f'({property_name_node.text}) and will be skipped.')
 
             return None
 
@@ -604,9 +604,9 @@ class ThermoMLProperty:
 
         if (registered_plugin.supported_phases & phase) != phase:
 
-            logging.warning(f'The {property_name_node.text} property is currently only supported '
-                            f'when measured in the {str(registered_plugin.supported_phases)} phase, '
-                            f'and not the {str(phase)} phase.')
+            logging.debug(f'The {property_name_node.text} property is currently only supported '
+                          f'when measured in the {str(registered_plugin.supported_phases)} phase, '
+                          f'and not the {str(phase)} phase.')
 
             return None
 
@@ -691,8 +691,8 @@ class ThermoMLPureOrMixtureData:
 
             if compound_index not in compounds:
 
-                logging.warning('A PureOrMixtureData entry depends on an '
-                                'unsupported compound and has been ignored')
+                logging.debug('A PureOrMixtureData entry depends on an '
+                              'unsupported compound and has been ignored')
 
                 return None
 
@@ -769,19 +769,19 @@ class ThermoMLPureOrMixtureData:
             constraint = ThermoMLConstraint.from_node(constraint_node, namespace)
 
             if constraint is None or constraint.type is ThermoMLConstraintType.Undefined:
-                logging.warning('An unsupported constraint has been ignored.')
+                logging.debug('An unsupported constraint has been ignored.')
                 return None
 
             if constraint.compound_index is not None and \
                constraint.compound_index not in compounds:
 
-                logging.warning('A constraint exists upon a non-existent compound and will be ignored.')
+                logging.debug('A constraint exists upon a non-existent compound and will be ignored.')
                 return None
 
             if constraint.type.is_composition_constraint() and constraint.compound_index is None:
 
-                logging.warning('An unsupported constraint has been ignored - composition constraints'
-                                'need to have a corresponding compound_index.')
+                logging.debug('An unsupported constraint has been ignored - composition constraints'
+                              'need to have a corresponding compound_index.')
                 return None
 
             constraints.append(constraint)
@@ -815,19 +815,19 @@ class ThermoMLPureOrMixtureData:
 
             if variable is None or variable.type is ThermoMLConstraintType.Undefined:
 
-                logging.warning('An unsupported variable has been ignored.')
+                logging.debug('An unsupported variable has been ignored.')
                 continue
 
             if variable.compound_index is not None and \
                variable.compound_index not in compounds:
 
-                logging.warning('A constraint exists upon a non-existent compound and will be ignored.')
+                logging.debug('A constraint exists upon a non-existent compound and will be ignored.')
                 continue
 
             if variable.type.is_composition_constraint() and variable.compound_index is None:
 
-                logging.warning('An unsupported variable has been ignored - composition variables'
-                                'need to have a corresponding compound_index.')
+                logging.debug('An unsupported variable has been ignored - composition variables'
+                              'need to have a corresponding compound_index.')
 
                 continue
 
@@ -1261,10 +1261,10 @@ class ThermoMLPureOrMixtureData:
 
                 if solvent_constraint_type != constraint.type:
 
-                    logging.warning(f'A property with different types of solvent composition constraints '
-                                    f'was found - {solvent_constraint_type} vs {constraint.type}). This '
-                                    f'is likely a bug in the ThermoML file and so this property will be '
-                                    f'skipped.')
+                    logging.debug(f'A property with different types of solvent composition constraints '
+                                  f'was found - {solvent_constraint_type} vs {constraint.type}). This '
+                                  f'is likely a bug in the ThermoML file and so this property will be '
+                                  f'skipped.')
 
                     return None
 
@@ -1275,10 +1275,10 @@ class ThermoMLPureOrMixtureData:
 
                 if component_constraint_type != constraint.type:
 
-                    logging.warning(f'A property with different types of composition constraints '
-                                    f'was found - {component_constraint_type} vs {constraint.type}). This '
-                                    f'is likely a bug in the ThermoML file and so this property will be '
-                                    f'skipped.')
+                    logging.debug(f'A property with different types of composition constraints '
+                                  f'was found - {component_constraint_type} vs {constraint.type}). This '
+                                  f'is likely a bug in the ThermoML file and so this property will be '
+                                  f'skipped.')
 
                     return None
 
@@ -1292,8 +1292,8 @@ class ThermoMLPureOrMixtureData:
         elif (component_constraint_type == ThermoMLConstraintType.Undefined and
               solvent_constraint_type != ThermoMLConstraintType.Undefined):
 
-            logging.warning(f'A property with only solvent composition '
-                            f'constraints {solvent_constraint_type} was found.')
+            logging.debug(f'A property with only solvent composition '
+                          f'constraints {solvent_constraint_type} was found.')
 
             return None
 
@@ -1311,20 +1311,20 @@ class ThermoMLPureOrMixtureData:
                 solvent_compounds[solvent_index] = compounds[solvent_index]
                 continue
 
-            logging.warning(f'The composition of a non-existent solvent was '
-                            f'found. This usually only occurs in cases were '
-                            f'the solvent component could not be understood '
-                            f'by the framework.')
+            logging.debug('The composition of a non-existent solvent was '
+                          'found. This usually only occurs in cases were '
+                          'the solvent component could not be understood '
+                          'by the framework.')
 
             return None
 
         # Make sure all of the solvents have not been removed.
         if solvent_constraint_type != ThermoMLConstraintType.Undefined and len(solvent_indices) == 0:
 
-            logging.warning(f'The composition of a solvent was found, however the '
-                            f'solvent list is empty. This usually only occurs in '
-                            f'cases were the solvent component could not be understood '
-                            f'by the framework.')
+            logging.debug('The composition of a solvent was found, however the '
+                          'solvent list is empty. This usually only occurs in '
+                          'cases were the solvent component could not be understood '
+                          'by the framework.')
 
             return None
 
@@ -1504,8 +1504,8 @@ class ThermoMLPureOrMixtureData:
             # Extract the thermodynamic state that the property was measured at.
             if temperature_constraint is None:
 
-                logging.warning('A property did not the temperature or the pressure it was measured '
-                                'at and will be ignored.')
+                logging.debug('A property did not report the temperature or the pressure it '
+                              'was measured at and will be ignored.')
                 continue
 
             temperature = temperature_constraint.value
@@ -1534,8 +1534,8 @@ class ThermoMLPureOrMixtureData:
 
                 if uncertainty is None:
 
-                    logging.warning('A property (' + str(property_definition.type) +
-                                    ') without uncertainties was ignored')
+                    logging.debug('A property ({str(property_definition.type)}) '
+                                  'without uncertainties was ignored')
 
                     continue
 
@@ -1593,7 +1593,7 @@ class ThermoMLPureOrMixtureData:
 
         if len(compound_indices) == 0:
 
-            logging.warning('A PureOrMixtureData entry with no compounds was ignored.')
+            logging.debug('A PureOrMixtureData entry with no compounds was ignored.')
             return None
 
         phase_nodes = node.findall('./ThermoML:PhaseID/ThermoML:ePhase', namespace)
@@ -1607,8 +1607,8 @@ class ThermoMLPureOrMixtureData:
             if phase == PropertyPhase.Undefined:
                 # TODO: For now we just hope that the property defines the phase.
                 #       This needs to be better supported however.
-                logging.warning('A property was measured in an unsupported phase (' +
-                                phase_node.text + ') and will be skipped.')
+                logging.debug(f'A property was measured in an unsupported phase '
+                              f'({phase_node.text}) and will be skipped.')
 
                 return None
 
@@ -1637,7 +1637,7 @@ class ThermoMLPureOrMixtureData:
 
         if len(global_constraints) == 0 and len(variable_definitions) == 0:
 
-            logging.warning('A PureOrMixtureData entry with no constraints was ignored.')
+            logging.debug('A PureOrMixtureData entry with no constraints was ignored.')
             return None
 
         used_compounds = {}
@@ -1771,7 +1771,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
                 return_value = cls.from_xml(response.read(), source)
 
         except HTTPError:
-            logging.warning('WARNING: No ThermoML file could not be found at ' + url)
+            logging.warning('No ThermoML file could not be found at ' + url)
 
         return return_value
 
@@ -1796,7 +1796,6 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
             data_set = cls._from_file(file)
 
-            logging.info('Reading file ' + str(counter + 1) + ' of ' + str(len(file_list)) + ' (' + file + ')')
             counter += 1
 
             if data_set is None or len(data_set.properties) == 0:
@@ -1832,7 +1831,6 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
                 return_value = ThermoMLDataSet.from_xml(file.read(), source)
 
         except FileNotFoundError:
-
             logging.warning('No ThermoML file could not be found at ' + path)
 
         return return_value
