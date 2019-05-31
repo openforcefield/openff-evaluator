@@ -535,7 +535,7 @@ class ThermoMLProperty:
             property_uncertainty_definitions[uncertainty_definition.index] = uncertainty_definition
 
     @classmethod
-    def from_xml_node(cls, node, namespace):
+    def from_xml_node(cls, node, namespace, parent_phases):
         """Creates a ThermoMLProperty from an xml node.
 
         Parameters
@@ -544,6 +544,8 @@ class ThermoMLProperty:
             The xml node to convert.
         namespace : dict of str and str
             The xml namespace.
+        parent_phases: PropertyPhase
+            The phases specfied in the parent PureOrMixtureData node.
 
         Returns
         ----------
@@ -557,10 +559,10 @@ class ThermoMLProperty:
         property_index = int(index_node.text)
 
         phase_node = node.find('./ThermoML:PropPhaseID//ThermoML:ePropPhase', namespace)
-        phase = PropertyPhase.Undefined
+        phase = PropertyPhase.Undefined | parent_phases
 
         if phase_node is not None:
-            phase = phase_from_thermoml_string(phase_node.text)
+            phase |= phase_from_thermoml_string(phase_node.text)
 
         reference_phase_node = node.find('./ThermoML:RefPhaseID//ThermoML:eRefPhase', namespace)
 
@@ -602,8 +604,9 @@ class ThermoMLProperty:
 
         if (registered_plugin.supported_phases & phase) != phase:
 
-            logging.warning(f'The {property_name_node.text} property is currently only supported'
-                            f'when measured for {phase} phase properties.')
+            logging.warning(f'The {property_name_node.text} property is currently only supported '
+                            f'when measured in the {str(registered_plugin.supported_phases)} phase, '
+                            f'and not the {str(phase)} phase.')
 
             return None
 
@@ -702,7 +705,7 @@ class ThermoMLPureOrMixtureData:
         return compound_indices
 
     @staticmethod
-    def extract_property_definitions(node, namespace):
+    def extract_property_definitions(node, namespace, parent_phases):
         """Extract a list of ThermoMLProperty from a PureOrMixtureData node.
 
         Parameters
@@ -711,6 +714,8 @@ class ThermoMLPureOrMixtureData:
             The xml node to read.
         namespace : dict of str and str
             The xml namespace.
+        parent_phases: PropertyPhase
+            The phases specified by the parent PureOrMixtureData node.
 
         Returns
         ----------
@@ -723,7 +728,7 @@ class ThermoMLPureOrMixtureData:
 
         for property_node in property_nodes:
 
-            property_definition = ThermoMLProperty.from_xml_node(property_node, namespace)
+            property_definition = ThermoMLProperty.from_xml_node(property_node, namespace, parent_phases)
 
             if property_definition is None:
                 continue
@@ -1012,8 +1017,6 @@ class ThermoMLPureOrMixtureData:
         number_of_constraints = len(constraints)
 
         mass_fractions = {}
-        mole_fractions = {}
-
         total_mass_fraction = 0.0
 
         for constraint in constraints:
@@ -1041,19 +1044,29 @@ class ThermoMLPureOrMixtureData:
 
             for compound_index in compounds:
 
-                if compound_index not in mass_fractions:
+                if compound_index in mass_fractions:
                     continue
 
                 mass_fractions[compound_index] = 1.0 - total_mass_fraction
 
         base_mass = 1 * unit.gram
 
+        moles = {}
+        total_moles = 0.0 * unit.mole
+
         for compound_index in compounds:
 
             compound_smiles = compounds[compound_index].smiles
             compound_weight = ThermoMLPureOrMixtureData._smiles_to_molecular_weight(compound_smiles)
 
-            mole_fraction = base_mass * mass_fractions[compound_index] / compound_weight
+            moles[compound_index] = base_mass * mass_fractions[compound_index] / compound_weight
+            total_moles += moles[compound_index]
+
+        mole_fractions = {}
+
+        for compound_index in moles:
+
+            mole_fraction = moles[compound_index] / total_moles
             mole_fractions[compound_index] = mole_fraction
 
         return mole_fractions
@@ -1341,6 +1354,12 @@ class ThermoMLPureOrMixtureData:
             raise ValueError(f'The number of mole fractions ({len(mole_fractions)}) does not '
                              f'equal the total number of compounds ({len(compounds)})')
 
+        # Make sure we haven't picked up a dimensionless unit be accident.
+        for compound_index in mole_fractions:
+
+            if isinstance(mole_fractions[compound_index], unit.Quantity):
+                mole_fractions[compound_index] = mole_fractions[compound_index].value_in_unit(unit.dimensionless)
+
         total_mol_fraction = sum([value for value in mole_fractions.values()])
 
         if not np.isclose(total_mol_fraction, 1.0):
@@ -1545,16 +1564,6 @@ class ThermoMLPureOrMixtureData:
             logging.warning('A PureOrMixtureData entry with no compounds was ignored.')
             return None
 
-        # Extract property definitions - values come later!
-        property_definitions = ThermoMLPureOrMixtureData.extract_property_definitions(node, namespace)
-
-        if len(property_definitions) == 0:
-
-            logging.warning('A PureOrMixtureData entry with no properties was ignored. ' +
-                            'Most likely this entry only contained unsupported properties.')
-
-            return None
-
         phase_nodes = node.findall('./ThermoML:PhaseID/ThermoML:ePhase', namespace)
 
         all_phases = None
@@ -1572,6 +1581,12 @@ class ThermoMLPureOrMixtureData:
                 return None
 
             all_phases = phase if all_phases is None else all_phases | phase
+
+        # Extract property definitions - values come later!
+        property_definitions = ThermoMLPureOrMixtureData.extract_property_definitions(node, namespace, all_phases)
+
+        if len(property_definitions) == 0:
+            return None
 
         for property_index in property_definitions:
 
