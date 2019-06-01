@@ -5,11 +5,28 @@ Units tests for propertyestimator.datasets
 import pytest
 from simtk import unit
 
+from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.datasets.thermoml import unit_from_thermoml_string
 from propertyestimator.utils import get_data_filename
 
-from propertyestimator.properties import PhysicalProperty
+from propertyestimator.properties import PhysicalProperty, PropertyPhase
 from propertyestimator.datasets import ThermoMLDataSet
+
+
+@register_thermoml_property('Osmotic coefficient', supported_phases=PropertyPhase.Liquid)
+class OsmoticCoefficient(PhysicalProperty):
+    pass
+
+
+@register_thermoml_property("Vapor or sublimation pressure, kPa",
+                            supported_phases=PropertyPhase.Liquid | PropertyPhase.Gas)
+class VaporPressure(PhysicalProperty):
+    pass
+
+
+@register_thermoml_property('Activity coefficient', supported_phases=PropertyPhase.Liquid)
+class ActivityCoefficient(PhysicalProperty):
+    pass
 
 
 supported_units = ['K', 'kPa', 'kg/m3', 'mol/kg', 'mol/dm3', 'kJ/mol', 'm3/kg', 'mol/m3',
@@ -94,3 +111,86 @@ def test_unit_from_string(unit_string):
 
     returned_unit = unit_from_thermoml_string(dummy_string)
     assert returned_unit is not None and isinstance(returned_unit, unit.Unit)
+
+
+def test_mass_constraints():
+    """A collection of tests to ensure that the Mass fraction constraint is
+    implemented correctly alongside solvent constraints."""
+
+    # Mass fraction
+    data_set = ThermoMLDataSet.from_file(get_data_filename('test/properties/mass.xml'))
+
+    assert data_set is not None
+    assert len(data_set.properties) > 0
+
+    # Mass fraction + Solvent: Mass fraction
+    data_set = ThermoMLDataSet.from_file(get_data_filename('test/properties/mass_mass.xml'))
+
+    assert data_set is not None
+    assert len(data_set.properties) > 0
+
+    # Mass fraction + Solvent: Mole fraction
+    data_set = ThermoMLDataSet.from_file(get_data_filename('test/properties/mass_mole.xml'))
+
+    assert data_set is not None
+    assert len(data_set.properties) > 0
+
+
+def test_molality_constraints():
+    """A collection of tests to ensure that the Molality constraint is
+    implemented correctly alongside solvent constraints."""
+
+    # Molality
+    data_set = ThermoMLDataSet.from_file(get_data_filename('test/properties/molality.xml'))
+
+    assert data_set is not None
+    assert len(data_set.properties) > 0
+
+    # Molality + Solvent: Mass fraction
+    data_set = ThermoMLDataSet.from_file(get_data_filename('test/properties/molality_mass.xml'))
+
+    assert data_set is not None
+    assert len(data_set.properties) > 0
+
+    # Molality + Solvent: Mole fraction
+    data_set = ThermoMLDataSet.from_file(get_data_filename('test/properties/molality_mole.xml'))
+
+    assert data_set is not None
+    assert len(data_set.properties) > 0
+
+    # Molality + Solvent: Molality
+    data_set = ThermoMLDataSet.from_file(get_data_filename('test/properties/molality_molality.xml'))
+
+    assert data_set is not None
+    assert len(data_set.properties) > 0
+
+
+def test_mole_constraints():
+    """A collection of tests to ensure that the Mole fraction constraint is
+    implemented correctly alongside solvent constraints."""
+
+    # Mole fraction
+    data_set = ThermoMLDataSet.from_file(get_data_filename('test/properties/mole.xml'))
+
+    assert data_set is not None
+    assert len(data_set.properties) > 0
+
+    # Mole fraction + Solvent: Mass fraction
+    data_set = ThermoMLDataSet.from_file(get_data_filename('test/properties/mole_mass.xml'))
+
+    assert data_set is not None
+    assert len(data_set.properties) > 0
+
+    # Mole fraction + Solvent: Mole fraction
+    data_set = ThermoMLDataSet.from_file(get_data_filename('test/properties/mole_mole.xml'))
+
+    assert data_set is not None
+    assert len(data_set.properties) > 0
+
+    # Mole fraction + Solvent: Molality
+    data_set = ThermoMLDataSet.from_file(get_data_filename('test/properties/mole_molality.xml'))
+
+    assert data_set is not None
+    assert len(data_set.properties) > 0
+
+
