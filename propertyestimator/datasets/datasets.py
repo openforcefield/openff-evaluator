@@ -24,7 +24,7 @@ class PhysicalPropertyDataSet(object):
     @property
     def properties(self):
         """
-        dict(str, list(PhysicalProperty)): The property list which
+        dict of str and list of PhysicalProperty: The property list which
         takes a substance as the key.
         """
         return self._properties
@@ -36,6 +36,7 @@ class PhysicalPropertyDataSet(object):
 
     @property
     def number_of_properties(self):
+        """int: The number of properties in the data set."""
         return sum([len(properties) for properties in self._properties.values()])
 
     def merge(self, data_set):
@@ -85,13 +86,13 @@ class PhysicalPropertyDataSet(object):
         for substance_id in filtered_properties:
             self._properties[substance_id] = filtered_properties[substance_id]
 
-    def filter_by_properties(self, types):
+    def filter_by_property_types(self, *property_type):
         """Filter the data set based on the type of property (e.g Density).
 
         Parameters
         ----------
-        types : list of PropertyType
-            The types of property which should be retained.
+        property_type : PropertyType or str
+            The type of property which should be retained.
 
         Examples
         --------
@@ -101,21 +102,25 @@ class PhysicalPropertyDataSet(object):
         >>> from propertyestimator.datasets import ThermoMLDataSet
         >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
         >>>
-        >>> # Filter the dataset to only include densities measured between 130-260 K
+        >>> # Filter the dataset to only include densities and dielectric constants.
         >>> from propertyestimator.properties import Density, DielectricConstant
-        >>> data_set.filter_by_properties(types=[Density, DielectricConstant])
+        >>> data_set.filter_by_property_types(Density, DielectricConstant)
+
+        or
+
+        >>> data_set.filter_by_property_types('Density', 'DielectricConstant')
         """
         property_types = []
 
-        for property_type in types:
+        for type_to_retain in property_type:
 
-            if isinstance(property_type, str):
-                property_types.append(property_type)
+            if isinstance(type_to_retain, str):
+                property_types.append(type_to_retain)
             else:
-                property_types.append(property_type.__name__)
+                property_types.append(type_to_retain.__name__)
 
         def filter_function(x):
-            return x.type in property_types
+            return type(x).__name__ in property_types
 
         self.filter_by_function(filter_function)
 

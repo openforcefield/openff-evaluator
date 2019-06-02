@@ -1,16 +1,18 @@
 """
 Units tests for propertyestimator.datasets
 """
+import json
 
 import pytest
 from simtk import unit
 
+from propertyestimator.datasets import ThermoMLDataSet
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.datasets.thermoml import unit_from_thermoml_string
-from propertyestimator.utils import get_data_filename
-
 from propertyestimator.properties import PhysicalProperty, PropertyPhase
-from propertyestimator.datasets import ThermoMLDataSet
+from propertyestimator.tests.utils import create_filterable_data_set
+from propertyestimator.utils import get_data_filename
+from propertyestimator.utils.serialization import TypedJSONEncoder, TypedJSONDecoder
 
 
 @register_thermoml_property('Osmotic coefficient', supported_phases=PropertyPhase.Liquid)
@@ -33,9 +35,20 @@ supported_units = ['K', 'kPa', 'kg/m3', 'mol/kg', 'mol/dm3', 'kJ/mol', 'm3/kg', 
                    'm3/mol', 'J/K/mol', 'J/K/kg', 'J/K/m3', '1/kPa', 'm/s', 'MHz']
 
 
+@pytest.mark.parametrize("unit_string", supported_units)
+def test_thermoml_unit_from_string(unit_string):
+    """A test to ensure all unit conversions are valid."""
+
+    dummy_string = f'Property, {unit_string}'
+
+    returned_unit = unit_from_thermoml_string(dummy_string)
+    assert returned_unit is not None and isinstance(returned_unit, unit.Unit)
+
+
 @pytest.mark.skip(reason="Uncertainties have been unexpectedly removed from ThermoML "
                          "so these tests will fail until they have been re-added")
-def test_from_url():
+def test_thermoml_from_url():
+    """A test to ensure that ThermoML archive files can be loaded from a url."""
 
     data_set = ThermoMLDataSet.from_url('https://trc.nist.gov/journals/jct/2005v37/i04/j.jct.2004.09.022.xml')
     assert data_set is not None
@@ -48,26 +61,8 @@ def test_from_url():
 
 @pytest.mark.skip(reason="Uncertainties have been unexpectedly removed from ThermoML "
                          "so these tests will fail until they have been re-added")
-def test_serialization():
-
-    data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
-    assert data_set is not None
-
-    assert len(data_set.properties) > 0
-
-    for mixture_tag in data_set.properties:
-
-        for physical_property in data_set.properties[mixture_tag]:
-            physical_property_json = physical_property.json()
-            print(physical_property_json)
-
-            physical_property_recreated = PhysicalProperty.parse_json(physical_property_json)
-            print(physical_property_recreated)
-
-
-@pytest.mark.skip(reason="Uncertainties have been unexpectedly removed from ThermoML "
-                         "so these tests will fail until they have been re-added")
-def test_from_doi():
+def test_thermoml_from_doi():
+    """A test to ensure that ThermoML archive files can be loaded from a doi."""
 
     data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
     assert data_set is not None
@@ -91,29 +86,21 @@ def test_from_doi():
     assert data_set is None
 
 
-def test_from_files():
+def test_thermoml_from_files():
+    """A test to ensure that ThermoML archive files can be loaded from local sources."""
 
-    data_set = ThermoMLDataSet.from_file(get_data_filename('properties/j.jct.2004.09.014.xml'),
-                                         get_data_filename('properties/j.jct.2004.09.022.xml'),
-                                         get_data_filename('properties/j.jct.2007.09.004.xml'))
+    data_set = ThermoMLDataSet.from_file(get_data_filename('properties/single_density.xml'),
+                                         get_data_filename('properties/single_dielectric.xml'),
+                                         get_data_filename('properties/single_enthalpy_mixing.xml'))
+
     assert data_set is not None
+    assert len(data_set.properties) == 3
 
-    assert len(data_set.properties) > 0
-
-    data_set = ThermoMLDataSet.from_file('properties/j.jct.2004.09.014.xmld')
+    data_set = ThermoMLDataSet.from_file('dummy_filename')
     assert data_set is None
 
 
-@pytest.mark.parametrize("unit_string", supported_units)
-def test_unit_from_string(unit_string):
-
-    dummy_string = f'Property, {unit_string}'
-
-    returned_unit = unit_from_thermoml_string(dummy_string)
-    assert returned_unit is not None and isinstance(returned_unit, unit.Unit)
-
-
-def test_mass_constraints():
+def test_thermoml_mass_constraints():
     """A collection of tests to ensure that the Mass fraction constraint is
     implemented correctly alongside solvent constraints."""
 
@@ -136,7 +123,7 @@ def test_mass_constraints():
     assert len(data_set.properties) > 0
 
 
-def test_molality_constraints():
+def test_thermoml_molality_constraints():
     """A collection of tests to ensure that the Molality constraint is
     implemented correctly alongside solvent constraints."""
 
@@ -165,7 +152,7 @@ def test_molality_constraints():
     assert len(data_set.properties) > 0
 
 
-def test_mole_constraints():
+def test_thermoml_mole_constraints():
     """A collection of tests to ensure that the Mole fraction constraint is
     implemented correctly alongside solvent constraints."""
 
@@ -194,3 +181,130 @@ def test_mole_constraints():
     assert len(data_set.properties) > 0
 
 
+def test_serialization():
+    """A test to ensure that data sets are JSON serializable."""
+
+    data_set = ThermoMLDataSet.from_file(get_data_filename('properties/single_density.xml'))
+    data_set_json = json.dumps(data_set, cls=TypedJSONEncoder)
+
+    parsed_data_set = json.loads(data_set_json, cls=TypedJSONDecoder)
+    assert data_set.number_of_properties == parsed_data_set.number_of_properties
+
+
+def test_filter_by_property_types():
+    """A test to ensure that data sets may be filtered by property type."""
+
+    dummy_data_set = create_filterable_data_set()
+    dummy_data_set.filter_by_property_types('Density')
+
+    assert dummy_data_set.number_of_properties == 1
+
+    dummy_data_set = create_filterable_data_set()
+    dummy_data_set.filter_by_property_types('Density', 'DielectricConstant')
+
+    assert dummy_data_set.number_of_properties == 2
+
+
+def test_filter_by_phases():
+    """A test to ensure that data sets may be filtered by phases."""
+
+    dummy_data_set = create_filterable_data_set()
+    dummy_data_set.filter_by_phases(phases=PropertyPhase.Liquid)
+
+    assert dummy_data_set.number_of_properties == 1
+
+    dummy_data_set = create_filterable_data_set()
+    dummy_data_set.filter_by_phases(phases=PropertyPhase.Liquid |
+                                           PropertyPhase.Solid)
+
+    assert dummy_data_set.number_of_properties == 2
+
+    dummy_data_set = create_filterable_data_set()
+    dummy_data_set.filter_by_phases(phases=PropertyPhase.Liquid |
+                                           PropertyPhase.Solid |
+                                           PropertyPhase.Gas)
+
+    assert dummy_data_set.number_of_properties == 3
+
+
+def test_filter_by_temperature():
+    """A test to ensure that data sets may be filtered by temperature."""
+
+    dummy_data_set = create_filterable_data_set()
+    dummy_data_set.filter_by_temperature(min_temperature=287 * unit.kelvin,
+                                         max_temperature=289 * unit.kelvin)
+
+    assert dummy_data_set.number_of_properties == 1
+
+    dummy_data_set = create_filterable_data_set()
+    dummy_data_set.filter_by_temperature(min_temperature=287 * unit.kelvin,
+                                         max_temperature=299 * unit.kelvin)
+
+    assert dummy_data_set.number_of_properties == 2
+
+    dummy_data_set = create_filterable_data_set()
+    dummy_data_set.filter_by_temperature(min_temperature=287 * unit.kelvin,
+                                         max_temperature=309 * unit.kelvin)
+
+    assert dummy_data_set.number_of_properties == 3
+
+
+def test_filter_by_pressure():
+    """A test to ensure that data sets may be filtered by pressure."""
+
+    dummy_data_set = create_filterable_data_set()
+    dummy_data_set.filter_by_pressure(min_pressure=0.4 * unit.atmosphere,
+                                      max_pressure=0.6 * unit.atmosphere)
+
+    assert dummy_data_set.number_of_properties == 1
+
+    dummy_data_set = create_filterable_data_set()
+    dummy_data_set.filter_by_pressure(min_pressure=0.4 * unit.atmosphere,
+                                      max_pressure=1.1 * unit.atmosphere)
+
+    assert dummy_data_set.number_of_properties == 2
+
+    dummy_data_set = create_filterable_data_set()
+    dummy_data_set.filter_by_pressure(min_pressure=0.4 * unit.atmosphere,
+                                      max_pressure=1.6 * unit.atmosphere)
+
+    assert dummy_data_set.number_of_properties == 3
+
+
+def test_filter_by_components():
+    """A test to ensure that data sets may be filtered by the number of components."""
+
+    dummy_data_set = create_filterable_data_set()
+    dummy_data_set.filter_by_components(number_of_components=1)
+
+    assert dummy_data_set.number_of_properties == 1
+
+    dummy_data_set = create_filterable_data_set()
+    dummy_data_set.filter_by_components(number_of_components=2)
+
+    assert dummy_data_set.number_of_properties == 1
+
+    dummy_data_set = create_filterable_data_set()
+    dummy_data_set.filter_by_components(number_of_components=3)
+
+    assert dummy_data_set.number_of_properties == 1
+
+
+def test_filter_by_elements():
+    """A test to ensure that data sets may be filtered by which elements their
+    measured properties contain."""
+
+    dummy_data_set = create_filterable_data_set()
+    dummy_data_set.filter_by_elements('H', 'C')
+
+    assert dummy_data_set.number_of_properties == 1
+
+    dummy_data_set = create_filterable_data_set()
+    dummy_data_set.filter_by_elements('H', 'C', 'N')
+
+    assert dummy_data_set.number_of_properties == 2
+
+    dummy_data_set = create_filterable_data_set()
+    dummy_data_set.filter_by_elements('H', 'C', 'N', 'O')
+
+    assert dummy_data_set.number_of_properties == 3
