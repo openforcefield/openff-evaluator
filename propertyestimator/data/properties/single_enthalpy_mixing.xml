@@ -37,6 +37,7 @@
 		<RegNum>
 			<nOrgNum>1</nOrgNum>
 		</RegNum>
+		<sStandardInChI>InChI=1S/C6H12/c1-2-4-6-5-3-1/h1-6H2</sStandardInChI>
 		<sCommonName>cyclohexane</sCommonName>
 		<sFormulaMolec>C6H12</sFormulaMolec>
 		<Sample>
@@ -54,6 +55,7 @@
 		<RegNum>
 			<nOrgNum>6</nOrgNum>
 		</RegNum>
+		<sStandardInChI>InChI=1S/C6H14/c1-3-5-6-4-2/h3-6H2,1-2H3</sStandardInChI>
 		<sCommonName>hexane</sCommonName>
 		<sFormulaMolec>C6H14</sFormulaMolec>
 		<Sample>
