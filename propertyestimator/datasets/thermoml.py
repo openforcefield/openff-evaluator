@@ -386,9 +386,6 @@ class ThermoMLCompound:
     def smiles_from_inchi_string(inchi_string):
         """Attempts to create a SMILES pattern from an inchi string.
 
-        Todo: SMILES from InChI should exist at the toolkit
-              level in an OEChem independent way.
-
         Parameters
         ----------
         inchi_string : str
@@ -454,6 +451,43 @@ class ThermoMLCompound:
 class ThermoMLProperty:
     """A wrapper around a ThermoML Property node.
     """
+    class SoluteStandardState(Enum):
+        """Describes the standard state of a solute.
+        """
+
+        Undefined = 'Undefined',
+        InfiniteDilutionSolute = 'Infinite dilution solute',
+        PureCompound = 'Pure compound',
+        PureLiquidSolute = 'Pure liquid solute',
+        StandardMolality = 'Standard molality (1 mol/kg) solute',
+
+        @staticmethod
+        def from_node(node):
+            """Converts an `eStandardState` node a `ThermoMLProperty.SoluteStandardState`.
+
+            Parameters
+            ----------
+            node : xml.etree.Element
+                The xml node to convert.
+
+            Returns
+            ----------
+            ThermoMLProperty.SoluteStandardState
+                The converted state type.
+            """
+
+            try:
+                standard_state = ThermoMLProperty.SoluteStandardState(node.text)
+            except (KeyError, ValueError):
+                standard_state = ThermoMLProperty.SoluteStandardState.Undefined
+
+            if standard_state == ThermoMLConstraintType.Undefined:
+
+                logging.debug(f'{node.tag}->{node.text} is an unsupported '
+                              f'solute standard state type.')
+
+            return standard_state
+
     def __init__(self, base_type):
 
         self.thermodynamic_state = None
@@ -470,12 +504,17 @@ class ThermoMLProperty:
 
         self.type = base_type
 
+        self.solute_standard_state = ThermoMLProperty.SoluteStandardState.Undefined
         self.solvents = []
+
+        self.target_compound_index = None
 
         self.property_uncertainty_definitions = {}
         self.combined_uncertainty_definitions = {}
 
         self.default_unit = None
+
+        self.target_compound_index = None
 
     @property
     def temperature(self):
@@ -571,16 +610,10 @@ class ThermoMLProperty:
 
         if phase == PropertyPhase.Undefined:
 
-            # TODO: For now we just hope that the property defines the phase.
-            #       This needs to be better supported however.
             logging.debug(f'A property was measured in an unsupported phase '
                           f'({phase_node.text}) and will be skipped.')
 
             return None
-
-        # TODO: Property->Property-MethodID->RegNum is currently ignored - it
-        #       Describes which compound is referred to if the property is based
-        #       on one of the compounds e.g. the mass fraction of compound 2
 
         property_group_node = node.find('./ThermoML:Property-MethodID//ThermoML:PropertyGroup//*', namespace)
 
@@ -635,6 +668,22 @@ class ThermoMLProperty:
         if solvent_index_nodes is not None:
             for solvent_index_node in solvent_index_nodes:
                 return_value.solvents.append(int(solvent_index_node.text))
+
+        # The solute standard state appears to describe which a solute should
+        # be present in only trace amounts. It only seems to be relevant for
+        # activity based properties.
+        standard_state_node = node.find('./ThermoML:eStandardState', namespace)
+
+        if standard_state_node is not None:
+            return_value.solute_standard_state = ThermoMLProperty.SoluteStandardState.from_node(standard_state_node)
+
+        # Property->Property-MethodID->RegNum describes which compound is referred
+        # to if the property is based on one of the compounds e.g. the activity
+        # coefficient of compound 2.
+        target_compound_node = node.find('./ThermoML:Property-MethodID/ThermoML:RegNum/ThermoML:nOrgNum', namespace)
+
+        if target_compound_node is not None:
+            return_value.target_compound_index = int(target_compound_node.text)
 
         return return_value
 
@@ -1207,8 +1256,6 @@ class ThermoMLPureOrMixtureData:
     def build_mixture(thermoml_property, constraints, compounds):
         """Build a Substance object from the extracted constraints and compounds.
 
-        TODO: Break up this monolithic method.
-
         Parameters
         ----------
         thermoml_property: ThermoMLProperty
@@ -1223,6 +1270,12 @@ class ThermoMLPureOrMixtureData:
         Substance
             The constructed mixture.
         """
+
+        # TODO: We need to take into account `thermoml_property.target_compound_index` and
+        #       `thermoml_property.solute_standard_state` to properly identify infinitely
+        #       diluted solutes in the system (if any). Otherwise the solute will be
+        #       assigned a mole fraction of zero.
+
         solvent_constraint_type = ThermoMLConstraintType.Undefined
         component_constraint_type = ThermoMLConstraintType.Undefined
 
@@ -1605,8 +1658,7 @@ class ThermoMLPureOrMixtureData:
             phase = phase_from_thermoml_string(phase_node.text)
 
             if phase == PropertyPhase.Undefined:
-                # TODO: For now we just hope that the property defines the phase.
-                #       This needs to be better supported however.
+
                 logging.debug(f'A property was measured in an unsupported phase '
                               f'({phase_node.text}) and will be skipped.')
 

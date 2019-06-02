@@ -5,9 +5,10 @@ An API for defining, storing, and loading collections of physical property data.
 from simtk.openmm.app import element
 
 from propertyestimator.utils import create_molecule_from_smiles
+from propertyestimator.utils.serialization import TypedBaseModel
 
 
-class PhysicalPropertyDataSet(object):
+class PhysicalPropertyDataSet(TypedBaseModel):
     """
     A data set of physical property measurements / calculations.
     Contains functionality for merging multiple data sets and

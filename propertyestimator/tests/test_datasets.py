@@ -1,7 +1,6 @@
 """
 Units tests for propertyestimator.datasets
 """
-import json
 
 import pytest
 from simtk import unit
@@ -12,7 +11,6 @@ from propertyestimator.datasets.thermoml import unit_from_thermoml_string
 from propertyestimator.properties import PhysicalProperty, PropertyPhase
 from propertyestimator.tests.utils import create_filterable_data_set
 from propertyestimator.utils import get_data_filename
-from propertyestimator.utils.serialization import TypedJSONEncoder, TypedJSONDecoder
 
 
 @register_thermoml_property('Osmotic coefficient', supported_phases=PropertyPhase.Liquid)
@@ -185,10 +183,13 @@ def test_serialization():
     """A test to ensure that data sets are JSON serializable."""
 
     data_set = ThermoMLDataSet.from_file(get_data_filename('properties/single_density.xml'))
-    data_set_json = json.dumps(data_set, cls=TypedJSONEncoder)
+    data_set_json = data_set.json()
 
-    parsed_data_set = json.loads(data_set_json, cls=TypedJSONDecoder)
+    parsed_data_set = ThermoMLDataSet.parse_json(data_set_json)
     assert data_set.number_of_properties == parsed_data_set.number_of_properties
+
+    parsed_data_set_json = parsed_data_set.json()
+    assert parsed_data_set_json == data_set_json
 
 
 def test_filter_by_property_types():
