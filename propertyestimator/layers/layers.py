@@ -198,7 +198,7 @@ class PropertyCalculationLayer:
 
                     continue
 
-                if returned_output.calculated_property is None and returned_output.exception is None:
+                if returned_output.calculated_property is None:
 
                     logging.info('A calculation layer did not return an estimated property nor did it'
                                  'raise an Exception. This sometimes and expectedly occurs when using '
@@ -206,26 +206,12 @@ class PropertyCalculationLayer:
 
                     continue
 
-                if returned_output.calculated_property is None:
-                    # An exception has been recorded above, but for some reason no property has
-                    # been associated with it.
-                    continue
-
                 substance_id = returned_output.calculated_property.substance.identifier
 
-                if returned_output.exception is None:
+                if substance_id not in server_request.estimated_properties:
+                    server_request.estimated_properties[substance_id] = []
 
-                    if substance_id not in server_request.estimated_properties:
-                        server_request.estimated_properties[substance_id] = []
-
-                    server_request.estimated_properties[substance_id].append(returned_output.calculated_property)
-
-                else:
-
-                    if substance_id not in server_request.unsuccessful_properties:
-                        server_request.unsuccessful_properties[substance_id] = []
-
-                    server_request.unsuccessful_properties[substance_id].append(returned_output.calculated_property)
+                server_request.estimated_properties[substance_id].append(returned_output.calculated_property)
 
         except Exception as e:
 
