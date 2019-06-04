@@ -36,6 +36,12 @@ class BuildCoordinatesPackmol(BaseProtocol):
         """The target density of the created system."""
         pass
 
+    @protocol_input(list)
+    def box_aspect_ratio(self):
+        """The aspect ratio of the simulation box. The default is [1.0, 1.0, 1.0],
+        i.e a cubic box."""
+        return self._box_aspect_ratio
+
     @protocol_input(Substance)
     def substance(self):
         """The composition of the system to build."""
@@ -62,10 +68,8 @@ class BuildCoordinatesPackmol(BaseProtocol):
 
         super().__init__(protocol_id)
 
-        # inputs
         self._substance = None
 
-        # outputs
         self._coordinate_file_path = None
         self._positions = None
 
@@ -74,6 +78,8 @@ class BuildCoordinatesPackmol(BaseProtocol):
 
         self._verbose_packmol = False
         self._retain_packmol_files = False
+
+        self._box_aspect_ratio = [1.0, 1.0, 1.0]
 
     def _build_molecule_arrays(self, directory):
         """Converts the input substance into a list of openeye OEMol's and a list of
@@ -159,6 +165,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
         topology, positions = packmol.pack_box(molecules=molecules,
                                                number_of_copies=number_of_molecules,
                                                mass_density=self._mass_density,
+                                               box_aspect_ratio=self._box_aspect_ratio,
                                                verbose=self._verbose_packmol,
                                                working_directory=packmol_directory,
                                                retain_working_files=self._retain_packmol_files)

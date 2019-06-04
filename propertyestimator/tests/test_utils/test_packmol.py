@@ -44,7 +44,7 @@ def test_packmol_packbox():
     topology, positions = packmol.pack_box(molecules, [10], mass_density=1.0*unit.grams/unit.milliliters)
     _validate_water_results(topology, positions)
 
-    topology, positions = packmol.pack_box(molecules, [10], box_size=20*unit.angstrom)
+    topology, positions = packmol.pack_box(molecules, [10], box_size=([20]*3)*unit.angstrom)
     _validate_water_results(topology, positions)
 
     assert topology.getPeriodicBoxVectors()[0] == (22, 0, 0) * unit.angstrom
@@ -52,10 +52,10 @@ def test_packmol_packbox():
     assert topology.getPeriodicBoxVectors()[2] == (0, 0, 22) * unit.angstrom
 
     with pytest.raises(ValueError):
-        packmol.pack_box(molecules, [10, 20], box_size=20*unit.angstrom)
+        packmol.pack_box(molecules, [10, 20], box_size=([20]*3)*unit.angstrom)
 
     # Test something a bit more tricky than water
     molecules = [create_molecule_from_smiles('CC(=O)NC1=CC=C(C=C1)O')]
 
-    topology, positions = packmol.pack_box(molecules, [1], box_size=20*unit.angstrom)
+    topology, positions = packmol.pack_box(molecules, [1], box_size=([20]*3)*unit.angstrom)
     _validate_paracetamol_results(topology, positions)

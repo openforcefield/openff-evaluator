@@ -95,8 +95,8 @@ def create_molecule_from_smiles(smiles, number_of_conformers=1):
     from openeye import oechem, oeomega
 
     # Check cache
-    if smiles in _cached_molecules:
-        return copy.deepcopy(_cached_molecules[smiles])
+    if (number_of_conformers, smiles) in _cached_molecules:
+        return copy.deepcopy(_cached_molecules[(number_of_conformers, smiles)])
 
     # Create molecule from smiles.
     molecule = oechem.OEMol()
@@ -130,7 +130,7 @@ def create_molecule_from_smiles(smiles, number_of_conformers=1):
             logging.warning('Could not generate a conformer for ' + smiles)
             return None
 
-    _cached_molecules[smiles] = molecule
+    _cached_molecules[(number_of_conformers, smiles)] = molecule
 
     return molecule
 
