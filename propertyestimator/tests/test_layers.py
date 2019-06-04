@@ -12,7 +12,7 @@ from propertyestimator.server import PropertyEstimatorServer
 from propertyestimator.storage import LocalFileStorage, StoredSimulationData
 from propertyestimator.tests.utils import create_dummy_property
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import TypedJSONEncoder
+from propertyestimator.utils.serialization import TypedJSONEncoder, TypedJSONDecoder
 from propertyestimator.utils.utils import temporarily_change_directory
 
 
@@ -146,3 +146,24 @@ def test_base_layer():
                                              request,
                                              dummy_callback,
                                              True)
+
+
+def test_serialize_layer_result():
+    """Tests that the `CalculationLayerResult` can be properly
+    serialized and deserialized."""
+
+    dummy_result = CalculationLayerResult()
+
+    dummy_result.property_id = str(uuid.uuid4())
+
+    dummy_result.calculated_property = create_dummy_property(Density)
+    dummy_result.exception = PropertyEstimatorException()
+
+    dummy_result.data_directories_to_store = ['dummy_directory']
+
+    dummy_result_json = json.dumps(dummy_result, cls=TypedJSONEncoder)
+
+    recreated_result = json.loads(dummy_result_json, cls=TypedJSONDecoder)
+    recreated_result_json = json.dumps(recreated_result, cls=TypedJSONEncoder)
+
+    assert recreated_result_json == dummy_result_json
