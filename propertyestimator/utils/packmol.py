@@ -54,6 +54,7 @@ def pack_box(molecules,
              tolerance=2.0,
              box_size=None,
              mass_density=None,
+             box_aspect_ratio=None,
              verbose=False,
              working_directory=None,
              retain_working_files=False):
@@ -77,6 +78,9 @@ def pack_box(molecules,
     mass_density : simtk.unit.Quantity, optional
         Target mass density for final system with units compatible with g/mL. If `None`,
         `box_size` must be provided.
+    box_aspect_ratio: list of float, optional
+        The aspect ratio of the simulation box, used in conjunction with the `mass_density`
+        parameter. If none, an isotropic ratio (i.e. [1.0, 1.0, 1.0]) is used.
     verbose : bool
         If True, verbose output is written.
     working_directory: str, optional
@@ -97,6 +101,19 @@ def pack_box(molecules,
 
     if box_size is None and mass_density is None:
         raise ValueError('Either a `box_size` or `mass_density` must be specified.')
+
+    if box_size is not None and len(box_size) != 3:
+
+        raise ValueError('`box_size` must be a simtk.unit.Quantity '
+                         'wrapped list of length 3')
+
+    if mass_density is not None and box_aspect_ratio is None:
+        box_aspect_ratio = [1.0, 1.0, 1.0]
+
+    if box_aspect_ratio is not None:
+
+        assert len(box_aspect_ratio) == 3
+        assert box_aspect_ratio[0] * box_aspect_ratio[1] * box_aspect_ratio[2] > 0
 
     # noinspection PyTypeChecker
     if len(molecules) != len(number_of_copies):
@@ -151,9 +168,23 @@ def pack_box(molecules,
     if box_size is None:
 
         # Estimate box_size from mass density.
-        box_size = _approximate_volume_by_density(molecules,
-                                                  number_of_copies,
-                                                  mass_density)
+        initial_box_length = _approximate_volume_by_density(molecules,
+                                                            number_of_copies,
+                                                            mass_density)
+
+        initial_box_length_angstrom = initial_box_length.value_in_unit(unit.angstrom)
+
+        aspect_ratio_normalizer = (box_aspect_ratio[0] *
+                                   box_aspect_ratio[1] *
+                                   box_aspect_ratio[2]) ** (1.0 / 3.0)
+
+        box_size = [
+            initial_box_length_angstrom * box_aspect_ratio[0],
+            initial_box_length_angstrom * box_aspect_ratio[1],
+            initial_box_length_angstrom * box_aspect_ratio[2]
+        ] * unit.angstrom
+
+        box_size /= aspect_ratio_normalizer
 
     unitless_box_angstrom = box_size.value_in_unit(unit.angstrom)
 
@@ -165,16 +196,16 @@ def pack_box(molecules,
 
         packmol_input += _BOX_TEMPLATE.format(pdb_file_name,
                                               count,
-                                              unitless_box_angstrom,
-                                              unitless_box_angstrom,
-                                              unitless_box_angstrom)
+                                              unitless_box_angstrom[0],
+                                              unitless_box_angstrom[1],
+                                              unitless_box_angstrom[2])
 
     if structure_to_solvate_file_name is not None:
 
         packmol_input += _SOLVATE_TEMPLATE.format(structure_to_solvate_file_name,
-                                                  unitless_box_angstrom / 2.0,
-                                                  unitless_box_angstrom / 2.0,
-                                                  unitless_box_angstrom / 2.0)
+                                                  unitless_box_angstrom[0] / 2.0,
+                                                  unitless_box_angstrom[1] / 2.0,
+                                                  unitless_box_angstrom[2] / 2.0)
 
     # Write packmol input
     packmol_file_name = "packmol_input.txt"
@@ -233,14 +264,14 @@ def pack_box(molecules,
             shutil.rmtree(working_directory)
 
     # Add a 2 angstrom buffer to help alleviate PBC issues.
-    unitless_box_nm = (box_size + 2.0 * unit.angstrom).value_in_unit(unit.nanometers)
-
-    box_vector_x = openmm.Vec3(unitless_box_nm, 0, 0)
-    box_vector_y = openmm.Vec3(0, unitless_box_nm, 0)
-    box_vector_z = openmm.Vec3(0, 0, unitless_box_nm)
+    box_vectors = [
+        openmm.Vec3((box_size[0] + 2.0 * unit.angstrom).value_in_unit(unit.nanometers), 0, 0),
+        openmm.Vec3(0, (box_size[1] + 2.0 * unit.angstrom).value_in_unit(unit.nanometers), 0),
+        openmm.Vec3(0, 0, (box_size[2] + 2.0 * unit.angstrom).value_in_unit(unit.nanometers))
+    ]
 
     # Set the periodic box vectors.
-    topology.setPeriodicBoxVectors([box_vector_x, box_vector_y, box_vector_z] * unit.nanometers)
+    topology.setPeriodicBoxVectors(box_vectors * unit.nanometers)
 
     return topology, positions
 
