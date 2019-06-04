@@ -13,7 +13,9 @@ from propertyestimator.utils.statistics import StatisticsArray, bootstrap
 
 def test_statistics_object():
 
-    statistics_object = StatisticsArray.from_openmm_csv(get_data_filename('properties/stats_openmm.csv'), 1*unit.atmosphere)
+    statistics_object = StatisticsArray.from_openmm_csv(
+        get_data_filename('test/statistics/stats_openmm.csv'), 1*unit.atmosphere)
+
     statistics_object.save_as_pandas_csv('stats_pandas.csv')
 
     statistics_object = StatisticsArray.from_pandas_csv('stats_pandas.csv')

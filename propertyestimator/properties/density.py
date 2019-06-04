@@ -3,7 +3,7 @@ A collection of density physical property definitions.
 """
 
 from propertyestimator.datasets.plugins import register_thermoml_property
-from propertyestimator.properties import PhysicalProperty
+from propertyestimator.properties import PhysicalProperty, PropertyPhase
 from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.properties.utils import generate_base_reweighting_protocols
 from propertyestimator.protocols import analysis, coordinates, forcefield, groups, simulation
@@ -14,7 +14,7 @@ from propertyestimator.workflow.utils import ProtocolPath
 
 
 @register_estimable_property()
-@register_thermoml_property(thermoml_string='Mass density, kg/m3')
+@register_thermoml_property(thermoml_string='Mass density, kg/m3', supported_phases=PropertyPhase.Liquid)
 class Density(PhysicalProperty):
     """A class representation of a density property"""
 

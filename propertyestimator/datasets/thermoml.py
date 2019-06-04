@@ -5,7 +5,8 @@ An API for importing a ThermoML archive.
 import logging
 import pickle
 import re
-from enum import IntEnum, unique
+import traceback
+from enum import unique, Enum
 from urllib.error import HTTPError
 from urllib.request import urlopen
 from xml.etree import ElementTree
@@ -41,8 +42,14 @@ def unit_from_thermoml_string(full_string):
 
     if unit_string == 'K':
         return unit.kelvin
+    elif unit_string == '1/K':
+        return (1.0 / unit.kelvin).unit
     elif unit_string == 'kPa':
-        return unit.kilo * unit.pascal
+        return unit.kilopascal
+    elif unit_string == 'kPa*dm3/mol':
+        return unit.kilopascal * unit.decimeter**3 / unit.mole
+    elif unit_string == 'kPa*kg/mol':
+        return unit.kilopascal * unit.kilogram / unit.mole
     elif unit_string == 'kg/m3':
         return unit.kilogram / unit.meter**3
     elif unit_string == 'mol/kg':
@@ -51,6 +58,26 @@ def unit_from_thermoml_string(full_string):
         return unit.mole / unit.decimeter ** 3
     elif unit_string == 'kJ/mol':
         return unit.kilojoule_per_mole
+    elif unit_string == 'm3/kg':
+        return unit.meter ** 3 / unit.kilogram
+    elif unit_string == 'mol/m3':
+        return unit.mole / unit.meter ** 3
+    elif unit_string == 'm3/mol':
+        return unit.meter**3 / unit.mole
+    elif unit_string == 'J/K/mol':
+        return unit.joule / unit.kelvin / unit.mole
+    elif unit_string == 'J/K/kg':
+        return unit.joule / unit.kelvin / unit.kilogram
+    elif unit_string == 'J/K/m3':
+        return unit.joule / unit.kelvin / unit.meter ** 3
+    elif unit_string == '1/kPa':
+        return (1.0 / unit.kilopascal).unit
+    elif unit_string == 'm/s':
+        return unit.meter / unit.second
+    elif unit_string == 'MHz':
+        return (1.0 / unit.megasecond).unit
+    elif unit_string == 'N/m':
+        return unit.newton / unit.meter
     elif len(unit_string) == 0:
         return None
     else:
@@ -90,15 +117,19 @@ def phase_from_thermoml_string(string):
 
 
 @unique
-class ThermoMLConstraintType(IntEnum):
+class ThermoMLConstraintType(Enum):
     """An enum containing the supported types of ThermoML constraints
     """
 
-    Undefined            = 0x00
-    Temperature          = 0x01
-    Pressure             = 0x02
-    ComponentComposition = 0x04
-    SolventComposistion  = 0x08
+    Undefined = 'Undefined'
+    Temperature = 'Temperature, K'
+    Pressure = 'Pressure, kPa'
+    ComponentMoleFraction = 'Mole fraction'
+    ComponentMassFraction = 'Mass fraction'
+    ComponentMolality = 'Molality, mol/kg'
+    SolventMoleFraction = 'Solvent: Mole fraction'
+    SolventMassFraction = 'Solvent: Mass fraction'
+    SolventMolality = 'Solvent: Molality, mol/kg'
 
     @staticmethod
     def from_node(node):
@@ -106,7 +137,7 @@ class ThermoMLConstraintType(IntEnum):
 
         Parameters
         ----------
-        node : Element
+        node : xml.etree.Element
             The xml node to convert.
 
         Returns
@@ -115,20 +146,38 @@ class ThermoMLConstraintType(IntEnum):
             The converted constraint type.
         """
 
-        constraint_type = ThermoMLConstraintType.Undefined
+        try:
+            constraint_type = ThermoMLConstraintType(node.text)
+        except (KeyError, ValueError):
+            constraint_type = ThermoMLConstraintType.Undefined
 
-        if node.tag.find('eTemperature') >= 0 and node.text == 'Temperature, K':
-            constraint_type = ThermoMLConstraintType.Temperature
-        elif node.tag.find('ePressure') >= 0 and node.text == 'Pressure, kPa':
-            constraint_type = ThermoMLConstraintType.Pressure
-        elif node.tag.find('eComponentComposition') >= 0 and node.text == 'Mole fraction':
-            constraint_type = ThermoMLConstraintType.ComponentComposition
-        # elif node.tag.find('eSolventComposition') >= 0 and node.text == 'Mole fraction':
-        #     constraint_type = ThermoMLConstraintType.SolventComposistion
-        else:
-            logging.warning(node.tag + '->' + node.text + ' is an unsupported constraint type.')
+        if constraint_type == ThermoMLConstraintType.Undefined:
+            logging.debug(f'{node.tag}->{node.text} is an unsupported constraint type.')
 
         return constraint_type
+
+    def is_composition_constraint(self):
+        """Checks whether the purpose of this constraint is
+        to constrain the substance composition.
+
+        Returns
+        -------
+        bool
+            True if the constraint type is either a
+
+            - `ThermoMLConstraintType.ComponentMoleFraction`
+            - `ThermoMLConstraintType.ComponentMassFraction`
+            - `ThermoMLConstraintType.ComponentMolality`
+            - `ThermoMLConstraintType.SolventMoleFraction`
+            - `ThermoMLConstraintType.SolventMassFraction`
+            - `ThermoMLConstraintType.SolventMolality`
+        """
+        return (self == ThermoMLConstraintType.ComponentMoleFraction or
+                self == ThermoMLConstraintType.ComponentMassFraction or
+                self == ThermoMLConstraintType.ComponentMolality or
+                self == ThermoMLConstraintType.SolventMoleFraction or
+                self == ThermoMLConstraintType.SolventMassFraction or
+                self == ThermoMLConstraintType.SolventMolality)
 
 
 class ThermoMLConstraint:
@@ -152,7 +201,7 @@ class ThermoMLConstraint:
         ----------
         constraint_node : Element
             The xml node to convert.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
 
         Returns
@@ -164,7 +213,7 @@ class ThermoMLConstraint:
         type_node = constraint_node.find('.//ThermoML:ConstraintType/*', namespace)
         value_node = constraint_node.find('./ThermoML:nConstraintValue', namespace)
 
-        solvent_index_nodes = constraint_node.find('./ThermoML:Solvent//nOrgNum', namespace)
+        solvent_index_nodes = constraint_node.find('./ThermoML:Solvent//ThermoML:nOrgNum', namespace)
         compound_index_node = constraint_node.find('./ThermoML:ConstraintID/ThermoML:RegNum/*', namespace)
 
         value = float(value_node.text)
@@ -233,21 +282,21 @@ class ThermoMLVariableDefinition:
 
         Parameters
         ----------
-        node : Element
+        variable_node : xml.etree.Element
             The xml node to convert.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
 
         Returns
         ----------
-        ThermoMLConstraint
+        ThermoMLVariableDefinition
             The created variable definition.
         """
         # Extract the xml nodes.
         type_node = variable_node.find('.//ThermoML:VariableType/*', namespace)
         index_node = variable_node.find('ThermoML:nVarNumber', namespace)
 
-        solvent_index_nodes = variable_node.find('./ThermoML:Solvent//nOrgNum', namespace)
+        solvent_index_nodes = variable_node.find('./ThermoML:Solvent//ThermoML:nOrgNum', namespace)
         compound_index_node = variable_node.find('./ThermoML:VariableID/ThermoML:RegNum/*', namespace)
 
         return_value = cls()
@@ -288,7 +337,7 @@ class ThermoMLPropertyUncertainty:
         ----------
         node : Element
             The xml node to convert.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
 
         Returns
@@ -300,9 +349,7 @@ class ThermoMLPropertyUncertainty:
         coverage_factor_node = node.find('ThermoML:n' + cls.prefix + 'CoverageFactor', namespace)
         confidence_node = node.find('ThermoML:n' + cls.prefix + 'UncertLevOfConfid', namespace)
 
-        coverage_factor = None
-
-        # TODO: Does a confidence interval definitely equate to a coverage of 2?
+        # As defined by https://www.nist.gov/pml/nist-technical-note-1297/nist-tn-1297-7-reporting-uncertainty
         if coverage_factor_node is not None:
             coverage_factor = float(coverage_factor_node.text)
         elif confidence_node is not None and confidence_node.text == '95':
@@ -324,7 +371,6 @@ class ThermoMLPropertyUncertainty:
 class ThermoMLCombinedUncertainty(ThermoMLPropertyUncertainty):
     """A wrapper around a ThermoML CombPropUncertainty node.
     """
-
     prefix = 'Comb'
 
 
@@ -334,48 +380,33 @@ class ThermoMLCompound:
     def __init__(self):
 
         self.smiles = None
-
         self.index = -1
 
-    # TODO: SMILES from name should exist at the toolkit level
-    # in an OEChem independent way.
     @staticmethod
-    def smiles_from_identifier(identifier):
-        """Attempts to create a SMILES pattern from some molecular identifier.
-
-        Relies heavily upon the OECHem OEParseIUPACName method and OEParseSmiles
+    def smiles_from_inchi_string(inchi_string):
+        """Attempts to create a SMILES pattern from an inchi string.
 
         Parameters
         ----------
-        identifier : str
-            The molecular identifier to convert.
+        inchi_string : str
+            The InChI string to convert.
 
         Returns
         ----------
-        str, None
+        str, optional
             None if the identifier cannot be converted, otherwise the converted SMILES pattern.
         """
         from openeye import oechem
-        from openeye import oeiupac
 
-        if identifier is None:
-            return None
+        if inchi_string is None:
+            raise ValueError('The InChI string cannot be `None`.')
 
         temp_molecule = oechem.OEMol()
-        parse_smiles_options = oechem.OEParseSmilesOptions(quiet=True)
 
-        smiles = None
+        if oechem.OEParseInChI(temp_molecule, inchi_string) is False:
+            raise ValueError('All InChI strings in ThermoML files must be valid.')
 
-        if oechem.OEParseSmiles(temp_molecule, identifier, parse_smiles_options) is True:
-            # Should make sure all smiles are OEChem consistent.
-            smiles = oechem.OEMolToSmiles(temp_molecule)
-        elif oeiupac.OEParseIUPACName(temp_molecule, identifier) is True:
-            smiles = oechem.OEMolToSmiles(temp_molecule)
-
-        if smiles is None:
-            return None
-
-        return smiles
+        return oechem.OEMolToSmiles(temp_molecule)
 
     @classmethod
     def from_xml_node(cls, node, namespace):
@@ -385,7 +416,7 @@ class ThermoMLCompound:
         ----------
         node : Element
             The xml node to convert.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
 
         Returns
@@ -394,40 +425,24 @@ class ThermoMLCompound:
             The created compound wrapper.
         """
         # Gather up all possible identifiers
-        identifier_nodes = node.findall('ThermoML:sSmiles', namespace)
+        identifier_nodes = node.findall('ThermoML:sStandardInChI', namespace)
 
-        # identifier_nodes.extend(node.findall('ThermoML:sStandardInChI', namespace))
-        identifier_nodes.extend(node.findall('ThermoML:sIUPACName', namespace))
-        identifier_nodes.extend(node.findall('ThermoML:sCommonName', namespace))
-
-        if len(identifier_nodes) == 0:
+        if len(identifier_nodes) == 0 or identifier_nodes[0].text is None:
             # convert common name to smiles
-            raise RuntimeError('A ThermoML:Compound node does not have a proper identifier')
+            raise ValueError('A ThermoML:Compound node does not have a valid InChI identifier')
 
-        if identifier_nodes[0].text is None:
-            # A pathological case where no name is actually given...
-            return None
-
-        identifier = cls.smiles_from_identifier(identifier_nodes[0].text)
-
-        if identifier is None:
-
-            logging.warning('The compound identifier ' + identifier_nodes[0].text +
-                            ' could not be converted to a SMILES pattern and will be skipped')
-
-            return None
+        smiles = cls.smiles_from_inchi_string(identifier_nodes[0].text)
 
         index_node = node.find('./ThermoML:RegNum/*', namespace)
 
         if index_node is None:
-            raise RuntimeError('A ThermoML:Compound has a non-existent index')
+            raise ValueError('A ThermoML:Compound has a non-existent index')
 
         compound_index = int(index_node.text)
 
         return_value = cls()
 
-        return_value.smiles = identifier
-
+        return_value.smiles = smiles
         return_value.index = compound_index
 
         return return_value
@@ -436,6 +451,43 @@ class ThermoMLCompound:
 class ThermoMLProperty:
     """A wrapper around a ThermoML Property node.
     """
+    class SoluteStandardState(Enum):
+        """Describes the standard state of a solute.
+        """
+
+        Undefined = 'Undefined',
+        InfiniteDilutionSolute = 'Infinite dilution solute',
+        PureCompound = 'Pure compound',
+        PureLiquidSolute = 'Pure liquid solute',
+        StandardMolality = 'Standard molality (1 mol/kg) solute',
+
+        @staticmethod
+        def from_node(node):
+            """Converts an `eStandardState` node a `ThermoMLProperty.SoluteStandardState`.
+
+            Parameters
+            ----------
+            node : xml.etree.Element
+                The xml node to convert.
+
+            Returns
+            ----------
+            ThermoMLProperty.SoluteStandardState
+                The converted state type.
+            """
+
+            try:
+                standard_state = ThermoMLProperty.SoluteStandardState(node.text)
+            except (KeyError, ValueError):
+                standard_state = ThermoMLProperty.SoluteStandardState.Undefined
+
+            if standard_state == ThermoMLConstraintType.Undefined:
+
+                logging.debug(f'{node.tag}->{node.text} is an unsupported '
+                              f'solute standard state type.')
+
+            return standard_state
+
     def __init__(self, base_type):
 
         self.thermodynamic_state = None
@@ -452,12 +504,17 @@ class ThermoMLProperty:
 
         self.type = base_type
 
+        self.solute_standard_state = ThermoMLProperty.SoluteStandardState.Undefined
         self.solvents = []
+
+        self.target_compound_index = None
 
         self.property_uncertainty_definitions = {}
         self.combined_uncertainty_definitions = {}
 
         self.default_unit = None
+
+        self.target_compound_index = None
 
     @property
     def temperature(self):
@@ -480,7 +537,7 @@ class ThermoMLProperty:
         ----------
         node : Element
             The xml node to convert.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
         property_uncertainty_definitions : list(ThermoMLPropertyUncertainty)
             A list of the extracted property uncertainties.
@@ -517,15 +574,17 @@ class ThermoMLProperty:
             property_uncertainty_definitions[uncertainty_definition.index] = uncertainty_definition
 
     @classmethod
-    def from_xml_node(cls, node, namespace):
+    def from_xml_node(cls, node, namespace, parent_phases):
         """Creates a ThermoMLProperty from an xml node.
 
         Parameters
         ----------
         node : Element
             The xml node to convert.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
+        parent_phases: PropertyPhase
+            The phases specfied in the parent PureOrMixtureData node.
 
         Returns
         ----------
@@ -539,23 +598,22 @@ class ThermoMLProperty:
         property_index = int(index_node.text)
 
         phase_node = node.find('./ThermoML:PropPhaseID//ThermoML:ePropPhase', namespace)
-        phase = PropertyPhase.Undefined
+        phase = PropertyPhase.Undefined | parent_phases
 
         if phase_node is not None:
-            phase = phase_from_thermoml_string(phase_node.text)
+            phase |= phase_from_thermoml_string(phase_node.text)
+
+        reference_phase_node = node.find('./ThermoML:RefPhaseID//ThermoML:eRefPhase', namespace)
+
+        if reference_phase_node is not None:
+            phase |= phase_from_thermoml_string(reference_phase_node.text)
 
         if phase == PropertyPhase.Undefined:
 
-            # TODO: For now we just hope that the property defines the phase.
-            # This needs to be better supported however.
-            logging.warning('A property was measured in an unsupported phase (' +
-                            phase_node.text + ') and will be skipped.')
+            logging.debug(f'A property was measured in an unsupported phase '
+                          f'({phase_node.text}) and will be skipped.')
 
             return None
-
-        # TODO: Property->RegNum is currently ignored
-        # Describes which compound is referred to if the property is based on one of
-        # the compounds... e.g. mass fraction of compound 2
 
         property_group_node = node.find('./ThermoML:Property-MethodID//ThermoML:PropertyGroup//*', namespace)
 
@@ -570,21 +628,29 @@ class ThermoMLProperty:
 
         if property_name_node.text not in registered_thermoml_properties:
 
-            logging.warning('An unsupported property was found ({}) and '
-                            'will be skipped.'.format(property_name_node.text))
+            logging.debug(f'An unsupported property was found '
+                          f'({property_name_node.text}) and will be skipped.')
 
             return None
 
-        property_type = registered_thermoml_properties[property_name_node.text]
+        registered_plugin = registered_thermoml_properties[property_name_node.text]
 
-        return_value = cls(property_type)
+        if (registered_plugin.supported_phases & phase) != phase:
+
+            logging.debug(f'The {property_name_node.text} property is currently only supported '
+                          f'when measured in the {str(registered_plugin.supported_phases)} phase, '
+                          f'and not the {str(phase)} phase.')
+
+            return None
+
+        return_value = cls(registered_plugin.class_type)
 
         return_value.index = property_index
         return_value.phase = phase
 
         return_value.default_unit = unit_from_thermoml_string(property_name_node.text)
 
-        return_value.type = property_type
+        return_value.type = registered_plugin.class_type
         return_value.method_name = method_name_node.text
 
         property_uncertainty_definitions = {}
@@ -597,11 +663,27 @@ class ThermoMLProperty:
         return_value.combined_uncertainty_definitions = combined_uncertainty_definitions
         return_value.property_uncertainty_definitions = property_uncertainty_definitions
 
-        solvent_index_nodes = node.find('./ThermoML:Solvent//nOrgNum', namespace)
+        solvent_index_nodes = node.findall('./ThermoML:Solvent//ThermoML:nOrgNum', namespace)
 
         if solvent_index_nodes is not None:
             for solvent_index_node in solvent_index_nodes:
-                return_value.solvents.append(int(solvent_index_node))
+                return_value.solvents.append(int(solvent_index_node.text))
+
+        # The solute standard state appears to describe which a solute should
+        # be present in only trace amounts. It only seems to be relevant for
+        # activity based properties.
+        standard_state_node = node.find('./ThermoML:eStandardState', namespace)
+
+        if standard_state_node is not None:
+            return_value.solute_standard_state = ThermoMLProperty.SoluteStandardState.from_node(standard_state_node)
+
+        # Property->Property-MethodID->RegNum describes which compound is referred
+        # to if the property is based on one of the compounds e.g. the activity
+        # coefficient of compound 2.
+        target_compound_node = node.find('./ThermoML:Property-MethodID/ThermoML:RegNum/ThermoML:nOrgNum', namespace)
+
+        if target_compound_node is not None:
+            return_value.target_compound_index = int(target_compound_node.text)
 
         return return_value
 
@@ -639,7 +721,7 @@ class ThermoMLPureOrMixtureData:
         ----------
         node : Element
             The xml node to read.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
         compounds :
             The extracted compounds.
@@ -658,8 +740,8 @@ class ThermoMLPureOrMixtureData:
 
             if compound_index not in compounds:
 
-                logging.warning('A PureOrMixtureData entry depends on an '
-                                'unsupported compound and has been ignored')
+                logging.debug('A PureOrMixtureData entry depends on an '
+                              'unsupported compound and has been ignored')
 
                 return None
 
@@ -672,15 +754,17 @@ class ThermoMLPureOrMixtureData:
         return compound_indices
 
     @staticmethod
-    def extract_property_definitions(node, namespace):
+    def extract_property_definitions(node, namespace, parent_phases):
         """Extract a list of ThermoMLProperty from a PureOrMixtureData node.
 
         Parameters
         ----------
         node : Element
             The xml node to read.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
+        parent_phases: PropertyPhase
+            The phases specified by the parent PureOrMixtureData node.
 
         Returns
         ----------
@@ -693,7 +777,7 @@ class ThermoMLPureOrMixtureData:
 
         for property_node in property_nodes:
 
-            property_definition = ThermoMLProperty.from_xml_node(property_node, namespace)
+            property_definition = ThermoMLProperty.from_xml_node(property_node, namespace, parent_phases)
 
             if property_definition is None:
                 continue
@@ -715,7 +799,7 @@ class ThermoMLPureOrMixtureData:
         ----------
         node : Element
             The xml node to read.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
         compounds : dict(int, ThermoMLCompound)
             A dictionary of the compounds this PureOrMixtureData was calculated for.
@@ -734,20 +818,20 @@ class ThermoMLPureOrMixtureData:
             constraint = ThermoMLConstraint.from_node(constraint_node, namespace)
 
             if constraint is None or constraint.type is ThermoMLConstraintType.Undefined:
-                logging.warning('An unsupported constraint has been ignored.')
+                logging.debug('An unsupported constraint has been ignored.')
                 return None
 
             if constraint.compound_index is not None and \
                constraint.compound_index not in compounds:
 
-                logging.warning('A constraint exists upon a non-existent compound and will be ignored.')
+                logging.debug('A constraint exists upon a non-existent compound and will be ignored.')
                 return None
 
-            if (constraint.type is ThermoMLConstraintType.SolventComposistion or
-               constraint.type is ThermoMLConstraintType.ComponentComposition) and constraint.compound_index is None:
+            if constraint.type.is_composition_constraint() and constraint.compound_index is None:
 
-                logging.warning('An unsupported constraint has been ignored - composition constraints'
-                                'need to have a corresponding compound_index.')
+                logging.debug('An unsupported constraint has been ignored - composition constraints'
+                              'need to have a corresponding compound_index.')
+                return None
 
             constraints.append(constraint)
 
@@ -761,7 +845,7 @@ class ThermoMLPureOrMixtureData:
         ----------
         node : Element
             The xml node to read.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
         compounds : dict(int, ThermoMLCompound)
             A dictionary of the compounds this PureOrMixtureData was calculated for.
@@ -780,22 +864,21 @@ class ThermoMLPureOrMixtureData:
 
             if variable is None or variable.type is ThermoMLConstraintType.Undefined:
 
-                logging.warning('An unsupported variable has been ignored.')
-
+                logging.debug('An unsupported variable has been ignored.')
                 continue
 
             if variable.compound_index is not None and \
                variable.compound_index not in compounds:
 
-                logging.warning('A constraint exists upon a non-existent compound and will be ignored.')
-
+                logging.debug('A constraint exists upon a non-existent compound and will be ignored.')
                 continue
 
-            if (variable.type is ThermoMLConstraintType.SolventComposistion or
-               variable.type is ThermoMLConstraintType.ComponentComposition) and variable.compound_index is None:
+            if variable.type.is_composition_constraint() and variable.compound_index is None:
 
-                logging.warning('An unsupported variable has been ignored - composition variables'
-                                'need to have a corresponding compound_index.')
+                logging.debug('An unsupported variable has been ignored - composition variables'
+                              'need to have a corresponding compound_index.')
+
+                continue
 
             variables[variable.index] = variable
 
@@ -825,8 +908,6 @@ class ThermoMLPureOrMixtureData:
         prefix = ThermoMLCombinedUncertainty.prefix if combined \
             else ThermoMLPropertyUncertainty.prefix
 
-        index_node = None
-
         if combined:
             index_node = node.find('./ThermoML:CombinedUncertainty/ThermoML:nCombUncertAssessNum', namespace)
         else:
@@ -852,13 +933,333 @@ class ThermoMLPureOrMixtureData:
         return expanded_uncertainty / divisor
 
     @staticmethod
-    def build_mixture(measured_property, constraints, compounds):
+    def _smiles_to_molecular_weight(smiles):
+        """Calculates the molecular weight of a substance specified
+        by a smiles string.
+
+        Parameters
+        ----------
+        smiles: str
+            The smiles string to calculate the molecular weight of.
+
+        Returns
+        -------
+        simtk.unit.Quantity
+            The molecular weight.
+        """
+
+        from openforcefield.topology import Molecule
+
+        try:
+            molecule = Molecule.from_smiles(smiles)
+        except Exception as e:
+
+            formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+            raise ValueError(f'The toolkit raised an exception for the {smiles} smiles pattern: {formatted_exception}')
+
+        molecular_weight = 0.0 * unit.dalton
+
+        for atom in molecule.atoms:
+            molecular_weight += atom.mass
+
+        return molecular_weight
+
+    @staticmethod
+    def _solvent_mole_fractions_to_moles(solvent_mass, solvent_mole_fractions, solvent_compounds):
+        """Converts a set of solvent mole fractions to moles for a
+        given mass of solvent.
+
+        Parameters
+        ----------
+        solvent_mass: simtk.unit.Quantity
+            The total mass of the solvent in units compatible with kg.
+        solvent_mole_fractions: dict of int and float
+            The mole fractions of any solvent compounds in the system.
+        solvent_compounds: dict of int and float
+            A dictionary of any solvent compounds in the system.
+
+        Returns
+        -------
+        dict of int and unit.Quantity
+            A dictionary of the moles of each solvent compound.
+        """
+        weighted_molecular_weights = 0.0 * unit.dalton
+        number_of_moles = {}
+
+        for solvent_index in solvent_compounds:
+
+            solvent_smiles = solvent_compounds[solvent_index].smiles
+
+            solvent_fraction = solvent_mole_fractions[solvent_index]
+            solvent_weight = ThermoMLPureOrMixtureData._smiles_to_molecular_weight(solvent_smiles)
+
+            weighted_molecular_weights += solvent_weight * solvent_fraction
+
+        total_solvent_moles = solvent_mass / weighted_molecular_weights
+
+        for solvent_index in solvent_compounds:
+
+            moles = solvent_mole_fractions[solvent_index] * total_solvent_moles
+            number_of_moles[solvent_index] = moles
+
+        return number_of_moles
+
+    @staticmethod
+    def _convert_mole_fractions(constraints, compounds, solvent_mole_fractions=None):
+        """Converts a set of `ThermoMLConstraint` to mole fractions.
+
+        Parameters
+        ----------
+        constraints: list of ThermoMLConstraint
+            The constraints to convert.
+        compounds: dict of int and ThermoMLCompound
+            The compounds in the system.
+        solvent_mole_fractions: dict of int and float
+            The mole fractions of any solvent compounds in the system,
+            where the total mole fraction of all solvents must be equal
+            to one.
+
+        Returns
+        -------
+        dict of int and float
+            A dictionary of compound indices and mole fractions.
+        """
+
+        # noinspection PyTypeChecker
+        number_of_constraints = len(constraints)
+
+        mole_fractions = {}
+        total_mol_fraction = 0.0
+
+        for constraint in constraints:
+
+            mole_fraction = constraint.value
+
+            if isinstance(mole_fraction, unit.Quantity):
+                mole_fraction = mole_fraction.value_in_unit(unit.dimensionless)
+
+            mole_fractions[constraint.compound_index] = mole_fraction
+            total_mol_fraction += mole_fractions[constraint.compound_index]
+
+        if ((number_of_constraints != len(compounds) and solvent_mole_fractions is not None) or
+            (number_of_constraints != len(compounds) - 1 and number_of_constraints != len(compounds) and
+             solvent_mole_fractions is None)):
+
+            raise ValueError(f'The number of mole fraction constraints ({number_of_constraints}) must be one '
+                             f'less than or equal to the number of compounds being constrained ({len(compounds)}) '
+                             f'if a solvent list is not present, otherwise there must be an equal number.')
+
+        # Handle the case were a single mole fraction constraint is missing.
+        if number_of_constraints == len(compounds) - 1:
+
+            for compound_index in compounds:
+
+                if compound_index in mole_fractions:
+                    continue
+
+                mole_fractions[compound_index] = 1.0 - total_mol_fraction
+
+        # Recompute the total mole fraction to be safe.
+        total_mol_fraction = 0.0
+
+        for compound_index in mole_fractions:
+            total_mol_fraction += mole_fractions[compound_index]
+
+        # Account for any solvent present.
+        if solvent_mole_fractions is not None:
+
+            # Assume the remainder of the mole fraction is the solvent.
+            remaining_mole_fraction = 1.0 - total_mol_fraction
+
+            for solvent_index in solvent_mole_fractions:
+                mole_fractions[solvent_index] = solvent_mole_fractions[solvent_index] * remaining_mole_fraction
+
+        return mole_fractions
+
+    @staticmethod
+    def _convert_mass_fractions(constraints, compounds, solvent_mole_fractions=None, solvent_compounds=None):
+        """Converts a set of `ThermoMLConstraint` to mole fractions.
+
+        Parameters
+        ----------
+        constraints: list of ThermoMLConstraint
+            The constraints to convert.
+        compounds: dict of int and ThermoMLCompound
+            The compounds in the system.
+        solvent_mole_fractions: dict of int and float
+            The mole fractions of any solvent compounds in the system,
+            where the total mole fraction of all solvents must be equal
+            to one.
+        solvent_compounds: dict of int and float
+            A dictionary of any explicitly defined solvent compounds in the
+            system.
+
+        Returns
+        -------
+        dict of int and float
+            A dictionary of compound indices and mole fractions.
+        """
+
+        # noinspection PyTypeChecker
+        number_of_constraints = len(constraints)
+
+        mass_fractions = {}
+        total_mass_fraction = 0.0
+
+        for constraint in constraints:
+
+            mass_fraction = constraint.value
+
+            if isinstance(mass_fraction, unit.Quantity):
+                mass_fraction = mass_fraction.value_in_unit(unit.dimensionless)
+
+            mass_fractions[constraint.compound_index] = mass_fraction
+            total_mass_fraction += mass_fraction
+
+        if ((number_of_constraints != len(compounds) and solvent_mole_fractions is not None) or
+            (number_of_constraints != len(compounds) - 1 and number_of_constraints != len(compounds) and
+             solvent_mole_fractions is None)):
+
+            raise ValueError(f'The number of mass fraction constraints ({number_of_constraints}) must be one '
+                             f'less than or equal to the number of compounds being constrained ({len(compounds)}) '
+                             f'if a solvent list is not present, otherwise there must be an equal number.')
+
+        # Handle the case were a single mass fraction constraint is missing.
+        if number_of_constraints == len(compounds) - 1:
+
+            for compound_index in compounds:
+
+                if compound_index in mass_fractions:
+                    continue
+
+                mass_fractions[compound_index] = 1.0 - total_mass_fraction
+
+        total_mass = 1 * unit.gram
+        total_solvent_mass = total_mass
+
+        moles = {}
+        total_moles = 0.0 * unit.mole
+
+        for compound_index in compounds:
+
+            compound_smiles = compounds[compound_index].smiles
+            compound_weight = ThermoMLPureOrMixtureData._smiles_to_molecular_weight(compound_smiles)
+
+            moles[compound_index] = total_mass * mass_fractions[compound_index] / compound_weight
+            total_moles += moles[compound_index]
+
+            total_solvent_mass -= total_mass * mass_fractions[compound_index]
+
+        if number_of_constraints == len(compounds) and solvent_mole_fractions is not None:
+
+            solvent_moles = ThermoMLPureOrMixtureData._solvent_mole_fractions_to_moles(total_solvent_mass,
+                                                                                       solvent_mole_fractions,
+                                                                                       solvent_compounds)
+
+            for solvent_index in solvent_moles:
+
+                moles[solvent_index] = solvent_moles[solvent_index]
+                total_moles += solvent_moles[solvent_index]
+
+        mole_fractions = {}
+
+        for compound_index in moles:
+
+            mole_fraction = moles[compound_index] / total_moles
+            mole_fractions[compound_index] = mole_fraction
+
+        return mole_fractions
+
+    @staticmethod
+    def _convert_molality(constraints, compounds, solvent_mole_fractions=None, solvent_compounds=None):
+        """Converts a set of `ThermoMLConstraint` to mole fractions.
+
+        Parameters
+        ----------
+        constraints: list of ThermoMLConstraint
+            The constraints to convert.
+        compounds: dict of int and ThermoMLCompound
+            The compounds in the system.
+        solvent_mole_fractions: dict of int and float
+            The mole fractions of any solvent compounds in the system,
+            where the total mole fraction of all solvents must be equal
+            to one.
+        solvent_compounds: dict of int and float
+            A dictionary of any explicitly defined solvent compounds in the
+            system.
+
+        Returns
+        -------
+        dict of int and float
+            A dictionary of compound indices and mole fractions.
+        """
+        number_of_moles = {}
+        # noinspection PyTypeChecker
+        number_of_constraints = len(constraints)
+
+        mole_fractions = {}
+
+        total_number_of_moles = 0.0 * unit.moles
+        total_solvent_mass = 1.0 * unit.kilograms
+
+        for constraint in constraints:
+
+            molality = constraint.value
+            moles = molality * total_solvent_mass
+
+            number_of_moles[constraint.compound_index] = moles
+            total_number_of_moles += moles
+
+        if ((number_of_constraints != len(compounds) - 1 and solvent_mole_fractions is None) or
+            (number_of_constraints != len(compounds) and solvent_mole_fractions is not None)):
+
+            raise ValueError(f'The number of molality constraints ({number_of_constraints}) must be one '
+                             f'less than the number of compounds being constrained ({len(compounds)}) if a '
+                             f'solvent list is not present, otherwise there must be an equal number.')
+
+        if number_of_constraints == len(compounds) - 1 and solvent_mole_fractions is None:
+
+            # In this case, there is no explicit solvent entry and the last component
+            # whose molality has not been constrained is considered to be the 'solvent'
+            for compound_index in compounds:
+
+                if compound_index in number_of_moles:
+                    continue
+
+                compound_smiles = compounds[compound_index].smiles
+                compound_weight = ThermoMLPureOrMixtureData._smiles_to_molecular_weight(compound_smiles)
+
+                moles = total_solvent_mass / compound_weight
+
+                number_of_moles[compound_index] = moles
+                total_number_of_moles += moles
+
+        elif number_of_constraints == len(compounds) and solvent_mole_fractions is not None:
+
+            solvent_moles = ThermoMLPureOrMixtureData._solvent_mole_fractions_to_moles(total_solvent_mass,
+                                                                                       solvent_mole_fractions,
+                                                                                       solvent_compounds)
+
+            for solvent_index in solvent_moles:
+
+                number_of_moles[solvent_index] = solvent_moles[solvent_index]
+                total_number_of_moles += solvent_moles[solvent_index]
+
+        for compound_index in number_of_moles:
+
+            mole_fraction = number_of_moles[compound_index] / total_number_of_moles
+            mole_fractions[compound_index] = mole_fraction
+
+        return mole_fractions
+
+    @staticmethod
+    def build_mixture(thermoml_property, constraints, compounds):
         """Build a Substance object from the extracted constraints and compounds.
 
         Parameters
         ----------
-        measured_property : ThermoMLProperty
-            The measured property to build the mixture for.
+        thermoml_property: ThermoMLProperty
+            The property to which this mixture belongs.
         constraints : list of ThermoMLConstraint
             The ThermoML constraints.
         compounds : dict of int and ThermoMLCompound
@@ -870,51 +1271,189 @@ class ThermoMLPureOrMixtureData:
             The constructed mixture.
         """
 
-        if measured_property.phase != PropertyPhase.Liquid:
+        # TODO: We need to take into account `thermoml_property.target_compound_index` and
+        #       `thermoml_property.solute_standard_state` to properly identify infinitely
+        #       diluted solutes in the system (if any). Otherwise the solute will be
+        #       assigned a mole fraction of zero.
 
-            logging.warning('Only properties measured in the liquid phase '
-                            'are currently supported (' + str(measured_property.phase) + ').')
+        solvent_constraint_type = ThermoMLConstraintType.Undefined
+        component_constraint_type = ThermoMLConstraintType.Undefined
+
+        solvent_indices = set()
+
+        for solvent_index in thermoml_property.solvents:
+
+            if solvent_index in solvent_indices:
+                continue
+
+            solvent_indices.add(solvent_index)
+
+        # Determine which types of solvent and component constraints are
+        # being applied.
+        for constraint in constraints:
+
+            # Make sure we hunt down solvent indices.
+            for solvent_index in constraint.solvents:
+
+                if solvent_index in solvent_indices:
+                    continue
+
+                solvent_indices.add(solvent_index)
+
+            # Only composition type restraints apply here, skip
+            # the rest.
+            if not constraint.type.is_composition_constraint():
+                continue
+
+            if (constraint.type == ThermoMLConstraintType.SolventMassFraction or
+                constraint.type == ThermoMLConstraintType.SolventMoleFraction or
+                constraint.type == ThermoMLConstraintType.SolventMolality):
+
+                if solvent_constraint_type == ThermoMLConstraintType.Undefined:
+                    solvent_constraint_type = constraint.type
+
+                if solvent_constraint_type != constraint.type:
+
+                    logging.debug(f'A property with different types of solvent composition constraints '
+                                  f'was found - {solvent_constraint_type} vs {constraint.type}). This '
+                                  f'is likely a bug in the ThermoML file and so this property will be '
+                                  f'skipped.')
+
+                    return None
+
+            else:
+
+                if component_constraint_type == ThermoMLConstraintType.Undefined:
+                    component_constraint_type = constraint.type
+
+                if component_constraint_type != constraint.type:
+
+                    logging.debug(f'A property with different types of composition constraints '
+                                  f'was found - {component_constraint_type} vs {constraint.type}). This '
+                                  f'is likely a bug in the ThermoML file and so this property will be '
+                                  f'skipped.')
+
+                    return None
+
+        # If no constraint was applied, this very likely means a pure substance
+        # was found.
+        if (component_constraint_type == ThermoMLConstraintType.Undefined and
+            solvent_constraint_type == ThermoMLConstraintType.Undefined):
+
+            component_constraint_type = ThermoMLConstraintType.ComponentMoleFraction
+
+        elif (component_constraint_type == ThermoMLConstraintType.Undefined and
+              solvent_constraint_type != ThermoMLConstraintType.Undefined):
+
+            logging.debug(f'A property with only solvent composition '
+                          f'constraints {solvent_constraint_type} was found.')
 
             return None
 
-        mol_fractions = {}
+        solvent_mole_fractions = {}
 
-        number_of_constraints = 0
-        total_mol_fraction = 0.0
+        solvent_constraints = [constraint for constraint in constraints if
+                               constraint.type == solvent_constraint_type]
 
-        for constraint in constraints:
+        solvent_compounds = {}
 
-            if constraint.type != ThermoMLConstraintType.ComponentComposition and \
-               constraint.type != ThermoMLConstraintType.SolventComposistion:
+        for solvent_index in solvent_indices:
 
+            if solvent_index in compounds:
+
+                solvent_compounds[solvent_index] = compounds[solvent_index]
                 continue
 
-            mol_fractions[constraint.compound_index] = constraint.value / unit.dimensionless
+            logging.debug('The composition of a non-existent solvent was '
+                          'found. This usually only occurs in cases were '
+                          'the solvent component could not be understood '
+                          'by the framework.')
 
-            total_mol_fraction += mol_fractions[constraint.compound_index]
-            number_of_constraints += 1
+            return None
 
-        if number_of_constraints == len(compounds) and not np.isclose(total_mol_fraction, 1.0):
-            raise RuntimeError('The total mol fraction does not add to 1.0')
+        # Make sure all of the solvents have not been removed.
+        if solvent_constraint_type != ThermoMLConstraintType.Undefined and len(solvent_indices) == 0:
 
-        elif number_of_constraints > len(compounds):
-            raise RuntimeError('There are more concentration constraints than componenents.')
+            logging.debug('The composition of a solvent was found, however the '
+                          'solvent list is empty. This usually only occurs in '
+                          'cases were the solvent component could not be understood '
+                          'by the framework.')
 
-        elif number_of_constraints < len(compounds) - 1:
-            raise RuntimeError('There are too many unknown mole fractions.')
+            return None
 
-        elif number_of_constraints == len(compounds) - 1:
+        remaining_constraints = [constraint for constraint in constraints if
+                                 constraint.type == component_constraint_type]
 
-            for compound_index in compounds:
+        remaining_compounds = {}
 
-                if compound_index in mol_fractions:
-                    continue
+        for compound_index in compounds:
 
-                mol_fractions[compound_index] = 1.0 - total_mol_fraction
+            if compound_index in solvent_indices:
+                continue
 
-        else:
+            remaining_compounds[compound_index] = compounds[compound_index]
 
-            raise RuntimeError('Unexpected edge case..')
+        # Determine the mole fractions of the solvent species, if any.
+        if solvent_constraint_type == ThermoMLConstraintType.SolventMoleFraction:
+
+            solvent_mole_fractions = ThermoMLPureOrMixtureData._convert_mole_fractions(solvent_constraints,
+                                                                                       solvent_compounds)
+
+        elif solvent_constraint_type == ThermoMLConstraintType.SolventMassFraction:
+
+            solvent_mole_fractions = ThermoMLPureOrMixtureData._convert_mass_fractions(solvent_constraints,
+                                                                                       solvent_compounds)
+
+        elif solvent_constraint_type == ThermoMLConstraintType.SolventMolality:
+
+            solvent_mole_fractions = ThermoMLPureOrMixtureData._convert_molality(solvent_constraints,
+                                                                                 solvent_compounds)
+
+        elif solvent_constraint_type == ThermoMLConstraintType.Undefined:
+
+            solvent_mole_fractions = None
+            solvent_compounds = None
+
+            remaining_compounds = compounds
+
+        # Determine the mole fractions of the remaining compounds.
+        mole_fractions = {}
+
+        if component_constraint_type == ThermoMLConstraintType.ComponentMoleFraction:
+
+            mole_fractions = ThermoMLPureOrMixtureData._convert_mole_fractions(remaining_constraints,
+                                                                               remaining_compounds,
+                                                                               solvent_mole_fractions)
+
+        elif component_constraint_type == ThermoMLConstraintType.ComponentMassFraction:
+
+            mole_fractions = ThermoMLPureOrMixtureData._convert_mass_fractions(remaining_constraints,
+                                                                               remaining_compounds,
+                                                                               solvent_mole_fractions,
+                                                                               solvent_compounds)
+
+        elif component_constraint_type == ThermoMLConstraintType.ComponentMolality:
+
+            mole_fractions = ThermoMLPureOrMixtureData._convert_molality(remaining_constraints,
+                                                                         remaining_compounds,
+                                                                         solvent_mole_fractions,
+                                                                         solvent_compounds)
+
+        if len(mole_fractions) != len(compounds):
+
+            raise ValueError(f'The number of mole fractions ({len(mole_fractions)}) does not '
+                             f'equal the total number of compounds ({len(compounds)})')
+
+        # Make sure we haven't picked up a dimensionless unit be accident.
+        for compound_index in mole_fractions:
+
+            if isinstance(mole_fractions[compound_index], unit.Quantity):
+                mole_fractions[compound_index] = mole_fractions[compound_index].value_in_unit(unit.dimensionless)
+
+        total_mol_fraction = sum([value for value in mole_fractions.values()])
+
+        if not np.isclose(total_mol_fraction, 1.0):
+            raise ValueError(f'The total mole fraction {total_mol_fraction} is not equal to 1.0')
 
         substance = Substance()
 
@@ -922,11 +1461,11 @@ class ThermoMLPureOrMixtureData:
 
             compound = compounds[compound_index]
 
-            if np.isclose(mol_fractions[compound_index], 0.0):
+            if np.isclose(mole_fractions[compound_index], 0.0):
                 continue
 
             substance.add_component(component=Substance.Component(smiles=compound.smiles),
-                                    amount=Substance.MoleFraction(mol_fractions[compound_index]))
+                                    amount=Substance.MoleFraction(mole_fractions[compound_index]))
 
         return substance
 
@@ -943,7 +1482,7 @@ class ThermoMLPureOrMixtureData:
         ----------
         node : Element
             The xml node to read.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
         property_definitions
             The extracted property definitions.
@@ -974,8 +1513,6 @@ class ThermoMLPureOrMixtureData:
 
             for global_constraint in global_constraints:
 
-                # constraint = copy.deepcopy(global_constraint)
-                # constraint = json.loads(json.dumps(global_constraint))
                 constraint = pickle.loads(pickle.dumps(global_constraint, -1))
                 constraints.append(constraint)
 
@@ -1018,15 +1555,14 @@ class ThermoMLPureOrMixtureData:
                 continue
 
             # Extract the thermodynamic state that the property was measured at.
-            if temperature_constraint is None or \
-               pressure_constraint is None:
+            if temperature_constraint is None:
 
-                logging.warning('A property did not state the T / p it was measured'
-                                'at and will be ignored.')
+                logging.debug('A property did not report the temperature or the pressure it '
+                              'was measured at and will be ignored.')
                 continue
 
             temperature = temperature_constraint.value
-            pressure = pressure_constraint.value
+            pressure = None if pressure_constraint is None else pressure_constraint.value
 
             thermodynamic_state = ThermodynamicState(temperature=temperature, pressure=pressure)
 
@@ -1051,8 +1587,8 @@ class ThermoMLPureOrMixtureData:
 
                 if uncertainty is None:
 
-                    logging.warning('A property (' + str(property_definition.type) +
-                                    ') without uncertainties was ignored')
+                    logging.debug('A property ({str(property_definition.type)}) '
+                                  'without uncertainties was ignored')
 
                     continue
 
@@ -1071,14 +1607,9 @@ class ThermoMLPureOrMixtureData:
                                                                   compounds)
 
                 if mixture is None:
-
-                    logging.warning('Could not build a mixture for a property (' +
-                                    str(property_definition.type) + ').')
-
                     continue
 
                 measured_property.substance = mixture
-
                 measured_properties.append(measured_property)
 
         # By this point we now have the measured properties and the thermodynamic state
@@ -1093,10 +1624,10 @@ class ThermoMLPureOrMixtureData:
         ----------
         node : Element
             The xml node to read.
-        namespace : str
+        namespace : dict of str and str
             The xml namespace.
-        namespace : dict(int, ThermoMLCompound
-            A list of the already extracted ThermoMLCompound's.
+        compounds : dict of int and ThermoMLCompound
+            A list of the already extracted `ThermoMLCompound`'s.
 
         Returns
         ----------
@@ -1115,17 +1646,7 @@ class ThermoMLPureOrMixtureData:
 
         if len(compound_indices) == 0:
 
-            logging.warning('A PureOrMixtureData entry with no compounds was ignored.')
-            return None
-
-        # Extract property definitions - values come later!
-        property_definitions = ThermoMLPureOrMixtureData.extract_property_definitions(node, namespace)
-
-        if len(property_definitions) == 0:
-
-            logging.warning('A PureOrMixtureData entry with no properties was ignored. ' +
-                            'Most likely this entry only contained unsupported properties.')
-
+            logging.debug('A PureOrMixtureData entry with no compounds was ignored.')
             return None
 
         phase_nodes = node.findall('./ThermoML:PhaseID/ThermoML:ePhase', namespace)
@@ -1137,14 +1658,19 @@ class ThermoMLPureOrMixtureData:
             phase = phase_from_thermoml_string(phase_node.text)
 
             if phase == PropertyPhase.Undefined:
-                # TODO: For now we just hope that the property defines the phase.
-                # This needs to be better supported however.
-                logging.warning('A property was measured in an unsupported phase (' +
-                                phase_node.text + ') and will be skipped.')
+
+                logging.debug(f'A property was measured in an unsupported phase '
+                              f'({phase_node.text}) and will be skipped.')
 
                 return None
 
             all_phases = phase if all_phases is None else all_phases | phase
+
+        # Extract property definitions - values come later!
+        property_definitions = ThermoMLPureOrMixtureData.extract_property_definitions(node, namespace, all_phases)
+
+        if len(property_definitions) == 0:
+            return None
 
         for property_index in property_definitions:
 
@@ -1163,7 +1689,7 @@ class ThermoMLPureOrMixtureData:
 
         if len(global_constraints) == 0 and len(variable_definitions) == 0:
 
-            logging.warning('A PureOrMixtureData entry with no constraints was ignored.')
+            logging.debug('A PureOrMixtureData entry with no constraints was ignored.')
             return None
 
         used_compounds = {}
@@ -1203,22 +1729,22 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
     """
 
     def __init__(self):
-
+        """Constructs a new ThermoMLDataSet object."""
         super().__init__()
 
     @classmethod
     def from_doi(cls, *doi_list):
         """Load a ThermoML data set from a list of DOIs
-        
+
         Parameters
         ----------
         doi_list : *str
             The list of DOIs to pull data from
-        
+
         Returns
         ----------
         ThermoMLDataSet
-            The loaded data set. 
+            The loaded data set.
         """
         return_value = None
 
@@ -1251,7 +1777,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
         Returns
         ----------
         ThermoMLDataSet
-            The loaded data set. 
+            The loaded data set.
         """
 
         return_value = None
@@ -1284,7 +1810,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
         Returns
         ----------
         ThermoMLDataSet
-            The loaded data set. 
+            The loaded data set.
         """
         if source is None:
             source = MeasurementSource(reference=url)
@@ -1292,13 +1818,12 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
         return_value = None
 
         try:
-            with urlopen(url) as response:
 
+            with urlopen(url) as response:
                 return_value = cls.from_xml(response.read(), source)
 
-        except HTTPError as error:
-
-            logging.warning('WARNING: No ThermoML file could not be found at ' + url)
+        except HTTPError:
+            logging.warning('No ThermoML file could not be found at ' + url)
 
         return return_value
 
@@ -1314,7 +1839,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
         Returns
         ----------
         ThermoMLDataSet
-            The loaded data set. 
+            The loaded data set.
         """
         return_value = None
         counter = 0
@@ -1323,7 +1848,6 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
             data_set = cls._from_file(file)
 
-            logging.info('Reading file ' + str(counter + 1) + ' of ' + str(len(file_list)) + ' (' + file + ')')
             counter += 1
 
             if data_set is None or len(data_set.properties) == 0:
@@ -1348,7 +1872,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
         Returns
         ----------
         ThermoMLDataSet
-            The loaded data set. 
+            The loaded data set.
         """
         source = MeasurementSource(reference=path)
         return_value = None
@@ -1356,11 +1880,9 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
         try:
 
             with open(path) as file:
-
                 return_value = ThermoMLDataSet.from_xml(file.read(), source)
 
-        except FileNotFoundError as error:
-
+        except FileNotFoundError:
             logging.warning('No ThermoML file could not be found at ' + path)
 
         return return_value
@@ -1371,8 +1893,8 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
         Parameters
         ----------
-        xml : ElementTree
-            The xml object to parse.
+        xml : str
+            The xml string to parse.
         source : Source
             The source of the xml object.
 
@@ -1392,7 +1914,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
             return None
 
         # Extract the namespace that will prefix all type names
-        namespace_string = re.search('{.*\}', root_node.tag).group(0)[1:-1]
+        namespace_string = re.search(r'{.*\}', root_node.tag).group(0)[1:-1]
         namespace = {'ThermoML': namespace_string}
 
         return_value = ThermoMLDataSet()
@@ -1415,7 +1937,9 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
         # Pull out any and all properties in the file.
         for node in root_node.findall('ThermoML:PureOrMixtureData', namespace):
 
-            properties = ThermoMLPureOrMixtureData.from_xml_node(node, namespace, compounds)
+            properties = ThermoMLPureOrMixtureData.from_xml_node(node,
+                                                                 namespace,
+                                                                 compounds)
 
             if properties is None or len(properties) == 0:
                 continue

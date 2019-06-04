@@ -18,8 +18,8 @@ from propertyestimator.protocols.miscellaneous import AddQuantities, FilterSubst
 from propertyestimator.protocols.simulation import RunEnergyMinimisation, RunOpenMMSimulation
 from propertyestimator.substances import Substance
 from propertyestimator.tests.test_workflow.utils import DummyEstimatedQuantityProtocol, DummyProtocolWithDictInput
+from propertyestimator.tests.utils import build_tip3p_smirnoff_force_field
 from propertyestimator.thermodynamics import Ensemble, ThermodynamicState
-from propertyestimator.utils import get_data_filename
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
@@ -134,6 +134,9 @@ def test_base_simulation_protocols():
 
     with tempfile.TemporaryDirectory() as temporary_directory:
 
+        force_field_path = path.join(temporary_directory, 'ff.offxml')
+        build_tip3p_smirnoff_force_field(force_field_path)
+
         build_coordinates = BuildCoordinatesPackmol('')
 
         # Set the maximum number of molecules in the system.
@@ -152,7 +155,7 @@ def test_base_simulation_protocols():
         print('Assigning some parameters.')
         assign_force_field_parameters = BuildSmirnoffSystem('')
 
-        assign_force_field_parameters.force_field_path = get_data_filename('forcefield/smirnoff99Frosst.offxml')
+        assign_force_field_parameters.force_field_path = force_field_path
         assign_force_field_parameters.coordinate_file_path = path.join(temporary_directory, 'output.pdb')
         assign_force_field_parameters.substance = water_substance
 
