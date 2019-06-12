@@ -224,6 +224,7 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
                                                number_of_copies=number_of_molecules,
                                                structure_to_solvate=self._solute_coordinate_file,
                                                mass_density=self._mass_density,
+                                               box_aspect_ratio=self._box_aspect_ratio,
                                                verbose=self._verbose_packmol,
                                                working_directory=packmol_directory,
                                                retain_working_files=self._retain_packmol_files)

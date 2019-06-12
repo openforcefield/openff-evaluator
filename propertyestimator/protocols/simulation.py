@@ -850,3 +850,14 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         self._extract_trajectory(complex_yank_path, self._solvated_complex_trajectory_path)
 
         return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class RunPAPRika(BaseProtocol):
+    """A protocol which will setup and run a pAPRika host-guest
+    binding affinity calculation, starting from a host and guest
+    `taproom` style .yaml definition file.
+    """
+
+    def execute(self, directory, available_resources):
+        raise NotImplementedError()

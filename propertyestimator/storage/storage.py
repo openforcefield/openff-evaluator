@@ -276,7 +276,7 @@ class PropertyEstimatorStorage:
         substance: Substance
             The substance to check for.
         include_pure_data: bool
-            If the substance if a mixture where has multiple components and `include_pure_data`
+            If the substance if a mixture which has multiple components and `include_pure_data`
             is True, data will be returned for both the mixed system, and for the individual
             components, otherwise only data for the mixed system will be returned.
 

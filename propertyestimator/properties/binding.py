@@ -5,6 +5,7 @@ A collection of density physical property definitions.
 from propertyestimator.properties import PhysicalProperty
 from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.protocols import coordinates, forcefield, simulation, miscellaneous
+from propertyestimator.storage.dataclasses import FreeEnergySimulationData
 from propertyestimator.substances import Substance
 from propertyestimator.workflow.schemas import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
@@ -21,6 +22,12 @@ class HostGuestBindingAffinity(PhysicalProperty):
         of the individual components also.
         """
         return False
+
+    @property
+    def required_data_class(self):
+        """Returns which type of stored data class is required by
+        this property."""
+        return FreeEnergySimulationData
 
     @staticmethod
     def get_default_workflow_schema(calculation_layer, options=None):

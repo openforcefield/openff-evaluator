@@ -7,6 +7,7 @@ from propertyestimator.properties import PhysicalProperty, PropertyPhase
 from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.properties.utils import generate_base_reweighting_protocols
 from propertyestimator.protocols import analysis, coordinates, forcefield, groups, simulation
+from propertyestimator.storage import StoredSimulationData
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow.schemas import WorkflowOutputToStore, WorkflowSchema
@@ -25,6 +26,12 @@ class Density(PhysicalProperty):
         of the individual components also.
         """
         return False
+
+    @property
+    def required_data_class(self):
+        """Returns which type of stored data class is required by
+        this property."""
+        return StoredSimulationData
 
     @staticmethod
     def get_default_workflow_schema(calculation_layer, options=None):

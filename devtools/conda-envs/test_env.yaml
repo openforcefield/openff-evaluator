@@ -5,7 +5,7 @@ channels:
   - openeye
 dependencies:
     # Base depends
-  - python
+  - python >=3.6
   - pip
 
     # Testing and development
@@ -17,7 +17,7 @@ dependencies:
   - openeye-toolkits
 
     # Standard dependencies
-#  - openforcefield ==0.0.4
+  - openforcefield >=0.4.0
   - numpy
   - pandas
   - openmm
@@ -30,6 +30,7 @@ dependencies:
   - tornado
   - coverage >=4.4
   - uncertainties
-  - openmmtools
-#  - yank
+  - openmmtools >=0.18.2
+  - yank
   - pyyaml
+  - paprika

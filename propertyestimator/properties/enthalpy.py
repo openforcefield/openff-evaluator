@@ -9,6 +9,7 @@ from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.properties.properties import PhysicalProperty, PropertyPhase
 from propertyestimator.properties.utils import generate_base_reweighting_protocols
 from propertyestimator.protocols import analysis, coordinates, forcefield, groups, miscellaneous, simulation
+from propertyestimator.storage import StoredSimulationData
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.exceptions import PropertyEstimatorException
@@ -93,6 +94,12 @@ class EnthalpyOfMixing(PhysicalProperty):
         of the individual components also.
         """
         return True
+
+    @property
+    def required_data_class(self):
+        """Returns which type of stored data class is required by
+        this property."""
+        return StoredSimulationData
 
     @staticmethod
     def get_enthalpy_workflow(id_prefix='', weight_by_mole_fraction=False, options=None):

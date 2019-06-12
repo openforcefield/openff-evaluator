@@ -20,6 +20,10 @@ class IReweightable(SubhookedABCMeta):
     @abc.abstractmethod
     def multi_component_property(self): pass
 
+    @property
+    @abc.abstractmethod
+    def required_data_class(self): pass
+
 
 @register_calculation_layer()
 class ReweightingLayer(PropertyCalculationLayer):
