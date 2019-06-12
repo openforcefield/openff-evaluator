@@ -285,6 +285,7 @@ class DaskLSFBackend(BaseDaskBackend):
         return self._client.submit(DaskLSFBackend._wrapped_function,
                                    function,
                                    *args,
+                                   **kwargs,
                                    available_resources=self._resources_per_worker,
                                    available_protocols=protocols_to_import,
                                    gpu_assignments={},
@@ -366,6 +367,7 @@ class DaskLocalClusterBackend(BaseDaskBackend):
         return self._client.submit(DaskLocalClusterBackend._wrapped_function,
                                    function,
                                    *args,
+                                   **kwargs,
                                    key=key,
                                    available_resources=self._resources_per_worker,
                                    gpu_assignments=self._gpu_device_indices_by_worker)
