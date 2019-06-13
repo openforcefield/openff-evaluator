@@ -166,6 +166,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
                                                number_of_copies=number_of_molecules,
                                                mass_density=self._mass_density,
                                                box_aspect_ratio=self._box_aspect_ratio,
+                                               center_box=False,
                                                verbose=self._verbose_packmol,
                                                working_directory=packmol_directory,
                                                retain_working_files=self._retain_packmol_files)
@@ -194,11 +195,17 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
         """A file path to the solute to solvate."""
         pass
 
+    @protocol_input(bool)
+    def center_solute_in_box(self):
+        """If `True`, the center of the solute will be moved to the origin."""
+        pass
+
     def __init__(self, protocol_id):
 
         super().__init__(protocol_id)
 
         self._solute_coordinate_file = None
+        self._center_solute_in_box = True
 
     def execute(self, directory, available_resources):
 
@@ -225,6 +232,7 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
                                                structure_to_solvate=self._solute_coordinate_file,
                                                mass_density=self._mass_density,
                                                box_aspect_ratio=self._box_aspect_ratio,
+                                               center_box=self._center_solute_in_box,
                                                verbose=self._verbose_packmol,
                                                working_directory=packmol_directory,
                                                retain_working_files=self._retain_packmol_files)

@@ -43,7 +43,7 @@ _SOLVATE_TEMPLATE = """
 structure {0:s}
   number 1
   fixed {1:f} {2:f} {3:f} 0. 0. 0.
-  centerofmass
+  {4:s}
 end structure
 """
 
@@ -55,6 +55,7 @@ def pack_box(molecules,
              box_size=None,
              mass_density=None,
              box_aspect_ratio=None,
+             center_box=True,
              verbose=False,
              working_directory=None,
              retain_working_files=False):
@@ -81,6 +82,8 @@ def pack_box(molecules,
     box_aspect_ratio: list of float, optional
         The aspect ratio of the simulation box, used in conjunction with the `mass_density`
         parameter. If none, an isotropic ratio (i.e. [1.0, 1.0, 1.0]) is used.
+    center_box: bool
+        If `True`, the center of the `structure_to_solvate` will be moved to the origin.
     verbose : bool
         If True, verbose output is written.
     working_directory: str, optional
@@ -202,10 +205,13 @@ def pack_box(molecules,
 
     if structure_to_solvate_file_name is not None:
 
+        center_mode = 'centerofmass' if center_box else ''
+
         packmol_input += _SOLVATE_TEMPLATE.format(structure_to_solvate_file_name,
                                                   unitless_box_angstrom[0] / 2.0,
                                                   unitless_box_angstrom[1] / 2.0,
-                                                  unitless_box_angstrom[2] / 2.0)
+                                                  unitless_box_angstrom[2] / 2.0,
+                                                  center_mode)
 
     # Write packmol input
     packmol_file_name = "packmol_input.txt"
