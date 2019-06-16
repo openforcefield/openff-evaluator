@@ -9,7 +9,7 @@ import paprika
 from paprika.io import save_restraints
 from simtk import unit
 
-from propertyestimator.backends import ComputeResources, DaskLocalClusterBackend, QueueWorkerResources, DaskLSFBackend
+from propertyestimator.backends import ComputeResources, QueueWorkerResources, DaskLSFBackend
 from propertyestimator.protocols import miscellaneous, coordinates, forcefield, simulation, groups
 from propertyestimator.substances import Substance
 from propertyestimator.tests.utils import build_tip3p_smirnoff_force_field
@@ -135,16 +135,21 @@ def build_simulation_protocol_group(group_id, coordinate_file, system_file, ense
 
 def analyse_run(*args, host_name, guest_name, setup_directory, available_resources, **kwargs):
 
-    exception_raised = False
+    exceptions = []
 
     for index, arg in enumerate(args):
+
         logging.info(f'Simulation {index} finished with result: {json.dumps(arg, cls=TypedJSONEncoder)}')
 
-        if isinstance(arg, PropertyEstimatorException):
-            exception_raised = True
+        if not isinstance(arg, PropertyEstimatorException):
+            continue
 
-    if exception_raised:
-        return
+        exceptions.append(arg)
+
+    if len(exceptions) > 0:
+
+        message = ', '.join([f'{exception.directory}: {exception.message}' for exception in exceptions])
+        return None, None, None, None, PropertyEstimatorException(directory='', message=message)
 
     attach_free_energy = EstimatedQuantity(0 * unit.kilocalorie_per_mole,
                                            0 * unit.kilocalorie_per_mole,
@@ -208,18 +213,36 @@ def analyse_run(*args, host_name, guest_name, setup_directory, available_resourc
     return attach_free_energy, pull_free_energy, release_free_energy, reference_free_energy, None
 
 
+def list_files(start_path):
+
+    return_value = ''
+
+    for root, dirs, files in os.walk(start_path):
+
+        level = root.replace(start_path, '').count(os.sep)
+        indent = ' ' * 4 * level
+        return_value += f'{indent}{os.path.basename(root)}/\n'
+        sub_indent = ' ' * 4 * (level + 1)
+
+        for file in files:
+            return_value += f'{sub_indent}{file}\n'
+
+    return return_value
+
+
 def run_window_simulation(index, window_coordinate_path, window_system_xml_path, available_resources, **_):
 
     try:
         window_directory = os.path.dirname(window_system_xml_path)
 
         if not os.path.isdir(window_directory):
-            os.mkdir(window_directory)
+
+            logging.info(f'The window directory was not found - cwd={os.getcwd()}')
+            logging.info(list_files(os.getcwd()))
 
         simulation_directory = os.path.join(window_directory, 'simulations')
 
-        if not os.path.isdir(simulation_directory):
-            os.mkdir(simulation_directory)
+        os.makedirs(simulation_directory, exist_ok=True)
 
         simulation_protocol = build_simulation_protocol_group(f'simulation_{index}',
                                                               window_coordinate_path,
@@ -234,6 +257,7 @@ def run_window_simulation(index, window_coordinate_path, window_system_xml_path,
         shutil.copyfile(coordinate_path, os.path.join(window_directory, 'input.pdb'))
 
         shutil.rmtree(simulation_directory)
+
     except Exception as e:
 
         formatted_exception = traceback.format_exception(None, e, e.__traceback__)
@@ -284,7 +308,10 @@ def run_paprika(host, guest, base_directory, calculation_backend=None):
     filter_solvent.input_substance = substance  # ProtocolPath('substance', 'global')
     filter_solvent.component_role = Substance.ComponentRole.Solvent
 
-    filter_solvent.execute(base_directory, None)
+    result = filter_solvent.execute(base_directory, None)
+
+    if isinstance(result, PropertyEstimatorException):
+        raise RuntimeError(result.message)
 
     window_system_xml_paths = {}
     window_coordinate_paths = {}
@@ -306,7 +333,10 @@ def run_paprika(host, guest, base_directory, calculation_backend=None):
         solvate_complex.substance = filter_solvent.filtered_substance
         solvate_complex.solute_coordinate_file = window_file_path
 
-        solvate_complex.execute(window_directory, None)
+        result = solvate_complex.execute(window_directory, None)
+
+        if isinstance(result, PropertyEstimatorException):
+            raise RuntimeError(result.message)
 
         # Assign force field parameters to the solvated complex system.
         build_solvated_complex_system = forcefield.BuildSmirnoffSystem('build_solvated_window_system')
@@ -318,7 +348,10 @@ def run_paprika(host, guest, base_directory, calculation_backend=None):
 
         build_solvated_complex_system.charged_molecule_paths = [host_mol2_path]
 
-        build_solvated_complex_system.execute(window_directory, None)
+        result = build_solvated_complex_system.execute(window_directory, None)
+
+        if isinstance(result, PropertyEstimatorException):
+            raise RuntimeError(result.message)
 
         # Add the aligning dummy atoms to the solvated pdb files.
         window_system_xml_paths[index] = os.path.join(window_directory, 'restrained.xml')
@@ -423,7 +456,7 @@ def main():
     ]
 
     calculation_backend = DaskLSFBackend(minimum_number_of_workers=1,
-                                         maximum_number_of_workers=20,
+                                         maximum_number_of_workers=40,
                                          resources_per_worker=queue_resources,
                                          queue_name='gpuqueue',
                                          setup_script_commands=worker_script_commands,
@@ -432,12 +465,7 @@ def main():
     calculation_backend.start()
 
     host_guest_directory = 'paprika_ap'
-
-    # if os.path.isdir(host_guest_directory):
-    #     shutil.rmtree(host_guest_directory)
-
-    if not os.path.isdir(host_guest_directory):
-        os.mkdir(host_guest_directory)
+    os.makedirs(host_guest_directory, exist_ok=True)
 
     host_guest_future = None
 
@@ -450,12 +478,7 @@ def main():
         logging.info(f'Failed to setup attach / pull calculations: {formatted_exception}')
 
     host_directory = 'paprika_r'
-
-    # if os.path.isdir(host_directory):
-    #     shutil.rmtree(host_directory)
-
-    if not os.path.isdir(host_directory):
-        os.mkdir(host_directory)
+    os.makedirs(host_directory, exist_ok=True)
 
     host_future = None
 
@@ -476,10 +499,10 @@ def main():
 
     if host_guest_future is not None:
 
-        attach_free_energy, pull_free_energy, _, reference_free_energy, error = host_guest_future.result()
+        attach_free_energy, pull_free_energy, _, reference_free_energy, host_guest_error = host_guest_future.result()
 
-        if error is not None:
-            logging.info(f'The attach, pull calculations failed with error: {error}')
+        if host_guest_error is not None:
+            logging.info(f'The attach, pull calculations failed with error: {host_guest_error}')
 
         else:
             logging.info(f'The attach, pull calculation yielded free energies of '
@@ -488,10 +511,10 @@ def main():
 
     if host_future is not None:
 
-        _, _, release_free_energy, _, error = host_future.result()
+        _, _, release_free_energy, _, host_error = host_future.result()
 
-        if error is not None:
-            logging.info(f'The release calculation failed with error: {error}')
+        if host_error is not None:
+            logging.info(f'The release calculation failed with error: {host_error}')
         else:
             logging.info(f'The release calculation yielded a free energy of {release_free_energy}.')
 
