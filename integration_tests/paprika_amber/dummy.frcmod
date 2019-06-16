@@ -1,0 +1,14 @@
+Parameters for dummy atom with type Du
+MASS
+Du     208.00
+
+BOND
+
+ANGLE
+
+DIHE
+
+IMPROPER
+
+NONBON
+  Du       0.000     0.0000000

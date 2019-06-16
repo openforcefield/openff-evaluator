@@ -1,0 +1,11 @@
+@<TRIPOS>MOLECULE
+DM2
+    1     0     1     0     1
+SMALL
+USER_CHARGES
+
+@<TRIPOS>ATOM
+  1 DUM     0.000000    0.000000    0.000000 Du    1 DM2     0.0000 ****
+@<TRIPOS>BOND
+@<TRIPOS>SUBSTRUCTURE
+      1  DM2              1 ****               0 ****  ****    0 ROOT
