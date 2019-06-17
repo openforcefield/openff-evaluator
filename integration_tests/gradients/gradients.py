@@ -56,7 +56,8 @@ def evaluate_reduced_potential(force_field, topology, trajectory, charged_molecu
     reduced_potentials = np.zeros(trajectory.n_frames)
 
     for frame_index in range(trajectory.n_frames):
-        positions = trajectory.openmm_positions(frame_index)
+        # positions = trajectory.openmm_positions(frame_index)
+        positions = trajectory.xyz[frame_index]
         box_vectors = trajectory.openmm_boxes(frame_index)
 
         openmm_context.setPeriodicBoxVectors(*box_vectors)
@@ -72,9 +73,8 @@ def evaluate_reduced_potential(force_field, topology, trajectory, charged_molecu
     return reduced_potentials
 
 
-def estimate_gradient(trajectory, topology, original_parameter, parameter_handler_class, unitted_attribute):
-
-    original_parameter_value = getattr(original_parameter, unitted_attribute)
+def estimate_gradient(trajectory, topology, original_parameter, parameter_handler_class,
+                      unitted_attribute, *extra_parameters):
 
     logging.info(f'Building reverse perturbed parameter for {unitted_attribute}.')
     reverse_parameter = copy.deepcopy(original_parameter)
@@ -84,8 +84,13 @@ def estimate_gradient(trajectory, topology, original_parameter, parameter_handle
 
     logging.info('Building reverse force field.')
     reverse_force_field = ForceField()
+
     reverse_handler = parameter_handler_class(skip_version_check=True)
     reverse_handler.parameters.append(reverse_parameter)
+
+    for extra_parameter in extra_parameters:
+        reverse_handler.parameters.append(extra_parameter)
+
     reverse_force_field.register_parameter_handler(reverse_handler)
 
     logging.info('Evaluating reverse reduced potential.')
@@ -102,9 +107,14 @@ def estimate_gradient(trajectory, topology, original_parameter, parameter_handle
 
     logging.info('Building forward force field.')
     forward_force_field = ForceField()
-    forward_bond_handler = parameter_handler_class(skip_version_check=True)
-    forward_bond_handler.parameters.append(forward_parameter)
-    forward_force_field.register_parameter_handler(forward_bond_handler)
+
+    forward_handler = parameter_handler_class(skip_version_check=True)
+    forward_handler.parameters.append(forward_parameter)
+
+    for extra_parameter in extra_parameters:
+        forward_handler.parameters.append(extra_parameter)
+
+    forward_force_field.register_parameter_handler(forward_handler)
 
     logging.info('Evaluating forward reduced potential.')
     forward_reduced_energies = evaluate_reduced_potential(forward_force_field,
@@ -162,6 +172,10 @@ def estimate_gradients():
 
             parameter = parameters_by_smirks[smirks]
 
+            remaining_parameters = {
+                key: parameters_by_smirks[key] for key in parameters_by_smirks if key != smirks
+            }
+
             for unitted_attribute in parameter._REQUIRE_UNITS:
 
                 if not hasattr(parameter, unitted_attribute):
@@ -181,7 +195,8 @@ def estimate_gradients():
                                              methanol_topology,
                                              parameter,
                                              parameter_handler_class,
-                                             unitted_attribute)
+                                             unitted_attribute,
+                                             *remaining_parameters.values())
 
                 print(f'{parameter_tag}: {smirks} - dE/{unitted_attribute} = {gradient}')
 
