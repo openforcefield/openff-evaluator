@@ -412,7 +412,7 @@ def run_paprika(host, guest, base_directory, calculation_backend=None):
         analyse_run(host_name=host,
                     guest_name=guest,
                     *simulation_futures,
-                    setup_directory=paprika_setup.directory,
+                    setup_directory=base_directory,
                     available_resources=ComputeResources())
 
     else:
