@@ -7,12 +7,13 @@ import numpy as np
 from openforcefield.topology import Molecule, Topology
 from openforcefield.typing.engines.smirnoff import ForceField
 from simtk import openmm, unit
+from simtk.openmm import XmlSerializer
 from simtk.openmm.app import PDBFile
 
 from propertyestimator.utils import get_data_filename, setup_timestamp_logging
 
 
-def evaluate_reduced_potential(force_field, topology, trajectory, charged_molecules=None):
+def evaluate_reduced_potential(force_field, topology, trajectory, charged_molecules=None, system_file_name=None):
     """Return the potential energy.
 
     Parameters
@@ -38,6 +39,13 @@ def evaluate_reduced_potential(force_field, topology, trajectory, charged_molecu
         system = force_field.create_openmm_system(topology=topology,
                                                   allow_missing_parameters=True,
                                                   charge_from_molecules=charged_molecules)
+
+    if system_file_name is not None:
+
+        system_xml = XmlSerializer.serialize(system)
+
+        with open(system_file_name, 'wb') as file:
+            file.write(system_xml.encode('utf-8'))
 
     beta = 1.0 / (unit.BOLTZMANN_CONSTANT_kB * 298.0 * unit.kelvin)
 
@@ -71,19 +79,20 @@ def estimate_gradient(trajectory, topology, original_parameter, parameter_handle
     logging.info(f'Building reverse perturbed parameter for {unitted_attribute}.')
     reverse_parameter = copy.deepcopy(original_parameter)
 
-    forward_parameter_value = getattr(reverse_parameter, unitted_attribute) * (1.0 - 1e-6)
-    setattr(reverse_parameter, unitted_attribute, forward_parameter_value)
+    reverse_parameter_value = getattr(reverse_parameter, unitted_attribute) * (1.0 - 1e-6)
+    setattr(reverse_parameter, unitted_attribute, reverse_parameter_value)
 
     logging.info('Building reverse force field.')
     reverse_force_field = ForceField()
-    reverse_handler = parameter_handler_class()
+    reverse_handler = parameter_handler_class(skip_version_check=True)
     reverse_handler.parameters.append(reverse_parameter)
     reverse_force_field.register_parameter_handler(reverse_handler)
 
     logging.info('Evaluating reverse reduced potential.')
     reverse_reduced_energies = evaluate_reduced_potential(reverse_force_field,
                                                           topology,
-                                                          trajectory)
+                                                          trajectory,
+                                                          system_file_name='reverse.xml')
 
     logging.info(f'Building forward perturbed parameter for {unitted_attribute}.')
     forward_parameter = copy.deepcopy(original_parameter)
@@ -93,14 +102,15 @@ def estimate_gradient(trajectory, topology, original_parameter, parameter_handle
 
     logging.info('Building forward force field.')
     forward_force_field = ForceField()
-    forward_bond_handler = parameter_handler_class()
+    forward_bond_handler = parameter_handler_class(skip_version_check=True)
     forward_bond_handler.parameters.append(forward_parameter)
     forward_force_field.register_parameter_handler(forward_bond_handler)
 
     logging.info('Evaluating forward reduced potential.')
     forward_reduced_energies = evaluate_reduced_potential(forward_force_field,
                                                           topology,
-                                                          trajectory)
+                                                          trajectory,
+                                                          system_file_name='forward.xml')
 
     reverse_parameter_value = getattr(reverse_parameter, unitted_attribute)
 
