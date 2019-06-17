@@ -9,7 +9,7 @@ import numpy as np
 from simtk import openmm, unit
 
 from propertyestimator.datasets.plugins import register_thermoml_property
-from propertyestimator.properties import PhysicalProperty
+from propertyestimator.properties import PhysicalProperty, PropertyPhase
 from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.properties.utils import generate_base_reweighting_protocols, BaseReweightingProtocols
 from propertyestimator.protocols import analysis, coordinates, forcefield, groups, reweighting, simulation
@@ -318,7 +318,8 @@ class ReweightDielectricConstant(reweighting.ReweightWithMBARProtocol):
 
 
 @register_estimable_property()
-@register_thermoml_property(thermoml_string='Relative permittivity at zero frequency')
+@register_thermoml_property(thermoml_string='Relative permittivity at zero frequency',
+                            supported_phases=PropertyPhase.Liquid)
 class DielectricConstant(PhysicalProperty):
     """A class representation of a dielectric property"""
 

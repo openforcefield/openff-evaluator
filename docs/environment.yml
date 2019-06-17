@@ -16,6 +16,8 @@ dependencies:
     # Standard dependencies
     - numpy
     - pandas
+    - lxml
+    - icu 58*  # REQUIRED - DO NOT REMOVE.
     - openmm
     - packmol
     - pymbar

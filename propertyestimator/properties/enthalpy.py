@@ -6,7 +6,7 @@ from collections import namedtuple
 
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.properties.properties import PhysicalProperty
+from propertyestimator.properties.properties import PhysicalProperty, PropertyPhase
 from propertyestimator.properties.utils import generate_base_reweighting_protocols
 from propertyestimator.protocols import analysis, coordinates, forcefield, groups, miscellaneous, simulation
 from propertyestimator.substances import Substance
@@ -73,7 +73,8 @@ class WeightValueByMoleFraction(protocols.BaseProtocol):
 
 
 @register_estimable_property()
-@register_thermoml_property(thermoml_string='Excess molar enthalpy (molar enthalpy of mixing), kJ/mol')
+@register_thermoml_property(thermoml_string='Excess molar enthalpy (molar enthalpy of mixing), kJ/mol',
+                            supported_phases=PropertyPhase.Liquid)
 class EnthalpyOfMixing(PhysicalProperty):
     """A class representation of an enthalpy of mixing property"""
 

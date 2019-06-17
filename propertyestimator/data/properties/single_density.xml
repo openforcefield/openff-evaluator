@@ -34,6 +34,7 @@
     <RegNum>
       <nOrgNum>1</nOrgNum>
     </RegNum>
+    <sStandardInChI>InChI=1S/C3H8O2/c1-5-3-2-4/h4H,2-3H2,1H3</sStandardInChI>
     <sCommonName>2-methoxyethanol</sCommonName>
     <sFormulaMolec>C3H8O2</sFormulaMolec>
     <Sample>

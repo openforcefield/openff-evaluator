@@ -320,7 +320,7 @@ class PropertyEstimatorClient:
     >>> # Filter the dataset to only include densities measured between 130-260 K
     >>> from propertyestimator.properties import Density
     >>>
-    >>> data_set.filter_by_properties(types=[Density])
+    >>> data_set.filter_by_property_types(Density)
     >>> data_set.filter_by_temperature(min_temperature=130*unit.kelvin, max_temperature=260*unit.kelvin)
     >>>
     >>> # Load initial parameters
