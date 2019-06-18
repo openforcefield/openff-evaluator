@@ -307,6 +307,10 @@ def setup_amber_files(guest, base_directory, paprika_setup):
         simulation.restraint_file = "disang.rest"
 
         simulation.config_pbc_min()
+
+        simulation.cntrl["ntf"] = 2
+        simulation.cntrl["ntc"] = 2
+
         simulation.cntrl["ntr"] = 1
         simulation.cntrl["restraint_wt"] = 50.0
         simulation.cntrl["restraintmask"] = "'@DUM'"
@@ -424,7 +428,7 @@ def run_paprika(host, guest, base_directory):
 
     return analyse_run(host_name=host,
                        guest_name=guest,
-                       setup_directory=paprika_setup.directory)
+                       setup_directory=base_directory)
 
 
 def main():
@@ -443,31 +447,35 @@ def main():
     host_guest_error = None
     host_error = None
 
-    # try:
-    attach_free_energy, \
-    pull_free_energy, _, \
-    reference_free_energy, \
-    host_guest_error = run_paprika(host="cb6", guest="but",
-                                   base_directory=host_guest_directory)
-    # except Exception as e:
-    #     formatted_exception = traceback.format_exception(None, e, e.__traceback__)
-    #     logging.info(f'Failed to setup attach / pull calculations: {formatted_exception}')
+    try:
+        attach_free_energy, \
+        pull_free_energy, _, \
+        reference_free_energy, \
+        host_guest_error = run_paprika(host="cb6", guest="but",
+                                       base_directory=host_guest_directory)
+    except Exception as e:
+        formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+        logging.info(f'Failed to setup attach / pull calculations: {formatted_exception}')
 
     host_directory = 'paprika_r'
 
     if not os.path.isdir(host_directory):
         os.mkdir(host_directory)
 
-    # try:
-    _, _, release_free_energy, _, host_error = run_paprika(host="cb6", guest=None,
-                                                           base_directory=host_directory)
-    # except Exception as e:
-    #     formatted_exception = traceback.format_exception(None, e, e.__traceback__)
-    #     logging.info(f'Failed to setup release calculations: {formatted_exception}')
+    try:
+        _, _, release_free_energy, _, host_error = run_paprika(host="cb6", guest=None,
+                                                               base_directory=host_directory)
+    except Exception as e:
+        formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+        logging.info(f'Failed to setup release calculations: {formatted_exception}')
 
-    logging.info(attach_free_energy, pull_free_energy, release_free_energy,
-                 reference_free_energy, host_guest_error, host_error)
+    logging.info(f'attach={attach_free_energy} pull={pull_free_energy} release={release_free_energy} '
+                 f'reference={reference_free_energy}')
+
+    logging.info(f'h/g error:{host_guest_error} h error: {host_error}')
 
 
 if __name__ == "__main__":
     main()
+
+
