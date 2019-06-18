@@ -10,6 +10,7 @@ import shutil
 import traceback
 from enum import Enum
 from queue import Queue
+from subprocess import Popen
 from threading import Thread
 
 import numpy as np
@@ -786,7 +787,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             requested_split = [int(index.strip()) for index in available_resources.gpu_device_indices.split(',')]
             visible_devices = [str(devices_split[index]) for index in requested_split]
 
-            devices_string = {','.join(visible_devices)}
+            devices_string = ','.join(visible_devices)
             environment['CUDA_VISIBLE_DEVICES'] = f'{devices_string}'
 
             logging.info(f'Starting a set of Amber simulations on GPUs {devices_string}')
@@ -812,7 +813,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
 
             amber_simulation._amber_write_input_file()
 
-            os.subprocess.Popen([
+            Popen([
                 'pmemd',
                 '-O',
                 '-p',
@@ -852,7 +853,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
 
             amber_simulation._amber_write_input_file()
 
-            os.subprocess.Popen([
+            Popen([
                 'pmemd',
                 '-O',
                 '-p',
@@ -894,7 +895,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
 
             amber_simulation._amber_write_input_file()
 
-            os.subprocess.Popen([
+            Popen([
                 'pmemd',
                 '-O',
                 '-p',
