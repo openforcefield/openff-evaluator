@@ -309,7 +309,7 @@ class BasePaprikaProtocol(BaseProtocol):
         host_mol2 = os.path.join(window_directory_to_base, f'{self._paprika_setup.host}.gaff2.mol2')
 
         load_host_frcmod = f'loadamberparams {host_frcmod}'
-        load_host_mol2 = f'CB6 = loadmol2 {host_mol2}'
+        load_host_mol2 = f'{self._paprika_setup.host.upper()} = loadmol2 {host_mol2}'
 
         load_guest_frcmod = ''
         load_guest_mol2 = ''
@@ -320,7 +320,7 @@ class BasePaprikaProtocol(BaseProtocol):
             guest_mol2 = os.path.join(window_directory_to_base, f'{self._paprika_setup.guest}.gaff2.mol2')
 
             load_guest_frcmod = f'loadamberparams {guest_frcmod}'
-            load_guest_mol2 = f'BUT = loadmol2 {guest_mol2}'
+            load_guest_mol2 = f'{self._paprika_setup.guest.upper()} = loadmol2 {guest_mol2}'
 
         system.template_lines = [
             f"source leaprc.gaff2",
