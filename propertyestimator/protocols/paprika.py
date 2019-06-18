@@ -162,9 +162,12 @@ class BasePaprikaProtocol(BaseProtocol):
 
     def _setup_paprika(self, directory):
 
+        generate_gaff_files = self._force_field == self.ForceField.GAFF2
+
         self._paprika_setup = paprika.Setup(host=self._taproom_host_name,
                                             guest=self._taproom_guest_name,
-                                            directory_path=directory)
+                                            directory_path=directory,
+                                            generate_gaff_files=generate_gaff_files)
 
     def _solvate_windows(self, directory, available_resources):
 
@@ -246,12 +249,54 @@ class BasePaprikaProtocol(BaseProtocol):
     def _apply_parameters(self):
         raise NotImplementedError
 
+    @staticmethod
+    def _create_dummy_files(directory):
+
+        dummy_frcmod_lines = [
+            'Parameters for dummy atom with type Du\n',
+            'MASS\n',
+            'Du     208.00\n',
+            '\n',
+            'BOND\n',
+            '\n',
+            'ANGLE\n',
+            '\n',
+            'DIHE\n',
+            '\n',
+            'IMPROPER\n',
+            '\n',
+            'NONBON\n',
+            '  Du       0.000     0.0000000\n'
+        ]
+
+        with open(os.path.join(directory, 'dummy.frcmod'), 'w') as file:
+            file.writelines(dummy_frcmod_lines)
+
+        dummy_mol2_template = '@<TRIPOS>MOLECULE\n' \
+                              '{0:s}\n' \
+                              '    1     0     1     0     1\n' \
+                              'SMALL\n' \
+                              'USER_CHARGES\n' \
+                              '\n' \
+                              '@<TRIPOS>ATOM\n' \
+                              '  1 DUM     0.000000    0.000000    0.000000 Du    1 {0:s}     0.0000 ****\n' \
+                              '@<TRIPOS>BOND\n' \
+                              '@<TRIPOS>SUBSTRUCTURE\n' \
+                              '      1  {0:s}              1 ****               0 ****  ****    0 ROOT\n'
+
+        for dummy_name in ['DM1', 'DM2', 'DM3']:
+
+            with open(os.path.join(directory, f'{dummy_name.lower()}.mol2'), 'w') as file:
+                file.write(dummy_mol2_template.format(dummy_name))
+
     def _build_amber_parameters(self, index, window_directory):
 
         window_directory_to_base = os.path.relpath(
             os.path.abspath(self._paprika_setup.directory), window_directory)
 
         window_coordinates = os.path.relpath(self._solvated_coordinate_paths[index], window_directory)
+
+        self._create_dummy_files(self._paprika_setup.directory)
 
         os.makedirs(window_directory, exist_ok=True)
 
@@ -260,15 +305,32 @@ class BasePaprikaProtocol(BaseProtocol):
         system.pbc_type = None
         system.neutralize = False
 
+        host_frcmod = os.path.join(window_directory_to_base, f'{self._paprika_setup.host}.gaff2.frcmod')
+        host_mol2 = os.path.join(window_directory_to_base, f'{self._paprika_setup.host}.gaff2.mol2')
+
+        load_host_frcmod = f'loadamberparams {host_frcmod}'
+        load_host_mol2 = f'CB6 = loadmol2 {host_mol2}'
+
+        load_guest_frcmod = ''
+        load_guest_mol2 = ''
+
+        if self._taproom_guest_name is not None:
+
+            guest_frcmod = os.path.join(window_directory_to_base, f'{self._paprika_setup.guest}.gaff2.frcmod')
+            guest_mol2 = os.path.join(window_directory_to_base, f'{self._paprika_setup.guest}.gaff2.mol2')
+
+            load_guest_frcmod = f'loadamberparams {guest_frcmod}'
+            load_guest_mol2 = f'BUT = loadmol2 {guest_mol2}'
+
         system.template_lines = [
             f"source leaprc.gaff2",
             f"source leaprc.water.tip3p",
             f"source leaprc.protein.ff14SB",
-            f"loadamberparams {os.path.join(window_directory_to_base, f'{self._paprika_setup.host}.gaff2.frcmod')}",
-            f"loadamberparams {os.path.join(window_directory_to_base, f'{self._paprika_setup.guest}.gaff2.frcmod')}",
+            load_host_frcmod,
+            load_guest_frcmod,
             f"loadamberparams {os.path.join(window_directory_to_base, 'dummy.frcmod')}",
-            f"CB6 = loadmol2 {os.path.join(window_directory_to_base, f'{self._paprika_setup.host}.gaff2.mol2')}",
-            f"BUT = loadmol2 {os.path.join(window_directory_to_base, f'{self._paprika_setup.guest}.gaff2.mol2')}",
+            load_host_mol2,
+            load_guest_mol2,
             f"DM1 = loadmol2 {os.path.join(window_directory_to_base, 'dm1.mol2')}",
             f"DM2 = loadmol2 {os.path.join(window_directory_to_base, 'dm2.mol2')}",
             f"DM3 = loadmol2 {os.path.join(window_directory_to_base, 'dm3.mol2')}",
@@ -493,7 +555,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
             self._build_amber_parameters(index, window_directory)
 
-            prmtop = AmberPrmtopFile('structure.prmtop')
+            prmtop = AmberPrmtopFile(os.path.join(window_directory, 'structure.prmtop'))
 
             system = prmtop.createSystem(nonbondedMethod=PME, nonbondedCutoff=self._gaff_cutoff,
                                          constraints=HBonds)
@@ -630,58 +692,9 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
         # Protocol inputs / outputs
         self._force_field = self.ForceField.GAFF2
 
-    def _setup_paprika(self, directory):
-
-        self._paprika_setup = paprika.Setup(host=self._taproom_host_name,
-                                            guest=self._taproom_guest_name,
-                                            directory_path=directory,
-                                            generate_gaff_files=True)
-
-    @staticmethod
-    def _create_dummy_files(directory):
-
-        dummy_frcmod_lines = [
-            'Parameters for dummy atom with type Du\n',
-            'MASS\n',
-            'Du     208.00\n',
-            '\n',
-            'BOND\n',
-            '\n',
-            'ANGLE\n',
-            '\n',
-            'DIHE\n',
-            '\n',
-            'IMPROPER\n',
-            '\n',
-            'NONBON\n',
-            '  Du       0.000     0.0000000\n'
-        ]
-
-        with open(os.path.join(directory, 'dummy.frcmod'), 'w') as file:
-            file.writelines(dummy_frcmod_lines)
-
-        dummy_mol2_template = '@<TRIPOS>MOLECULE\n' \
-                              '{0:s}\n' \
-                              '    1     0     1     0     1\n' \
-                              'SMALL\n' \
-                              'USER_CHARGES\n' \
-                              '\n' \
-                              '@<TRIPOS>ATOM\n' \
-                              '  1 DUM     0.000000    0.000000    0.000000 Du    1 {0:s}     0.0000 ****\n' \
-                              '@<TRIPOS>BOND\n' \
-                              '@<TRIPOS>SUBSTRUCTURE\n' \
-                              '      1  {0:s}              1 ****               0 ****  ****    0 ROOT\n'
-
-        for dummy_name in ['DM1', 'DM2', 'DM3']:
-
-            with open(os.path.join(directory, f'{dummy_name.lower()}.mol2'), 'w') as file:
-                file.write(dummy_mol2_template.format(dummy_name))
-
     def _apply_parameters(self):
 
         import parmed as pmd
-
-        self._create_dummy_files(self._paprika_setup.directory)
 
         for index, window in enumerate(self._paprika_setup.window_list):
 
