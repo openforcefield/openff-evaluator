@@ -1,4 +1,5 @@
 import pkg_resources
+import yaml
 
 from propertyestimator.properties import Density
 from propertyestimator.protocols import coordinates, groups, simulation
@@ -117,9 +118,12 @@ def get_paprika_host_guest_substance(host_name, guest_name, ionic_strength=None)
     for entry_point in pkg_resources.iter_entry_points(group="taproom.benchmarks"):
         installed_benchmarks[entry_point.name] = entry_point.load()
 
-    host_yaml = installed_benchmarks["host_guest_systems"][host_name]["yaml"]
+    host_yaml_path = installed_benchmarks["host_guest_systems"][host_name]["yaml"]
 
-    host_mol2_path = str(host_yaml.parent.joinpath(
+    with open(host_yaml_path, "r") as file:
+        host_yaml = yaml.safe_load(file)
+
+    host_mol2_path = str(host_yaml_path.parent.joinpath(
         host_yaml['structure']))
 
     host_smiles = mol2_to_smiles(host_mol2_path)
@@ -127,12 +131,15 @@ def get_paprika_host_guest_substance(host_name, guest_name, ionic_strength=None)
 
     if guest_name is not None:
 
-        guest_yaml = installed_benchmarks["host_guest_systems"][host_name][guest_name]
+        guest_yaml_path = installed_benchmarks["host_guest_systems"][host_name][guest_name]
 
-        guest_mol2_path = str(host_yaml.parent.joinpath(
+        with open(guest_yaml_path, "r") as file:
+            guest_yaml = yaml.safe_load(file)
+
+        guest_mol2_path = str(host_yaml_path.parent.joinpath(
                               guest_name).joinpath(
                               guest_yaml['structure']))
 
         guest_smiles = mol2_to_smiles(guest_mol2_path)
 
-    return build_substance(host_smiles, guest_smiles, ionic_strength)
+    return build_substance(guest_smiles, host_smiles, ionic_strength)

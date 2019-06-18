@@ -9,14 +9,16 @@ from propertyestimator.backends import ComputeResources
 from propertyestimator.protocols.paprika import OpenMMPaprikaProtocol
 from propertyestimator.tests.utils import build_tip3p_smirnoff_force_field
 from propertyestimator.thermodynamics import ThermodynamicState
+from propertyestimator.utils import setup_timestamp_logging
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 
 
 def main():
     """An integrated test of calculating the gradients of observables with
     respect to force field parameters using the property estimator"""
+    setup_timestamp_logging()
 
-    host = 'cb6_debug'
+    host = 'cb6'
     guest = 'but'
 
     # Set up the object which describes how many compute resources available

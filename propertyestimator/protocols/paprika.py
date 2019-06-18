@@ -483,11 +483,11 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
             unrestrained_xml_path = build_solvated_complex_system.system_path
 
-        self.paprika_setup.add_dummy_atoms(reference_structure_path,
-                                           solvated_structure_path,
-                                           unrestrained_xml_path,
-                                           solvated_structure_path,
-                                           self._solvated_system_xml_paths[index])
+        self._paprika_setup.add_dummy_atoms(reference_structure_path,
+                                            solvated_structure_path,
+                                            unrestrained_xml_path,
+                                            self._solvated_coordinate_paths[index],
+                                            self._solvated_system_xml_paths[index])
 
         if self._force_field == BasePaprikaProtocol.ForceField.GAFF2:
 
