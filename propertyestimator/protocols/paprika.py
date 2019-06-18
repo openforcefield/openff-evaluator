@@ -36,9 +36,13 @@ class BasePaprikaProtocol(BaseProtocol):
     binding affinity calculation, starting from a host and guest
     `taproom` style .yaml definition file.
     """
+
+    class WaterModel(Enum):
+        TIP3P = 'TIP3P'
+
     class ForceField(Enum):
-        TIP3PSMIRNOFF = 'TIP3PSMIRNOFF'
-        TIP3PGAFF = 'TIP3PGAFF'
+        SMIRNOFF = 'SMIRNOFF'
+        GAFF2 = 'GAFF2'
 
     @protocol_input(Substance)
     def substance(self):
@@ -50,8 +54,16 @@ class BasePaprikaProtocol(BaseProtocol):
         """The state at which to run the calculations."""
         pass
 
+    @protocol_input(ForceField)
+    def force_field(self):
+        pass
+
     @protocol_input(str)
-    def force_field_type(self):
+    def force_field_path(self):
+        pass
+
+    @protocol_input(WaterModel)
+    def water_model(self):
         pass
 
     @protocol_input(str)
@@ -60,6 +72,10 @@ class BasePaprikaProtocol(BaseProtocol):
 
     @protocol_input(str)
     def taproom_guest_name(self):
+        pass
+
+    @protocol_input(unit.Quantity)
+    def gaff_cutoff(self):
         pass
 
     @protocol_input(int, merge_behavior=MergeBehaviour.GreatestValue)
@@ -110,10 +126,14 @@ class BasePaprikaProtocol(BaseProtocol):
         self._substance = None
         self._thermodynamic_state = None
 
-        self._force_field_type = self.ForceField.TIP3PSMIRNOFF
+        self._force_field = self.ForceField.SMIRNOFF
+        self._force_field_path = ''
+        self._water_model = self.WaterModel.TIP3P
 
         self._taproom_host_name = None
         self._taproom_guest_name = None
+
+        self._gaff_cutoff = 0.8 * unit.nanometer
 
         self._number_of_equilibration_steps = 200000
         self._equilibration_output_frequency = 5000
@@ -221,7 +241,7 @@ class BasePaprikaProtocol(BaseProtocol):
     def _apply_parameters(self):
         raise NotImplementedError
 
-    def _apply_amber_parameters(self, index, window_directory):
+    def _build_amber_parameters(self, index, window_directory):
 
         window_directory_to_base = os.path.relpath(
             os.path.abspath(self._paprika_setup.directory), window_directory)
@@ -300,6 +320,16 @@ class BasePaprikaProtocol(BaseProtocol):
 
     def execute(self, directory, available_resources):
 
+        # Make sure the force field path to smirnoff has been set. When
+        # optional and mutual exclusive / dependant inputs are implemented
+        # this will not be needed.
+        if self._force_field == self.ForceField.SMIRNOFF and (self._force_field_path is None or
+                                                              len(self._force_field_path) == 0):
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='The path to a .offxml force field file must be specified '
+                                                      'when running with a SMIRNOFF force field.')
+
         # Create a new setup object which will load in a pAPRika host
         # and guest yaml file, setup a directory structure for the
         # paprika calculations, and create a set of coordinates for
@@ -347,9 +377,6 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
     binding affinity calculation using OpenMM, starting from a
     host and guest `taproom` style .yaml definition file.
     """
-    @protocol_input(str)
-    def force_field_path(self):
-        pass
 
     def __init__(self, protocol_id):
         super().__init__(protocol_id)
@@ -367,11 +394,15 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
         window_directory = os.path.dirname(solvated_structure_path)
 
+        unrestrained_xml_path = None
         self._solvated_system_xml_paths[index] = os.path.join(window_directory, 'restrained.xml')
 
-        if self._force_field_type == BasePaprikaProtocol.ForceField.TIP3PSMIRNOFF:
+        if self._force_field == BasePaprikaProtocol.ForceField.SMIRNOFF:
 
             # Assign force field parameters to the solvated complex system.
+            # Because the openforcefield toolkit does not yet support dummy atoms,
+            # we have to assign the smirnoff parameters before adding the dummy atoms.
+            # Hence this specialised method.
             build_solvated_complex_system = forcefield.BuildSmirnoffSystem('build_solvated_window_system')
 
             build_solvated_complex_system.force_field_path = self._force_field_path
@@ -383,34 +414,27 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
             build_solvated_complex_system.execute(window_directory, None)
 
-            # Because the openforcefield toolkit does not yet support dummy atoms,
-            # we have to assign the smirnoff parameters before adding the dummy atoms.
-            # Hence this specialised method.
-            self.paprika_setup.add_dummy_atoms(reference_structure_path,
-                                               solvated_structure_path,
-                                               build_solvated_complex_system.system_path,
-                                               solvated_structure_path,
-                                               self._solvated_system_xml_paths[index])
+            unrestrained_xml_path = build_solvated_complex_system.system_path
 
-        elif self._force_field_type == BasePaprikaProtocol.ForceField.TIP3PGAFF:
+        self.paprika_setup.add_dummy_atoms(reference_structure_path,
+                                           solvated_structure_path,
+                                           unrestrained_xml_path,
+                                           solvated_structure_path,
+                                           self._solvated_system_xml_paths[index])
 
-            self._apply_amber_parameters(index, window_directory)
+        if self._force_field == BasePaprikaProtocol.ForceField.GAFF2:
+
+            self._build_amber_parameters(index, window_directory)
 
             prmtop = AmberPrmtopFile('structure.prmtop')
 
-            system = prmtop.createSystem(nonbondedMethod=PME, nonbondedCutoff=0.8 * unit.nanometer,
+            system = prmtop.createSystem(nonbondedMethod=PME, nonbondedCutoff=self._gaff_cutoff,
                                          constraints=HBonds)
 
             system_xml = XmlSerializer.serialize(system)
 
             with open(self._solvated_system_xml_paths[index], 'wb') as file:
                 file.write(system_xml.encode('utf-8'))
-
-            self.paprika_setup.add_dummy_atoms(reference_structure_path,
-                                               solvated_structure_path,
-                                               None,
-                                               solvated_structure_path,
-                                               None)
 
     def _apply_parameters(self):
 
@@ -507,16 +531,6 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
         super(OpenMMPaprikaProtocol, self)._perform_analysis(directory)
 
-    def execute(self, directory, available_resources):
-
-        if self._force_field_type == self.ForceField.TIP3PSMIRNOFF and len(self._force_field_path) == 0:
-
-            return PropertyEstimatorException(directory=directory,
-                                              message='The path to an OpenFF .offxml file must be specified '
-                                                      'when a force field type of TIP3PSMIRNOFF is used.')
-
-        super(OpenMMPaprikaProtocol, self).execute(directory, available_resources)
-
 
 @register_calculation_protocol()
 class AmberPaprikaProtocol(BasePaprikaProtocol):
@@ -524,21 +538,12 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
     binding affinity calculation using Amber, starting from a
     host and guest `taproom` style .yaml definition file.
     """
-    class AmberBinary(Enum):
-        PMEMD = 'pmemd'
-
-    @protocol_input(str)
-    def amber_binary(self):
-        pass
 
     def __init__(self, protocol_id):
         super().__init__(protocol_id)
 
         # Protocol inputs / outputs
-        self._force_field_type = self.ForceField.TIP3PSMIRNOFF
-        self._amber_binary = self.AmberBinary.PMEMD
-
-        self._solvated_system_xml_paths = {}
+        self._force_field = self.ForceField.GAFF2
 
     def _setup_paprika(self, directory):
 
@@ -589,6 +594,8 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
 
     def _apply_parameters(self):
 
+        import parmed as pmd
+
         self._create_dummy_files(self._paprika_setup.directory)
 
         for index, window in enumerate(self._paprika_setup.window_list):
@@ -596,14 +603,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             window_directory = os.path.join(self._paprika_setup.directory,
                                             'windows', window)
 
-            self._apply_amber_parameters(index, window_directory)
-
-        import parmed as pmd
-
-        for index, window in enumerate(self._paprika_setup.window_list):
-
-            window_directory = os.path.join(self._paprika_setup.directory,
-                                            'windows', window)
+            self._build_amber_parameters(index, window_directory)
 
             build_pdb_file = pmd.load_file(f'{window_directory}/build.pdb', structure=True)
 
@@ -798,10 +798,10 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
 
     def execute(self, directory, available_resources):
 
-        if self._force_field_type != self.ForceField.TIP3PGAFF:
+        if self._force_field != self.ForceField.TIP3PGAFF:
 
             return PropertyEstimatorException(directory=directory,
-                                              message='Currently GAFF is the only force field '
-                                                      'supported for the AmberPaprikaProtocol.')
+                                              message='Currently GAFF2 is the only force field '
+                                                      'supported with the AmberPaprikaProtocol.')
 
         super(AmberPaprikaProtocol, self).execute(directory, available_resources)
