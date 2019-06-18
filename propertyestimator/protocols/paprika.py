@@ -1,13 +1,18 @@
 """
 A collection of protocols for performing free energy calculations using
 the pAPRika software package.
+
+TODO: Add checkpointing.
 """
 import logging
 import os
 import shutil
 import traceback
 from enum import Enum
+from queue import Queue
+from threading import Thread
 
+import numpy as np
 import paprika
 from paprika.amber import Simulation
 from paprika.io import save_restraints
@@ -277,12 +282,64 @@ class BasePaprikaProtocol(BaseProtocol):
 
     def _run_windows(self, available_resources):
 
-        for index, window in enumerate(self._paprika_setup.window_list):
+        # Create the queue which will pass the run arguments to the created
+        # threads.
+        queue = Queue(maxsize=0)
+        chunk_size = max(1, available_resources.number_of_gpus)
 
-            logging.info(f'Running window {index + 1} out of {len(self._paprika_setup.window_list)}')
-            self._run_window(index, available_resources)
+        # Start the threads.
+        for _ in range(chunk_size):
 
-    def _run_window(self, index, available_resources):
+            worker = Thread(target=self._run_window, args=(queue,))
+            worker.setDaemon(True)
+            worker.start()
+
+        exceptions = []
+
+        window_indices = [index for index in range(len(self._paprika_setup.window_list))]
+
+        full_multiples = int(np.floor(len(window_indices) / chunk_size))
+        chunks = [[i * chunk_size, (i + 1) * chunk_size] for i in range(full_multiples)] + [
+            [full_multiples * chunk_size, len(window_indices)]
+        ]
+
+        counter = 0
+
+        for chunk in chunks:
+
+            for window_index in sorted(window_indices)[chunk[0]: chunk[1]]:
+
+                logging.info(f'Running window {window_index + 1} out of {len(self._paprika_setup.window_list)}')
+
+                resources = ComputeResources(number_of_threads=1, number_of_gpus=1,
+                                             preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA)
+
+                resources._gpu_device_indices = f'{counter}'
+
+                self._enqueue_window(queue, window_index, resources, exceptions)
+
+                counter += 1
+
+                if counter == chunk_size:
+
+                    queue.join()
+                    counter = 0
+
+        if not queue.empty():
+            queue.join()
+
+        if len(exceptions) > 0:
+
+            message = ', '.join([f'{exception.directory}: {exception.message}' for exception in exceptions])
+            return PropertyEstimatorException(directory='', message=message)
+
+        return None
+
+    def _enqueue_window(self, queue, index, available_resources, exceptions):
+        raise NotImplementedError()
+
+    @staticmethod
+    def _run_window(queue):
         raise NotImplementedError()
 
     def _perform_analysis(self, directory):
@@ -330,6 +387,12 @@ class BasePaprikaProtocol(BaseProtocol):
                                               message='The path to a .offxml force field file must be specified '
                                                       'when running with a SMIRNOFF force field.')
 
+        if available_resources.number_of_gpus != available_resources.number_of_threads:
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='The number of available CPUs must match the number'
+                                                      'of available GPUs for this parallelisation scheme.')
+
         # Create a new setup object which will load in a pAPRika host
         # and guest yaml file, setup a directory structure for the
         # paprika calculations, and create a set of coordinates for
@@ -359,7 +422,11 @@ class BasePaprikaProtocol(BaseProtocol):
             return result
 
         # Run the simulations
-        self._run_windows(available_resources)
+        result = self._run_windows(available_resources)
+
+        if isinstance(result, PropertyEstimatorException):
+            # Make sure the simulations were successful.
+            return result
 
         # Finally, do the analysis to extract the free energy of binding.
         result = self._perform_analysis(directory)
@@ -444,82 +511,100 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
             self._paprika_setup.initialize_calculation(window, self._solvated_system_xml_paths[index],
                                                                self._solvated_system_xml_paths[index])
 
-    def _build_simulation_protocol(self, group_id, coordinate_file, system_file):
+    def _enqueue_window(self, queue, index, available_resources, exceptions):
 
-        # Equilibration
-        energy_minimisation = simulation.RunEnergyMinimisation('energy_minimisation')
+        queue.put((index,
+                   self._solvated_coordinate_paths[index],
+                   self._solvated_system_xml_paths[index],
+                   self._thermodynamic_state,
+                   self._gaff_cutoff,
+                   self._number_of_equilibration_steps,
+                   self._equilibration_output_frequency,
+                   self._number_of_production_steps,
+                   self._production_output_frequency,
+                   available_resources,
+                   exceptions))
 
-        energy_minimisation.input_coordinate_file = coordinate_file
-        energy_minimisation.system_path = system_file
+    @staticmethod
+    def _run_window(queue):
 
-        npt_equilibration = simulation.RunOpenMMSimulation('npt_equilibration')
+        while True:
 
-        npt_equilibration.steps = self._number_of_equilibration_steps
-        npt_equilibration.output_frequency = self._equilibration_output_frequency
+            index, window_coordinate_path, window_system_path, thermodynamic_state, gaff_cutoff, \
+                number_of_equilibration_steps, equilibration_output_frequency, number_of_production_steps, \
+                production_output_frequency, available_resources, exceptions = queue.get()
 
-        npt_equilibration.ensemble = Ensemble.NPT
+            try:
 
-        npt_equilibration.thermodynamic_state = self._thermodynamic_state
+                window_directory = os.path.dirname(window_system_path)
+                simulation_directory = os.path.join(window_directory, 'simulations')
 
-        npt_equilibration.input_coordinate_file = ProtocolPath('output_coordinate_file', energy_minimisation.id)
-        npt_equilibration.system_path = system_file
+                os.makedirs(simulation_directory, exist_ok=True)
 
-        # Production
-        npt_production = simulation.RunOpenMMSimulation('npt_production')
+                # Equilibration
+                energy_minimisation = simulation.RunEnergyMinimisation('energy_minimisation')
 
-        npt_production.steps = self._number_of_production_steps
-        npt_production.output_frequency = self._production_output_frequency
+                energy_minimisation.input_coordinate_file = window_coordinate_path
+                energy_minimisation.system_path = window_system_path
 
-        npt_production.ensemble = Ensemble.NPT
+                npt_equilibration = simulation.RunOpenMMSimulation('npt_equilibration')
 
-        npt_production.thermodynamic_state = self._thermodynamic_state
+                npt_equilibration.steps = number_of_equilibration_steps
+                npt_equilibration.output_frequency = equilibration_output_frequency
 
-        npt_production.input_coordinate_file = ProtocolPath('output_coordinate_file', npt_equilibration.id)
-        npt_production.system_path = system_file
+                npt_equilibration.ensemble = Ensemble.NPT
 
-        grouped_protocols = groups.ProtocolGroup(group_id)
-        grouped_protocols.add_protocols(energy_minimisation, npt_equilibration, npt_production)
+                npt_equilibration.thermodynamic_state = thermodynamic_state
 
-        return grouped_protocols
+                npt_equilibration.input_coordinate_file = ProtocolPath('output_coordinate_file',
+                                                                       energy_minimisation.id)
+                npt_equilibration.system_path = window_system_path
 
-    def _run_window(self, index, available_resources):
+                # Production
+                npt_production = simulation.RunOpenMMSimulation('npt_production')
 
-        window_coordinate_path = self._solvated_coordinate_paths[index]
-        window_system_xml_path = self._solvated_system_xml_paths[index]
+                npt_production.steps = number_of_production_steps
+                npt_production.output_frequency = production_output_frequency
 
-        try:
+                npt_production.ensemble = Ensemble.NPT
 
-            window_directory = os.path.dirname(window_system_xml_path)
-            simulation_directory = os.path.join(window_directory, 'simulations')
+                npt_production.thermodynamic_state = thermodynamic_state
 
-            os.makedirs(simulation_directory, exist_ok=True)
+                npt_production.input_coordinate_file = ProtocolPath('output_coordinate_file',
+                                                                    npt_equilibration.id)
+                npt_production.system_path = window_system_path
 
-            simulation_protocol = self._build_simulation_protocol_group(f'simulation_{index}',
-                                                                        window_coordinate_path,
-                                                                        window_system_xml_path)
+                simulation_protocol = groups.ProtocolGroup(f'simulation_{index}')
+                simulation_protocol.add_protocols(energy_minimisation, npt_equilibration, npt_production)
 
-            result = simulation_protocol.execute(simulation_directory, available_resources)
+                result = simulation_protocol.execute(simulation_directory, available_resources)
 
-            if isinstance(result, PropertyEstimatorException):
-                # Make sure the simulations were successful.
-                return result
+                if isinstance(result, PropertyEstimatorException):
+                    # Make sure the simulations were successful.
+                    exceptions.append(result)
+                    queue.task_done()
 
-            trajectory_path = simulation_protocol.get_value(ProtocolPath('trajectory_file_path', 'npt_production'))
-            coordinate_path = simulation_protocol.get_value(ProtocolPath('output_coordinate_file', 'npt_equilibration'))
+                    continue
 
-            shutil.move(trajectory_path, os.path.join(window_directory, 'trajectory.dcd'))
-            shutil.move(coordinate_path, os.path.join(window_directory, 'input.pdb'))
+                trajectory_path = simulation_protocol.get_value(ProtocolPath('trajectory_file_path',
+                                                                             'npt_production'))
+                coordinate_path = simulation_protocol.get_value(ProtocolPath('output_coordinate_file',
+                                                                             'npt_equilibration'))
 
-            shutil.rmtree(simulation_directory)
+                shutil.move(trajectory_path, os.path.join(window_directory, 'trajectory.dcd'))
+                shutil.move(coordinate_path, os.path.join(window_directory, 'input.pdb'))
 
-        except Exception as e:
+                shutil.rmtree(simulation_directory)
 
-            formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+            except Exception as e:
 
-            return PropertyEstimatorException(directory=os.path.dirname(window_coordinate_path),
-                                              message=f'An uncaught exception was raised: {formatted_exception}')
+                formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
-        return result
+                exceptions.append(PropertyEstimatorException(directory=os.path.dirname(window_coordinate_path),
+                                                             message=f'An uncaught exception was raised: '
+                                                                     f'{formatted_exception}'))
+
+            queue.task_done()
 
     def _perform_analysis(self, directory):
 
@@ -637,14 +722,41 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
 
                 file.write(value)
 
-    def _run_window(self, index, available_resources):
+    def _enqueue_window(self, queue, index, available_resources, exceptions):
 
-        window_coordinate_path = self._solvated_coordinate_paths[index]
-        window_directory = os.path.dirname(window_coordinate_path)
+        queue.put((index,
+                   self._solvated_coordinate_paths[index],
+                   None,
+                   self._thermodynamic_state,
+                   self._gaff_cutoff,
+                   self._number_of_equilibration_steps,
+                   self._equilibration_output_frequency,
+                   self._number_of_production_steps,
+                   self._production_output_frequency,
+                   available_resources,
+                   exceptions))
 
-        environment = os.environ
+    @staticmethod
+    def _run_window(queue):
 
-        if available_resources.number_of_gpus >= 1:
+        while True:
+
+            index, window_coordinate_path, window_system_path, thermodynamic_state, gaff_cutoff, \
+                number_of_equilibration_steps, equilibration_output_frequency, number_of_production_steps, \
+                production_output_frequency, available_resources, exceptions = queue.get()
+
+            window_directory = os.path.dirname(window_coordinate_path)
+
+            environment = os.environ.copy()
+
+            if available_resources.number_of_gpus < 1:
+
+                exceptions.append(PropertyEstimatorException(directory=window_directory,
+                                                             message='Currently Amber may only be run'
+                                                                     'on GPUs'))
+
+                queue.task_done()
+                continue
 
             if available_resources.preferred_gpu_toolkit != ComputeResources.GPUToolkit.CUDA:
                 raise ValueError('Paprika can only be ran either on CPUs or CUDA GPUs.')
@@ -664,127 +776,131 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             devices_string = {','.join(visible_devices)}
             environment['CUDA_VISIBLE_DEVICES'] = f'{devices_string}'
 
-        amber_simulation = Simulation()
+            logging.info(f'Starting a set of Amber simulations on GPUs {devices_string}')
 
-        amber_simulation.path = f"{window_directory}/"
-        amber_simulation.prefix = "minimize"
+            amber_simulation = Simulation()
 
-        amber_simulation.inpcrd = "structure.rst7"
-        amber_simulation.ref = "structure.rst7"
-        amber_simulation.topology = "structure.prmtop"
-        amber_simulation.restraint_file = "disang.rest"
+            amber_simulation.path = f"{window_directory}/"
+            amber_simulation.prefix = "minimize"
 
-        amber_simulation.config_pbc_min()
+            amber_simulation.inpcrd = "structure.rst7"
+            amber_simulation.ref = "structure.rst7"
+            amber_simulation.topology = "structure.prmtop"
+            amber_simulation.restraint_file = "disang.rest"
 
-        amber_simulation.cntrl["ntf"] = 2
-        amber_simulation.cntrl["ntc"] = 2
+            amber_simulation.config_pbc_min()
 
-        amber_simulation.cntrl["ntr"] = 1
-        amber_simulation.cntrl["restraint_wt"] = 50.0
-        amber_simulation.cntrl["restraintmask"] = "'@DUM'"
+            amber_simulation.cntrl["ntf"] = 2
+            amber_simulation.cntrl["ntc"] = 2
 
-        amber_simulation._amber_write_input_file()
+            amber_simulation.cntrl["ntr"] = 1
+            amber_simulation.cntrl["restraint_wt"] = 50.0
+            amber_simulation.cntrl["restraintmask"] = "'@DUM'"
 
-        os.subprocess.Popen([
-            'pmemd',
-            '-O',
-            '-p',
-            'structure.prmtop',
-            '-ref',
-            'structure.rst7',
-            '-c',
-            'structure.rst7',
-            '-i',
-            'minimize.in',
-            '-r',
-            'minimize.rst7',
-            '-inf',
-            'minimize.info',
-        ], cwd=window_directory, env=environment)
+            amber_simulation._amber_write_input_file()
 
-        # Equilibration
-        amber_simulation = Simulation()
-        amber_simulation.executable = "pmemd.cuda"
+            os.subprocess.Popen([
+                'pmemd',
+                '-O',
+                '-p',
+                'structure.prmtop',
+                '-ref',
+                'structure.rst7',
+                '-c',
+                'structure.rst7',
+                '-i',
+                'minimize.in',
+                '-r',
+                'minimize.rst7',
+                '-inf',
+                'minimize.info',
+            ], cwd=window_directory, env=environment).wait()
 
-        amber_simulation.path = f"{window_directory}/"
-        amber_simulation.prefix = "equilibration"
+            # Equilibration
+            amber_simulation = Simulation()
+            amber_simulation.executable = "pmemd.cuda"
 
-        amber_simulation.inpcrd = "minimize.rst7"
-        amber_simulation.ref = "structure.rst7"
-        amber_simulation.topology = "structure.prmtop"
-        amber_simulation.restraint_file = "disang.rest"
+            amber_simulation.path = f"{window_directory}/"
+            amber_simulation.prefix = "equilibration"
 
-        amber_simulation.config_pbc_md()
-        amber_simulation.cntrl["ntr"] = 1
-        amber_simulation.cntrl["restraint_wt"] = 50.0
-        amber_simulation.cntrl["restraintmask"] = "'@DUM'"
-        amber_simulation.cntrl["dt"] = 0.001
-        amber_simulation.cntrl["nstlim"] = self._number_of_equilibration_steps
-        amber_simulation.cntrl["ntwx"] = self._equilibration_output_frequency
-        amber_simulation.cntrl["barostat"] = 2
+            amber_simulation.inpcrd = "minimize.rst7"
+            amber_simulation.ref = "structure.rst7"
+            amber_simulation.topology = "structure.prmtop"
+            amber_simulation.restraint_file = "disang.rest"
 
-        amber_simulation._amber_write_input_file()
+            amber_simulation.config_pbc_md()
+            amber_simulation.cntrl["ntr"] = 1
+            amber_simulation.cntrl["restraint_wt"] = 50.0
+            amber_simulation.cntrl["restraintmask"] = "'@DUM'"
+            amber_simulation.cntrl["dt"] = 0.001
+            amber_simulation.cntrl["nstlim"] = number_of_equilibration_steps
+            amber_simulation.cntrl["ntwx"] = equilibration_output_frequency
+            amber_simulation.cntrl["barostat"] = 2
 
-        os.subprocess.Popen([
-            'pmemd',
-            '-O',
-            '-p',
-            'structure.prmtop',
-            '-ref',
-            'minimize.rst7',
-            '-c',
-            'minimize.rst7',
-            '-i',
-            'equilibration.in',
-            '-r',
-            'equilibration.rst7',
-            '-inf',
-            'equilibration.info',
-            '-x',
-            'equilibration.nc'
-        ], cwd=window_directory, env=environment)
+            amber_simulation._amber_write_input_file()
 
-        # Production
-        amber_simulation = Simulation()
-        amber_simulation.executable = "pmemd.cuda"
+            os.subprocess.Popen([
+                'pmemd',
+                '-O',
+                '-p',
+                'structure.prmtop',
+                '-ref',
+                'minimize.rst7',
+                '-c',
+                'minimize.rst7',
+                '-i',
+                'equilibration.in',
+                '-r',
+                'equilibration.rst7',
+                '-inf',
+                'equilibration.info',
+                '-x',
+                'equilibration.nc'
+            ], cwd=window_directory, env=environment).wait()
 
-        amber_simulation.path = f"{window_directory}/"
-        amber_simulation.prefix = "production"
+            # Production
+            amber_simulation = Simulation()
+            amber_simulation.executable = "pmemd.cuda"
 
-        amber_simulation.inpcrd = "equilibration.rst7"
-        amber_simulation.ref = "structure.rst7"
-        amber_simulation.topology = "structure.prmtop"
-        amber_simulation.restraint_file = "disang.rest"
+            amber_simulation.path = f"{window_directory}/"
+            amber_simulation.prefix = "production"
 
-        amber_simulation.config_pbc_md()
-        amber_simulation.cntrl["ntr"] = 1
-        amber_simulation.cntrl["restraint_wt"] = 50.0
-        amber_simulation.cntrl["restraintmask"] = "'@DUM'"
-        amber_simulation.cntrl["dt"] = 0.001
-        amber_simulation.cntrl["nstlim"] = self._number_of_production_steps
-        amber_simulation.cntrl["ntwx"] = self._production_output_frequency
-        amber_simulation.cntrl["barostat"] = 2
+            amber_simulation.inpcrd = "equilibration.rst7"
+            amber_simulation.ref = "structure.rst7"
+            amber_simulation.topology = "structure.prmtop"
+            amber_simulation.restraint_file = "disang.rest"
 
-        amber_simulation._amber_write_input_file()
+            amber_simulation.config_pbc_md()
+            amber_simulation.cntrl["ntr"] = 1
+            amber_simulation.cntrl["restraint_wt"] = 50.0
+            amber_simulation.cntrl["restraintmask"] = "'@DUM'"
+            amber_simulation.cntrl["dt"] = 0.001
+            amber_simulation.cntrl["nstlim"] = number_of_production_steps
+            amber_simulation.cntrl["ntwx"] = production_output_frequency
+            amber_simulation.cntrl["barostat"] = 2
 
-        os.subprocess.Popen([
-            'pmemd',
-            '-O',
-            '-p',
-            'structure.prmtop',
-            '-ref',
-            'equilibration.rst7',
-            '-c',
-            'equilibration.rst7',
-            '-i',
-            'production.in',
-            '-r',
-            'production.rst7',
-            '-inf',
-            'production.info',
-            '-x',
-            'production.nc'
-        ], cwd=window_directory, env=environment)
+            amber_simulation._amber_write_input_file()
+
+            os.subprocess.Popen([
+                'pmemd',
+                '-O',
+                '-p',
+                'structure.prmtop',
+                '-ref',
+                'equilibration.rst7',
+                '-c',
+                'equilibration.rst7',
+                '-i',
+                'production.in',
+                '-r',
+                'production.rst7',
+                '-inf',
+                'production.info',
+                '-x',
+                'production.nc'
+            ], cwd=window_directory, env=environment).wait()
+
+            queue.task_done()
 
     def _perform_analysis(self, directory):
 
