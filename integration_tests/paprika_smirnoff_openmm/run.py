@@ -23,7 +23,7 @@ def main():
 
     # Set up the object which describes how many compute resources available
     # on the machine on which the calculations will run.
-    resources = ComputeResources(number_of_threads=8, number_of_gpus=8,
+    resources = ComputeResources(number_of_threads=4, number_of_gpus=4,
                                  preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA)
 
     # Create a copy of the smirnoff + tip3p offxml file

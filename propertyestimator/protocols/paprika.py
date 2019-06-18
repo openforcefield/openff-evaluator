@@ -927,7 +927,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
 
     def execute(self, directory, available_resources):
 
-        if self._force_field != self.ForceField.TIP3PGAFF:
+        if self._force_field != self.ForceField.GAFF2:
 
             return PropertyEstimatorException(directory=directory,
                                               message='Currently GAFF2 is the only force field '

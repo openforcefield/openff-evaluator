@@ -8,19 +8,21 @@ from integration_tests.utils import get_paprika_host_guest_substance
 from propertyestimator.backends import ComputeResources
 from propertyestimator.protocols.paprika import OpenMMPaprikaProtocol
 from propertyestimator.thermodynamics import ThermodynamicState
+from propertyestimator.utils import setup_timestamp_logging
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 
 
 def main():
     """An integrated test of calculating the gradients of observables with
     respect to force field parameters using the property estimator"""
+    setup_timestamp_logging()
 
-    host = 'cb6_debug'
+    host = 'cb6'
     guest = 'but'
 
     # Set up the object which describes how many compute resources available
     # on the machine on which the calculations will run.
-    resources = ComputeResources(number_of_threads=8, number_of_gpus=8,
+    resources = ComputeResources(number_of_threads=4, number_of_gpus=4,
                                  preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA)
 
     # Set up the state at which we want the calculations to be performed.
