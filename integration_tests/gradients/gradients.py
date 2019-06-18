@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 import copy
 import logging
+import time
 
 import mdtraj
 import numpy as np
 from openforcefield.topology import Molecule, Topology
 from openforcefield.typing.engines.smirnoff import ForceField
 from simtk import openmm, unit
-from simtk.openmm import XmlSerializer
+from simtk.openmm import XmlSerializer, Platform
 from simtk.openmm.app import PDBFile
 
 from propertyestimator.utils import get_data_filename, setup_timestamp_logging
@@ -51,7 +52,12 @@ def evaluate_reduced_potential(force_field, topology, trajectory, charged_molecu
 
     integrator = openmm.VerletIntegrator(1.0*unit.femtoseconds)
 
-    openmm_context = openmm.Context(system, integrator)
+    # noinspection PyTypeChecker,PyCallByClass
+    # platform = Platform.getPlatformByName('Reference')
+    platform = Platform.getPlatformByName('CUDA')
+    properties = {'Precision': 'double'}
+
+    openmm_context = openmm.Context(system, integrator, platform, properties)
 
     reduced_potentials = np.zeros(trajectory.n_frames)
 
@@ -73,50 +79,73 @@ def evaluate_reduced_potential(force_field, topology, trajectory, charged_molecu
     return reduced_potentials
 
 
-def estimate_gradient(trajectory, topology, original_parameter, parameter_handler_class,
-                      unitted_attribute, *extra_parameters):
+def estimate_gradient(trajectory, topology, original_parameter, parameter_tag, parameter_handler_class,
+                      unitted_attribute, scale_amount, *extra_parameters, full_force_field=None):
 
-    logging.info(f'Building reverse perturbed parameter for {unitted_attribute}.')
+    logging.debug(f'Building reverse perturbed parameter for {unitted_attribute}.')
     reverse_parameter = copy.deepcopy(original_parameter)
 
-    reverse_parameter_value = getattr(reverse_parameter, unitted_attribute) * (1.0 - 1e-6)
+    reverse_parameter_value = getattr(reverse_parameter, unitted_attribute) * (1.0 - scale_amount)
     setattr(reverse_parameter, unitted_attribute, reverse_parameter_value)
 
-    logging.info('Building reverse force field.')
-    reverse_force_field = ForceField()
+    logging.debug('Building reverse force field.')
 
-    reverse_handler = parameter_handler_class(skip_version_check=True)
-    reverse_handler.parameters.append(reverse_parameter)
+    if full_force_field is None:
+        reverse_force_field = ForceField()
 
-    for extra_parameter in extra_parameters:
-        reverse_handler.parameters.append(extra_parameter)
+        reverse_handler = parameter_handler_class(skip_version_check=True)
+        reverse_handler.parameters.append(reverse_parameter)
 
-    reverse_force_field.register_parameter_handler(reverse_handler)
+        for extra_parameter in extra_parameters:
+            reverse_handler.parameters.append(extra_parameter)
 
-    logging.info('Evaluating reverse reduced potential.')
+        reverse_force_field.register_parameter_handler(reverse_handler)
+
+    else:
+
+        reverse_force_field = copy.deepcopy(full_force_field)
+
+        existing_parameter = reverse_force_field.get_parameter_handler(parameter_tag).parameters[
+            reverse_parameter.smirks]
+
+        setattr(existing_parameter, unitted_attribute, reverse_parameter_value)
+
+    logging.debug('Evaluating reverse reduced potential.')
     reverse_reduced_energies = evaluate_reduced_potential(reverse_force_field,
                                                           topology,
                                                           trajectory,
                                                           system_file_name='reverse.xml')
 
-    logging.info(f'Building forward perturbed parameter for {unitted_attribute}.')
+    logging.debug(f'Building forward perturbed parameter for {unitted_attribute}.')
     forward_parameter = copy.deepcopy(original_parameter)
 
-    forward_parameter_value = getattr(forward_parameter, unitted_attribute) * (1.0 + 1e-6)
+    forward_parameter_value = getattr(forward_parameter, unitted_attribute) * (1.0 + scale_amount)
     setattr(forward_parameter, unitted_attribute, forward_parameter_value)
 
-    logging.info('Building forward force field.')
-    forward_force_field = ForceField()
+    logging.debug('Building forward force field.')
 
-    forward_handler = parameter_handler_class(skip_version_check=True)
-    forward_handler.parameters.append(forward_parameter)
+    if full_force_field is None:
 
-    for extra_parameter in extra_parameters:
-        forward_handler.parameters.append(extra_parameter)
+        forward_force_field = ForceField()
 
-    forward_force_field.register_parameter_handler(forward_handler)
+        forward_handler = parameter_handler_class(skip_version_check=True)
+        forward_handler.parameters.append(forward_parameter)
 
-    logging.info('Evaluating forward reduced potential.')
+        for extra_parameter in extra_parameters:
+            forward_handler.parameters.append(extra_parameter)
+
+        forward_force_field.register_parameter_handler(forward_handler)
+
+    else:
+
+        forward_force_field = copy.deepcopy(full_force_field)
+
+        existing_parameter = forward_force_field.get_parameter_handler(parameter_tag).parameters[
+            forward_parameter.smirks]
+
+        setattr(existing_parameter, unitted_attribute, forward_parameter_value)
+
+    logging.debug('Evaluating forward reduced potential.')
     forward_reduced_energies = evaluate_reduced_potential(forward_force_field,
                                                           topology,
                                                           trajectory,
@@ -128,6 +157,12 @@ def estimate_gradient(trajectory, topology, original_parameter, parameter_handle
     denominator = forward_parameter_value - reverse_parameter_value
 
     gradient = energy_differences.mean() / denominator
+
+    logging.info(f'delta_E={energy_differences} '
+                 f'delta_value={denominator} '
+                 f'grad={gradient} '
+                 f'is_close={np.allclose(energy_differences, np.array([0.0]*len(energy_differences)))}')
+
     return gradient
 
 
@@ -155,7 +190,9 @@ def estimate_gradients():
 
     all_parameters = full_force_field.label_molecules(methanol_topology)[0]
 
-    for parameter_tag in ['vdW']:  # all_parameters:
+    scale_amounts = [1.0e-3, 1.0e-4, 1.0e-5]
+
+    for parameter_tag in all_parameters:  # ['vdW']:
 
         if parameter_tag in ['Electrostatics', 'ToolkitAM1BCC']:
             continue
@@ -172,9 +209,13 @@ def estimate_gradients():
 
             parameter = parameters_by_smirks[smirks]
 
-            remaining_parameters = {
-                key: parameters_by_smirks[key] for key in parameters_by_smirks if key != smirks
-            }
+            remaining_parameters = {}
+
+            if parameter_tag == 'vdW':
+
+                remaining_parameters = {
+                    key: parameters_by_smirks[key] for key in parameters_by_smirks if key != smirks
+                }
 
             for unitted_attribute in parameter._REQUIRE_UNITS:
 
@@ -191,14 +232,54 @@ def estimate_gradients():
                 if not isinstance(parameter_value, float) and not isinstance(parameter_value, int):
                     continue
 
-                gradient = estimate_gradient(methanol_trajectory,
-                                             methanol_topology,
-                                             parameter,
-                                             parameter_handler_class,
-                                             unitted_attribute,
-                                             *remaining_parameters.values())
+                logging.info(f'Starting fast gradient estimate ('
+                             f'{parameter_tag} {unitted_attribute} {smirks}).')
+                start_time = time.perf_counter()
 
-                print(f'{parameter_tag}: {smirks} - dE/{unitted_attribute} = {gradient}')
+                gradients_fast = []
+
+                for scale_amount in scale_amounts:
+
+                    gradients_fast.append(estimate_gradient(methanol_trajectory,
+                                                            methanol_topology,
+                                                            parameter,
+                                                            parameter_tag,
+                                                            parameter_handler_class,
+                                                            unitted_attribute,
+                                                            scale_amount,
+                                                            *remaining_parameters.values()))
+
+                end_time = time.perf_counter()
+                fast_time = (end_time-start_time) / float(len(scale_amounts))
+
+                logging.info(f'Finished fast gradient estimate after {fast_time*1000} ms ('
+                             f'{parameter_tag} {unitted_attribute} {smirks}).')
+
+                logging.info(f'Starting slow gradient estimate ('
+                             f'{parameter_tag} {unitted_attribute} {smirks}).')
+                start_time = time.perf_counter()
+
+                gradient_slow = estimate_gradient(methanol_trajectory,
+                                                  methanol_topology,
+                                                  parameter,
+                                                  parameter_tag,
+                                                  parameter_handler_class,
+                                                  unitted_attribute,
+                                                  *remaining_parameters.values(),
+                                                  full_force_field=full_force_field)
+
+                end_time = time.perf_counter()
+                slow_time = (end_time - start_time)
+
+                logging.info(f'Finished slow gradient estimate after {slow_time*1000} ms ('
+                             f'{parameter_tag} {unitted_attribute} {smirks}).')
+
+                # print(f'{parameter_tag}: {smirks} - dE/{unitted_attribute} fast={gradient_fast}')
+
+                abs_differences = [abs(gradient_fast - gradient_slow) for gradient_fast in gradients_fast]
+
+                print(f'{parameter_tag}: {smirks} - dE/{unitted_attribute} speedup={slow_time/fast_time:.2f}X '
+                      f'slow={gradient_slow} scales={scale_amounts} fast={gradients_fast} abs_diff={abs_differences}')
 
 
 if __name__ == "__main__":
