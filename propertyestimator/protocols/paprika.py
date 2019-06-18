@@ -261,7 +261,7 @@ class BasePaprikaProtocol(BaseProtocol):
         system.neutralize = False
 
         system.template_lines = [
-            f"source leaprc.gaff",
+            f"source leaprc.gaff2",
             f"source leaprc.water.tip3p",
             f"source leaprc.protein.ff14SB",
             f"loadamberparams {os.path.join(window_directory_to_base, f'{self._paprika_setup.host}.gaff2.frcmod')}",
