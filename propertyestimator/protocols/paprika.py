@@ -774,7 +774,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             if available_resources.preferred_gpu_toolkit != ComputeResources.GPUToolkit.CUDA:
                 raise ValueError('Paprika can only be ran either on CPUs or CUDA GPUs.')
 
-            devices_split = [int(index.trim()) for index in os.environ['CUDA_VISIBLE_DEVICES'].split(',')]
+            devices_split = [int(index.strip()) for index in os.environ['CUDA_VISIBLE_DEVICES'].split(',')]
 
             if len(available_resources.gpu_device_indices) > len(devices_split):
 
@@ -783,7 +783,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
                                  f'is greater than the number available '
                                  f'({len(devices_split)})')
 
-            requested_split = [int(index.trim()) for index in available_resources.gpu_device_indices.split(',')]
+            requested_split = [int(index.strip()) for index in available_resources.gpu_device_indices.split(',')]
             visible_devices = [str(devices_split[index]) for index in requested_split]
 
             devices_string = {','.join(visible_devices)}
