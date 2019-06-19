@@ -10,6 +10,7 @@ import shutil
 import traceback
 from enum import Enum
 from queue import Queue
+from subprocess import Popen
 from threading import Thread
 
 import numpy as np
@@ -21,7 +22,7 @@ from paprika.tleap import System
 from paprika.utils import index_from_mask
 from simtk import unit
 from simtk.openmm import XmlSerializer
-from simtk.openmm.app import AmberPrmtopFile, HBonds, PME
+from simtk.openmm.app import AmberPrmtopFile, HBonds, PME, PDBFile
 
 from propertyestimator.backends import ComputeResources
 from propertyestimator.protocols import miscellaneous, coordinates, forcefield, simulation, groups
@@ -354,6 +355,9 @@ class BasePaprikaProtocol(BaseProtocol):
             load_guest_frcmod = f'loadamberparams {guest_frcmod}'
             load_guest_mol2 = f'{self._paprika_setup.guest.upper()} = loadmol2 {guest_mol2}'
 
+        # window_pdb_file = PDBFile(self._solvated_coordinate_paths[index])
+        # cell_vectors = window_pdb_file.topology.getPeriodicBoxVectors()
+
         system.template_lines = [
             f"source leaprc.gaff2",
             f"source leaprc.water.tip3p",
@@ -367,6 +371,9 @@ class BasePaprikaProtocol(BaseProtocol):
             f"DM2 = loadmol2 {os.path.join(window_directory_to_base, 'dm2.mol2')}",
             f"DM3 = loadmol2 {os.path.join(window_directory_to_base, 'dm3.mol2')}",
             f"model = loadpdb {window_coordinates}",
+            # f"set model box {{{cell_vectors[0][0].value_in_unit(unit.angstrom)} "
+            #                 f"{cell_vectors[1][1].value_in_unit(unit.angstrom)} "
+            #                 f"{cell_vectors[2][2].value_in_unit(unit.angstrom)}}}",
             f"setBox model \"centers\"",
             "check model",
             "saveamberparm model structure.prmtop structure.rst7"
@@ -827,7 +834,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             requested_split = [int(index.strip()) for index in available_resources.gpu_device_indices.split(',')]
             visible_devices = [str(devices_split[index]) for index in requested_split]
 
-            devices_string = {','.join(visible_devices)}
+            devices_string = ','.join(visible_devices)
             environment['CUDA_VISIBLE_DEVICES'] = f'{devices_string}'
 
             logging.info(f'Starting a set of Amber simulations on GPUs {devices_string}')
@@ -847,13 +854,16 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             amber_simulation.cntrl["ntf"] = 2
             amber_simulation.cntrl["ntc"] = 2
 
+            amber_simulation.cntrl["maxcyc"] = 5000
+            amber_simulation.cntrl["ncyc"] = 1000
+
             amber_simulation.cntrl["ntr"] = 1
             amber_simulation.cntrl["restraint_wt"] = 50.0
             amber_simulation.cntrl["restraintmask"] = "'@DUM'"
 
             amber_simulation._amber_write_input_file()
 
-            os.subprocess.Popen([
+            Popen([
                 'pmemd',
                 '-O',
                 '-p',
@@ -866,9 +876,55 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
                 'minimize.in',
                 '-r',
                 'minimize.rst7',
+                '-o',
+                'minimize.out',
                 '-inf',
                 'minimize.info',
             ], cwd=window_directory, env=environment).wait()
+
+            # # Pre-equilibration (due to a strange issue where
+            # # the minimised structure can occasionally have a
+            # # high vdW energy)
+            # amber_simulation = Simulation()
+            # amber_simulation.executable = "pmemd"
+            #
+            # amber_simulation.path = f"{window_directory}/"
+            # amber_simulation.prefix = "preequilibration"
+            #
+            # amber_simulation.inpcrd = "minimize.rst7"
+            # amber_simulation.ref = "minimize.rst7"
+            # amber_simulation.topology = "structure.prmtop"
+            # amber_simulation.restraint_file = "disang.rest"
+            #
+            # amber_simulation.config_pbc_md()
+            # amber_simulation.cntrl["ntr"] = 1
+            # amber_simulation.cntrl["restraint_wt"] = 50.0
+            # amber_simulation.cntrl["restraintmask"] = "'@DUM'"
+            # amber_simulation.cntrl["dt"] = 0.001
+            # amber_simulation.cntrl["nstlim"] = 1500
+            # amber_simulation.cntrl["ntwx"] = 100
+            # amber_simulation.cntrl["barostat"] = 2
+            #
+            # amber_simulation._amber_write_input_file()
+            #
+            # Popen([
+            #     'pmemd',
+            #     '-O',
+            #     '-p',
+            #     'structure.prmtop',
+            #     '-ref',
+            #     'minimize.rst7',
+            #     '-c',
+            #     'minimize.rst7',
+            #     '-i',
+            #     'preequilibration.in',
+            #     '-r',
+            #     'preequilibration.rst7',
+            #     '-inf',
+            #     'preequilibration.info',
+            #     '-x',
+            #     'preequilibration.nc'
+            # ], cwd=window_directory, env=environment).wait()
 
             # Equilibration
             amber_simulation = Simulation()
@@ -878,7 +934,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             amber_simulation.prefix = "equilibration"
 
             amber_simulation.inpcrd = "minimize.rst7"
-            amber_simulation.ref = "structure.rst7"
+            amber_simulation.ref = "minimize.rst7"
             amber_simulation.topology = "structure.prmtop"
             amber_simulation.restraint_file = "disang.rest"
 
@@ -893,8 +949,8 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
 
             amber_simulation._amber_write_input_file()
 
-            os.subprocess.Popen([
-                'pmemd',
+            Popen([
+                'pmemd.cuda',
                 '-O',
                 '-p',
                 'structure.prmtop',
@@ -908,6 +964,8 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
                 'equilibration.rst7',
                 '-inf',
                 'equilibration.info',
+                '-o',
+                'equilibration.out',
                 '-x',
                 'equilibration.nc'
             ], cwd=window_directory, env=environment).wait()
@@ -920,7 +978,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             amber_simulation.prefix = "production"
 
             amber_simulation.inpcrd = "equilibration.rst7"
-            amber_simulation.ref = "structure.rst7"
+            amber_simulation.ref = "equilibration.rst7"
             amber_simulation.topology = "structure.prmtop"
             amber_simulation.restraint_file = "disang.rest"
 
@@ -935,8 +993,8 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
 
             amber_simulation._amber_write_input_file()
 
-            os.subprocess.Popen([
-                'pmemd',
+            Popen([
+                'pmemd.cuda',
                 '-O',
                 '-p',
                 'structure.prmtop',
@@ -950,6 +1008,8 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
                 'production.rst7',
                 '-inf',
                 'production.info',
+                '-o',
+                'production.out',
                 '-x',
                 'production.nc'
             ], cwd=window_directory, env=environment).wait()
