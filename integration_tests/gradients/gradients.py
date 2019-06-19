@@ -217,8 +217,8 @@ def estimate_gradient(trajectory_path, topology, thermodynamic_state, original_p
     evaluate_reduced_potential(forward_force_field,
                                topology,
                                trajectory_path,
-                               compute_resources,
                                thermodynamic_state,
+                               compute_resources,
                                'forward.csv')
 
     logging.info('Calculating forward mbar.')
