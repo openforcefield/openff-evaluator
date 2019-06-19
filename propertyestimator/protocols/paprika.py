@@ -22,7 +22,7 @@ from paprika.tleap import System
 from paprika.utils import index_from_mask
 from simtk import unit
 from simtk.openmm import XmlSerializer
-from simtk.openmm.app import AmberPrmtopFile, HBonds, PME, PDBFile
+from simtk.openmm.app import AmberPrmtopFile, HBonds, PME
 
 from propertyestimator.backends import ComputeResources
 from propertyestimator.protocols import miscellaneous, coordinates, forcefield, simulation, groups
@@ -48,6 +48,7 @@ class BasePaprikaProtocol(BaseProtocol):
 
     class ForceField(Enum):
         SMIRNOFF = 'SMIRNOFF'
+        GAFF = 'GAFF'
         GAFF2 = 'GAFF2'
 
     @protocol_input(Substance)
@@ -163,12 +164,17 @@ class BasePaprikaProtocol(BaseProtocol):
 
     def _setup_paprika(self, directory):
 
-        generate_gaff_files = self._force_field == self.ForceField.GAFF2
+        generate_gaff_files = self._force_field == self.ForceField.GAFF or self._force_field == self.ForceField.GAFF2
+        gaff_version = 'gaff2'
+
+        if self._force_field == self.ForceField.GAFF:
+            gaff_version = 'gaff'
 
         self._paprika_setup = paprika.Setup(host=self._taproom_host_name,
                                             guest=self._taproom_guest_name,
                                             directory_path=directory,
-                                            generate_gaff_files=generate_gaff_files)
+                                            generate_gaff_files=generate_gaff_files,
+                                            gaff_version=gaff_version)
 
     def _solvate_windows(self, directory, available_resources):
 
@@ -275,7 +281,8 @@ class BasePaprikaProtocol(BaseProtocol):
 
     def _apply_parameters(self):
 
-        if self._force_field == BasePaprikaProtocol.ForceField.GAFF2:
+        if (self._force_field == BasePaprikaProtocol.ForceField.GAFF or
+            self._force_field == BasePaprikaProtocol.ForceField.GAFF2):
 
             for index, window_file_path in enumerate(self._paprika_setup.desolvated_window_paths):
 
@@ -338,8 +345,13 @@ class BasePaprikaProtocol(BaseProtocol):
         system.pbc_type = None
         system.neutralize = False
 
-        host_frcmod = os.path.join(window_directory_to_base, f'{self._paprika_setup.host}.gaff2.frcmod')
-        host_mol2 = os.path.join(window_directory_to_base, f'{self._paprika_setup.host}.gaff2.mol2')
+        gaff_version = 'gaff2'
+
+        if self._force_field == self.ForceField.GAFF:
+            gaff_version = 'gaff'
+
+        host_frcmod = os.path.join(window_directory_to_base, f'{self._paprika_setup.host}.{gaff_version}.frcmod')
+        host_mol2 = os.path.join(window_directory_to_base, f'{self._paprika_setup.host}.{gaff_version}.mol2')
 
         load_host_frcmod = f'loadamberparams {host_frcmod}'
         load_host_mol2 = f'{self._paprika_setup.host.upper()} = loadmol2 {host_mol2}'
@@ -349,8 +361,8 @@ class BasePaprikaProtocol(BaseProtocol):
 
         if self._taproom_guest_name is not None:
 
-            guest_frcmod = os.path.join(window_directory_to_base, f'{self._paprika_setup.guest}.gaff2.frcmod')
-            guest_mol2 = os.path.join(window_directory_to_base, f'{self._paprika_setup.guest}.gaff2.mol2')
+            guest_frcmod = os.path.join(window_directory_to_base, f'{self._paprika_setup.guest}.{gaff_version}.frcmod')
+            guest_mol2 = os.path.join(window_directory_to_base, f'{self._paprika_setup.guest}.{gaff_version}.mol2')
 
             load_guest_frcmod = f'loadamberparams {guest_frcmod}'
             load_guest_mol2 = f'{self._paprika_setup.guest.upper()} = loadmol2 {guest_mol2}'
@@ -359,7 +371,7 @@ class BasePaprikaProtocol(BaseProtocol):
         # cell_vectors = window_pdb_file.topology.getPeriodicBoxVectors()
 
         system.template_lines = [
-            f"source leaprc.gaff2",
+            f"source leaprc.{gaff_version}",
             f"source leaprc.water.tip3p",
             f"source leaprc.protein.ff14SB",
             load_host_frcmod,
@@ -601,7 +613,8 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
         super(OpenMMPaprikaProtocol, self)._apply_parameters()
 
-        if self._force_field == BasePaprikaProtocol.ForceField.GAFF2:
+        if (self._force_field == BasePaprikaProtocol.ForceField.GAFF or
+            self._force_field == BasePaprikaProtocol.ForceField.GAFF2):
 
             # Convert the amber files to OMM system objects.
             for index in range(len(self._paprika_setup.window_list)):
@@ -636,7 +649,9 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
         super(OpenMMPaprikaProtocol, self)._setup_restraints()
 
-        if self._force_field == self.ForceField.GAFF2:
+        if (self._force_field == self.ForceField.GAFF or
+            self._force_field == self.ForceField.GAFF2):
+
             self._apply_restraint_masks(use_amber_indices=False)
 
         # Apply the restraint forces to the solvated system xml files.
@@ -768,7 +783,8 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
 
         super(AmberPaprikaProtocol, self)._setup_restraints()
 
-        if self._force_field == self.ForceField.GAFF2:
+        if (self._force_field == self.ForceField.GAFF or
+            self._force_field == self.ForceField.GAFF2):
             # Apply the restraint masks which will re-map the restraint indices
             # to the correct atoms (tleap re-orders the packmol file). All indices
             # Get set to index+1 here ready for creating the disang files.
@@ -792,7 +808,8 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
 
                 file.write(value)
 
-        if self._force_field == self.ForceField.GAFF2:
+        if (self._force_field == self.ForceField.GAFF or
+            self._force_field == self.ForceField.GAFF2):
             # Undo the amber index ready for saving the restraints
             # JSON file.
             self._apply_restraint_masks(use_amber_indices=False)
@@ -1028,10 +1045,11 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
 
     def execute(self, directory, available_resources):
 
-        if self._force_field != self.ForceField.GAFF2:
+        if (self._force_field != self.ForceField.GAFF and
+            self._force_field != self.ForceField.GAFF2):
 
             return PropertyEstimatorException(directory=directory,
-                                              message='Currently GAFF2 is the only force field '
+                                              message='Currently GAFF(2) are the only force fields '
                                                       'supported with the AmberPaprikaProtocol.')
 
         super(AmberPaprikaProtocol, self).execute(directory, available_resources)
