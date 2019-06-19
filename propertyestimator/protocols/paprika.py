@@ -233,21 +233,53 @@ class BasePaprikaProtocol(BaseProtocol):
                                             self._solvated_coordinate_paths[index],
                                             None)
 
+    def _apply_restraint_masks(self, use_amber_indices):
+
+        import parmed as pmd
+
+        for index, window in enumerate(self._paprika_setup.window_list):
+
+            window_directory = os.path.join(self._paprika_setup.directory,
+                                            'windows', window)
+
+            build_pdb_file = pmd.load_file(f'{window_directory}/build.pdb', structure=True)
+
+            for restraint in self._paprika_setup.static_restraints + \
+                             self._paprika_setup.conformational_restraints + \
+                             self._paprika_setup.wall_restraints + \
+                             self._paprika_setup.guest_restraints:
+
+                try:
+                    restraint.index1 = index_from_mask(build_pdb_file, restraint.mask1, use_amber_indices)
+                except:
+                    pass
+                try:
+                    restraint.index2 = index_from_mask(build_pdb_file, restraint.mask2, use_amber_indices)
+                except:
+                    pass
+                try:
+                    restraint.index3 = index_from_mask(build_pdb_file, restraint.mask3, use_amber_indices)
+                except:
+                    pass
+                try:
+                    restraint.index4 = index_from_mask(build_pdb_file, restraint.mask4, use_amber_indices)
+                except:
+                    pass
+
     def _setup_restraints(self):
 
         self._paprika_setup.static_restraints, self._paprika_setup.conformational_restraints, \
             self._paprika_setup.wall_restraints, self._paprika_setup.guest_restraints = \
             self._paprika_setup.initialize_restraints(self._solvated_coordinate_paths[0])
 
-        # Save the restraints to a file, ready for analysis.
-        save_restraints(restraint_list=self._paprika_setup.static_restraints +
-                                       self._paprika_setup.conformational_restraints +
-                                       self._paprika_setup.wall_restraints +
-                                       self._paprika_setup.guest_restraints,
-                        filepath=os.path.join(self._paprika_setup.directory, "restraints.json"))
-
     def _apply_parameters(self):
-        raise NotImplementedError
+
+        if self._force_field == BasePaprikaProtocol.ForceField.GAFF2:
+
+            for index, window_file_path in enumerate(self._paprika_setup.desolvated_window_paths):
+
+                window_directory = os.path.dirname(window_file_path)
+                self._build_amber_parameters(index, window_directory)
 
     @staticmethod
     def _create_dummy_files(directory):
@@ -473,29 +505,36 @@ class BasePaprikaProtocol(BaseProtocol):
             return PropertyEstimatorException(directory=directory,
                                               message='There were no defined windows to a/p/r the guest along.')
 
+        # Apply parameters to each of the windows.
+        result = self._apply_parameters()
+
         # Setup the actual restraints.
         self._setup_restraints()
 
-        # Apply parameters to each of the windows.
-        result = self._apply_parameters()
+        # Save the restraints to a file, ready for analysis.
+        save_restraints(restraint_list=self._paprika_setup.static_restraints +
+                                       self._paprika_setup.conformational_restraints +
+                                       self._paprika_setup.wall_restraints +
+                                       self._paprika_setup.guest_restraints,
+                        filepath=os.path.join(self._paprika_setup.directory, "restraints.json"))
 
         if isinstance(result, PropertyEstimatorException):
             # Make sure the parameter application was successful.
             return result
 
         # Run the simulations
-        result = self._run_windows(available_resources)
-
-        if isinstance(result, PropertyEstimatorException):
-            # Make sure the simulations were successful.
-            return result
-
-        # Finally, do the analysis to extract the free energy of binding.
-        result = self._perform_analysis(directory)
-
-        if isinstance(result, PropertyEstimatorException):
-            # Make sure the analysis was successful.
-            return result
+        # result = self._run_windows(available_resources)
+        #
+        # if isinstance(result, PropertyEstimatorException):
+        #     # Make sure the simulations were successful.
+        #     return result
+        #
+        # # Finally, do the analysis to extract the free energy of binding.
+        # result = self._perform_analysis(directory)
+        #
+        # if isinstance(result, PropertyEstimatorException):
+        #     # Make sure the analysis was successful.
+        #     return result
 
         return self._get_output_dictionary()
 
@@ -551,27 +590,26 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                                             self._solvated_coordinate_paths[index],
                                             self._solvated_system_xml_paths[index])
 
-        if self._force_field == BasePaprikaProtocol.ForceField.GAFF2:
-
-            self._build_amber_parameters(index, window_directory)
-
-            prmtop = AmberPrmtopFile(os.path.join(window_directory, 'structure.prmtop'))
-
-            system = prmtop.createSystem(nonbondedMethod=PME, nonbondedCutoff=self._gaff_cutoff,
-                                         constraints=HBonds)
-
-            system_xml = XmlSerializer.serialize(system)
-
-            with open(self._solvated_system_xml_paths[index], 'wb') as file:
-                file.write(system_xml.encode('utf-8'))
-
     def _apply_parameters(self):
 
-        # Apply the restraint forces to the solvated system xml files.
-        for index, window in enumerate(self._paprika_setup.window_list):
+        super(OpenMMPaprikaProtocol, self)._apply_parameters()
 
-            self._paprika_setup.initialize_calculation(window, self._solvated_system_xml_paths[index],
-                                                               self._solvated_system_xml_paths[index])
+        if self._force_field == BasePaprikaProtocol.ForceField.GAFF2:
+
+            # Convert the amber files to OMM system objects.
+            for index in range(len(self._paprika_setup.window_list)):
+
+                window_directory = os.path.dirname(self._solvated_system_xml_paths[index])
+
+                prmtop = AmberPrmtopFile(os.path.join(window_directory, 'structure.prmtop'))
+
+                system = prmtop.createSystem(nonbondedMethod=PME, nonbondedCutoff=self._gaff_cutoff,
+                                             constraints=HBonds)
+
+                system_xml = XmlSerializer.serialize(system)
+
+                with open(self._solvated_system_xml_paths[index], 'wb') as file:
+                    file.write(system_xml.encode('utf-8'))
 
     def _enqueue_window(self, queue, index, available_resources, exceptions):
 
@@ -586,6 +624,19 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                    self._production_output_frequency,
                    available_resources,
                    exceptions))
+
+    def _setup_restraints(self):
+
+        super(OpenMMPaprikaProtocol, self)._setup_restraints()
+
+        if self._force_field == self.ForceField.GAFF2:
+            self._apply_restraint_masks(use_amber_indices=False)
+
+        # Apply the restraint forces to the solvated system xml files.
+        for index, window in enumerate(self._paprika_setup.window_list):
+
+            self._paprika_setup.initialize_calculation(window, self._solvated_system_xml_paths[index],
+                                                               self._solvated_system_xml_paths[index])
 
     @staticmethod
     def _run_window(queue):
@@ -692,49 +743,6 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
         # Protocol inputs / outputs
         self._force_field = self.ForceField.GAFF2
 
-    def _apply_parameters(self):
-
-        import parmed as pmd
-
-        for index, window in enumerate(self._paprika_setup.window_list):
-
-            window_directory = os.path.join(self._paprika_setup.directory,
-                                            'windows', window)
-
-            self._build_amber_parameters(index, window_directory)
-
-            build_pdb_file = pmd.load_file(f'{window_directory}/build.pdb', structure=True)
-
-            with open(f'{window_directory}/disang.rest', 'w') as file:
-
-                value = ''
-
-                for restraint in self._paprika_setup.static_restraints + \
-                                 self._paprika_setup.conformational_restraints + \
-                                 self._paprika_setup.wall_restraints + \
-                                 self._paprika_setup.guest_restraints:
-
-                    try:
-                        restraint.index1 = index_from_mask(build_pdb_file, restraint.mask1, True)
-                    except:
-                        pass
-                    try:
-                        restraint.index2 = index_from_mask(build_pdb_file, restraint.mask2, True)
-                    except:
-                        pass
-                    try:
-                        restraint.index3 = index_from_mask(build_pdb_file, restraint.mask3, True)
-                    except:
-                        pass
-                    try:
-                        restraint.index4 = index_from_mask(build_pdb_file, restraint.mask4, True)
-                    except:
-                        pass
-
-                    value += amber_restraints.amber_restraint_line(restraint, window)
-
-                file.write(value)
-
     def _enqueue_window(self, queue, index, available_resources, exceptions):
 
         queue.put((index,
@@ -748,6 +756,39 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
                    self._production_output_frequency,
                    available_resources,
                    exceptions))
+
+    def _setup_restraints(self):
+
+        super(AmberPaprikaProtocol, self)._setup_restraints()
+
+        if self._force_field == self.ForceField.GAFF2:
+            # Apply the restraint masks which will re-map the restraint indices
+            # to the correct atoms (tleap re-orders the packmol file). All indices
+            # Get set to index+1 here ready for creating the disang files.
+            self._apply_restraint_masks(use_amber_indices=True)
+
+        for index, window in enumerate(self._paprika_setup.window_list):
+
+            window_directory = os.path.join(self._paprika_setup.directory,
+                                            'windows', window)
+
+            with open(f'{window_directory}/disang.rest', 'w') as file:
+
+                value = ''
+
+                for restraint in self._paprika_setup.static_restraints + \
+                                 self._paprika_setup.conformational_restraints + \
+                                 self._paprika_setup.wall_restraints + \
+                                 self._paprika_setup.guest_restraints:
+
+                    value += amber_restraints.amber_restraint_line(restraint, window)
+
+                file.write(value)
+
+        if self._force_field == self.ForceField.GAFF2:
+            # Undo the amber index ready for saving the restraints
+            # JSON file.
+            self._apply_restraint_masks(use_amber_indices=False)
 
     @staticmethod
     def _run_window(queue):
