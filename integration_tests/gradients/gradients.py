@@ -1,17 +1,21 @@
 #!/usr/bin/env python
 import copy
 import logging
+import shutil
 import time
 
-import mdtraj
-import numpy as np
 from openforcefield.topology import Molecule, Topology
 from openforcefield.typing.engines.smirnoff import ForceField
-from simtk import openmm, unit
-from simtk.openmm import XmlSerializer, Platform
+from simtk import unit
+from simtk.openmm import XmlSerializer
 from simtk.openmm.app import PDBFile
 
-from propertyestimator.utils import get_data_filename, setup_timestamp_logging
+from propertyestimator.backends import ComputeResources
+from propertyestimator.protocols.analysis import ExtractAverageStatistic, ExtractUncorrelatedTrajectoryData, \
+    ExtractUncorrelatedStatisticsData
+from propertyestimator.protocols.reweighting import ReweightWithMBARProtocol, CalculateReducedPotentialOpenMM
+from propertyestimator.thermodynamics import ThermodynamicState
+from propertyestimator.utils import get_data_filename, setup_timestamp_logging, statistics
 
 
 def all_differentiable_parameters(force_field, topology):
@@ -56,12 +60,12 @@ def all_differentiable_parameters(force_field, topology):
 
             parameter = parameters_by_tag_smirks[parameter_tag][smirks]
 
-            for unitted_attribute in parameter._REQUIRE_UNITS:
+            for parameter_attribute in parameter._REQUIRE_UNITS:
 
-                if not hasattr(parameter, unitted_attribute):
+                if not hasattr(parameter, parameter_attribute):
                     continue
 
-                parameter_value = getattr(parameter, unitted_attribute)
+                parameter_value = getattr(parameter, parameter_attribute)
 
                 if not isinstance(parameter_value, unit.Quantity):
                     continue
@@ -71,12 +75,13 @@ def all_differentiable_parameters(force_field, topology):
                 if not isinstance(parameter_value, float) and not isinstance(parameter_value, int):
                     continue
 
-                yield parameter_tag, parameter, unitted_attribute
+                yield parameter_tag, parameter, parameter_attribute
 
 
-def evaluate_reduced_potential(force_field, topology, trajectory, charged_molecules=None,
-                               system_file_name=None):
-    """Return the potential energy.
+def evaluate_reduced_potential(force_field, topology, trajectory_path, thermodynamic_state,
+                               compute_resources, output_path=None, charged_molecules=None):
+    """Evaluates the reduced potential of a given trajectory using the
+    provided force field, and stores the results in a pandas csv file.
 
     Parameters
     ----------
@@ -84,18 +89,16 @@ def evaluate_reduced_potential(force_field, topology, trajectory, charged_molecu
         The force field to use when evaluating the energy.
     topology: openforcefield.topology.Topology
         The topology of the system.
-    trajectory: mdtraj.Trajectory
-        A trajectory of configurations to evaluate.
+    trajectory_path: str
+        The file path to the trajectory of configurations to evaluate.
+    thermodynamic_state: ThermodynamicState
+        The state to evaluate the reduced potential at.
+    compute_resources: ComputeResources
+        The compute resources to use to evaluate the reduced potentials.
+    output_path: str
+        The path to save the reduced potential csv file to.
     charged_molecules: list of openforcefield.topology.Molecule
         A list of pre-charged molecules, from which to source the system charges.
-    system_file_name: str, optional
-        The name of the system xml file to save out. If `None`, no file is saved.
-
-    Returns
-    ---------
-    simtk.unit.Quantity
-        The energy of the provided configuration evaluated using the provided
-        force field parameters.
     """
 
     if charged_molecules is None:
@@ -105,47 +108,52 @@ def evaluate_reduced_potential(force_field, topology, trajectory, charged_molecu
                                                   allow_missing_parameters=True,
                                                   charge_from_molecules=charged_molecules)
 
-    if system_file_name is not None:
+    system_xml = XmlSerializer.serialize(system)
 
-        system_xml = XmlSerializer.serialize(system)
+    with open('system.xml', 'wb') as file:
+        file.write(system_xml.encode('utf-8'))
 
-        with open(system_file_name, 'wb') as file:
-            file.write(system_xml.encode('utf-8'))
+    reduced_potential_protocol = CalculateReducedPotentialOpenMM('reduced_potential_protocol')
+    reduced_potential_protocol.thermodynamic_state = thermodynamic_state
+    reduced_potential_protocol.system_path = 'system.xml'
+    reduced_potential_protocol.coordinate_file_path = 'methanol/methanol.pdb'
+    reduced_potential_protocol.trajectory_file_path = trajectory_path
+    reduced_potential_protocol.high_precision = True
 
-    beta = 1.0 / (unit.BOLTZMANN_CONSTANT_kB * 298.0 * unit.kelvin)
+    reduced_potential_protocol.execute('', compute_resources)
 
-    integrator = openmm.VerletIntegrator(1.0*unit.femtoseconds)
-
-    # noinspection PyTypeChecker,PyCallByClass
-    platform = Platform.getPlatformByName('Reference')
-    properties = {}
-    # platform = Platform.getPlatformByName('CUDA')
-    # properties = {'Precision': 'double'}
-
-    openmm_context = openmm.Context(system, integrator, platform, properties)
-
-    reduced_potentials = np.zeros(trajectory.n_frames)
-
-    for frame_index in range(trajectory.n_frames):
-        # positions = trajectory.openmm_positions(frame_index)
-        positions = trajectory.xyz[frame_index]
-        box_vectors = trajectory.openmm_boxes(frame_index)
-
-        openmm_context.setPeriodicBoxVectors(*box_vectors)
-        openmm_context.setPositions(positions)
-
-        state = openmm_context.getState(getEnergy=True)
-        potential_energy = state.getPotentialEnergy().value_in_unit(unit.kilojoules_per_mole)
-
-        # set box vectors
-        reduced_potentials[frame_index] = potential_energy
-
-    reduced_potentials *= unit.kilojoules_per_mole * (beta / unit.AVOGADRO_CONSTANT_NA)
-    return reduced_potentials
+    if output_path is not None:
+        shutil.move(reduced_potential_protocol.statistics_file_path, output_path)
 
 
-def estimate_gradient(trajectory, topology, original_parameter, parameter_tag,
-                      unitted_attribute, scale_amount, full_force_field, use_subset=False):
+def estimate_gradient(trajectory_path, topology, thermodynamic_state, original_parameter, parameter_tag,
+                      parameter_attribute, observable_values, scale_amount, full_force_field,
+                      compute_resources, use_subset=False, reference_statistics_path=None):
+
+    if reference_statistics_path is None:
+
+        logging.info('Calculating reference potentials.')
+
+        if use_subset:
+
+            reference_force_field = ForceField()
+            reference_handler = copy.deepcopy(full_force_field.get_parameter_handler(parameter_tag))
+            reference_force_field.register_parameter_handler(reference_handler)
+
+        else:
+
+            reference_force_field = full_force_field
+
+        reference_statistics_path = 'reference.csv'
+
+        evaluate_reduced_potential(reference_force_field,
+                                   topology,
+                                   trajectory_path,
+                                   thermodynamic_state,
+                                   compute_resources,
+                                   reference_statistics_path)
+
+    logging.info('Calculating reverse potentials.')
 
     if use_subset:
 
@@ -160,13 +168,29 @@ def estimate_gradient(trajectory, topology, original_parameter, parameter_tag,
 
     existing_parameter = reverse_handler.parameters[original_parameter.smirks]
 
-    reverse_value = getattr(original_parameter, unitted_attribute) * (1.0 - scale_amount)
-    setattr(existing_parameter, unitted_attribute, reverse_value)
+    reverse_parameter_value = getattr(original_parameter, parameter_attribute) * (1.0 - scale_amount)
+    setattr(existing_parameter, parameter_attribute, reverse_parameter_value)
 
-    reverse_reduced_energies = evaluate_reduced_potential(reverse_force_field,
-                                                          topology,
-                                                          trajectory,
-                                                          system_file_name='reverse.xml')
+    evaluate_reduced_potential(reverse_force_field,
+                               topology,
+                               trajectory_path,
+                               thermodynamic_state,
+                               compute_resources,
+                               'reverse.csv')
+
+    logging.info('Calculating reverse mbar.')
+
+    mbar_protocol = ReweightWithMBARProtocol('mbar_protocol')
+    mbar_protocol.reference_reduced_potentials = [reference_statistics_path]
+    mbar_protocol.reference_observables = [observable_values]
+    mbar_protocol.target_reduced_potentials = ['reverse.csv']
+    mbar_protocol.required_effective_samples = 0
+    mbar_protocol.bootstrap_uncertainties = False
+    mbar_protocol.execute('', None)
+
+    reverse_value = copy.deepcopy(mbar_protocol.value)
+
+    logging.info('Calculating forward potentials.')
 
     if use_subset:
 
@@ -181,15 +205,28 @@ def estimate_gradient(trajectory, topology, original_parameter, parameter_tag,
 
     existing_parameter = forward_handler.parameters[original_parameter.smirks]
 
-    forward_value = getattr(original_parameter, unitted_attribute) * (1.0 + scale_amount)
-    setattr(existing_parameter, unitted_attribute, forward_value)
+    forward_parameter_value = getattr(original_parameter, parameter_attribute) * (1.0 + scale_amount)
+    setattr(existing_parameter, parameter_attribute, forward_parameter_value)
 
-    forward_reduced_energies = evaluate_reduced_potential(forward_force_field,
-                                                          topology,
-                                                          trajectory,
-                                                          system_file_name='forward.xml')
+    evaluate_reduced_potential(forward_force_field,
+                               topology,
+                               trajectory_path,
+                               compute_resources,
+                               thermodynamic_state,
+                               'forward.csv')
 
-    gradient = (forward_reduced_energies - reverse_reduced_energies) / (forward_value - reverse_value)
+    logging.info('Calculating forward mbar.')
+
+    mbar_protocol.target_reduced_potentials = ['forward.csv']
+    mbar_protocol.execute('', None)
+
+    forward_value = copy.deepcopy(mbar_protocol.value)
+
+    gradient = (forward_value.value - reverse_value.value) / (forward_parameter_value - reverse_parameter_value)
+
+    logging.info(f'Reverse value: {reverse_value.value}+/-{reverse_value.uncertainty} '
+                 f'Forward value: {forward_value.value}+/-{forward_value.uncertainty} '
+                 f'Gradient: {gradient}')
 
     return gradient
 
@@ -200,13 +237,16 @@ def estimate_gradients():
 
     setup_timestamp_logging()
 
+    compute_resource = ComputeResources(number_of_threads=1, number_of_gpus=1,
+                                        preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA)
+
+    # compute_resource = ComputeResources(number_of_threads=1)
+
+    thermodynamic_state = ThermodynamicState(temperature=298*unit.kelvin,
+                                             pressure=1.0*unit.atmosphere)
+
     logging.info('Setting up molecule.')
     methanol_pdb_file = PDBFile(file='methanol/methanol.pdb')
-
-    logging.info(f'Loading the trajectory.')
-    methanol_trajectory = mdtraj.load('methanol/methanol.dcd',
-                                      top='methanol/methanol.pdb')
-    logging.info(f'Loaded the trajectory.')
 
     methanol_molecule = Molecule.from_smiles(smiles='CO')
 
@@ -216,45 +256,80 @@ def estimate_gradients():
     logging.info('Loading force field.')
     full_force_field = ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
 
-    for parameter_tag, parameter, unitted_attribute in all_differentiable_parameters(full_force_field,
-                                                                                     methanol_topology):
+    extract_densities = ExtractAverageStatistic('extract_densities')
+    extract_densities.bootstrap_iterations = 0
+    extract_densities.statistics_path = 'methanol/methanol.csv'
+    extract_densities.statistics_type = statistics.ObservableType.Density
+    extract_densities.execute('', None)
+
+    extract_trajectory = ExtractUncorrelatedTrajectoryData('extract_trajectory')
+    extract_trajectory.input_coordinate_file = 'methanol/methanol.pdb'
+    extract_trajectory.input_trajectory_path = 'methanol/methanol.dcd'
+    extract_trajectory.equilibration_index = extract_densities.equilibration_index
+    extract_trajectory.statistical_inefficiency = extract_densities.statistical_inefficiency
+    extract_trajectory.execute('', None)
+
+    extract_statistics = ExtractUncorrelatedStatisticsData('extract_statistics')
+    extract_statistics.input_statistics_path = 'methanol/methanol.csv'
+    extract_statistics.equilibration_index = extract_densities.equilibration_index
+    extract_statistics.statistical_inefficiency = extract_densities.statistical_inefficiency
+    extract_statistics.execute('', None)
+
+    logging.info(f'Loading the trajectory.')
+    methanol_trajectory_path = extract_trajectory.output_trajectory_path
+    logging.info(f'Loaded the trajectory.')
+
+    for parameter_tag, parameter, parameter_attribute in all_differentiable_parameters(full_force_field,
+                                                                                       methanol_topology):
 
         start_time = time.perf_counter()
 
-        gradient_fast = estimate_gradient(methanol_trajectory,
+        gradient_fast = estimate_gradient(methanol_trajectory_path,
                                           methanol_topology,
+                                          thermodynamic_state,
                                           parameter,
                                           parameter_tag,
-                                          unitted_attribute,
+                                          parameter_attribute,
+                                          extract_densities.uncorrelated_values,
                                           1.0e-4,
                                           full_force_field=full_force_field,
+                                          compute_resources=compute_resource,
                                           use_subset=True)
 
         end_time = time.perf_counter()
         fast_time = (end_time-start_time)
 
         logging.info(f'Finished fast gradient estimate after {fast_time*1000} ms ('
-                     f'{parameter_tag} {unitted_attribute} {parameter.smirks}).')
+                     f'{parameter_tag} {parameter_attribute} {parameter.smirks}).')
 
-        gradient_slow = estimate_gradient(methanol_trajectory,
+        gradient_slow = estimate_gradient(methanol_trajectory_path,
                                           methanol_topology,
+                                          thermodynamic_state,
                                           parameter,
                                           parameter_tag,
-                                          unitted_attribute,
+                                          parameter_attribute,
+                                          extract_densities.uncorrelated_values,
                                           1.0e-4,
                                           full_force_field=full_force_field,
-                                          use_subset=False)
+                                          compute_resources=compute_resource,
+                                          use_subset=False,
+                                          reference_statistics_path=extract_statistics.output_statistics_path)
 
         end_time = time.perf_counter()
         slow_time = (end_time - start_time)
 
         logging.info(f'Finished slow gradient estimate after {slow_time*1000} ms ('
-                     f'{parameter_tag} {unitted_attribute} {parameter.smirks}).')
+                     f'{parameter_tag} {parameter_attribute} {parameter.smirks}).')
 
-        abs_difference = abs(gradient_fast - gradient_slow)
+        absolute_difference = gradient_fast - gradient_slow
+        relative_difference = (gradient_fast - gradient_slow) / abs(gradient_slow)
 
-        print(f'{parameter_tag}: {parameter.smirks} - dE/{unitted_attribute} speedup={slow_time/fast_time:.2f}X '
-              f'slow={gradient_slow} fast={gradient_fast} absdiff={abs_difference}')
+        print(f'{parameter_tag}: {parameter.smirks} - dE/{parameter_attribute} '
+              f'speedup={slow_time/fast_time:.2f}X '
+              f'slow={gradient_slow} '
+              f'fast={gradient_fast} '
+              f'absdiff={absolute_difference} '
+              f'reldiff={relative_difference}')
 
 
 if __name__ == "__main__":

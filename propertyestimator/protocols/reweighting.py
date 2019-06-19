@@ -222,6 +222,10 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
     def trajectory_file_path(self):
         pass
 
+    @protocol_input(bool)
+    def high_precision(self):
+        pass
+
     @protocol_output(str)
     def statistics_file_path(self):
         """A file path to the StatisticsArray file which contains the reduced potentials."""
@@ -240,6 +244,8 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         self._trajectory_file_path = None
 
         self._statistics_file_path = None
+
+        self._high_precision = False
 
     def execute(self, directory, available_resources):
 
@@ -261,7 +267,7 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         integrator = openmmtools.integrators.VelocityVerletIntegrator(0.01*unit.femtoseconds)
 
         # Setup the requested platform:
-        platform = setup_platform_with_resources(available_resources)
+        platform = setup_platform_with_resources(available_resources, self._high_precision)
 
         context_cache = openmmtools.cache.ContextCache(platform)
         openmm_context, openmm_context_integrator = context_cache.get_context(openmm_state,
@@ -271,7 +277,8 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
 
         for frame_index in range(trajectory.n_frames):
 
-            positions = trajectory.openmm_positions(frame_index)
+            # positions = trajectory.openmm_positions(frame_index)
+            positions = trajectory.xyz[frame_index]
             box_vectors = trajectory.openmm_boxes(frame_index)
 
             openmm_context.setPeriodicBoxVectors(*box_vectors)
