@@ -22,7 +22,7 @@ from paprika.tleap import System
 from paprika.utils import index_from_mask
 from simtk import unit
 from simtk.openmm import XmlSerializer
-from simtk.openmm.app import AmberPrmtopFile, HBonds, PME
+from simtk.openmm.app import AmberPrmtopFile, HBonds, PME, PDBFile
 
 from propertyestimator.backends import ComputeResources
 from propertyestimator.protocols import miscellaneous, coordinates, forcefield, simulation, groups
@@ -323,6 +323,10 @@ class BasePaprikaProtocol(BaseProtocol):
             load_guest_frcmod = f'loadamberparams {guest_frcmod}'
             load_guest_mol2 = f'{self._paprika_setup.guest.upper()} = loadmol2 {guest_mol2}'
 
+        window_pdb_file = PDBFile(self._solvated_coordinate_paths[index])
+
+        cell_vectors = window_pdb_file.topology.getPeriodicBoxVectors()
+
         system.template_lines = [
             f"source leaprc.gaff2",
             f"source leaprc.water.tip3p",
@@ -336,7 +340,9 @@ class BasePaprikaProtocol(BaseProtocol):
             f"DM2 = loadmol2 {os.path.join(window_directory_to_base, 'dm2.mol2')}",
             f"DM3 = loadmol2 {os.path.join(window_directory_to_base, 'dm3.mol2')}",
             f"model = loadpdb {window_coordinates}",
-            f"setBox model \"centers\"",
+            f"set model box {{{cell_vectors[0][0].value_in_unit(unit.angstrom)} "
+                            f"{cell_vectors[1][1].value_in_unit(unit.angstrom)} "
+                            f"{cell_vectors[2][2].value_in_unit(unit.angstrom)}}}",
             "check model",
             "saveamberparm model structure.prmtop structure.rst7"
         ]
@@ -814,7 +820,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             amber_simulation._amber_write_input_file()
 
             Popen([
-                'pmemd',
+                'pmemd.cuda',
                 '-O',
                 '-p',
                 'structure.prmtop',
@@ -854,7 +860,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             amber_simulation._amber_write_input_file()
 
             Popen([
-                'pmemd',
+                'pmemd.cuda',
                 '-O',
                 '-p',
                 'structure.prmtop',
@@ -896,7 +902,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             amber_simulation._amber_write_input_file()
 
             Popen([
-                'pmemd',
+                'pmemd.cuda',
                 '-O',
                 '-p',
                 'structure.prmtop',
