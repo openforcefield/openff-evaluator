@@ -542,18 +542,18 @@ class BasePaprikaProtocol(BaseProtocol):
             return result
 
         # Run the simulations
-        # result = self._run_windows(available_resources)
-        #
-        # if isinstance(result, PropertyEstimatorException):
-        #     # Make sure the simulations were successful.
-        #     return result
-        #
-        # # Finally, do the analysis to extract the free energy of binding.
-        # result = self._perform_analysis(directory)
-        #
-        # if isinstance(result, PropertyEstimatorException):
-        #     # Make sure the analysis was successful.
-        #     return result
+        result = self._run_windows(available_resources)
+
+        if isinstance(result, PropertyEstimatorException):
+            # Make sure the simulations were successful.
+            return result
+
+        # Finally, do the analysis to extract the free energy of binding.
+        result = self._perform_analysis(directory)
+
+        if isinstance(result, PropertyEstimatorException):
+            # Make sure the analysis was successful.
+            return result
 
         return self._get_output_dictionary()
 
