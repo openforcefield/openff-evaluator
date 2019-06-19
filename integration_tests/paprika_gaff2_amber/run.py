@@ -49,7 +49,7 @@ def main():
     host_guest_protocol.taproom_host_name = host
     host_guest_protocol.taproom_guest_name = guest
 
-    host_guest_protocol.force_field = AmberPaprikaProtocol.ForceField.GAFF
+    host_guest_protocol.force_field = AmberPaprikaProtocol.ForceField.GAFF2
 
     result = host_guest_protocol.execute(host_guest_directory, resources)
     
@@ -67,7 +67,7 @@ def main():
     host_protocol.taproom_host_name = host
     host_protocol.taproom_name = None
 
-    host_protocol.force_field = AmberPaprikaProtocol.ForceField.GAFF
+    host_protocol.force_field = AmberPaprikaProtocol.ForceField.GAFF2
 
     result = host_protocol.execute(host_directory, resources)
 
