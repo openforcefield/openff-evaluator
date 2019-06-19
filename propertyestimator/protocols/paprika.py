@@ -836,6 +836,50 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
                 'minimize.info',
             ], cwd=window_directory, env=environment).wait()
 
+            # Pre-equilibration (due to a strange issue where
+            # the minimised structure can occasionally have a
+            # high vdW energy)
+            amber_simulation = Simulation()
+            amber_simulation.executable = "pmemd"
+
+            amber_simulation.path = f"{window_directory}/"
+            amber_simulation.prefix = "preequilibration"
+
+            amber_simulation.inpcrd = "minimize.rst7"
+            amber_simulation.ref = "minimize.rst7"
+            amber_simulation.topology = "structure.prmtop"
+            amber_simulation.restraint_file = "disang.rest"
+
+            amber_simulation.config_pbc_md()
+            amber_simulation.cntrl["ntr"] = 1
+            amber_simulation.cntrl["restraint_wt"] = 50.0
+            amber_simulation.cntrl["restraintmask"] = "'@DUM'"
+            amber_simulation.cntrl["dt"] = 0.001
+            amber_simulation.cntrl["nstlim"] = 1500
+            amber_simulation.cntrl["ntwx"] = 100
+            amber_simulation.cntrl["barostat"] = 2
+
+            amber_simulation._amber_write_input_file()
+
+            Popen([
+                'pmemd',
+                '-O',
+                '-p',
+                'structure.prmtop',
+                '-ref',
+                'minimize.rst7',
+                '-c',
+                'minimize.rst7',
+                '-i',
+                'preequilibration.in',
+                '-r',
+                'preequilibration.rst7',
+                '-inf',
+                'preequilibration.info',
+                '-x',
+                'preequilibration.nc'
+            ], cwd=window_directory, env=environment).wait()
+
             # Equilibration
             amber_simulation = Simulation()
             amber_simulation.executable = "pmemd.cuda"
@@ -843,8 +887,8 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             amber_simulation.path = f"{window_directory}/"
             amber_simulation.prefix = "equilibration"
 
-            amber_simulation.inpcrd = "minimize.rst7"
-            amber_simulation.ref = "structure.rst7"
+            amber_simulation.inpcrd = "preequilibration.rst7"
+            amber_simulation.ref = "preequilibration.rst7"
             amber_simulation.topology = "structure.prmtop"
             amber_simulation.restraint_file = "disang.rest"
 
@@ -865,9 +909,9 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
                 '-p',
                 'structure.prmtop',
                 '-ref',
-                'minimize.rst7',
+                'preequilibration.rst7',
                 '-c',
-                'minimize.rst7',
+                'preequilibration.rst7',
                 '-i',
                 'equilibration.in',
                 '-r',
@@ -886,7 +930,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             amber_simulation.prefix = "production"
 
             amber_simulation.inpcrd = "equilibration.rst7"
-            amber_simulation.ref = "structure.rst7"
+            amber_simulation.ref = "equilibration.rst7"
             amber_simulation.topology = "structure.prmtop"
             amber_simulation.restraint_file = "disang.rest"
 
