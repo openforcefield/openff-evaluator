@@ -108,13 +108,19 @@ def evaluate_reduced_potential(force_field, topology, trajectory_path, thermodyn
                                                   allow_missing_parameters=True,
                                                   charge_from_molecules=charged_molecules)
 
+    if system.usesPeriodicBoundaryConditions():
+        temporary_thermodynamic_state = ThermodynamicState(thermodynamic_state.temperature,
+                                                           thermodynamic_state.pressure)
+    else:
+        temporary_thermodynamic_state = ThermodynamicState(thermodynamic_state.temperature)
+
     system_xml = XmlSerializer.serialize(system)
 
     with open('system.xml', 'wb') as file:
         file.write(system_xml.encode('utf-8'))
 
     reduced_potential_protocol = CalculateReducedPotentialOpenMM('reduced_potential_protocol')
-    reduced_potential_protocol.thermodynamic_state = thermodynamic_state
+    reduced_potential_protocol.thermodynamic_state = temporary_thermodynamic_state
     reduced_potential_protocol.system_path = 'system.xml'
     reduced_potential_protocol.coordinate_file_path = 'methanol/methanol.pdb'
     reduced_potential_protocol.trajectory_file_path = trajectory_path
@@ -237,10 +243,10 @@ def estimate_gradients():
 
     setup_timestamp_logging()
 
-    compute_resource = ComputeResources(number_of_threads=1, number_of_gpus=1,
-                                        preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA)
+    # compute_resource = ComputeResources(number_of_threads=1, number_of_gpus=1,
+    #                                     preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA)
 
-    # compute_resource = ComputeResources(number_of_threads=1)
+    compute_resource = ComputeResources(number_of_threads=1)
 
     thermodynamic_state = ThermodynamicState(temperature=298*unit.kelvin,
                                              pressure=1.0*unit.atmosphere)

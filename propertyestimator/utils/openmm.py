@@ -59,7 +59,6 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
             platform.setPropertyDefaultValue('Threads', str(compute_resources.number_of_threads))
         else:
             platform = Platform.getPlatformByName('Reference')
-            platform.setPropertyDefaultValue('Threads', str(compute_resources.number_of_threads))
 
         logging.info('Setting up a simulation with {} threads'.format(compute_resources.number_of_threads))
 
