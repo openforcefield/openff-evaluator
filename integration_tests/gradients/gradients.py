@@ -80,7 +80,7 @@ def evaluate_reduced_potential(force_field, topology, trajectory, charged_molecu
 
 
 def estimate_gradient(trajectory, topology, original_parameter, parameter_tag, parameter_handler_class,
-                      unitted_attribute, scale_amount, *extra_parameters, full_force_field=None):
+                      unitted_attribute, scale_amount, *extra_parameters, full_force_field, use_subset=False):
 
     logging.debug(f'Building reverse perturbed parameter for {unitted_attribute}.')
     reverse_parameter = copy.deepcopy(original_parameter)
@@ -90,25 +90,32 @@ def estimate_gradient(trajectory, topology, original_parameter, parameter_tag, p
 
     logging.debug('Building reverse force field.')
 
-    if full_force_field is None:
+    # if full_force_field is None:
+    #     reverse_force_field = ForceField()
+    #
+    #     reverse_handler = parameter_handler_class(skip_version_check=True)
+    #     reverse_handler.parameters.append(reverse_parameter)
+    #
+    #     for extra_parameter in extra_parameters:
+    #         reverse_handler.parameters.append(extra_parameter)
+    #
+    #     reverse_force_field.register_parameter_handler(reverse_handler)
+    #
+    # else:
+
+    if use_subset:
+
         reverse_force_field = ForceField()
-
-        reverse_handler = parameter_handler_class(skip_version_check=True)
-        reverse_handler.parameters.append(reverse_parameter)
-
-        for extra_parameter in extra_parameters:
-            reverse_handler.parameters.append(extra_parameter)
-
+        reverse_handler = copy.deepcopy(full_force_field.get_parameter_handler(parameter_tag))
         reverse_force_field.register_parameter_handler(reverse_handler)
 
     else:
 
         reverse_force_field = copy.deepcopy(full_force_field)
+        reverse_handler = reverse_force_field.get_parameter_handler(parameter_tag)
 
-        existing_parameter = reverse_force_field.get_parameter_handler(parameter_tag).parameters[
-            reverse_parameter.smirks]
-
-        setattr(existing_parameter, unitted_attribute, reverse_parameter_value)
+    existing_parameter = reverse_handler.parameters[reverse_parameter.smirks]
+    setattr(existing_parameter, unitted_attribute, reverse_parameter_value)
 
     logging.debug('Evaluating reverse reduced potential.')
     reverse_reduced_energies = evaluate_reduced_potential(reverse_force_field,
@@ -124,26 +131,32 @@ def estimate_gradient(trajectory, topology, original_parameter, parameter_tag, p
 
     logging.debug('Building forward force field.')
 
-    if full_force_field is None:
+    # if full_force_field is None:
+    #
+    #     forward_force_field = ForceField()
+    #
+    #     forward_handler = parameter_handler_class(skip_version_check=True)
+    #     forward_handler.parameters.append(forward_parameter)
+    #
+    #     for extra_parameter in extra_parameters:
+    #         forward_handler.parameters.append(extra_parameter)
+    #
+    #     forward_force_field.register_parameter_handler(forward_handler)
+
+    if use_subset:
 
         forward_force_field = ForceField()
-
-        forward_handler = parameter_handler_class(skip_version_check=True)
-        forward_handler.parameters.append(forward_parameter)
-
-        for extra_parameter in extra_parameters:
-            forward_handler.parameters.append(extra_parameter)
-
+        forward_handler = copy.deepcopy(full_force_field.get_parameter_handler(parameter_tag))
         forward_force_field.register_parameter_handler(forward_handler)
 
     else:
 
         forward_force_field = copy.deepcopy(full_force_field)
+        forward_handler = forward_force_field.get_parameter_handler(parameter_tag)
 
-        existing_parameter = forward_force_field.get_parameter_handler(parameter_tag).parameters[
-            forward_parameter.smirks]
+    existing_parameter = forward_handler.parameters[forward_parameter.smirks]
 
-        setattr(existing_parameter, unitted_attribute, forward_parameter_value)
+    setattr(existing_parameter, unitted_attribute, forward_parameter_value)
 
     logging.debug('Evaluating forward reduced potential.')
     forward_reduced_energies = evaluate_reduced_potential(forward_force_field,
@@ -158,10 +171,10 @@ def estimate_gradient(trajectory, topology, original_parameter, parameter_tag, p
 
     gradient = energy_differences.mean() / denominator
 
-    logging.info(f'delta_E={energy_differences} '
-                 f'delta_value={denominator} '
-                 f'grad={gradient} '
-                 f'is_close={np.allclose(energy_differences, np.array([0.0]*len(energy_differences)))}')
+    logging.debug(f'delta_E={energy_differences} '
+                  f'delta_value={denominator} '
+                  f'grad={gradient} '
+                  f'is_close={np.allclose(energy_differences, np.array([0.0]*len(energy_differences)))}')
 
     return gradient
 
@@ -247,7 +260,9 @@ def estimate_gradients():
                                                             parameter_handler_class,
                                                             unitted_attribute,
                                                             scale_amount,
-                                                            *remaining_parameters.values()))
+                                                            *remaining_parameters.values()),
+                                                            full_force_field=full_force_field,
+                                                            use_subset=True)
 
                 end_time = time.perf_counter()
                 fast_time = (end_time-start_time) / float(len(scale_amounts))
@@ -265,8 +280,10 @@ def estimate_gradients():
                                                   parameter_tag,
                                                   parameter_handler_class,
                                                   unitted_attribute,
+                                                  1.0e-4,
                                                   *remaining_parameters.values(),
-                                                  full_force_field=full_force_field)
+                                                  full_force_field=full_force_field,
+                                                  use_subset=False)
 
                 end_time = time.perf_counter()
                 slow_time = (end_time - start_time)
