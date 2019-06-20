@@ -621,6 +621,10 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
                 window_directory = os.path.dirname(self._solvated_system_xml_paths[index])
 
+                # Make sure to use the reorded pdb file as the new input
+                shutil.copyfile(os.path.join(window_directory, 'build.pdb'),
+                                self._solvated_coordinate_paths[index])
+
                 prmtop = AmberPrmtopFile(os.path.join(window_directory, 'structure.prmtop'))
 
                 system = prmtop.createSystem(nonbondedMethod=PME, nonbondedCutoff=self._gaff_cutoff,
