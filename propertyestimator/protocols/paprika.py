@@ -20,10 +20,6 @@ from paprika.io import save_restraints
 from paprika.restraints import amber_restraints
 from paprika.tleap import System
 from paprika.utils import index_from_mask
-from simtk import unit
-from simtk.openmm import XmlSerializer
-from simtk.openmm.app import AmberPrmtopFile, HBonds, PME
-
 from propertyestimator.backends import ComputeResources
 from propertyestimator.protocols import miscellaneous, coordinates, forcefield, simulation, groups
 from propertyestimator.substances import Substance
@@ -34,6 +30,9 @@ from propertyestimator.workflow.decorators import protocol_input, MergeBehaviour
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 from propertyestimator.workflow.utils import ProtocolPath
+from simtk import unit
+from simtk.openmm import XmlSerializer
+from simtk.openmm.app import AmberPrmtopFile, HBonds, PME
 
 
 @register_calculation_protocol()
@@ -661,7 +660,8 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
         # Apply the restraint forces to the solvated system xml files.
         for index, window in enumerate(self._paprika_setup.window_list):
 
-            self._paprika_setup.initialize_calculation(window, self._solvated_system_xml_paths[index],
+            self._paprika_setup.initialize_calculation(window, self._solvated_coordinate_paths[index],
+                                                               self._solvated_system_xml_paths[index],
                                                                self._solvated_system_xml_paths[index])
 
     @staticmethod
