@@ -20,6 +20,10 @@ from paprika.io import save_restraints
 from paprika.restraints import amber_restraints
 from paprika.tleap import System
 from paprika.utils import index_from_mask
+from simtk import unit
+from simtk.openmm import XmlSerializer
+from simtk.openmm.app import AmberPrmtopFile, HBonds, PME, PDBFile
+
 from propertyestimator.backends import ComputeResources
 from propertyestimator.protocols import miscellaneous, coordinates, forcefield, simulation, groups
 from propertyestimator.substances import Substance
@@ -30,9 +34,6 @@ from propertyestimator.workflow.decorators import protocol_input, MergeBehaviour
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 from propertyestimator.workflow.utils import ProtocolPath
-from simtk import unit
-from simtk.openmm import XmlSerializer
-from simtk.openmm.app import AmberPrmtopFile, HBonds, PME
 
 
 @register_calculation_protocol()
@@ -82,6 +83,10 @@ class BasePaprikaProtocol(BaseProtocol):
 
     @protocol_input(unit.Quantity)
     def gaff_cutoff(self):
+        pass
+
+    @protocol_input(unit.Quantity)
+    def timestep(self):
         pass
 
     @protocol_input(int, merge_behavior=MergeBehaviour.GreatestValue)
@@ -140,6 +145,7 @@ class BasePaprikaProtocol(BaseProtocol):
         self._taproom_guest_name = None
 
         self._gaff_cutoff = 0.8 * unit.nanometer
+        self._timestep = 1.0 * unit.femtosecond
 
         self._number_of_equilibration_steps = 200000
         self._equilibration_output_frequency = 5000
@@ -423,10 +429,15 @@ class BasePaprikaProtocol(BaseProtocol):
 
                 logging.info(f'Running window {window_index + 1} out of {len(self._paprika_setup.window_list)}')
 
-                resources = ComputeResources(number_of_threads=1, number_of_gpus=1,
-                                             preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA)
+                if available_resources.number_of_gpus > 0:
 
-                resources._gpu_device_indices = f'{counter}'
+                    resources = ComputeResources(number_of_threads=1, number_of_gpus=1,
+                                                 preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA)
+
+                    resources._gpu_device_indices = f'{counter}'
+
+                else:
+                    resources = ComputeResources(number_of_threads=1)
 
                 self._enqueue_window(queue, window_index, resources, exceptions)
 
@@ -436,6 +447,11 @@ class BasePaprikaProtocol(BaseProtocol):
 
                     queue.join()
                     counter = 0
+
+                    if len(exceptions) > 0:
+
+                        message = ', '.join([f'{exception.directory}: {exception.message}' for exception in exceptions])
+                        return PropertyEstimatorException(directory='', message=message)
 
         if not queue.empty():
             queue.join()
@@ -499,7 +515,8 @@ class BasePaprikaProtocol(BaseProtocol):
                                               message='The path to a .offxml force field file must be specified '
                                                       'when running with a SMIRNOFF force field.')
 
-        if available_resources.number_of_gpus != available_resources.number_of_threads:
+        if (available_resources.number_of_gpus > 0 and
+            available_resources.number_of_gpus != available_resources.number_of_threads):
 
             return PropertyEstimatorException(directory=directory,
                                               message='The number of available CPUs must match the number'
@@ -624,6 +641,18 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                 shutil.copyfile(os.path.join(window_directory, 'build.pdb'),
                                 self._solvated_coordinate_paths[index])
 
+                pdb_file = PDBFile(self._solvated_coordinate_paths[index])
+                cell_vectors = pdb_file.topology.getPeriodicBoxVectors()
+
+                for position in pdb_file.positions:
+
+                    position += cell_vectors[0] / 2.0
+                    position += cell_vectors[1] / 2.0
+                    position += cell_vectors[2] / 2.0
+
+                with open(self._solvated_coordinate_paths[index], 'w+') as file:
+                    PDBFile.writeFile(pdb_file.topology, pdb_file.positions, file)
+
                 prmtop = AmberPrmtopFile(os.path.join(window_directory, 'structure.prmtop'))
 
                 system = prmtop.createSystem(nonbondedMethod=PME, nonbondedCutoff=self._gaff_cutoff,
@@ -641,6 +670,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                    self._solvated_system_xml_paths[index],
                    self._thermodynamic_state,
                    self._gaff_cutoff,
+                   self._timestep,
                    self._number_of_equilibration_steps,
                    self._equilibration_output_frequency,
                    self._number_of_production_steps,
@@ -669,7 +699,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
         while True:
 
-            index, window_coordinate_path, window_system_path, thermodynamic_state, gaff_cutoff, \
+            index, window_coordinate_path, window_system_path, thermodynamic_state, gaff_cutoff, timestep, \
                 number_of_equilibration_steps, equilibration_output_frequency, number_of_production_steps, \
                 production_output_frequency, available_resources, exceptions = queue.get()
 
@@ -690,6 +720,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
                 npt_equilibration.steps = number_of_equilibration_steps
                 npt_equilibration.output_frequency = equilibration_output_frequency
+                npt_equilibration.timestep = timestep
 
                 npt_equilibration.ensemble = Ensemble.NPT
 
@@ -704,6 +735,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
                 npt_production.steps = number_of_production_steps
                 npt_production.output_frequency = production_output_frequency
+                npt_production.timestep = timestep
 
                 npt_production.ensemble = Ensemble.NPT
 
@@ -776,6 +808,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
                    None,
                    self._thermodynamic_state,
                    self._gaff_cutoff,
+                   self._timestep,
                    self._number_of_equilibration_steps,
                    self._equilibration_output_frequency,
                    self._number_of_production_steps,
@@ -823,7 +856,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
 
         while True:
 
-            index, window_coordinate_path, window_system_path, thermodynamic_state, gaff_cutoff, \
+            index, window_coordinate_path, window_system_path, thermodynamic_state, gaff_cutoff, timestep, \
                 number_of_equilibration_steps, equilibration_output_frequency, number_of_production_steps, \
                 production_output_frequency, available_resources, exceptions = queue.get()
 
@@ -903,50 +936,6 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
                 'minimize.info',
             ], cwd=window_directory, env=environment).wait()
 
-            # # Pre-equilibration (due to a strange issue where
-            # # the minimised structure can occasionally have a
-            # # high vdW energy)
-            # amber_simulation = Simulation()
-            # amber_simulation.executable = "pmemd"
-            #
-            # amber_simulation.path = f"{window_directory}/"
-            # amber_simulation.prefix = "preequilibration"
-            #
-            # amber_simulation.inpcrd = "minimize.rst7"
-            # amber_simulation.ref = "minimize.rst7"
-            # amber_simulation.topology = "structure.prmtop"
-            # amber_simulation.restraint_file = "disang.rest"
-            #
-            # amber_simulation.config_pbc_md()
-            # amber_simulation.cntrl["ntr"] = 1
-            # amber_simulation.cntrl["restraint_wt"] = 50.0
-            # amber_simulation.cntrl["restraintmask"] = "'@DUM'"
-            # amber_simulation.cntrl["dt"] = 0.001
-            # amber_simulation.cntrl["nstlim"] = 1500
-            # amber_simulation.cntrl["ntwx"] = 100
-            # amber_simulation.cntrl["barostat"] = 2
-            #
-            # amber_simulation._amber_write_input_file()
-            #
-            # Popen([
-            #     'pmemd',
-            #     '-O',
-            #     '-p',
-            #     'structure.prmtop',
-            #     '-ref',
-            #     'minimize.rst7',
-            #     '-c',
-            #     'minimize.rst7',
-            #     '-i',
-            #     'preequilibration.in',
-            #     '-r',
-            #     'preequilibration.rst7',
-            #     '-inf',
-            #     'preequilibration.info',
-            #     '-x',
-            #     'preequilibration.nc'
-            # ], cwd=window_directory, env=environment).wait()
-
             # Equilibration
             amber_simulation = Simulation()
             amber_simulation.executable = "pmemd.cuda"
@@ -963,7 +952,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             amber_simulation.cntrl["ntr"] = 1
             amber_simulation.cntrl["restraint_wt"] = 50.0
             amber_simulation.cntrl["restraintmask"] = "'@DUM'"
-            amber_simulation.cntrl["dt"] = 0.001
+            amber_simulation.cntrl["dt"] = timestep.value_in_unit(unit.picoseconds)
             amber_simulation.cntrl["nstlim"] = number_of_equilibration_steps
             amber_simulation.cntrl["ntwx"] = equilibration_output_frequency
             amber_simulation.cntrl["barostat"] = 2
@@ -1007,7 +996,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             amber_simulation.cntrl["ntr"] = 1
             amber_simulation.cntrl["restraint_wt"] = 50.0
             amber_simulation.cntrl["restraintmask"] = "'@DUM'"
-            amber_simulation.cntrl["dt"] = 0.001
+            amber_simulation.cntrl["dt"] = timestep.value_in_unit(unit.picoseconds)
             amber_simulation.cntrl["nstlim"] = number_of_production_steps
             amber_simulation.cntrl["ntwx"] = production_output_frequency
             amber_simulation.cntrl["barostat"] = 2
