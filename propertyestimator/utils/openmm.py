@@ -46,8 +46,8 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
             platform.setPropertyDefaultValue(property_platform_name + 'DeviceIndex',
                                              compute_resources.gpu_device_indices)
 
-            if high_precision:
-                platform.setPropertyDefaultValue('Precision', 'double')
+        if high_precision:
+            platform.setPropertyDefaultValue('Precision', 'double')
 
         logging.info('Setting up an openmm platform on GPU {}'.format(compute_resources.gpu_device_indices or 0))
 
