@@ -644,14 +644,18 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                 pdb_file = PDBFile(self._solvated_coordinate_paths[index])
                 cell_vectors = pdb_file.topology.getPeriodicBoxVectors()
 
+                new_positions = []
+
                 for position in pdb_file.positions:
 
                     position += cell_vectors[0] / 2.0
                     position += cell_vectors[1] / 2.0
                     position += cell_vectors[2] / 2.0
 
+                    new_positions.append(position.value_in_unit(unit.angstrom))
+
                 with open(self._solvated_coordinate_paths[index], 'w+') as file:
-                    PDBFile.writeFile(pdb_file.topology, pdb_file.positions, file)
+                    PDBFile.writeFile(pdb_file.topology, new_positions * unit.angstrom, file)
 
                 prmtop = AmberPrmtopFile(os.path.join(window_directory, 'structure.prmtop'))
 
