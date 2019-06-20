@@ -627,7 +627,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                 prmtop = AmberPrmtopFile(os.path.join(window_directory, 'structure.prmtop'))
 
                 system = prmtop.createSystem(nonbondedMethod=PME, nonbondedCutoff=self._gaff_cutoff,
-                                             constraints=HBonds)
+                                             constraints=HBonds, removeCMMotion=False)
 
                 system_xml = XmlSerializer.serialize(system)
 
