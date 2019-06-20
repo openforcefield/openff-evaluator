@@ -2,14 +2,11 @@
 A collection of protocols for reweighting cached simulation data.
 """
 import copy
-from os import path
 
 import numpy as np
-from openforcefield.typing.engines.smirnoff import ForceField
 from simtk import unit, openmm
-from simtk.openmm import XmlSerializer
+from simtk.openmm import app
 
-from propertyestimator.protocols.forcefield import BuildSmirnoffSystem
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
@@ -72,6 +69,19 @@ class GradientReducedPotentials(BaseProtocol):
         """
 
     @protocol_output(np.ndarray)
+    def reference_reduced_potentials(self):
+        """The estimated gradients."""
+        pass
+
+    @protocol_output(float)
+    def reverse_parameter_value(self):
+        pass
+
+    @protocol_output(float)
+    def forward_parameter_value(self):
+        pass
+
+    @protocol_output(np.ndarray)
     def reverse_reduced_potentials(self):
         """The estimated gradients."""
         pass
@@ -100,27 +110,41 @@ class GradientReducedPotentials(BaseProtocol):
 
         self._use_subset_of_force_field = True
 
+        self._reverse_parameter_value = None
+        self._forward_parameter_value = None
+
+        self._reference_reduced_potentials = None
         self._reverse_reduced_potentials = None
         self._forward_reduced_potentials = None
 
-    def _build_perturbed_force_field(self, original_force_field, output_path, scale_amount):
-        """Produces a force field containing the specified parameter perturbed
-        by the amount specified by `scale_amount`.
+    def _build_reduced_system(self, original_force_field, topology, scale_amount=None):
+        """Produces an OpenMM system containing only forces for the specified parameter,
+         optionally perturbed by the amount specified by `scale_amount`.
 
         Parameters
         ----------
-        output_path: str
-            The path to save the force field to.
-        scale_amount: float
-            The amount to perturb the parameter by.
-        """
+        original_force_field: openforcefield.typing.engines.smirnoff.ForceField
+            The force field to create the system from (and optionally perturb).
+        topology: openforcefield.topology.Topology
+            The topology of the system to apply the force field to.
+        scale_amount: float, optional
+            The optional amount to perturb the parameter by.
 
-        parameter_tag = self._parameter_tuple.parameter_tag
-        parameter_smirks = self._parameter_tuple.parameter_smirks
-        parameter_attribute = self._parameter_tuple.parameter_attribute
+        Returns
+        -------
+        simtk.openmm.System
+            The created system.
+        float
+            The new value of the perturbed parameter.
+        """
+        from openforcefield.typing.engines.smirnoff import ForceField
+
+        parameter_tag = self._parameter_tuple.tag
+        parameter_smirks = self._parameter_tuple.smirks
+        parameter_attribute = self._parameter_tuple.attribute
 
         original_handler = original_force_field.get_parameter_handler(parameter_tag)
-        original_parameter = original_handler[parameter_smirks]
+        original_parameter = original_handler.parameters[parameter_smirks]
 
         if self._use_subset_of_force_field:
 
@@ -133,21 +157,27 @@ class GradientReducedPotentials(BaseProtocol):
             force_field = copy.deepcopy(original_force_field)
             handler = force_field.get_parameter_handler(parameter_tag)
 
-        existing_parameter = handler.parameters[parameter_smirks]
+        parameter_value = getattr(original_parameter, parameter_attribute)
 
-        reverse_value = getattr(original_parameter, parameter_attribute) * (1.0 + scale_amount)
-        setattr(existing_parameter, parameter_attribute, reverse_value)
+        if scale_amount is not None:
 
-        force_field.to_file(output_path, 'XML')
+            existing_parameter = handler.parameters[parameter_smirks]
 
-    def _evaluate_reduced_potential(self, directory, force_field_path, trajectory, compute_resources):
+            parameter_value *= (1.0 + scale_amount)
+            setattr(existing_parameter, parameter_attribute, parameter_value)
+
+        system = force_field.create_openmm_system(topology,
+                                                  allow_missing_parameters=True)
+
+        return system, parameter_value
+
+    def _evaluate_reduced_potential(self, system, trajectory, compute_resources):
         """Return the potential energy.
         Parameters
         ----------
-        directory: str
-            The directory that this protocol is executing in.
-        force_field_path: str
-            The path to the force field to use when evaluating the energy.
+        system: simtk.openmm.System
+            The system which encodes the interaction forces for the
+            specified parameter.
         trajectory: mdtraj.Trajectory
             A trajectory of configurations to evaluate.
         compute_resources: ComputeResources
@@ -160,21 +190,6 @@ class GradientReducedPotentials(BaseProtocol):
         PropertyEstimatorException, optional
             Any exceptions that were raised.
         """
-
-        build_system = BuildSmirnoffSystem('build_system')
-        build_system.allow_missing_parameters = True
-        build_system.apply_known_charges = False
-        build_system.force_field_path = force_field_path
-        build_system.substance = self._substance
-        build_system.coordinate_file_path = self._coordinate_file_path
-
-        build_system_result = build_system.execute(directory, compute_resources)
-
-        if isinstance(build_system_result, PropertyEstimatorException):
-            return None, build_system_result
-
-        with open(build_system.system_path, 'r') as file:
-            system = XmlSerializer.deserialize(file.read())
 
         integrator = openmm.VerletIntegrator(0.1 * unit.femtoseconds)
 
@@ -210,34 +225,52 @@ class GradientReducedPotentials(BaseProtocol):
 
         import mdtraj
 
-        original_force_field = ForceField(self._force_field_path)
+        from openforcefield.topology import Molecule, Topology
+        from openforcefield.typing.engines.smirnoff import ForceField
 
-        reverse_path = path.join(directory, 'reverse.offxml')
-        forward_path = path.join(directory, 'forward.offxml')
+        original_force_field = ForceField(self._force_field_path)
 
         trajectory = mdtraj.load_dcd(self._trajectory_file_path,
                                      self._coordinate_file_path)
 
+        unique_molecules = []
+
+        for component in self._substance.components:
+
+            molecule = Molecule.from_smiles(smiles=component.smiles)
+            unique_molecules.append(molecule)
+
+        pdb_file = app.PDBFile(self._coordinate_file_path)
+        topology = Topology.from_openmm(pdb_file.topology, unique_molecules=unique_molecules)
+
+        # Build the reduced reference force field
+        reference_system, _ = self._build_reduced_system(original_force_field, topology)
+
         # Build the slightly perturbed force fields.
-        self._build_perturbed_force_field(original_force_field,
-                                          reverse_path,
-                                          -self._perturbation_scale)
+        reverse_system, self._reverse_parameter_value = self._build_reduced_system(original_force_field,
+                                                                                   topology,
+                                                                                   -self._perturbation_scale)
 
-        self._build_perturbed_force_field(original_force_field,
-                                          forward_path,
-                                          self._perturbation_scale)
+        forward_system, self._forward_parameter_value = self._build_reduced_system(original_force_field,
+                                                                                   topology,
+                                                                                   self._perturbation_scale)
 
-        # Calculate the reduced potentials..
-        self._reverse_reduced_potentials, error = self._evaluate_reduced_potential(directory,
-                                                                                   reverse_path,
+        # Calculate the reduced potentials.
+        self._reference_reduced_potentials, error = self._evaluate_reduced_potential(reference_system,
+                                                                                     trajectory,
+                                                                                     available_resources)
+
+        if isinstance(error, PropertyEstimatorException):
+            return error
+
+        self._reverse_reduced_potentials, error = self._evaluate_reduced_potential(reverse_system,
                                                                                    trajectory,
                                                                                    available_resources)
 
         if isinstance(error, PropertyEstimatorException):
             return error
 
-        self._forward_reduced_potentials, error = self._evaluate_reduced_potential(directory,
-                                                                                   forward_path,
+        self._forward_reduced_potentials, error = self._evaluate_reduced_potential(forward_system,
                                                                                    trajectory,
                                                                                    available_resources)
 

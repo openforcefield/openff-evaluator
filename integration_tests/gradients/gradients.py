@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import collections
 import copy
 import logging
 import shutil
@@ -13,9 +14,15 @@ from simtk.openmm.app import PDBFile
 from propertyestimator.backends import ComputeResources
 from propertyestimator.protocols.analysis import ExtractAverageStatistic, ExtractUncorrelatedTrajectoryData, \
     ExtractUncorrelatedStatisticsData
+from propertyestimator.protocols.gradients import GradientReducedPotentials
 from propertyestimator.protocols.reweighting import ReweightWithMBARProtocol, CalculateReducedPotentialOpenMM
+from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import get_data_filename, setup_timestamp_logging, statistics
+from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.statistics import StatisticsArray, ObservableType
+
+ParameterTuple = collections.namedtuple('ParameterTuple', ['tag', 'smirks', 'attribute'])
 
 
 def all_differentiable_parameters(force_field, topology):
@@ -75,7 +82,7 @@ def all_differentiable_parameters(force_field, topology):
                 if not isinstance(parameter_value, float) and not isinstance(parameter_value, int):
                     continue
 
-                yield parameter_tag, parameter, parameter_attribute
+                yield ParameterTuple(parameter_tag, parameter.smirks, parameter_attribute)
 
 
 def evaluate_reduced_potential(force_field, topology, trajectory_path, thermodynamic_state,
@@ -237,6 +244,67 @@ def estimate_gradient(trajectory_path, topology, thermodynamic_state, original_p
     return gradient
 
 
+def estimate_gradient_new(substance, thermodynamic_state, force_field_path, trajectory_path,
+                          parameter_tuple, observable_values, scale_amount, compute_resources, use_subset):
+
+    reduced_potentials = GradientReducedPotentials('reduced_potentials')
+
+    reduced_potentials.substance = substance
+    reduced_potentials.thermodynamic_state = thermodynamic_state
+    reduced_potentials.force_field_path = force_field_path
+
+    reduced_potentials.trajectory_file_path = trajectory_path
+    reduced_potentials.coordinate_file_path = 'methanol/methanol.pdb'
+
+    reduced_potentials.parameter_tuple = parameter_tuple
+    reduced_potentials.perturbation_scale = scale_amount
+
+    reduced_potentials.use_subset_of_force_field = use_subset
+
+    result = reduced_potentials.execute('', compute_resources)
+
+    if isinstance(result, PropertyEstimatorException):
+        raise RuntimeError(f'{result.directory}: {result.message}')
+
+    statistics_array = StatisticsArray()
+    statistics_array[ObservableType.ReducedPotential] = reduced_potentials.reference_reduced_potentials
+    statistics_array.to_pandas_csv('reference.csv')
+
+    statistics_array[ObservableType.ReducedPotential] = reduced_potentials.reverse_reduced_potentials
+    statistics_array.to_pandas_csv('reverse.csv')
+
+    statistics_array[ObservableType.ReducedPotential] = reduced_potentials.forward_reduced_potentials
+    statistics_array.to_pandas_csv('forward.csv')
+
+    logging.info('Calculating reverse mbar.')
+
+    mbar_protocol = ReweightWithMBARProtocol('mbar_protocol')
+    mbar_protocol.reference_reduced_potentials = ['reference.csv']
+    mbar_protocol.reference_observables = [observable_values]
+    mbar_protocol.target_reduced_potentials = ['reverse.csv']
+    mbar_protocol.required_effective_samples = 0
+    mbar_protocol.bootstrap_uncertainties = False
+    mbar_protocol.execute('', None)
+
+    reverse_value = copy.deepcopy(mbar_protocol.value)
+
+    logging.info('Calculating forward mbar.')
+
+    mbar_protocol.target_reduced_potentials = ['forward.csv']
+    mbar_protocol.execute('', None)
+
+    forward_value = copy.deepcopy(mbar_protocol.value)
+
+    gradient = ((forward_value.value - reverse_value.value) /
+                (reduced_potentials.forward_parameter_value - reduced_potentials.reverse_parameter_value))
+
+    logging.info(f'Reverse value: {reverse_value.value}+/-{reverse_value.uncertainty} '
+                 f'Forward value: {forward_value.value}+/-{forward_value.uncertainty} '
+                 f'Gradient: {gradient}')
+
+    return gradient
+
+
 def estimate_gradients():
     """An integrated test of calculating the gradients of observables with
     respect to force field parameters using the property estimator"""
@@ -259,8 +327,13 @@ def estimate_gradients():
     methanol_topology = Topology.from_openmm(openmm_topology=methanol_pdb_file.topology,
                                              unique_molecules=[methanol_molecule])
 
+    methanol_substance = Substance()
+    methanol_substance.add_component(Substance.Component('CO'), Substance.MoleFraction(1.0))
+
     logging.info('Loading force field.')
+
     full_force_field = ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
+    force_field_path = get_data_filename('forcefield/smirnoff99Frosst.offxml')
 
     extract_densities = ExtractAverageStatistic('extract_densities')
     extract_densities.bootstrap_iterations = 0
@@ -285,52 +358,71 @@ def estimate_gradients():
     methanol_trajectory_path = extract_trajectory.output_trajectory_path
     logging.info(f'Loaded the trajectory.')
 
-    for parameter_tag, parameter, parameter_attribute in all_differentiable_parameters(full_force_field,
-                                                                                       methanol_topology):
+    for parameter_tuple in all_differentiable_parameters(full_force_field, methanol_topology):
 
         start_time = time.perf_counter()
 
-        gradient_fast = estimate_gradient(methanol_trajectory_path,
-                                          methanol_topology,
-                                          thermodynamic_state,
-                                          parameter,
-                                          parameter_tag,
-                                          parameter_attribute,
-                                          extract_densities.uncorrelated_values,
-                                          1.0e-4,
-                                          full_force_field=full_force_field,
-                                          compute_resources=compute_resource,
-                                          use_subset=True)
+        # gradient_fast = estimate_gradient(methanol_trajectory_path,
+        #                                   methanol_topology,
+        #                                   thermodynamic_state,
+        #                                   parameter,
+        #                                   parameter_tag,
+        #                                   parameter_attribute,
+        #                                   extract_densities.uncorrelated_values,
+        #                                   1.0e-4,
+        #                                   full_force_field=full_force_field,
+        #                                   compute_resources=compute_resource,
+        #                                   use_subset=True)
+
+        gradient_fast = estimate_gradient_new(methanol_substance,
+                                              thermodynamic_state,
+                                              force_field_path,
+                                              extract_trajectory.output_trajectory_path,
+                                              parameter_tuple,
+                                              extract_densities.uncorrelated_values,
+                                              1.0e-4,
+                                              compute_resource,
+                                              True)
 
         end_time = time.perf_counter()
         fast_time = (end_time-start_time)
 
         logging.info(f'Finished fast gradient estimate after {fast_time*1000} ms ('
-                     f'{parameter_tag} {parameter_attribute} {parameter.smirks}).')
+                     f'{parameter_tuple.tag} {parameter_tuple.smirks} {parameter_tuple.attribute}).')
 
-        gradient_slow = estimate_gradient(methanol_trajectory_path,
-                                          methanol_topology,
-                                          thermodynamic_state,
-                                          parameter,
-                                          parameter_tag,
-                                          parameter_attribute,
-                                          extract_densities.uncorrelated_values,
-                                          1.0e-4,
-                                          full_force_field=full_force_field,
-                                          compute_resources=compute_resource,
-                                          use_subset=False,
-                                          reference_statistics_path=extract_statistics.output_statistics_path)
+        # gradient_slow = estimate_gradient(methanol_trajectory_path,
+        #                                   methanol_topology,
+        #                                   thermodynamic_state,
+        #                                   parameter,
+        #                                   parameter_tag,
+        #                                   parameter_attribute,
+        #                                   extract_densities.uncorrelated_values,
+        #                                   1.0e-4,
+        #                                   full_force_field=full_force_field,
+        #                                   compute_resources=compute_resource,
+        #                                   use_subset=False,
+        #                                   reference_statistics_path=extract_statistics.output_statistics_path)
+
+        gradient_slow = estimate_gradient_new(methanol_substance,
+                                              thermodynamic_state,
+                                              force_field_path,
+                                              extract_trajectory.output_trajectory_path,
+                                              parameter_tuple,
+                                              extract_densities.uncorrelated_values,
+                                              1.0e-4,
+                                              compute_resource,
+                                              False)
 
         end_time = time.perf_counter()
         slow_time = (end_time - start_time)
 
         logging.info(f'Finished slow gradient estimate after {slow_time*1000} ms ('
-                     f'{parameter_tag} {parameter_attribute} {parameter.smirks}).')
+                     f'{parameter_tuple.tag} {parameter_tuple.smirks} {parameter_tuple.attribute}).')
 
         absolute_difference = gradient_fast - gradient_slow
         relative_difference = (gradient_fast - gradient_slow) / abs(gradient_slow)
 
-        print(f'{parameter_tag}: {parameter.smirks} - dE/{parameter_attribute} '
+        print(f'{parameter_tuple.tag}: {parameter_tuple.smirks} - dE/{parameter_tuple.attribute} '
               f'speedup={slow_time/fast_time:.2f}X '
               f'slow={gradient_slow} '
               f'fast={gradient_fast} '
