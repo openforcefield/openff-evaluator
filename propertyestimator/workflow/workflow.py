@@ -143,6 +143,8 @@ class Workflow:
         self.dependants_graph = {}
 
         self.final_value_source = None
+        self.gradients_sources = []
+
         self.outputs_to_store = {}
 
     def _get_schema(self):
@@ -166,6 +168,8 @@ class Workflow:
         if self.final_value_source is not None:
             schema.final_value_source = ProtocolPath.from_string(self.final_value_source.full_path)
 
+        schema.gradients_sources = [ProtocolPath.from_string(source.full_path) for source in self.gradients_sources]
+
         schema.outputs_to_store = {}
 
         for substance_identifier in self.outputs_to_store:
@@ -188,6 +192,15 @@ class Workflow:
         if schema.final_value_source is not None:
             self.final_value_source = ProtocolPath.from_string(schema.final_value_source.full_path)
             self.final_value_source.append_uuid(self.uuid)
+
+        self.gradients_sources = []
+
+        for gradient_source in schema.gradients_sources:
+
+            copied_source = ProtocolPath.from_string(gradient_source.full_path)
+            copied_source.append_uuid(self.uuid)
+
+            self.gradients_sources.append(copied_source)
 
         self.outputs_to_store = {}
 
@@ -424,6 +437,21 @@ class Workflow:
             replicated_protocols.append(protocol_path.start_protocol)
 
             self._replicate_protocol(schema, protocol_path, replicator, template_values)
+
+        # Make sure to correctly replicate gradient sources.
+        replicated_gradient_sources = []
+
+        for gradient_source in self.gradients_sources:
+
+            for index, template_value in enumerate(template_values):
+
+                replacement_string = f'$({replicator.id})'
+                replicated_source = ProtocolPath.from_string(gradient_source.full_path.replace(replacement_string,
+                                                                                               str(index)))
+
+                replicated_gradient_sources.append(replicated_source)
+
+        self.gradients_sources = replicated_gradient_sources
 
         outputs_to_replicate = []
 
@@ -736,6 +764,9 @@ class Workflow:
         if self.final_value_source is not None:
             self.final_value_source.replace_protocol(old_protocol_id, new_protocol_id)
 
+        for gradient_source in self.gradients_sources:
+            gradient_source.replace_protocol(old_protocol_id, new_protocol_id)
+
         for output_label in self.outputs_to_store:
 
             output_to_store = self.outputs_to_store[output_label]
@@ -798,7 +829,7 @@ class Workflow:
         if estimator_options is None:
             workflow_options = WorkflowOptions()
         elif (estimator_options.workflow_options is not None and
-            type(physical_property).__name__ in estimator_options.workflow_options):
+              type(physical_property).__name__ in estimator_options.workflow_options):
             workflow_options = estimator_options.workflow_options[type(physical_property).__name__]
         else:
             workflow_options = WorkflowOptions()
@@ -1032,17 +1063,17 @@ class WorkflowGraph:
 
             workflow.physical_property.source.provenance = provenance
 
+            final_futures = []
+
             if workflow.final_value_source is not None:
 
                 value_node_id = workflow.final_value_source.start_protocol
+                final_futures = [submitted_futures[value_node_id]]
 
-                final_futures = [
-                    submitted_futures[value_node_id],
-                ]
+            for gradient_source in workflow.gradients_sources:
 
-            else:
-
-                final_futures = [submitted_futures[key] for key in submitted_futures]
+                protocol_id = gradient_source.start_protocol
+                final_futures.append(submitted_futures[protocol_id])
 
             for output_label in workflow.outputs_to_store:
 
@@ -1057,6 +1088,9 @@ class WorkflowGraph:
 
                     final_futures.append(submitted_futures[attribute_value.start_protocol])
 
+            if len(final_futures) == 0:
+                final_futures = [submitted_futures[key] for key in submitted_futures]
+
             target_uncertainty = None
 
             if include_uncertainty_check and 'target_uncertainty' in workflow.global_metadata:
@@ -1067,6 +1101,7 @@ class WorkflowGraph:
                                                      self._root_directory,
                                                      workflow.physical_property,
                                                      workflow.final_value_source,
+                                                     workflow.gradients_sources,
                                                      workflow.outputs_to_store,
                                                      target_uncertainty,
                                                      *final_futures,
@@ -1092,7 +1127,7 @@ class WorkflowGraph:
             json.dump(output_dictionary, file, cls=TypedJSONEncoder)
 
     @staticmethod
-    def _execute_protocol(directory, protocol_schema, *previous_output_paths, available_resources, **kwargs):
+    def _execute_protocol(directory, protocol_schema, *previous_output_paths, available_resources, **_):
         """Executes a protocol whose state is defined by the ``protocol_schema``.
 
         Parameters
@@ -1128,8 +1163,6 @@ class WorkflowGraph:
             previous_outputs_by_path = {}
 
             for parent_id, previous_output_path in previous_output_paths:
-
-                parent_output = None
 
                 try:
 
@@ -1202,8 +1235,8 @@ class WorkflowGraph:
                 formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
                 exception = PropertyEstimatorException(directory=directory,
-                                                       message='Could not save the output dictionary of {} ({}): {}'.format(
-                                                               protocol.id, output_dictionary_path, formatted_exception))
+                                                       message=f'Could not save the output dictionary of {protocol.id} '
+                                                               f'({output_dictionary_path}): {formatted_exception}')
 
                 WorkflowGraph._save_protocol_output(output_dictionary_path, exception)
 
@@ -1224,8 +1257,8 @@ class WorkflowGraph:
             return protocol_schema.id, output_dictionary_path
 
     @staticmethod
-    def _gather_results(directory, property_to_return, value_reference, outputs_to_store,
-                        target_uncertainty, *protocol_result_paths, **kwargs):
+    def _gather_results(directory, property_to_return, value_reference, gradient_sources,
+                        outputs_to_store, target_uncertainty, *protocol_result_paths, **_):
         """Gather the value and uncertainty calculated from the submission graph
         and store them in the property to return.
 
@@ -1237,6 +1270,9 @@ class WorkflowGraph:
             The property to which the value and uncertainty belong.
         value_reference: ProtocolPath, optional
             A reference to which property in the output dictionary is the actual value.
+        gradient_sources: list of ProtocolPath
+            A list of references to those entries in the output dictionaries which correspond
+            to parameter gradients.
         outputs_to_store: dict of string and WorkflowOutputToStore
             A list of references to data which should be stored on the storage backend.
         target_uncertainty: unit.Quantity, optional
@@ -1262,8 +1298,6 @@ class WorkflowGraph:
             results_by_id = {}
 
             for protocol_id, protocol_result_path in protocol_result_paths:
-
-                protocol_results = None
 
                 try:
 
@@ -1309,6 +1343,11 @@ class WorkflowGraph:
 
                 property_to_return.value = results_by_id[value_reference].value
                 property_to_return.uncertainty = results_by_id[value_reference].uncertainty
+
+            for gradient_source in gradient_sources:
+
+                gradient = results_by_id[gradient_source]
+                property_to_return.gradients.append(gradient)
 
             return_object.calculated_property = property_to_return
             return_object.data_directories_to_store = []

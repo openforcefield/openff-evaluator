@@ -192,6 +192,7 @@ class WorkflowSchema(TypedBaseModel):
         self.replicators = []
 
         self.final_value_source = None
+        self.gradients_sources = []
 
         self.outputs_to_store = {}
 
@@ -205,6 +206,7 @@ class WorkflowSchema(TypedBaseModel):
             'replicators': self.replicators,
 
             'final_value_source': self.final_value_source,
+            'gradients_sources': self.gradients_sources,
 
             'outputs_to_store': self.outputs_to_store,
         }
@@ -218,6 +220,7 @@ class WorkflowSchema(TypedBaseModel):
         self.replicators = state['replicators']
 
         self.final_value_source = state['final_value_source']
+        self.gradients_sources = state['gradients_sources']
 
         self.outputs_to_store = state['outputs_to_store']
 
@@ -272,7 +275,7 @@ class WorkflowSchema(TypedBaseModel):
     def _validate_final_value(self):
 
         if self.final_value_source is None:
-            raise ValueError('The final value source must not be None.')
+            return
 
         if self.final_value_source.start_protocol not in self.protocols:
             raise ValueError('The value source {} does not exist.'.format(self.final_value_source))
@@ -286,6 +289,25 @@ class WorkflowSchema(TypedBaseModel):
 
         attribute_type = protocol_object.get_attribute_type(self.final_value_source)
         assert issubclass(attribute_type, EstimatedQuantity)
+
+    def _validate_gradients(self):
+
+        from simtk import unit
+
+        for gradient_source in self.gradients_sources:
+
+            if gradient_source.start_protocol not in self.protocols:
+                raise ValueError('The gradient source {} does not exist.'.format(gradient_source))
+
+            protocol_schema = self.protocols[gradient_source.start_protocol]
+
+            protocol_object = available_protocols[protocol_schema.type](protocol_schema.id)
+            protocol_object.schema = protocol_schema
+
+            protocol_object.get_value(gradient_source)
+
+            attribute_type = protocol_object.get_attribute_type(gradient_source)
+            assert issubclass(attribute_type, unit.Quantity)
 
     def _validate_outputs_to_store(self):
         
@@ -342,6 +364,7 @@ class WorkflowSchema(TypedBaseModel):
         """
 
         self._validate_final_value()
+        self._validate_gradients()
         self._validate_replicators()
         self._validate_outputs_to_store()
 

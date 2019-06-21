@@ -8,6 +8,7 @@ import numpy as np
 from simtk import unit, openmm
 from simtk.openmm import app
 
+from propertyestimator.properties.properties import ParameterGradientKey, ParameterGradient
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
@@ -60,8 +61,8 @@ class GradientReducedPotentials(BaseProtocol):
         to estimate the observable of interest."""
         pass
 
-    @protocol_input(tuple)
-    def parameter_tuple(self):
+    @protocol_input(ParameterGradientKey)
+    def parameter_key(self):
         """A list of the parameters to differentiate with respect to."""
         pass
 
@@ -112,7 +113,7 @@ class GradientReducedPotentials(BaseProtocol):
         self._coordinate_file_path = None
         self._trajectory_file_path = None
 
-        self._parameter_tuple = None
+        self._parameter_key = None
         self._perturbation_scale = 1.0e-4
 
         self._use_subset_of_force_field = True
@@ -146,9 +147,9 @@ class GradientReducedPotentials(BaseProtocol):
         """
         from openforcefield.typing.engines.smirnoff import ForceField
 
-        parameter_tag = self._parameter_tuple.tag
-        parameter_smirks = self._parameter_tuple.smirks
-        parameter_attribute = self._parameter_tuple.attribute
+        parameter_tag = self._parameter_key.tag
+        parameter_smirks = self._parameter_key.smirks
+        parameter_attribute = self._parameter_key.attribute
 
         original_handler = original_force_field.get_parameter_handler(parameter_tag)
         original_parameter = original_handler.parameters[parameter_smirks]
@@ -318,6 +319,12 @@ class CentralDifferenceGradient(BaseProtocol):
     of unit.Quantity, or a list of ProtocolPath which each point to a unit.Quantity.
     """
 
+    @protocol_input(ParameterGradientKey)
+    def parameter_key(self):
+        """The key that describes which parameters this
+        gradient was estimated for."""
+        pass
+
     @protocol_input(EstimatedQuantity)
     def reverse_observable_value(self):
         """The value of A(x-h)."""
@@ -338,7 +345,7 @@ class CentralDifferenceGradient(BaseProtocol):
         """The value of x+h."""
         pass
 
-    @protocol_output(unit.Quantity)
+    @protocol_output(ParameterGradient)
     def gradient(self):
         """The estimated gradient."""
         pass
@@ -346,6 +353,8 @@ class CentralDifferenceGradient(BaseProtocol):
     def __init__(self, protocol_id):
         """Constructs a new CentralDifferenceGradient object."""
         super().__init__(protocol_id)
+
+        self._parameter_key = None
 
         self._reverse_observable_value = None
         self._forward_observable_value = None
@@ -362,7 +371,9 @@ class CentralDifferenceGradient(BaseProtocol):
             return PropertyEstimatorException(f'The forward parameter value ({self._forward_parameter_value}) must '
                                               f'be larger than the reverse value ({self._reverse_parameter_value}).')
 
-        self._gradient = ((self._forward_observable_value.value - self._reverse_observable_value.value) /
-                          (self._forward_parameter_value - self._reverse_parameter_value))
+        gradient = ((self._forward_observable_value.value - self._reverse_observable_value.value) /
+                    (self._forward_parameter_value - self._reverse_parameter_value))
+
+        self._gradient = ParameterGradient(self._parameter_key, gradient)
 
         return self._get_output_dictionary()
