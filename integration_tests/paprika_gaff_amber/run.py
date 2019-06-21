@@ -78,7 +78,8 @@ def main():
     logging.info(f'Attach={host_guest_protocol.attach_free_energy} '
                  f'Pull={host_guest_protocol.pull_free_energy} '
                  f'Release={host_protocol.release_free_energy} '
-                 f'Reference={host_guest_protocol.reference_free_energy}')
+                 f'Reference={host_guest_protocol.reference_free_energy}',
+                 f'Symmetry={host_guest_protocol.symmetry_correction}')
 
 
 if __name__ == "__main__":

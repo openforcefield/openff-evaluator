@@ -503,6 +503,12 @@ class BasePaprikaProtocol(BaseProtocol):
                 -self._results_dictionary['ref_state_work'] * unit.kilocalorie_per_mole,
                 0 * unit.kilocalorie_per_mole, self._id)
 
+        if 'symmetry_correction' in self._results_dictionary:
+            self._symmetry_correction = EstimatedQuantity(
+                -self._results_dictionary['symmetry_correction'] * unit.kilocalorie_per_mole,
+                0 * unit.kilocalorie_per_mole, self._id)
+
+
         return None
 
     def execute(self, directory, available_resources):
