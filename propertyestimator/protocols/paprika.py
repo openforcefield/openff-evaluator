@@ -258,6 +258,7 @@ class BasePaprikaProtocol(BaseProtocol):
 
             for restraint in self._paprika_setup.static_restraints + \
                              self._paprika_setup.conformational_restraints + \
+                             self._paprika_setup.symmetry_restraints + \
                              self._paprika_setup.wall_restraints + \
                              self._paprika_setup.guest_restraints:
 
@@ -281,7 +282,8 @@ class BasePaprikaProtocol(BaseProtocol):
     def _setup_restraints(self):
 
         self._paprika_setup.static_restraints, self._paprika_setup.conformational_restraints, \
-            self._paprika_setup.wall_restraints, self._paprika_setup.guest_restraints = \
+        self._paprika_setup.symmetry_restraints, self._paprika_setup.wall_restraints, \
+        self._paprika_setup.guest_restraints = \
             self._paprika_setup.initialize_restraints(self._solvated_coordinate_paths[0])
 
     def _apply_parameters(self):
@@ -549,6 +551,7 @@ class BasePaprikaProtocol(BaseProtocol):
         # Save the restraints to a file, ready for analysis.
         save_restraints(restraint_list=self._paprika_setup.static_restraints +
                                        self._paprika_setup.conformational_restraints +
+                                       self._paprika_setup.symmetry_restraints +
                                        self._paprika_setup.wall_restraints +
                                        self._paprika_setup.guest_restraints,
                         filepath=os.path.join(self._paprika_setup.directory, "restraints.json"))
