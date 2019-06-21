@@ -14,7 +14,7 @@ from propertyestimator.protocols.analysis import ExtractAverageStatistic, Extrac
     ExtractUncorrelatedStatisticsData
 from propertyestimator.protocols.coordinates import BuildCoordinatesPackmol, SolvateExistingStructure
 from propertyestimator.protocols.forcefield import BuildSmirnoffSystem
-from propertyestimator.protocols.miscellaneous import AddQuantities, FilterSubstanceByRole, SubtractQuantities
+from propertyestimator.protocols.miscellaneous import AddValues, FilterSubstanceByRole, SubtractValues
 from propertyestimator.protocols.simulation import RunEnergyMinimisation, RunOpenMMSimulation
 from propertyestimator.substances import Substance
 from propertyestimator.tests.test_workflow.utils import DummyEstimatedQuantityProtocol, DummyProtocolWithDictInput
@@ -56,7 +56,7 @@ def test_nested_protocol_paths():
     value_protocol_c = DummyEstimatedQuantityProtocol('protocol_c')
     value_protocol_c.input_value = EstimatedQuantity(4 * unit.kelvin, 0.01 * unit.kelvin, 'constant')
 
-    add_values_protocol = AddQuantities('add_values')
+    add_values_protocol = AddValues('add_values')
 
     add_values_protocol.values = [
         ProtocolPath('output_value', value_protocol_a.id),
@@ -102,7 +102,7 @@ def test_nested_protocol_paths():
 
         dummy_dict_protocol.set_value(value_reference, index)
 
-    add_values_protocol_2 = AddQuantities('add_values')
+    add_values_protocol_2 = AddValues('add_values')
 
     add_values_protocol_2.values = [
         [ProtocolPath('output_value', value_protocol_a.id)],
@@ -233,7 +233,7 @@ def test_addition_subtract_protocols():
         quantity_a = EstimatedQuantity(1*unit.kelvin, 0.1*unit.kelvin, 'dummy_source_1')
         quantity_b = EstimatedQuantity(2*unit.kelvin, 0.2*unit.kelvin, 'dummy_source_2')
 
-        add_quantities = AddQuantities('add')
+        add_quantities = AddValues('add')
         add_quantities.values = [quantity_a, quantity_b]
 
         result = add_quantities.execute(temporary_directory, ComputeResources())
@@ -241,7 +241,7 @@ def test_addition_subtract_protocols():
         assert not isinstance(result, PropertyEstimatorException)
         assert add_quantities.result.value == 3 * unit.kelvin
 
-        sub_quantities = SubtractQuantities('sub')
+        sub_quantities = SubtractValues('sub')
         sub_quantities.value_b = quantity_b
         sub_quantities.value_a = quantity_a
 

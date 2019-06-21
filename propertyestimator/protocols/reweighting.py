@@ -161,7 +161,7 @@ class ConcatenateTrajectories(BaseProtocol):
         pass
 
     def __init__(self, protocol_id):
-        """Constructs a new AddQuantities object."""
+        """Constructs a new AddValues object."""
         super().__init__(protocol_id)
 
         self._input_coordinate_paths = None

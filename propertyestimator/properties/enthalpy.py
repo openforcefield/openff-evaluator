@@ -273,7 +273,7 @@ class EnthalpyOfMixing(PhysicalProperty):
 
         # Finally, set up the protocols which will be responsible for adding together
         # the component enthalpies, and subtracting these from the mixed system enthalpy.
-        add_component_enthalpies = miscellaneous.AddQuantities('add_component_enthalpies')
+        add_component_enthalpies = miscellaneous.AddValues('add_component_enthalpies')
 
         # Although we only give a list of a single ProtocolPath pointing to our template
         # component workflow's `weight_by_mole_fraction` protocol, the replicator
@@ -284,7 +284,7 @@ class EnthalpyOfMixing(PhysicalProperty):
 
         schema.protocols[add_component_enthalpies.id] = add_component_enthalpies.schema
 
-        calculate_enthalpy_of_mixing = miscellaneous.SubtractQuantities('calculate_enthalpy_of_mixing')
+        calculate_enthalpy_of_mixing = miscellaneous.SubtractValues('calculate_enthalpy_of_mixing')
 
         calculate_enthalpy_of_mixing.value_b = ProtocolPath('value', mixed_system_workflow.converge_uncertainty.id,
                                                                      'mixed_extract_enthalpy')
@@ -415,10 +415,10 @@ class EnthalpyOfMixing(PhysicalProperty):
         weight_by_mole_fraction.full_substance = ProtocolPath('substance', 'global')
         weight_by_mole_fraction.component = ReplicatorValue('comp_repl')
 
-        add_component_enthalpies = miscellaneous.AddQuantities('add_component_enthalpies')
+        add_component_enthalpies = miscellaneous.AddValues('add_component_enthalpies')
         add_component_enthalpies.values = [ProtocolPath('weighted_value', weight_by_mole_fraction.id)]
 
-        calculate_enthalpy_of_mixing = miscellaneous.SubtractQuantities('calculate_enthalpy_of_mixing')
+        calculate_enthalpy_of_mixing = miscellaneous.SubtractValues('calculate_enthalpy_of_mixing')
         calculate_enthalpy_of_mixing.value_b = ProtocolPath('value', mixture_protocols.mbar_protocol.id)
         calculate_enthalpy_of_mixing.value_a = ProtocolPath('result', add_component_enthalpies.id)
 

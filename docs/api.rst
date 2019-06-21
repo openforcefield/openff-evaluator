@@ -161,8 +161,8 @@ Workflow API
     AverageTrajectoryProperty
     ExtractUncorrelatedData
     ExtractUncorrelatedTrajectoryData
-    AddQuantities
-    SubtractQuantities
+    AddValues
+    SubtractValues
     UnpackStoredSimulationData
 
 **Protocol Groups**

@@ -12,7 +12,7 @@ from propertyestimator.workflow.protocols import BaseProtocol
 
 
 @register_calculation_protocol()
-class AddQuantities(BaseProtocol):
+class AddValues(BaseProtocol):
     """A protocol to add together a list of values.
 
     Notes
@@ -32,7 +32,7 @@ class AddQuantities(BaseProtocol):
         pass
 
     def __init__(self, protocol_id):
-        """Constructs a new AddQuantities object."""
+        """Constructs a new AddValues object."""
         super().__init__(protocol_id)
 
         self._values = None
@@ -55,7 +55,7 @@ class AddQuantities(BaseProtocol):
 
 
 @register_calculation_protocol()
-class SubtractQuantities(BaseProtocol):
+class SubtractValues(BaseProtocol):
     """A protocol to subtract one value from another such that:
 
     `result = value_b - value_a`
@@ -77,7 +77,7 @@ class SubtractQuantities(BaseProtocol):
         pass
 
     def __init__(self, protocol_id):
-        """Constructs a new AddQuantities object."""
+        """Constructs a new AddValues object."""
         super().__init__(protocol_id)
 
         self._value_a = None
@@ -120,7 +120,7 @@ class FilterSubstanceByRole(BaseProtocol):
         pass
 
     def __init__(self, protocol_id):
-        """Constructs a new AddQuantities object."""
+        """Constructs a new AddValues object."""
         super().__init__(protocol_id)
 
         self._input_substance = None

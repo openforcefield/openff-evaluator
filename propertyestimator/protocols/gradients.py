@@ -2,6 +2,7 @@
 A collection of protocols for reweighting cached simulation data.
 """
 import copy
+from os import path
 
 import numpy as np
 from simtk import unit, openmm
@@ -11,6 +12,8 @@ from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.openmm import setup_platform_with_resources
+from propertyestimator.utils.quantities import EstimatedQuantity
+from propertyestimator.utils.statistics import StatisticsArray, ObservableType
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
@@ -23,29 +26,35 @@ class GradientReducedPotentials(BaseProtocol):
     """
 
     @protocol_input(str)
+    def reference_force_field_path(self):
+        """A path to the force field which was originally used to
+        estimate the observable of interest."""
+        pass
+
+    @protocol_input(str)
     def force_field_path(self):
         """A path to the force field which contains the parameters
         to differentiate the observable with respect to."""
         pass
 
-    @protocol_output(Substance)
+    @protocol_input(Substance)
     def substance(self):
         """The substance which describes the composition
         of the system."""
         pass
 
-    @protocol_output(ThermodynamicState)
+    @protocol_input(ThermodynamicState)
     def thermodynamic_state(self):
         """The thermodynamic state to estimate the gradients at."""
         pass
 
-    @protocol_output(str)
+    @protocol_input(str)
     def coordinate_file_path(self):
         """A path to the initial coordinates of the simulation trajectory which
         was used to estimate the observable of interest."""
         pass
 
-    @protocol_output(str)
+    @protocol_input(str)
     def trajectory_file_path(self):
         """A path to the simulation trajectory which was used
         to estimate the observable of interest."""
@@ -68,33 +77,31 @@ class GradientReducedPotentials(BaseProtocol):
         system which only contains the parameter of interest.
         """
 
-    @protocol_output(np.ndarray)
-    def reference_reduced_potentials(self):
-        """The estimated gradients."""
+    @protocol_output(str)
+    def reference_potentials_path(self):
         pass
 
-    @protocol_output(float)
+    @protocol_output(str)
+    def reverse_potentials_path(self):
+        pass
+
+    @protocol_output(str)
+    def forward_potentials_path(self):
+        pass
+
+    @protocol_output(unit.Quantity)
     def reverse_parameter_value(self):
         pass
 
-    @protocol_output(float)
+    @protocol_output(unit.Quantity)
     def forward_parameter_value(self):
-        pass
-
-    @protocol_output(np.ndarray)
-    def reverse_reduced_potentials(self):
-        """The estimated gradients."""
-        pass
-
-    @protocol_output(np.ndarray)
-    def forward_reduced_potentials(self):
-        """The estimated gradients."""
         pass
 
     def __init__(self, protocol_id):
         """Constructs a new EstimateParameterGradients object."""
         super().__init__(protocol_id)
 
+        self._reference_force_field_path = None
         self._force_field_path = None
 
         self._substance = None
@@ -110,12 +117,12 @@ class GradientReducedPotentials(BaseProtocol):
 
         self._use_subset_of_force_field = True
 
+        self._reference_potentials_path = None
+        self._reverse_potentials_path = None
+        self._forward_potentials_path = None
+
         self._reverse_parameter_value = None
         self._forward_parameter_value = None
-
-        self._reference_reduced_potentials = None
-        self._reverse_reduced_potentials = None
-        self._forward_reduced_potentials = None
 
     def _build_reduced_system(self, original_force_field, topology, scale_amount=None):
         """Produces an OpenMM system containing only forces for the specified parameter,
@@ -228,7 +235,11 @@ class GradientReducedPotentials(BaseProtocol):
         from openforcefield.topology import Molecule, Topology
         from openforcefield.typing.engines.smirnoff import ForceField
 
-        original_force_field = ForceField(self._force_field_path)
+        target_force_field = ForceField(self._force_field_path)
+        reference_force_field = target_force_field
+
+        if self._force_field_path != self._reference_force_field_path:
+            reference_force_field = ForceField(self._reference_force_field_path)
 
         trajectory = mdtraj.load_dcd(self._trajectory_file_path,
                                      self._coordinate_file_path)
@@ -243,38 +254,115 @@ class GradientReducedPotentials(BaseProtocol):
         pdb_file = app.PDBFile(self._coordinate_file_path)
         topology = Topology.from_openmm(pdb_file.topology, unique_molecules=unique_molecules)
 
-        # Build the reduced reference force field
-        reference_system, _ = self._build_reduced_system(original_force_field, topology)
+        # Build the reduced reference system.
+        reference_system, _ = self._build_reduced_system(reference_force_field, topology)
 
-        # Build the slightly perturbed force fields.
-        reverse_system, self._reverse_parameter_value = self._build_reduced_system(original_force_field,
+        # Build the slightly perturbed system.
+        reverse_system, self._reverse_parameter_value = self._build_reduced_system(target_force_field,
                                                                                    topology,
                                                                                    -self._perturbation_scale)
 
-        forward_system, self._forward_parameter_value = self._build_reduced_system(original_force_field,
+        forward_system, self._forward_parameter_value = self._build_reduced_system(target_force_field,
                                                                                    topology,
                                                                                    self._perturbation_scale)
 
         # Calculate the reduced potentials.
-        self._reference_reduced_potentials, error = self._evaluate_reduced_potential(reference_system,
-                                                                                     trajectory,
-                                                                                     available_resources)
+        reference_reduced_potentials, error = self._evaluate_reduced_potential(reference_system,
+                                                                               trajectory,
+                                                                               available_resources)
 
         if isinstance(error, PropertyEstimatorException):
             return error
 
-        self._reverse_reduced_potentials, error = self._evaluate_reduced_potential(reverse_system,
-                                                                                   trajectory,
-                                                                                   available_resources)
+        reverse_reduced_potentials, error = self._evaluate_reduced_potential(reverse_system,
+                                                                             trajectory,
+                                                                             available_resources)
 
         if isinstance(error, PropertyEstimatorException):
             return error
 
-        self._forward_reduced_potentials, error = self._evaluate_reduced_potential(forward_system,
-                                                                                   trajectory,
-                                                                                   available_resources)
+        forward_reduced_potentials, error = self._evaluate_reduced_potential(forward_system,
+                                                                             trajectory,
+                                                                             available_resources)
 
         if isinstance(error, PropertyEstimatorException):
             return error
+
+        self._reference_potentials_path = path.join(directory, 'reference.csv')
+        self._reverse_potentials_path = path.join(directory, 'reverse.csv')
+        self._forward_potentials_path = path.join(directory, 'forward.csv')
+
+        statistics_array = StatisticsArray()
+        statistics_array[ObservableType.ReducedPotential] = reference_reduced_potentials
+        statistics_array.to_pandas_csv(self._reference_potentials_path)
+
+        statistics_array[ObservableType.ReducedPotential] = reverse_reduced_potentials
+        statistics_array.to_pandas_csv(self._reverse_potentials_path)
+
+        statistics_array[ObservableType.ReducedPotential] = forward_reduced_potentials
+        statistics_array.to_pandas_csv(self._forward_potentials_path)
+
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class CentralDifferenceGradient(BaseProtocol):
+    """A protocol which employs the central diference method
+    to estimate the gradient of an observable A, such that
+
+    grad = (A(x-h) - A(x+h)) / (2h)
+
+    Notes
+    -----
+    The `values` input must either be a list of unit.Quantity, a ProtocolPath to a list
+    of unit.Quantity, or a list of ProtocolPath which each point to a unit.Quantity.
+    """
+
+    @protocol_input(EstimatedQuantity)
+    def reverse_observable_value(self):
+        """The value of A(x-h)."""
+        pass
+
+    @protocol_input(EstimatedQuantity)
+    def forward_observable_value(self):
+        """The value of A(x+h)."""
+        pass
+
+    @protocol_input(unit.Quantity)
+    def reverse_parameter_value(self):
+        """The value of x-h."""
+        pass
+
+    @protocol_input(unit.Quantity)
+    def forward_parameter_value(self):
+        """The value of x+h."""
+        pass
+
+    @protocol_output(unit.Quantity)
+    def gradient(self):
+        """The estimated gradient."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new CentralDifferenceGradient object."""
+        super().__init__(protocol_id)
+
+        self._reverse_observable_value = None
+        self._forward_observable_value = None
+
+        self._reverse_parameter_value = None
+        self._forward_parameter_value = None
+
+        self._gradient = None
+
+    def execute(self, directory, available_resources):
+
+        if self._forward_parameter_value < self._reverse_parameter_value:
+
+            return PropertyEstimatorException(f'The forward parameter value ({self._forward_parameter_value}) must '
+                                              f'be larger than the reverse value ({self._reverse_parameter_value}).')
+
+        self._gradient = ((self._forward_observable_value.value - self._reverse_observable_value.value) /
+                          (self._forward_parameter_value - self._reverse_parameter_value))
 
         return self._get_output_dictionary()

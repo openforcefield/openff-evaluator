@@ -163,7 +163,8 @@ class Workflow:
         for protocol_id, protocol in self.protocols.items():
             schema.protocols[protocol_id] = protocol.schema
 
-        schema.final_value_source = ProtocolPath.from_string(self.final_value_source.full_path)
+        if self.final_value_source is not None:
+            schema.final_value_source = ProtocolPath.from_string(self.final_value_source.full_path)
 
         schema.outputs_to_store = {}
 
@@ -184,8 +185,9 @@ class Workflow:
         """
         schema = WorkflowSchema.parse_json(value.json())
 
-        self.final_value_source = ProtocolPath.from_string(schema.final_value_source.full_path)
-        self.final_value_source.append_uuid(self.uuid)
+        if schema.final_value_source is not None:
+            self.final_value_source = ProtocolPath.from_string(schema.final_value_source.full_path)
+            self.final_value_source.append_uuid(self.uuid)
 
         self.outputs_to_store = {}
 
@@ -731,7 +733,8 @@ class Workflow:
         if old_protocol_id in self.dependants_graph:
             self.dependants_graph[new_protocol_id] = self.dependants_graph.pop(old_protocol_id)
 
-        self.final_value_source.replace_protocol(old_protocol_id, new_protocol_id)
+        if self.final_value_source is not None:
+            self.final_value_source.replace_protocol(old_protocol_id, new_protocol_id)
 
         for output_label in self.outputs_to_store:
 
@@ -748,7 +751,7 @@ class Workflow:
                                                  new_protocol_id)
 
     @staticmethod
-    def generate_default_metadata(physical_property, force_field_path, estimator_options):
+    def generate_default_metadata(physical_property, force_field_path, estimator_options=None):
         """Generates a default global metadata dictionary.
         
         Parameters
@@ -758,7 +761,7 @@ class Workflow:
             global scope.
         force_field_path: str
             The path to the force field parameters to use in the workflow.
-        estimator_options: PropertyEstimatorOptions
+        estimator_options: PropertyEstimatorOptions, optional
             The options provided when an estimate request was submitted.
 
         Returns
@@ -1029,11 +1032,17 @@ class WorkflowGraph:
 
             workflow.physical_property.source.provenance = provenance
 
-            value_node_id = workflow.final_value_source.start_protocol
+            if workflow.final_value_source is not None:
 
-            final_futures = [
-                submitted_futures[value_node_id],
-            ]
+                value_node_id = workflow.final_value_source.start_protocol
+
+                final_futures = [
+                    submitted_futures[value_node_id],
+                ]
+
+            else:
+
+                final_futures = [submitted_futures[key] for key in submitted_futures]
 
             for output_label in workflow.outputs_to_store:
 
@@ -1226,7 +1235,7 @@ class WorkflowGraph:
             The directory to store any working files in.
         property_to_return: PhysicalProperty
             The property to which the value and uncertainty belong.
-        value_reference: ProtocolPath
+        value_reference: ProtocolPath, optional
             A reference to which property in the output dictionary is the actual value.
         outputs_to_store: dict of string and WorkflowOutputToStore
             A list of references to data which should be stored on the storage backend.
@@ -1289,15 +1298,17 @@ class WorkflowGraph:
                     final_path = ProtocolPath(property_name, *protocol_ids)
                     results_by_id[final_path] = output_value
 
-            if target_uncertainty is not None and results_by_id[value_reference].uncertainty > target_uncertainty:
+            if value_reference is not None:
 
-                logging.info('The final uncertainty ({}) was not less than the target threshold ({}).'.format(
-                    results_by_id[value_reference].uncertainty, target_uncertainty))
+                if target_uncertainty is not None and results_by_id[value_reference].uncertainty > target_uncertainty:
 
-                return None
+                    logging.info('The final uncertainty ({}) was not less than the target threshold ({}).'.format(
+                        results_by_id[value_reference].uncertainty, target_uncertainty))
 
-            property_to_return.value = results_by_id[value_reference].value
-            property_to_return.uncertainty = results_by_id[value_reference].uncertainty
+                    return None
+
+                property_to_return.value = results_by_id[value_reference].value
+                property_to_return.uncertainty = results_by_id[value_reference].uncertainty
 
             return_object.calculated_property = property_to_return
             return_object.data_directories_to_store = []
