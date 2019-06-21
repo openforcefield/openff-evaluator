@@ -85,7 +85,7 @@ def find_differentiable_parameters(force_field, topology):
 
                 parameter_keys.append(ParameterGradientKey(parameter_tag, parameter.smirks, parameter_attribute))
 
-    return [parameter_keys[0]]
+    return parameter_keys
 
 
 def build_dummy_property(force_field, property_class=Density):
@@ -240,10 +240,10 @@ def main():
     setup_timestamp_logging()
 
     # Create the backend which the gradients will be estimated on.
-    # compute_resource = ComputeResources(number_of_threads=1, number_of_gpus=1,
-    #                                     preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA)
+    compute_resource = ComputeResources(number_of_threads=1, number_of_gpus=1,
+                                        preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA)
 
-    compute_resource = ComputeResources(number_of_threads=1)
+    # compute_resource = ComputeResources(number_of_threads=1)
 
     compute_backend = DaskLocalClusterBackend(number_of_workers=1,
                                               resources_per_worker=compute_resource)
