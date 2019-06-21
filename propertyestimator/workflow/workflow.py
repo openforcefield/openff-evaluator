@@ -782,7 +782,8 @@ class Workflow:
                                                  new_protocol_id)
 
     @staticmethod
-    def generate_default_metadata(physical_property, force_field_path, estimator_options=None):
+    def generate_default_metadata(physical_property, force_field_path,
+                                  parameter_gradient_keys=None, estimator_options=None):
         """Generates a default global metadata dictionary.
         
         Parameters
@@ -792,6 +793,9 @@ class Workflow:
             global scope.
         force_field_path: str
             The path to the force field parameters to use in the workflow.
+        parameter_gradient_keys: list of ParameterGradientKey
+                A list of references to all of the parameters which all observables
+                should be differentiated with respect to.
         estimator_options: PropertyEstimatorOptions, optional
             The options provided when an estimate request was submitted.
 
@@ -814,6 +818,9 @@ class Workflow:
                                                                components in the system + 1
             - force_field_path: str - A path to the force field parameters with which the
                                       property should be evaluated with.
+            - parameter_gradient_keys: list of ParameterGradientKey - A list of references to all of the
+                                                                      parameters which all observables
+                                                                      should be differentiated with respect to.
         """
         from propertyestimator.substances import Substance
 
@@ -856,7 +863,8 @@ class Workflow:
             "components": components,
             "target_uncertainty": target_uncertainty,
             "per_component_uncertainty": per_component_uncertainty,
-            "force_field_path": force_field_path
+            "force_field_path": force_field_path,
+            "parameter_gradient_keys": parameter_gradient_keys
         }
 
         # Include the properties metadata

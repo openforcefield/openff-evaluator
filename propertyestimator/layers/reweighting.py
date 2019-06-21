@@ -48,6 +48,7 @@ class ReweightingLayer(PropertyCalculationLayer):
                                                                 data_model.queued_properties,
                                                                 target_force_field_path,
                                                                 stored_data_paths,
+                                                                data_model.parameter_gradient_keys,
                                                                 data_model.options)
 
         reweighting_futures = workflow_graph.submit(calculation_backend)
@@ -123,7 +124,7 @@ class ReweightingLayer(PropertyCalculationLayer):
 
     @staticmethod
     def _build_workflow_graph(working_directory, properties, target_force_field_path,
-                              stored_data_paths, options):
+                              stored_data_paths, parameter_gradient_keys, options):
         """Construct a workflow graph, containing all of the workflows which should
         be followed to estimate a set of properties by reweighting.
 
@@ -140,6 +141,9 @@ class ReweightingLayer(PropertyCalculationLayer):
             A dictionary partitioned by substance identifiers, whose values
             are a tuple of a path to a stored simulation data object, and
             its corresponding force field path.
+        parameter_gradient_keys: list of ParameterGradientKey
+            A list of references to all of the parameters which all observables
+            should be differentiated with respect to.
         options: PropertyEstimatorOptions
             The options to run the workflows with.
         """
@@ -168,7 +172,9 @@ class ReweightingLayer(PropertyCalculationLayer):
             schema = options.workflow_schemas[property_type][ReweightingLayer.__name__]
 
             global_metadata = Workflow.generate_default_metadata(property_to_calculate,
-                                                                 target_force_field_path, options)
+                                                                 target_force_field_path,
+                                                                 parameter_gradient_keys,
+                                                                 options)
 
             if property_to_calculate.substance.identifier not in stored_data_paths:
                 continue

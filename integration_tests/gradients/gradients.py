@@ -124,7 +124,7 @@ def build_dummy_property(force_field, property_class=Density):
         'trajectory_file_path': extract_trajectory.output_trajectory_path,
         'coordinate_file_path': 'methanol/methanol.pdb',
         'observable_values': extract_densities.uncorrelated_values,
-        'gradient_keys': parameter_keys
+        'parameter_gradient_keys': parameter_keys
     }
 
     return dummy_property
@@ -188,7 +188,7 @@ def estimate_gradients(physical_property, metadata, use_subset, compute_backend)
 
     parameter_replicator = ProtocolReplicator(replicator_id='repl')
     parameter_replicator.protocols_to_replicate = protocols_to_replicate
-    parameter_replicator.template_values = ProtocolPath('gradient_keys', 'global')
+    parameter_replicator.template_values = ProtocolPath('parameter_gradient_keys', 'global')
 
     gradient_workflow_schema.replicators = [parameter_replicator]
 
@@ -240,10 +240,10 @@ def main():
     setup_timestamp_logging()
 
     # Create the backend which the gradients will be estimated on.
-    compute_resource = ComputeResources(number_of_threads=1, number_of_gpus=1,
-                                        preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA)
+    # compute_resource = ComputeResources(number_of_threads=1, number_of_gpus=1,
+    #                                     preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA)
 
-    # compute_resource = ComputeResources(number_of_threads=1)
+    compute_resource = ComputeResources(number_of_threads=1)
 
     compute_backend = DaskLocalClusterBackend(number_of_workers=1,
                                               resources_per_worker=compute_resource)
