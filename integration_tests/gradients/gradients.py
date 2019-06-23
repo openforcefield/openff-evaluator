@@ -136,7 +136,7 @@ def build_gradient_group(use_subset):
 
     reduced_potentials.substance = ProtocolPath('substance', 'global')
     reduced_potentials.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
-    reduced_potentials.reference_force_field_path = ProtocolPath('force_field_path', 'global')
+    reduced_potentials.reference_force_field_paths = [ProtocolPath('force_field_path', 'global')]
     reduced_potentials.force_field_path = ProtocolPath('force_field_path', 'global')
 
     reduced_potentials.trajectory_file_path = ProtocolPath('trajectory_file_path', 'global')
@@ -148,14 +148,14 @@ def build_gradient_group(use_subset):
     reduced_potentials.use_subset_of_force_field = use_subset
 
     reverse_mbar = ReweightWithMBARProtocol('reverse_mbar_$(repl)')
-    reverse_mbar.reference_reduced_potentials = [ProtocolPath('reference_potentials_path', reduced_potentials.id)]
+    reverse_mbar.reference_reduced_potentials = ProtocolPath('reference_potential_paths', reduced_potentials.id)
     reverse_mbar.reference_observables = [ProtocolPath('observable_values', 'global')]
     reverse_mbar.target_reduced_potentials = [ProtocolPath('reverse_potentials_path', reduced_potentials.id)]
     reverse_mbar.required_effective_samples = 0
     reverse_mbar.bootstrap_uncertainties = False
 
     forward_mbar = ReweightWithMBARProtocol('forward_mbar_$(repl)')
-    forward_mbar.reference_reduced_potentials = [ProtocolPath('reference_potentials_path', reduced_potentials.id)]
+    forward_mbar.reference_reduced_potentials = ProtocolPath('reference_potential_paths', reduced_potentials.id)
     forward_mbar.reference_observables = [ProtocolPath('observable_values', 'global')]
     forward_mbar.target_reduced_potentials = [ProtocolPath('forward_potentials_path', reduced_potentials.id)]
     forward_mbar.required_effective_samples = 0

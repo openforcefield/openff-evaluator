@@ -26,10 +26,10 @@ class GradientReducedPotentials(BaseProtocol):
     respect to a number of specified force field parameters.
     """
 
-    @protocol_input(str)
-    def reference_force_field_path(self):
-        """A path to the force field which was originally used to
-        estimate the observable of interest."""
+    @protocol_input(list)
+    def reference_force_field_paths(self):
+        """A list of path to the force field file which were originally used
+        to estimate the observable of interest."""
         pass
 
     @protocol_input(str)
@@ -78,8 +78,8 @@ class GradientReducedPotentials(BaseProtocol):
         system which only contains the parameter of interest.
         """
 
-    @protocol_output(str)
-    def reference_potentials_path(self):
+    @protocol_output(list)
+    def reference_potential_paths(self):
         pass
 
     @protocol_output(str)
@@ -102,7 +102,7 @@ class GradientReducedPotentials(BaseProtocol):
         """Constructs a new EstimateParameterGradients object."""
         super().__init__(protocol_id)
 
-        self._reference_force_field_path = None
+        self._reference_force_field_paths = []
         self._force_field_path = None
 
         self._substance = None
@@ -118,7 +118,7 @@ class GradientReducedPotentials(BaseProtocol):
 
         self._use_subset_of_force_field = True
 
-        self._reference_potentials_path = None
+        self._reference_potential_paths = []
         self._reverse_potentials_path = None
         self._forward_potentials_path = None
 
@@ -237,10 +237,6 @@ class GradientReducedPotentials(BaseProtocol):
         from openforcefield.typing.engines.smirnoff import ForceField
 
         target_force_field = ForceField(self._force_field_path)
-        reference_force_field = target_force_field
-
-        if self._force_field_path != self._reference_force_field_path:
-            reference_force_field = ForceField(self._reference_force_field_path)
 
         trajectory = mdtraj.load_dcd(self._trajectory_file_path,
                                      self._coordinate_file_path)
@@ -255,9 +251,6 @@ class GradientReducedPotentials(BaseProtocol):
         pdb_file = app.PDBFile(self._coordinate_file_path)
         topology = Topology.from_openmm(pdb_file.topology, unique_molecules=unique_molecules)
 
-        # Build the reduced reference system.
-        reference_system, _ = self._build_reduced_system(reference_force_field, topology)
-
         # Build the slightly perturbed system.
         reverse_system, self._reverse_parameter_value = self._build_reduced_system(target_force_field,
                                                                                    topology,
@@ -268,13 +261,6 @@ class GradientReducedPotentials(BaseProtocol):
                                                                                    self._perturbation_scale)
 
         # Calculate the reduced potentials.
-        reference_reduced_potentials, error = self._evaluate_reduced_potential(reference_system,
-                                                                               trajectory,
-                                                                               available_resources)
-
-        if isinstance(error, PropertyEstimatorException):
-            return error
-
         reverse_reduced_potentials, error = self._evaluate_reduced_potential(reverse_system,
                                                                              trajectory,
                                                                              available_resources)
@@ -289,19 +275,33 @@ class GradientReducedPotentials(BaseProtocol):
         if isinstance(error, PropertyEstimatorException):
             return error
 
-        self._reference_potentials_path = path.join(directory, 'reference.csv')
         self._reverse_potentials_path = path.join(directory, 'reverse.csv')
         self._forward_potentials_path = path.join(directory, 'forward.csv')
 
         statistics_array = StatisticsArray()
-        statistics_array[ObservableType.ReducedPotential] = reference_reduced_potentials
-        statistics_array.to_pandas_csv(self._reference_potentials_path)
-
         statistics_array[ObservableType.ReducedPotential] = reverse_reduced_potentials
         statistics_array.to_pandas_csv(self._reverse_potentials_path)
 
         statistics_array[ObservableType.ReducedPotential] = forward_reduced_potentials
         statistics_array.to_pandas_csv(self._forward_potentials_path)
+
+        # Compute the reduced reference energy if any reference force field files
+        # have been provided.
+        for index, reference_force_field_path in enumerate(self._reference_force_field_paths):
+
+            reference_force_field = ForceField(reference_force_field_path)
+            reference_system, _ = self._build_reduced_system(reference_force_field, topology)
+
+            reference_reduced_potentials, error = self._evaluate_reduced_potential(reference_system,
+                                                                                   trajectory,
+                                                                                   available_resources)
+
+            if isinstance(error, PropertyEstimatorException):
+                return error
+
+            self._reference_potential_paths.append(path.join(directory, f'reference_{index}.csv'))
+            statistics_array[ObservableType.ReducedPotential] = reference_reduced_potentials
+            statistics_array.to_pandas_csv(self._reference_potential_paths[-1])
 
         return self._get_output_dictionary()
 

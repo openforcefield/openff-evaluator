@@ -5,7 +5,7 @@ A collection of density physical property definitions.
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties import PhysicalProperty, PropertyPhase
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.properties.utils import generate_base_reweighting_protocols
+from propertyestimator.properties.utils import generate_base_reweighting_protocols, generate_gradient_protocol_group
 from propertyestimator.protocols import analysis, coordinates, forcefield, groups, simulation
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.statistics import ObservableType
@@ -169,6 +169,21 @@ class Density(PhysicalProperty):
 
         schema.protocols[extract_uncorrelated_statistics.id] = extract_uncorrelated_statistics.schema
 
+        # Set up the gradient calculations
+        gradient_group, gradient_replicator, gradient_source = \
+            generate_gradient_protocol_group([ProtocolPath('force_field_path', 'global')],
+                                             ProtocolPath('force_field_path', 'global'),
+                                             ProtocolPath('output_coordinate_file', npt_equilibration.id),
+                                             ProtocolPath('output_trajectory_path', extract_uncorrelated_trajectory.id),
+                                             observable_values=ProtocolPath('uncorrelated_values',
+                                                                            converge_uncertainty.id,
+                                                                            extract_density.id))
+
+        schema.protocols[gradient_group.id] = gradient_group.schema
+        schema.replicators.append(gradient_replicator)
+
+        schema.gradients_sources = [gradient_source]
+
         # Define where the final values come from.
         schema.final_value_source = ProtocolPath('value', converge_uncertainty.id, extract_density.id)
 
@@ -214,12 +229,28 @@ class Density(PhysicalProperty):
         density_calculation.statistics_path = ProtocolPath('statistics_file_path',
                                                            base_reweighting_protocols.unpack_stored_data.id)
 
+        # Set up the gradient calculations
+        coordinate_path = ProtocolPath('output_coordinate_path', base_reweighting_protocols.concatenate_trajectories.id)
+        trajectory_path = ProtocolPath('output_trajectory_path', base_reweighting_protocols.concatenate_trajectories.id)
+
+        gradient_group, gradient_replicator, gradient_source = \
+            generate_gradient_protocol_group([ProtocolPath('force_field_path',
+                                                           base_reweighting_protocols.unpack_stored_data.id)],
+                                             ProtocolPath('force_field_path', 'global'),
+                                             coordinate_path,
+                                             trajectory_path,
+                                             'grad',
+                                             ProtocolPath('uncorrelated_values', density_calculation.id))
+
         schema = WorkflowSchema(property_type=Density.__name__)
         schema.id = '{}{}'.format(Density.__name__, 'Schema')
 
         schema.protocols = {protocol.id: protocol.schema for protocol in base_reweighting_protocols}
-        schema.replicators = [data_replicator]
+        schema.protocols[gradient_group.id] = gradient_group.schema
 
+        schema.replicators = [data_replicator, gradient_replicator]
+
+        schema.gradients_sources = [gradient_source]
         schema.final_value_source = ProtocolPath('value', base_reweighting_protocols.mbar_protocol.id)
 
         return schema

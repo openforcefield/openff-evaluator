@@ -292,7 +292,7 @@ class WorkflowSchema(TypedBaseModel):
 
     def _validate_gradients(self):
 
-        from simtk import unit
+        from propertyestimator.properties import ParameterGradient
 
         for gradient_source in self.gradients_sources:
 
@@ -307,7 +307,7 @@ class WorkflowSchema(TypedBaseModel):
             protocol_object.get_value(gradient_source)
 
             attribute_type = protocol_object.get_attribute_type(gradient_source)
-            assert issubclass(attribute_type, unit.Quantity)
+            assert issubclass(attribute_type, ParameterGradient)
 
     def _validate_outputs_to_store(self):
         

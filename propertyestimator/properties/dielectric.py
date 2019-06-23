@@ -518,27 +518,19 @@ class DielectricConstant(PhysicalProperty):
 
         unpack_id = base_reweighting_protocols.unpack_stored_data.id
 
-        build_reference_system = forcefield.BuildSmirnoffSystem('build_system_$(data_repl)')
-
-        build_reference_system.force_field_path = ProtocolPath('force_field_path', unpack_id)
-        build_reference_system.substance = ProtocolPath('substance', unpack_id)
-        build_reference_system.coordinate_file_path = ProtocolPath('coordinate_file_path',
-                                                                   unpack_id)
-
-        data_replicator.protocols_to_replicate.append(ProtocolPath('', build_reference_system.id))
-
         dielectric_calculation.thermodynamic_state = ProtocolPath('thermodynamic_state', unpack_id)
         dielectric_calculation.input_coordinate_file = ProtocolPath('coordinate_file_path', unpack_id)
         dielectric_calculation.trajectory_path = ProtocolPath('trajectory_file_path', unpack_id)
-        dielectric_calculation.system_path = ProtocolPath('system_path', build_reference_system.id)
+        dielectric_calculation.system_path = ProtocolPath('system_path',
+                                                          base_reweighting_protocols.build_reference_system.id)
 
         # For the dielectric constant, we employ a slightly more advanced protocol
         # set up for calculating fluctuation properties.
         mbar_protocol = ReweightDielectricConstant('mbar')
 
-        mbar_protocol.reference_reduced_potentials = [ProtocolPath('output_statistics_path',
+        mbar_protocol.reference_reduced_potentials = [ProtocolPath('statistics_file_path',
                                                                    base_reweighting_protocols.
-                                                                   decorrelate_statistics.id)]
+                                                                   reduced_reference_potential.id)]
 
         mbar_protocol.reference_observables = [ProtocolPath('uncorrelated_values', dielectric_calculation.id)]
         mbar_protocol.reference_volumes = [ProtocolPath('uncorrelated_volumes', dielectric_calculation.id)]
@@ -556,7 +548,8 @@ class DielectricConstant(PhysicalProperty):
                                                               base_reweighting_protocols.analysis_protocol,
                                                               base_reweighting_protocols.decorrelate_trajectory,
                                                               base_reweighting_protocols.concatenate_trajectories,
-                                                              base_reweighting_protocols.decorrelate_statistics,
+                                                              base_reweighting_protocols.build_reference_system,
+                                                              base_reweighting_protocols.reduced_reference_potential,
                                                               base_reweighting_protocols.build_target_system,
                                                               base_reweighting_protocols.reduced_target_potential,
                                                               mbar_protocol)
@@ -565,7 +558,6 @@ class DielectricConstant(PhysicalProperty):
         schema.id = '{}{}'.format(DielectricConstant.__name__, 'Schema')
 
         schema.protocols = {protocol.id: protocol.schema for protocol in base_reweighting_protocols}
-        schema.protocols[build_reference_system.id] = build_reference_system.schema
 
         schema.replicators = [data_replicator]
 
