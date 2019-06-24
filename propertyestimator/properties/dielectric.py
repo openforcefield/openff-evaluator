@@ -481,8 +481,12 @@ class DielectricConstant(PhysicalProperty):
         # protocol set up for calculating fluctuation properties.
         gradient_mbar_protocol = ReweightDielectricConstant('mbar')
 
-        gradient_mbar_protocol.reference_observables = [ProtocolPath('uncorrelated_values', extract_dielectric.id)]
-        gradient_mbar_protocol.reference_volumes = [ProtocolPath('uncorrelated_volumes', extract_dielectric.id)]
+        gradient_mbar_protocol.reference_observables = [ProtocolPath('uncorrelated_values',
+                                                                     converge_uncertainty.id,
+                                                                     extract_dielectric.id)]
+        gradient_mbar_protocol.reference_volumes = [ProtocolPath('uncorrelated_volumes',
+                                                                 converge_uncertainty.id,
+                                                                 extract_dielectric.id)]
         gradient_mbar_protocol.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 
         gradient_group, gradient_replicator, gradient_source = \
