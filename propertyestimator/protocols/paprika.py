@@ -126,6 +126,10 @@ class BasePaprikaProtocol(BaseProtocol):
         pass
 
     @protocol_output(EstimatedQuantity)
+    def symmetry_correction(self):
+        pass
+
+    @protocol_output(EstimatedQuantity)
     def reference_free_energy(self):
         pass
 
@@ -161,6 +165,7 @@ class BasePaprikaProtocol(BaseProtocol):
         self._pull_free_energy = None
         self._release_free_energy = None
         self._reference_free_energy = None
+        self._symmetry_correction = None
 
         self._paprika_setup = None
 
@@ -505,7 +510,7 @@ class BasePaprikaProtocol(BaseProtocol):
 
         if 'symmetry_correction' in self._results_dictionary:
             self._symmetry_correction = EstimatedQuantity(
-                -self._results_dictionary['symmetry_correction'] * unit.kilocalorie_per_mole,
+                self._results_dictionary['symmetry_correction'] * unit.kilocalorie_per_mole,
                 0 * unit.kilocalorie_per_mole, self._id)
 
 
