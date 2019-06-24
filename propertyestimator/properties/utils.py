@@ -1,10 +1,11 @@
 """
 A set of utilities for setting up property estimation workflows.
 """
-
+import copy
 from collections import namedtuple
 
 from propertyestimator.protocols import analysis, forcefield, gradients, groups, reweighting
+from propertyestimator.workflow.plugins import available_protocols
 from propertyestimator.workflow.schemas import ProtocolReplicator
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
@@ -149,13 +150,37 @@ def generate_base_reweighting_protocols(analysis_protocol, replicator_id='data_r
     return base_protocols, component_replicator
 
 
+def _get_default_gradient_reweighting_schema(observable_values):
+    """Generates the schema for a `ReweightWithMBARProtocol` with settings
+    appropriate for use in reweighting observables for direct gradients
+    evaluations.
+
+    Parameters
+    ----------
+    observable_values: ProtocolPath, optional
+        The path to the observables whose gradient is to be determined.
+
+    Returns
+    -------
+    ProtocolSchema
+        The created schema.
+
+    """
+    mbar_protocol = reweighting.ReweightWithMBARProtocol(f'mbar')
+    mbar_protocol.reference_observables = [observable_values]
+    mbar_protocol.required_effective_samples = 0
+    mbar_protocol.bootstrap_uncertainties = False
+
+    return mbar_protocol.schema
+
+
 def generate_gradient_protocol_group(reference_force_field_paths,
                                      target_force_field_path,
                                      coordinate_file_path,
                                      trajectory_file_path,
                                      replicator_id='repl',
                                      observable_values=None,
-                                     observable_protocols=None,
+                                     template_reweighting_schema=None,
                                      perturbation_scale=1.0e-4):
     """Constructs a set of protocols which, when combined in a workflow schema,
     may be executed to reweight a set of existing data to estimate a particular
@@ -182,8 +207,8 @@ def generate_gradient_protocol_group(reference_force_field_paths,
         replicate this group for every parameter of interest.
     observable_values: ProtocolPath, optional
         The path to the observables whose gradient is to be determined. This
-        parameter is mutually exclusive with `observable_protocols`.
-    observable_protocols: Any, optional
+        parameter is mutually exclusive with `template_reweighting_schema`.
+    template_reweighting_schema: ReweightWithMBARProtocol
         Not yet implemented.
     perturbation_scale: float
         The default amount to perturb parameters by.
@@ -200,13 +225,15 @@ def generate_gradient_protocol_group(reference_force_field_paths,
         A protocol path which points to the final gradient value.
     """
 
-    if observable_protocols is not None:
+    if ((observable_values is not None and template_reweighting_schema is not None) or
+        (observable_values is None and template_reweighting_schema is None)):
 
-        raise NotImplementedError('Only gradients of simple values are currently '
-                                  'supported by this method.')
+        raise ValueError('Either `observable_values` or `template_reweighting_schema` '
+                         'must not be `None` (but not both).')
 
-    assert observable_values is not None
-
+    # Define the protocol which will evaluate the reduced potentials of the
+    # reference, forward and reverse states using only a subset of the full
+    # force field.
     reduced_potentials = gradients.GradientReducedPotentials(f'gradient_reduced_potentials_$({replicator_id})')
 
     reduced_potentials.substance = ProtocolPath('substance', 'global')
@@ -222,20 +249,31 @@ def generate_gradient_protocol_group(reference_force_field_paths,
 
     reduced_potentials.use_subset_of_force_field = True
 
-    reverse_mbar = reweighting.ReweightWithMBARProtocol(f'reverse_mbar_$({replicator_id})')
+    # Set up the protocols which will actually reweight the value of the
+    # observable to the forward and reverse states.
+    if template_reweighting_schema is None:
+        template_reweighting_schema = _get_default_gradient_reweighting_schema(observable_values)
+
+    reverse_mbar_schema = copy.deepcopy(template_reweighting_schema)
+    reverse_mbar_schema.id = f'reverse_{reverse_mbar_schema.id}_$({replicator_id})'
+
+    reverse_mbar = available_protocols[reverse_mbar_schema.type](reverse_mbar_schema.id)
+    reverse_mbar.schema = reverse_mbar_schema
     reverse_mbar.reference_reduced_potentials = ProtocolPath('reference_potential_paths', reduced_potentials.id)
-    reverse_mbar.reference_observables = [observable_values]
     reverse_mbar.target_reduced_potentials = [ProtocolPath('reverse_potentials_path', reduced_potentials.id)]
-    reverse_mbar.required_effective_samples = 0
-    reverse_mbar.bootstrap_uncertainties = False
+    reverse_mbar.bootstrap_iterations = min(1, reverse_mbar.bootstrap_iterations)
 
-    forward_mbar = reweighting.ReweightWithMBARProtocol(f'forward_mbar_$({replicator_id})')
+    forward_mbar_schema = copy.deepcopy(template_reweighting_schema)
+    forward_mbar_schema.id = f'forward_{forward_mbar_schema.id}_$({replicator_id})'
+
+    forward_mbar = available_protocols[forward_mbar_schema.type](forward_mbar_schema.id)
+    forward_mbar.schema = forward_mbar_schema
     forward_mbar.reference_reduced_potentials = ProtocolPath('reference_potential_paths', reduced_potentials.id)
-    forward_mbar.reference_observables = [observable_values]
     forward_mbar.target_reduced_potentials = [ProtocolPath('forward_potentials_path', reduced_potentials.id)]
-    forward_mbar.required_effective_samples = 0
-    forward_mbar.bootstrap_uncertainties = False
+    forward_mbar.bootstrap_iterations = min(1, reverse_mbar.bootstrap_iterations)
 
+    # Set up the protocol which will actually evaluate the parameter gradient
+    # using the central difference method.
     central_difference = gradients.CentralDifferenceGradient(f'central_difference_$({replicator_id})')
     central_difference.parameter_key = ReplicatorValue(replicator_id)
     central_difference.reverse_observable_value = ProtocolPath('value', reverse_mbar.id)
@@ -243,6 +281,7 @@ def generate_gradient_protocol_group(reference_force_field_paths,
     central_difference.reverse_parameter_value = ProtocolPath('reverse_parameter_value', reduced_potentials.id)
     central_difference.forward_parameter_value = ProtocolPath('forward_parameter_value', reduced_potentials.id)
 
+    # Assemble all of the protocols into a convenient group wrapper.
     gradient_group = groups.ProtocolGroup(f'gradient_group_$({replicator_id})')
     gradient_group.add_protocols(reduced_potentials, reverse_mbar, forward_mbar, central_difference)
 
@@ -251,6 +290,8 @@ def generate_gradient_protocol_group(reference_force_field_paths,
     protocols_to_replicate.extend([ProtocolPath('', gradient_group.id, protocol_id) for
                                    protocol_id in gradient_group.protocols])
 
+    # Create the replicator which will copy the group for each parameter gradient
+    # which will be calculated.
     parameter_replicator = ProtocolReplicator(replicator_id=replicator_id)
     parameter_replicator.protocols_to_replicate = protocols_to_replicate
     parameter_replicator.template_values = ProtocolPath('parameter_gradient_keys', 'global')

@@ -11,7 +11,8 @@ from simtk import openmm, unit
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties import PhysicalProperty, PropertyPhase
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.properties.utils import generate_base_reweighting_protocols, BaseReweightingProtocols
+from propertyestimator.properties.utils import generate_base_reweighting_protocols, BaseReweightingProtocols, \
+    generate_gradient_protocol_group
 from propertyestimator.protocols import analysis, coordinates, forcefield, groups, reweighting, simulation
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils import timeseries
@@ -368,9 +369,7 @@ class DielectricConstant(PhysicalProperty):
         schema.protocols[build_coordinates.id] = build_coordinates.schema
 
         assign_topology = forcefield.BuildSmirnoffSystem('build_topology')
-
         assign_topology.force_field_path = ProtocolPath('force_field_path', 'global')
-
         assign_topology.coordinate_file_path = ProtocolPath('coordinate_file_path', build_coordinates.id)
         assign_topology.substance = ProtocolPath('substance', 'global')
 
@@ -477,6 +476,27 @@ class DielectricConstant(PhysicalProperty):
 
         schema.protocols[extract_uncorrelated_statistics.id] = extract_uncorrelated_statistics.schema
 
+        # Set up the gradient calculations. For dielectric constants, we need to use
+        # a slightly specialised reweighting protocol which we set up here.
+        # protocol set up for calculating fluctuation properties.
+        gradient_mbar_protocol = ReweightDielectricConstant('mbar')
+
+        gradient_mbar_protocol.reference_observables = [ProtocolPath('uncorrelated_values', extract_dielectric.id)]
+        gradient_mbar_protocol.reference_volumes = [ProtocolPath('uncorrelated_volumes', extract_dielectric.id)]
+        gradient_mbar_protocol.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
+
+        gradient_group, gradient_replicator, gradient_source = \
+            generate_gradient_protocol_group([ProtocolPath('force_field_path', 'global')],
+                                             ProtocolPath('force_field_path', 'global'),
+                                             ProtocolPath('output_coordinate_file', npt_equilibration.id),
+                                             ProtocolPath('output_trajectory_path', extract_uncorrelated_trajectory.id),
+                                             template_reweighting_schema=gradient_mbar_protocol.schema)
+
+        schema.protocols[gradient_group.id] = gradient_group.schema
+        schema.replicators.append(gradient_replicator)
+
+        schema.gradients_sources = [gradient_source]
+
         # Define where the final values come from.
         schema.final_value_source = ProtocolPath('value', converge_uncertainty.id, extract_dielectric.id)
 
@@ -518,14 +538,15 @@ class DielectricConstant(PhysicalProperty):
 
         unpack_id = base_reweighting_protocols.unpack_stored_data.id
 
+        # Set up a protocol to extract the dielectric constant from the stored data.
         dielectric_calculation.thermodynamic_state = ProtocolPath('thermodynamic_state', unpack_id)
         dielectric_calculation.input_coordinate_file = ProtocolPath('coordinate_file_path', unpack_id)
         dielectric_calculation.trajectory_path = ProtocolPath('trajectory_file_path', unpack_id)
         dielectric_calculation.system_path = ProtocolPath('system_path',
                                                           base_reweighting_protocols.build_reference_system.id)
 
-        # For the dielectric constant, we employ a slightly more advanced protocol
-        # set up for calculating fluctuation properties.
+        # For the dielectric constant, we employ a slightly more advanced reweighting
+        # protocol set up for calculating fluctuation properties.
         mbar_protocol = ReweightDielectricConstant('mbar')
 
         mbar_protocol.reference_reduced_potentials = [ProtocolPath('statistics_file_path',
@@ -543,6 +564,9 @@ class DielectricConstant(PhysicalProperty):
         mbar_protocol.bootstrap_uncertainties = True
         mbar_protocol.bootstrap_iterations = 200
 
+        # Make a copy of the mbar reweighting schema to use for evaulating gradients by reweighting.
+        mbar_template_schema = mbar_protocol.schema
+
         # Recreate the immutable tuple for convenience.
         base_reweighting_protocols = BaseReweightingProtocols(base_reweighting_protocols.unpack_stored_data,
                                                               base_reweighting_protocols.analysis_protocol,
@@ -554,13 +578,28 @@ class DielectricConstant(PhysicalProperty):
                                                               base_reweighting_protocols.reduced_target_potential,
                                                               mbar_protocol)
 
+        # Set up the gradient calculations
+        coordinate_path = ProtocolPath('output_coordinate_path', base_reweighting_protocols.concatenate_trajectories.id)
+        trajectory_path = ProtocolPath('output_trajectory_path', base_reweighting_protocols.concatenate_trajectories.id)
+
+        gradient_group, gradient_replicator, gradient_source = \
+            generate_gradient_protocol_group([ProtocolPath('force_field_path',
+                                                           base_reweighting_protocols.unpack_stored_data.id)],
+                                             ProtocolPath('force_field_path', 'global'),
+                                             coordinate_path,
+                                             trajectory_path,
+                                             'grad',
+                                             template_reweighting_schema=mbar_template_schema)
+
         schema = WorkflowSchema(property_type=DielectricConstant.__name__)
         schema.id = '{}{}'.format(DielectricConstant.__name__, 'Schema')
 
         schema.protocols = {protocol.id: protocol.schema for protocol in base_reweighting_protocols}
+        schema.protocols[gradient_group.id] = gradient_group.schema
 
-        schema.replicators = [data_replicator]
+        schema.replicators = [data_replicator, gradient_replicator]
 
+        schema.gradients_sources = [gradient_source]
         schema.final_value_source = ProtocolPath('value', base_reweighting_protocols.mbar_protocol.id)
 
         return schema
