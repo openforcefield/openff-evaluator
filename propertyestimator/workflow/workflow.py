@@ -1365,7 +1365,11 @@ class WorkflowGraph:
             #       more general in future if possible.
             for output_to_store in outputs_to_store.values():
 
-                results_directory = path.join(directory, f'results_{property_to_return.id}')
+                substance_id = (property_to_return.substance.identifier if
+                                output_to_store.substance is None else
+                                output_to_store.substance.identifier)
+
+                results_directory = path.join(directory, f'results_{property_to_return.id}_{substance_id}')
 
                 WorkflowGraph._store_simulation_data(results_directory,
                                                      output_to_store,
