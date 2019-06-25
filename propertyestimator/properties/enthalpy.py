@@ -168,7 +168,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         converge_uncertainty = groups.ConditionalGroup(id_prefix + 'converge_uncertainty')
         converge_uncertainty.add_protocols(npt_production, extract_enthalpy)
 
-        converge_uncertainty.max_iterations = 1
+        converge_uncertainty.max_iterations = 100
 
         condition = groups.ConditionalGroup.Condition()
 
