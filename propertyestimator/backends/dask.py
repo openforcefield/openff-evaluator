@@ -81,6 +81,7 @@ class DaskLSFBackend(BaseDaskBackend):
                  default_memory_unit=unit.giga*unit.byte,
                  queue_name='default',
                  setup_script_commands=None,
+                 extra_script_options=None,
                  adaptive_interval='10000ms',
                  disable_nanny_process=True):
 
@@ -107,6 +108,11 @@ class DaskLSFBackend(BaseDaskBackend):
 
             This may include activating a python environment, or loading
             an environment module
+        extra_script_options: list of str
+            A list of extra job specific options to include in the queue
+            submission script. These will get added to the script header in the form
+
+            #BSUB <extra_script_options[x]>
         adaptive_interval: str
             The interval between attempting to either scale up or down
             the cluster, of of the from 'XXXms'.
@@ -133,20 +139,28 @@ class DaskLSFBackend(BaseDaskBackend):
         >>>
         >>> # Define the set of commands which will set up the correct environment
         >>> # for each of the workers.
-        >>> worker_script_commands = [
+        >>> setup_script_commands = [
         >>>     'module load cuda/9.2',
         >>> ]
+        >>>
+        >>> # Define extra options to only run on certain node groups
+        >>> extra_script_options = [
+        >>>     '-m "ls-gpu lt-gpu"'
+        >>> ]
+        >>>
         >>>
         >>> # Create the backend which will adaptively try to spin up between one and
         >>> # ten workers with the requested resources depending on the calculation load.
         >>> from propertyestimator.backends import DaskLSFBackend
         >>> from simtk.unit import unit
+        >>>
         >>> lsf_backend = DaskLSFBackend(minimum_number_of_workers=1,
         >>>                              maximum_number_of_workers=10,
         >>>                              resources_per_worker=resources,
         >>>                              default_memory_unit=unit.gigabyte,
         >>>                              queue_name='gpuqueue',
-        >>>                              setup_script_commands=worker_script_commands)
+        >>>                              setup_script_commands=setup_script_commands,
+        >>>                              extra_script_options=extra_script_options)
         """
 
         super().__init__(minimum_number_of_workers, resources_per_worker)
@@ -180,6 +194,7 @@ class DaskLSFBackend(BaseDaskBackend):
         self._queue_name = queue_name
 
         self._setup_script_commands = setup_script_commands
+        self._extra_script_options = extra_script_options
 
         self._adaptive_interval = adaptive_interval
 
@@ -199,13 +214,16 @@ class DaskLSFBackend(BaseDaskBackend):
         lsf_byte_scale = (1 * (unit.mega * unit.byte)).value_in_unit(self._default_memory_unit)
         memory_bytes *= lsf_byte_scale
 
-        job_extra = None
+        job_extra = []
 
         if self._resources_per_worker.number_of_gpus > 0:
 
             job_extra = [
                 '-gpu num={}:j_exclusive=yes:mode=shared:mps=no:'.format(self._resources_per_worker.number_of_gpus)
             ]
+
+        if self._extra_script_options is not None:
+            job_extra.extend(self._extra_script_options)
 
         extra = None if not self._disable_nanny_process else ['--no-nanny']
 
