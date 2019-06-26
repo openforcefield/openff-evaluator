@@ -168,22 +168,6 @@ class EnthalpyOfMixing(PhysicalProperty):
         converge_uncertainty = groups.ConditionalGroup(id_prefix + 'converge_uncertainty')
         converge_uncertainty.add_protocols(npt_production, extract_enthalpy)
 
-        converge_uncertainty.max_iterations = 100
-
-        condition = groups.ConditionalGroup.Condition()
-
-        condition.left_hand_value = ProtocolPath('value.uncertainty', converge_uncertainty.id, extract_enthalpy.id)
-        condition.right_hand_value = ProtocolPath('per_component_uncertainty', 'global')
-        condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
-
-        converge_uncertainty.add_condition(condition)
-
-        statistical_inefficiency = ProtocolPath('statistical_inefficiency',
-                                                converge_uncertainty.id, extract_enthalpy.id)
-
-        equilibration_index = ProtocolPath('equilibration_index',
-                                           converge_uncertainty.id, extract_enthalpy.id)
-
         if weight_by_mole_fraction:
 
             # The component workflows need an extra step to multiply their enthalpies by their
@@ -197,6 +181,27 @@ class EnthalpyOfMixing(PhysicalProperty):
             weight_by_mole_fraction.component = ReplicatorValue('repl')
 
             converge_uncertainty.add_protocols(weight_by_mole_fraction)
+
+        converge_uncertainty.max_iterations = 100
+
+        condition = groups.ConditionalGroup.Condition()
+
+        if not weight_by_mole_fraction:
+            condition.left_hand_value = ProtocolPath('value.uncertainty', converge_uncertainty.id, extract_enthalpy.id)
+        else:
+            condition.left_hand_value = ProtocolPath('weighted_value.uncertainty', converge_uncertainty.id,
+                                                     weight_by_mole_fraction.id)
+
+        condition.right_hand_value = ProtocolPath('per_component_uncertainty', 'global')
+        condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
+
+        converge_uncertainty.add_condition(condition)
+
+        statistical_inefficiency = ProtocolPath('statistical_inefficiency',
+                                                converge_uncertainty.id, extract_enthalpy.id)
+
+        equilibration_index = ProtocolPath('equilibration_index',
+                                           converge_uncertainty.id, extract_enthalpy.id)
 
         # Extract the uncorrelated trajectory.
         extract_uncorrelated_trajectory = analysis.ExtractUncorrelatedTrajectoryData(id_prefix + 'extract_traj')
