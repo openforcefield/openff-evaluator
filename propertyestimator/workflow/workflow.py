@@ -1342,12 +1342,12 @@ class WorkflowGraph:
 
             if value_reference is not None:
 
-                # if target_uncertainty is not None and results_by_id[value_reference].uncertainty > target_uncertainty:
-                #
-                #     logging.info('The final uncertainty ({}) was not less than the target threshold ({}).'.format(
-                #         results_by_id[value_reference].uncertainty, target_uncertainty))
-                #
-                #     return None
+                if target_uncertainty is not None and results_by_id[value_reference].uncertainty > target_uncertainty:
+
+                    logging.info('The final uncertainty ({}) was not less than the target threshold ({}).'.format(
+                        results_by_id[value_reference].uncertainty, target_uncertainty))
+
+                    return None
 
                 property_to_return.value = results_by_id[value_reference].value
                 property_to_return.uncertainty = results_by_id[value_reference].uncertainty
