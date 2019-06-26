@@ -76,15 +76,6 @@ class BuildSmirnoffSystem(BaseProtocol):
         system."""
         pass
 
-    @protocol_input(bool)
-    def allow_missing_parameters(self):
-        """If true, no exception will be raised if no parameters
-        have been assigned to any of the molecular interactions
-        (e.g. if a particular bond has not been assigned a parameter
-        because that chemical environment is not covered by the
-        force field)."""
-        pass
-
     @protocol_output(str)
     def system_path(self):
         """The assigned system."""
@@ -101,8 +92,6 @@ class BuildSmirnoffSystem(BaseProtocol):
 
         self._water_model = BuildSmirnoffSystem.WaterModel.TIP3P
         self._apply_known_charges = True
-
-        self._allow_missing_parameters = False
 
         self._charged_molecule_paths = []
 
@@ -195,11 +184,9 @@ class BuildSmirnoffSystem(BaseProtocol):
 
         if len(charged_molecules) > 0:
             system = force_field.create_openmm_system(topology,
-                                                      allow_missing_parameters=self._allow_missing_parameters,
                                                       charge_from_molecules=charged_molecules)
         else:
-            system = force_field.create_openmm_system(topology,
-                                                      allow_missing_parameters=self._allow_missing_parameters)
+            system = force_field.create_openmm_system(topology)
 
         if system is None:
 

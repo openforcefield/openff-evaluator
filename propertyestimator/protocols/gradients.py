@@ -174,8 +174,7 @@ class GradientReducedPotentials(BaseProtocol):
             parameter_value *= (1.0 + scale_amount)
             setattr(existing_parameter, parameter_attribute, parameter_value)
 
-        system = force_field.create_openmm_system(topology,
-                                                  allow_missing_parameters=True)
+        system = force_field.create_openmm_system(topology)
 
         return system, parameter_value
 
