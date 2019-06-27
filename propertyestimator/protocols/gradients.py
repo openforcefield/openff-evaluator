@@ -2,6 +2,7 @@
 A collection of protocols for reweighting cached simulation data.
 """
 import copy
+import logging
 from os import path
 
 import numpy as np
@@ -235,6 +236,8 @@ class GradientReducedPotentials(BaseProtocol):
         from openforcefield.topology import Molecule, Topology
         from openforcefield.typing.engines.smirnoff import ForceField
 
+        logging.info(f'Calculating the reduced gradient potentials for {self._parameter_key}: {self._id}')
+
         target_force_field = ForceField(self._force_field_path)
 
         trajectory = mdtraj.load_dcd(self._trajectory_file_path,
@@ -301,6 +304,8 @@ class GradientReducedPotentials(BaseProtocol):
             self._reference_potential_paths.append(path.join(directory, f'reference_{index}.csv'))
             statistics_array[ObservableType.ReducedPotential] = reference_reduced_potentials
             statistics_array.to_pandas_csv(self._reference_potential_paths[-1])
+
+        logging.info(f'Finished calculating the reduced gradient potentials.')
 
         return self._get_output_dictionary()
 
