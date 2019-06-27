@@ -202,12 +202,13 @@ class PropertyCalculationLayer:
 
                     continue
 
-                if (returned_output.calculated_property is None and
-                    returned_output.exception is None):
+                if returned_output.calculated_property is None:
 
-                    logging.info('A calculation layer did not return an estimated property nor did it '
-                                 'raise an Exception. This sometimes and expectedly occurs when using '
-                                 'queue based calculation backends, but should be investigated.')
+                    if returned_output.exception is None:
+
+                        logging.info('A calculation layer did not return an estimated property nor did it '
+                                     'raise an Exception. This sometimes and expectedly occurs when using '
+                                     'queue based calculation backends, but should be investigated.')
 
                     continue
 

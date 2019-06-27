@@ -278,6 +278,8 @@ class ProtocolGroup(BaseProtocol):
         for protocol_id_to_execute in self._execution_order:
 
             protocol_to_execute = self._protocols[protocol_id_to_execute]
+            protocol_to_execute_schema = protocol_to_execute.schema
+
             working_directory = path.join(directory, protocol_to_execute.id)
 
             if not path.isdir(working_directory):
@@ -317,6 +319,8 @@ class ProtocolGroup(BaseProtocol):
                     output_path_prepended.prepend_protocol_id(self.id)
 
                 output_dictionary[output_path_prepended.full_path] = return_value[output_path]
+
+            protocol_to_execute.schema = protocol_to_execute_schema
 
         return output_dictionary
 
