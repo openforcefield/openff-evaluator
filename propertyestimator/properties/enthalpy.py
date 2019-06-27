@@ -14,7 +14,7 @@ from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
-from propertyestimator.workflow import plugins, protocols
+from propertyestimator.workflow import plugins, protocols, WorkflowOptions
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
 from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowOutputToStore, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
@@ -184,18 +184,21 @@ class EnthalpyOfMixing(PhysicalProperty):
 
         converge_uncertainty.max_iterations = 100
 
-        condition = groups.ConditionalGroup.Condition()
+        if options.convergence_mode != WorkflowOptions.ConvergenceMode.NoChecks:
 
-        if not weight_by_mole_fraction:
-            condition.left_hand_value = ProtocolPath('value.uncertainty', converge_uncertainty.id, extract_enthalpy.id)
-        else:
-            condition.left_hand_value = ProtocolPath('weighted_value.uncertainty', converge_uncertainty.id,
-                                                     weight_by_mole_fraction.id)
+            condition = groups.ConditionalGroup.Condition()
 
-        condition.right_hand_value = ProtocolPath('per_component_uncertainty', 'global')
-        condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
+            if not weight_by_mole_fraction:
+                condition.left_hand_value = ProtocolPath('value.uncertainty', converge_uncertainty.id,
+                                                         extract_enthalpy.id)
+            else:
+                condition.left_hand_value = ProtocolPath('weighted_value.uncertainty', converge_uncertainty.id,
+                                                         weight_by_mole_fraction.id)
 
-        converge_uncertainty.add_condition(condition)
+            condition.right_hand_value = ProtocolPath('per_component_uncertainty', 'global')
+            condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
+
+            converge_uncertainty.add_condition(condition)
 
         statistical_inefficiency = ProtocolPath('statistical_inefficiency',
                                                 converge_uncertainty.id, extract_enthalpy.id)

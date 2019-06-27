@@ -877,9 +877,7 @@ class ConditionalGroup(ProtocolGroup):
 
                 # Check to see if we have reached our goal.
                 if not self._evaluate_condition(condition):
-
                     conditions_met = False
-                    break
 
             if conditions_met:
 

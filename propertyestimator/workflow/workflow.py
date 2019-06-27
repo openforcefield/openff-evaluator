@@ -5,6 +5,7 @@ import abc
 import copy
 import json
 import logging
+import math
 import re
 import time
 import traceback
@@ -45,7 +46,7 @@ class WorkflowOptions:
         (`ConvergenceMode.RelativeUncertainty`) or is less than some absolute
         value (`ConvergenceMode.AbsoluteUncertainty`)."""
 
-        # NoChecks = 'NoChecks'
+        NoChecks = 'NoChecks'
         RelativeUncertainty = 'RelativeUncertainty'
         AbsoluteUncertainty = 'AbsoluteUncertainty'
 
@@ -845,6 +846,8 @@ class Workflow:
             target_uncertainty = physical_property.uncertainty * workflow_options.relative_uncertainty_fraction
         elif workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.AbsoluteUncertainty:
             target_uncertainty = workflow_options.absolute_uncertainty
+        elif workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.NoChecks:
+            target_uncertainty = math.inf
         else:
             raise ValueError('The convergence mode {} is not supported.'.format(workflow_options.convergence_mode))
 
@@ -1342,7 +1345,8 @@ class WorkflowGraph:
 
             if value_reference is not None:
 
-                if target_uncertainty is not None and results_by_id[value_reference].uncertainty > target_uncertainty:
+                if (target_uncertainty is not None and
+                    results_by_id[value_reference].uncertainty > target_uncertainty):
 
                     logging.info('The final uncertainty ({}) was not less than the target threshold ({}).'.format(
                         results_by_id[value_reference].uncertainty, target_uncertainty))
