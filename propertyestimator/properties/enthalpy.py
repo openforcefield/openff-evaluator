@@ -182,7 +182,7 @@ class EnthalpyOfMixing(PhysicalProperty):
 
             converge_uncertainty.add_protocols(weight_by_mole_fraction)
 
-        converge_uncertainty.max_iterations = 100
+        converge_uncertainty.max_iterations = 150
 
         if options.convergence_mode != WorkflowOptions.ConvergenceMode.NoChecks:
 
