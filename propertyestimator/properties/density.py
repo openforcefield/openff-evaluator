@@ -245,6 +245,10 @@ class Density(PhysicalProperty):
                                              'grad',
                                              ProtocolPath('uncorrelated_values', density_calculation.id))
 
+        # TODO: Implement a cleaner way to handle this.
+        if options.convergence_mode == WorkflowOptions.ConvergenceMode.NoChecks:
+            base_reweighting_protocols.mbar_protocol.required_effective_samples = 0
+
         schema = WorkflowSchema(property_type=Density.__name__)
         schema.id = '{}{}'.format(Density.__name__, 'Schema')
 
