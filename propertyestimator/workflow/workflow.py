@@ -783,6 +783,64 @@ class Workflow:
                                                  new_protocol_id)
 
     @staticmethod
+    def _find_relevant_gradient_keys(substance, force_field_path, parameter_gradient_keys):
+        """Extract only those keys which may be applied to the
+        given substance.
+
+        Parameters
+        ----------
+        substance: Substance
+            The substance to compare against.
+        force_field_path: str
+            The path to the force field which contains the parameters.
+        parameter_gradient_keys: list of ParameterGradientKey
+            The original list of parameter gradient keys.
+
+        Returns
+        -------
+        list of ParameterGradientKey
+            The filtered list of parameter gradient keys.
+        """
+        from openforcefield.topology import Molecule, Topology
+        from openforcefield.typing.engines.smirnoff import ForceField
+
+        force_field = ForceField(force_field_path)
+
+        all_molecules = []
+
+        for component in substance.components:
+            all_molecules.append(Molecule.from_smiles(component.smiles))
+
+        topology = Topology.from_molecules(all_molecules)
+        labelled_molecules = force_field.label_molecules(topology)
+
+        reduced_parameter_keys = []
+
+        for labelled_molecule in labelled_molecules:
+
+            for parameter_key in parameter_gradient_keys:
+
+                if parameter_key.tag not in labelled_molecule:
+                    continue
+
+                contains_parameter = False
+
+                for parameter in labelled_molecule[parameter_key.tag].store.values():
+
+                    if parameter.smirks != parameter_key.smirks:
+                        continue
+
+                    contains_parameter = True
+                    break
+
+                if not contains_parameter:
+                    continue
+
+                reduced_parameter_keys.append(parameter_key)
+
+        return reduced_parameter_keys
+
+    @staticmethod
     def generate_default_metadata(physical_property, force_field_path,
                                   parameter_gradient_keys=None, estimator_options=None):
         """Generates a default global metadata dictionary.
@@ -859,6 +917,12 @@ class Workflow:
         # +1 comes from inclusion of the full mixture as a possible component.
         per_component_uncertainty = target_uncertainty / sqrt(physical_property.substance.number_of_components + 1)
 
+        # Find only those gradient keys which will actually be relevant to the
+        # property of interest
+        relevant_gradient_keys = Workflow._find_relevant_gradient_keys(physical_property.substance,
+                                                                       force_field_path,
+                                                                       parameter_gradient_keys)
+
         # Define a dictionary of accessible 'global' properties.
         global_metadata = {
             "thermodynamic_state": physical_property.thermodynamic_state,
@@ -867,7 +931,7 @@ class Workflow:
             "target_uncertainty": target_uncertainty,
             "per_component_uncertainty": per_component_uncertainty,
             "force_field_path": force_field_path,
-            "parameter_gradient_keys": parameter_gradient_keys
+            "parameter_gradient_keys": relevant_gradient_keys
         }
 
         # Include the properties metadata
