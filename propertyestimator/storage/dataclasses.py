@@ -24,6 +24,8 @@ class StoredSimulationData:
         self.statistics_file_name = None
         self.statistical_inefficiency = 0.0
 
+        self.total_number_of_molecules = None
+
         self.force_field_id = None
 
     def __getstate__(self):
@@ -43,6 +45,8 @@ class StoredSimulationData:
             'statistics_file_name': self.statistics_file_name,
             'statistical_inefficiency': self.statistical_inefficiency,
 
+            'total_number_of_molecules': self.total_number_of_molecules,
+
             'force_field_id': self.force_field_id,
         }
 
@@ -61,5 +65,7 @@ class StoredSimulationData:
 
         self.statistics_file_name = state['statistics_file_name']
         self.statistical_inefficiency = state['statistical_inefficiency']
+
+        self.total_number_of_molecules = state['total_number_of_molecules']
 
         self.force_field_id = state['force_field_id']

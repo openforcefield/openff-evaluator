@@ -8,7 +8,8 @@ from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.properties.properties import PhysicalProperty, PropertyPhase
 from propertyestimator.properties.utils import generate_base_reweighting_protocols
-from propertyestimator.protocols import analysis, coordinates, forcefield, groups, miscellaneous, simulation
+from propertyestimator.protocols import analysis, coordinates, forcefield, groups, miscellaneous, simulation, \
+    reweighting
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.exceptions import PropertyEstimatorException
@@ -168,6 +169,13 @@ class EnthalpyOfMixing(PhysicalProperty):
         converge_uncertainty = groups.ConditionalGroup(id_prefix + 'converge_uncertainty')
         converge_uncertainty.add_protocols(npt_production, extract_enthalpy)
 
+        # Divide by the number of molecules in the system
+        divide_by_molecules = miscellaneous.DivideValue(id_prefix + 'divide_by_molecules')
+        divide_by_molecules.value = ProtocolPath('value', extract_enthalpy.id)
+        divide_by_molecules.divisor = ProtocolPath('max_molecules', build_coordinates.id)
+
+        converge_uncertainty.add_protocols(divide_by_molecules)
+
         if weight_by_mole_fraction:
 
             # The component workflows need an extra step to multiply their enthalpies by their
@@ -182,18 +190,17 @@ class EnthalpyOfMixing(PhysicalProperty):
 
             converge_uncertainty.add_protocols(weight_by_mole_fraction)
 
+            # Make sure to divide the weighted value.
+            divide_by_molecules.value = ProtocolPath('weighted_value', weight_by_mole_fraction.id)
+
         converge_uncertainty.max_iterations = 150
 
         if options.convergence_mode != WorkflowOptions.ConvergenceMode.NoChecks:
 
             condition = groups.ConditionalGroup.Condition()
 
-            if not weight_by_mole_fraction:
-                condition.left_hand_value = ProtocolPath('value.uncertainty', converge_uncertainty.id,
-                                                         extract_enthalpy.id)
-            else:
-                condition.left_hand_value = ProtocolPath('weighted_value.uncertainty', converge_uncertainty.id,
-                                                         weight_by_mole_fraction.id)
+            condition.left_hand_value = ProtocolPath('result.uncertainty', converge_uncertainty.id,
+                                                                           divide_by_molecules.id)
 
             condition.right_hand_value = ProtocolPath('per_component_uncertainty', 'global')
             condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
@@ -287,15 +294,15 @@ class EnthalpyOfMixing(PhysicalProperty):
         # component workflow's `weight_by_mole_fraction` protocol, the replicator
         # will actually populate this list with references to all of the newly generated
         # protocols of the individual components.
-        add_component_enthalpies.values = [ProtocolPath('weighted_value', component_workflow.converge_uncertainty.id,
-                                                                          'component_$(repl)_weight_by_mole_fraction')]
+        add_component_enthalpies.values = [ProtocolPath('result', component_workflow.converge_uncertainty.id,
+                                                                  'component_$(repl)_divide_by_molecules')]
 
         schema.protocols[add_component_enthalpies.id] = add_component_enthalpies.schema
 
         calculate_enthalpy_of_mixing = miscellaneous.SubtractValues('calculate_enthalpy_of_mixing')
 
-        calculate_enthalpy_of_mixing.value_b = ProtocolPath('value', mixed_system_workflow.converge_uncertainty.id,
-                                                                     'mixed_extract_enthalpy')
+        calculate_enthalpy_of_mixing.value_b = ProtocolPath('result', mixed_system_workflow.converge_uncertainty.id,
+                                                                     'mixed_divide_by_molecules')
         calculate_enthalpy_of_mixing.value_a = ProtocolPath('result', add_component_enthalpies.id)
 
         schema.protocols[calculate_enthalpy_of_mixing.id] = calculate_enthalpy_of_mixing.schema
@@ -335,6 +342,9 @@ class EnthalpyOfMixing(PhysicalProperty):
 
         mixed_output_to_store = WorkflowOutputToStore()
 
+        mixed_output_to_store.total_number_of_molecules = ProtocolPath('max_molecules',
+                                                                       mixed_system_workflow.build_coordinates.id)
+
         mixed_output_to_store.trajectory_file_path = ProtocolPath('output_trajectory_path',
                                                                   mixed_system_workflow.subsample_trajectory.id)
 
@@ -352,6 +362,9 @@ class EnthalpyOfMixing(PhysicalProperty):
         component_output_to_store = WorkflowOutputToStore()
 
         component_output_to_store.substance = ReplicatorValue('repl')
+
+        component_output_to_store.total_number_of_molecules = ProtocolPath('max_molecules',
+                                                                           component_workflow.build_coordinates.id)
 
         component_output_to_store.trajectory_file_path = ProtocolPath('output_trajectory_path',
                                                                       component_workflow.subsample_trajectory.id)
@@ -423,17 +436,37 @@ class EnthalpyOfMixing(PhysicalProperty):
         weight_by_mole_fraction.full_substance = ProtocolPath('substance', 'global')
         weight_by_mole_fraction.component = ReplicatorValue('comp_repl')
 
+        # Divide by the component enthalpies by the number of molecules in the system
+        pure_stored_data = reweighting.UnpackStoredSimulationData('pure_unpack_data_$(comp_repl)')
+        pure_stored_data.simulation_data_path = ProtocolPath('component_data[0]', 'global')
+
+        pure_divide_by_molecules = miscellaneous.DivideValue('divide_by_molecules_$(comp_repl)')
+        pure_divide_by_molecules.value = ProtocolPath('weighted_value', weight_by_mole_fraction.id)
+        pure_divide_by_molecules.divisor = ProtocolPath('total_number_of_molecules', pure_stored_data.id)
+
+        # Divide by the mixture enthalpy by the number of molecules in the system
+        mixture_stored_data = reweighting.UnpackStoredSimulationData('mixture_unpack_data')
+        mixture_stored_data.simulation_data_path = ProtocolPath('full_system_data[0]', 'global')
+
+        mixture_divide_by_molecules = miscellaneous.DivideValue('divide_by_molecules')
+        mixture_divide_by_molecules.value = ProtocolPath('value', mixture_protocols.mbar_protocol.id)
+        mixture_divide_by_molecules.divisor = ProtocolPath('total_number_of_molecules', mixture_stored_data.id)
+
         add_component_enthalpies = miscellaneous.AddValues('add_component_enthalpies')
-        add_component_enthalpies.values = [ProtocolPath('weighted_value', weight_by_mole_fraction.id)]
+        add_component_enthalpies.values = [ProtocolPath('result', pure_divide_by_molecules.id)]
 
         calculate_enthalpy_of_mixing = miscellaneous.SubtractValues('calculate_enthalpy_of_mixing')
-        calculate_enthalpy_of_mixing.value_b = ProtocolPath('value', mixture_protocols.mbar_protocol.id)
+        calculate_enthalpy_of_mixing.value_b = ProtocolPath('result', mixture_divide_by_molecules.id)
         calculate_enthalpy_of_mixing.value_a = ProtocolPath('result', add_component_enthalpies.id)
 
         # Set up a replicator that will re-run the pure reweighting workflow for each
         # component in the system.
         pure_component_replicator = ProtocolReplicator(replicator_id='comp_repl')
-        pure_component_replicator.protocols_to_replicate = [ProtocolPath('', weight_by_mole_fraction.id)]
+        pure_component_replicator.protocols_to_replicate = [
+            ProtocolPath('', weight_by_mole_fraction.id),
+            ProtocolPath('', pure_stored_data.id),
+            ProtocolPath('', pure_divide_by_molecules.id)
+        ]
 
         for pure_protocol in pure_protocols:
             pure_component_replicator.protocols_to_replicate.append(ProtocolPath('', pure_protocol.id))
@@ -450,6 +483,10 @@ class EnthalpyOfMixing(PhysicalProperty):
         schema.protocols.update({protocol.id: protocol.schema for protocol in pure_protocols})
 
         schema.protocols[weight_by_mole_fraction.id] = weight_by_mole_fraction.schema
+        schema.protocols[pure_stored_data.id] = pure_stored_data.schema
+        schema.protocols[pure_divide_by_molecules.id] = pure_divide_by_molecules.schema
+        schema.protocols[mixture_stored_data.id] = mixture_stored_data.schema
+        schema.protocols[mixture_divide_by_molecules.id] = mixture_divide_by_molecules.schema
         schema.protocols[add_component_enthalpies.id] = add_component_enthalpies.schema
         schema.protocols[calculate_enthalpy_of_mixing.id] = calculate_enthalpy_of_mixing.schema
 

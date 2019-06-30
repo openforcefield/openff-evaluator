@@ -508,6 +508,8 @@ class DielectricConstant(PhysicalProperty):
 
         output_to_store = WorkflowOutputToStore()
 
+        output_to_store.total_number_of_molecules = ProtocolPath('max_molecules', build_coordinates.id)
+
         output_to_store.trajectory_file_path = ProtocolPath('output_trajectory_path',
                                                             extract_uncorrelated_trajectory.id)
         output_to_store.coordinate_file_path = ProtocolPath('output_coordinate_file',

@@ -92,6 +92,76 @@ class SubtractValues(BaseProtocol):
 
 
 @register_calculation_protocol()
+class MultiplyValue(BaseProtocol):
+    """A protocol which multiplies a value by a specified scalar
+    """
+
+    @protocol_input(EstimatedQuantity)
+    def value(self):
+        """The value to multiply."""
+        pass
+
+    @protocol_input(int)
+    def multiplier(self):
+        """The scalar to multiply by."""
+        pass
+
+    @protocol_output(EstimatedQuantity)
+    def result(self):
+        """The result of the multiplication."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new MultiplyValue object."""
+        super().__init__(protocol_id)
+
+        self._value = None
+        self._multiplier = None
+
+        self._result = None
+
+    def execute(self, directory, available_resources):
+
+        self._result = self._value * float(self._multiplier)
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class DivideValue(BaseProtocol):
+    """A protocol which divides a value by a specified scalar
+    """
+
+    @protocol_input(EstimatedQuantity)
+    def value(self):
+        """The value to divide."""
+        pass
+
+    @protocol_input(int)
+    def divisor(self):
+        """The scalar to divide by."""
+        pass
+
+    @protocol_output(EstimatedQuantity)
+    def result(self):
+        """The result of the division."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new DivideValue object."""
+        super().__init__(protocol_id)
+
+        self._value = None
+        self._divisor = None
+
+        self._result = None
+
+    def execute(self, directory, available_resources):
+
+        self._result = self._value / float(self._divisor)
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
 class FilterSubstanceByRole(BaseProtocol):
     """A protocol which takes a substance as input, and returns a substance which only
     contains components whose role match a given criteria.

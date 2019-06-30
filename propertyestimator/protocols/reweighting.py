@@ -40,6 +40,11 @@ class UnpackStoredSimulationData(BaseProtocol):
         """The substance which was stored."""
         pass
 
+    @protocol_output(int)
+    def total_number_of_molecules(self):
+        """The total number of molecules in the stored system."""
+        pass
+
     @protocol_output(ThermodynamicState)
     def thermodynamic_state(self):
         """The thermodynamic state which was stored."""
@@ -78,6 +83,8 @@ class UnpackStoredSimulationData(BaseProtocol):
         self._simulation_data_path = None
 
         self._substance = None
+        self._total_number_of_molecules = None
+
         self._thermodynamic_state = None
 
         self._statistical_inefficiency = None
@@ -119,6 +126,8 @@ class UnpackStoredSimulationData(BaseProtocol):
             data_object = json.load(file, cls=TypedJSONDecoder)
 
         self._substance = data_object.substance
+        self._total_number_of_molecules = data_object.total_number_of_molecules
+
         self._thermodynamic_state = data_object.thermodynamic_state
 
         self._statistical_inefficiency = data_object.statistical_inefficiency

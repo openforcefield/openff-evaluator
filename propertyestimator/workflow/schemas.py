@@ -144,20 +144,23 @@ class WorkflowOutputToStore:
         """Constructs a new WorkflowOutputToStore object."""
 
         self.substance = None
+        self.total_number_of_molecules = None
 
         self.trajectory_file_path = None
         self.coordinate_file_path = None
 
         self.statistics_file_path = None
-
         self.statistical_inefficiency = None
 
     def __getstate__(self):
 
         return_value = {
             'substance': self.substance,
+            'total_number_of_molecules': self.total_number_of_molecules,
+
             'trajectory_file_path': self.trajectory_file_path,
             'coordinate_file_path': self.coordinate_file_path,
+
             'statistics_file_path': self.statistics_file_path,
             'statistical_inefficiency': self.statistical_inefficiency,
         }
@@ -166,8 +169,11 @@ class WorkflowOutputToStore:
     def __setstate__(self, state):
 
         self.substance = state['substance']
+        self.total_number_of_molecules = state['total_number_of_molecules']
+
         self.trajectory_file_path = state['trajectory_file_path']
         self.coordinate_file_path = state['coordinate_file_path']
+
         self.statistics_file_path = state['statistics_file_path']
         self.statistical_inefficiency = state['statistical_inefficiency']
 
