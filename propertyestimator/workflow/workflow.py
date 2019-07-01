@@ -1489,6 +1489,7 @@ class WorkflowGraph:
         else:
             stored_object.substance = output_to_store.substance
 
+        stored_object.total_number_of_molecules = results_by_id[output_to_store.total_number_of_molecules]
         stored_object.thermodynamic_state = physical_property.thermodynamic_state
         stored_object.provenance = physical_property.source
         stored_object.source_calculation_id = physical_property.id

@@ -5,6 +5,7 @@ import copy
 from collections import namedtuple
 
 from propertyestimator.protocols import analysis, forcefield, gradients, groups, reweighting
+from propertyestimator.workflow import WorkflowOptions
 from propertyestimator.workflow.plugins import available_protocols
 from propertyestimator.workflow.schemas import ProtocolReplicator
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
@@ -20,7 +21,8 @@ BaseReweightingProtocols = namedtuple('BaseReweightingProtocols', 'unpack_stored
                                                                   'mbar_protocol ')
 
 
-def generate_base_reweighting_protocols(analysis_protocol, replicator_id='data_repl', id_suffix=''):
+def generate_base_reweighting_protocols(analysis_protocol, workflow_options,
+                                        replicator_id='data_repl', id_suffix=''):
     """Constructs a set of protocols which, when combined in a workflow schema,
     may be executed to reweight a set of existing data to estimate a particular
     property. The reweighted observable of interest will be calculated by
@@ -31,6 +33,8 @@ def generate_base_reweighting_protocols(analysis_protocol, replicator_id='data_r
     analysis_protocol: AveragePropertyProtocol
         The protocol which will take input from the stored data,
         and generate a set of observables to reweight.
+    workflow_options: WorkflowOptions
+        The options being used to generate a workflow.
     replicator_id: str
         The id to use for the data replicator.
     id_suffix: str
@@ -122,6 +126,10 @@ def generate_base_reweighting_protocols(analysis_protocol, replicator_id='data_r
 
     mbar_protocol.reference_observables = [ProtocolPath('uncorrelated_values', analysis_protocol.id)]
     mbar_protocol.target_reduced_potentials = [ProtocolPath('statistics_file_path', reduced_target_potential.id)]
+
+    # TODO: Implement a cleaner way to handle this.
+    if workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.NoChecks:
+        mbar_protocol.required_effective_samples = -1
 
     base_protocols = BaseReweightingProtocols(unpack_stored_data,
                                               analysis_protocol,

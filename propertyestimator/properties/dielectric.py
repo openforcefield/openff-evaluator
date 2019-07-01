@@ -542,7 +542,8 @@ class DielectricConstant(PhysicalProperty):
         """
 
         dielectric_calculation = ExtractAverageDielectric('calc_dielectric_$(data_repl)')
-        base_reweighting_protocols, data_replicator = generate_base_reweighting_protocols(dielectric_calculation)
+        base_reweighting_protocols, data_replicator = generate_base_reweighting_protocols(dielectric_calculation,
+                                                                                          options)
 
         unpack_id = base_reweighting_protocols.unpack_stored_data.id
 

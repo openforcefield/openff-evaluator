@@ -228,7 +228,8 @@ class Density(PhysicalProperty):
         # The protocol which will be used to calculate the densities from
         # the existing data.
         density_calculation = analysis.ExtractAverageStatistic('calc_density_$(data_repl)')
-        base_reweighting_protocols, data_replicator = generate_base_reweighting_protocols(density_calculation)
+        base_reweighting_protocols, data_replicator = generate_base_reweighting_protocols(density_calculation,
+                                                                                          options)
 
         density_calculation.statistics_type = ObservableType.Density
         density_calculation.statistics_path = ProtocolPath('statistics_file_path',
@@ -246,10 +247,6 @@ class Density(PhysicalProperty):
                                              trajectory_path,
                                              'grad',
                                              ProtocolPath('uncorrelated_values', density_calculation.id))
-
-        # TODO: Implement a cleaner way to handle this.
-        if options.convergence_mode == WorkflowOptions.ConvergenceMode.NoChecks:
-            base_reweighting_protocols.mbar_protocol.required_effective_samples = 0
 
         schema = WorkflowSchema(property_type=Density.__name__)
         schema.id = '{}{}'.format(Density.__name__, 'Schema')
