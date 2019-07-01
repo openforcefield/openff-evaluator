@@ -481,7 +481,7 @@ class DielectricConstant(PhysicalProperty):
         # Set up the gradient calculations. For dielectric constants, we need to use
         # a slightly specialised reweighting protocol which we set up here.
         # protocol set up for calculating fluctuation properties.
-        gradient_mbar_protocol = ReweightDielectricConstant('mbar')
+        gradient_mbar_protocol = ReweightDielectricConstant('gradient_mbar')
 
         gradient_mbar_protocol.reference_observables = [ProtocolPath('uncorrelated_values',
                                                                      converge_uncertainty.id,
