@@ -86,9 +86,7 @@ class EnthalpyOfMixing(PhysicalProperty):
                                                     'converge_uncertainty '
                                                     'subsample_trajectory '
                                                     'subsample_statistics '
-                                                    'gradient_group ' 
-                                                    'gradient_replicator '
-                                                    'gradient_source ')
+                                                    'gradient_group ')
 
     @property
     def multi_component_property(self):
@@ -307,11 +305,11 @@ class EnthalpyOfMixing(PhysicalProperty):
                                                                   extract_enthalpy.id))
 
         # noinspection PyCallByClass
-        return EnthalpyOfMixing.EnthalpyWorkflow(build_coordinates, assign_topology,
-                                                 energy_minimisation, npt_equilibration,
-                                                 converge_uncertainty, extract_uncorrelated_trajectory,
-                                                 extract_uncorrelated_statistics, gradient_group,
-                                                 gradient_replicator, gradient_source)
+        return (EnthalpyOfMixing.EnthalpyWorkflow(build_coordinates, assign_topology,
+                                                  energy_minimisation, npt_equilibration,
+                                                  converge_uncertainty, extract_uncorrelated_trajectory,
+                                                  extract_uncorrelated_statistics, gradient_group),
+                gradient_replicator, gradient_source)
 
     @staticmethod
     def get_default_workflow_schema(calculation_layer, options=None):
@@ -346,7 +344,8 @@ class EnthalpyOfMixing(PhysicalProperty):
         # Here we affix a prefix which contains the special string $(comp_index). Protocols which are
         # replicated by a replicator will have the $(comp_index) tag in their id replaced by the index
         # of the replication.
-        component_workflow = EnthalpyOfMixing.get_enthalpy_workflow('component_$(repl)_', True, options)
+        component_workflow, component_gradient_replicator, component_gradient_source = \
+            EnthalpyOfMixing._get_enthalpy_workflow('component_$(repl)_', True, options)
 
         # Set the substance of the build_coordinates and assign_topology protocols
         # as a placeholder for now - these will be later set by the replicator.
@@ -354,7 +353,8 @@ class EnthalpyOfMixing(PhysicalProperty):
         component_workflow.assign_topology.substance = ReplicatorValue('repl')
 
         # Set up a workflow to calculate the enthalpy of the full, mixed system.
-        mixed_system_workflow = EnthalpyOfMixing.get_enthalpy_workflow('mixed_', False, options)
+        mixed_system_workflow, mixed_gradient_replicator, mixed_gradient_source = \
+            EnthalpyOfMixing._get_enthalpy_workflow('mixed_', False, options)
 
         # Finally, set up the protocols which will be responsible for adding together
         # the component enthalpies, and subtracting these from the mixed system enthalpy.
