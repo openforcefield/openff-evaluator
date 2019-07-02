@@ -804,7 +804,7 @@ class Workflow:
         from openforcefield.topology import Molecule, Topology
         from openforcefield.typing.engines.smirnoff import ForceField
 
-        force_field = ForceField(force_field_path)
+        force_field = ForceField(force_field_path, allow_cosmetic_attributes=True)
 
         all_molecules = []
 
