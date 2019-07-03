@@ -621,17 +621,18 @@ class PropertyEstimatorClient:
 
                 property_type = registered_properties[type_name]()
 
-                if (calculation_layer not in options.workflow_schemas[type_name] or
-                    options.workflow_schemas[type_name][calculation_layer] is None):
-
-                    options.workflow_schemas[type_name][calculation_layer] = \
-                        property_type.get_default_workflow_schema(calculation_layer,
-                                                                  options.workflow_options[type_name])
-
                 if (calculation_layer not in options.workflow_options[type_name] or
                     options.workflow_options[type_name][calculation_layer] is None):
 
                     options.workflow_options[type_name][calculation_layer] = WorkflowOptions()
+
+                if (calculation_layer not in options.workflow_schemas[type_name] or
+                    options.workflow_schemas[type_name][calculation_layer] is None):
+
+                    default_schema = property_type.get_default_workflow_schema(
+                        calculation_layer, options.workflow_options[type_name][calculation_layer])
+
+                    options.workflow_schemas[type_name][calculation_layer] = default_schema
 
                 workflow = options.workflow_schemas[type_name][calculation_layer]
 
