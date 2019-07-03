@@ -368,10 +368,8 @@ class PropertyEstimatorClient:
     >>> workflow_options = WorkflowOptions(WorkflowOptions.ConvergenceMode.RelativeUncertainty,
     >>>                                    relative_uncertainty_fraction=0.1)
     >>> options.workflow_options = {
-    >>>     'SimulationLayer': {
-    >>>         'Density': workflow_options,
-    >>>         'Dielectric': workflow_options
-    >>>     }
+    >>>     'Density': {'SimulationLayer': workflow_options},
+    >>>     'Dielectric': {'SimulationLayer': workflow_options}
     >>> }
 
     Or alternatively, as absolute uncertainty tolerance can be set as:
@@ -382,10 +380,8 @@ class PropertyEstimatorClient:
     >>>                                      absolute_uncertainty=0.02 * unit.dimensionless)
     >>>
     >>> options.workflow_options = {
-    >>>     'SimulationLayer': {
-    >>>         'Density': density_options,
-    >>>         'Dielectric': dielectric_options
-    >>>     }
+    >>>     'Density': {'SimulationLayer': density_options},
+    >>>     'Dielectric': {'SimulationLayer': dielectric_options}
     >>> }
 
     The gradients of the observables of interest with respect to a number of chosen
