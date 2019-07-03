@@ -3,6 +3,7 @@ A collection of protocols for reweighting cached simulation data.
 """
 import copy
 import logging
+import re
 from os import path
 
 import numpy as np
@@ -166,15 +167,34 @@ class GradientReducedPotentials(BaseProtocol):
             force_field = copy.deepcopy(original_force_field)
             handler = force_field.get_parameter_handler(parameter_tag)
 
-        # logging.info(f'{dir(original_parameter)} {original_parameter.k}')
-        parameter_value = getattr(original_parameter, parameter_attribute)
+        parameter_index = None
+        value_list = None
+
+        if hasattr(original_parameter, parameter_attribute):
+            parameter_value = getattr(original_parameter, parameter_attribute)
+        else:
+            attribute_split = re.split(r'(\d+)', parameter_attribute)
+
+            assert len(parameter_attribute) == 2
+            assert hasattr(original_parameter, attribute_split[0])
+
+            parameter_attribute = attribute_split[0]
+            parameter_index = int(attribute_split[1]) - 1
+
+            value_list = getattr(original_parameter, parameter_attribute)
+            parameter_value = value_list[parameter_index]
 
         if scale_amount is not None:
 
             existing_parameter = handler.parameters[parameter_smirks]
 
             parameter_value *= (1.0 + scale_amount)
-            setattr(existing_parameter, parameter_attribute, parameter_value)
+
+            if value_list is None:
+                setattr(existing_parameter, parameter_attribute, parameter_value)
+            else:
+                value_list[parameter_index] = parameter_value
+                setattr(existing_parameter, parameter_attribute, value_list)
 
         system = force_field.create_openmm_system(topology)
 
