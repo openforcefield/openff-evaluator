@@ -38,7 +38,7 @@ class PropertyEstimatorOptions(TypedBaseModel):
         A dictionary of the WorkflowSchema which will be used to calculate any properties.
         The dictionary key represents the type of property the schema will calculate. The
         dictionary will be automatically populated with defaults if no entries are added.
-    workflow_options: dict of str and WorkflowOptions, optional
+    workflow_options: dict of str and dict of str and WorkflowOptions, optional
         The set of options which will be used when setting up the default estimation
         workflows, where the string key here is the property for which the options apply.
         As an example, the target (relative or absolute) uncertainty of each property may be set
@@ -86,7 +86,7 @@ class PropertyEstimatorOptions(TypedBaseModel):
                     self.allowed_calculation_layers.append(allowed_layer.__name__)
 
         self.workflow_schemas = {}
-        self.workflow_options = None
+        self.workflow_options = {}
 
         self.allow_protocol_merging = allow_protocol_merging
 
@@ -359,16 +359,19 @@ class PropertyEstimatorClient:
     >>>
     >>> request = property_estimator.request_estimate(data_set, parameters, options)
 
-    Options for how properties should be estimated can be set on a per property basis. For example
-    the relative uncertainty that properties should estimated to within can be set as:
+    Options for how properties should be estimated can be set on a per property, and per layer
+    basis. For example, the relative uncertainty that properties should estimated to within by
+    the SimulationLayer can be set as:
 
     >>> from propertyestimator.workflow import WorkflowOptions
     >>>
     >>> workflow_options = WorkflowOptions(WorkflowOptions.ConvergenceMode.RelativeUncertainty,
->>>                                        relative_uncertainty_fraction=0.1)
+    >>>                                    relative_uncertainty_fraction=0.1)
     >>> options.workflow_options = {
-    >>>     'Density': workflow_options,
-    >>>     'Dielectric': workflow_options
+    >>>     'SimulationLayer': {
+    >>>         'Density': workflow_options,
+    >>>         'Dielectric': workflow_options
+    >>>     }
     >>> }
 
     Or alternatively, as absolute uncertainty tolerance can be set as:
@@ -379,8 +382,10 @@ class PropertyEstimatorClient:
     >>>                                      absolute_uncertainty=0.02 * unit.dimensionless)
     >>>
     >>> options.workflow_options = {
-    >>>     'Density': density_options,
-    >>>     'Dielectric': dielectric_options
+    >>>     'SimulationLayer': {
+    >>>         'Density': density_options,
+    >>>         'Dielectric': dielectric_options
+    >>>     }
     >>> }
 
     The gradients of the observables of interest with respect to a number of chosen
@@ -610,18 +615,23 @@ class PropertyEstimatorClient:
                 options.workflow_schemas[type_name] = {}
 
             if type_name not in options.workflow_options:
-                options.workflow_options[type_name] = WorkflowOptions()
+                options.workflow_options[type_name] = {}
 
             for calculation_layer in options.allowed_calculation_layers:
+
+                property_type = registered_properties[type_name]()
 
                 if (calculation_layer not in options.workflow_schemas[type_name] or
                     options.workflow_schemas[type_name][calculation_layer] is None):
 
-                    property_type = registered_properties[type_name]()
-
                     options.workflow_schemas[type_name][calculation_layer] = \
                         property_type.get_default_workflow_schema(calculation_layer,
                                                                   options.workflow_options[type_name])
+
+                if (calculation_layer not in options.workflow_options[type_name] or
+                    options.workflow_options[type_name][calculation_layer] is None):
+
+                    options.workflow_options[type_name][calculation_layer] = WorkflowOptions()
 
                 workflow = options.workflow_schemas[type_name][calculation_layer]
 

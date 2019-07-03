@@ -7,7 +7,7 @@ from collections import namedtuple
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.properties.properties import PhysicalProperty, PropertyPhase
-from propertyestimator.properties.utils import generate_base_reweighting_protocols, generate_gradient_protocol_group
+from propertyestimator.properties.utils import generate_base_reweighting_protocols
 from propertyestimator.protocols import analysis, coordinates, forcefield, groups, miscellaneous, simulation, \
     reweighting
 from propertyestimator.substances import Substance
@@ -85,8 +85,7 @@ class EnthalpyOfMixing(PhysicalProperty):
                                                     'npt_equilibration '
                                                     'converge_uncertainty '
                                                     'subsample_trajectory '
-                                                    'subsample_statistics '
-                                                    'gradient_group ')
+                                                    'subsample_statistics ')
 
     @property
     def multi_component_property(self):
@@ -96,51 +95,51 @@ class EnthalpyOfMixing(PhysicalProperty):
         """
         return True
 
-    @staticmethod
-    def _get_gradient_protocols(id_prefix, weight_by_mole_fraction, substance_source,
-                                number_of_molecules_source, coordinate_path, trajectory_path,
-                                observables_path):
-
-        # Set up the gradient estimations for this component / mixture
-        gradient_group, gradient_replicator, gradient_source = \
-            generate_gradient_protocol_group([ProtocolPath('force_field_path', 'global')],
-                                             ProtocolPath('force_field_path', 'global'),
-                                             coordinate_path,
-                                             trajectory_path,
-                                             observable_values=observables_path,
-                                             substance_source=substance_source,
-                                             id_prefix=id_prefix)
-
-        divide_gradient_by_molecules = miscellaneous.DivideValue(f'{id_prefix}divide_gradient_by_molecules$('
-                                                                 f'{gradient_replicator.id})')
-
-        divide_gradient_by_molecules.value = gradient_source
-        divide_gradient_by_molecules.divisor = number_of_molecules_source
-
-        gradient_group.add_protocols(divide_gradient_by_molecules)
-        gradient_replicator.protocols_to_replicate.append(ProtocolPath('', gradient_group.id,
-                                                                       divide_gradient_by_molecules.id))
-
-        if weight_by_mole_fraction:
-            # The component workflows need an extra step to multiply their enthalpies by their
-            # relative mole fraction.
-            weight_by_mole_fraction = WeightValueByMoleFraction(f'{id_prefix}weight_gradient_by_mole_fraction$('
-                                                                 f'{gradient_replicator.id})')
-
-            weight_by_mole_fraction.value = gradient_source
-            weight_by_mole_fraction.full_substance = ProtocolPath('substance', 'global')
-
-            # Again, set the component as a placeholder which will be set by the replicator.
-            weight_by_mole_fraction.component = ReplicatorValue('repl')
-
-            gradient_group.add_protocols(weight_by_mole_fraction)
-            gradient_replicator.protocols_to_replicate.append(ProtocolPath('', gradient_group.id,
-                                                                           weight_by_mole_fraction.id))
-
-            # Make sure to divide the weighted value.
-            divide_gradient_by_molecules.value = ProtocolPath('weighted_value', weight_by_mole_fraction.id)
-
-        return gradient_group, gradient_replicator, gradient_source
+    # @staticmethod
+    # def _get_gradient_protocols(id_prefix, weight_by_mole_fraction, substance_source,
+    #                             number_of_molecules_source, coordinate_path, trajectory_path,
+    #                             observables_path):
+    #
+    #     # Set up the gradient estimations for this component / mixture
+    #     gradient_group, gradient_replicator, gradient_source = \
+    #         generate_gradient_protocol_group([ProtocolPath('force_field_path', 'global')],
+    #                                          ProtocolPath('force_field_path', 'global'),
+    #                                          coordinate_path,
+    #                                          trajectory_path,
+    #                                          observable_values=observables_path,
+    #                                          substance_source=substance_source,
+    #                                          id_prefix=id_prefix)
+    #
+    #     divide_gradient_by_molecules = miscellaneous.DivideValue(f'{id_prefix}divide_gradient_by_molecules$('
+    #                                                              f'{gradient_replicator.id})')
+    #
+    #     divide_gradient_by_molecules.value = gradient_source
+    #     divide_gradient_by_molecules.divisor = number_of_molecules_source
+    #
+    #     gradient_group.add_protocols(divide_gradient_by_molecules)
+    #     gradient_replicator.protocols_to_replicate.append(ProtocolPath('', gradient_group.id,
+    #                                                                    divide_gradient_by_molecules.id))
+    #
+    #     if weight_by_mole_fraction:
+    #         # The component workflows need an extra step to multiply their enthalpies by their
+    #         # relative mole fraction.
+    #         weight_by_mole_fraction = WeightValueByMoleFraction(f'{id_prefix}weight_gradient_by_mole_fraction$('
+    #                                                              f'{gradient_replicator.id})')
+    #
+    #         weight_by_mole_fraction.value = gradient_source
+    #         weight_by_mole_fraction.full_substance = ProtocolPath('substance', 'global')
+    #
+    #         # Again, set the component as a placeholder which will be set by the replicator.
+    #         weight_by_mole_fraction.component = ReplicatorValue('repl')
+    #
+    #         gradient_group.add_protocols(weight_by_mole_fraction)
+    #         gradient_replicator.protocols_to_replicate.append(ProtocolPath('', gradient_group.id,
+    #                                                                        weight_by_mole_fraction.id))
+    #
+    #         # Make sure to divide the weighted value.
+    #         divide_gradient_by_molecules.value = ProtocolPath('weighted_value', weight_by_mole_fraction.id)
+    #
+    #     return gradient_group, gradient_replicator, gradient_source
 
     @staticmethod
     def _get_enthalpy_workflow(id_prefix='', weight_by_mole_fraction=False, options=None, substance_reference=None):
@@ -290,26 +289,25 @@ class EnthalpyOfMixing(PhysicalProperty):
         extract_uncorrelated_statistics.input_statistics_path = ProtocolPath('statistics_file_path',
                                                                              converge_uncertainty.id,
                                                                              npt_production.id)
-        # Set up the gradient calculations
-        gradient_group, gradient_replicator, gradient_source = \
-            EnthalpyOfMixing._get_gradient_protocols(id_prefix,
-                                                     weight_by_mole_fraction,
-                                                     substance_reference,
-                                                     ProtocolPath('final_number_of_molecules',
-                                                                  build_coordinates.id),
-                                                     ProtocolPath('output_coordinate_file', npt_equilibration.id),
-                                                     ProtocolPath('output_trajectory_path',
-                                                                  extract_uncorrelated_trajectory.id),
-                                                     ProtocolPath('uncorrelated_values',
-                                                                  converge_uncertainty.id,
-                                                                  extract_enthalpy.id))
+        # # Set up the gradient calculations
+        # gradient_group, gradient_replicator, gradient_source = \
+        #     EnthalpyOfMixing._get_gradient_protocols(id_prefix,
+        #                                              weight_by_mole_fraction,
+        #                                              substance_reference,
+        #                                              ProtocolPath('final_number_of_molecules',
+        #                                                           build_coordinates.id),
+        #                                              ProtocolPath('output_coordinate_file', npt_equilibration.id),
+        #                                              ProtocolPath('output_trajectory_path',
+        #                                                           extract_uncorrelated_trajectory.id),
+        #                                              ProtocolPath('uncorrelated_values',
+        #                                                           converge_uncertainty.id,
+        #                                                           extract_enthalpy.id))
 
         # noinspection PyCallByClass
-        return (EnthalpyOfMixing.EnthalpyWorkflow(build_coordinates, assign_topology,
-                                                  energy_minimisation, npt_equilibration,
-                                                  converge_uncertainty, extract_uncorrelated_trajectory,
-                                                  extract_uncorrelated_statistics, gradient_group),
-                gradient_replicator, gradient_source)
+        return EnthalpyOfMixing.EnthalpyWorkflow(build_coordinates, assign_topology,
+                                                 energy_minimisation, npt_equilibration,
+                                                 converge_uncertainty, extract_uncorrelated_trajectory,
+                                                 extract_uncorrelated_statistics)
 
     @staticmethod
     def get_default_workflow_schema(calculation_layer, options=None):
@@ -344,8 +342,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         # Here we affix a prefix which contains the special string $(comp_index). Protocols which are
         # replicated by a replicator will have the $(comp_index) tag in their id replaced by the index
         # of the replication.
-        component_workflow, component_gradient_replicator, component_gradient_source = \
-            EnthalpyOfMixing._get_enthalpy_workflow('component_$(repl)_', True, options)
+        component_workflow = EnthalpyOfMixing._get_enthalpy_workflow('component_$(repl)_', True, options)
 
         # Set the substance of the build_coordinates and assign_topology protocols
         # as a placeholder for now - these will be later set by the replicator.
@@ -353,8 +350,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         component_workflow.assign_topology.substance = ReplicatorValue('repl')
 
         # Set up a workflow to calculate the enthalpy of the full, mixed system.
-        mixed_system_workflow, mixed_gradient_replicator, mixed_gradient_source = \
-            EnthalpyOfMixing._get_enthalpy_workflow('mixed_', False, options)
+        mixed_system_workflow = EnthalpyOfMixing._get_enthalpy_workflow('mixed_', False, options)
 
         # Finally, set up the protocols which will be responsible for adding together
         # the component enthalpies, and subtracting these from the mixed system enthalpy.

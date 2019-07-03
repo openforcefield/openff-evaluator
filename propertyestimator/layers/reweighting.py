@@ -170,11 +170,12 @@ class ReweightingLayer(PropertyCalculationLayer):
                 continue
 
             schema = options.workflow_schemas[property_type][ReweightingLayer.__name__]
+            workflow_options = options.workflow_options.get(ReweightingLayer.__name__)
 
             global_metadata = Workflow.generate_default_metadata(property_to_calculate,
                                                                  target_force_field_path,
                                                                  parameter_gradient_keys,
-                                                                 options)
+                                                                 workflow_options)
 
             if property_to_calculate.substance.identifier not in stored_data_paths:
                 continue

@@ -26,6 +26,9 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
     # Setup the requested platform:
     if compute_resources.number_of_gpus > 0:
 
+        # TODO: Make sure use mixing precision - CUDA, OpenCL.
+        # TODO: Deterministic forces = True
+
         from propertyestimator.backends import ComputeResources
         toolkit_enum = ComputeResources.GPUToolkit(compute_resources.preferred_gpu_toolkit)
 

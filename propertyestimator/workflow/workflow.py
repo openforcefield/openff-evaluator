@@ -842,7 +842,7 @@ class Workflow:
 
     @staticmethod
     def generate_default_metadata(physical_property, force_field_path,
-                                  parameter_gradient_keys=None, estimator_options=None):
+                                  parameter_gradient_keys=None, workflow_options=None):
         """Generates a default global metadata dictionary.
         
         Parameters
@@ -855,7 +855,7 @@ class Workflow:
         parameter_gradient_keys: list of ParameterGradientKey
                 A list of references to all of the parameters which all observables
                 should be differentiated with respect to.
-        estimator_options: PropertyEstimatorOptions, optional
+        workflow_options: WorkflowOptions, optional
             The options provided when an estimate request was submitted.
 
         Returns
@@ -892,12 +892,7 @@ class Workflow:
 
             components.append(component_substance)
 
-        if estimator_options is None:
-            workflow_options = WorkflowOptions()
-        elif (estimator_options.workflow_options is not None and
-              type(physical_property).__name__ in estimator_options.workflow_options):
-            workflow_options = estimator_options.workflow_options[type(physical_property).__name__]
-        else:
+        if workflow_options is None:
             workflow_options = WorkflowOptions()
 
         if workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.RelativeUncertainty:

@@ -80,6 +80,7 @@ class RunEnergyMinimisation(BaseProtocol):
         with open(self._system_path, 'rb') as file:
             self._system = openmm.XmlSerializer.deserialize(file.read().decode())
 
+        # TODO EXPOSER CONSTRAINT TOLERAQNCE
         integrator = openmm.VerletIntegrator(0.002 * unit.picoseconds)
         simulation = app.Simulation(input_pdb_file.topology, self._system, integrator, platform)
 
@@ -314,7 +315,8 @@ class RunOpenMMSimulation(BaseProtocol):
                                                              temperature=temperature,
                                                              pressure=pressure)
 
-        integrator = openmm.LangevinIntegrator(temperature,
+        # TODO
+        integrator = openmmtools.integrators.LangevinIntegrator(temperature,
                                                self._thermostat_friction,
                                                self._timestep)
 
@@ -325,6 +327,7 @@ class RunOpenMMSimulation(BaseProtocol):
 
         checkpoint_path = path.join(directory, 'checkpoint.chk')
 
+        # TODO: Swap to saving context state to xml.
         if path.isfile(checkpoint_path):
 
             # Load the simulation state from a checkpoint file.

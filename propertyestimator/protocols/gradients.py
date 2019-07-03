@@ -166,6 +166,7 @@ class GradientReducedPotentials(BaseProtocol):
             force_field = copy.deepcopy(original_force_field)
             handler = force_field.get_parameter_handler(parameter_tag)
 
+        # logging.info(f'{dir(original_parameter)} {original_parameter.k}')
         parameter_value = getattr(original_parameter, parameter_attribute)
 
         if scale_amount is not None:
@@ -291,7 +292,7 @@ class GradientReducedPotentials(BaseProtocol):
         # have been provided.
         for index, reference_force_field_path in enumerate(self._reference_force_field_paths):
 
-            reference_force_field = ForceField(reference_force_field_path)
+            reference_force_field = ForceField(reference_force_field_path, allow_cosmetic_attributes=True)
             reference_system, _ = self._build_reduced_system(reference_force_field, topology)
 
             reference_reduced_potentials, error = self._evaluate_reduced_potential(reference_system,
