@@ -53,10 +53,12 @@ class SimulationLayer(PropertyCalculationLayer):
                 continue
 
             schema = options.workflow_schemas[property_type][SimulationLayer.__name__]
+            workflow_options = options.workflow_options[property_type].get(SimulationLayer.__name__)
 
             global_metadata = Workflow.generate_default_metadata(property_to_calculate,
                                                                  force_field_path,
-                                                                 parameter_gradient_keys, options)
+                                                                 parameter_gradient_keys,
+                                                                 workflow_options)
 
             workflow = Workflow(property_to_calculate, global_metadata)
             workflow.schema = schema
