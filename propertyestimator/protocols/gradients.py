@@ -189,7 +189,9 @@ class GradientReducedPotentials(BaseProtocol):
             existing_parameter = handler.parameters[parameter_smirks]
 
             if np.isclose(parameter_value.value_in_unit(parameter_value.unit), 0.0):
-                parameter_value = scale_amount * parameter_value.unit
+                # Careful thought needs to be given to this. Consider cases such as
+                # epsilon or sigma where negative values are not allowed.
+                parameter_value = (scale_amount if scale_amount > 0.0 else 0.0) * parameter_value.unit
             else:
                 parameter_value *= (1.0 + scale_amount)
 
