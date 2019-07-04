@@ -188,7 +188,10 @@ class GradientReducedPotentials(BaseProtocol):
 
             existing_parameter = handler.parameters[parameter_smirks]
 
-            parameter_value *= (1.0 + scale_amount)
+            if np.isclose(parameter_value, 0.0):
+                parameter_value += scale_amount
+            else:
+                parameter_value *= (1.0 + scale_amount)
 
             if value_list is None:
                 setattr(existing_parameter, parameter_attribute, parameter_value)
