@@ -469,7 +469,7 @@ class ReweightWithMBARProtocol(BaseProtocol):
         transposed_observables = {}
 
         for observable_key in observables:
-            transposed_observables[observable_key]= np.transpose(observables[observable_key])
+            transposed_observables[observable_key] = np.transpose(observables[observable_key])
 
         value, uncertainty = bootstrap(self._bootstrap_function,
                                        self._bootstrap_iterations,
@@ -654,12 +654,12 @@ class ReweightWithMBARProtocol(BaseProtocol):
 
         for observable_key in reference_observables:
 
-            reference_observables = reference_observables[observable_key]
-            observable_dimensions = reference_observables.shape[0]
+            reference_observable = reference_observables[observable_key]
+            observable_dimensions = reference_observable.shape[0]
 
             if observable_dimensions == 1:
 
-                observables_list = reference_observables.tolist()[0]
+                observables_list = reference_observable.tolist()[0]
                 observables_by_state = np.zeros((total_number_of_states, len(observables_list)))
 
                 for index in range(len(observables_list)):
@@ -676,14 +676,21 @@ class ReweightWithMBARProtocol(BaseProtocol):
                 value = []
                 uncertainty = []
 
+                observables_lists = reference_observable.tolist()
+
                 for dimension in range(observable_dimensions):
 
-                    results = mbar.computeExpectations(reference_observables[dimension],
-                                                       target_reduced_potentials,
+                    observables_list = observables_lists[dimension]
+                    observables_by_state = np.zeros((total_number_of_states, len(observables_list)))
+
+                    for index in range(len(observables_list)):
+                        observables_by_state[-1][index] = observables_list[index]
+
+                    results = mbar.computeExpectations(observables_by_state,
                                                        state_dependent=True)
 
-                    value.append(results[0][0])
-                    uncertainty.append(results[1][0])
+                    value.append(results[0][-1])
+                    uncertainty.append(results[1][-1])
 
                 values[observable_key] = np.array(value)
                 uncertainties[observable_key] = np.array(uncertainty)

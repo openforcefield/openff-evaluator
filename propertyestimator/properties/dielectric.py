@@ -260,60 +260,16 @@ class ReweightDielectricConstant(reweighting.ReweightWithMBARProtocol):
 
         volumes = self._prepare_observables_array(self._reference_volumes)
 
-        reference_reduced_potentials = []
-        target_reduced_potentials = []
-
-        for file_path in self._reference_reduced_potentials:
-
-            statistics_array = StatisticsArray.from_pandas_csv(file_path)
-            reduced_potentials = statistics_array[ObservableType.ReducedPotential]
-
-            reference_reduced_potentials.append(reduced_potentials.value_in_unit(unit.dimensionless))
-
-        for file_path in self._target_reduced_potentials:
-
-            statistics_array = StatisticsArray.from_pandas_csv(file_path)
-            reduced_potentials = statistics_array[ObservableType.ReducedPotential]
-
-            target_reduced_potentials.append(reduced_potentials.value_in_unit(unit.dimensionless))
-
         if self._bootstrap_uncertainties:
-
-            reference_potentials = np.transpose(np.array(reference_reduced_potentials))
-            target_potentials = np.transpose(np.array(target_reduced_potentials))
-
-            frame_counts = np.array([len(observable) for observable in self._reference_observables])
-
-            # Construct an mbar object to get out the number of effective samples.
-            import pymbar
-            mbar = pymbar.MBAR(reference_reduced_potentials,
-                               frame_counts, verbose=False, relative_tolerance=1e-12)
-
-            self._effective_samples = mbar.computeEffectiveSampleNumber().max()
-
-            value, uncertainty = bootstrap(self._bootstrap_function,
-                                           self._bootstrap_iterations,
-                                           self._bootstrap_sample_size,
-                                           frame_counts,
-                                           reference_reduced_potentials=reference_potentials,
-                                           target_reduced_potentials=target_potentials,
-                                           dipoles=np.transpose(dipole_moments),
-                                           dipoles_sqr=np.transpose(dipole_moments_sqr),
-                                           volumes=np.transpose(volumes))
-
-            if self._effective_samples < self._required_effective_samples:
-                uncertainty = sys.float_info.max
-
-            self._value = EstimatedQuantity(unit.Quantity(value, None),
-                                            unit.Quantity(uncertainty, None),
-                                            self.id)
-            
+            self._execute_with_bootstrapping(unit.dimensionless,
+                                             dipoles=dipole_moments,
+                                             dipoles_sqr=dipole_moments_sqr,
+                                             volumes=volumes)
         else:
 
-            return PropertyEstimatorException(directory=directory, message='Dielectric uncertainties may only'
-                                                                           'be bootstrapped.')
-
-        logging.info('Dielectric reweighted: {}'.format(self.id))
+            return PropertyEstimatorException(directory=directory,
+                                              message='Dielectric constant can only be reweighted in conjunction '
+                                                      'with bootstrapped uncertainties.')
 
         return self._get_output_dictionary()
 
