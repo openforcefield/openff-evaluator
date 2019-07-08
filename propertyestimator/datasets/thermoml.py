@@ -499,8 +499,11 @@ class ThermoMLCompound:
             smiles = cls.smiles_from_common_name(common_identifier_nodes[0].text)
 
         else:
-            raise ValueError('A ThermoML:Compound node does not have a valid InChI identifier, '
-                             'a valid SMILES pattern, or an understandable common name.')
+
+            logging.debug('A ThermoML:Compound node does not have a valid InChI identifier, '
+                          'a valid SMILES pattern, or an understandable common name.')
+
+            return None
 
         index_node = node.find('./ThermoML:RegNum/*', namespace)
 
