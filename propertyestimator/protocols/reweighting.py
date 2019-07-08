@@ -210,6 +210,66 @@ class ConcatenateTrajectories(BaseProtocol):
 
 
 @register_calculation_protocol()
+class SubsampleTrajectory(BaseProtocol):
+    """A protocol which will subsample a specified selection of frames from
+    a trajectory.
+    """
+
+    @protocol_input(list)
+    def indices(self):
+        """The indices of the frames to retain."""
+        pass
+
+    @protocol_input(str)
+    def input_coordinate_file(self):
+        """The file path to the starting coordinates of a trajectory."""
+        pass
+
+    @protocol_input(str)
+    def input_trajectory_path(self):
+        """The file path to the trajectory to subsample."""
+        pass
+
+    @protocol_output(str)
+    def output_trajectory_path(self):
+        """The file path to the subsampled trajectory."""
+        pass
+
+    def __init__(self, protocol_id):
+
+        super().__init__(protocol_id)
+
+        self._indices = None
+
+        self._input_coordinate_file = None
+        self._input_trajectory_path = None
+
+        self._output_trajectory_path = None
+
+    def execute(self, directory, available_resources):
+
+        import mdtraj
+
+        logging.info('Subsampling trajectory: {}'.format(self.id))
+
+        if self._input_trajectory_path is None:
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='The ExtractUncorrelatedTrajectoryData protocol '
+                                                       'requires a previously calculated trajectory')
+
+        trajectory = mdtraj.load_dcd(filename=self._input_trajectory_path, top=self._input_coordinate_file)
+        trajectory = trajectory[self._indices]
+
+        self._output_trajectory_path = path.join(directory, 'uncorrelated_trajectory.dcd')
+        trajectory.save_dcd(self._output_trajectory_path)
+
+        logging.info('Trajectory subsampled: {}'.format(self.id))
+
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
 class CalculateReducedPotentialOpenMM(BaseProtocol):
     """Calculates the reduced potential for a given
     set of configurations.
@@ -361,6 +421,11 @@ class ReweightWithMBARProtocol(BaseProtocol):
         """The number of effective samples which were reweighted."""
         pass
 
+    @protocol_output(list)
+    def effective_sample_indices(self):
+        """The indices of those samples which have a non-zero weight."""
+        pass
+
     def __init__(self, protocol_id):
         """Constructs a new ReweightWithMBARProtocol object."""
         super().__init__(protocol_id)
@@ -377,7 +442,9 @@ class ReweightWithMBARProtocol(BaseProtocol):
         self._required_effective_samples = 50
 
         self._value = None
+
         self._effective_samples = 0
+        self._effective_sample_indices = None
 
     def execute(self, directory, available_resources):
 
@@ -428,6 +495,11 @@ class ReweightWithMBARProtocol(BaseProtocol):
             reference_reduced_potentials.append(reduced_potentials.value_in_unit(unit.dimensionless))
 
         # Load in the target reduced potentials.
+        if len(target_reduced_potentials) > 1:
+
+            raise ValueError('This protocol currently only supports reweighting to '
+                             'a single target state.')
+
         for file_path in self._target_reduced_potentials:
 
             statistics_array = StatisticsArray.from_pandas_csv(file_path)
@@ -459,6 +531,8 @@ class ReweightWithMBARProtocol(BaseProtocol):
         # Construct a dummy mbar object to get out the number of effective samples.
         mbar = self._construct_mbar_object(reference_reduced_potentials,
                                            target_reduced_potentials)
+
+        self._find_effective_samples(mbar)
 
         self._effective_samples = mbar.computeEffectiveSampleNumber()[len(reference_reduced_potentials):].max()
 
@@ -629,6 +703,25 @@ class ReweightWithMBARProtocol(BaseProtocol):
 
         return mbar
 
+    def _find_effective_samples(self, mbar):
+        """Finds the indices of those samples which have a non-zero weight.
+
+        Parameters
+        ----------
+        mbar: pymbar.MBAR
+            The MBAR object which contains the sample weights.
+        """
+
+        target_state_weights = mbar.W_nk[:, -1]
+        self._effective_sample_indices = []
+
+        for index, weight in enumerate(target_state_weights):
+
+            if np.isclose(weight, 0.0):
+                continue
+
+            self._effective_sample_indices.append(index)
+
     def _reweight_observables(self, reference_reduced_potentials, target_reduced_potentials, **reference_observables):
         """Reweights a set of reference observables to
         the target state.
@@ -645,6 +738,7 @@ class ReweightWithMBARProtocol(BaseProtocol):
 
         # Construct the mbar object.
         mbar = self._construct_mbar_object(reference_reduced_potentials, target_reduced_potentials)
+        self._find_effective_samples(mbar)
 
         total_number_of_states = len(self._reference_observables) + len(target_reduced_potentials)
         effective_samples = mbar.computeEffectiveSampleNumber()[len(reference_reduced_potentials):].max()
