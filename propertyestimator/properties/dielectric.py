@@ -289,7 +289,7 @@ class ReweightDielectricConstant(reweighting.ReweightWithMBARProtocol):
             mbar = pymbar.MBAR(reference_reduced_potentials,
                                frame_counts, verbose=False, relative_tolerance=1e-12)
 
-            effective_samples = mbar.computeEffectiveSampleNumber().max()
+            self._effective_samples = mbar.computeEffectiveSampleNumber().max()
 
             value, uncertainty = bootstrap(self._bootstrap_function,
                                            self._bootstrap_iterations,
@@ -301,7 +301,7 @@ class ReweightDielectricConstant(reweighting.ReweightWithMBARProtocol):
                                            dipoles_sqr=np.transpose(dipole_moments_sqr),
                                            volumes=np.transpose(volumes))
 
-            if effective_samples < self._required_effective_samples:
+            if self._effective_samples < self._required_effective_samples:
                 uncertainty = sys.float_info.max
 
             self._value = EstimatedQuantity(unit.Quantity(value, None),

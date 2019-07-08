@@ -233,6 +233,15 @@ class EstimatedQuantity:
 
         return ufloat(unitless_value, unitless_uncertainty), value_unit
 
+    def __str__(self):
+
+        return f'{self.value} +/- {self.uncertainty} ({", ".join(self.sources)})'
+
+    def __repr__(self):
+
+        return f'<EstimatedQuantity value={self.value} ' \
+            f'uncertainty={self.uncertainty} sources=[{", ".join(self.sources)}]>'
+
 
 class DependantValuesException(ValueError):
     """An exception which is raised when arithmetic operations are applied
