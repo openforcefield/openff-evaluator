@@ -484,6 +484,7 @@ class ThermoMLCompound:
         # Gather up all possible identifiers
         inchi_identifier_nodes = node.findall('ThermoML:sStandardInChI', namespace)
         smiles_identifier_nodes = node.findall('ThermoML:sSmiles', namespace)
+        common_identifier_nodes = node.findall('ThermoML:sCommonName', namespace)
 
         if len(inchi_identifier_nodes) > 0 and inchi_identifier_nodes[0].text is not None:
             # Convert InChI key to smiles.
@@ -493,9 +494,13 @@ class ThermoMLCompound:
             # Standardise the smiles pattern using OE.
             smiles = cls.smiles_from_thermoml_smiles_string(smiles_identifier_nodes[0].text)
 
+        elif len(common_identifier_nodes) > 0 and common_identifier_nodes[0].text is not None:
+            # Standardise the smiles pattern using OE.
+            smiles = cls.smiles_from_common_name(common_identifier_nodes[0].text)
+
         else:
-            raise ValueError('A ThermoML:Compound node does not have a valid InChI identifier '
-                             'or a valid smiles pattern')
+            raise ValueError('A ThermoML:Compound node does not have a valid InChI identifier, '
+                             'a valid SMILES pattern, or an understandable common name.')
 
         index_node = node.find('./ThermoML:RegNum/*', namespace)
 
