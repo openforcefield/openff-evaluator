@@ -3,7 +3,6 @@ A collection of dielectric physical property definitions.
 """
 
 import logging
-import sys
 
 import numpy as np
 from simtk import openmm, unit
@@ -18,7 +17,7 @@ from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils import timeseries
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.utils.statistics import bootstrap, StatisticsArray, ObservableType
+from propertyestimator.utils.statistics import bootstrap
 from propertyestimator.workflow import plugins, WorkflowOptions
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
 from propertyestimator.workflow.schemas import WorkflowOutputToStore, WorkflowSchema
