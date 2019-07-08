@@ -437,6 +437,33 @@ class ThermoMLCompound:
 
         return oechem.OEMolToSmiles(temp_molecule)
 
+    @staticmethod
+    def smiles_from_common_name(common_name):
+        """Attempts to create a SMILES pattern from a common molecular name using
+        the `oechem.OEParseIUPACName` method.
+
+        Parameters
+        ----------
+        common_name : str
+            The common name to convert.
+        Returns
+        ----------
+        str, None
+            None if the identifier cannot be converted, otherwise the converted SMILES pattern.
+        """
+        from openeye import oechem
+        from openeye import oeiupac
+
+        if common_name is None:
+            return None
+
+        temp_molecule = oechem.OEMol()
+        smiles = None
+
+        if oeiupac.OEParseIUPACName(temp_molecule, common_name) is True:
+            smiles = oechem.OEMolToSmiles(temp_molecule)
+
+        return smiles
 
     @classmethod
     def from_xml_node(cls, node, namespace):
