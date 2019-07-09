@@ -316,12 +316,9 @@ class RunOpenMMSimulation(BaseProtocol):
                                                              pressure=pressure)
 
         # TODO: Expose whether to use the openmm or openmmtools integrator?
-        # integrator = openmmtools.integrators.LangevinIntegrator(temperature,
-        #                                                         self._thermostat_friction,
-        #                                                         self._timestep)
-        integrator = openmm.LangevinIntegrator(temperature,
-                                               self._thermostat_friction,
-                                               self._timestep)
+        integrator = openmmtools.integrators.LangevinIntegrator(temperature,
+                                                                self._thermostat_friction,
+                                                                self._timestep)
 
         simulation = app.Simulation(input_pdb_file.topology,
                                     openmm_state.get_system(True),

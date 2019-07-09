@@ -17,6 +17,32 @@ from propertyestimator.workflow.plugins import available_protocols
 from .backends import PropertyEstimatorBackend, ComputeResources, QueueWorkerResources
 
 
+class Multiprocessor:
+    """A temporary utility class which runs a given
+    function in a separate process.
+    """
+
+    def __init__(self):
+        self._queue = multiprocessing.Queue()
+
+    @staticmethod
+    def _wrapper(func, queue, args, kwargs):
+        return_value = func(*args, **kwargs)
+        queue.put(return_value)
+
+    def run(self, func, *args, **kwargs):
+
+        target_args = [func, self._queue, args, kwargs]
+
+        process = multiprocessing.Process(target=self._wrapper, args=target_args)
+        process.start()
+
+        return_value = self._queue.get()
+        process.join()
+
+        return return_value
+
+
 class BaseDaskBackend(PropertyEstimatorBackend):
     """An base dask backend class, which implements functionality
     which is common to all other dask backends.
@@ -296,7 +322,10 @@ class DaskLSFBackend(BaseDaskBackend):
 
             logging.info(f'Launching a job with access to GPUs {available_resources._gpu_device_indices}')
 
-        return function(*args, **kwargs)
+        multiprocessor = Multiprocessor()
+        return_value = multiprocessor.run(function, *args, **kwargs)
+
+        return return_value
 
     def submit_task(self, function, *args, **kwargs):
 
@@ -380,7 +409,10 @@ class DaskLocalClusterBackend(BaseDaskBackend):
 
             logging.info('Launching a job with access to GPUs {}'.format(gpu_assignments[worker_id]))
 
-        return function(*args, **kwargs)
+        multiprocessor = Multiprocessor()
+        return_value = multiprocessor.run(function, *args, **kwargs)
+
+        return return_value
 
     def submit_task(self, function, *args, **kwargs):
 
