@@ -322,10 +322,11 @@ class DaskLSFBackend(BaseDaskBackend):
 
             logging.info(f'Launching a job with access to GPUs {available_resources._gpu_device_indices}')
 
-        multiprocessor = Multiprocessor()
-        return_value = multiprocessor.run(function, *args, **kwargs)
-
-        return return_value
+        # multiprocessor = Multiprocessor()
+        # return_value = multiprocessor.run(function, *args, **kwargs)
+        #
+        # return return_value
+        return function(*args, **kwargs)
 
     def submit_task(self, function, *args, **kwargs):
 
@@ -409,10 +410,11 @@ class DaskLocalClusterBackend(BaseDaskBackend):
 
             logging.info('Launching a job with access to GPUs {}'.format(gpu_assignments[worker_id]))
 
-        multiprocessor = Multiprocessor()
-        return_value = multiprocessor.run(function, *args, **kwargs)
-
-        return return_value
+        # multiprocessor = Multiprocessor()
+        # return_value = multiprocessor.run(function, *args, **kwargs)
+        #
+        # return return_value
+        return function(*args, **kwargs)
 
     def submit_task(self, function, *args, **kwargs):
 
