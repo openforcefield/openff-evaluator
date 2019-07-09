@@ -408,6 +408,63 @@ class ThermoMLCompound:
 
         return oechem.OEMolToSmiles(temp_molecule)
 
+    @staticmethod
+    def smiles_from_thermoml_smiles_string(thermoml_string):
+        """Attempts to create a SMILES pattern from a thermoml smiles string.
+
+        Parameters
+        ----------
+        thermoml_string : str
+            The string to convert.
+
+        Returns
+        ----------
+        str, optional
+            None if the identifier cannot be converted, otherwise the converted SMILES pattern.
+        """
+        from openeye import oechem
+
+        if thermoml_string is None:
+            raise ValueError('The string cannot be `None`.')
+
+        temp_molecule = oechem.OEMol()
+
+        parse_smiles_options = oechem.OEParseSmilesOptions(quiet=True)
+
+        # Should make sure all smiles are OEChem consistent.
+        if oechem.OEParseSmiles(temp_molecule, thermoml_string, parse_smiles_options) is False:
+            raise ValueError('All SMILES strings in ThermoML files must be valid.')
+
+        return oechem.OEMolToSmiles(temp_molecule)
+
+    @staticmethod
+    def smiles_from_common_name(common_name):
+        """Attempts to create a SMILES pattern from a common molecular name using
+        the `oechem.OEParseIUPACName` method.
+
+        Parameters
+        ----------
+        common_name : str
+            The common name to convert.
+        Returns
+        ----------
+        str, None
+            None if the identifier cannot be converted, otherwise the converted SMILES pattern.
+        """
+        from openeye import oechem
+        from openeye import oeiupac
+
+        if common_name is None:
+            return None
+
+        temp_molecule = oechem.OEMol()
+        smiles = None
+
+        if oeiupac.OEParseIUPACName(temp_molecule, common_name) is True:
+            smiles = oechem.OEMolToSmiles(temp_molecule)
+
+        return smiles
+
     @classmethod
     def from_xml_node(cls, node, namespace):
         """Creates a ThermoMLCompound from an xml node.
@@ -425,13 +482,28 @@ class ThermoMLCompound:
             The created compound wrapper.
         """
         # Gather up all possible identifiers
-        identifier_nodes = node.findall('ThermoML:sStandardInChI', namespace)
+        inchi_identifier_nodes = node.findall('ThermoML:sStandardInChI', namespace)
+        smiles_identifier_nodes = node.findall('ThermoML:sSmiles', namespace)
+        common_identifier_nodes = node.findall('ThermoML:sCommonName', namespace)
 
-        if len(identifier_nodes) == 0 or identifier_nodes[0].text is None:
-            # convert common name to smiles
-            raise ValueError('A ThermoML:Compound node does not have a valid InChI identifier')
+        if len(inchi_identifier_nodes) > 0 and inchi_identifier_nodes[0].text is not None:
+            # Convert InChI key to smiles.
+            smiles = cls.smiles_from_inchi_string(inchi_identifier_nodes[0].text)
 
-        smiles = cls.smiles_from_inchi_string(identifier_nodes[0].text)
+        elif len(smiles_identifier_nodes) > 0 and smiles_identifier_nodes[0].text is not None:
+            # Standardise the smiles pattern using OE.
+            smiles = cls.smiles_from_thermoml_smiles_string(smiles_identifier_nodes[0].text)
+
+        elif len(common_identifier_nodes) > 0 and common_identifier_nodes[0].text is not None:
+            # Standardise the smiles pattern using OE.
+            smiles = cls.smiles_from_common_name(common_identifier_nodes[0].text)
+
+        else:
+
+            logging.debug('A ThermoML:Compound node does not have a valid InChI identifier, '
+                          'a valid SMILES pattern, or an understandable common name.')
+
+            return None
 
         index_node = node.find('./ThermoML:RegNum/*', namespace)
 
