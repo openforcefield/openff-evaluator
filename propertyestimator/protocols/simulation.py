@@ -80,7 +80,7 @@ class RunEnergyMinimisation(BaseProtocol):
         with open(self._system_path, 'rb') as file:
             self._system = openmm.XmlSerializer.deserialize(file.read().decode())
 
-        # TODO EXPOSER CONSTRAINT TOLERAQNCE
+        # TODO: Expose the constraint tolerance
         integrator = openmm.VerletIntegrator(0.002 * unit.picoseconds)
         simulation = app.Simulation(input_pdb_file.topology, self._system, integrator, platform)
 
@@ -315,8 +315,11 @@ class RunOpenMMSimulation(BaseProtocol):
                                                              temperature=temperature,
                                                              pressure=pressure)
 
-        # TODO
-        integrator = openmmtools.integrators.LangevinIntegrator(temperature,
+        # TODO: Expose whether to use the openmm or openmmtools integrator?
+        # integrator = openmmtools.integrators.LangevinIntegrator(temperature,
+        #                                                         self._thermostat_friction,
+        #                                                         self._timestep)
+        integrator = openmm.LangevinIntegrator(temperature,
                                                self._thermostat_friction,
                                                self._timestep)
 
@@ -456,12 +459,6 @@ class BaseYankProtocol(BaseProtocol):
         dict of str and Any
             A yaml compatible dictionary of YANK options.
         """
-
-        # TODO: Should we be specifying `constraints` here?
-        #       I imagine we shouldn't when passing OMM
-        #       system.xml files.
-        #
-        # TODO: Same with `anisotropic_dispersion_cutoff`
 
         from openforcefield.utils import quantity_to_string
 

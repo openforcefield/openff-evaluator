@@ -348,7 +348,6 @@ class ProtocolGroup(BaseProtocol):
 
         # Ensure that the starting points in each group can be
         # merged.
-        # TODO: Is this too strict / too lenient / just right?
         for self_root_id in self._root_protocols:
 
             self_protocol = self._protocols[self_root_id]
