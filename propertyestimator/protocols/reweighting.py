@@ -201,7 +201,7 @@ class ConcatenateTrajectories(BaseProtocol):
             self._output_coordinate_path = self._output_coordinate_path or coordinate_path
             trajectories.append(mdtraj.load_dcd(trajectory_path, coordinate_path))
 
-        output_trajectory = trajectories[0] if len(trajectories) == 1 else mdtraj.join(trajectories, True, False)
+        output_trajectory = trajectories[0] if len(trajectories) == 1 else mdtraj.join(trajectories, False, False)
 
         self._output_trajectory_path = path.join(directory, 'output_trajectory.dcd')
         output_trajectory.save_dcd(self._output_trajectory_path)
