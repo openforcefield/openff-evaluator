@@ -22,22 +22,36 @@ class Multiprocessor:
     function in a separate process.
     """
 
-    def __init__(self):
-        self._queue = multiprocessing.Queue()
-
     @staticmethod
     def _wrapper(func, queue, args, kwargs):
         return_value = func(*args, **kwargs)
         queue.put(return_value)
 
-    def run(self, func, *args, **kwargs):
+    @staticmethod
+    def run(function, *args, **kwargs):
+        """Runs a functions in its own process.
 
-        target_args = [func, self._queue, args, kwargs]
+        Parameters
+        ----------
+        function: function
+            The function to run.
+        args: Any
+            The arguments to pass to the function.
+        kwargs: Any
+            The key word arguments to pass to the function.
 
-        process = multiprocessing.Process(target=self._wrapper, args=target_args)
+        Returns
+        -------
+        Any
+            The result of the function
+        """
+        queue = multiprocessing.Queue()
+        target_args = [function, queue, args, kwargs]
+
+        process = multiprocessing.Process(target=Multiprocessor._wrapper, args=target_args)
         process.start()
 
-        return_value = self._queue.get()
+        return_value = queue.get()
         process.join()
 
         return return_value
@@ -322,11 +336,9 @@ class DaskLSFBackend(BaseDaskBackend):
 
             logging.info(f'Launching a job with access to GPUs {available_resources._gpu_device_indices}')
 
-        # multiprocessor = Multiprocessor()
-        # return_value = multiprocessor.run(function, *args, **kwargs)
-        #
-        # return return_value
-        return function(*args, **kwargs)
+        return_value = Multiprocessor.run(function, *args, **kwargs)
+        return return_value
+        # return function(*args, **kwargs)
 
     def submit_task(self, function, *args, **kwargs):
 
@@ -410,11 +422,9 @@ class DaskLocalClusterBackend(BaseDaskBackend):
 
             logging.info('Launching a job with access to GPUs {}'.format(gpu_assignments[worker_id]))
 
-        # multiprocessor = Multiprocessor()
-        # return_value = multiprocessor.run(function, *args, **kwargs)
-        #
-        # return return_value
-        return function(*args, **kwargs)
+        return_value = Multiprocessor.run(function, *args, **kwargs)
+        return return_value
+        # return function(*args, **kwargs)
 
     def submit_task(self, function, *args, **kwargs):
 
