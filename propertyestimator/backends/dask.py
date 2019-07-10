@@ -48,18 +48,19 @@ class Multiprocessor:
         Any
             The result of the function
         """
-        queue = multiprocessing.Queue()
+        # queue = multiprocessing.Queue()
+        manager = multiprocessing.Manager()
+        queue = manager.Queue()
         target_args = [function, queue, args, kwargs]
 
         process = multiprocessing.Process(target=Multiprocessor._wrapper, args=target_args)
         process.start()
 
         return_value = queue.get()
+        process.join()
 
         if isinstance(return_value, Exception):
             raise return_value
-
-        process.join()
 
         return return_value
 
