@@ -115,6 +115,6 @@ examples/property_estimator/working_directory/
 propertyestimator/data/properties/JCT/
 *dask-worker-space/
 
-integration_tests*
+integration_tests/thermoml/checked_thermoml_files
 
 propertyestimator/tests/**/*dat

@@ -3,7 +3,6 @@ A collection of dielectric physical property definitions.
 """
 
 import logging
-import sys
 
 import numpy as np
 from simtk import openmm, unit
@@ -11,14 +10,15 @@ from simtk import openmm, unit
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties import PhysicalProperty, PropertyPhase
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.properties.utils import generate_base_reweighting_protocols, BaseReweightingProtocols
+from propertyestimator.properties.utils import generate_base_reweighting_protocols, BaseReweightingProtocols, \
+    generate_gradient_protocol_group
 from propertyestimator.protocols import analysis, coordinates, forcefield, groups, reweighting, simulation
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils import timeseries
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import bootstrap
-from propertyestimator.workflow import plugins
+from propertyestimator.workflow import plugins, WorkflowOptions
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
 from propertyestimator.workflow.schemas import WorkflowOutputToStore, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
@@ -260,42 +260,15 @@ class ReweightDielectricConstant(reweighting.ReweightWithMBARProtocol):
         volumes = self._prepare_observables_array(self._reference_volumes)
 
         if self._bootstrap_uncertainties:
-
-            reference_potentials = np.transpose(np.array(self._reference_reduced_potentials))
-            target_potentials = np.transpose(np.array(self._target_reduced_potentials))
-
-            frame_counts = np.array([len(observable) for observable in self._reference_observables])
-
-            # Construct an mbar object to get out the number of effective samples.
-            import pymbar
-            mbar = pymbar.MBAR(self._reference_reduced_potentials,
-                               frame_counts, verbose=False, relative_tolerance=1e-12)
-
-            effective_samples = mbar.computeEffectiveSampleNumber().max()
-
-            value, uncertainty = bootstrap(self._bootstrap_function,
-                                           self._bootstrap_iterations,
-                                           self._bootstrap_sample_size,
-                                           frame_counts,
-                                           reference_reduced_potentials=reference_potentials,
-                                           target_reduced_potentials=target_potentials,
-                                           dipoles=np.transpose(dipole_moments),
-                                           dipoles_sqr=np.transpose(dipole_moments_sqr),
-                                           volumes=np.transpose(volumes))
-
-            if effective_samples < self._required_effective_samples:
-                uncertainty = sys.float_info.max
-
-            self._value = EstimatedQuantity(unit.Quantity(value, None),
-                                            unit.Quantity(uncertainty, None),
-                                            self.id)
-            
+            self._execute_with_bootstrapping(unit.dimensionless,
+                                             dipoles=dipole_moments,
+                                             dipoles_sqr=dipole_moments_sqr,
+                                             volumes=volumes)
         else:
 
-            return PropertyEstimatorException(directory=directory, message='Dielectric uncertainties may only'
-                                                                           'be bootstrapped.')
-
-        logging.info('Dielectric reweighted: {}'.format(self.id))
+            return PropertyEstimatorException(directory=directory,
+                                              message='Dielectric constant can only be reweighted in conjunction '
+                                                      'with bootstrapped uncertainties.')
 
         return self._get_output_dictionary()
 
@@ -351,9 +324,7 @@ class DielectricConstant(PhysicalProperty):
         schema.protocols[build_coordinates.id] = build_coordinates.schema
 
         assign_topology = forcefield.BuildSmirnoffSystem('build_topology')
-
         assign_topology.force_field_path = ProtocolPath('force_field_path', 'global')
-
         assign_topology.coordinate_file_path = ProtocolPath('coordinate_file_path', build_coordinates.id)
         assign_topology.substance = ProtocolPath('substance', 'global')
 
@@ -407,17 +378,19 @@ class DielectricConstant(PhysicalProperty):
         converge_uncertainty = groups.ConditionalGroup('converge_uncertainty')
         converge_uncertainty.add_protocols(npt_production, extract_dielectric)
 
-        condition = groups.ConditionalGroup.Condition()
+        if options.convergence_mode != WorkflowOptions.ConvergenceMode.NoChecks:
 
-        condition.left_hand_value = ProtocolPath('value.uncertainty',
-                                                 converge_uncertainty.id,
-                                                 extract_dielectric.id)
+            condition = groups.ConditionalGroup.Condition()
 
-        condition.right_hand_value = ProtocolPath('target_uncertainty', 'global')
+            condition.left_hand_value = ProtocolPath('value.uncertainty',
+                                                     converge_uncertainty.id,
+                                                     extract_dielectric.id)
 
-        condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
+            condition.right_hand_value = ProtocolPath('target_uncertainty', 'global')
 
-        converge_uncertainty.add_condition(condition)
+            condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
+
+            converge_uncertainty.add_condition(condition)
 
         converge_uncertainty.max_iterations = 400
 
@@ -460,10 +433,37 @@ class DielectricConstant(PhysicalProperty):
 
         schema.protocols[extract_uncorrelated_statistics.id] = extract_uncorrelated_statistics.schema
 
+        # Set up the gradient calculations. For dielectric constants, we need to use
+        # a slightly specialised reweighting protocol which we set up here.
+        # protocol set up for calculating fluctuation properties.
+        gradient_mbar_protocol = ReweightDielectricConstant('gradient_mbar')
+
+        gradient_mbar_protocol.reference_observables = [ProtocolPath('uncorrelated_values',
+                                                                     converge_uncertainty.id,
+                                                                     extract_dielectric.id)]
+        gradient_mbar_protocol.reference_volumes = [ProtocolPath('uncorrelated_volumes',
+                                                                 converge_uncertainty.id,
+                                                                 extract_dielectric.id)]
+        gradient_mbar_protocol.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
+
+        gradient_group, gradient_replicator, gradient_source = \
+            generate_gradient_protocol_group([ProtocolPath('force_field_path', 'global')],
+                                             ProtocolPath('force_field_path', 'global'),
+                                             ProtocolPath('output_coordinate_file', npt_equilibration.id),
+                                             ProtocolPath('output_trajectory_path', extract_uncorrelated_trajectory.id),
+                                             template_reweighting_schema=gradient_mbar_protocol.schema)
+
+        schema.protocols[gradient_group.id] = gradient_group.schema
+        schema.replicators.append(gradient_replicator)
+
+        schema.gradients_sources = [gradient_source]
+
         # Define where the final values come from.
         schema.final_value_source = ProtocolPath('value', converge_uncertainty.id, extract_dielectric.id)
 
         output_to_store = WorkflowOutputToStore()
+
+        output_to_store.total_number_of_molecules = ProtocolPath('final_number_of_molecules', build_coordinates.id)
 
         output_to_store.trajectory_file_path = ProtocolPath('output_trajectory_path',
                                                             extract_uncorrelated_trajectory.id)
@@ -497,33 +497,39 @@ class DielectricConstant(PhysicalProperty):
         """
 
         dielectric_calculation = ExtractAverageDielectric('calc_dielectric_$(data_repl)')
-        base_reweighting_protocols, data_replicator = generate_base_reweighting_protocols(dielectric_calculation)
+        base_reweighting_protocols, data_replicator = generate_base_reweighting_protocols(dielectric_calculation,
+                                                                                          options)
 
         unpack_id = base_reweighting_protocols.unpack_stored_data.id
 
+        # Set up a protocol to extract the dielectric constant from the stored data.
         dielectric_calculation.thermodynamic_state = ProtocolPath('thermodynamic_state', unpack_id)
         dielectric_calculation.input_coordinate_file = ProtocolPath('coordinate_file_path', unpack_id)
         dielectric_calculation.trajectory_path = ProtocolPath('trajectory_file_path', unpack_id)
-        dielectric_calculation.system_path = ProtocolPath('system_path', base_reweighting_protocols.build_reference_system.id)
+        dielectric_calculation.system_path = ProtocolPath('system_path',
+                                                          base_reweighting_protocols.build_reference_system.id)
 
-        # For the dielectric constant, we employ a slightly more advanced protocol
-        # set up for calculating fluctuation properties.
+        # For the dielectric constant, we employ a slightly more advanced reweighting
+        # protocol set up for calculating fluctuation properties.
         mbar_protocol = ReweightDielectricConstant('mbar')
 
-        mbar_protocol.reference_reduced_potentials = [ProtocolPath('reduced_potentials',
+        mbar_protocol.reference_reduced_potentials = [ProtocolPath('statistics_file_path',
                                                                    base_reweighting_protocols.
                                                                    reduced_reference_potential.id)]
 
         mbar_protocol.reference_observables = [ProtocolPath('uncorrelated_values', dielectric_calculation.id)]
         mbar_protocol.reference_volumes = [ProtocolPath('uncorrelated_volumes', dielectric_calculation.id)]
 
-        mbar_protocol.target_reduced_potentials = [ProtocolPath('reduced_potentials', base_reweighting_protocols.
-                                                                                      reduced_target_potential.id)]
+        mbar_protocol.target_reduced_potentials = [ProtocolPath('statistics_file_path', base_reweighting_protocols.
+                                                                                        reduced_target_potential.id)]
 
         mbar_protocol.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 
         mbar_protocol.bootstrap_uncertainties = True
         mbar_protocol.bootstrap_iterations = 200
+
+        # Make a copy of the mbar reweighting schema to use for evaulating gradients by reweighting.
+        mbar_template_schema = mbar_protocol.schema
 
         # Recreate the immutable tuple for convenience.
         base_reweighting_protocols = BaseReweightingProtocols(base_reweighting_protocols.unpack_stored_data,
@@ -536,12 +542,28 @@ class DielectricConstant(PhysicalProperty):
                                                               base_reweighting_protocols.reduced_target_potential,
                                                               mbar_protocol)
 
+        # Set up the gradient calculations
+        coordinate_path = ProtocolPath('output_coordinate_path', base_reweighting_protocols.concatenate_trajectories.id)
+        trajectory_path = ProtocolPath('output_trajectory_path', base_reweighting_protocols.concatenate_trajectories.id)
+
+        gradient_group, gradient_replicator, gradient_source = \
+            generate_gradient_protocol_group([ProtocolPath('force_field_path',
+                                                           base_reweighting_protocols.unpack_stored_data.id)],
+                                             ProtocolPath('force_field_path', 'global'),
+                                             coordinate_path,
+                                             trajectory_path,
+                                             'grad',
+                                             template_reweighting_schema=mbar_template_schema)
+
         schema = WorkflowSchema(property_type=DielectricConstant.__name__)
         schema.id = '{}{}'.format(DielectricConstant.__name__, 'Schema')
 
         schema.protocols = {protocol.id: protocol.schema for protocol in base_reweighting_protocols}
-        schema.replicators = [data_replicator]
+        schema.protocols[gradient_group.id] = gradient_group.schema
 
+        schema.replicators = [data_replicator, gradient_replicator]
+
+        schema.gradients_sources = [gradient_source]
         schema.final_value_source = ProtocolPath('value', base_reweighting_protocols.mbar_protocol.id)
 
         return schema

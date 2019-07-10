@@ -59,6 +59,14 @@ class BuildCoordinatesPackmol(BaseProtocol):
         while building the coordinates."""
         pass
 
+    @protocol_output(int)
+    def final_number_of_molecules(self):
+        """The file path to the created PDB coordinate file.
+        TODO: This is a temporary addition until inputs are made
+              available as outputs by default.
+        """
+        pass
+
     @protocol_output(str)
     def coordinate_file_path(self):
         """The file path to the created PDB coordinate file."""
@@ -80,6 +88,8 @@ class BuildCoordinatesPackmol(BaseProtocol):
         self._retain_packmol_files = False
 
         self._box_aspect_ratio = [1.0, 1.0, 1.0]
+
+        self._final_number_of_molecules = None
 
     def _build_molecule_arrays(self, directory):
         """Converts the input substance into a list of openeye OEMol's and a list of
@@ -153,6 +163,8 @@ class BuildCoordinatesPackmol(BaseProtocol):
 
             return PropertyEstimatorException(directory=directory,
                                               message='The substance input is non-optional')
+
+        self._final_number_of_molecules = self._max_molecules
 
         molecules, number_of_molecules, exception = self._build_molecule_arrays(directory)
 

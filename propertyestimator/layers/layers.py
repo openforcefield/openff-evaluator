@@ -152,6 +152,10 @@ class PropertyCalculationLayer:
                     # If an exception was raised, make sure to add it to the list.
                     server_request.exceptions.append(returned_output.exception)
 
+                    logging.info(f'An exception was raised: '
+                                 f'{returned_output.exception.directory} - '
+                                 f'{returned_output.exception.message}')
+
                 else:
 
                     # Make sure to store any important calculation data if no exceptions
@@ -200,9 +204,11 @@ class PropertyCalculationLayer:
 
                 if returned_output.calculated_property is None:
 
-                    logging.info('A calculation layer did not return an estimated property nor did it'
-                                 'raise an Exception. This sometimes and expectedly occurs when using '
-                                 'queue based calculation backends, but should be investigated.')
+                    if returned_output.exception is None:
+
+                        logging.info('A calculation layer did not return an estimated property nor did it '
+                                     'raise an Exception. This sometimes and expectedly occurs when using '
+                                     'queue based calculation backends, but should be investigated.')
 
                     continue
 

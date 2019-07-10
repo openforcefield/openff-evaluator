@@ -48,6 +48,9 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         data_set : PhysicalPropertyDataSet
             The secondary data set to merge into this one.
         """
+        if data_set is None:
+            return
+
         # TODO: Do we need to check whether merging the same data set here?
         for substance_hash in data_set.properties:
 

@@ -278,6 +278,8 @@ class ProtocolGroup(BaseProtocol):
         for protocol_id_to_execute in self._execution_order:
 
             protocol_to_execute = self._protocols[protocol_id_to_execute]
+            protocol_to_execute_schema = protocol_to_execute.schema
+
             working_directory = path.join(directory, protocol_to_execute.id)
 
             if not path.isdir(working_directory):
@@ -318,6 +320,8 @@ class ProtocolGroup(BaseProtocol):
 
                 output_dictionary[output_path_prepended.full_path] = return_value[output_path]
 
+            protocol_to_execute.schema = protocol_to_execute_schema
+
         return output_dictionary
 
     def can_merge(self, other):
@@ -344,7 +348,6 @@ class ProtocolGroup(BaseProtocol):
 
         # Ensure that the starting points in each group can be
         # merged.
-        # TODO: Is this too strict / too lenient / just right?
         for self_root_id in self._root_protocols:
 
             self_protocol = self._protocols[self_root_id]
@@ -877,9 +880,7 @@ class ConditionalGroup(ProtocolGroup):
 
                 # Check to see if we have reached our goal.
                 if not self._evaluate_condition(condition):
-
                     conditions_met = False
-                    break
 
             if conditions_met:
 

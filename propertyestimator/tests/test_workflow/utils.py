@@ -13,7 +13,7 @@ def create_dummy_metadata(dummy_property, calculation_layer):
 
     global_metadata = Workflow.generate_default_metadata(dummy_property,
                                                          get_data_filename('forcefield/smirnoff99Frosst.offxml'),
-                                                         PropertyEstimatorOptions())
+                                                         [])
 
     if calculation_layer == 'ReweightingLayer':
 

@@ -68,6 +68,14 @@ class BuildSmirnoffSystem(BaseProtocol):
         """
         pass
 
+    @protocol_input(bool)
+    def apply_known_charges(self):
+        """If true, formal the formal charges of ions, and
+        the charges of the selected water model will be
+        automatically applied to any matching molecules in the
+        system."""
+        pass
+
     @protocol_output(str)
     def system_path(self):
         """The assigned system."""
@@ -83,6 +91,7 @@ class BuildSmirnoffSystem(BaseProtocol):
         self._substance = None
 
         self._water_model = BuildSmirnoffSystem.WaterModel.TIP3P
+        self._apply_known_charges = True
 
         self._charged_molecule_paths = []
 
@@ -149,8 +158,10 @@ class BuildSmirnoffSystem(BaseProtocol):
                                               message='{} could not load the ForceField: {}'.format(self.id, e))
 
         unique_molecules = []
+        charged_molecules = []
 
-        charged_molecules = self._generate_known_charged_molecules()
+        if self._apply_known_charges:
+            charged_molecules = self._generate_known_charged_molecules()
 
         # Load in any additional, user specified charged molecules.
         for charged_molecule_path in self._charged_molecule_paths:
@@ -171,7 +182,11 @@ class BuildSmirnoffSystem(BaseProtocol):
 
         topology = Topology.from_openmm(pdb_file.topology, unique_molecules=unique_molecules)
 
-        system = force_field.create_openmm_system(topology, charge_from_molecules=charged_molecules)
+        if len(charged_molecules) > 0:
+            system = force_field.create_openmm_system(topology,
+                                                      charge_from_molecules=charged_molecules)
+        else:
+            system = force_field.create_openmm_system(topology)
 
         if system is None:
 

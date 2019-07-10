@@ -11,10 +11,65 @@ import dask
 from dask import distributed
 from dask_jobqueue import LSFCluster
 from distributed import get_worker
-from propertyestimator.workflow.plugins import available_protocols
 from simtk import unit
 
+from propertyestimator.workflow.plugins import available_protocols
 from .backends import PropertyEstimatorBackend, ComputeResources, QueueWorkerResources
+
+
+class Multiprocessor:
+    """A temporary utility class which runs a given
+    function in a separate process.
+    """
+
+    @staticmethod
+    def _wrapper(func, queue, args, kwargs):
+        try:
+            return_value = func(*args, **kwargs)
+            queue.put(return_value)
+        except Exception as e:
+            queue.put(e)
+
+    @staticmethod
+    def run(function, *args, **kwargs):
+        """Runs a functions in its own process.
+
+        Parameters
+        ----------
+        function: function
+            The function to run.
+        args: Any
+            The arguments to pass to the function.
+        kwargs: Any
+            The key word arguments to pass to the function.
+
+        Returns
+        -------
+        Any
+            The result of the function
+        """
+
+        import propertyestimator
+        # An unpleasant way to ensure that codecov works correctly
+        # when testing on travis.
+        if hasattr(propertyestimator, '_called_from_test'):
+            return function(*args, **kwargs)
+
+        # queue = multiprocessing.Queue()
+        manager = multiprocessing.Manager()
+        queue = manager.Queue()
+        target_args = [function, queue, args, kwargs]
+
+        process = multiprocessing.Process(target=Multiprocessor._wrapper, args=target_args)
+        process.start()
+
+        return_value = queue.get()
+        process.join()
+
+        if isinstance(return_value, Exception):
+            raise return_value
+
+        return return_value
 
 
 class BaseDaskBackend(PropertyEstimatorBackend):
@@ -30,6 +85,9 @@ class BaseDaskBackend(PropertyEstimatorBackend):
         self._cluster = None
         self._client = None
 
+    def __del__(self):
+        self.stop()
+
     def start(self):
 
         self._client = distributed.Client(self._cluster,
@@ -37,8 +95,10 @@ class BaseDaskBackend(PropertyEstimatorBackend):
 
     def stop(self):
 
-        self._client.close()
-        self._cluster.close()
+        if self._client is not None:
+            self._client.close()
+        if self._cluster is not None:
+            self._cluster.close()
 
         if os.path.isdir('dask-worker-space'):
             shutil.rmtree('dask-worker-space')
@@ -291,7 +351,9 @@ class DaskLSFBackend(BaseDaskBackend):
 
             logging.info(f'Launching a job with access to GPUs {available_resources._gpu_device_indices}')
 
-        return function(*args, **kwargs)
+        return_value = Multiprocessor.run(function, *args, **kwargs)
+        return return_value
+        # return function(*args, **kwargs)
 
     def submit_task(self, function, *args, **kwargs):
 
@@ -375,7 +437,9 @@ class DaskLocalClusterBackend(BaseDaskBackend):
 
             logging.info('Launching a job with access to GPUs {}'.format(gpu_assignments[worker_id]))
 
-        return function(*args, **kwargs)
+        return_value = Multiprocessor.run(function, *args, **kwargs)
+        return return_value
+        # return function(*args, **kwargs)
 
     def submit_task(self, function, *args, **kwargs):
 

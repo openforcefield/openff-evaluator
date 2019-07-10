@@ -5,10 +5,11 @@ A collection of density physical property definitions.
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties import PhysicalProperty, PropertyPhase
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.properties.utils import generate_base_reweighting_protocols
+from propertyestimator.properties.utils import generate_base_reweighting_protocols, generate_gradient_protocol_group
 from propertyestimator.protocols import analysis, coordinates, forcefield, groups, simulation
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.statistics import ObservableType
+from propertyestimator.workflow import WorkflowOptions
 from propertyestimator.workflow.schemas import WorkflowOutputToStore, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
@@ -116,17 +117,19 @@ class Density(PhysicalProperty):
         converge_uncertainty = groups.ConditionalGroup('converge_uncertainty')
         converge_uncertainty.add_protocols(npt_production, extract_density)
 
-        condition = groups.ConditionalGroup.Condition()
+        if options.convergence_mode != WorkflowOptions.ConvergenceMode.NoChecks:
 
-        condition.left_hand_value = ProtocolPath('value.uncertainty',
-                                                 converge_uncertainty.id,
-                                                 extract_density.id)
+            condition = groups.ConditionalGroup.Condition()
 
-        condition.right_hand_value = ProtocolPath('target_uncertainty', 'global')
+            condition.left_hand_value = ProtocolPath('value.uncertainty',
+                                                     converge_uncertainty.id,
+                                                     extract_density.id)
 
-        condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
+            condition.right_hand_value = ProtocolPath('target_uncertainty', 'global')
 
-        converge_uncertainty.add_condition(condition)
+            condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
+
+            converge_uncertainty.add_condition(condition)
 
         converge_uncertainty.max_iterations = 100
 
@@ -169,10 +172,27 @@ class Density(PhysicalProperty):
 
         schema.protocols[extract_uncorrelated_statistics.id] = extract_uncorrelated_statistics.schema
 
+        # Set up the gradient calculations
+        gradient_group, gradient_replicator, gradient_source = \
+            generate_gradient_protocol_group([ProtocolPath('force_field_path', 'global')],
+                                             ProtocolPath('force_field_path', 'global'),
+                                             ProtocolPath('output_coordinate_file', npt_equilibration.id),
+                                             ProtocolPath('output_trajectory_path', extract_uncorrelated_trajectory.id),
+                                             observable_values=ProtocolPath('uncorrelated_values',
+                                                                            converge_uncertainty.id,
+                                                                            extract_density.id))
+
+        schema.protocols[gradient_group.id] = gradient_group.schema
+        schema.replicators.append(gradient_replicator)
+
+        schema.gradients_sources = [gradient_source]
+
         # Define where the final values come from.
         schema.final_value_source = ProtocolPath('value', converge_uncertainty.id, extract_density.id)
 
         output_to_store = WorkflowOutputToStore()
+
+        output_to_store.total_number_of_molecules = ProtocolPath('final_number_of_molecules', build_coordinates.id)
 
         output_to_store.trajectory_file_path = ProtocolPath('output_trajectory_path',
                                                             extract_uncorrelated_trajectory.id)
@@ -208,18 +228,35 @@ class Density(PhysicalProperty):
         # The protocol which will be used to calculate the densities from
         # the existing data.
         density_calculation = analysis.ExtractAverageStatistic('calc_density_$(data_repl)')
-        base_reweighting_protocols, data_replicator = generate_base_reweighting_protocols(density_calculation)
+        base_reweighting_protocols, data_replicator = generate_base_reweighting_protocols(density_calculation,
+                                                                                          options)
 
         density_calculation.statistics_type = ObservableType.Density
         density_calculation.statistics_path = ProtocolPath('statistics_file_path',
                                                            base_reweighting_protocols.unpack_stored_data.id)
 
+        # Set up the gradient calculations
+        coordinate_path = ProtocolPath('output_coordinate_path', base_reweighting_protocols.concatenate_trajectories.id)
+        trajectory_path = ProtocolPath('output_trajectory_path', base_reweighting_protocols.concatenate_trajectories.id)
+
+        gradient_group, gradient_replicator, gradient_source = \
+            generate_gradient_protocol_group([ProtocolPath('force_field_path',
+                                                           base_reweighting_protocols.unpack_stored_data.id)],
+                                             ProtocolPath('force_field_path', 'global'),
+                                             coordinate_path,
+                                             trajectory_path,
+                                             'grad',
+                                             ProtocolPath('uncorrelated_values', density_calculation.id))
+
         schema = WorkflowSchema(property_type=Density.__name__)
         schema.id = '{}{}'.format(Density.__name__, 'Schema')
 
         schema.protocols = {protocol.id: protocol.schema for protocol in base_reweighting_protocols}
-        schema.replicators = [data_replicator]
+        schema.protocols[gradient_group.id] = gradient_group.schema
 
+        schema.replicators = [data_replicator, gradient_replicator]
+
+        schema.gradients_sources = [gradient_source]
         schema.final_value_source = ProtocolPath('value', base_reweighting_protocols.mbar_protocol.id)
 
         return schema

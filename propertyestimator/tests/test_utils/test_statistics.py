@@ -4,28 +4,42 @@ Units tests for propertyestimator.utils.statistics
 import os
 
 import numpy as np
-
+import pytest
 from simtk import unit
 
 from propertyestimator.utils import get_data_filename
-from propertyestimator.utils.statistics import StatisticsArray, bootstrap
+from propertyestimator.utils.statistics import StatisticsArray, bootstrap, ObservableType
 
 
 def test_statistics_object():
 
-    statistics_object = StatisticsArray.from_openmm_csv(
-        get_data_filename('test/statistics/stats_openmm.csv'), 1*unit.atmosphere)
+    statistics_object = StatisticsArray.from_openmm_csv(get_data_filename('test/statistics/stats_openmm.csv'),
+                                                        1*unit.atmosphere)
 
-    statistics_object.save_as_pandas_csv('stats_pandas.csv')
+    statistics_object.to_pandas_csv('stats_pandas.csv')
 
     statistics_object = StatisticsArray.from_pandas_csv('stats_pandas.csv')
-    subsampled_array = StatisticsArray.from_statistics_array(statistics_object, [1, 2, 3])
+    assert statistics_object is not None
+
+    subsampled_array = StatisticsArray.from_existing(statistics_object, [1, 2, 3])
+    assert subsampled_array is not None and len(subsampled_array) == 3
 
     if os.path.isfile('stats_pandas.csv'):
         os.unlink('stats_pandas.csv')
 
-    assert statistics_object is not None
-    assert subsampled_array is not None and len(subsampled_array) == 3
+    reduced_potential = np.array([0.1] * (len(statistics_object) - 1))
+
+    with pytest.raises(ValueError):
+        statistics_object[ObservableType.ReducedPotential] = reduced_potential
+
+    reduced_potential = np.array([0.1] * len(statistics_object))
+
+    with pytest.raises(ValueError):
+        statistics_object[ObservableType.ReducedPotential] = reduced_potential
+
+    statistics_object[ObservableType.ReducedPotential] = reduced_potential * unit.dimensionless
+
+    assert ObservableType.ReducedPotential in statistics_object
 
 
 def test_bootstrap():

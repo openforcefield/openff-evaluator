@@ -18,7 +18,7 @@ class SimulationLayer(PropertyCalculationLayer):
     """
 
     @staticmethod
-    def _build_workflow_graph(working_directory, properties, force_field_path, options):
+    def _build_workflow_graph(working_directory, properties, force_field_path, parameter_gradient_keys, options):
         """ Construct a graph of the protocols needed to calculate a set of properties.
 
         Parameters
@@ -30,6 +30,9 @@ class SimulationLayer(PropertyCalculationLayer):
             The properties to attempt to compute.
         force_field_path : str
             The path to the force field parameters to use in the workflow.
+        parameter_gradient_keys: list of ParameterGradientKey
+            A list of references to all of the parameters which all observables
+            should be differentiated with respect to.
         options: PropertyEstimatorOptions
             The options to run the workflows with.
         """
@@ -50,9 +53,12 @@ class SimulationLayer(PropertyCalculationLayer):
                 continue
 
             schema = options.workflow_schemas[property_type][SimulationLayer.__name__]
+            workflow_options = options.workflow_options[property_type].get(SimulationLayer.__name__)
 
             global_metadata = Workflow.generate_default_metadata(property_to_calculate,
-                                                                 force_field_path, options)
+                                                                 force_field_path,
+                                                                 parameter_gradient_keys,
+                                                                 workflow_options)
 
             workflow = Workflow(property_to_calculate, global_metadata)
             workflow.schema = schema
@@ -79,6 +85,7 @@ class SimulationLayer(PropertyCalculationLayer):
         workflow_graph = SimulationLayer._build_workflow_graph(layer_directory,
                                                                data_model.queued_properties,
                                                                force_field_path,
+                                                               data_model.parameter_gradient_keys,
                                                                data_model.options)
 
         simulation_futures = workflow_graph.submit(calculation_backend)
