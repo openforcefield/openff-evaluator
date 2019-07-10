@@ -24,8 +24,11 @@ class Multiprocessor:
 
     @staticmethod
     def _wrapper(func, queue, args, kwargs):
-        return_value = func(*args, **kwargs)
-        queue.put(return_value)
+        try:
+            return_value = func(*args, **kwargs)
+            queue.put(return_value)
+        except Exception as e:
+            queue.put(e)
 
     @staticmethod
     def run(function, *args, **kwargs):
@@ -52,6 +55,10 @@ class Multiprocessor:
         process.start()
 
         return_value = queue.get()
+
+        if isinstance(return_value, Exception):
+            raise return_value
+
         process.join()
 
         return return_value
