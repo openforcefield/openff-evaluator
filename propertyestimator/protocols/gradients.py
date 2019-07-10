@@ -252,12 +252,6 @@ class GradientReducedPotentials(BaseProtocol):
             # set box vectors
             reduced_potentials[frame_index] = unreduced_potential * beta
 
-        # Try to force a context deletion just in case it remains...
-        del openmm_context
-
-        import gc
-        gc.collect()
-
         reduced_potentials *= unit.dimensionless
         return reduced_potentials, None
 
