@@ -1,6 +1,12 @@
 from propertyestimator.backends import DaskLSFBackend, QueueWorkerResources
-from propertyestimator.layers.layers import return_args
+from propertyestimator.backends.dask import Multiprocessor
 from propertyestimator.workflow.plugins import available_protocols
+
+
+def dummy_function(*args, **kwargs):
+
+    assert len(args) == 1
+    return args[0]
 
 
 def test_dask_lsf_creation():
@@ -24,6 +30,14 @@ def test_dask_lsf_creation():
     gpu_backend.stop()
 
 
+def test_multiprocessor():
+
+    expected_output = 12345
+
+    return_value = Multiprocessor.run(dummy_function, expected_output)
+    assert expected_output == return_value
+
+
 def test_lsf_wrapped_function():
 
     available_resources = QueueWorkerResources()
@@ -37,7 +51,7 @@ def test_lsf_wrapped_function():
 
     expected_output = 12345
 
-    result = DaskLSFBackend._wrapped_function(return_args,
+    result = DaskLSFBackend._wrapped_function(dummy_function,
                                               expected_output,
                                               available_resources=available_resources,
                                               available_protocols=protocols_to_import,
