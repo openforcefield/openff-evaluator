@@ -8,7 +8,7 @@ from openforcefield.typing.engines import smirnoff
 from simtk import unit
 
 from propertyestimator.backends import ComputeResources, DaskLocalClusterBackend
-from propertyestimator.client import PropertyEstimatorClient, PropertyEstimatorOptions
+from propertyestimator.client import PropertyEstimatorClient, PropertyEstimatorOptions, ConnectionOptions
 from propertyestimator.datasets import PhysicalPropertyDataSet
 from propertyestimator.properties import CalculationSource, PropertyPhase, ParameterGradientKey, \
     Density
@@ -108,9 +108,9 @@ def test_full_gradient_workflow():
         calculation_backend = DaskLocalClusterBackend(1, ComputeResources())
         storage_backend = LocalFileStorage(storage_directory)
 
-        PropertyEstimatorServer(calculation_backend, storage_backend, working_directory=working_directory)
+        PropertyEstimatorServer(calculation_backend, storage_backend, 8001, working_directory)
 
-        property_estimator = PropertyEstimatorClient()
+        property_estimator = PropertyEstimatorClient(ConnectionOptions(server_port=8001))
         request = property_estimator.request_estimate(dummy_data_set, force_field, options, parameter_gradient_keys)
         result = request.results(synchronous=True, polling_interval=0)
 
@@ -122,7 +122,7 @@ def test_full_gradient_workflow():
 
         options.allowed_calculation_layers = ['ReweightingLayer']
 
-        property_estimator = PropertyEstimatorClient()
+        property_estimator = PropertyEstimatorClient(ConnectionOptions(server_port=8001))
         request = property_estimator.request_estimate(dummy_data_set, force_field, options, parameter_gradient_keys)
         result = request.results(synchronous=True, polling_interval=0)
 

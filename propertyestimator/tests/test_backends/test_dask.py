@@ -1,11 +1,6 @@
 from propertyestimator.backends import DaskLSFBackend, QueueWorkerResources
+from propertyestimator.layers.layers import return_args
 from propertyestimator.workflow.plugins import available_protocols
-
-
-def dummy_function(*args, **kwargs):
-
-    assert len(args) == 1
-    return args[0]
 
 
 def test_dask_lsf_creation():
@@ -42,7 +37,7 @@ def test_lsf_wrapped_function():
 
     expected_output = 12345
 
-    result = DaskLSFBackend._wrapped_function(dummy_function,
+    result = DaskLSFBackend._wrapped_function(return_args,
                                               expected_output,
                                               available_resources=available_resources,
                                               available_protocols=protocols_to_import,
