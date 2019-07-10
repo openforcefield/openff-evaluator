@@ -321,6 +321,7 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         import openmmtools
         import mdtraj
 
+        from simtk import openmm
         from simtk.openmm import XmlSerializer
 
         with open(self._system_path, 'rb') as file:
@@ -337,10 +338,7 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
 
         # Setup the requested platform:
         platform = setup_platform_with_resources(available_resources, self._high_precision)
-
-        context_cache = openmmtools.cache.ContextCache(platform)
-        openmm_context, openmm_context_integrator = context_cache.get_context(openmm_state,
-                                                                              integrator)
+        openmm_context = openmm.Context(openmm_state.get_system(True, True), integrator, platform)
 
         reduced_potentials = np.zeros(trajectory.n_frames)
 
