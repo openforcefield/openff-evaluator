@@ -48,6 +48,13 @@ class Multiprocessor:
         Any
             The result of the function
         """
+
+        import propertyestimator
+        # An unpleasant way to ensure that codecov works correctly
+        # when testing on travis.
+        if hasattr(propertyestimator, '_called_from_test'):
+            return function(*args, **kwargs)
+
         # queue = multiprocessing.Queue()
         manager = multiprocessing.Manager()
         queue = manager.Queue()
