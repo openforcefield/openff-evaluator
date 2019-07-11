@@ -50,6 +50,11 @@ class RunEnergyMinimisation(BaseProtocol):
         """The path to the XML system object which defines the forces present in the system."""
         pass
 
+    @protocol_input(bool)
+    def enable_pbc(self):
+        """If true, periodic boundary conditions will be enabled."""
+        pass
+
     @protocol_output(str)
     def output_coordinate_file(self):
         """The file path to the minimised coordinates."""
@@ -63,6 +68,8 @@ class RunEnergyMinimisation(BaseProtocol):
 
         self._system_path = None
         self._system = None
+
+        self._enable_pbc = True
 
         self._tolerance = 10*unit.kilojoules_per_mole
         self._max_iterations = 0
@@ -79,6 +86,17 @@ class RunEnergyMinimisation(BaseProtocol):
 
         with open(self._system_path, 'rb') as file:
             self._system = openmm.XmlSerializer.deserialize(file.read().decode())
+
+        if not self._enable_pbc:
+
+            for force_index in range(self._system.getNumForces()):
+
+                force = self._system.getForce(force_index)
+
+                if not isinstance(force, openmm.NonbondedForce):
+                    continue
+
+                force.setNonbondedMethod(0)  # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1
 
         # TODO: Expose the constraint tolerance
         integrator = openmm.VerletIntegrator(0.002 * unit.picoseconds)
@@ -152,6 +170,11 @@ class RunOpenMMSimulation(BaseProtocol):
         """A path to the XML system object which defines the forces present in the system."""
         pass
 
+    @protocol_input(bool)
+    def enable_pbc(self):
+        """If true, periodic boundary conditions will be enabled."""
+        pass
+
     @protocol_output(str)
     def output_coordinate_file(self):
         """The file path to the coordinates of the final system configuration."""
@@ -189,6 +212,8 @@ class RunOpenMMSimulation(BaseProtocol):
 
         self._system = None
         self._system_path = None
+
+        self._enable_pbc = True
 
         # outputs
         self._output_coordinate_file = None
@@ -244,6 +269,11 @@ class RunOpenMMSimulation(BaseProtocol):
 
             return PropertyEstimatorException(directory=directory,
                                               message='A pressure must be set to perform an NPT simulation')
+
+        if Ensemble(self._ensemble) == Ensemble.NPT and self._enable_pbc is False:
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='PBC must be enabled when running in the NPT ensemble.')
 
         logging.info('Performing a simulation in the ' + str(self._ensemble) + ' ensemble: ' + self.id)
 
@@ -310,6 +340,19 @@ class RunOpenMMSimulation(BaseProtocol):
 
         with open(self._system_path, 'rb') as file:
             self._system = XmlSerializer.deserialize(file.read().decode())
+
+        if not self._enable_pbc:
+
+            for force_index in range(self._system.getNumForces()):
+
+                force = self._system.getForce(force_index)
+
+                if not isinstance(force, openmm.NonbondedForce):
+                    continue
+
+                force.setNonbondedMethod(0)  # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1
+
+            pressure = None
 
         openmm_state = openmmtools.states.ThermodynamicState(system=self._system,
                                                              temperature=temperature,
