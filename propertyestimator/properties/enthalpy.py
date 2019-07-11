@@ -7,22 +7,25 @@ from collections import namedtuple
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.properties.properties import PhysicalProperty, PropertyPhase
-from propertyestimator.properties.utils import generate_base_reweighting_protocols
 from propertyestimator.protocols import analysis, coordinates, forcefield, groups, miscellaneous, simulation, \
-    reweighting
+    reweighting, gradients
+from propertyestimator.protocols.utils import generate_base_reweighting_protocols, generate_base_simulation_protocols, \
+    generate_gradient_protocol_group
+# from propertyestimator.storage.dataclasses import StoredSimulationDataCollection
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
-from propertyestimator.workflow import plugins, protocols, WorkflowOptions
+from propertyestimator.workflow import plugins, WorkflowOptions
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
+from propertyestimator.workflow.protocols import BaseProtocol
 from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowOutputToStore, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
 @plugins.register_calculation_protocol()
-class WeightValueByMoleFraction(protocols.BaseProtocol):
+class WeightValueByMoleFraction(BaseProtocol):
     """Multiplies a value by the mole fraction of a component
     in a mixture substance.
     """
@@ -94,52 +97,6 @@ class EnthalpyOfMixing(PhysicalProperty):
         of the individual components also.
         """
         return True
-
-    # @staticmethod
-    # def _get_gradient_protocols(id_prefix, weight_by_mole_fraction, substance_source,
-    #                             number_of_molecules_source, coordinate_path, trajectory_path,
-    #                             observables_path):
-    #
-    #     # Set up the gradient estimations for this component / mixture
-    #     gradient_group, gradient_replicator, gradient_source = \
-    #         generate_gradient_protocol_group([ProtocolPath('force_field_path', 'global')],
-    #                                          ProtocolPath('force_field_path', 'global'),
-    #                                          coordinate_path,
-    #                                          trajectory_path,
-    #                                          observable_values=observables_path,
-    #                                          substance_source=substance_source,
-    #                                          id_prefix=id_prefix)
-    #
-    #     divide_gradient_by_molecules = miscellaneous.DivideValue(f'{id_prefix}divide_gradient_by_molecules$('
-    #                                                              f'{gradient_replicator.id})')
-    #
-    #     divide_gradient_by_molecules.value = gradient_source
-    #     divide_gradient_by_molecules.divisor = number_of_molecules_source
-    #
-    #     gradient_group.add_protocols(divide_gradient_by_molecules)
-    #     gradient_replicator.protocols_to_replicate.append(ProtocolPath('', gradient_group.id,
-    #                                                                    divide_gradient_by_molecules.id))
-    #
-    #     if weight_by_mole_fraction:
-    #         # The component workflows need an extra step to multiply their enthalpies by their
-    #         # relative mole fraction.
-    #         weight_by_mole_fraction = WeightValueByMoleFraction(f'{id_prefix}weight_gradient_by_mole_fraction$('
-    #                                                              f'{gradient_replicator.id})')
-    #
-    #         weight_by_mole_fraction.value = gradient_source
-    #         weight_by_mole_fraction.full_substance = ProtocolPath('substance', 'global')
-    #
-    #         # Again, set the component as a placeholder which will be set by the replicator.
-    #         weight_by_mole_fraction.component = ReplicatorValue('repl')
-    #
-    #         gradient_group.add_protocols(weight_by_mole_fraction)
-    #         gradient_replicator.protocols_to_replicate.append(ProtocolPath('', gradient_group.id,
-    #                                                                        weight_by_mole_fraction.id))
-    #
-    #         # Make sure to divide the weighted value.
-    #         divide_gradient_by_molecules.value = ProtocolPath('weighted_value', weight_by_mole_fraction.id)
-    #
-    #     return gradient_group, gradient_replicator, gradient_source
 
     @staticmethod
     def _get_enthalpy_workflow(id_prefix='', weight_by_mole_fraction=False, options=None, substance_reference=None):
@@ -563,5 +520,278 @@ class EnthalpyOfMixing(PhysicalProperty):
         ]
 
         schema.final_value_source = ProtocolPath('result', calculate_enthalpy_of_mixing.id)
+
+        return schema
+
+
+@register_estimable_property()
+@register_thermoml_property('Molar enthalpy of vaporization or sublimation, kJ/mol',
+                            supported_phases=PropertyPhase.Liquid | PropertyPhase.Gas)
+class EnthalpyOfVaporization(PhysicalProperty):
+    """A class representation of an enthalpy of vaporization property"""
+
+    @property
+    def multi_component_property(self):
+        """Returns whether this property is dependant on properties of the
+        full mixed substance, or whether it is also dependant on the properties
+        of the individual components also.
+        """
+        return False
+
+    @staticmethod
+    def get_default_workflow_schema(calculation_layer, options=None):
+
+        if calculation_layer == 'SimulationLayer':
+            return EnthalpyOfVaporization.get_default_simulation_workflow_schema(options)
+        # elif calculation_layer == 'ReweightingLayer':
+        #     return EnthalpyOfVaporization.get_default_reweighting_workflow_schema(options)
+
+        return None
+
+    @staticmethod
+    def get_default_simulation_workflow_schema(options=None):
+        """Returns the default workflow to use when estimating this property
+        from direct simulations.
+
+        Parameters
+        ----------
+        options: WorkflowOptions
+            The default options to use when setting up the estimation workflow.
+
+        Returns
+        -------
+        WorkflowSchema
+            The schema to follow when estimating this property.
+        """
+
+        # Define a custom conditional group.
+        converge_uncertainty = groups.ConditionalGroup(f'converge_uncertainty')
+        converge_uncertainty.max_iterations = 100
+
+        # Define the protocols to perform the simulation in the liquid phase.
+        extract_liquid_enthalpy = analysis.ExtractAverageStatistic('extract_liquid_enthalpy')
+        extract_liquid_enthalpy.statistics_type = ObservableType.Enthalpy
+
+        liquid_protocols, liquid_value_source, liquid_output_to_store = \
+            generate_base_simulation_protocols(extract_liquid_enthalpy, options, '_liquid', converge_uncertainty)
+
+        # Define the protocols to perform the simulation in the gas phase.
+        extract_gas_enthalpy = analysis.ExtractAverageStatistic('extract_gas_enthalpy')
+        extract_gas_enthalpy.statistics_type = ObservableType.Enthalpy
+
+        gas_protocols, gas_value_source, gas_output_to_store = \
+            generate_base_simulation_protocols(extract_gas_enthalpy, options, '_gas', converge_uncertainty)
+
+        # Create only a single molecule in vacuum
+        gas_protocols.build_coordinates.max_molecules = 1
+        # gas_protocols.build_coordinates.mass_density
+
+        # Run the gas phase simulations in the NVT ensemble
+        gas_protocols.equilibration_simulation.ensemble = Ensemble.NVT
+
+        gas_protocols.production_simulation.ensemble = Ensemble.NVT
+        gas_protocols.production_simulation.steps = 10000000
+        gas_protocols.production_simulation.output_frequency = 50000
+
+        # Combine the values to estimate the final enthalpy of vaporization
+        enthalpy_of_vaporization = miscellaneous.SubtractValues('enthalpy_of_vaporization')
+        enthalpy_of_vaporization.value_b = gas_value_source
+        enthalpy_of_vaporization.value_a = liquid_value_source
+
+        # Add the extra protocols and conditions to the custom group.
+        converge_uncertainty.add_protocols(enthalpy_of_vaporization)
+
+        if options.convergence_mode != WorkflowOptions.ConvergenceMode.NoChecks:
+
+            condition = groups.ConditionalGroup.Condition()
+            condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
+
+            condition.left_hand_value = ProtocolPath('value.uncertainty', converge_uncertainty.id,
+                                                                          enthalpy_of_vaporization.id)
+            condition.right_hand_value = ProtocolPath('target_uncertainty', 'global')
+
+            converge_uncertainty.add_condition(condition)
+
+        # Set up the liquid gradient calculations
+        liquid_coordinate_source = ProtocolPath('output_coordinate_file', liquid_protocols.equilibration_simulation.id)
+        liquid_trajectory_source = ProtocolPath('output_trajectory_path',
+                                                liquid_protocols.extract_uncorrelated_trajectory.id)
+        liquid_observables_source = ProtocolPath('uncorrelated_values', converge_uncertainty.id,
+                                                                        liquid_protocols.analysis_protocol.id)
+
+        liquid_gradient_group, liquid_gradient_replicator, liquid_gradient_source = \
+            generate_gradient_protocol_group([ProtocolPath('force_field_path', 'global')],
+                                             ProtocolPath('force_field_path', 'global'),
+                                             liquid_coordinate_source,
+                                             liquid_trajectory_source,
+                                             observable_values=liquid_observables_source,
+                                             id_prefix='liquid_')
+
+        # Set up the gas gradient calculations
+        gas_coordinate_source = ProtocolPath('output_coordinate_file', gas_protocols.equilibration_simulation.id)
+        gas_trajectory_source = ProtocolPath('output_trajectory_path', gas_protocols.extract_uncorrelated_trajectory.id)
+        gas_observables_source = ProtocolPath('uncorrelated_values', converge_uncertainty.id,
+                                                                     gas_protocols.analysis_protocol.id)
+
+        gas_gradient_group, gas_gradient_replicator, gas_gradient_source = \
+            generate_gradient_protocol_group([ProtocolPath('force_field_path', 'global')],
+                                             ProtocolPath('force_field_path', 'global'),
+                                             gas_coordinate_source,
+                                             gas_trajectory_source,
+                                             observable_values=gas_observables_source,
+                                             id_prefix='gas_')
+
+        # Combine the gradients.
+        combine_gradients = gradients.SubtractGradients('combine_gradients_$(repl)')
+        combine_gradients.value_b = gas_gradient_source
+        combine_gradients.value_a = liquid_gradient_source
+
+        # Combine the gradient replicators.
+        gradient_replicator = ProtocolReplicator(replicator_id=liquid_gradient_replicator.id)
+        gradient_replicator.protocols_to_replicate = [*liquid_gradient_replicator.protocols_to_replicate,
+                                                      *gas_gradient_replicator.protocols_to_replicate,
+                                                      ProtocolPath('', combine_gradients.id)]
+        gradient_replicator.template_values = ProtocolPath('parameter_gradient_keys', 'global')
+
+        # Build the workflow schema.
+        schema = WorkflowSchema(property_type=EnthalpyOfVaporization.__name__)
+        schema.id = '{}{}'.format(EnthalpyOfVaporization.__name__, 'Schema')
+
+        schema.protocols = {
+            liquid_protocols.build_coordinates.id: liquid_protocols.build_coordinates.schema,
+            liquid_protocols.assign_parameters.id: liquid_protocols.assign_parameters.schema,
+            liquid_protocols.energy_minimisation.id: liquid_protocols.energy_minimisation.schema,
+            liquid_protocols.equilibration_simulation.id: liquid_protocols.equilibration_simulation.schema,
+
+            gas_protocols.build_coordinates.id: gas_protocols.build_coordinates.schema,
+            gas_protocols.assign_parameters.id: gas_protocols.assign_parameters.schema,
+            gas_protocols.energy_minimisation.id: gas_protocols.energy_minimisation.schema,
+            gas_protocols.equilibration_simulation.id: gas_protocols.equilibration_simulation.schema,
+
+            converge_uncertainty.id: converge_uncertainty.schema,
+
+            liquid_protocols.extract_uncorrelated_trajectory.id:
+                liquid_protocols.extract_uncorrelated_trajectory.schema,
+            liquid_protocols.extract_uncorrelated_statistics.id:
+                liquid_protocols.extract_uncorrelated_statistics.schema,
+
+            gas_protocols.extract_uncorrelated_trajectory.id: gas_protocols.extract_uncorrelated_trajectory.schema,
+            gas_protocols.extract_uncorrelated_statistics.id: gas_protocols.extract_uncorrelated_statistics.schema,
+
+            liquid_gradient_group.id: liquid_gradient_group.schema,
+            gas_gradient_group.id: gas_gradient_group.schema,
+
+            combine_gradients.id: combine_gradients.schema
+        }
+
+        schema.replicators = [gradient_replicator]
+
+        # data_to_store = StoredSimulationDataCollection()
+        # data_to_store.data_collection['liquid'] = liquid_output_to_store
+        # data_to_store.data_collection['gas'] = gas_output_to_store
+        #
+        # schema.outputs_to_store = {'full_system_data': data_to_store}
+
+        schema.gradients_sources = [ProtocolPath('result', combine_gradients.id)]
+        schema.final_value_source = ProtocolPath('result', enthalpy_of_vaporization.id)
+
+        return schema
+
+    @staticmethod
+    def get_default_reweighting_workflow_schema(options):
+        """Returns the default workflow to use when estimating this property
+        by reweighting existing data.
+
+        Parameters
+        ----------
+        options: WorkflowOptions
+            The default options to use when setting up the estimation workflow.
+
+        Returns
+        -------
+        WorkflowSchema
+            The schema to follow when estimating this property.
+        """
+
+        # Set up a protocol to extract the liquid phase enthalpy from the existing data.
+        extract_liquid_enthalpy = analysis.ExtractAverageStatistic('extract_liquid_enthalpy_$(data_repl)')
+        extract_liquid_enthalpy.statistics_type = ObservableType.Enthalpy
+
+        liquid_protocols, liquid_data_replicator = generate_base_reweighting_protocols(extract_liquid_enthalpy, options)
+
+        extract_liquid_enthalpy.statistics_path = ProtocolPath('statistics_file_path',
+                                                               liquid_protocols.unpack_stored_data.id)
+
+        # Set up a protocol to extract the gas phase enthalpy from the existing data.
+        extract_gas_enthalpy = analysis.ExtractAverageStatistic('extract_gas_enthalpy_$(data_repl)')
+        extract_gas_enthalpy.statistics_type = ObservableType.Enthalpy
+
+        gas_protocols, gas_data_replicator = generate_base_reweighting_protocols(extract_gas_enthalpy, options)
+
+        extract_gas_enthalpy.statistics_path = ProtocolPath('statistics_file_path',
+                                                            gas_protocols.unpack_stored_data.id)
+
+        # Combine the values to estimate the final enthalpy of vaporization
+        enthalpy_of_vaporization = miscellaneous.SubtractValues('enthalpy_of_vaporization')
+        enthalpy_of_vaporization.value_b = ProtocolPath('value', extract_gas_enthalpy.id)
+        enthalpy_of_vaporization.value_a = ProtocolPath('value', extract_liquid_enthalpy.id)
+
+        # Combine the data replicators
+        data_replicator = ProtocolReplicator(liquid_data_replicator.id)
+        data_replicator.protocols_to_replicate = [*liquid_data_replicator.protocols_to_replicate,
+                                                  *gas_data_replicator.protocols_to_replicate]
+        data_replicator.template_values = liquid_data_replicator.template_values
+
+        # Set up the liquid phase gradient calculations
+        liquid_coordinate_path = ProtocolPath('output_coordinate_path', liquid_protocols.concatenate_trajectories.id)
+        liquid_trajectory_path = ProtocolPath('output_trajectory_path', liquid_protocols.concatenate_trajectories.id)
+
+        liquid_gradient_group, liquid_gradient_replicator, liquid_gradient_source = \
+            generate_gradient_protocol_group([ProtocolPath('force_field_path', liquid_protocols.unpack_stored_data.id)],
+                                             ProtocolPath('force_field_path', 'global'),
+                                             liquid_coordinate_path,
+                                             liquid_trajectory_path,
+                                             'grad',
+                                             ProtocolPath('uncorrelated_values', extract_liquid_enthalpy.id))
+
+        # Set up the gas phase gradient calculations
+        gas_coordinate_path = ProtocolPath('output_coordinate_path', gas_protocols.concatenate_trajectories.id)
+        gas_trajectory_path = ProtocolPath('output_trajectory_path', gas_protocols.concatenate_trajectories.id)
+
+        gas_gradient_group, gas_gradient_replicator, gas_gradient_source = \
+            generate_gradient_protocol_group([ProtocolPath('force_field_path', gas_protocols.unpack_stored_data.id)],
+                                             ProtocolPath('force_field_path', 'global'),
+                                             gas_coordinate_path,
+                                             gas_trajectory_path,
+                                             'grad',
+                                             ProtocolPath('uncorrelated_values', extract_gas_enthalpy.id))
+
+        # Combine the gradients.
+        combine_gradients = gradients.SubtractGradients('combine_gradients_$(grad)')
+        combine_gradients.value_b = gas_gradient_source
+        combine_gradients.value_a = liquid_gradient_source
+
+        # Combine the gradient replicators.
+        gradient_replicator = ProtocolReplicator(liquid_gradient_replicator.id)
+        gradient_replicator.protocols_to_replicate = [*liquid_gradient_replicator.protocols_to_replicate,
+                                                      *gas_gradient_replicator.protocols_to_replicate,
+                                                      ProtocolPath('', combine_gradients.id)]
+        gradient_replicator.template_values = ProtocolPath('parameter_gradient_keys', 'global')
+
+        # Build the workflow schema.
+        schema = WorkflowSchema(property_type=EnthalpyOfVaporization.__name__)
+        schema.id = '{}{}'.format(EnthalpyOfVaporization.__name__, 'Schema')
+
+        schema.protocols.update({protocol.id: protocol.schema for protocol in liquid_protocols})
+        schema.protocols.update({protocol.id: protocol.schema for protocol in gas_protocols})
+
+        schema.protocols[liquid_gradient_group.id] = liquid_gradient_group.schema
+        schema.protocols[gas_gradient_group.id] = gas_gradient_group.schema
+        schema.protocols[combine_gradients.id] = combine_gradients.schema
+
+        schema.replicators = [data_replicator, gradient_replicator]
+
+        schema.gradients_sources = [ProtocolPath('result', combine_gradients.id)]
+        schema.final_value_source = ProtocolPath('result', enthalpy_of_vaporization.id)
 
         return schema
