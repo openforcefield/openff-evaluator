@@ -7,6 +7,7 @@ from propertyestimator.properties import PhysicalProperty, PropertyPhase
 from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.properties.utils import generate_base_reweighting_protocols, generate_gradient_protocol_group
 from propertyestimator.protocols import analysis, coordinates, forcefield, groups, simulation
+from propertyestimator.storage import StoredSimulationData
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow import WorkflowOptions
@@ -21,11 +22,11 @@ class Density(PhysicalProperty):
 
     @property
     def multi_component_property(self):
-        """Returns whether this property is dependant on properties of the
-        full mixed substance, or whether it is also dependant on the properties
-        of the individual components also.
-        """
         return False
+
+    @property
+    def required_data_class(self):
+        return StoredSimulationData
 
     @staticmethod
     def get_default_workflow_schema(calculation_layer, options=None):

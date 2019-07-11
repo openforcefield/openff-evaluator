@@ -7,6 +7,7 @@ import pickle
 from os import path, makedirs
 from shutil import move
 
+from propertyestimator.storage import StoredSimulationData
 from propertyestimator.substances import Substance
 from .storage import PropertyEstimatorStorage
 
@@ -83,7 +84,7 @@ class LocalFileStorage(PropertyEstimatorStorage):
         move(simulation_data_directory, path.join(self._root_directory, f'{unique_id}_data'))
         return unique_id
 
-    def retrieve_simulation_data(self, substance, include_pure_data=True):
+    def retrieve_simulation_data(self, substance, include_pure_data=True, data_class=StoredSimulationData):
 
         substance_ids = [substance.identifier]
 
@@ -109,6 +110,10 @@ class LocalFileStorage(PropertyEstimatorStorage):
             for simulation_data_key in self._simulation_data_by_substance[substance_id]:
 
                 stored_object = self.retrieve_object(simulation_data_key)
+
+                if not isinstance(stored_object, data_class):
+                    continue
+
                 return_paths[substance_id].append(path.join(self._root_directory, f'{stored_object.unique_id}_data'))
 
         return return_paths
