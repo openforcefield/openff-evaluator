@@ -2,17 +2,26 @@
 Units tests for propertyestimator.storage
 """
 import json
+import os
 import tempfile
-from os import path, makedirs
 from shutil import rmtree
 
 from simtk import unit
 
 from propertyestimator.storage import LocalFileStorage, StoredSimulationData
+from propertyestimator.storage.dataclasses import BaseStoredData
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import get_data_filename
 from propertyestimator.utils.serialization import serialize_force_field, TypedJSONEncoder, TypedJSONDecoder
+
+
+class DummyDataClass1(BaseStoredData):
+    pass
+
+
+class DummyDataClass2(BaseStoredData):
+    pass
 
 
 def test_local_force_field_storage():
@@ -59,16 +68,16 @@ def test_local_simulation_storage():
     temporary_data_directory = 'temp_data'
     temporary_backend_directory = 'storage_dir'
 
-    if path.isdir(temporary_data_directory):
+    if os.path.isdir(temporary_data_directory):
         rmtree(temporary_data_directory)
 
-    if path.isdir(temporary_backend_directory):
+    if os.path.isdir(temporary_backend_directory):
         rmtree(temporary_backend_directory)
 
-    makedirs(temporary_data_directory)
-    makedirs(temporary_backend_directory)
+    os.makedirs(temporary_data_directory)
+    os.makedirs(temporary_backend_directory)
 
-    with open(path.join(temporary_data_directory, 'data.json'), 'w') as file:
+    with open(os.path.join(temporary_data_directory, 'data.json'), 'w') as file:
         json.dump(dummy_simulation_data, file, cls=TypedJSONEncoder)
 
     local_storage = LocalFileStorage(temporary_backend_directory)
@@ -80,7 +89,7 @@ def test_local_simulation_storage():
 
     retrieved_data_directory = retrieved_data_directories[substance.identifier][0]
 
-    with open(path.join(retrieved_data_directory, 'data.json'), 'r') as file:
+    with open(os.path.join(retrieved_data_directory, 'data.json'), 'r') as file:
         retrieved_data = json.load(file, cls=TypedJSONDecoder)
 
     assert dummy_simulation_data.thermodynamic_state == retrieved_data.thermodynamic_state
@@ -91,8 +100,45 @@ def test_local_simulation_storage():
     local_storage_new = LocalFileStorage(temporary_backend_directory)
     assert local_storage_new.has_object(dummy_simulation_data.unique_id)
 
-    if path.isdir(temporary_data_directory):
+    if os.path.isdir(temporary_data_directory):
         rmtree(temporary_data_directory)
 
-    if path.isdir(temporary_backend_directory):
+    if os.path.isdir(temporary_backend_directory):
         rmtree(temporary_backend_directory)
+
+
+def test_data_class_retrieval():
+    """A simple test to that force fields can be stored and
+    retrieved using the local storage backend."""
+
+    substance = Substance()
+    substance.add_component(Substance.Component('C'), Substance.MoleFraction(1.0))
+
+    with tempfile.TemporaryDirectory() as base_directory_path:
+
+        storage_directory = os.path.join(base_directory_path, 'storage')
+        local_storage = LocalFileStorage(storage_directory)
+
+        for data_class_type in [DummyDataClass1, DummyDataClass2]:
+
+            data_directory = os.path.join(base_directory_path, data_class_type.__name__)
+            os.makedirs(data_directory, exist_ok=True)
+
+            data_class = data_class_type()
+
+            with open(os.path.join(data_directory, 'data.json'), 'w') as file:
+                json.dump(data_class, file, cls=TypedJSONEncoder)
+
+            local_storage.store_simulation_data(substance.identifier, data_directory)
+
+        retrieved_data_directories = local_storage.retrieve_simulation_data(substance, data_class=BaseStoredData)
+        assert len(retrieved_data_directories[substance.identifier]) == 2
+
+        retrieved_data_directories = local_storage.retrieve_simulation_data(substance, data_class=DummyDataClass1)
+        assert len(retrieved_data_directories[substance.identifier]) == 1
+
+        retrieved_data_directories = local_storage.retrieve_simulation_data(substance, data_class=DummyDataClass2)
+        assert len(retrieved_data_directories[substance.identifier]) == 1
+
+        retrieved_data_directories = local_storage.retrieve_simulation_data(substance, data_class=StoredSimulationData)
+        assert len(retrieved_data_directories[substance.identifier]) == 0

@@ -11,6 +11,7 @@ from propertyestimator.protocols import analysis, coordinates, forcefield, group
     reweighting, gradients
 from propertyestimator.protocols.utils import generate_base_reweighting_protocols, generate_base_simulation_protocols, \
     generate_gradient_protocol_group
+from propertyestimator.storage import StoredSimulationData
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.exceptions import PropertyEstimatorException
@@ -91,11 +92,11 @@ class EnthalpyOfMixing(PhysicalProperty):
 
     @property
     def multi_component_property(self):
-        """Returns whether this property is dependant on properties of the
-        full mixed substance, or whether it is also dependant on the properties
-        of the individual components also.
-        """
         return True
+
+    @property
+    def required_data_class(self):
+        return StoredSimulationData
 
     @staticmethod
     def _get_enthalpy_workflow(id_prefix='', weight_by_mole_fraction=False, options=None, substance_reference=None):

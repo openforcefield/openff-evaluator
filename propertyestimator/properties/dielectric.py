@@ -5,14 +5,13 @@ A collection of dielectric physical property definitions.
 import logging
 
 import numpy as np
-from simtk import openmm, unit
-
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties import PhysicalProperty, PropertyPhase
 from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.protocols import analysis, reweighting
 from propertyestimator.protocols.utils import generate_base_reweighting_protocols, BaseReweightingProtocols, \
     generate_gradient_protocol_group, generate_base_simulation_protocols
+from propertyestimator.storage import StoredSimulationData
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import timeseries
 from propertyestimator.utils.exceptions import PropertyEstimatorException
@@ -22,6 +21,7 @@ from propertyestimator.workflow import plugins, WorkflowOptions
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
 from propertyestimator.workflow.schemas import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
+from simtk import openmm, unit
 
 
 @plugins.register_calculation_protocol()
@@ -281,11 +281,11 @@ class DielectricConstant(PhysicalProperty):
 
     @property
     def multi_component_property(self):
-        """Returns whether this property is dependant on properties of the
-        full mixed substance, or whether it is also dependant on the properties
-        of the individual components also.
-        """
         return False
+
+    @property
+    def required_data_class(self):
+        return StoredSimulationData
 
     @staticmethod
     def get_default_workflow_schema(calculation_layer, options=None):
