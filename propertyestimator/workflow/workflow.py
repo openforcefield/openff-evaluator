@@ -804,6 +804,9 @@ class Workflow:
         from openforcefield.topology import Molecule, Topology
         from openforcefield.typing.engines.smirnoff import ForceField
 
+        if parameter_gradient_keys is None or len(parameter_gradient_keys) == 0:
+            return []
+
         force_field = ForceField(force_field_path, allow_cosmetic_attributes=True)
 
         all_molecules = []

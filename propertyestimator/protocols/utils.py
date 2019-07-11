@@ -4,10 +4,11 @@ A set of utilities for setting up property estimation workflows.
 import copy
 from collections import namedtuple
 
-from propertyestimator.protocols import analysis, forcefield, gradients, groups, reweighting
+from propertyestimator.protocols import analysis, forcefield, gradients, groups, reweighting, coordinates, simulation
+from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.workflow import WorkflowOptions
 from propertyestimator.workflow.plugins import available_protocols
-from propertyestimator.workflow.schemas import ProtocolReplicator
+from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowOutputToStore
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 BaseReweightingProtocols = namedtuple('BaseReweightingProtocols', 'unpack_stored_data '
@@ -19,6 +20,17 @@ BaseReweightingProtocols = namedtuple('BaseReweightingProtocols', 'unpack_stored
                                                                   'build_target_system '
                                                                   'reduced_target_potential '
                                                                   'mbar_protocol ')
+
+
+BaseSimulationProtocols = namedtuple('BaseSimulationProtocols', 'build_coordinates '
+                                                                'assign_parameters '
+                                                                'energy_minimisation '
+                                                                'equilibration_simulation '
+                                                                'production_simulation '
+                                                                'analysis_protocol '
+                                                                'converge_uncertainty '
+                                                                'extract_uncorrelated_trajectory '
+                                                                'extract_uncorrelated_statistics ')
 
 
 def generate_base_reweighting_protocols(analysis_protocol, workflow_options,
@@ -156,6 +168,182 @@ def generate_base_reweighting_protocols(analysis_protocol, workflow_options,
     component_replicator.template_values = ProtocolPath('full_system_data', 'global')
 
     return base_protocols, component_replicator
+
+
+def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_suffix='',
+                                       conditional_group=None):
+    """Constructs a set of protocols which, when combined in a workflow schema,
+    may be executed to run a single simulation to estimate a particular
+    property. The observable of interest to extract from the simulation is determined
+    by the passed in `analysis_protocol`.
+
+    The protocols returned will:
+
+        1) Build a set of liquid coordinates for the
+           property substance using packmol.
+
+        2) Assign a set of smirnoff force field parameters
+           to the system.
+
+        3) Perform an energy minimisation on the system.
+
+        4) Run a short NPT equilibration simulation for 100000 steps
+           using a timestep of 1fs.
+
+        5) Within a conditional group (up to a maximum of 100 times):
+
+            5a) Run a longer NPT production simulation for 1000000 steps
+           using a timestep of 1fs
+
+            5b) Extract the average value of an observable and
+                it's uncertainty.
+
+            5c) If a convergence mode is set by the options,
+                check if the target uncertainty has been met.
+                If not, repeat steps 5a), 5b) and 5c).
+
+        6) Extract uncorrelated configurations from a generated production
+           simulation.
+
+        7) Extract uncorrelated statistics from a generated production
+           simulation.
+
+    Parameters
+    ----------
+    analysis_protocol: AveragePropertyProtocol
+        The protocol which will extract the observable of
+        interest from the generated simulation data.
+    workflow_options: WorkflowOptions
+        The options being used to generate a workflow.
+    id_suffix: str
+        A string suffix to append to each of the protocol ids.
+    conditional_group: ProtocolGroup, optional
+        A custom group to wrap the main simulation / extraction
+        protocols within. It is up to the caller of this method to
+        manually add the convergence conditions to this group.
+        If `None`, a default group with uncertainty convergence
+        conditions is automatically constructed.
+
+    Returns
+    -------
+    BaseSimulationProtocols
+        A named tuple of the generated protocols.
+    ProtocolPath
+        A reference to the final value of the estimated observable
+        and its uncertainty (an `EstimatedQuantity`).
+    WorkflowOutputToStore
+        An object which describes the default data from a simulation to store,
+        such as the uncorrelated statistics and configurations.
+    """
+
+    assert isinstance(analysis_protocol, analysis.AveragePropertyProtocol)
+
+    build_coordinates = coordinates.BuildCoordinatesPackmol(f'build_coordinates{id_suffix}')
+    build_coordinates.substance = ProtocolPath('substance', 'global')
+
+    assign_parameters = forcefield.BuildSmirnoffSystem(f'assign_parameters{id_suffix}')
+    assign_parameters.force_field_path = ProtocolPath('force_field_path', 'global')
+    assign_parameters.coordinate_file_path = ProtocolPath('coordinate_file_path', build_coordinates.id)
+    assign_parameters.substance = ProtocolPath('substance', 'global')
+
+    # Equilibration
+    energy_minimisation = simulation.RunEnergyMinimisation(f'energy_minimisation{id_suffix}')
+    energy_minimisation.input_coordinate_file = ProtocolPath('coordinate_file_path', build_coordinates.id)
+    energy_minimisation.system_path = ProtocolPath('system_path', assign_parameters.id)
+
+    equilibration_simulation = simulation.RunOpenMMSimulation(f'equilibration_simulation{id_suffix}')
+    equilibration_simulation.ensemble = Ensemble.NPT
+    equilibration_simulation.steps = 100000
+    equilibration_simulation.output_frequency = 5000
+    equilibration_simulation.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
+    equilibration_simulation.input_coordinate_file = ProtocolPath('output_coordinate_file', energy_minimisation.id)
+    equilibration_simulation.system_path = ProtocolPath('system_path', assign_parameters.id)
+
+    # Production
+    production_simulation = simulation.RunOpenMMSimulation(f'production_simulation{id_suffix}')
+    production_simulation.ensemble = Ensemble.NPT
+    production_simulation.steps = 1000000
+    production_simulation.output_frequency = 10000
+    production_simulation.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
+    production_simulation.input_coordinate_file = ProtocolPath('output_coordinate_file', equilibration_simulation.id)
+    production_simulation.system_path = ProtocolPath('system_path', assign_parameters.id)
+
+    # Set up a conditional group to ensure convergence of uncertainty
+    if conditional_group is None:
+
+        conditional_group = groups.ConditionalGroup(f'conditional_group{id_suffix}')
+        conditional_group.max_iterations = 100
+
+        if workflow_options.convergence_mode != WorkflowOptions.ConvergenceMode.NoChecks:
+
+            condition = groups.ConditionalGroup.Condition()
+
+            condition.left_hand_value = ProtocolPath('value.uncertainty',
+                                                     conditional_group.id,
+                                                     analysis_protocol.id)
+
+            condition.right_hand_value = ProtocolPath('target_uncertainty', 'global')
+
+            condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
+
+            conditional_group.add_condition(condition)
+
+    conditional_group.add_protocols(production_simulation, analysis_protocol)
+
+    # Point the analyse protocol to the correct data source
+    if isinstance(analysis_protocol, analysis.AverageTrajectoryProperty):
+        analysis_protocol.input_coordinate_file = ProtocolPath('coordinate_file_path', build_coordinates.id)
+        analysis_protocol.trajectory_path = ProtocolPath('trajectory_file_path', production_simulation.id)
+
+    elif isinstance(analysis_protocol, analysis.ExtractAverageStatistic):
+        analysis_protocol.statistics_path = ProtocolPath('statistics_file_path', production_simulation.id)
+
+    else:
+        raise ValueError('The analysis protocol must inherit from either the '
+                         'AverageTrajectoryProperty or ExtractAverageStatistic '
+                         'protocols.')
+
+    # Finally, extract uncorrelated data
+    statistical_inefficiency = ProtocolPath('statistical_inefficiency', conditional_group.id, analysis_protocol.id)
+    equilibration_index = ProtocolPath('equilibration_index', conditional_group.id, analysis_protocol.id)
+    coordinate_file = ProtocolPath('output_coordinate_file', conditional_group.id, production_simulation.id)
+    trajectory_path = ProtocolPath('trajectory_file_path', conditional_group.id, production_simulation.id)
+    statistics_path = ProtocolPath('statistics_file_path', conditional_group.id, production_simulation.id)
+
+    extract_uncorrelated_trajectory = analysis.ExtractUncorrelatedTrajectoryData(f'extract_traj{id_suffix}')
+    extract_uncorrelated_trajectory.statistical_inefficiency = statistical_inefficiency
+    extract_uncorrelated_trajectory.equilibration_index = equilibration_index
+    extract_uncorrelated_trajectory.input_coordinate_file = coordinate_file
+    extract_uncorrelated_trajectory.input_trajectory_path = trajectory_path
+
+    extract_uncorrelated_statistics = analysis.ExtractUncorrelatedStatisticsData(f'extract_stats{id_suffix}')
+    extract_uncorrelated_statistics.statistical_inefficiency = statistical_inefficiency
+    extract_uncorrelated_statistics.equilibration_index = equilibration_index
+    extract_uncorrelated_statistics.input_statistics_path = statistics_path
+
+    # Build the object which defines which pieces of simulation data to store.
+    output_to_store = WorkflowOutputToStore()
+
+    output_to_store.total_number_of_molecules = ProtocolPath('final_number_of_molecules', build_coordinates.id)
+    output_to_store.statistical_inefficiency = statistical_inefficiency
+    output_to_store.statistics_file_path = ProtocolPath('output_statistics_path', extract_uncorrelated_statistics.id)
+    output_to_store.trajectory_file_path = ProtocolPath('output_trajectory_path', extract_uncorrelated_trajectory.id)
+    output_to_store.coordinate_file_path = coordinate_file
+
+    # Define where the final values come from.
+    final_value_source = ProtocolPath('value', conditional_group.id, analysis_protocol.id)
+
+    base_protocols = BaseSimulationProtocols(build_coordinates,
+                                             assign_parameters,
+                                             energy_minimisation,
+                                             equilibration_simulation,
+                                             production_simulation,
+                                             analysis_protocol,
+                                             conditional_group,
+                                             extract_uncorrelated_trajectory,
+                                             extract_uncorrelated_statistics)
+
+    return base_protocols, final_value_source, output_to_store
 
 
 def _get_default_gradient_reweighting_schema(observable_values, id_prefix=''):
