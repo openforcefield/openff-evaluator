@@ -101,7 +101,8 @@ class ReweightingLayer(PropertyCalculationLayer):
                 continue
 
             existing_data_paths = storage_backend.retrieve_simulation_data(physical_property.substance,
-                                                                           physical_property.multi_component_property)
+                                                                           physical_property.multi_component_property,
+                                                                           physical_property.required_data_class)
 
             if len(existing_data_paths) == 0:
                 continue

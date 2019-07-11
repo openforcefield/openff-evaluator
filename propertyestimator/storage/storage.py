@@ -330,6 +330,9 @@ class PropertyEstimatorStorage:
                 if stored_data is None:
                     continue
 
+                if type(stored_data) != type(simulation_data_object):
+                    continue
+
                 if simulation_data_object.thermodynamic_state != stored_data.thermodynamic_state:
                     continue
 
