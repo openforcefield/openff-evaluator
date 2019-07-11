@@ -12,6 +12,7 @@ from propertyestimator.protocols import analysis, coordinates, forcefield, group
 from propertyestimator.protocols.utils import generate_base_reweighting_protocols, generate_base_simulation_protocols, \
     generate_gradient_protocol_group
 from propertyestimator.storage import StoredSimulationData
+from propertyestimator.storage.dataclasses import BaseStoredData
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.exceptions import PropertyEstimatorException
@@ -530,6 +531,30 @@ class EnthalpyOfMixing(PhysicalProperty):
 class EnthalpyOfVaporization(PhysicalProperty):
     """A class representation of an enthalpy of vaporization property"""
 
+    class StoredLiquidGasData(BaseStoredData):
+
+        def __init__(self):
+            super().__init__()
+
+            self.liquid_data = None
+            self.gas_data = None
+
+        def __getstate__(self):
+
+            state = super(EnthalpyOfVaporization.StoredLiquidGasData, self).__getstate__()
+
+            state['liquid_data'] = self.liquid_data
+            state['gas_data'] = self.gas_data
+
+            return state
+
+        def __setstate__(self, state):
+
+            super(EnthalpyOfVaporization.StoredLiquidGasData, self).__setstate__(state)
+
+            self.liquid_data = state['liquid_data']
+            self.gas_data = state['gas_data']
+
     @property
     def multi_component_property(self):
         """Returns whether this property is dependant on properties of the
@@ -537,6 +562,10 @@ class EnthalpyOfVaporization(PhysicalProperty):
         of the individual components also.
         """
         return False
+
+    @property
+    def required_data_class(self):
+        return EnthalpyOfVaporization.StoredLiquidGasData
 
     @staticmethod
     def get_default_workflow_schema(calculation_layer, options=None):
@@ -696,11 +725,12 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         schema.replicators = [gradient_replicator]
 
-        # data_to_store = StoredSimulationDataCollection()
-        # data_to_store.data_collection['liquid'] = liquid_output_to_store
-        # data_to_store.data_collection['gas'] = gas_output_to_store
-        #
-        # schema.outputs_to_store = {'full_system_data': data_to_store}
+        data_to_store = EnthalpyOfVaporization.StoredLiquidGasData()
+
+        data_to_store.liquid_data = liquid_output_to_store
+        data_to_store.gas_data = gas_output_to_store
+
+        schema.outputs_to_store = {'full_system_data': data_to_store}
 
         schema.gradients_sources = [ProtocolPath('result', combine_gradients.id)]
         schema.final_value_source = ProtocolPath('result', enthalpy_of_vaporization.id)
