@@ -18,7 +18,20 @@ class IReweightable(SubhookedABCMeta):
 
     @property
     @abc.abstractmethod
-    def multi_component_property(self): pass
+    def multi_component_property(self):
+        """bool: Returns whether this property is dependant on properties of the
+        full mixed substance, or whether it is also dependant on the properties
+        of the individual components also.
+        """
+        pass
+
+    @property
+    @abc.abstractmethod
+    def required_data_class(self):
+        """subclass of BaseStoredData: The data class required to reweight this
+        property (e.g. `StoredSimulationData`).
+        """
+        pass
 
 
 @register_calculation_layer()
