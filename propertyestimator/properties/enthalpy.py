@@ -613,7 +613,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         # Define the protocols to perform the simulation in the gas phase.
         extract_gas_enthalpy = analysis.ExtractAverageStatistic('extract_gas_enthalpy')
-        extract_gas_enthalpy.statistics_type = ObservableType.Enthalpy
+        extract_gas_enthalpy.statistics_type = ObservableType.TotalEnergy
 
         gas_protocols, gas_value_source, gas_output_to_store = \
             generate_base_simulation_protocols(extract_gas_enthalpy, options, '_gas', converge_uncertainty)
@@ -628,14 +628,14 @@ class EnthalpyOfVaporization(PhysicalProperty):
         gas_protocols.equilibration_simulation.enable_pbc = False
 
         gas_protocols.production_simulation.ensemble = Ensemble.NVT
-        gas_protocols.production_simulation.steps = 10000000
+        gas_protocols.production_simulation.steps = 1000000
         gas_protocols.production_simulation.output_frequency = 50000
         gas_protocols.production_simulation.enable_pbc = False
 
         # Combine the values to estimate the final enthalpy of vaporization
         enthalpy_of_vaporization = miscellaneous.SubtractValues('enthalpy_of_vaporization')
-        enthalpy_of_vaporization.value_b = gas_value_source
-        enthalpy_of_vaporization.value_a = liquid_value_source
+        enthalpy_of_vaporization.value_b = ProtocolPath('value', extract_gas_enthalpy.id)
+        enthalpy_of_vaporization.value_a = ProtocolPath('value', extract_liquid_enthalpy.id)
 
         # Add the extra protocols and conditions to the custom group.
         converge_uncertainty.add_protocols(enthalpy_of_vaporization)
@@ -645,8 +645,8 @@ class EnthalpyOfVaporization(PhysicalProperty):
             condition = groups.ConditionalGroup.Condition()
             condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
 
-            condition.left_hand_value = ProtocolPath('value.uncertainty', converge_uncertainty.id,
-                                                                          enthalpy_of_vaporization.id)
+            condition.left_hand_value = ProtocolPath('result.uncertainty', converge_uncertainty.id,
+                                                                           enthalpy_of_vaporization.id)
             condition.right_hand_value = ProtocolPath('target_uncertainty', 'global')
 
             converge_uncertainty.add_condition(condition)
@@ -725,15 +725,15 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         schema.replicators = [gradient_replicator]
 
-        data_to_store = EnthalpyOfVaporization.StoredLiquidGasData()
-
-        data_to_store.liquid_data = liquid_output_to_store
-        data_to_store.gas_data = gas_output_to_store
-
-        schema.outputs_to_store = {'full_system_data': data_to_store}
+        # data_to_store = EnthalpyOfVaporization.StoredLiquidGasData()
+        #
+        # data_to_store.liquid_data = liquid_output_to_store
+        # data_to_store.gas_data = gas_output_to_store
+        #
+        # schema.outputs_to_store = {'full_system_data': data_to_store}
 
         schema.gradients_sources = [ProtocolPath('result', combine_gradients.id)]
-        schema.final_value_source = ProtocolPath('result', enthalpy_of_vaporization.id)
+        schema.final_value_source = ProtocolPath('result', converge_uncertainty.id, enthalpy_of_vaporization.id)
 
         return schema
 
@@ -766,7 +766,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         # Set up a protocol to extract the gas phase enthalpy from the existing data.
         extract_gas_enthalpy = analysis.ExtractAverageStatistic('extract_gas_enthalpy_$(data_repl)')
-        extract_gas_enthalpy.statistics_type = ObservableType.Enthalpy
+        extract_gas_enthalpy.statistics_type = ObservableType.TotalEnergy
 
         gas_protocols, gas_data_replicator = generate_base_reweighting_protocols(extract_gas_enthalpy, options)
 
