@@ -6,10 +6,11 @@ import os
 import tempfile
 from shutil import rmtree
 
+from propertyestimator.tests.utils import create_dummy_stored_simulation_data, create_dummy_substance
 from simtk import unit
 
 from propertyestimator.storage import LocalFileStorage, StoredSimulationData
-from propertyestimator.storage.dataclasses import BaseStoredData
+from propertyestimator.storage.dataclasses import BaseStoredData, StoredDataCollection
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import get_data_filename
@@ -142,3 +143,132 @@ def test_data_class_retrieval():
 
         retrieved_data_directories = local_storage.retrieve_simulation_data(substance, data_class=StoredSimulationData)
         assert len(retrieved_data_directories[substance.identifier]) == 0
+
+
+def test_simulation_data_merging():
+    
+    with tempfile.TemporaryDirectory() as base_directory_path:
+
+        dummy_substance = create_dummy_substance(1)
+
+        dummy_data_path_1 = os.path.join(base_directory_path, 'data_1')
+        data_1_coordinate_name = 'data_1.pdb'
+
+        create_dummy_stored_simulation_data(directory_path=dummy_data_path_1,
+                                            substance=dummy_substance,
+                                            force_field_id='ff_id_1',
+                                            coordinate_file_name=data_1_coordinate_name,
+                                            statistical_inefficiency=1.0)
+
+        dummy_data_path_2 = os.path.join(base_directory_path, 'data_2')
+        data_2_coordinate_name = 'data_2.pdb'
+
+        create_dummy_stored_simulation_data(directory_path=dummy_data_path_2,
+                                            substance=dummy_substance,
+                                            force_field_id='ff_id_1',
+                                            coordinate_file_name=data_2_coordinate_name,
+                                            statistical_inefficiency=2.0)
+
+        storage_directory = os.path.join(base_directory_path, 'storage')
+        local_storage = LocalFileStorage(storage_directory)
+
+        local_storage.store_simulation_data(dummy_substance.identifier, dummy_data_path_1)
+        local_storage.store_simulation_data(dummy_substance.identifier, dummy_data_path_2)
+
+        stored_data = local_storage.retrieve_simulation_data(dummy_substance)
+
+        assert len(stored_data[dummy_substance.identifier]) == 1
+
+        # Make sure the correct data got retained.
+        with open(os.path.join(stored_data[dummy_substance.identifier][0], 'data.json')) as file:
+
+            stored_data_object = json.load(file, cls=TypedJSONDecoder)
+            assert stored_data_object.coordinate_file_name == data_2_coordinate_name
+
+        dummy_data_path_3 = os.path.join(base_directory_path, 'data_3')
+        data_3_coordinate_name = 'data_3.pdb'
+
+        create_dummy_stored_simulation_data(directory_path=dummy_data_path_3,
+                                            substance=dummy_substance,
+                                            force_field_id='ff_id_2',
+                                            coordinate_file_name=data_3_coordinate_name,
+                                            statistical_inefficiency=3.0)
+
+        local_storage.store_simulation_data(dummy_substance.identifier, dummy_data_path_3)
+
+        stored_data = local_storage.retrieve_simulation_data(dummy_substance)
+        assert len(stored_data[dummy_substance.identifier]) == 2
+
+        # Make sure the correct data got retained.
+        with open(os.path.join(stored_data[dummy_substance.identifier][1], 'data.json')) as file:
+
+            stored_data_object = json.load(file, cls=TypedJSONDecoder)
+            assert stored_data_object.coordinate_file_name == data_3_coordinate_name
+
+
+def test_data_collection_merging():
+
+    with tempfile.TemporaryDirectory() as base_directory_path:
+
+        dummy_substance = create_dummy_substance(1)
+        dummy_data_paths = []
+
+        for index in range(4):
+
+            dummy_data_path = os.path.join(base_directory_path, f'data_{index}')
+            dummy_data_paths.append(dummy_data_path)
+
+            data_coordinate_name = f'data_{index}.pdb'
+
+            create_dummy_stored_simulation_data(directory_path=dummy_data_path,
+                                                substance=dummy_substance,
+                                                force_field_id=f'ff_id_{index}',
+                                                coordinate_file_name=data_coordinate_name,
+                                                statistical_inefficiency=float(index))
+
+        dummy_data_collection_1 = StoredDataCollection()
+
+        dummy_data_collection_1.data = {
+            'data_1': dummy_data_paths[0],
+            'data_2': dummy_data_paths[1],
+        }
+
+        dummy_data_collection_2 = StoredDataCollection()
+        dummy_data_collection_2.data = {
+            'data_1': dummy_data_paths[2],
+            'data_2': dummy_data_paths[3],
+        }
+
+        storage_directory = os.path.join(base_directory_path, 'storage')
+        local_storage = LocalFileStorage(storage_directory)
+
+        local_storage.store_simulation_data(dummy_substance.identifier, dummy_data_path_1)
+        local_storage.store_simulation_data(dummy_substance.identifier, dummy_data_path_2)
+
+        stored_data = local_storage.retrieve_simulation_data(dummy_substance)
+
+        assert len(stored_data[dummy_substance.identifier]) == 1
+
+        # Make sure the correct data got retained.
+        with open(os.path.join(stored_data[dummy_substance.identifier][0], 'data.json')) as file:
+            stored_data_object = json.load(file, cls=TypedJSONDecoder)
+            assert stored_data_object.coordinate_file_name == data_2_coordinate_name
+
+        dummy_data_path_3 = os.path.join(base_directory_path, 'data_3')
+        data_3_coordinate_name = 'data_3.pdb'
+
+        create_dummy_stored_simulation_data(directory_path=dummy_data_path_3,
+                                            substance=dummy_substance,
+                                            force_field_id='ff_id_2',
+                                            coordinate_file_name=data_3_coordinate_name,
+                                            statistical_inefficiency=3.0)
+
+        local_storage.store_simulation_data(dummy_substance.identifier, dummy_data_path_3)
+
+        stored_data = local_storage.retrieve_simulation_data(dummy_substance)
+        assert len(stored_data[dummy_substance.identifier]) == 2
+
+        # Make sure the correct data got retained.
+        with open(os.path.join(stored_data[dummy_substance.identifier][1], 'data.json')) as file:
+            stored_data_object = json.load(file, cls=TypedJSONDecoder)
+            assert stored_data_object.coordinate_file_name == data_3_coordinate_name

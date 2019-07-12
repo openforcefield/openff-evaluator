@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 from enum import Enum
@@ -8,10 +9,11 @@ from propertyestimator.datasets import PhysicalPropertyDataSet
 from propertyestimator.properties import Density
 from propertyestimator.properties import PropertyPhase, CalculationSource, DielectricConstant, EnthalpyOfMixing
 from propertyestimator.protocols import coordinates, groups, simulation
-from propertyestimator.storage import LocalFileStorage
+from propertyestimator.storage import LocalFileStorage, StoredSimulationData
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import get_data_filename
+from propertyestimator.utils.serialization import TypedJSONEncoder
 from propertyestimator.workflow import WorkflowOptions
 from simtk import unit
 
@@ -198,6 +200,46 @@ def create_dummy_property(property_class):
     }
 
     return dummy_property
+
+
+def create_dummy_stored_simulation_data(directory_path,
+                                        substance,
+                                        force_field_id='dummy_ff_id',
+                                        coordinate_file_name='output.pdb',
+                                        trajectory_file_name='trajectory.dcd',
+                                        statistics_file_name='statistics.csv',
+                                        statistical_inefficiency=1.0):
+
+    """Creates a dummy `StoredSimulationData` object and
+    the corresponding data directory.
+
+    Parameters
+    ----------
+    base_directory: str
+        The path to the dummy data directory to create.
+    substance: Substance
+    force_field_id
+    coordinate_file_name
+    trajectory_file_name
+    statistics_file_name
+    statistical_inefficiency
+    """
+
+    data = StoredSimulationData()
+
+    data.substance = substance
+    data.force_field_id = force_field_id
+
+    data.coordinate_file_name = coordinate_file_name
+    data.trajectory_file_name = trajectory_file_name
+
+    data.statistics_file_name = statistics_file_name
+    data.statistical_inefficiency = statistical_inefficiency
+
+    os.makedirs(directory_path, exist_ok=True)
+
+    with open(os.path.join(directory_path, 'data.json'), 'w') as file:
+        json.dump(data, file, cls=TypedJSONEncoder)
 
 
 def create_filterable_data_set():

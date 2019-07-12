@@ -10,7 +10,6 @@ from propertyestimator.protocols.utils import generate_base_simulation_protocols
     generate_gradient_protocol_group
 from propertyestimator.storage import StoredSimulationData
 from propertyestimator.utils.statistics import ObservableType
-from propertyestimator.workflow import WorkflowOptions
 from propertyestimator.workflow.schemas import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
 

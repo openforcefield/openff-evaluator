@@ -19,6 +19,58 @@ class BaseStoredData:
 
         self.force_field_id = None
 
+    def can_collapse(self, other_data):
+        """Checks whether this piece of data stores the same
+        amount of compatible information (or more) than another
+        piece of stored data, and hence whether the two can be
+        collapsed together.
+
+        Parameters
+        ----------
+        other_data: BaseStoredData
+            The other stored data to compare against.
+
+        Returns
+        -------
+        bool
+            Returns `True` if this piece of data stores the same
+            amount of information or more than another piece of
+            data, or false if it contains less or incompatible data.
+        """
+
+        if other_data is None:
+            return False
+
+        if type(self) != type(other_data):
+            return False
+
+        if self.thermodynamic_state != other_data.thermodynamic_state:
+            return False
+
+        if self.force_field_id != other_data.force_field_id:
+            return False
+
+        return True
+
+    @classmethod
+    def collapse(cls, stored_data_1, stored_data_2):
+        """Collapse two pieces of compatible stored data
+        into one.
+
+        Parameters
+        ----------
+        stored_data_1: BaseStoredData
+            The first piece of stored data.
+        stored_data_2: BaseStoredData
+            The second piece of stored data.
+
+        Returns
+        -------
+        BaseStoredData
+            The collapsed stored data.
+        """
+        raise NotImplementedError()
+
     def __getstate__(self):
         return {
             'unique_id': self.unique_id,
@@ -61,6 +113,52 @@ class StoredSimulationData(BaseStoredData):
 
         self.total_number_of_molecules = None
 
+    def can_collapse(self, other_data):
+        """
+        Parameters
+        ----------
+        other_data: StoredSimulationData
+            The other stored data to compare against.
+        """
+
+        if not super(StoredSimulationData, self).can_collapse(other_data):
+            return False
+
+        if self.substance != other_data.substance:
+            return False
+
+        return True
+
+    @classmethod
+    def collapse(cls, stored_data_1, stored_data_2):
+        """Collapse two pieces of compatible stored data
+        into one, by only retaining the data with the longest
+        autocorrelation time.
+
+        Parameters
+        ----------
+        stored_data_1: StoredSimulationData
+            The first piece of stored data.
+        stored_data_2: StoredSimulationData
+            The second piece of stored data.
+
+        Returns
+        -------
+        StoredSimulationData
+            The collapsed stored data.
+        """
+
+        # Make sure the two objects can actually be collapsed.
+        if not stored_data_1.can_collapse(stored_data_2):
+
+            raise ValueError('The two pieces of data are incompatible and cannot '
+                             'be collapsed into one.')
+
+        if stored_data_1.statistical_inefficiency < stored_data_2.statistical_inefficiency:
+            return stored_data_2
+
+        return stored_data_1
+
     def __getstate__(self):
         base_state = super(StoredSimulationData, self).__getstate__()
 
@@ -91,3 +189,89 @@ class StoredSimulationData(BaseStoredData):
         self.statistical_inefficiency = state['statistical_inefficiency']
 
         self.total_number_of_molecules = state['total_number_of_molecules']
+
+
+class StoredDataCollection(BaseStoredData):
+    """A collection of stored `StoredSimulationData` objects, all
+    generated at the same state and using the same force field
+    parameters.
+    """
+
+    def __init__(self):
+        """Constructs a new StoredDataCollection object"""
+        super().__init__()
+        self.data = {}
+
+    def can_collapse(self, other_data):
+        """
+        Parameters
+        ----------
+        other_data: StoredDataCollection
+            The other stored data to compare against.
+        """
+
+        if not super(StoredDataCollection, self).can_collapse(other_data):
+            return False
+
+        if len(self.data) != len(other_data.data):
+            return False
+
+        for data_key in self.data:
+
+            if data_key not in other_data.data:
+                return False
+
+            self_data = self.data[data_key]
+            other_data = other_data.data[data_key]
+
+            if self_data.can_collapse(other_data):
+                continue
+
+            return False
+
+        return True
+
+    @classmethod
+    def collapse(cls, stored_data_1, stored_data_2):
+        """Collapse two pieces of compatible stored data
+        into one, by only retaining the data with the longest
+        autocorrelation time.
+
+        Parameters
+        ----------
+        stored_data_1: StoredDataCollection
+            The first piece of stored data.
+        stored_data_2: StoredDataCollection
+            The second piece of stored data.
+
+        Returns
+        -------
+        StoredDataCollection
+            The collapsed stored data.
+        """
+
+        # Make sure the two objects can actually be collapsed.
+        if not stored_data_1.can_collapse(stored_data_2):
+
+            raise ValueError('The two pieces of data are incompatible and '
+                             'cannot be collapsed into one.')
+
+        collapsed_data = cls()
+        collapsed_data.force_field_id = stored_data_1.force_field_id
+
+        for data_key in stored_data_1.data:
+
+            collapsed_data.data[data_key] = stored_data_1.data[data_key].collapse(stored_data_1.data[data_key],
+                                                                                  stored_data_2.data[data_key])
+
+        return collapsed_data
+
+    def __getstate__(self):
+
+        state = super(StoredDataCollection, self).__getstate__()
+        state.update({'data': self.data})
+        return state
+
+    def __setstate__(self, state):
+        super(StoredDataCollection, self).__setstate__(state)
+        self.data = state['data']

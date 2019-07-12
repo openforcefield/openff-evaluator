@@ -313,48 +313,34 @@ class PropertyEstimatorStorage:
             The unique id of the stored data.
         """
 
-        simulation_data_object = None
-
         with open(path.join(simulation_data_directory, 'data.json'), 'r') as file:
+
             simulation_data_object = json.load(file, cls=TypedJSONDecoder)
+            simulation_data_object.unique_id = "{}_{}".format(substance_id, uuid.uuid4())
 
         simulation_data_key = None
         data_to_store = None
 
         if substance_id in self._simulation_data_by_substance:
 
+            # Check if any existing stored data is compatible with the
+            # new data we are trying to store.
             for stored_data_key in self._simulation_data_by_substance[substance_id]:
 
                 stored_data = self.retrieve_object(stored_data_key)
 
-                if stored_data is None:
+                if not stored_data.can_collapse(simulation_data_object):
                     continue
 
-                if type(stored_data) != type(simulation_data_object):
-                    continue
-
-                if simulation_data_object.thermodynamic_state != stored_data.thermodynamic_state:
-                    continue
-
-                if simulation_data_object.force_field_id != stored_data.force_field_id:
-                    continue
-
-                if stored_data.statistical_inefficiency < simulation_data_object.statistical_inefficiency:
-                    continue
-
-                # if (simulation_data.statistical_inefficiency == stored_data.statistical_inefficiency and
-                #     stored_data.effective_samples < simulation_data.effective_samples):
-                #     continue
-
-                data_to_store = stored_data
+                data_to_store = stored_data.collapse(stored_data, simulation_data_object)
                 simulation_data_key = stored_data_key
+
+                break
 
         if simulation_data_key is None:
 
-            simulation_data_key = "{}_{}".format(substance_id, uuid.uuid4())
-
+            simulation_data_key = simulation_data_object.unique_id
             data_to_store = simulation_data_object
-            data_to_store.unique_id = simulation_data_key
 
             with open(path.join(simulation_data_directory, 'data.json'), 'w') as file:
                 json.dump(data_to_store, file, cls=TypedJSONEncoder)
