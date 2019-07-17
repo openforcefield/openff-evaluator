@@ -31,8 +31,9 @@ class UnpackStoredSimulationData(BaseProtocol):
 
     @protocol_input(tuple)
     def simulation_data_path(self):
-        """A tuple which contains both the path to the simulation data directory,
-        and the force field which was used to generate the stored data."""
+        """A tuple which contains both the path to the simulation data object,
+        it's ancillary data directory, and the force field which was used to
+        generate the stored data."""
         pass
 
     @protocol_output(Substance)
@@ -98,15 +99,16 @@ class UnpackStoredSimulationData(BaseProtocol):
 
     def execute(self, directory, available_resources):
 
-        if len(self._simulation_data_path) != 2:
+        if len(self._simulation_data_path) != 3:
 
             return PropertyEstimatorException(directory=directory,
                                               message='The simulation data path should be a tuple '
-                                                      'of a path to the data directory, and a path '
+                                                      'of a path to the data object, directory, and a path '
                                                       'to the force field used to generate it.')
 
-        data_directory = self._simulation_data_path[0]
-        force_field_path = self._simulation_data_path[1]
+        data_object_path = self._simulation_data_path[0]
+        data_directory = self._simulation_data_path[1]
+        force_field_path = self._simulation_data_path[2]
 
         if not path.isdir(data_directory):
 
@@ -122,7 +124,7 @@ class UnpackStoredSimulationData(BaseProtocol):
 
         data_object = None
 
-        with open(path.join(data_directory, 'data.json'), 'r') as file:
+        with open(data_object_path, 'r') as file:
             data_object = json.load(file, cls=TypedJSONDecoder)
 
         self._substance = data_object.substance

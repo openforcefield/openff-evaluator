@@ -54,20 +54,22 @@ class DummyCalculationLayer(PropertyCalculationLayer):
         """Return a result as if the property had been successfully estimated.
         """
 
-        dummy_data_directory = path.join(layer_directory, 'dummy_data')
-        makedirs(dummy_data_directory)
+        dummy_data_directory = path.join(layer_directory, 'good_dummy_data')
+        makedirs(dummy_data_directory, exist_ok=True)
 
         dummy_stored_object = StoredSimulationData()
         dummy_stored_object.substance = physical_property.substance
 
-        with open(path.join(dummy_data_directory, 'data.json'), 'w') as file:
+        dummy_stored_object_path = path.join(layer_directory, 'good_dummy_data.json')
+
+        with open(dummy_stored_object_path, 'w') as file:
             json.dump(dummy_stored_object, file, cls=TypedJSONEncoder)
 
         return_object = CalculationLayerResult()
         return_object.property_id = physical_property.id
 
         return_object.calculated_property = physical_property
-        return_object.data_directories_to_store = [dummy_data_directory]
+        return_object.data_to_store = [(dummy_stored_object_path, dummy_data_directory)]
 
         return return_object
 
@@ -88,19 +90,21 @@ class DummyCalculationLayer(PropertyCalculationLayer):
     def return_bad_result(physical_property, layer_directory, **_):
         """Return a result which leads to an unhandled exception.
         """
+
         dummy_data_directory = path.join(layer_directory, 'bad_dummy_data')
-        makedirs(dummy_data_directory)
+        makedirs(dummy_data_directory, exist_ok=True)
 
         dummy_stored_object = StoredSimulationData()
+        dummy_stored_object_path = path.join(layer_directory, 'bad_dummy_data.json')
 
-        with open(path.join(dummy_data_directory, 'data.json'), 'w') as file:
+        with open(dummy_stored_object_path, 'w') as file:
             json.dump(dummy_stored_object, file, cls=TypedJSONEncoder)
 
         return_object = CalculationLayerResult()
         return_object.property_id = physical_property.id
 
         return_object.calculated_property = physical_property
-        return_object.data_directories_to_store = [dummy_data_directory]
+        return_object.data_to_store = [(dummy_stored_object_path, dummy_data_directory)]
 
         return return_object
 
@@ -159,7 +163,7 @@ def test_serialize_layer_result():
     dummy_result.calculated_property = create_dummy_property(Density)
     dummy_result.exception = PropertyEstimatorException()
 
-    dummy_result.data_directories_to_store = ['dummy_directory']
+    dummy_result.data_to_store = [('dummy_object_path', 'dummy_directory')]
 
     dummy_result_json = json.dumps(dummy_result, cls=TypedJSONEncoder)
 

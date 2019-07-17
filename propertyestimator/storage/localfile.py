@@ -1,14 +1,14 @@
 """
 A local file based storage backend.
 """
-
-import logging
-import pickle
+import json
 from os import path, makedirs
 from shutil import move
 
 from propertyestimator.storage import StoredSimulationData
+from propertyestimator.storage.dataclasses import BaseStoredData
 from propertyestimator.substances import Substance
+from propertyestimator.utils.serialization import TypedJSONEncoder, TypedJSONDecoder
 from .storage import PropertyEstimatorStorage
 
 
@@ -31,40 +31,38 @@ class LocalFileStorage(PropertyEstimatorStorage):
 
         super().__init__()
 
-    def store_object(self, storage_key, object_to_store):
+    def _store_object(self, storage_key, object_to_store):
 
         file_path = path.join(self._root_directory, storage_key)
 
-        try:
+        # If the object to store is a simple string we write that
+        # directly, otherwise we try and JSONify the object.
+        if not isinstance(object_to_store, str):
+            object_to_store = json.dumps(object_to_store, cls=TypedJSONEncoder)
 
-            with open(file_path, 'wb') as file:
-                pickle.dump(object_to_store, file)
+        with open(file_path, 'w') as file:
+            file.write(object_to_store)
 
-        except pickle.PicklingError:
-            logging.warning('Unable to pickle an object to {}'.format(storage_key))
+        super(LocalFileStorage, self)._store_object(storage_key, object_to_store)
 
-        super(LocalFileStorage, self).store_object(storage_key, object_to_store)
+    def _retrieve_object(self, storage_key):
 
-    def retrieve_object(self, storage_key):
-
-        if not self.has_object(storage_key):
+        if not self._has_object(storage_key):
             return None
 
         file_path = path.join(self._root_directory, storage_key)
 
-        loaded_object = None
+        with open(file_path, 'r') as file:
+            loaded_object_string = file.read()
 
         try:
-
-            with open(file_path, 'rb') as file:
-                loaded_object = pickle.load(file)
-
-        except pickle.UnpicklingError:
-            logging.warning('Unable to unpickle the object at {}'.format(storage_key))
+            loaded_object = json.loads(loaded_object_string, cls=TypedJSONDecoder)
+        except json.JSONDecodeError:
+            loaded_object = loaded_object_string
 
         return loaded_object
 
-    def has_object(self, storage_key):
+    def _has_object(self, storage_key):
 
         file_path = path.join(self._root_directory, storage_key)
 
@@ -73,47 +71,74 @@ class LocalFileStorage(PropertyEstimatorStorage):
 
         return True
 
-    def store_simulation_data(self, substance_id, simulation_data_directory):
+    def store_simulation_data(self, data_object, data_directory):
 
-        if not path.isdir(simulation_data_directory):
-            raise ValueError(f'The directory ({simulation_data_directory}) to store does not exist.')
+        unique_id = super(LocalFileStorage, self).store_simulation_data(data_object,
+                                                                        data_directory)
 
-        unique_id = super(LocalFileStorage, self).store_simulation_data(substance_id,
-                                                                        simulation_data_directory)
-
-        move(simulation_data_directory, path.join(self._root_directory, f'{unique_id}_data'))
+        move(data_directory, path.join(self._root_directory, f'{unique_id}_data'))
         return unique_id
 
-    def retrieve_simulation_data(self, substance, include_pure_data=True, data_class=StoredSimulationData):
+    def retrieve_simulation_data_by_id(self, unique_id):
+        """Attempts to retrieve a storage piece of simulation data
+        from it's unique id.
 
-        substance_ids = [substance.identifier]
+        Parameters
+        ----------
+        unique_id: str
+            The unique id assigned to the data.
 
-        if isinstance(substance, Substance) and include_pure_data is True:
+        Returns
+        -------
+        BaseStoredData
+            The stored data object.
+        str
+            The path to the data's corresponding directory.
+        """
+        stored_object = self._retrieve_object(unique_id)
+
+        # Make sure the stored object is a valid object.
+        if not isinstance(stored_object, BaseStoredData):
+            return None, None
+
+        data_directory = path.join(self._root_directory, f'{unique_id}_data')
+        return stored_object, data_directory
+
+    def retrieve_simulation_data(self, substance, include_component_data=True,
+                                 data_class=StoredSimulationData):
+
+        substance_ids = {substance.identifier}
+
+        # Find the substance identifiers of the substance components if
+        # we should include component data.
+        if isinstance(substance, Substance) and include_component_data is True:
 
             for component in substance.components:
 
                 component_substance = Substance()
                 component_substance.add_component(component, Substance.MoleFraction())
 
-                if component_substance.identifier not in substance_ids:
-                    substance_ids.append(component_substance.identifier)
+                substance_ids.add(component_substance.identifier)
 
-        return_paths = {}
+        return_data = {}
 
         for substance_id in substance_ids:
 
             if substance_id not in self._simulation_data_by_substance:
                 continue
 
-            return_paths[substance_id] = []
+            return_data[substance_id] = []
 
-            for simulation_data_key in self._simulation_data_by_substance[substance_id]:
+            for data_key in self._simulation_data_by_substance[substance_id]:
 
-                stored_object = self.retrieve_object(simulation_data_key)
+                data_object, data_directory = self.retrieve_simulation_data_by_id(data_key)
 
-                if not isinstance(stored_object, data_class):
+                if data_object is None:
                     continue
 
-                return_paths[substance_id].append(path.join(self._root_directory, f'{stored_object.unique_id}_data'))
+                if not isinstance(data_object, data_class):
+                    continue
 
-        return return_paths
+                return_data[substance_id].append((data_object, data_directory))
+
+        return return_data

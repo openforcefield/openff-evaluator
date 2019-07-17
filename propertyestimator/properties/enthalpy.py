@@ -21,7 +21,8 @@ from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow import plugins, WorkflowOptions
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
 from propertyestimator.workflow.protocols import BaseProtocol
-from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowOutputToStore, WorkflowSchema
+from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSimulationDataToStore, WorkflowSchema, \
+    WorkflowDataCollectionToStore
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
@@ -364,7 +365,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         # Finally, tell the schemas where to look for its final values.
         schema.final_value_source = ProtocolPath('result', calculate_enthalpy_of_mixing.id)
 
-        mixed_output_to_store = WorkflowOutputToStore()
+        mixed_output_to_store = WorkflowSimulationDataToStore()
 
         mixed_output_to_store.total_number_of_molecules = ProtocolPath('final_number_of_molecules',
                                                                        mixed_system_workflow.build_coordinates.id)
@@ -383,7 +384,7 @@ class EnthalpyOfMixing(PhysicalProperty):
                                                                       mixed_system_workflow.converge_uncertainty.id,
                                                                       'mixed_extract_enthalpy')
 
-        component_output_to_store = WorkflowOutputToStore()
+        component_output_to_store = WorkflowSimulationDataToStore()
 
         component_output_to_store.substance = ReplicatorValue('repl')
 
@@ -701,7 +702,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         schema.replicators = [gradient_replicator]
 
-        data_to_store = StoredDataCollection()
+        data_to_store = WorkflowDataCollectionToStore()
 
         data_to_store.data['liquid'] = liquid_output_to_store
         data_to_store.data['gas'] = gas_output_to_store

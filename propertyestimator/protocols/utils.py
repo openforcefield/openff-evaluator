@@ -8,7 +8,7 @@ from propertyestimator.protocols import analysis, forcefield, gradients, groups,
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.workflow import WorkflowOptions
 from propertyestimator.workflow.plugins import available_protocols
-from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowOutputToStore
+from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSimulationDataToStore
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 BaseReweightingProtocols = namedtuple('BaseReweightingProtocols', 'unpack_stored_data '
@@ -231,7 +231,7 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
     ProtocolPath
         A reference to the final value of the estimated observable
         and its uncertainty (an `EstimatedQuantity`).
-    WorkflowOutputToStore
+    WorkflowSimulationDataToStore
         An object which describes the default data from a simulation to store,
         such as the uncorrelated statistics and configurations.
     """
@@ -322,7 +322,7 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
     extract_uncorrelated_statistics.input_statistics_path = statistics_path
 
     # Build the object which defines which pieces of simulation data to store.
-    output_to_store = WorkflowOutputToStore()
+    output_to_store = WorkflowSimulationDataToStore()
 
     output_to_store.total_number_of_molecules = ProtocolPath('final_number_of_molecules', build_coordinates.id)
     output_to_store.statistical_inefficiency = statistical_inefficiency

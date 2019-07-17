@@ -223,7 +223,14 @@ def create_dummy_stored_simulation_data(directory_path,
     trajectory_file_name
     statistics_file_name
     statistical_inefficiency
+
+    Returns
+    -------
+    StoredSimulationData
+        The dummy stored data object.
     """
+
+    os.makedirs(directory_path, exist_ok=True)
 
     data = StoredSimulationData()
 
@@ -236,10 +243,7 @@ def create_dummy_stored_simulation_data(directory_path,
     data.statistics_file_name = statistics_file_name
     data.statistical_inefficiency = statistical_inefficiency
 
-    os.makedirs(directory_path, exist_ok=True)
-
-    with open(os.path.join(directory_path, 'data.json'), 'w') as file:
-        json.dump(data, file, cls=TypedJSONEncoder)
+    return data
 
 
 def create_filterable_data_set():

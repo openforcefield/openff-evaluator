@@ -34,7 +34,23 @@ def return_args(*args, **kwargs):
 
 class CalculationLayerResult:
     """The output returned from attempting to calculate a property on
-     a PropertyCalculationLayer."""
+    a PropertyCalculationLayer.
+
+    Attributes
+    ----------
+    property_id: str
+        The unique id of the original physical property that this
+        calculation layer attempts to estimate.
+    calculated_property: PhysicalProperty, optional
+        The property which was estimated by this layer. The will
+        be `None` if the layer could not estimate the property.
+    exception: PropertyEstimatorException, optional
+        The exception which was raised when estimating the property
+        of interest, if any.
+    data_to_store: list of tuple of str and str
+        A list of pairs of a path to a JSON serialized `BaseStoredData`
+        object, and the path to the corresponding data directory.
+    """
 
     def __init__(self):
         """Constructs a new CalculationLayerResult object.
@@ -44,7 +60,7 @@ class CalculationLayerResult:
         self.calculated_property = None
         self.exception = None
 
-        self.data_directories_to_store = []
+        self.data_to_store = []
 
     def __getstate__(self):
 
@@ -52,7 +68,7 @@ class CalculationLayerResult:
             'property_id': self.property_id,
             'calculated_property': self.calculated_property,
             'exception': self.exception,
-            'data_directories_to_store': self.data_directories_to_store
+            'data_to_store': self.data_to_store
         }
 
     def __setstate__(self, state):
@@ -62,7 +78,7 @@ class CalculationLayerResult:
         self.calculated_property = state['calculated_property']
         self.exception = state['exception']
 
-        self.data_directories_to_store = state['data_directories_to_store']
+        self.data_to_store = state['data_to_store']
 
 
 class PropertyCalculationLayer:
@@ -160,31 +176,29 @@ class PropertyCalculationLayer:
 
                     # Make sure to store any important calculation data if no exceptions
                     # were thrown.
-                    if (returned_output.data_directories_to_store is not None and
+                    if (returned_output.data_to_store is not None and
                         returned_output.calculated_property is not None):
 
-                        for data_directory in returned_output.data_directories_to_store:
+                        for data_tuple in returned_output.data_to_store:
 
-                            data_file = path.join(data_directory, 'data.json')
+                            data_object_path, data_directory_path = data_tuple
 
                             # Make sure the data directory / file to store actually exists
-                            if not path.isdir(data_directory) or not path.isfile(data_file):
-                                logging.info(f'Invalid data directory ({data_directory}) / file ({data_file})')
+                            if not path.isdir(data_directory_path) or not path.isfile(data_object_path):
+
+                                logging.info(f'Invalid data directory ({data_directory_path}) / '
+                                             f'file ({data_object_path})')
                                 continue
 
                             # Attach any extra metadata which is missing.
-                            with open(data_file, 'r') as file:
+                            with open(data_object_path, 'r') as file:
 
                                 data_object = json.load(file, cls=TypedJSONDecoder)
 
                                 if data_object.force_field_id is None:
                                     data_object.force_field_id = server_request.force_field_id
 
-                            with open(data_file, 'w') as file:
-                                json.dump(data_object, file, cls=TypedJSONEncoder)
-
-                            substance_id = data_object.substance.identifier
-                            storage_backend.store_simulation_data(substance_id, data_directory)
+                            storage_backend.store_simulation_data(data_object, data_directory_path)
 
                 matches = [x for x in server_request.queued_properties if x.id == returned_output.property_id]
 
