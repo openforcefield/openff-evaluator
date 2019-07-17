@@ -7,7 +7,7 @@ import traceback
 from os import path
 
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
+from propertyestimator.utils.serialization import TypedJSONDecoder
 
 available_layers = {}
 

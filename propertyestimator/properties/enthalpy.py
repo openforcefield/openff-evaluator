@@ -730,11 +730,20 @@ class EnthalpyOfVaporization(PhysicalProperty):
             The schema to follow when estimating this property.
         """
 
+        # Set up a protocol to extract both the liquid and gas phase data
+        unpack_data_collection = reweighting.UnpackStoredDataCollection('unpack_data_collection_$(data_repl)')
+        unpack_data_collection.input_data_path = ReplicatorValue('data_repl')
+
         # Set up a protocol to extract the liquid phase enthalpy from the existing data.
         extract_liquid_enthalpy = analysis.ExtractAverageStatistic('extract_liquid_enthalpy_$(data_repl)')
         extract_liquid_enthalpy.statistics_type = ObservableType.Enthalpy
 
-        liquid_protocols, liquid_data_replicator = generate_base_reweighting_protocols(extract_liquid_enthalpy, options)
+        liquid_protocols, liquid_data_replicator = generate_base_reweighting_protocols(extract_liquid_enthalpy,
+                                                                                       options,
+                                                                                       id_suffix='_liquid')
+
+        liquid_protocols.unpack_stored_data.simulation_data_path = ProtocolPath('collection_data_paths[liquid]',
+                                                                                unpack_data_collection.id)
 
         extract_liquid_enthalpy.divisor = ProtocolPath('total_number_of_molecules',
                                                        liquid_protocols.unpack_stored_data.id)
@@ -745,7 +754,12 @@ class EnthalpyOfVaporization(PhysicalProperty):
         extract_gas_enthalpy = analysis.ExtractAverageStatistic('extract_gas_enthalpy_$(data_repl)')
         extract_gas_enthalpy.statistics_type = ObservableType.TotalEnergy
 
-        gas_protocols, gas_data_replicator = generate_base_reweighting_protocols(extract_gas_enthalpy, options)
+        gas_protocols, gas_data_replicator = generate_base_reweighting_protocols(extract_gas_enthalpy,
+                                                                                 options,
+                                                                                 id_suffix='_gas')
+
+        gas_protocols.unpack_stored_data.simulation_data_path = ProtocolPath('collection_data_paths[gas]',
+                                                                             unpack_data_collection.id)
 
         extract_gas_enthalpy.statistics_path = ProtocolPath('statistics_file_path',
                                                             gas_protocols.unpack_stored_data.id)
@@ -757,7 +771,8 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         # Combine the data replicators
         data_replicator = ProtocolReplicator(liquid_data_replicator.id)
-        data_replicator.protocols_to_replicate = [*liquid_data_replicator.protocols_to_replicate,
+        data_replicator.protocols_to_replicate = [ProtocolPath('', unpack_data_collection.id),
+                                                  *liquid_data_replicator.protocols_to_replicate,
                                                   *gas_data_replicator.protocols_to_replicate]
         data_replicator.template_values = liquid_data_replicator.template_values
 
@@ -801,8 +816,12 @@ class EnthalpyOfVaporization(PhysicalProperty):
         schema = WorkflowSchema(property_type=EnthalpyOfVaporization.__name__)
         schema.id = '{}{}'.format(EnthalpyOfVaporization.__name__, 'Schema')
 
+        schema.protocols[unpack_data_collection.id] = unpack_data_collection.schema
+
         schema.protocols.update({protocol.id: protocol.schema for protocol in liquid_protocols})
         schema.protocols.update({protocol.id: protocol.schema for protocol in gas_protocols})
+
+        schema.protocols[enthalpy_of_vaporization.id] = enthalpy_of_vaporization.schema
 
         schema.protocols[liquid_gradient_group.id] = liquid_gradient_group.schema
         schema.protocols[gas_gradient_group.id] = gas_gradient_group.schema

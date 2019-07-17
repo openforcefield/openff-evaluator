@@ -5,7 +5,6 @@ import abc
 import json
 import logging
 import os
-from os import path
 
 from propertyestimator.layers import register_calculation_layer, PropertyCalculationLayer
 from propertyestimator.substances import Substance
@@ -50,7 +49,7 @@ class ReweightingLayer(PropertyCalculationLayer):
 
         # Make a local copy of the target force field.
         target_force_field = storage_backend.retrieve_force_field(data_model.force_field_id)
-        target_force_field_path = path.join(layer_directory, data_model.force_field_id)
+        target_force_field_path = os.path.join(layer_directory, data_model.force_field_id)
 
         target_force_field.to_file(target_force_field_path, io_format='XML',
                                    discard_cosmetic_attributes=False)
@@ -116,21 +115,21 @@ class ReweightingLayer(PropertyCalculationLayer):
 
                 for data_object, data_directory in existing_data[substance_id]:
 
-                    data_object_path = path.join(layer_directory, f'{os.path.basename(data_directory)}.json')
+                    data_object_path = os.path.join(layer_directory, f'{os.path.basename(data_directory)}.json')
 
-                    if not path.isfile(data_object_path):
+                    if not os.path.isfile(data_object_path):
 
                         with open(data_object_path, 'w') as file:
                             json.dump(data_object, file, cls=TypedJSONEncoder)
 
-                    force_field_path = path.join(layer_directory, data_object.force_field_id)
+                    force_field_path = os.path.join(layer_directory, data_object.force_field_id)
 
                     path_tuple = (data_object_path, data_directory, force_field_path)
 
                     if path_tuple in data_paths[substance_id]:
                         continue
 
-                    if not path.isfile(force_field_path):
+                    if not os.path.isfile(force_field_path):
 
                         existing_force_field = storage_backend.retrieve_force_field(data_object.force_field_id)
 

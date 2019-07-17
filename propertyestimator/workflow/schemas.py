@@ -526,6 +526,10 @@ class WorkflowSchema(TypedBaseModel):
                     other_protocol_object = available_protocols[other_protocol_schema.type](other_protocol_schema.id)
                     other_protocol_object.schema = other_protocol_schema
 
+                    # Make allowances for dictionaries and lists
+                    if value_reference.property_name.find('[') >= 0 or value_reference.property_name.find(']') >= 0:
+                        continue
+
                     # Will throw the correct exception if missing.
                     other_protocol_object.get_value(value_reference)
 
