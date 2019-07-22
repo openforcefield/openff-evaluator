@@ -273,6 +273,7 @@ class DaskLSFBackend(BaseDaskBackend):
         self._cluster = LSFCluster(queue=self._queue_name,
                                    cores=self._resources_per_worker.number_of_threads,
                                    walltime=self._resources_per_worker.wallclock_time_limit,
+                                   memory='1GB',  # Add a temporary value.
                                    mem=memory_bytes,
                                    job_extra=job_extra,
                                    env_extra=self._setup_script_commands,
