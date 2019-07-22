@@ -381,7 +381,8 @@ def generate_gradient_protocol_group(reference_force_field_paths,
                                      template_reweighting_schema=None,
                                      perturbation_scale=1.0e-4,
                                      substance_source=None,
-                                     id_prefix=''):
+                                     id_prefix='',
+                                     enable_pbc=True):
     """Constructs a set of protocols which, when combined in a workflow schema,
     may be executed to reweight a set of existing data to estimate a particular
     property. The reweighted observable of interest will be calculated by
@@ -419,6 +420,9 @@ def generate_gradient_protocol_group(reference_force_field_paths,
     id_prefix: str
         An optional string to prepend to the beginning of each of the
         protocol ids.
+    enable_pbc: bool
+        If true, periodic boundary conditions are employed when recalculating
+        the reduced potentials.
 
     Returns
     -------
@@ -457,6 +461,7 @@ def generate_gradient_protocol_group(reference_force_field_paths,
     reduced_potentials.perturbation_scale = perturbation_scale
 
     reduced_potentials.use_subset_of_force_field = True
+    reduced_potentials.enable_pbc = enable_pbc
 
     # Set up the protocols which will actually reweight the value of the
     # observable to the forward and reverse states.

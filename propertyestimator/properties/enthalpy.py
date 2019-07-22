@@ -655,7 +655,8 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                              gas_coordinate_source,
                                              gas_trajectory_source,
                                              observable_values=gas_observables_source,
-                                             id_prefix='gas_')
+                                             id_prefix='gas_',
+                                             enable_pbc=False)
 
         # Combine the gradients.
         combine_gradients = gradients.SubtractGradients('combine_gradients_$(repl)')
@@ -758,6 +759,10 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                                                                  options,
                                                                                  id_suffix='_gas')
 
+        # Turn of PBC for the gas phase.
+        gas_protocols.reduced_reference_potential.enable_pbc = False
+        gas_protocols.reduced_target_potential.enable_pbc = False
+
         gas_protocols.unpack_stored_data.simulation_data_path = ProtocolPath('collection_data_paths[gas]',
                                                                              unpack_data_collection.id)
 
@@ -798,7 +803,8 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                              gas_coordinate_path,
                                              gas_trajectory_path,
                                              'grad',
-                                             ProtocolPath('uncorrelated_values', extract_gas_enthalpy.id))
+                                             ProtocolPath('uncorrelated_values', extract_gas_enthalpy.id),
+                                             enable_pbc=False)
 
         # Combine the gradients.
         combine_gradients = gradients.SubtractGradients('combine_gradients_$(grad)')

@@ -371,6 +371,11 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
     def system_path(self):
         pass
 
+    @protocol_input(bool)
+    def enable_pbc(self):
+        """If true, periodic boundary conditions will be enabled."""
+        pass
+
     @protocol_input(str)
     def coordinate_file_path(self):
         pass
@@ -396,6 +401,7 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
 
         self._system_path = None
         self._system = None
+        self._enable_pbc = True
 
         self._coordinate_file_path = None
         self._trajectory_file_path = None
@@ -412,21 +418,40 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         from simtk import openmm
         from simtk.openmm import XmlSerializer
 
+        trajectory = mdtraj.load_dcd(self._trajectory_file_path, self._coordinate_file_path)
+
         with open(self._system_path, 'rb') as file:
             self._system = XmlSerializer.deserialize(file.read().decode())
 
-        trajectory = mdtraj.load_dcd(self._trajectory_file_path, self._coordinate_file_path)
-        self._system.setDefaultPeriodicBoxVectors(*trajectory.openmm_boxes(0))
+        pressure = self._thermodynamic_state.pressure
+
+        if self._enable_pbc:
+            self._system.setDefaultPeriodicBoxVectors(*trajectory.openmm_boxes(0))
+        else:
+            pressure = None
 
         openmm_state = openmmtools.states.ThermodynamicState(system=self._system,
                                                              temperature=self._thermodynamic_state.temperature,
-                                                             pressure=self._thermodynamic_state.pressure)
+                                                             pressure=pressure)
 
         integrator = openmmtools.integrators.VelocityVerletIntegrator(0.01*unit.femtoseconds)
 
         # Setup the requested platform:
         platform = setup_platform_with_resources(available_resources, self._high_precision)
-        openmm_context = openmm.Context(openmm_state.get_system(True, True), integrator, platform)
+        openmm_system = openmm_state.get_system(True, True)
+
+        if not self._enable_pbc:
+
+            for force_index in range(openmm_system.getNumForces()):
+
+                force = openmm_system.getForce(force_index)
+
+                if not isinstance(force, openmm.NonbondedForce):
+                    continue
+
+                force.setNonbondedMethod(0)  # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1
+
+        openmm_context = openmm.Context(openmm_system, integrator, platform)
 
         reduced_potentials = np.zeros(trajectory.n_frames)
 
@@ -434,10 +459,11 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
 
             # positions = trajectory.openmm_positions(frame_index)
             positions = trajectory.xyz[frame_index]
-            box_vectors = trajectory.openmm_boxes(frame_index)
-
-            openmm_context.setPeriodicBoxVectors(*box_vectors)
             openmm_context.setPositions(positions)
+
+            if self._enable_pbc:
+                box_vectors = trajectory.openmm_boxes(frame_index)
+                openmm_context.setPeriodicBoxVectors(*box_vectors)
 
             # set box vectors
             reduced_potentials[frame_index] = openmm_state.reduced_potential(openmm_context)

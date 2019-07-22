@@ -40,6 +40,12 @@ class GradientReducedPotentials(BaseProtocol):
         to differentiate the observable with respect to."""
         pass
 
+    @protocol_input(bool)
+    def enable_pbc(self):
+        """If true, periodic boundary conditions will be enabled when
+        re-evaluating the reduced potentials."""
+        pass
+
     @protocol_input(Substance)
     def substance(self):
         """The substance which describes the composition
@@ -106,6 +112,7 @@ class GradientReducedPotentials(BaseProtocol):
 
         self._reference_force_field_paths = []
         self._force_field_path = None
+        self._enable_pbc = True
 
         self._substance = None
         self._thermodynamic_state = None
@@ -203,6 +210,17 @@ class GradientReducedPotentials(BaseProtocol):
 
         system = force_field.create_openmm_system(topology)
 
+        if not self._enable_pbc:
+
+            for force_index in range(system.getNumForces()):
+
+                force = system.getForce(force_index)
+
+                if not isinstance(force, openmm.NonbondedForce):
+                    continue
+
+                force.setNonbondedMethod(0)  # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1
+
         return system, parameter_value
 
     def _evaluate_reduced_potential(self, system, trajectory, compute_resources):
@@ -246,7 +264,7 @@ class GradientReducedPotentials(BaseProtocol):
 
             unreduced_potential = state.getPotentialEnergy() / unit.AVOGADRO_CONSTANT_NA
 
-            if self._thermodynamic_state.pressure is not None:
+            if self._thermodynamic_state.pressure is not None and self.enable_pbc:
                 unreduced_potential += self._thermodynamic_state.pressure * state.getPeriodicBoxVolume()
 
             # set box vectors
