@@ -254,8 +254,13 @@ class DaskLSFBackend(BaseDaskBackend):
 
     def start(self):
 
+        from dask_jobqueue.lsf import lsf_detect_units, lsf_format_bytes_ceil
+
         requested_memory = self._resources_per_worker.per_thread_memory_limit
         memory_bytes = requested_memory.value_in_unit(unit.byte)
+
+        lsf_units = lsf_detect_units()
+        memory_string = lsf_format_bytes_ceil(memory_bytes, lsf_units=lsf_units)
 
         job_extra = []
 
@@ -273,7 +278,7 @@ class DaskLSFBackend(BaseDaskBackend):
         self._cluster = LSFCluster(queue=self._queue_name,
                                    cores=self._resources_per_worker.number_of_threads,
                                    walltime=self._resources_per_worker.wallclock_time_limit,
-                                   memory='1GB',  # Add a temporary value.
+                                   memory=memory_string,
                                    mem=memory_bytes,
                                    job_extra=job_extra,
                                    env_extra=self._setup_script_commands,
