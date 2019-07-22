@@ -605,7 +605,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
         gas_protocols.equilibration_simulation.enable_pbc = False
 
         gas_protocols.production_simulation.ensemble = Ensemble.NVT
-        gas_protocols.production_simulation.steps = 1000000
+        gas_protocols.production_simulation.steps = 10000000
         gas_protocols.production_simulation.output_frequency = 50000
         gas_protocols.production_simulation.enable_pbc = False
 
