@@ -260,7 +260,7 @@ class DaskLSFBackend(BaseDaskBackend):
         memory_bytes = requested_memory.value_in_unit(unit.byte)
 
         lsf_units = lsf_detect_units()
-        memory_string = lsf_format_bytes_ceil(memory_bytes, lsf_units=lsf_units)
+        memory_string = f'{lsf_format_bytes_ceil(memory_bytes, lsf_units=lsf_units)}{lsf_units.upper()}'
 
         job_extra = []
 
