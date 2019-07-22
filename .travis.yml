@@ -16,9 +16,9 @@ matrix:
     env: PYTHON_VER=3.7
 env:
   global:
-    - OE_LICENSE="$HOME/oe_license.txt"
+  - OE_LICENSE="$HOME/oe_license.txt"
 before_install:
-- openssl aes-256-cbc -K $encrypted_c469bd55e683_key -iv $encrypted_c469bd55e683_iv
+- openssl aes-256-cbc -K $encrypted_78085d00ae9a_key -iv $encrypted_78085d00ae9a_iv
   -in oe_license.txt.enc -out $OE_LICENSE -d
 - uname -a
 - df -h
@@ -28,7 +28,6 @@ before_install:
 install:
 - python devtools/scripts/create_conda_env.py -n=test -p=$PYTHON_VER devtools/conda-envs/test_env.yaml
 - conda activate test
-
 - python setup.py develop --no-deps
 script:
 - pytest -v --cov=propertyestimator propertyestimator/tests/
