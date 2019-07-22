@@ -6,6 +6,7 @@ import logging
 import traceback
 from os import path
 
+from propertyestimator.storage.dataclasses import StoredDataCollection
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder
 
@@ -197,6 +198,13 @@ class PropertyCalculationLayer:
 
                                 if data_object.force_field_id is None:
                                     data_object.force_field_id = server_request.force_field_id
+
+                                if isinstance(data_object, StoredDataCollection):
+
+                                    for inner_data_object in data_object.data.values():
+
+                                        if inner_data_object.force_field_id is None:
+                                            inner_data_object.force_field_id = server_request.force_field_id
 
                             storage_backend.store_simulation_data(data_object, data_directory_path)
 

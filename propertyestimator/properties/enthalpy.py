@@ -766,8 +766,8 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         # Combine the values to estimate the final enthalpy of vaporization
         enthalpy_of_vaporization = miscellaneous.SubtractValues('enthalpy_of_vaporization')
-        enthalpy_of_vaporization.value_b = ProtocolPath('value', extract_gas_enthalpy.id)
-        enthalpy_of_vaporization.value_a = ProtocolPath('value', extract_liquid_enthalpy.id)
+        enthalpy_of_vaporization.value_b = ProtocolPath('value', gas_protocols.mbar_protocol.id)
+        enthalpy_of_vaporization.value_a = ProtocolPath('value', liquid_protocols.mbar_protocol.id)
 
         # Combine the data replicators
         data_replicator = ProtocolReplicator(liquid_data_replicator.id)

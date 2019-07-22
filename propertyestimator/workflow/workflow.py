@@ -20,6 +20,7 @@ from propertyestimator.storage.dataclasses import BaseStoredData, StoredSimulati
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedBaseModel, TypedJSONEncoder, TypedJSONDecoder
+from propertyestimator.utils.string import extract_variable_index_and_name
 from propertyestimator.utils.utils import SubhookedABCMeta, get_nested_attribute
 from propertyestimator.workflow.plugins import available_protocols
 from propertyestimator.workflow.protocols import BaseProtocol
@@ -218,6 +219,19 @@ class Workflow:
                     continue
 
                 attribute_value.append_uuid(self.uuid)
+
+            if isinstance(output_to_store, WorkflowDataCollectionToStore):
+
+                for inner_data in output_to_store.data.values():
+
+                    for attribute_key in inner_data.__getstate__():
+
+                        attribute_value = getattr(inner_data, attribute_key)
+
+                        if not isinstance(attribute_value, ProtocolPath):
+                            continue
+
+                        attribute_value.append_uuid(self.uuid)
 
             self.outputs_to_store[output_label] = output_to_store
 
@@ -463,6 +477,11 @@ class Workflow:
 
             if len(replicator_ids) <= 0 or replicator.id not in replicator_ids:
                 continue
+
+            if isinstance(self.outputs_to_store[output_label], WorkflowDataCollectionToStore):
+
+                raise NotImplementedError('`WorkflowDataCollectionToStore` cannot currently '
+                                          'be replicated.')
 
             outputs_to_replicate.append(output_label)
 
@@ -782,6 +801,21 @@ class Workflow:
 
                 attribute_value.replace_protocol(old_protocol_id,
                                                  new_protocol_id)
+
+            if not isinstance(output_to_store, WorkflowDataCollectionToStore):
+                continue
+
+            for inner_data in output_to_store.data.values():
+
+                for attribute_key in inner_data.__getstate__():
+
+                    attribute_value = getattr(inner_data, attribute_key)
+
+                    if not isinstance(attribute_value, ProtocolPath):
+                        continue
+
+                    attribute_value.replace_protocol(old_protocol_id,
+                                                     new_protocol_id)
 
     @staticmethod
     def _find_relevant_gradient_keys(substance, force_field_path, parameter_gradient_keys):
@@ -1163,6 +1197,20 @@ class WorkflowGraph:
 
                     final_futures.append(submitted_futures[attribute_value.start_protocol])
 
+                if not isinstance(output_to_store, WorkflowDataCollectionToStore):
+                    continue
+
+                for inner_data in output_to_store.data.values():
+
+                    for attribute_key in inner_data.__getstate__():
+
+                        attribute_value = getattr(inner_data, attribute_key)
+
+                        if not isinstance(attribute_value, ProtocolPath):
+                            continue
+
+                        final_futures.append(submitted_futures[attribute_value.start_protocol])
+
             if len(final_futures) == 0:
                 final_futures = [submitted_futures[key] for key in submitted_futures]
 
@@ -1291,7 +1339,18 @@ class WorkflowGraph:
 
                         continue
 
-                    protocol.set_value(source_path, previous_outputs_by_path[target_path])
+                    # TODO: Add better support for array indexing.
+                    if target_path.property_name.find('[') >= 0 or target_path.property_name.find(']') >= 0:
+
+                        attribute_name, array_index = extract_variable_index_and_name(target_path.property_name)
+
+                        array_value = previous_outputs_by_path[ProtocolPath(attribute_name, target_path.start_protocol)]
+                        target_value = array_value[array_index]
+
+                    else:
+                        target_value = previous_outputs_by_path[target_path]
+
+                    protocol.set_value(source_path, target_value)
 
             logging.info('Executing protocol: {}'.format(protocol.id))
 
