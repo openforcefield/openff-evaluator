@@ -138,7 +138,6 @@ class DaskLSFBackend(BaseDaskBackend):
                  minimum_number_of_workers=1,
                  maximum_number_of_workers=1,
                  resources_per_worker=QueueWorkerResources(),
-                 default_memory_unit=unit.giga*unit.byte,
                  queue_name='default',
                  setup_script_commands=None,
                  extra_script_options=None,
@@ -155,10 +154,6 @@ class DaskLSFBackend(BaseDaskBackend):
             The maximum number of workers to request from the queue system.
         resources_per_worker: QueueWorkerResources
             The resources to request per worker.
-        default_memory_unit: simtk.Unit
-            The default unit used by the LSF queuing system when
-            defining memory usage limits / requirements - this
-            must be compatible with `unit.bytes`.
         queue_name: str
             The name of the queue which the workers will be requested
             from.
@@ -217,7 +212,6 @@ class DaskLSFBackend(BaseDaskBackend):
         >>> lsf_backend = DaskLSFBackend(minimum_number_of_workers=1,
         >>>                              maximum_number_of_workers=10,
         >>>                              resources_per_worker=resources,
-        >>>                              default_memory_unit=unit.gigabyte,
         >>>                              queue_name='gpuqueue',
         >>>                              setup_script_commands=setup_script_commands,
         >>>                              extra_script_options=extra_script_options)
@@ -249,8 +243,6 @@ class DaskLSFBackend(BaseDaskBackend):
         self._minimum_number_of_workers = minimum_number_of_workers
         self._maximum_number_of_workers = maximum_number_of_workers
 
-        self._default_memory_unit = default_memory_unit
-
         self._queue_name = queue_name
 
         self._setup_script_commands = setup_script_commands
@@ -263,16 +255,7 @@ class DaskLSFBackend(BaseDaskBackend):
     def start(self):
 
         requested_memory = self._resources_per_worker.per_thread_memory_limit
-
-        memory_default_unit = requested_memory.value_in_unit(self._default_memory_unit)
         memory_bytes = requested_memory.value_in_unit(unit.byte)
-
-        memory_string = '{}{}'.format(memory_default_unit, self._default_memory_unit.get_symbol())
-
-        # Dask assumes we will be using mega bytes as the default unit, so we need
-        # to multiply by a corrective factor to remove this assumption.
-        lsf_byte_scale = (1 * (unit.mega * unit.byte)).value_in_unit(self._default_memory_unit)
-        memory_bytes *= lsf_byte_scale
 
         job_extra = []
 
@@ -289,7 +272,6 @@ class DaskLSFBackend(BaseDaskBackend):
 
         self._cluster = LSFCluster(queue=self._queue_name,
                                    cores=self._resources_per_worker.number_of_threads,
-                                   memory=memory_string,
                                    walltime=self._resources_per_worker.wallclock_time_limit,
                                    mem=memory_bytes,
                                    job_extra=job_extra,
