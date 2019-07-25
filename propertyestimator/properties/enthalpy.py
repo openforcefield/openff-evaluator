@@ -573,7 +573,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
         """
 
         # Define the number of molecules for the liquid phase
-        number_of_liquid_molecules = 128
+        number_of_liquid_molecules = 1000
 
         # Define a custom conditional group.
         converge_uncertainty = groups.ConditionalGroup(f'converge_uncertainty')
