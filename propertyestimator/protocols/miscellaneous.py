@@ -2,6 +2,7 @@
 A collection of protocols for running analysing the results of molecular simulations.
 """
 import numpy as np
+from simtk import unit
 
 from propertyestimator.substances import Substance
 from propertyestimator.utils.exceptions import PropertyEstimatorException
@@ -101,7 +102,7 @@ class MultiplyValue(BaseProtocol):
         """The value to multiply."""
         pass
 
-    @protocol_input(int)
+    @protocol_input(unit.Quantity)
     def multiplier(self):
         """The scalar to multiply by."""
         pass
@@ -122,7 +123,10 @@ class MultiplyValue(BaseProtocol):
 
     def execute(self, directory, available_resources):
 
-        self._result = self._value * float(self._multiplier)
+        self._result = EstimatedQuantity(self._value.value * self._multiplier,
+                                         self._value.uncertainty * self._multiplier,
+                                         *self._value.sources)
+
         return self._get_output_dictionary()
 
 

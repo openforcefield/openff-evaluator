@@ -4,6 +4,8 @@ A collection of enthalpy physical property definitions.
 
 from collections import namedtuple
 
+from simtk import unit
+
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.properties.properties import PhysicalProperty, PropertyPhase
@@ -571,29 +573,29 @@ class EnthalpyOfVaporization(PhysicalProperty):
         """
 
         # Define the number of molecules for the liquid phase
-        number_of_liquid_molecules = 1000
+        number_of_liquid_molecules = 128
 
         # Define a custom conditional group.
         converge_uncertainty = groups.ConditionalGroup(f'converge_uncertainty')
         converge_uncertainty.max_iterations = 100
 
         # Define the protocols to perform the simulation in the liquid phase.
-        extract_liquid_enthalpy = analysis.ExtractAverageStatistic('extract_liquid_enthalpy')
-        extract_liquid_enthalpy.statistics_type = ObservableType.Enthalpy
-        extract_liquid_enthalpy.divisor = number_of_liquid_molecules
+        extract_liquid_energy = analysis.ExtractAverageStatistic('extract_liquid_energy')
+        extract_liquid_energy.statistics_type = ObservableType.PotentialEnergy
+        extract_liquid_energy.divisor = number_of_liquid_molecules
 
         liquid_protocols, liquid_value_source, liquid_output_to_store = \
-            generate_base_simulation_protocols(extract_liquid_enthalpy, options, '_liquid', converge_uncertainty)
+            generate_base_simulation_protocols(extract_liquid_energy, options, '_liquid', converge_uncertainty)
 
         # Make sure the number of molecules in the liquid is consistent.
         liquid_protocols.build_coordinates.max_molecules = number_of_liquid_molecules
 
         # Define the protocols to perform the simulation in the gas phase.
-        extract_gas_enthalpy = analysis.ExtractAverageStatistic('extract_gas_enthalpy')
-        extract_gas_enthalpy.statistics_type = ObservableType.TotalEnergy
+        extract_gas_energy = analysis.ExtractAverageStatistic('extract_gas_energy')
+        extract_gas_energy.statistics_type = ObservableType.PotentialEnergy
 
         gas_protocols, gas_value_source, gas_output_to_store = \
-            generate_base_simulation_protocols(extract_gas_enthalpy, options, '_gas', converge_uncertainty)
+            generate_base_simulation_protocols(extract_gas_energy, options, '_gas', converge_uncertainty)
 
         # Create only a single molecule in vacuum
         gas_protocols.build_coordinates.max_molecules = 1
@@ -609,13 +611,27 @@ class EnthalpyOfVaporization(PhysicalProperty):
         gas_protocols.production_simulation.output_frequency = 50000
         gas_protocols.production_simulation.enable_pbc = False
 
-        # Combine the values to estimate the final enthalpy of vaporization
-        enthalpy_of_vaporization = miscellaneous.SubtractValues('enthalpy_of_vaporization')
-        enthalpy_of_vaporization.value_b = ProtocolPath('value', extract_gas_enthalpy.id)
-        enthalpy_of_vaporization.value_a = ProtocolPath('value', extract_liquid_enthalpy.id)
+        # Combine the values to estimate the final energy of vaporization
+        energy_of_vaporization = miscellaneous.SubtractValues('energy_of_vaporization')
+        energy_of_vaporization.value_b = ProtocolPath('value', extract_gas_energy.id)
+        energy_of_vaporization.value_a = ProtocolPath('value', extract_liquid_energy.id)
+
+        ideal_volume = miscellaneous.MultiplyValue('ideal_volume')
+        ideal_volume.value = EstimatedQuantity(unit.constants.MOLAR_GAS_CONSTANT_R,
+                                               0.0 * unit.joule / unit.mole / unit.kelvin,
+                                               'Universal Constant')
+        ideal_volume.multiplier = ProtocolPath('thermodynamic_state.temperature', 'global')
+
+        enthalpy_of_vaporization = miscellaneous.AddValues('enthalpy_of_vaporization')
+        enthalpy_of_vaporization.values = [
+            ProtocolPath('result', energy_of_vaporization.id),
+            ProtocolPath('result', ideal_volume.id)
+        ]
 
         # Add the extra protocols and conditions to the custom group.
-        converge_uncertainty.add_protocols(enthalpy_of_vaporization)
+        converge_uncertainty.add_protocols(energy_of_vaporization,
+                                           ideal_volume,
+                                           enthalpy_of_vaporization)
 
         if options.convergence_mode != WorkflowOptions.ConvergenceMode.NoChecks:
 
@@ -735,27 +751,27 @@ class EnthalpyOfVaporization(PhysicalProperty):
         unpack_data_collection = reweighting.UnpackStoredDataCollection('unpack_data_collection_$(data_repl)')
         unpack_data_collection.input_data_path = ReplicatorValue('data_repl')
 
-        # Set up a protocol to extract the liquid phase enthalpy from the existing data.
-        extract_liquid_enthalpy = analysis.ExtractAverageStatistic('extract_liquid_enthalpy_$(data_repl)')
-        extract_liquid_enthalpy.statistics_type = ObservableType.Enthalpy
+        # Set up a protocol to extract the liquid phase energy from the existing data.
+        extract_liquid_energy = analysis.ExtractAverageStatistic('extract_liquid_energy_$(data_repl)')
+        extract_liquid_energy.statistics_type = ObservableType.PotentialEnergy
 
-        liquid_protocols, liquid_data_replicator = generate_base_reweighting_protocols(extract_liquid_enthalpy,
+        liquid_protocols, liquid_data_replicator = generate_base_reweighting_protocols(extract_liquid_energy,
                                                                                        options,
                                                                                        id_suffix='_liquid')
 
         liquid_protocols.unpack_stored_data.simulation_data_path = ProtocolPath('collection_data_paths[liquid]',
                                                                                 unpack_data_collection.id)
 
-        extract_liquid_enthalpy.divisor = ProtocolPath('total_number_of_molecules',
-                                                       liquid_protocols.unpack_stored_data.id)
-        extract_liquid_enthalpy.statistics_path = ProtocolPath('statistics_file_path',
-                                                               liquid_protocols.unpack_stored_data.id)
+        extract_liquid_energy.divisor = ProtocolPath('total_number_of_molecules',
+                                                     liquid_protocols.unpack_stored_data.id)
+        extract_liquid_energy.statistics_path = ProtocolPath('statistics_file_path',
+                                                             liquid_protocols.unpack_stored_data.id)
 
-        # Set up a protocol to extract the gas phase enthalpy from the existing data.
-        extract_gas_enthalpy = analysis.ExtractAverageStatistic('extract_gas_enthalpy_$(data_repl)')
-        extract_gas_enthalpy.statistics_type = ObservableType.TotalEnergy
+        # Set up a protocol to extract the gas phase energy from the existing data.
+        extract_gas_energy = analysis.ExtractAverageStatistic('extract_gas_energy_$(data_repl)')
+        extract_gas_energy.statistics_type = ObservableType.TotalEnergy
 
-        gas_protocols, gas_data_replicator = generate_base_reweighting_protocols(extract_gas_enthalpy,
+        gas_protocols, gas_data_replicator = generate_base_reweighting_protocols(extract_gas_energy,
                                                                                  options,
                                                                                  id_suffix='_gas')
 
@@ -766,13 +782,25 @@ class EnthalpyOfVaporization(PhysicalProperty):
         gas_protocols.unpack_stored_data.simulation_data_path = ProtocolPath('collection_data_paths[gas]',
                                                                              unpack_data_collection.id)
 
-        extract_gas_enthalpy.statistics_path = ProtocolPath('statistics_file_path',
-                                                            gas_protocols.unpack_stored_data.id)
+        extract_gas_energy.statistics_path = ProtocolPath('statistics_file_path',
+                                                          gas_protocols.unpack_stored_data.id)
 
         # Combine the values to estimate the final enthalpy of vaporization
-        enthalpy_of_vaporization = miscellaneous.SubtractValues('enthalpy_of_vaporization')
-        enthalpy_of_vaporization.value_b = ProtocolPath('value', gas_protocols.mbar_protocol.id)
-        enthalpy_of_vaporization.value_a = ProtocolPath('value', liquid_protocols.mbar_protocol.id)
+        energy_of_vaporization = miscellaneous.SubtractValues('energy_of_vaporization')
+        energy_of_vaporization.value_b = ProtocolPath('value', gas_protocols.mbar_protocol.id)
+        energy_of_vaporization.value_a = ProtocolPath('value', liquid_protocols.mbar_protocol.id)
+
+        ideal_volume = miscellaneous.MultiplyValue('ideal_volume')
+        ideal_volume.value = EstimatedQuantity(unit.constants.MOLAR_GAS_CONSTANT_R,
+                                               0.0 * unit.joule / unit.mole / unit.kelvin,
+                                               'Universal Constant')
+        ideal_volume.multiplier = ProtocolPath('thermodynamic_state.temperature', 'global')
+
+        enthalpy_of_vaporization = miscellaneous.AddValues('enthalpy_of_vaporization')
+        enthalpy_of_vaporization.values = [
+            ProtocolPath('result', energy_of_vaporization.id),
+            ProtocolPath('result', ideal_volume.id)
+        ]
 
         # Combine the data replicators
         data_replicator = ProtocolReplicator(liquid_data_replicator.id)
@@ -791,7 +819,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                              liquid_coordinate_path,
                                              liquid_trajectory_path,
                                              'grad',
-                                             ProtocolPath('uncorrelated_values', extract_liquid_enthalpy.id))
+                                             ProtocolPath('uncorrelated_values', extract_liquid_energy.id))
 
         # Set up the gas phase gradient calculations
         gas_coordinate_path = ProtocolPath('output_coordinate_path', gas_protocols.concatenate_trajectories.id)
@@ -803,7 +831,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                              gas_coordinate_path,
                                              gas_trajectory_path,
                                              'grad',
-                                             ProtocolPath('uncorrelated_values', extract_gas_enthalpy.id),
+                                             ProtocolPath('uncorrelated_values', extract_gas_energy.id),
                                              enable_pbc=False)
 
         # Combine the gradients.
@@ -827,6 +855,8 @@ class EnthalpyOfVaporization(PhysicalProperty):
         schema.protocols.update({protocol.id: protocol.schema for protocol in liquid_protocols})
         schema.protocols.update({protocol.id: protocol.schema for protocol in gas_protocols})
 
+        schema.protocols[energy_of_vaporization.id] = energy_of_vaporization.schema
+        schema.protocols[ideal_volume.id] = ideal_volume.schema
         schema.protocols[enthalpy_of_vaporization.id] = enthalpy_of_vaporization.schema
 
         schema.protocols[liquid_gradient_group.id] = liquid_gradient_group.schema
