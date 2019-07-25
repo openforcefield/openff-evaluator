@@ -78,7 +78,12 @@ def deserialize_quantity(serialized):
     if '@type' in serialized:
         serialized.pop('@type')
 
-    return unit.Quantity(serialized['value'], string_to_unit(serialized['unit']))
+    value_unit = unit.dimensionless
+
+    if serialized['unit'] is not None:
+        value_unit = string_to_unit(serialized['unit'])
+
+    return unit.Quantity(serialized['value'], value_unit)
 
 
 def deserialize_estimated_quantity(quantity_dictionary):
