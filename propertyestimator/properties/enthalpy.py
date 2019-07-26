@@ -769,7 +769,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         # Set up a protocol to extract the gas phase energy from the existing data.
         extract_gas_energy = analysis.ExtractAverageStatistic('extract_gas_energy_$(data_repl)')
-        extract_gas_energy.statistics_type = ObservableType.TotalEnergy
+        extract_gas_energy.statistics_type = ObservableType.PotentialEnergy
 
         gas_protocols, gas_data_replicator = generate_base_reweighting_protocols(extract_gas_energy,
                                                                                  options,
@@ -819,7 +819,8 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                              liquid_coordinate_path,
                                              liquid_trajectory_path,
                                              'grad',
-                                             ProtocolPath('uncorrelated_values', extract_liquid_energy.id))
+                                             ProtocolPath('uncorrelated_values', extract_liquid_energy.id),
+                                             id_prefix='liquid_')
 
         # Set up the gas phase gradient calculations
         gas_coordinate_path = ProtocolPath('output_coordinate_path', gas_protocols.concatenate_trajectories.id)
@@ -832,6 +833,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                              gas_trajectory_path,
                                              'grad',
                                              ProtocolPath('uncorrelated_values', extract_gas_energy.id),
+                                             id_prefix='gas_',
                                              enable_pbc=False)
 
         # Combine the gradients.
