@@ -504,7 +504,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         schema = WorkflowSchema(property_type=EnthalpyOfMixing.__name__)
         schema.id = '{}{}'.format(EnthalpyOfMixing.__name__, 'Schema')
 
-        schema.protocols = {}
+        schema.protocols = dict()
 
         schema.protocols[divisor_data.id] = divisor_data.schema
 

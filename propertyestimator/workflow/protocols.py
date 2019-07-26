@@ -162,7 +162,9 @@ class BaseProtocol:
 
                 continue
 
-            schema.inputs[input_path.full_path] = self.get_value(input_path)
+            # Always make sure to only pass a copy of the input. Changing the schema
+            # should NOT change the protocol.
+            schema.inputs[input_path.full_path] = copy.deepcopy(self.get_value(input_path))
 
         return schema
 
