@@ -96,7 +96,7 @@ class UnpackStoredDataCollection(BaseProtocol):
 
         for data_key, inner_data_object in data_object.data.items():
 
-            inner_object_path = f'{data_key}.json'
+            inner_object_path = path.join(directory, f'{data_key}.json')
             inner_directory_path = path.join(data_directory, data_key)
 
             with open(inner_object_path, 'w') as file:
