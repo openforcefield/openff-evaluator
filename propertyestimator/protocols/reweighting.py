@@ -458,12 +458,12 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         for frame_index in range(trajectory.n_frames):
 
             # positions = trajectory.openmm_positions(frame_index)
-            positions = trajectory.xyz[frame_index]
-            openmm_context.setPositions(positions)
-
             if self._enable_pbc:
                 box_vectors = trajectory.openmm_boxes(frame_index)
                 openmm_context.setPeriodicBoxVectors(*box_vectors)
+
+            positions = trajectory.xyz[frame_index]
+            openmm_context.setPositions(positions)
 
             # set box vectors
             reduced_potentials[frame_index] = openmm_state.reduced_potential(openmm_context)
