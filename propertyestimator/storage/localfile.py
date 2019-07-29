@@ -2,8 +2,8 @@
 A local file based storage backend.
 """
 import json
+import shutil
 from os import path, makedirs
-from shutil import move
 
 from propertyestimator.storage import StoredSimulationData
 from propertyestimator.storage.dataclasses import BaseStoredData
@@ -76,7 +76,12 @@ class LocalFileStorage(PropertyEstimatorStorage):
         unique_id = super(LocalFileStorage, self).store_simulation_data(data_object,
                                                                         data_directory)
 
-        move(data_directory, path.join(self._root_directory, f'{unique_id}_data'))
+        storage_directory_path = path.join(self._root_directory, f'{unique_id}_data')
+
+        if path.isdir(storage_directory_path):
+            shutil.rmtree(storage_directory_path, ignore_errors=True)
+
+        shutil.move(data_directory, storage_directory_path)
         return unique_id
 
     def retrieve_simulation_data_by_id(self, unique_id):

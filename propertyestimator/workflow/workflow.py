@@ -1068,15 +1068,18 @@ class WorkflowGraph:
 
             if len(parent_protocol_ids) == 0:
                 self._root_protocol_ids.append(protocol_name)
-            else:
 
-                for protocol_id in workflow.dependants_graph:
+        if len(parent_protocol_ids) > 0:
 
-                    if (protocol_name not in workflow.dependants_graph[protocol_id] or
-                            protocol_id in self._dependants_graph[protocol_name]):
-                        continue
+            for protocol_id in workflow.dependants_graph:
 
-                    self._dependants_graph[protocol_id].append(protocol_name)
+                if (existing_protocol.id not in workflow.dependants_graph[protocol_id] or
+                    existing_protocol.id in self._dependants_graph[protocol_id] or
+                    protocol_id in self._dependants_graph[existing_protocol.id]):
+
+                    continue
+
+                self._dependants_graph[protocol_id].append(existing_protocol.id)
 
         return existing_protocol.id
 
