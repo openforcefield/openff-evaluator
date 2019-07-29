@@ -147,6 +147,7 @@ class BasePaprikaProtocol(BaseProtocol):
 
         self._taproom_host_name = None
         self._taproom_guest_name = None
+        self._taproom_guest_orientation = None
 
         self._gaff_cutoff = 0.8 * unit.nanometer
         self._timestep = 1.0 * unit.femtosecond
@@ -182,6 +183,7 @@ class BasePaprikaProtocol(BaseProtocol):
 
         self._paprika_setup = paprika.Setup(host=self._taproom_host_name,
                                             guest=self._taproom_guest_name,
+                                            guest_orientation=self._taproom_guest_orientation,
                                             directory_path=directory,
                                             generate_gaff_files=generate_gaff_files,
                                             gaff_version=gaff_version)

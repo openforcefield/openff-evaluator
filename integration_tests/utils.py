@@ -111,14 +111,20 @@ def build_substance(ligand_smiles, receptor_smiles, ionic_strength=None):
     return substance
 
 
-def get_paprika_host_guest_substance(host_name, guest_name, ionic_strength=None):
+def get_paprika_host_guest_substance(host_name, guest_name, guest_orientation=None, ionic_strength=None):
 
     installed_benchmarks = {}
 
     for entry_point in pkg_resources.iter_entry_points(group="taproom.benchmarks"):
         installed_benchmarks[entry_point.name] = entry_point.load()
 
-    host_yaml_path = installed_benchmarks["host_guest_systems"][host_name]["yaml"]
+    if guest_orientation:
+
+        for orientation in installed_benchmarks["host_guest_systems"][host_name]["yaml"]:
+            if f"host-{guest_orientation}" in orientation.name:
+                host_yaml_path = orientation
+    else:
+        host_yaml_path = installed_benchmarks["host_guest_systems"][host_name]["yaml"][0]
 
     with open(host_yaml_path, "r") as file:
         host_yaml = yaml.safe_load(file)
@@ -131,7 +137,7 @@ def get_paprika_host_guest_substance(host_name, guest_name, ionic_strength=None)
 
     if guest_name is not None:
 
-        guest_yaml_path = installed_benchmarks["host_guest_systems"][host_name][guest_name]
+        guest_yaml_path = installed_benchmarks["host_guest_systems"][host_name][guest_name]["yaml"]
 
         with open(guest_yaml_path, "r") as file:
             guest_yaml = yaml.safe_load(file)
