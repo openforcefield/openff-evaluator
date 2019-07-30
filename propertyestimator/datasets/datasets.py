@@ -266,6 +266,32 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
         self.filter_by_function(filter_function)
 
+    def filter_by_smiles(self, *allowed_smiles):
+        """Filters out those properties which were estimated for
+         compounds which do not appear in the allowed `smiles` list.
+
+        Parameters
+        ----------
+        allowed_smiles: str
+            The smiles identifiers of the compounds to keep
+            after filtering.
+        """
+
+        def filter_function(physical_property):
+
+            substance = physical_property.substance
+
+            for component in substance.components:
+
+                if component.smiles in allowed_smiles:
+                    continue
+
+                return False
+
+            return True
+
+        self.filter_by_function(filter_function)
+
     def __getstate__(self):
 
         return {

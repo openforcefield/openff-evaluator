@@ -5,11 +5,12 @@ Units tests for propertyestimator.datasets
 import pytest
 from simtk import unit
 
-from propertyestimator.datasets import ThermoMLDataSet
+from propertyestimator.datasets import ThermoMLDataSet, PhysicalPropertyDataSet
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.datasets.thermoml import unit_from_thermoml_string
-from propertyestimator.properties import PhysicalProperty, PropertyPhase
-from propertyestimator.tests.utils import create_filterable_data_set
+from propertyestimator.properties import PhysicalProperty, PropertyPhase, Density
+from propertyestimator.substances import Substance
+from propertyestimator.tests.utils import create_filterable_data_set, create_dummy_property
 from propertyestimator.utils import get_data_filename
 
 
@@ -309,3 +310,30 @@ def test_filter_by_elements():
     dummy_data_set.filter_by_elements('H', 'C', 'N', 'O')
 
     assert dummy_data_set.number_of_properties == 3
+
+
+def test_filter_by_smiles():
+    """A test to ensure that data sets may be filtered by which smiles their
+    measured properties contain."""
+
+    methanol_substance = Substance()
+    methanol_substance.add_component(Substance.Component('CO'), Substance.MoleFraction(1.0))
+
+    ethanol_substance = Substance()
+    ethanol_substance.add_component(Substance.Component('CCO'), Substance.MoleFraction(1.0))
+
+    property_a = create_dummy_property(Density)
+    property_a.substance = methanol_substance
+
+    property_b = create_dummy_property(Density)
+    property_b.substance = ethanol_substance
+
+    data_set = PhysicalPropertyDataSet()
+    data_set.properties[methanol_substance.identifier] = [property_a]
+    data_set.properties[ethanol_substance.identifier] = [property_b]
+
+    data_set.filter_by_smiles('CO')
+
+    assert data_set.number_of_properties == 1
+    assert methanol_substance.identifier in data_set.properties
+    assert ethanol_substance.identifier not in data_set.properties
