@@ -40,6 +40,12 @@ class GradientReducedPotentials(BaseProtocol):
         to differentiate the observable with respect to."""
         pass
 
+    @protocol_input(bool)
+    def enable_pbc(self):
+        """If true, periodic boundary conditions will be enabled when
+        re-evaluating the reduced potentials."""
+        pass
+
     @protocol_input(Substance)
     def substance(self):
         """The substance which describes the composition
@@ -106,6 +112,7 @@ class GradientReducedPotentials(BaseProtocol):
 
         self._reference_force_field_paths = []
         self._force_field_path = None
+        self._enable_pbc = True
 
         self._substance = None
         self._thermodynamic_state = None
@@ -203,6 +210,17 @@ class GradientReducedPotentials(BaseProtocol):
 
         system = force_field.create_openmm_system(topology)
 
+        if not self._enable_pbc:
+
+            for force_index in range(system.getNumForces()):
+
+                force = system.getForce(force_index)
+
+                if not isinstance(force, openmm.NonbondedForce):
+                    continue
+
+                force.setNonbondedMethod(0)  # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1
+
         return system, parameter_value
 
     def _evaluate_reduced_potential(self, system, trajectory, compute_resources):
@@ -246,7 +264,7 @@ class GradientReducedPotentials(BaseProtocol):
 
             unreduced_potential = state.getPotentialEnergy() / unit.AVOGADRO_CONSTANT_NA
 
-            if self._thermodynamic_state.pressure is not None:
+            if self._thermodynamic_state.pressure is not None and self.enable_pbc:
                 unreduced_potential += self._thermodynamic_state.pressure * state.getPeriodicBoxVolume()
 
             # set box vectors
@@ -405,5 +423,95 @@ class CentralDifferenceGradient(BaseProtocol):
                     (self._forward_parameter_value - self._reverse_parameter_value))
 
         self._gradient = ParameterGradient(self._parameter_key, gradient)
+
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class DivideGradientByScalar(BaseProtocol):
+    """A protocol which divides a gradient by a specified scalar
+
+    Notes
+    -----
+    Once a more robust type system is built-in, this will be deprecated
+    by `DivideValue`.
+    """
+
+    @protocol_input(ParameterGradient)
+    def value(self):
+        """The value to divide."""
+        pass
+
+    @protocol_input(int)
+    def divisor(self):
+        """The scalar to divide by."""
+        pass
+
+    @protocol_output(ParameterGradient)
+    def result(self):
+        """The result of the division."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new DivideValue object."""
+        super().__init__(protocol_id)
+
+        self._value = None
+        self._divisor = None
+
+        self._result = None
+
+    def execute(self, directory, available_resources):
+
+        self._result = ParameterGradient(self._value.key,
+                                         self._value.value / float(self._divisor))
+
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class SubtractGradients(BaseProtocol):
+    """A temporary protocol to add together two gradients.
+
+    Notes
+    -----
+    Once a more robust type system is built-in, this will be deprecated
+    by `SubtractValues`.
+    """
+
+    @protocol_input(ParameterGradient)
+    def value_a(self):
+        """`value_a` in the formula `result = value_b - value_a`"""
+        pass
+
+    @protocol_input(ParameterGradient)
+    def value_b(self):
+        """`value_b` in the formula  `result = value_b - value_a`"""
+        pass
+
+    @protocol_output(ParameterGradient)
+    def result(self):
+        """The sum of the values."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new AddValues object."""
+        super().__init__(protocol_id)
+
+        self._value_a = None
+        self._value_b = None
+
+        self._result = None
+
+    def execute(self, directory, available_resources):
+
+        if self._value_a.key != self._value_b.key:
+
+            return PropertyEstimatorException(directory=directory,
+                                              message=f'Only gradients with the same key can be '
+                                                      f'added together (a={self._value_a.key} b={self._value_b.key})')
+
+        self._result = ParameterGradient(key=self._value_a.key,
+                                         value=self._value_b.value - self._value_a.value)
 
         return self._get_output_dictionary()

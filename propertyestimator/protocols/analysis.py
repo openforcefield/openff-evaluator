@@ -149,12 +149,21 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
         """The file path to the trajectory to average over."""
         pass
 
+    @protocol_input(int)
+    def divisor(self):
+        """A divisor to divide the statistic by. This is useful
+        if a statistic (such as enthalpy) needs to be normalised
+        by the number of molecules."""
+        pass
+
     def __init__(self, protocol_id):
 
         super().__init__(protocol_id)
 
         self._statistics_path = None
         self._statistics_type = statistics.ObservableType.PotentialEnergy
+
+        self._divisor = 1
 
         self._statistics = None
 
@@ -181,7 +190,7 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
         statistics_unit = values[0].unit
         values.value_in_unit(statistics_unit)
 
-        values = np.array(values)
+        values = np.array(values) / float(self._divisor)
 
         values, self._equilibration_index, self._statistical_inefficiency = \
             timeseries.decorrelate_time_series(values)

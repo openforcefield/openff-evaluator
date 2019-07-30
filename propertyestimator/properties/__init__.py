@@ -3,4 +3,4 @@ from .properties import PropertyPhase, PhysicalProperty, MeasurementSource, Calc
 from .binding import HostGuestBindingAffinity
 from .density import Density
 from .dielectric import DielectricConstant
-from .enthalpy import EnthalpyOfMixing
+from .enthalpy import EnthalpyOfMixing, EnthalpyOfVaporization

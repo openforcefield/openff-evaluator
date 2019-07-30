@@ -4,11 +4,11 @@ The simulation reweighting estimation layer.
 import abc
 import json
 import logging
-from os import path
+import os
 
 from propertyestimator.layers import register_calculation_layer, PropertyCalculationLayer
 from propertyestimator.substances import Substance
-from propertyestimator.utils.serialization import TypedJSONDecoder
+from propertyestimator.utils.serialization import TypedJSONEncoder
 from propertyestimator.utils.utils import SubhookedABCMeta
 from propertyestimator.workflow import WorkflowGraph, Workflow
 from propertyestimator.workflow.workflow import IWorkflowProperty
@@ -49,7 +49,7 @@ class ReweightingLayer(PropertyCalculationLayer):
 
         # Make a local copy of the target force field.
         target_force_field = storage_backend.retrieve_force_field(data_model.force_field_id)
-        target_force_field_path = path.join(layer_directory, data_model.force_field_id)
+        target_force_field_path = os.path.join(layer_directory, data_model.force_field_id)
 
         target_force_field.to_file(target_force_field_path, io_format='XML',
                                    discard_cosmetic_attributes=False)
@@ -85,10 +85,11 @@ class ReweightingLayer(PropertyCalculationLayer):
 
         Returns
         -------
-        dict of str and tuple(str, str)
-            A dictionary partitioned by substance identifiers, whose values
-            are a tuple of a path to a stored simulation data object, and
-            its corresponding force field path.
+        dict of str and dict of str and tuple(str, str, str)
+            A dictionary partitioned by substance identifiers and the type,
+            of data class, whose values are a tuple of a path to a stored
+            simulation data object, it's ancillary data directory, and its
+            corresponding force field path.
         """
 
         data_paths = {}
@@ -100,39 +101,52 @@ class ReweightingLayer(PropertyCalculationLayer):
                 # interface can be reweighted
                 continue
 
-            existing_data_paths = storage_backend.retrieve_simulation_data(physical_property.substance,
-                                                                           physical_property.multi_component_property,
-                                                                           physical_property.required_data_class)
+            existing_data = storage_backend.retrieve_simulation_data(physical_property.substance,
+                                                                     physical_property.multi_component_property,
+                                                                     physical_property.required_data_class)
 
-            if len(existing_data_paths) == 0:
+            if len(existing_data) == 0:
                 continue
 
             # Take data from the storage backend and save it in the working directory.
-            for substance_id in existing_data_paths:
+            for substance_id in existing_data:
 
+                # Register the substance id with the return dictionary
                 if substance_id not in data_paths:
-                    data_paths[substance_id] = []
+                    data_paths[substance_id] = {}
 
-                for data_directory in existing_data_paths[substance_id]:
+                for data_object, data_directory in existing_data[substance_id]:
 
-                    with open(path.join(data_directory, 'data.json'), 'r') as file:
-                        data = json.load(file, cls=TypedJSONDecoder)
+                    # Register this objects data class type with the
+                    # return dictionary
+                    if type(data_object) not in data_paths[substance_id]:
+                        data_paths[substance_id][type(data_object)] = []
 
-                    force_field_path = path.join(layer_directory, data.force_field_id)
+                    data_object_path = os.path.join(layer_directory, f'{os.path.basename(data_directory)}.json')
 
-                    path_tuple = (data_directory, force_field_path)
+                    # Save a local copy of the data object file.
+                    if not os.path.isfile(data_object_path):
 
-                    if path_tuple in data_paths[substance_id]:
+                        with open(data_object_path, 'w') as file:
+                            json.dump(data_object, file, cls=TypedJSONEncoder)
+
+                    force_field_path = os.path.join(layer_directory, data_object.force_field_id)
+
+                    path_tuple = (data_object_path, data_directory, force_field_path)
+
+                    if path_tuple in data_paths[substance_id][type(data_object)]:
                         continue
 
-                    if not path.isfile(force_field_path):
+                    # Save a local copy of the force field file if one
+                    # does not already exist.
+                    if not os.path.isfile(force_field_path):
 
-                        existing_force_field = storage_backend.retrieve_force_field(data.force_field_id)
+                        existing_force_field = storage_backend.retrieve_force_field(data_object.force_field_id)
 
                         existing_force_field.to_file(force_field_path, io_format='XML',
                                                      discard_cosmetic_attributes=False)
 
-                    data_paths[substance_id].append(path_tuple)
+                    data_paths[substance_id][type(data_object)].append(path_tuple)
 
         return data_paths
 
@@ -191,10 +205,16 @@ class ReweightingLayer(PropertyCalculationLayer):
                                                                  parameter_gradient_keys,
                                                                  workflow_options)
 
-            if property_to_calculate.substance.identifier not in stored_data_paths:
+            substance_id = property_to_calculate.substance.identifier
+            data_class_type = property_to_calculate.required_data_class
+
+            if (substance_id not in stored_data_paths or
+                data_class_type not in stored_data_paths[substance_id]):
+
+                # We haven't found and cached data which is compatible with this property.
                 continue
 
-            global_metadata['full_system_data'] = stored_data_paths[property_to_calculate.substance.identifier]
+            global_metadata['full_system_data'] = stored_data_paths[substance_id][data_class_type]
             global_metadata['component_data'] = []
 
             if property_to_calculate.multi_component_property:
@@ -206,12 +226,14 @@ class ReweightingLayer(PropertyCalculationLayer):
                     temporary_substance = Substance()
                     temporary_substance.add_component(component, amount=Substance.MoleFraction())
 
-                    if temporary_substance.identifier not in stored_data_paths:
+                    if (temporary_substance.identifier not in stored_data_paths or
+                        data_class_type not in stored_data_paths[temporary_substance.identifier]):
 
                         has_data_for_property = False
                         break
 
-                    global_metadata['component_data'].append(stored_data_paths[temporary_substance.identifier])
+                    global_metadata['component_data'].append(
+                        stored_data_paths[temporary_substance.identifier][data_class_type])
 
                 if not has_data_for_property:
                     continue

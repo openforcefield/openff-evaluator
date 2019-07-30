@@ -383,9 +383,7 @@ class PropertyEstimatorServer(TCPServer):
         force_field_id = self._storage_backend.has_force_field(force_field)
 
         if force_field_id is None:
-
-            force_field_id = str(uuid.uuid4())
-            self._storage_backend.store_force_field(force_field_id, force_field)
+            force_field_id = self._storage_backend.store_force_field(force_field)
 
         server_requests = {}
 

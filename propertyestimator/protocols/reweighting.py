@@ -11,16 +11,102 @@ import numpy as np
 import pymbar
 from simtk import unit
 
+from propertyestimator.storage.dataclasses import StoredDataCollection
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.openmm import setup_platform_with_resources
 from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.utils.serialization import TypedJSONDecoder
+from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from propertyestimator.utils.statistics import bootstrap, StatisticsArray, ObservableType
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
+
+
+@register_calculation_protocol()
+class UnpackStoredDataCollection(BaseProtocol):
+    """Loads a `StoredDataCollection` object from disk,
+    and makes its inner data objects easily accessible to other protocols.
+    """
+
+    @protocol_input(tuple)
+    def input_data_path(self):
+        """A tuple which contains both the path to the simulation data object,
+        it's ancillary data directory, and the force field which was used to
+        generate the stored data."""
+        pass
+
+    @protocol_output(dict)
+    def collection_data_paths(self):
+        """A dictionary of data object path, data directory path and force field
+        path tuples partitioned by the unique collection keys."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new UnpackStoredDataCollection object."""
+        super().__init__(protocol_id)
+
+        self._input_data_path = None
+        self._collection_data_paths = None
+
+    def execute(self, directory, available_resources):
+
+        if len(self._input_data_path) != 3:
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='The input data path should be a tuple '
+                                                      'of a path to the data object, directory, and a path '
+                                                      'to the force field used to generate it.')
+
+        data_object_path = self._input_data_path[0]
+        data_directory = self._input_data_path[1]
+        force_field_path = self._input_data_path[2]
+
+        if not path.isfile(data_object_path):
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='The path to the data object'
+                                                      'is invalid: {}'.format(data_object_path))
+
+        if not path.isdir(data_directory):
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='The path to the data directory'
+                                                      'is invalid: {}'.format(data_directory))
+
+        if not path.isfile(force_field_path):
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='The path to the force field'
+                                                      'is invalid: {}'.format(force_field_path))
+
+        data_object = None
+
+        with open(data_object_path, 'r') as file:
+            data_object = json.load(file, cls=TypedJSONDecoder)
+
+        if not isinstance(data_object, StoredDataCollection):
+
+            return PropertyEstimatorException(directory=directory,
+                                              message=f'The data object must be a `StoredDataCollection` '
+                                                      f'and not a {type(data_object)}')
+
+        self._collection_data_paths = {}
+
+        for data_key, inner_data_object in data_object.data.items():
+
+            inner_object_path = path.join(directory, f'{data_key}.json')
+            inner_directory_path = path.join(data_directory, data_key)
+
+            with open(inner_object_path, 'w') as file:
+                json.dump(inner_data_object, file, cls=TypedJSONEncoder)
+
+            self._collection_data_paths[data_key] = (inner_object_path,
+                                                     inner_directory_path,
+                                                     force_field_path)
+
+        return self._get_output_dictionary()
 
 
 @register_calculation_protocol()
@@ -31,8 +117,9 @@ class UnpackStoredSimulationData(BaseProtocol):
 
     @protocol_input(tuple)
     def simulation_data_path(self):
-        """A tuple which contains both the path to the simulation data directory,
-        and the force field which was used to generate the stored data."""
+        """A tuple which contains both the path to the simulation data object,
+        it's ancillary data directory, and the force field which was used to
+        generate the stored data."""
         pass
 
     @protocol_output(Substance)
@@ -98,15 +185,16 @@ class UnpackStoredSimulationData(BaseProtocol):
 
     def execute(self, directory, available_resources):
 
-        if len(self._simulation_data_path) != 2:
+        if len(self._simulation_data_path) != 3:
 
             return PropertyEstimatorException(directory=directory,
                                               message='The simulation data path should be a tuple '
-                                                      'of a path to the data directory, and a path '
+                                                      'of a path to the data object, directory, and a path '
                                                       'to the force field used to generate it.')
 
-        data_directory = self._simulation_data_path[0]
-        force_field_path = self._simulation_data_path[1]
+        data_object_path = self._simulation_data_path[0]
+        data_directory = self._simulation_data_path[1]
+        force_field_path = self._simulation_data_path[2]
 
         if not path.isdir(data_directory):
 
@@ -122,7 +210,7 @@ class UnpackStoredSimulationData(BaseProtocol):
 
         data_object = None
 
-        with open(path.join(data_directory, 'data.json'), 'r') as file:
+        with open(data_object_path, 'r') as file:
             data_object = json.load(file, cls=TypedJSONDecoder)
 
         self._substance = data_object.substance
@@ -283,6 +371,11 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
     def system_path(self):
         pass
 
+    @protocol_input(bool)
+    def enable_pbc(self):
+        """If true, periodic boundary conditions will be enabled."""
+        pass
+
     @protocol_input(str)
     def coordinate_file_path(self):
         pass
@@ -308,6 +401,7 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
 
         self._system_path = None
         self._system = None
+        self._enable_pbc = True
 
         self._coordinate_file_path = None
         self._trajectory_file_path = None
@@ -324,31 +418,51 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         from simtk import openmm
         from simtk.openmm import XmlSerializer
 
+        trajectory = mdtraj.load_dcd(self._trajectory_file_path, self._coordinate_file_path)
+
         with open(self._system_path, 'rb') as file:
             self._system = XmlSerializer.deserialize(file.read().decode())
 
-        trajectory = mdtraj.load_dcd(self._trajectory_file_path, self._coordinate_file_path)
-        self._system.setDefaultPeriodicBoxVectors(*trajectory.openmm_boxes(0))
+        pressure = self._thermodynamic_state.pressure
+
+        if self._enable_pbc:
+            self._system.setDefaultPeriodicBoxVectors(*trajectory.openmm_boxes(0))
+        else:
+            pressure = None
 
         openmm_state = openmmtools.states.ThermodynamicState(system=self._system,
                                                              temperature=self._thermodynamic_state.temperature,
-                                                             pressure=self._thermodynamic_state.pressure)
+                                                             pressure=pressure)
 
         integrator = openmmtools.integrators.VelocityVerletIntegrator(0.01*unit.femtoseconds)
 
         # Setup the requested platform:
         platform = setup_platform_with_resources(available_resources, self._high_precision)
-        openmm_context = openmm.Context(openmm_state.get_system(True, True), integrator, platform)
+        openmm_system = openmm_state.get_system(True, True)
+
+        if not self._enable_pbc:
+
+            for force_index in range(openmm_system.getNumForces()):
+
+                force = openmm_system.getForce(force_index)
+
+                if not isinstance(force, openmm.NonbondedForce):
+                    continue
+
+                force.setNonbondedMethod(0)  # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1
+
+        openmm_context = openmm.Context(openmm_system, integrator, platform)
 
         reduced_potentials = np.zeros(trajectory.n_frames)
 
         for frame_index in range(trajectory.n_frames):
 
             # positions = trajectory.openmm_positions(frame_index)
-            positions = trajectory.xyz[frame_index]
-            box_vectors = trajectory.openmm_boxes(frame_index)
+            if self._enable_pbc:
+                box_vectors = trajectory.openmm_boxes(frame_index)
+                openmm_context.setPeriodicBoxVectors(*box_vectors)
 
-            openmm_context.setPeriodicBoxVectors(*box_vectors)
+            positions = trajectory.xyz[frame_index]
             openmm_context.setPositions(positions)
 
             # set box vectors

@@ -39,22 +39,22 @@ def create_debug_density_workflow(max_molecules=128,
 
     density_workflow_schema.protocols['build_coordinates'] = build_coordinates.schema
 
-    npt_equilibration = simulation.RunOpenMMSimulation('')
-    npt_equilibration.schema = density_workflow_schema.protocols['npt_equilibration']
-    npt_equilibration.ensemble = Ensemble.NVT
-    npt_equilibration.steps = equilibration_steps
-    npt_equilibration.output_frequency = equilibration_frequency
+    equilibration_simulation = simulation.RunOpenMMSimulation('')
+    equilibration_simulation.schema = density_workflow_schema.protocols['equilibration_simulation']
+    equilibration_simulation.ensemble = Ensemble.NVT
+    equilibration_simulation.steps = equilibration_steps
+    equilibration_simulation.output_frequency = equilibration_frequency
 
-    density_workflow_schema.protocols['npt_equilibration'] = npt_equilibration.schema
+    density_workflow_schema.protocols['equilibration_simulation'] = equilibration_simulation.schema
 
-    converge_uncertainty = groups.ConditionalGroup('')
-    converge_uncertainty.schema = density_workflow_schema.protocols['converge_uncertainty']
+    conditional_group = groups.ConditionalGroup('')
+    conditional_group.schema = density_workflow_schema.protocols['conditional_group']
 
-    converge_uncertainty.protocols['npt_production'].steps = production_steps
-    converge_uncertainty.protocols['npt_production'].ensemble = Ensemble.NVT
-    converge_uncertainty.protocols['npt_production'].output_frequency = production_frequency
+    conditional_group.protocols['production_simulation'].steps = production_steps
+    conditional_group.protocols['production_simulation'].ensemble = Ensemble.NVT
+    conditional_group.protocols['production_simulation'].output_frequency = production_frequency
 
-    density_workflow_schema.protocols['converge_uncertainty'] = converge_uncertainty.schema
+    density_workflow_schema.protocols['conditional_group'] = conditional_group.schema
 
     return density_workflow_schema
 
@@ -111,6 +111,8 @@ def test_full_gradient_workflow():
         PropertyEstimatorServer(calculation_backend, storage_backend, 8001, working_directory)
 
         property_estimator = PropertyEstimatorClient(ConnectionOptions(server_port=8001))
+        options.allowed_calculation_layers = ['SimulationLayer']
+
         request = property_estimator.request_estimate(dummy_data_set, force_field, options, parameter_gradient_keys)
         result = request.results(synchronous=True, polling_interval=0)
 

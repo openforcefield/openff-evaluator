@@ -341,10 +341,10 @@ class ProtocolGroup(BaseProtocol):
         if not super(ProtocolGroup, self).can_merge(other):
             return False
 
-        if len(self._root_protocols) != len(other.root_protocols):
-            # Only allow groups with the same number of root protocols
-            # to merge.
-            return False
+        # if len(self._root_protocols) != len(other.root_protocols):
+        #     # Only allow groups with the same number of root protocols
+        #     # to merge.
+        #     return False
 
         # Ensure that the starting points in each group can be
         # merged.
@@ -708,6 +708,9 @@ class ConditionalGroup(ProtocolGroup):
 
         def __ne__(self, other):
             return not self.__eq__(other)
+
+        def __str__(self):
+            return f'{self.left_hand_value} {self.type} {self.right_hand_value}'
 
     @protocol_input(int, merge_behavior=MergeBehaviour.GreatestValue)
     def max_iterations(self):

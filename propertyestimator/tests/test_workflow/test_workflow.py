@@ -8,7 +8,6 @@ import pytest
 from simtk import unit
 
 from propertyestimator.backends import DaskLocalClusterBackend, ComputeResources
-from propertyestimator.client import PropertyEstimatorOptions
 from propertyestimator.layers import available_layers
 from propertyestimator.layers.layers import CalculationLayerResult
 from propertyestimator.layers.simulation import Workflow, WorkflowGraph
