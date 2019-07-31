@@ -4,8 +4,8 @@ A collection of density physical property definitions.
 
 from propertyestimator.properties import PhysicalProperty
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.protocols import coordinates, forcefield, simulation, miscellaneous
-from propertyestimator.storage.dataclasses import FreeEnergySimulationData
+from propertyestimator.protocols import coordinates, forcefield, miscellaneous, yank
+from propertyestimator.storage.dataclasses import StoredSimulationData
 from propertyestimator.substances import Substance
 from propertyestimator.workflow.schemas import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
@@ -27,7 +27,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
     def required_data_class(self):
         """Returns which type of stored data class is required by
         this property."""
-        return FreeEnergySimulationData
+        return StoredSimulationData
 
     @staticmethod
     def get_default_workflow_schema(calculation_layer, options=None):
@@ -132,7 +132,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         schema.protocols[build_solvated_ligand_system.id] = build_solvated_ligand_system.schema
 
         # Employ YANK to estimate the binding free energy.
-        yank_protocol = simulation.LigandReceptorYankProtocol('yank_protocol')
+        yank_protocol = yank.LigandReceptorYankProtocol('yank_protocol')
 
         yank_protocol.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 
