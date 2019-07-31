@@ -5,6 +5,7 @@ import abc
 import copy
 import json
 import logging
+import math
 import re
 import time
 import traceback
@@ -15,14 +16,16 @@ from os import path, makedirs
 
 from simtk import unit
 
-from propertyestimator.storage import StoredSimulationData
+from propertyestimator.storage.dataclasses import BaseStoredData, StoredSimulationData, StoredDataCollection
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedBaseModel, TypedJSONEncoder, TypedJSONDecoder
+from propertyestimator.utils.string import extract_variable_index_and_name
 from propertyestimator.utils.utils import SubhookedABCMeta, get_nested_attribute
 from propertyestimator.workflow.plugins import available_protocols
 from propertyestimator.workflow.protocols import BaseProtocol
-from propertyestimator.workflow.schemas import WorkflowSchema, ProtocolReplicator
+from propertyestimator.workflow.schemas import WorkflowSchema, ProtocolReplicator, WorkflowSimulationDataToStore, \
+    WorkflowDataCollectionToStore
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
@@ -45,7 +48,7 @@ class WorkflowOptions:
         (`ConvergenceMode.RelativeUncertainty`) or is less than some absolute
         value (`ConvergenceMode.AbsoluteUncertainty`)."""
 
-        # NoChecks = 'NoChecks'
+        NoChecks = 'NoChecks'
         RelativeUncertainty = 'RelativeUncertainty'
         AbsoluteUncertainty = 'AbsoluteUncertainty'
 
@@ -143,6 +146,8 @@ class Workflow:
         self.dependants_graph = {}
 
         self.final_value_source = None
+        self.gradients_sources = []
+
         self.outputs_to_store = {}
 
     def _get_schema(self):
@@ -163,7 +168,10 @@ class Workflow:
         for protocol_id, protocol in self.protocols.items():
             schema.protocols[protocol_id] = protocol.schema
 
-        schema.final_value_source = ProtocolPath.from_string(self.final_value_source.full_path)
+        if self.final_value_source is not None:
+            schema.final_value_source = ProtocolPath.from_string(self.final_value_source.full_path)
+
+        schema.gradients_sources = [ProtocolPath.from_string(source.full_path) for source in self.gradients_sources]
 
         schema.outputs_to_store = {}
 
@@ -184,8 +192,18 @@ class Workflow:
         """
         schema = WorkflowSchema.parse_json(value.json())
 
-        self.final_value_source = ProtocolPath.from_string(schema.final_value_source.full_path)
-        self.final_value_source.append_uuid(self.uuid)
+        if schema.final_value_source is not None:
+            self.final_value_source = ProtocolPath.from_string(schema.final_value_source.full_path)
+            self.final_value_source.append_uuid(self.uuid)
+
+        self.gradients_sources = []
+
+        for gradient_source in schema.gradients_sources:
+
+            copied_source = ProtocolPath.from_string(gradient_source.full_path)
+            copied_source.append_uuid(self.uuid)
+
+            self.gradients_sources.append(copied_source)
 
         self.outputs_to_store = {}
 
@@ -201,6 +219,19 @@ class Workflow:
                     continue
 
                 attribute_value.append_uuid(self.uuid)
+
+            if isinstance(output_to_store, WorkflowDataCollectionToStore):
+
+                for inner_data in output_to_store.data.values():
+
+                    for attribute_key in inner_data.__getstate__():
+
+                        attribute_value = getattr(inner_data, attribute_key)
+
+                        if not isinstance(attribute_value, ProtocolPath):
+                            continue
+
+                        attribute_value.append_uuid(self.uuid)
 
             self.outputs_to_store[output_label] = output_to_store
 
@@ -423,6 +454,21 @@ class Workflow:
 
             self._replicate_protocol(schema, protocol_path, replicator, template_values)
 
+        # Make sure to correctly replicate gradient sources.
+        replicated_gradient_sources = []
+
+        for gradient_source in self.gradients_sources:
+
+            for index, template_value in enumerate(template_values):
+
+                replacement_string = f'$({replicator.id})'
+                replicated_source = ProtocolPath.from_string(gradient_source.full_path.replace(replacement_string,
+                                                                                               str(index)))
+
+                replicated_gradient_sources.append(replicated_source)
+
+        self.gradients_sources = replicated_gradient_sources
+
         outputs_to_replicate = []
 
         for output_label in self.outputs_to_store:
@@ -431,6 +477,11 @@ class Workflow:
 
             if len(replicator_ids) <= 0 or replicator.id not in replicator_ids:
                 continue
+
+            if isinstance(self.outputs_to_store[output_label], WorkflowDataCollectionToStore):
+
+                raise NotImplementedError('`WorkflowDataCollectionToStore` cannot currently '
+                                          'be replicated.')
 
             outputs_to_replicate.append(output_label)
 
@@ -731,7 +782,11 @@ class Workflow:
         if old_protocol_id in self.dependants_graph:
             self.dependants_graph[new_protocol_id] = self.dependants_graph.pop(old_protocol_id)
 
-        self.final_value_source.replace_protocol(old_protocol_id, new_protocol_id)
+        if self.final_value_source is not None:
+            self.final_value_source.replace_protocol(old_protocol_id, new_protocol_id)
+
+        for gradient_source in self.gradients_sources:
+            gradient_source.replace_protocol(old_protocol_id, new_protocol_id)
 
         for output_label in self.outputs_to_store:
 
@@ -747,8 +802,86 @@ class Workflow:
                 attribute_value.replace_protocol(old_protocol_id,
                                                  new_protocol_id)
 
+            if not isinstance(output_to_store, WorkflowDataCollectionToStore):
+                continue
+
+            for inner_data in output_to_store.data.values():
+
+                for attribute_key in inner_data.__getstate__():
+
+                    attribute_value = getattr(inner_data, attribute_key)
+
+                    if not isinstance(attribute_value, ProtocolPath):
+                        continue
+
+                    attribute_value.replace_protocol(old_protocol_id,
+                                                     new_protocol_id)
+
     @staticmethod
-    def generate_default_metadata(physical_property, force_field_path, estimator_options):
+    def _find_relevant_gradient_keys(substance, force_field_path, parameter_gradient_keys):
+        """Extract only those keys which may be applied to the
+        given substance.
+
+        Parameters
+        ----------
+        substance: Substance
+            The substance to compare against.
+        force_field_path: str
+            The path to the force field which contains the parameters.
+        parameter_gradient_keys: list of ParameterGradientKey
+            The original list of parameter gradient keys.
+
+        Returns
+        -------
+        list of ParameterGradientKey
+            The filtered list of parameter gradient keys.
+        """
+        from openforcefield.topology import Molecule, Topology
+        from openforcefield.typing.engines.smirnoff import ForceField
+
+        # noinspection PyTypeChecker
+        if parameter_gradient_keys is None or len(parameter_gradient_keys) == 0:
+            return []
+
+        force_field = ForceField(force_field_path, allow_cosmetic_attributes=True)
+
+        all_molecules = []
+
+        for component in substance.components:
+            all_molecules.append(Molecule.from_smiles(component.smiles))
+
+        topology = Topology.from_molecules(all_molecules)
+        labelled_molecules = force_field.label_molecules(topology)
+
+        reduced_parameter_keys = []
+
+        for labelled_molecule in labelled_molecules:
+
+            for parameter_key in parameter_gradient_keys:
+
+                if parameter_key.tag not in labelled_molecule:
+                    continue
+
+                contains_parameter = False
+
+                for parameter in labelled_molecule[parameter_key.tag].store.values():
+
+                    if parameter.smirks != parameter_key.smirks:
+                        continue
+
+                    contains_parameter = True
+                    break
+
+                if not contains_parameter:
+                    continue
+
+                reduced_parameter_keys.append(parameter_key)
+
+        return reduced_parameter_keys
+
+    @staticmethod
+    def generate_default_metadata(physical_property, force_field_path,
+                                  parameter_gradient_keys=None, workflow_options=None):
         """Generates a default global metadata dictionary.
         
         Parameters
@@ -758,7 +891,10 @@ class Workflow:
             global scope.
         force_field_path: str
             The path to the force field parameters to use in the workflow.
-        estimator_options: PropertyEstimatorOptions
+        parameter_gradient_keys: list of ParameterGradientKey
+                A list of references to all of the parameters which all observables
+                should be differentiated with respect to.
+        workflow_options: WorkflowOptions, optional
             The options provided when an estimate request was submitted.
 
         Returns
@@ -780,6 +916,9 @@ class Workflow:
                                                                components in the system + 1
             - force_field_path: str - A path to the force field parameters with which the
                                       property should be evaluated with.
+            - parameter_gradient_keys: list of ParameterGradientKey - A list of references to all of the
+                                                                      parameters which all observables
+                                                                      should be differentiated with respect to.
         """
         from propertyestimator.substances import Substance
 
@@ -792,18 +931,15 @@ class Workflow:
 
             components.append(component_substance)
 
-        if estimator_options is None:
-            workflow_options = WorkflowOptions()
-        elif (estimator_options.workflow_options is not None and
-            type(physical_property).__name__ in estimator_options.workflow_options):
-            workflow_options = estimator_options.workflow_options[type(physical_property).__name__]
-        else:
+        if workflow_options is None:
             workflow_options = WorkflowOptions()
 
         if workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.RelativeUncertainty:
             target_uncertainty = physical_property.uncertainty * workflow_options.relative_uncertainty_fraction
         elif workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.AbsoluteUncertainty:
             target_uncertainty = workflow_options.absolute_uncertainty
+        elif workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.NoChecks:
+            target_uncertainty = math.inf
         else:
             raise ValueError('The convergence mode {} is not supported.'.format(workflow_options.convergence_mode))
 
@@ -815,6 +951,12 @@ class Workflow:
         # +1 comes from inclusion of the full mixture as a possible component.
         per_component_uncertainty = target_uncertainty / sqrt(physical_property.substance.number_of_components + 1)
 
+        # Find only those gradient keys which will actually be relevant to the
+        # property of interest
+        relevant_gradient_keys = Workflow._find_relevant_gradient_keys(physical_property.substance,
+                                                                       force_field_path,
+                                                                       parameter_gradient_keys)
+
         # Define a dictionary of accessible 'global' properties.
         global_metadata = {
             "thermodynamic_state": physical_property.thermodynamic_state,
@@ -822,7 +964,8 @@ class Workflow:
             "components": components,
             "target_uncertainty": target_uncertainty,
             "per_component_uncertainty": per_component_uncertainty,
-            "force_field_path": force_field_path
+            "force_field_path": force_field_path,
+            "parameter_gradient_keys": relevant_gradient_keys
         }
 
         # Include the properties metadata
@@ -925,15 +1068,18 @@ class WorkflowGraph:
 
             if len(parent_protocol_ids) == 0:
                 self._root_protocol_ids.append(protocol_name)
-            else:
 
-                for protocol_id in workflow.dependants_graph:
+        if len(parent_protocol_ids) > 0:
 
-                    if (protocol_name not in workflow.dependants_graph[protocol_id] or
-                            protocol_id in self._dependants_graph[protocol_name]):
-                        continue
+            for protocol_id in workflow.dependants_graph:
 
-                    self._dependants_graph[protocol_id].append(protocol_name)
+                if (existing_protocol.id not in workflow.dependants_graph[protocol_id] or
+                    existing_protocol.id in self._dependants_graph[protocol_id] or
+                    protocol_id in self._dependants_graph[existing_protocol.id]):
+
+                    continue
+
+                self._dependants_graph[protocol_id].append(existing_protocol.id)
 
         return existing_protocol.id
 
@@ -1029,11 +1175,17 @@ class WorkflowGraph:
 
             workflow.physical_property.source.provenance = provenance
 
-            value_node_id = workflow.final_value_source.start_protocol
+            final_futures = []
 
-            final_futures = [
-                submitted_futures[value_node_id],
-            ]
+            if workflow.final_value_source is not None:
+
+                value_node_id = workflow.final_value_source.start_protocol
+                final_futures = [submitted_futures[value_node_id]]
+
+            for gradient_source in workflow.gradients_sources:
+
+                protocol_id = gradient_source.start_protocol
+                final_futures.append(submitted_futures[protocol_id])
 
             for output_label in workflow.outputs_to_store:
 
@@ -1048,6 +1200,23 @@ class WorkflowGraph:
 
                     final_futures.append(submitted_futures[attribute_value.start_protocol])
 
+                if not isinstance(output_to_store, WorkflowDataCollectionToStore):
+                    continue
+
+                for inner_data in output_to_store.data.values():
+
+                    for attribute_key in inner_data.__getstate__():
+
+                        attribute_value = getattr(inner_data, attribute_key)
+
+                        if not isinstance(attribute_value, ProtocolPath):
+                            continue
+
+                        final_futures.append(submitted_futures[attribute_value.start_protocol])
+
+            if len(final_futures) == 0:
+                final_futures = [submitted_futures[key] for key in submitted_futures]
+
             target_uncertainty = None
 
             if include_uncertainty_check and 'target_uncertainty' in workflow.global_metadata:
@@ -1058,6 +1227,7 @@ class WorkflowGraph:
                                                      self._root_directory,
                                                      workflow.physical_property,
                                                      workflow.final_value_source,
+                                                     workflow.gradients_sources,
                                                      workflow.outputs_to_store,
                                                      target_uncertainty,
                                                      *final_futures,
@@ -1083,7 +1253,7 @@ class WorkflowGraph:
             json.dump(output_dictionary, file, cls=TypedJSONEncoder)
 
     @staticmethod
-    def _execute_protocol(directory, protocol_schema, *previous_output_paths, available_resources, **kwargs):
+    def _execute_protocol(directory, protocol_schema, *previous_output_paths, available_resources, **_):
         """Executes a protocol whose state is defined by the ``protocol_schema``.
 
         Parameters
@@ -1119,8 +1289,6 @@ class WorkflowGraph:
             previous_outputs_by_path = {}
 
             for parent_id, previous_output_path in previous_output_paths:
-
-                parent_output = None
 
                 try:
 
@@ -1174,7 +1342,18 @@ class WorkflowGraph:
 
                         continue
 
-                    protocol.set_value(source_path, previous_outputs_by_path[target_path])
+                    # TODO: Add better support for array indexing.
+                    if target_path.property_name.find('[') >= 0 or target_path.property_name.find(']') >= 0:
+
+                        attribute_name, array_index = extract_variable_index_and_name(target_path.property_name)
+
+                        array_value = previous_outputs_by_path[ProtocolPath(attribute_name, target_path.start_protocol)]
+                        target_value = array_value[array_index]
+
+                    else:
+                        target_value = previous_outputs_by_path[target_path]
+
+                    protocol.set_value(source_path, target_value)
 
             logging.info('Executing protocol: {}'.format(protocol.id))
 
@@ -1193,8 +1372,8 @@ class WorkflowGraph:
                 formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
                 exception = PropertyEstimatorException(directory=directory,
-                                                       message='Could not save the output dictionary of {} ({}): {}'.format(
-                                                               protocol.id, output_dictionary_path, formatted_exception))
+                                                       message=f'Could not save the output dictionary of {protocol.id} '
+                                                               f'({output_dictionary_path}): {formatted_exception}')
 
                 WorkflowGraph._save_protocol_output(output_dictionary_path, exception)
 
@@ -1215,8 +1394,8 @@ class WorkflowGraph:
             return protocol_schema.id, output_dictionary_path
 
     @staticmethod
-    def _gather_results(directory, property_to_return, value_reference, outputs_to_store,
-                        target_uncertainty, *protocol_result_paths, **kwargs):
+    def _gather_results(directory, property_to_return, value_reference, gradient_sources,
+                        outputs_to_store, target_uncertainty, *protocol_result_paths, **_):
         """Gather the value and uncertainty calculated from the submission graph
         and store them in the property to return.
 
@@ -1226,8 +1405,11 @@ class WorkflowGraph:
             The directory to store any working files in.
         property_to_return: PhysicalProperty
             The property to which the value and uncertainty belong.
-        value_reference: ProtocolPath
+        value_reference: ProtocolPath, optional
             A reference to which property in the output dictionary is the actual value.
+        gradient_sources: list of ProtocolPath
+            A list of references to those entries in the output dictionaries which correspond
+            to parameter gradients.
         outputs_to_store: dict of string and WorkflowOutputToStore
             A list of references to data which should be stored on the storage backend.
         target_uncertainty: unit.Quantity, optional
@@ -1253,8 +1435,6 @@ class WorkflowGraph:
             results_by_id = {}
 
             for protocol_id, protocol_result_path in protocol_result_paths:
-
-                protocol_results = None
 
                 try:
 
@@ -1289,32 +1469,43 @@ class WorkflowGraph:
                     final_path = ProtocolPath(property_name, *protocol_ids)
                     results_by_id[final_path] = output_value
 
-            if target_uncertainty is not None and results_by_id[value_reference].uncertainty > target_uncertainty:
+            if value_reference is not None:
 
-                logging.info('The final uncertainty ({}) was not less than the target threshold ({}).'.format(
-                    results_by_id[value_reference].uncertainty, target_uncertainty))
+                if (target_uncertainty is not None and
+                    results_by_id[value_reference].uncertainty > target_uncertainty):
 
-                return None
+                    logging.info('The final uncertainty ({}) was not less than the target threshold ({}).'.format(
+                        results_by_id[value_reference].uncertainty, target_uncertainty))
 
-            property_to_return.value = results_by_id[value_reference].value
-            property_to_return.uncertainty = results_by_id[value_reference].uncertainty
+                    return None
+
+                property_to_return.value = results_by_id[value_reference].value
+                property_to_return.uncertainty = results_by_id[value_reference].uncertainty
+
+            for gradient_source in gradient_sources:
+
+                gradient = results_by_id[gradient_source]
+                property_to_return.gradients.append(gradient)
 
             return_object.calculated_property = property_to_return
-            return_object.data_directories_to_store = []
+            return_object.data_to_store = []
 
-            # TODO: At the moment it is assumed that the output of a WorkflowGraph is
-            #       a set of StoredSimulationData. This should be abstracted and made
-            #       more general in future if possible.
             for output_to_store in outputs_to_store.values():
 
-                results_directory = path.join(directory, f'results_{property_to_return.id}')
+                substance_id = (property_to_return.substance.identifier if
+                                output_to_store.substance is None else
+                                output_to_store.substance.identifier)
 
-                WorkflowGraph._store_simulation_data(results_directory,
-                                                     output_to_store,
-                                                     property_to_return,
-                                                     results_by_id)
+                data_object_path = path.join(directory, f'results_{property_to_return.id}_{substance_id}.json')
+                data_directory = path.join(directory, f'results_{property_to_return.id}_{substance_id}')
 
-                return_object.data_directories_to_store.append(results_directory)
+                WorkflowGraph._store_output_data(data_object_path,
+                                                 data_directory,
+                                                 output_to_store,
+                                                 property_to_return,
+                                                 results_by_id)
+
+                return_object.data_to_store.append((data_object_path, data_directory))
 
         except Exception as e:
 
@@ -1327,14 +1518,18 @@ class WorkflowGraph:
         return return_object
 
     @staticmethod
-    def _store_simulation_data(storage_directory, output_to_store, physical_property, results_by_id):
+    def _store_output_data(data_object_path, data_directory, output_to_store,
+                           physical_property, results_by_id):
+
         """Collects all of the simulation to store, and saves it into a directory
         whose path will be passed to the storage backend to process.
 
         Parameters
         ----------
-        storage_directory: str
-            The directory to store the data in.
+        data_object_path: str
+            The file path to serialize the data object to.
+        data_directory: str
+            The path of the directory to store ancillary data in.
         output_to_store: WorkflowOutputToStore
             An object which contains `ProtocolPath`s pointing to the
             data to store.
@@ -1345,12 +1540,15 @@ class WorkflowGraph:
             The results of the protocols which formed the property
             estimation workflow.
         """
-        from shutil import copy as file_copy
 
-        if not path.isdir(storage_directory):
-            makedirs(storage_directory)
+        makedirs(data_directory, exist_ok=True)
 
-        stored_object = StoredSimulationData()
+        stored_object = BaseStoredData()
+
+        if type(output_to_store) == WorkflowSimulationDataToStore:
+            stored_object = StoredSimulationData()
+        elif type(output_to_store) == WorkflowDataCollectionToStore:
+            stored_object = StoredDataCollection()
 
         if output_to_store.substance is None:
             stored_object.substance = physical_property.substance
@@ -1363,23 +1561,72 @@ class WorkflowGraph:
         stored_object.provenance = physical_property.source
         stored_object.source_calculation_id = physical_property.id
 
+        if isinstance(output_to_store, WorkflowSimulationDataToStore):
+
+            WorkflowGraph._store_simulation_data(stored_object,
+                                                 data_directory,
+                                                 output_to_store,
+                                                 results_by_id)
+
+        elif isinstance(output_to_store, WorkflowDataCollectionToStore):
+
+            for data_key in output_to_store.data:
+
+                inner_data_object = StoredSimulationData()
+                inner_data_object.substance = stored_object.substance
+                inner_data_object.thermodynamic_state = stored_object.thermodynamic_state
+                inner_data_object.source_calculation_id = stored_object.source_calculation_id
+
+                inner_data_directory = path.join(data_directory, data_key)
+
+                makedirs(inner_data_directory, exist_ok=True)
+
+                WorkflowGraph._store_simulation_data(inner_data_object,
+                                                     inner_data_directory,
+                                                     output_to_store.data[data_key],
+                                                     results_by_id)
+
+                stored_object.data[data_key] = inner_data_object
+
+        with open(data_object_path, 'w') as file:
+            json.dump(stored_object, file, cls=TypedJSONEncoder)
+
+    @staticmethod
+    def _store_simulation_data(data_object, data_directory, output_to_store, results_by_id):
+        """Collects all of the simulation to store, and saves it into a directory
+        whose path will be passed to the storage backend to process.
+
+        Parameters
+        ----------
+        data_object: StoredSimulationData
+            The data object which is to be stored.
+        data_directory: str
+            The path of the directory to store ancillary data in.
+        output_to_store: WorkflowSimulationDataToStore
+            An object which contains `ProtocolPath`s pointing to the
+            data to store.
+        results_by_id: dict of ProtocolPath and any
+            The results of the protocols which formed the property
+            estimation workflow.
+        """
+        from shutil import copy as file_copy
+
+        data_object.total_number_of_molecules = results_by_id[output_to_store.total_number_of_molecules]
+
         # Copy the files into the directory to store.
         _, coordinate_file_name = path.split(results_by_id[output_to_store.coordinate_file_path])
         _, trajectory_file_name = path.split(results_by_id[output_to_store.trajectory_file_path])
 
         _, statistics_file_name = path.split(results_by_id[output_to_store.statistics_file_path])
 
-        file_copy(results_by_id[output_to_store.coordinate_file_path], storage_directory)
-        file_copy(results_by_id[output_to_store.trajectory_file_path], storage_directory)
+        file_copy(results_by_id[output_to_store.coordinate_file_path], data_directory)
+        file_copy(results_by_id[output_to_store.trajectory_file_path], data_directory)
 
-        file_copy(results_by_id[output_to_store.statistics_file_path], storage_directory)
+        file_copy(results_by_id[output_to_store.statistics_file_path], data_directory)
 
-        stored_object.coordinate_file_name = coordinate_file_name
-        stored_object.trajectory_file_name = trajectory_file_name
+        data_object.coordinate_file_name = coordinate_file_name
+        data_object.trajectory_file_name = trajectory_file_name
 
-        stored_object.statistics_file_name = statistics_file_name
+        data_object.statistics_file_name = statistics_file_name
 
-        stored_object.statistical_inefficiency = results_by_id[output_to_store.statistical_inefficiency]
-
-        with open(path.join(storage_directory, 'data.json'), 'w') as file:
-            json.dump(stored_object, file, cls=TypedJSONEncoder)
+        data_object.statistical_inefficiency = results_by_id[output_to_store.statistical_inefficiency]

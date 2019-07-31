@@ -278,6 +278,8 @@ class ProtocolGroup(BaseProtocol):
         for protocol_id_to_execute in self._execution_order:
 
             protocol_to_execute = self._protocols[protocol_id_to_execute]
+            protocol_to_execute_schema = protocol_to_execute.schema
+
             working_directory = path.join(directory, protocol_to_execute.id)
 
             if not path.isdir(working_directory):
@@ -318,6 +320,8 @@ class ProtocolGroup(BaseProtocol):
 
                 output_dictionary[output_path_prepended.full_path] = return_value[output_path]
 
+            protocol_to_execute.schema = protocol_to_execute_schema
+
         return output_dictionary
 
     def can_merge(self, other):
@@ -337,14 +341,13 @@ class ProtocolGroup(BaseProtocol):
         if not super(ProtocolGroup, self).can_merge(other):
             return False
 
-        if len(self._root_protocols) != len(other.root_protocols):
-            # Only allow groups with the same number of root protocols
-            # to merge.
-            return False
+        # if len(self._root_protocols) != len(other.root_protocols):
+        #     # Only allow groups with the same number of root protocols
+        #     # to merge.
+        #     return False
 
         # Ensure that the starting points in each group can be
         # merged.
-        # TODO: Is this too strict / too lenient / just right?
         for self_root_id in self._root_protocols:
 
             self_protocol = self._protocols[self_root_id]
@@ -706,6 +709,9 @@ class ConditionalGroup(ProtocolGroup):
         def __ne__(self, other):
             return not self.__eq__(other)
 
+        def __str__(self):
+            return f'{self.left_hand_value} {self.type} {self.right_hand_value}'
+
     @protocol_input(int, merge_behavior=MergeBehaviour.GreatestValue)
     def max_iterations(self):
         """The maximum number of iterations to run for to try and satisfy the
@@ -877,9 +883,7 @@ class ConditionalGroup(ProtocolGroup):
 
                 # Check to see if we have reached our goal.
                 if not self._evaluate_condition(condition):
-
                     conditions_met = False
-                    break
 
             if conditions_met:
 

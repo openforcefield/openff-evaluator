@@ -12,8 +12,8 @@ import random
 import shutil
 import string
 import subprocess
+import tempfile
 from distutils.spawn import find_executable
-from tempfile import mkdtemp
 
 import numpy as np
 from simtk import openmm
@@ -126,7 +126,7 @@ def pack_box(molecules,
 
     if working_directory is None:
 
-        working_directory = mkdtemp()
+        working_directory = tempfile.mkdtemp()
         temporary_directory = True
 
     elif not os.path.isdir(working_directory):
@@ -446,23 +446,31 @@ def _create_pdb_and_topology(molecule, file_path):
     import mdtraj
     from openeye import oechem
 
-    # Write the PDB file
-    pdb_flavor = oechem.OEOFlavor_PDB_Default
+    # Create a temporary mol2 file using OE, change its
+    # residue name (sometimes OE assigns the molecule an
+    # amino acid residue name even if that molecule is not
+    # an amino acid, e.g. C(CO)N is not Gly), save the
+    # altered object as a pdb.
+    with tempfile.NamedTemporaryFile(suffix='.mol2') as mol2_file:
 
-    ofs = oechem.oemolostream(file_path)
-    ofs.SetFlavor(oechem.OEFormat_PDB, pdb_flavor)
+        mol2_flavor = oechem.OEOFlavor_MOL2_DEFAULT
 
-    # Fix residue names
-    residue_name = ''.join([random.choice(string.ascii_uppercase) for _ in range(3)])
+        ofs = oechem.oemolostream(mol2_file.name)
+        ofs.SetFlavor(oechem.OEFormat_MOL2, mol2_flavor)
 
-    oechem.OEWriteConstMolecule(ofs, molecule)
-    ofs.close()
+        oechem.OEWriteConstMolecule(ofs, molecule)
+        ofs.close()
 
-    with open(file_path, 'rb') as file:
-        pdb_contents = file.read().decode().replace('UNL', residue_name)
+        # Load in the OE created mol2 file.
+        oe_mol2 = mdtraj.load_mol2(mol2_file.name)
 
-    with open(file_path, 'wb') as file:
-        file.write(pdb_contents.encode())
+        # Choose a random residue name.
+        residue_name = ''.join([random.choice(string.ascii_uppercase) for _ in range(3)])
 
-    oe_pdb = mdtraj.load_pdb(file_path)
-    return oe_pdb.topology
+        for residue in oe_mol2.topology.residues:
+            residue.name = residue_name
+
+        # Create the final pdb file.
+        oe_mol2.save_pdb(file_path)
+
+    return oe_mol2.topology

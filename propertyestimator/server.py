@@ -1,7 +1,7 @@
 """
 Property calculator 'server' side API.
 """
-
+import copy
 import json
 import logging
 import uuid
@@ -62,7 +62,8 @@ class PropertyEstimatorServer(TCPServer):
         in a fixed ratio)
         """
 
-        def __init__(self, estimation_id='', queued_properties=None, options=None, force_field_id=None):
+        def __init__(self, estimation_id='', queued_properties=None, options=None,
+                     force_field_id=None, parameter_gradient_keys=None):
             """Constructs a new ServerEstimationRequest object.
 
             Parameters
@@ -75,6 +76,9 @@ class PropertyEstimatorServer(TCPServer):
                 The options used to estimate the properties.
             force_field_id: str
                 The unique server side id of the force field parameters used to estimate the properties.
+            parameter_gradient_keys: list of ParameterGradientKey
+                A list of references to all of the parameters which all observables
+                should be differentiated with respect to.
             """
             self.id = estimation_id
 
@@ -88,6 +92,8 @@ class PropertyEstimatorServer(TCPServer):
             self.options = options
 
             self.force_field_id = force_field_id
+
+            self.parameter_gradient_keys = parameter_gradient_keys
 
         def __getstate__(self):
             return {
@@ -103,6 +109,8 @@ class PropertyEstimatorServer(TCPServer):
                 'options': self.options,
 
                 'force_field_id': self.force_field_id,
+
+                'parameter_gradient_keys': self.parameter_gradient_keys
             }
 
         def __setstate__(self, state):
@@ -118,6 +126,8 @@ class PropertyEstimatorServer(TCPServer):
             self.options = state['options']
 
             self.force_field_id = state['force_field_id']
+
+            self.parameter_gradient_keys = state['parameter_gradient_keys']
 
     def __init__(self, calculation_backend, storage_backend,
                  port=8000, working_directory='working-data'):
@@ -373,9 +383,7 @@ class PropertyEstimatorServer(TCPServer):
         force_field_id = self._storage_backend.has_force_field(force_field)
 
         if force_field_id is None:
-
-            force_field_id = str(uuid.uuid4())
-            self._storage_backend.store_force_field(force_field_id, force_field)
+            force_field_id = self._storage_backend.store_force_field(force_field)
 
         server_requests = {}
 
@@ -405,10 +413,13 @@ class PropertyEstimatorServer(TCPServer):
 
             options_copy = PropertyEstimatorOptions.parse_json(client_data_model.options.json())
 
+            parameter_gradient_keys = copy.deepcopy(client_data_model.parameter_gradient_keys)
+
             request = self.ServerEstimationRequest(estimation_id=calculation_id,
                                                    queued_properties=properties_to_estimate,
                                                    options=options_copy,
-                                                   force_field_id=force_field_id)
+                                                   force_field_id=force_field_id,
+                                                   parameter_gradient_keys=parameter_gradient_keys)
 
             server_requests[calculation_id] = request
 

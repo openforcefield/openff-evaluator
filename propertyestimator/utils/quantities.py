@@ -22,6 +22,12 @@ class EstimatedQuantity:
     a class which overrides the pint Quantity class when the codebase has
     been swapped to pint.
 
+    Notes
+    -----
+    Two estimated quantities are assumed to be equal if and only if they have the same
+    sources, and their values and uncertainties are equal within machine
+    precision. It is not checked whether they are statistically indistinguishable.
+
     Examples
     --------
     To add two **independent** quantities together:
@@ -232,6 +238,16 @@ class EstimatedQuantity:
         assert value_unit == uncertainty_unit
 
         return ufloat(unitless_value, unitless_uncertainty), value_unit
+
+    def __eq__(self, other):
+
+        return (isinstance(other, EstimatedQuantity) and
+                self.value == other.value and
+                self.uncertainty == other.uncertainty and
+                self.sources == other.sources)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def __str__(self):
 

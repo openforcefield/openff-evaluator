@@ -8,9 +8,9 @@ from simtk import unit, openmm
 from simtk.openmm import app
 
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
-from propertyestimator.utils import statistics
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.openmm import setup_platform_with_resources
+from propertyestimator.utils.statistics import StatisticsArray, ObservableType
 from propertyestimator.workflow.decorators import protocol_input, protocol_output, MergeBehaviour
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
@@ -43,6 +43,11 @@ class RunEnergyMinimisation(BaseProtocol):
         """The path to the XML system object which defines the forces present in the system."""
         pass
 
+    @protocol_input(bool)
+    def enable_pbc(self):
+        """If true, periodic boundary conditions will be enabled."""
+        pass
+
     @protocol_output(str)
     def output_coordinate_file(self):
         """The file path to the minimised coordinates."""
@@ -56,6 +61,8 @@ class RunEnergyMinimisation(BaseProtocol):
 
         self._system_path = None
         self._system = None
+
+        self._enable_pbc = True
 
         self._tolerance = 10*unit.kilojoules_per_mole
         self._max_iterations = 0
@@ -73,6 +80,18 @@ class RunEnergyMinimisation(BaseProtocol):
         with open(self._system_path, 'rb') as file:
             self._system = openmm.XmlSerializer.deserialize(file.read().decode())
 
+        if not self._enable_pbc:
+
+            for force_index in range(self._system.getNumForces()):
+
+                force = self._system.getForce(force_index)
+
+                if not isinstance(force, openmm.NonbondedForce):
+                    continue
+
+                force.setNonbondedMethod(0)  # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1
+
+        # TODO: Expose the constraint tolerance
         integrator = openmm.VerletIntegrator(0.002 * unit.picoseconds)
         simulation = app.Simulation(input_pdb_file.topology, self._system, integrator, platform)
 
@@ -144,6 +163,11 @@ class RunOpenMMSimulation(BaseProtocol):
         """A path to the XML system object which defines the forces present in the system."""
         pass
 
+    @protocol_input(bool)
+    def enable_pbc(self):
+        """If true, periodic boundary conditions will be enabled."""
+        pass
+
     @protocol_output(str)
     def output_coordinate_file(self):
         """The file path to the coordinates of the final system configuration."""
@@ -182,6 +206,8 @@ class RunOpenMMSimulation(BaseProtocol):
         self._system = None
         self._system_path = None
 
+        self._enable_pbc = True
+
         # outputs
         self._output_coordinate_file = None
 
@@ -189,6 +215,37 @@ class RunOpenMMSimulation(BaseProtocol):
         self._statistics_file_path = None
 
         self._temporary_statistics_path = None
+
+    def _calculate_reduced_potential(self, statistics_array):
+        """Computes the reduced potential for the given thermodynamic
+        state and potential energies contained in the `statistics_array`,
+        and stores them in the statistics array.
+
+        Parameters
+        ----------
+        statistics_array: StatisticsArray
+            The statistics array which contains the potential energies,
+            and which will store the reduced potentials.
+
+        Returns
+        -------
+        StatisticsArray
+            The statistics array with the reduced potentials set.
+        """
+
+        potential_energies = statistics_array[ObservableType.PotentialEnergy]
+        volumes = statistics_array[ObservableType.Volume]
+
+        beta = 1.0 / (unit.BOLTZMANN_CONSTANT_kB * self._thermodynamic_state.temperature)
+
+        reduced_potential = potential_energies / unit.AVOGADRO_CONSTANT_NA
+
+        if self._thermodynamic_state.pressure is not None:
+            reduced_potential += self._thermodynamic_state.pressure * volumes
+
+        statistics_array[ObservableType.ReducedPotential] = beta * reduced_potential * unit.dimensionless
+
+        return statistics_array
 
     def execute(self, directory, available_resources):
 
@@ -205,6 +262,11 @@ class RunOpenMMSimulation(BaseProtocol):
 
             return PropertyEstimatorException(directory=directory,
                                               message='A pressure must be set to perform an NPT simulation')
+
+        if Ensemble(self._ensemble) == Ensemble.NPT and self._enable_pbc is False:
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='PBC must be enabled when running in the NPT ensemble.')
 
         logging.info('Performing a simulation in the ' + str(self._ensemble) + ' ensemble: ' + self.id)
 
@@ -227,8 +289,10 @@ class RunOpenMMSimulation(BaseProtocol):
                                               message='Simulation failed: {}'.format(e))
 
         # Save the newly generated statistics data as a pandas csv file.
-        working_statistics = statistics.StatisticsArray.from_openmm_csv(self._temporary_statistics_path, pressure)
-        working_statistics.save_as_pandas_csv(self._statistics_file_path)
+        working_statistics = StatisticsArray.from_openmm_csv(self._temporary_statistics_path, pressure)
+        working_statistics = self._calculate_reduced_potential(working_statistics)
+
+        working_statistics.to_pandas_csv(self._statistics_file_path)
 
         positions = self._simulation_object.context.getState(getPositions=True).getPositions()
 
@@ -270,13 +334,27 @@ class RunOpenMMSimulation(BaseProtocol):
         with open(self._system_path, 'rb') as file:
             self._system = XmlSerializer.deserialize(file.read().decode())
 
+        if not self._enable_pbc:
+
+            for force_index in range(self._system.getNumForces()):
+
+                force = self._system.getForce(force_index)
+
+                if not isinstance(force, openmm.NonbondedForce):
+                    continue
+
+                force.setNonbondedMethod(0)  # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1
+
+            pressure = None
+
         openmm_state = openmmtools.states.ThermodynamicState(system=self._system,
                                                              temperature=temperature,
                                                              pressure=pressure)
 
-        integrator = openmm.LangevinIntegrator(temperature,
-                                               self._thermostat_friction,
-                                               self._timestep)
+        # TODO: Expose whether to use the openmm or openmmtools integrator?
+        integrator = openmmtools.integrators.LangevinIntegrator(temperature,
+                                                                self._thermostat_friction,
+                                                                self._timestep)
 
         simulation = app.Simulation(input_pdb_file.topology,
                                     openmm_state.get_system(True),
@@ -285,6 +363,7 @@ class RunOpenMMSimulation(BaseProtocol):
 
         checkpoint_path = path.join(directory, 'checkpoint.chk')
 
+        # TODO: Swap to saving context state to xml.
         if path.isfile(checkpoint_path):
 
             # Load the simulation state from a checkpoint file.

@@ -162,7 +162,9 @@ class BaseProtocol:
 
                 continue
 
-            schema.inputs[input_path.full_path] = self.get_value(input_path)
+            # Always make sure to only pass a copy of the input. Changing the schema
+            # should NOT change the protocol.
+            schema.inputs[input_path.full_path] = copy.deepcopy(self.get_value(input_path))
 
         return schema
 
@@ -405,14 +407,17 @@ class BaseProtocol:
         if isinstance(input_value, ProtocolPath):
             return {input_path: input_value}
 
-        if not isinstance(input_value, list) and not isinstance(input_value, dict):
+        if (not isinstance(input_value, list) and
+            not isinstance(input_value, tuple) and
+            not isinstance(input_value, dict)):
+
             return {}
 
         property_name, protocols_ids = ProtocolPath.to_components(input_path.full_path)
 
         return_paths = {}
 
-        if isinstance(input_value, list):
+        if isinstance(input_value, list) or isinstance(input_value, tuple):
 
             for index, list_value in enumerate(input_value):
 

@@ -3,7 +3,6 @@ A collection of dielectric physical property definitions.
 """
 
 import logging
-import sys
 
 import numpy as np
 from simtk import openmm, unit
@@ -11,17 +10,18 @@ from simtk import openmm, unit
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties import PhysicalProperty, PropertyPhase
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.properties.utils import generate_base_reweighting_protocols, BaseReweightingProtocols
-from propertyestimator.protocols import analysis, coordinates, forcefield, groups, reweighting, simulation
+from propertyestimator.protocols import analysis, reweighting
+from propertyestimator.protocols.utils import generate_base_reweighting_protocols, BaseReweightingProtocols, \
+    generate_gradient_protocol_group, generate_base_simulation_protocols
 from propertyestimator.storage import StoredSimulationData
-from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
+from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import timeseries
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import bootstrap
 from propertyestimator.workflow import plugins
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
-from propertyestimator.workflow.schemas import WorkflowOutputToStore, WorkflowSchema
+from propertyestimator.workflow.schemas import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
 
@@ -261,42 +261,15 @@ class ReweightDielectricConstant(reweighting.ReweightWithMBARProtocol):
         volumes = self._prepare_observables_array(self._reference_volumes)
 
         if self._bootstrap_uncertainties:
-
-            reference_potentials = np.transpose(np.array(self._reference_reduced_potentials))
-            target_potentials = np.transpose(np.array(self._target_reduced_potentials))
-
-            frame_counts = np.array([len(observable) for observable in self._reference_observables])
-
-            # Construct an mbar object to get out the number of effective samples.
-            import pymbar
-            mbar = pymbar.MBAR(self._reference_reduced_potentials,
-                               frame_counts, verbose=False, relative_tolerance=1e-12)
-
-            effective_samples = mbar.computeEffectiveSampleNumber().max()
-
-            value, uncertainty = bootstrap(self._bootstrap_function,
-                                           self._bootstrap_iterations,
-                                           self._bootstrap_sample_size,
-                                           frame_counts,
-                                           reference_reduced_potentials=reference_potentials,
-                                           target_reduced_potentials=target_potentials,
-                                           dipoles=np.transpose(dipole_moments),
-                                           dipoles_sqr=np.transpose(dipole_moments_sqr),
-                                           volumes=np.transpose(volumes))
-
-            if effective_samples < self._required_effective_samples:
-                uncertainty = sys.float_info.max
-
-            self._value = EstimatedQuantity(unit.Quantity(value, None),
-                                            unit.Quantity(uncertainty, None),
-                                            self.id)
-            
+            self._execute_with_bootstrapping(unit.dimensionless,
+                                             dipoles=dipole_moments,
+                                             dipoles_sqr=dipole_moments_sqr,
+                                             volumes=volumes)
         else:
 
-            return PropertyEstimatorException(directory=directory, message='Dielectric uncertainties may only'
-                                                                           'be bootstrapped.')
-
-        logging.info('Dielectric reweighted: {}'.format(self.id))
+            return PropertyEstimatorException(directory=directory,
+                                              message='Dielectric constant can only be reweighted in conjunction '
+                                                      'with bootstrapped uncertainties.')
 
         return self._get_output_dictionary()
 
@@ -309,16 +282,10 @@ class DielectricConstant(PhysicalProperty):
 
     @property
     def multi_component_property(self):
-        """Returns whether this property is dependant on properties of the
-        full mixed substance, or whether it is also dependant on the properties
-        of the individual components also.
-        """
         return False
 
     @property
     def required_data_class(self):
-        """Returns which type of stored data class is required by
-        this property."""
         return StoredSimulationData
 
     @staticmethod
@@ -347,143 +314,64 @@ class DielectricConstant(PhysicalProperty):
             The schema to follow when estimating this property.
         """
 
+        # Define the protocol which will extract the average dielectric constant
+        # from the results of a simulation.
+        extract_dielectric = ExtractAverageDielectric('extract_dielectric')
+        extract_dielectric.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
+
+        # Define the protocols which will run the simulation itself.
+        protocols, value_source, output_to_store = generate_base_simulation_protocols(extract_dielectric,
+                                                                                      options)
+
+        # Make sure the input of the analysis protcol is properly hooked up.
+        extract_dielectric.system_path = ProtocolPath('system_path', protocols.assign_parameters.id)
+
+        # Dielectric constants typically take longer to converge, so we need to
+        # reflect this in the maximum number of convergence iterations.
+        protocols.converge_uncertainty.max_iterations = 400
+
+        # Set up the gradient calculations. For dielectric constants, we need to use
+        # a slightly specialised reweighting protocol which we set up here.
+        gradient_mbar_protocol = ReweightDielectricConstant('gradient_mbar')
+        gradient_mbar_protocol.reference_observables = [ProtocolPath('uncorrelated_values',
+                                                                     protocols.converge_uncertainty.id,
+                                                                     extract_dielectric.id)]
+        gradient_mbar_protocol.reference_volumes = [ProtocolPath('uncorrelated_volumes',
+                                                                 protocols.converge_uncertainty.id,
+                                                                 extract_dielectric.id)]
+        gradient_mbar_protocol.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
+
+        coordinate_source = ProtocolPath('output_coordinate_file', protocols.equilibration_simulation.id)
+        trajectory_source = ProtocolPath('output_trajectory_path', protocols.extract_uncorrelated_trajectory.id)
+
+        gradient_group, gradient_replicator, gradient_source = \
+            generate_gradient_protocol_group([ProtocolPath('force_field_path', 'global')],
+                                             ProtocolPath('force_field_path', 'global'),
+                                             coordinate_source,
+                                             trajectory_source,
+                                             template_reweighting_schema=gradient_mbar_protocol.schema)
+
+        # Build the workflow schema.
         schema = WorkflowSchema(property_type=DielectricConstant.__name__)
         schema.id = '{}{}'.format(DielectricConstant.__name__, 'Schema')
 
-        # Initial coordinate and topology setup.
-        build_coordinates = coordinates.BuildCoordinatesPackmol('build_coordinates')
+        schema.protocols = {
+            protocols.build_coordinates.id: protocols.build_coordinates.schema,
+            protocols.assign_parameters.id: protocols.assign_parameters.schema,
+            protocols.energy_minimisation.id: protocols.energy_minimisation.schema,
+            protocols.equilibration_simulation.id: protocols.equilibration_simulation.schema,
+            protocols.converge_uncertainty.id: protocols.converge_uncertainty.schema,
+            protocols.extract_uncorrelated_trajectory.id: protocols.extract_uncorrelated_trajectory.schema,
+            protocols.extract_uncorrelated_statistics.id: protocols.extract_uncorrelated_statistics.schema,
+            gradient_group.id: gradient_group.schema
+        }
 
-        build_coordinates.substance = ProtocolPath('substance', 'global')
-
-        schema.protocols[build_coordinates.id] = build_coordinates.schema
-
-        assign_topology = forcefield.BuildSmirnoffSystem('build_topology')
-
-        assign_topology.force_field_path = ProtocolPath('force_field_path', 'global')
-
-        assign_topology.coordinate_file_path = ProtocolPath('coordinate_file_path', build_coordinates.id)
-        assign_topology.substance = ProtocolPath('substance', 'global')
-
-        schema.protocols[assign_topology.id] = assign_topology.schema
-
-        # Equilibration
-        energy_minimisation = simulation.RunEnergyMinimisation('energy_minimisation')
-
-        energy_minimisation.input_coordinate_file = ProtocolPath('coordinate_file_path', build_coordinates.id)
-        energy_minimisation.system_path = ProtocolPath('system_path', assign_topology.id)
-
-        schema.protocols[energy_minimisation.id] = energy_minimisation.schema
-
-        npt_equilibration = simulation.RunOpenMMSimulation('npt_equilibration')
-
-        npt_equilibration.ensemble = Ensemble.NPT
-
-        npt_equilibration.steps = 100000  # Debug settings.
-        npt_equilibration.output_frequency = 5000  # Debug settings.
-
-        npt_equilibration.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
-
-        npt_equilibration.input_coordinate_file = ProtocolPath('output_coordinate_file', energy_minimisation.id)
-        npt_equilibration.system_path = ProtocolPath('system_path', assign_topology.id)
-
-        schema.protocols[npt_equilibration.id] = npt_equilibration.schema
-
-        # Production
-        npt_production = simulation.RunOpenMMSimulation('npt_production')
-
-        npt_production.ensemble = Ensemble.NPT
-
-        npt_production.steps = 500000  # Debug settings.
-        npt_production.output_frequency = 10000  # Debug settings.
-
-        npt_production.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
-
-        npt_production.input_coordinate_file = ProtocolPath('output_coordinate_file', npt_equilibration.id)
-        npt_production.system_path = ProtocolPath('system_path', assign_topology.id)
-
-        # Analysis
-        extract_dielectric = ExtractAverageDielectric('extract_dielectric')
-
-        extract_dielectric.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
-
-        extract_dielectric.input_coordinate_file = ProtocolPath('output_coordinate_file', npt_production.id)
-        extract_dielectric.trajectory_path = ProtocolPath('trajectory_file_path', npt_production.id)
-        extract_dielectric.system_path = ProtocolPath('system_path', assign_topology.id)
-
-        # Set up a conditional group to ensure convergence of uncertainty
-        converge_uncertainty = groups.ConditionalGroup('converge_uncertainty')
-        converge_uncertainty.add_protocols(npt_production, extract_dielectric)
-
-        condition = groups.ConditionalGroup.Condition()
-
-        condition.left_hand_value = ProtocolPath('value.uncertainty',
-                                                 converge_uncertainty.id,
-                                                 extract_dielectric.id)
-
-        condition.right_hand_value = ProtocolPath('target_uncertainty', 'global')
-
-        condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
-
-        converge_uncertainty.add_condition(condition)
-
-        converge_uncertainty.max_iterations = 400
-
-        schema.protocols[converge_uncertainty.id] = converge_uncertainty.schema
-
-        # Finally, extract uncorrelated data
-        extract_uncorrelated_trajectory = analysis.ExtractUncorrelatedTrajectoryData('extract_traj')
-
-        extract_uncorrelated_trajectory.statistical_inefficiency = ProtocolPath('statistical_inefficiency',
-                                                                                converge_uncertainty.id,
-                                                                                extract_dielectric.id)
-
-        extract_uncorrelated_trajectory.equilibration_index = ProtocolPath('equilibration_index',
-                                                                           converge_uncertainty.id,
-                                                                           extract_dielectric.id)
-
-        extract_uncorrelated_trajectory.input_coordinate_file = ProtocolPath('output_coordinate_file',
-                                                                             converge_uncertainty.id,
-                                                                             npt_production.id)
-
-        extract_uncorrelated_trajectory.input_trajectory_path = ProtocolPath('trajectory_file_path',
-                                                                             converge_uncertainty.id,
-                                                                             npt_production.id)
-
-        schema.protocols[extract_uncorrelated_trajectory.id] = extract_uncorrelated_trajectory.schema
-
-        extract_uncorrelated_statistics = analysis.ExtractUncorrelatedStatisticsData('extract_stats')
-
-        extract_uncorrelated_statistics.statistical_inefficiency = ProtocolPath('statistical_inefficiency',
-                                                                                converge_uncertainty.id,
-                                                                                extract_dielectric.id)
-
-        extract_uncorrelated_statistics.equilibration_index = ProtocolPath('equilibration_index',
-                                                                           converge_uncertainty.id,
-                                                                           extract_dielectric.id)
-
-        extract_uncorrelated_statistics.input_statistics_path = ProtocolPath('statistics_file_path',
-                                                                             converge_uncertainty.id,
-                                                                             npt_production.id)
-
-        schema.protocols[extract_uncorrelated_statistics.id] = extract_uncorrelated_statistics.schema
-
-        # Define where the final values come from.
-        schema.final_value_source = ProtocolPath('value', converge_uncertainty.id, extract_dielectric.id)
-
-        output_to_store = WorkflowOutputToStore()
-
-        output_to_store.trajectory_file_path = ProtocolPath('output_trajectory_path',
-                                                            extract_uncorrelated_trajectory.id)
-        output_to_store.coordinate_file_path = ProtocolPath('output_coordinate_file',
-                                                            converge_uncertainty.id, npt_production.id)
-
-        output_to_store.statistics_file_path = ProtocolPath('output_statistics_path',
-                                                            extract_uncorrelated_statistics.id)
-
-        output_to_store.statistical_inefficiency = ProtocolPath('statistical_inefficiency', converge_uncertainty.id,
-                                                                extract_dielectric.id)
+        schema.replicators = [gradient_replicator]
 
         schema.outputs_to_store = {'full_system': output_to_store}
+
+        schema.gradients_sources = [gradient_source]
+        schema.final_value_source = value_source
 
         return schema
 
@@ -504,33 +392,39 @@ class DielectricConstant(PhysicalProperty):
         """
 
         dielectric_calculation = ExtractAverageDielectric('calc_dielectric_$(data_repl)')
-        base_reweighting_protocols, data_replicator = generate_base_reweighting_protocols(dielectric_calculation)
+        base_reweighting_protocols, data_replicator = generate_base_reweighting_protocols(dielectric_calculation,
+                                                                                          options)
 
         unpack_id = base_reweighting_protocols.unpack_stored_data.id
 
+        # Set up a protocol to extract the dielectric constant from the stored data.
         dielectric_calculation.thermodynamic_state = ProtocolPath('thermodynamic_state', unpack_id)
         dielectric_calculation.input_coordinate_file = ProtocolPath('coordinate_file_path', unpack_id)
         dielectric_calculation.trajectory_path = ProtocolPath('trajectory_file_path', unpack_id)
-        dielectric_calculation.system_path = ProtocolPath('system_path', base_reweighting_protocols.build_reference_system.id)
+        dielectric_calculation.system_path = ProtocolPath('system_path',
+                                                          base_reweighting_protocols.build_reference_system.id)
 
-        # For the dielectric constant, we employ a slightly more advanced protocol
-        # set up for calculating fluctuation properties.
+        # For the dielectric constant, we employ a slightly more advanced reweighting
+        # protocol set up for calculating fluctuation properties.
         mbar_protocol = ReweightDielectricConstant('mbar')
 
-        mbar_protocol.reference_reduced_potentials = [ProtocolPath('reduced_potentials',
+        mbar_protocol.reference_reduced_potentials = [ProtocolPath('statistics_file_path',
                                                                    base_reweighting_protocols.
                                                                    reduced_reference_potential.id)]
 
         mbar_protocol.reference_observables = [ProtocolPath('uncorrelated_values', dielectric_calculation.id)]
         mbar_protocol.reference_volumes = [ProtocolPath('uncorrelated_volumes', dielectric_calculation.id)]
 
-        mbar_protocol.target_reduced_potentials = [ProtocolPath('reduced_potentials', base_reweighting_protocols.
-                                                                                      reduced_target_potential.id)]
+        mbar_protocol.target_reduced_potentials = [ProtocolPath('statistics_file_path', base_reweighting_protocols.
+                                                                                        reduced_target_potential.id)]
 
         mbar_protocol.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 
         mbar_protocol.bootstrap_uncertainties = True
         mbar_protocol.bootstrap_iterations = 200
+
+        # Make a copy of the mbar reweighting schema to use for evaulating gradients by reweighting.
+        mbar_template_schema = mbar_protocol.schema
 
         # Recreate the immutable tuple for convenience.
         base_reweighting_protocols = BaseReweightingProtocols(base_reweighting_protocols.unpack_stored_data,
@@ -543,12 +437,28 @@ class DielectricConstant(PhysicalProperty):
                                                               base_reweighting_protocols.reduced_target_potential,
                                                               mbar_protocol)
 
+        # Set up the gradient calculations
+        coordinate_path = ProtocolPath('output_coordinate_path', base_reweighting_protocols.concatenate_trajectories.id)
+        trajectory_path = ProtocolPath('output_trajectory_path', base_reweighting_protocols.concatenate_trajectories.id)
+
+        gradient_group, gradient_replicator, gradient_source = \
+            generate_gradient_protocol_group([ProtocolPath('force_field_path',
+                                                           base_reweighting_protocols.unpack_stored_data.id)],
+                                             ProtocolPath('force_field_path', 'global'),
+                                             coordinate_path,
+                                             trajectory_path,
+                                             'grad',
+                                             template_reweighting_schema=mbar_template_schema)
+
         schema = WorkflowSchema(property_type=DielectricConstant.__name__)
         schema.id = '{}{}'.format(DielectricConstant.__name__, 'Schema')
 
         schema.protocols = {protocol.id: protocol.schema for protocol in base_reweighting_protocols}
-        schema.replicators = [data_replicator]
+        schema.protocols[gradient_group.id] = gradient_group.schema
 
+        schema.replicators = [data_replicator, gradient_replicator]
+
+        schema.gradients_sources = [gradient_source]
         schema.final_value_source = ProtocolPath('value', base_reweighting_protocols.mbar_protocol.id)
 
         return schema

@@ -11,10 +11,65 @@ import dask
 from dask import distributed
 from dask_jobqueue import LSFCluster
 from distributed import get_worker
-from propertyestimator.workflow.plugins import available_protocols
 from simtk import unit
 
+from propertyestimator.workflow.plugins import available_protocols
 from .backends import PropertyEstimatorBackend, ComputeResources, QueueWorkerResources
+
+
+class Multiprocessor:
+    """A temporary utility class which runs a given
+    function in a separate process.
+    """
+
+    @staticmethod
+    def _wrapper(func, queue, args, kwargs):
+        try:
+            return_value = func(*args, **kwargs)
+            queue.put(return_value)
+        except Exception as e:
+            queue.put(e)
+
+    @staticmethod
+    def run(function, *args, **kwargs):
+        """Runs a functions in its own process.
+
+        Parameters
+        ----------
+        function: function
+            The function to run.
+        args: Any
+            The arguments to pass to the function.
+        kwargs: Any
+            The key word arguments to pass to the function.
+
+        Returns
+        -------
+        Any
+            The result of the function
+        """
+
+        import propertyestimator
+        # An unpleasant way to ensure that codecov works correctly
+        # when testing on travis.
+        if hasattr(propertyestimator, '_called_from_test'):
+            return function(*args, **kwargs)
+
+        # queue = multiprocessing.Queue()
+        manager = multiprocessing.Manager()
+        queue = manager.Queue()
+        target_args = [function, queue, args, kwargs]
+
+        process = multiprocessing.Process(target=Multiprocessor._wrapper, args=target_args)
+        process.start()
+
+        return_value = queue.get()
+        process.join()
+
+        if isinstance(return_value, Exception):
+            raise return_value
+
+        return return_value
 
 
 class BaseDaskBackend(PropertyEstimatorBackend):
@@ -30,6 +85,9 @@ class BaseDaskBackend(PropertyEstimatorBackend):
         self._cluster = None
         self._client = None
 
+    def __del__(self):
+        self.stop()
+
     def start(self):
 
         self._client = distributed.Client(self._cluster,
@@ -37,8 +95,10 @@ class BaseDaskBackend(PropertyEstimatorBackend):
 
     def stop(self):
 
-        self._client.close()
-        self._cluster.close()
+        if self._client is not None:
+            self._client.close()
+        if self._cluster is not None:
+            self._cluster.close()
 
         if os.path.isdir('dask-worker-space'):
             shutil.rmtree('dask-worker-space')
@@ -78,9 +138,9 @@ class DaskLSFBackend(BaseDaskBackend):
                  minimum_number_of_workers=1,
                  maximum_number_of_workers=1,
                  resources_per_worker=QueueWorkerResources(),
-                 default_memory_unit=unit.giga*unit.byte,
                  queue_name='default',
                  setup_script_commands=None,
+                 extra_script_options=None,
                  adaptive_interval='10000ms',
                  disable_nanny_process=True):
 
@@ -94,10 +154,6 @@ class DaskLSFBackend(BaseDaskBackend):
             The maximum number of workers to request from the queue system.
         resources_per_worker: QueueWorkerResources
             The resources to request per worker.
-        default_memory_unit: simtk.Unit
-            The default unit used by the LSF queuing system when
-            defining memory usage limits / requirements - this
-            must be compatible with `unit.bytes`.
         queue_name: str
             The name of the queue which the workers will be requested
             from.
@@ -107,6 +163,11 @@ class DaskLSFBackend(BaseDaskBackend):
 
             This may include activating a python environment, or loading
             an environment module
+        extra_script_options: list of str
+            A list of extra job specific options to include in the queue
+            submission script. These will get added to the script header in the form
+
+            #BSUB <extra_script_options[x]>
         adaptive_interval: str
             The interval between attempting to either scale up or down
             the cluster, of of the from 'XXXms'.
@@ -133,20 +194,27 @@ class DaskLSFBackend(BaseDaskBackend):
         >>>
         >>> # Define the set of commands which will set up the correct environment
         >>> # for each of the workers.
-        >>> worker_script_commands = [
+        >>> setup_script_commands = [
         >>>     'module load cuda/9.2',
         >>> ]
+        >>>
+        >>> # Define extra options to only run on certain node groups
+        >>> extra_script_options = [
+        >>>     '-m "ls-gpu lt-gpu"'
+        >>> ]
+        >>>
         >>>
         >>> # Create the backend which will adaptively try to spin up between one and
         >>> # ten workers with the requested resources depending on the calculation load.
         >>> from propertyestimator.backends import DaskLSFBackend
         >>> from simtk.unit import unit
+        >>>
         >>> lsf_backend = DaskLSFBackend(minimum_number_of_workers=1,
         >>>                              maximum_number_of_workers=10,
         >>>                              resources_per_worker=resources,
-        >>>                              default_memory_unit=unit.gigabyte,
         >>>                              queue_name='gpuqueue',
-        >>>                              setup_script_commands=worker_script_commands)
+        >>>                              setup_script_commands=setup_script_commands,
+        >>>                              extra_script_options=extra_script_options)
         """
 
         super().__init__(minimum_number_of_workers, resources_per_worker)
@@ -175,11 +243,10 @@ class DaskLSFBackend(BaseDaskBackend):
         self._minimum_number_of_workers = minimum_number_of_workers
         self._maximum_number_of_workers = maximum_number_of_workers
 
-        self._default_memory_unit = default_memory_unit
-
         self._queue_name = queue_name
 
         self._setup_script_commands = setup_script_commands
+        self._extra_script_options = extra_script_options
 
         self._adaptive_interval = adaptive_interval
 
@@ -187,19 +254,15 @@ class DaskLSFBackend(BaseDaskBackend):
 
     def start(self):
 
-        requested_memory = self._resources_per_worker.per_thread_memory_limit
+        from dask_jobqueue.lsf import lsf_detect_units, lsf_format_bytes_ceil
 
-        memory_default_unit = requested_memory.value_in_unit(self._default_memory_unit)
+        requested_memory = self._resources_per_worker.per_thread_memory_limit
         memory_bytes = requested_memory.value_in_unit(unit.byte)
 
-        memory_string = '{}{}'.format(memory_default_unit, self._default_memory_unit.get_symbol())
+        lsf_units = lsf_detect_units()
+        memory_string = f'{lsf_format_bytes_ceil(memory_bytes, lsf_units=lsf_units)}{lsf_units.upper()}'
 
-        # Dask assumes we will be using mega bytes as the default unit, so we need
-        # to multiply by a corrective factor to remove this assumption.
-        lsf_byte_scale = (1 * (unit.mega * unit.byte)).value_in_unit(self._default_memory_unit)
-        memory_bytes *= lsf_byte_scale
-
-        job_extra = None
+        job_extra = []
 
         if self._resources_per_worker.number_of_gpus > 0:
 
@@ -207,12 +270,15 @@ class DaskLSFBackend(BaseDaskBackend):
                 '-gpu num={}:j_exclusive=yes:mode=shared:mps=no:'.format(self._resources_per_worker.number_of_gpus)
             ]
 
+        if self._extra_script_options is not None:
+            job_extra.extend(self._extra_script_options)
+
         extra = None if not self._disable_nanny_process else ['--no-nanny']
 
         self._cluster = LSFCluster(queue=self._queue_name,
                                    cores=self._resources_per_worker.number_of_threads,
-                                   memory=memory_string,
                                    walltime=self._resources_per_worker.wallclock_time_limit,
+                                   memory=memory_string,
                                    mem=memory_bytes,
                                    job_extra=job_extra,
                                    env_extra=self._setup_script_commands,
@@ -273,7 +339,9 @@ class DaskLSFBackend(BaseDaskBackend):
 
             logging.info(f'Launching a job with access to GPUs {available_resources._gpu_device_indices}')
 
-        return function(*args, **kwargs)
+        return_value = Multiprocessor.run(function, *args, **kwargs)
+        return return_value
+        # return function(*args, **kwargs)
 
     def submit_task(self, function, *args, **kwargs):
 
@@ -358,7 +426,9 @@ class DaskLocalClusterBackend(BaseDaskBackend):
 
             logging.info('Launching a job with access to GPUs {}'.format(gpu_assignments[worker_id]))
 
-        return function(*args, **kwargs)
+        return_value = Multiprocessor.run(function, *args, **kwargs)
+        return return_value
+        # return function(*args, **kwargs)
 
     def submit_task(self, function, *args, **kwargs):
 
