@@ -7,7 +7,7 @@ from os import path
 from openforcefield.typing.engines import smirnoff
 from simtk import unit
 
-from propertyestimator.backends import ComputeResources, DaskLocalClusterBackend
+from propertyestimator.backends import ComputeResources, DaskLocalCluster
 from propertyestimator.client import PropertyEstimatorClient, PropertyEstimatorOptions, ConnectionOptions
 from propertyestimator.datasets import PhysicalPropertyDataSet
 from propertyestimator.properties import CalculationSource, PropertyPhase, ParameterGradientKey, \
@@ -97,7 +97,7 @@ def test_full_gradient_workflow():
 
     with tempfile.TemporaryDirectory() as temporary_directory:
 
-        force_field = smirnoff.ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
+        force_field = smirnoff.ForceField('smirnoff99Frosst-1.1.0.offxml')
 
         storage_directory = path.join(temporary_directory, 'storage')
         working_directory = path.join(temporary_directory, 'working')
@@ -105,7 +105,7 @@ def test_full_gradient_workflow():
         dummy_data_set = PhysicalPropertyDataSet()
         dummy_data_set.properties[dummy_property.substance.identifier] = [dummy_property]
 
-        calculation_backend = DaskLocalClusterBackend(1, ComputeResources())
+        calculation_backend = DaskLocalCluster(1, ComputeResources())
         storage_backend = LocalFileStorage(storage_directory)
 
         PropertyEstimatorServer(calculation_backend, storage_backend, 8001, working_directory)

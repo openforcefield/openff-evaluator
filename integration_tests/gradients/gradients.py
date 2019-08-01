@@ -6,7 +6,7 @@ from openforcefield.topology import Molecule, Topology
 from openforcefield.typing.engines.smirnoff import ForceField
 from simtk import unit
 
-from propertyestimator.backends import ComputeResources, DaskLocalClusterBackend
+from propertyestimator.backends import ComputeResources, DaskLocalCluster
 from propertyestimator.layers.layers import CalculationLayerResult
 from propertyestimator.properties import Density, PropertyPhase, CalculationSource
 from propertyestimator.properties.properties import ParameterGradientKey
@@ -245,8 +245,8 @@ def main():
 
     compute_resource = ComputeResources(number_of_threads=1)
 
-    compute_backend = DaskLocalClusterBackend(number_of_workers=1,
-                                              resources_per_worker=compute_resource)
+    compute_backend = DaskLocalCluster(number_of_workers=1,
+                                       resources_per_worker=compute_resource)
 
     compute_backend.start()
 
