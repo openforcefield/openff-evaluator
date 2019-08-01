@@ -6,6 +6,7 @@ import logging
 import multiprocessing
 import os
 import shutil
+import traceback
 
 import dask
 from dask import distributed
@@ -67,6 +68,10 @@ class Multiprocessor:
         process.join()
 
         if isinstance(return_value, Exception):
+
+            formatted_exception = traceback.format_exception(None, return_value, return_value.__traceback__)
+            logging.info(formatted_exception)
+
             raise return_value
 
         return return_value
