@@ -130,7 +130,7 @@ class StateReporter:
         state_xml = XmlSerializer.serialize(state)
 
         # Attempt to do a thread safe write.
-        _, file_path = tempfile.mkstemp(suffix='.xml')
+        file_path = self._file_path + '.tmp'
 
         with open(file_path, 'w') as file:
             file.write(state_xml)
