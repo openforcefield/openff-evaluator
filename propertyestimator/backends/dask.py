@@ -24,6 +24,24 @@ class Multiprocessor:
 
     @staticmethod
     def _wrapper(func, queue, args, kwargs):
+
+        if 'logger_path' in kwargs:
+
+            formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s',
+                                          datefmt='%H:%M:%S')
+
+            logger_path = kwargs.pop('logger_path')
+
+            logger = logging.getLogger()
+
+            if not len(logger.handlers):
+
+                logger_handler = logging.FileHandler(logger_path)
+                logger_handler.setFormatter(formatter)
+
+                logger.setLevel(logging.INFO)
+                logger.addHandler(logger_handler)
+
         try:
             return_value = func(*args, **kwargs)
             queue.put(return_value)
@@ -323,19 +341,8 @@ class DaskLSFBackend(BaseDaskBackend):
         # Set up the logging per worker if the flag is set to True.
         if per_worker_logging:
 
-            formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s',
-                                          datefmt='%H:%M:%S')
-
             # Each worker should have its own log file.
-            logger = logging.getLogger()
-
-            if not len(logger.handlers):
-
-                logger_handler = logging.FileHandler('{}.log'.format(get_worker().id))
-                logger_handler.setFormatter(formatter)
-
-                logger.setLevel(logging.INFO)
-                logger.addHandler(logger_handler)
+            kwargs['logger_path'] = '{}.log'.format(get_worker().id)
 
         if available_resources.number_of_gpus > 0:
 
