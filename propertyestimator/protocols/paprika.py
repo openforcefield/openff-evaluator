@@ -81,11 +81,6 @@ class BasePaprikaProtocol(BaseProtocol):
     def taproom_guest_name(self):
         pass
 
-    @protocol_input(str)
-    def taproom_guest_orientation(self):
-        pass
-
-
     @protocol_input(unit.Quantity)
     def gaff_cutoff(self):
         pass
