@@ -29,11 +29,7 @@ class Multiprocessor:
             return_value = func(*args, **kwargs)
             queue.put(return_value)
         except Exception as e:
-
-            formatted_exception = traceback.format_exception(None, e, e.__traceback__)
-            logging.info(formatted_exception)
-
-            queue.put(e)
+            queue.put((e, e.__traceback__))
 
     @staticmethod
     def run(function, *args, **kwargs):
@@ -71,10 +67,10 @@ class Multiprocessor:
         return_value = queue.get()
         process.join()
 
-        if isinstance(return_value, Exception):
+        if isinstance(return_value, tuple) and len(return_value) > 0 and isinstance(return_value[0], Exception):
 
-            formatted_exception = traceback.format_exception(None, return_value, return_value.__traceback__)
-            logging.info(formatted_exception)
+            formatted_exception = traceback.format_exception(None, return_value[0], return_value[1])
+            logging.info(f'{formatted_exception} {return_value[0]} {return_value[1]}')
 
             raise return_value
 
