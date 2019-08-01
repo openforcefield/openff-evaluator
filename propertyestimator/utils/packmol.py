@@ -44,9 +44,9 @@ structure {0:s}
   number 1
   fixed {1:f} {2:f} {3:f} 0. 0. 0.
   {4:s}
+  {5:s}
 end structure
 """
-
 
 def pack_box(molecules,
              number_of_copies,
@@ -58,7 +58,8 @@ def pack_box(molecules,
              center_box=True,
              verbose=False,
              working_directory=None,
-             retain_working_files=False):
+             retain_working_files=False,
+             change_chains=False):
 
     """Run packmol to generate a box containing a mixture of molecules.
 
@@ -201,7 +202,8 @@ def pack_box(molecules,
                                                   unitless_box_angstrom[0] / 2.0,
                                                   unitless_box_angstrom[1] / 2.0,
                                                   unitless_box_angstrom[2] / 2.0,
-                                                  center_mode)
+                                                  center_mode,
+                                                  "" if not change_chains else change_chains)
 
     for (pdb_file_name, molecule, count) in zip(pdb_file_names,
                                                 molecules,
