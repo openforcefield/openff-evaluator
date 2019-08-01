@@ -52,7 +52,7 @@ def setup_server(backend_type=BackendType.LocalCPU, max_number_of_workers=1, con
         queue_resources = QueueWorkerResources(number_of_threads=1,
                                                number_of_gpus=1,
                                                preferred_gpu_toolkit=QueueWorkerResources.GPUToolkit.CUDA,
-                                               per_thread_memory_limit=8 * (unit.giga * unit.byte),
+                                               per_thread_memory_limit=12 * (unit.giga * unit.byte),
                                                wallclock_time_limit="05:59")
 
         worker_script_commands = [
