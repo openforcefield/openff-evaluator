@@ -142,7 +142,7 @@ class DaskLSFBackend(BaseDaskBackend):
                  setup_script_commands=None,
                  extra_script_options=None,
                  adaptive_interval='10000ms',
-                 disable_nanny_process=False):
+                 disable_nanny_process=True):
 
         """Constructs a new DaskLocalClusterBackend
 
@@ -239,7 +239,7 @@ class DaskLSFBackend(BaseDaskBackend):
         # gracefully (such that the task won't be marked as failed by
         # dask).
         dask.config.set({'distributed.scheduler.allowed-failures': 500})
-        dask.config.set({'distributed.worker.daemon': False})
+        # dask.config.set({'distributed.worker.daemon': False})
 
         self._minimum_number_of_workers = minimum_number_of_workers
         self._maximum_number_of_workers = maximum_number_of_workers
