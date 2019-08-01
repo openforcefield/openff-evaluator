@@ -193,16 +193,6 @@ def pack_box(molecules,
 
     packmol_input = _HEADER_TEMPLATE.format(tolerance, output_file_name)
 
-    for (pdb_file_name, molecule, count) in zip(pdb_file_names,
-                                                molecules,
-                                                number_of_copies):
-
-        packmol_input += _BOX_TEMPLATE.format(pdb_file_name,
-                                              count,
-                                              unitless_box_angstrom[0],
-                                              unitless_box_angstrom[1],
-                                              unitless_box_angstrom[2])
-
     if structure_to_solvate_file_name is not None:
 
         center_mode = 'centerofmass' if center_box else ''
@@ -212,6 +202,16 @@ def pack_box(molecules,
                                                   unitless_box_angstrom[1] / 2.0,
                                                   unitless_box_angstrom[2] / 2.0,
                                                   center_mode)
+
+    for (pdb_file_name, molecule, count) in zip(pdb_file_names,
+                                                molecules,
+                                                number_of_copies):
+
+        packmol_input += _BOX_TEMPLATE.format(pdb_file_name,
+                                              count,
+                                              unitless_box_angstrom[0],
+                                              unitless_box_angstrom[1],
+                                              unitless_box_angstrom[2])
 
     # Write packmol input
     packmol_file_name = "packmol_input.txt"
@@ -369,15 +369,15 @@ def _correct_packmol_output(file_path, molecule_topologies,
     all_topologies = []
     all_copies = []
 
-    all_topologies.extend(molecule_topologies)
-    all_copies.extend(number_of_copies)
-
     if structure_to_solvate is not None:
 
         solvated_trajectory = mdtraj.load(structure_to_solvate)
 
         all_topologies.append(solvated_trajectory.topology)
         all_copies.append(1)
+
+    all_topologies.extend(molecule_topologies)
+    all_copies.extend(number_of_copies)
 
     offset = 0
 
