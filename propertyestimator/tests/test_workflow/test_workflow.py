@@ -123,11 +123,11 @@ def test_density_dielectric_merging():
     dielectric_schema = dielectric.get_default_workflow_schema('SimulationLayer', WorkflowOptions())
 
     density_metadata = Workflow.generate_default_metadata(density,
-                                                          get_data_filename('forcefield/smirnoff99Frosst.offxml'),
+                                                          'smirnoff99Frosst-1.1.0.offxml',
                                                           [])
 
     dielectric_metadata = Workflow.generate_default_metadata(density,
-                                                             get_data_filename('forcefield/smirnoff99Frosst.offxml'),
+                                                             'smirnoff99Frosst-1.1.0.offxml',
                                                              [])
 
     density_workflow = Workflow(density, density_metadata)
@@ -190,7 +190,7 @@ def test_nested_replicators():
     dummy_property = create_dummy_property(Density)
 
     dummy_metadata = Workflow.generate_default_metadata(dummy_property,
-                                                        get_data_filename('forcefield/smirnoff99Frosst.offxml'),
+                                                        'smirnoff99Frosst-1.1.0.offxml',
                                                         [])
 
     dummy_workflow = Workflow(dummy_property, dummy_metadata)
