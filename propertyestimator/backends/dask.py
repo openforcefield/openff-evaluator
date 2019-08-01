@@ -346,6 +346,8 @@ class DaskLSFBackend(BaseDaskBackend):
 
             logging.info(f'Launching a job with access to GPUs {available_resources._gpu_device_indices}')
 
+        logging.info(f'Available protocols: {available_protocols}')
+
         return_value = Multiprocessor.run(function, *args, **kwargs)
         return return_value
         # return function(*args, **kwargs)
