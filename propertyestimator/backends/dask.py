@@ -142,7 +142,7 @@ class DaskLSFBackend(BaseDaskBackend):
                  setup_script_commands=None,
                  extra_script_options=None,
                  adaptive_interval='10000ms',
-                 disable_nanny_process=True):
+                 disable_nanny_process=False):
 
         """Constructs a new DaskLocalClusterBackend
 
