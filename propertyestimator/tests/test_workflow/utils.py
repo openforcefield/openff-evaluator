@@ -12,7 +12,7 @@ from propertyestimator.workflow.protocols import BaseProtocol
 def create_dummy_metadata(dummy_property, calculation_layer):
 
     global_metadata = Workflow.generate_default_metadata(dummy_property,
-                                                         get_data_filename('forcefield/smirnoff99Frosst.offxml'),
+                                                         'smirnoff99Frosst-1.1.0.offxml',
                                                          [])
 
     if calculation_layer == 'ReweightingLayer':

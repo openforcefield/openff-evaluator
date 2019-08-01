@@ -3,7 +3,7 @@ import tempfile
 import uuid
 from os import path, makedirs
 
-from propertyestimator.backends import DaskLocalClusterBackend
+from propertyestimator.backends import DaskLocalCluster
 from propertyestimator.client import PropertyEstimatorOptions
 from propertyestimator.layers import register_calculation_layer, PropertyCalculationLayer
 from propertyestimator.layers.layers import CalculationLayerResult
@@ -128,7 +128,7 @@ def test_base_layer():
         with temporarily_change_directory(temporary_directory):
 
             # Create a simple calculation backend to test with.
-            test_backend = DaskLocalClusterBackend()
+            test_backend = DaskLocalCluster()
             test_backend.start()
 
             # Create a simple storage backend to test with.

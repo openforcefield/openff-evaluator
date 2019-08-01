@@ -1,7 +1,7 @@
 import pytest
 
 from propertyestimator.backends import DaskLSFBackend, QueueWorkerResources
-from propertyestimator.backends.dask import Multiprocessor
+from propertyestimator.backends.dask import _Multiprocessor
 from propertyestimator.workflow.plugins import available_protocols
 
 
@@ -37,7 +37,7 @@ def test_multiprocessor():
 
     expected_output = 12345
 
-    return_value = Multiprocessor.run(dummy_function, expected_output)
+    return_value = _Multiprocessor.run(dummy_function, expected_output)
     assert expected_output == return_value
 
 

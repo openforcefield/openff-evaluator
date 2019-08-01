@@ -33,7 +33,7 @@ def test_local_force_field_storage():
     retrieved using the local storage backend."""
 
     from openforcefield.typing.engines import smirnoff
-    force_field = smirnoff.ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
+    force_field = smirnoff.ForceField('smirnoff99Frosst-1.1.0.offxml')
 
     with tempfile.TemporaryDirectory() as temporary_directory:
 

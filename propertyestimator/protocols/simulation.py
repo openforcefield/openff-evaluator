@@ -9,7 +9,8 @@ from simtk.openmm import app
 
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.openmm import setup_platform_with_resources
+from propertyestimator.utils.openmm import setup_platform_with_resources, StateReporter
+from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import StatisticsArray, ObservableType
 from propertyestimator.workflow.decorators import protocol_input, protocol_output, MergeBehaviour
 from propertyestimator.workflow.plugins import register_calculation_protocol
@@ -190,7 +191,7 @@ class RunOpenMMSimulation(BaseProtocol):
         self._steps = 1000
 
         self._thermostat_friction = 1.0 / unit.picoseconds
-        self._timestep = 0.001 * unit.picoseconds
+        self._timestep = 0.002 * unit.picoseconds
 
         self._output_frequency = 500000
 
@@ -361,16 +362,21 @@ class RunOpenMMSimulation(BaseProtocol):
                                     integrator,
                                     platform)
 
-        checkpoint_path = path.join(directory, 'checkpoint.chk')
+        checkpoint_path = path.join(directory, 'checkpoint.xml')
 
-        # TODO: Swap to saving context state to xml.
         if path.isfile(checkpoint_path):
 
             # Load the simulation state from a checkpoint file.
-            with open(checkpoint_path, 'rb') as f:
-                simulation.context.loadCheckpoint(f.read())
+            logging.info(f'Loading the checkpoint from {checkpoint_path}.')
+
+            with open(checkpoint_path, 'rb') as file:
+                checkpoint_state = XmlSerializer.deserialize(file.read())
+
+            simulation.context.setState(checkpoint_state)
 
         else:
+
+            logging.info(f'No checkpoint file was found at {checkpoint_path}.')
 
             # Populate the simulation object from the starting input files.
             box_vectors = input_pdb_file.topology.getPeriodicBoxVectors()
@@ -404,6 +410,6 @@ class RunOpenMMSimulation(BaseProtocol):
                                                           totalEnergy=True, temperature=True, volume=True,
                                                           density=True))
 
-        simulation.reporters.append(app.CheckpointReporter(checkpoint_path, self._output_frequency))
+        simulation.reporters.append(StateReporter(checkpoint_path, self._output_frequency))
 
         return simulation

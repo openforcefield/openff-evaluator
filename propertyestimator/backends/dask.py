@@ -6,6 +6,7 @@ import logging
 import multiprocessing
 import os
 import shutil
+import traceback
 
 import dask
 from dask import distributed
@@ -13,22 +14,73 @@ from dask_jobqueue import LSFCluster
 from distributed import get_worker
 from simtk import unit
 
-from propertyestimator.workflow.plugins import available_protocols
 from .backends import PropertyEstimatorBackend, ComputeResources, QueueWorkerResources
 
 
-class Multiprocessor:
+class _Multiprocessor:
     """A temporary utility class which runs a given
     function in a separate process.
     """
 
     @staticmethod
     def _wrapper(func, queue, args, kwargs):
+        """A wrapper around the function to run in a separate
+        process which sets up logging and handle any extra
+        module loading.
+
+        Parameters
+        ----------
+        func: function
+            The function to run in this process.
+        queue: Queue
+            The queue used to pass the results back
+            to the parent process.
+        args: tuple
+            The args to pass to the function
+        kwargs: dict
+            The kwargs to pass to the function
+        """
+
         try:
+
+            from propertyestimator.workflow.plugins import available_protocols
+
+            # Each spun up worker doesn't automatically import
+            # all of the modules which were imported in the main
+            # launch script, and as such custom plugins will no
+            # longer be registered. We re-import / register them
+            # here.
+            if 'available_protocols' in kwargs:
+
+                protocols_to_import = kwargs.pop('available_protocols')
+
+                for protocol_class in protocols_to_import:
+                    module_name = '.'.join(protocol_class.split('.')[:-1])
+                    class_name = protocol_class.split('.')[-1]
+
+                    imported_module = importlib.import_module(module_name)
+                    available_protocols[class_name] = getattr(imported_module, class_name)
+
+            if 'logger_path' in kwargs:
+
+                formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s',
+                                              datefmt='%H:%M:%S')
+
+                logger_path = kwargs.pop('logger_path')
+
+                logger = logging.getLogger()
+
+                if not len(logger.handlers):
+                    logger_handler = logging.FileHandler(logger_path)
+                    logger_handler.setFormatter(formatter)
+
+                    logger.setLevel(logging.INFO)
+                    logger.addHandler(logger_handler)
+
             return_value = func(*args, **kwargs)
             queue.put(return_value)
         except Exception as e:
-            queue.put(e)
+            queue.put((e, e.__traceback__))
 
     @staticmethod
     def run(function, *args, **kwargs):
@@ -60,13 +112,17 @@ class Multiprocessor:
         queue = manager.Queue()
         target_args = [function, queue, args, kwargs]
 
-        process = multiprocessing.Process(target=Multiprocessor._wrapper, args=target_args)
+        process = multiprocessing.Process(target=_Multiprocessor._wrapper, args=target_args)
         process.start()
 
         return_value = queue.get()
         process.join()
 
-        if isinstance(return_value, Exception):
+        if isinstance(return_value, tuple) and len(return_value) > 0 and isinstance(return_value[0], Exception):
+
+            formatted_exception = traceback.format_exception(None, return_value[0], return_value[1])
+            logging.info(f'{formatted_exception} {return_value[0]} {return_value[1]}')
+
             raise return_value
 
         return return_value
@@ -142,9 +198,9 @@ class DaskLSFBackend(BaseDaskBackend):
                  setup_script_commands=None,
                  extra_script_options=None,
                  adaptive_interval='10000ms',
-                 disable_nanny_process=True):
+                 disable_nanny_process=False):
 
-        """Constructs a new DaskLocalClusterBackend
+        """Constructs a new DaskLocalCluster
 
         Parameters
         ----------
@@ -239,6 +295,7 @@ class DaskLSFBackend(BaseDaskBackend):
         # gracefully (such that the task won't be marked as failed by
         # dask).
         dask.config.set({'distributed.scheduler.allowed-failures': 500})
+        # dask.config.set({'distributed.worker.daemon': False})
 
         self._minimum_number_of_workers = minimum_number_of_workers
         self._maximum_number_of_workers = maximum_number_of_workers
@@ -294,41 +351,15 @@ class DaskLSFBackend(BaseDaskBackend):
     def _wrapped_function(function, *args, **kwargs):
 
         available_resources = kwargs['available_resources']
-
-        protocols_to_import = kwargs.pop('available_protocols')
         per_worker_logging = kwargs.pop('per_worker_logging')
 
         gpu_assignments = kwargs.pop('gpu_assignments')
 
-        # Each spun up worker doesn't automatically import
-        # all of the modules which were imported in the main
-        # launch script, and as such custom plugins will no
-        # longer be registered. We re-import / register them
-        # here.
-        for protocol_class in protocols_to_import:
-
-            module_name = '.'.join(protocol_class.split('.')[:-1])
-            class_name = protocol_class.split('.')[-1]
-
-            imported_module = importlib.import_module(module_name)
-            available_protocols[class_name] = getattr(imported_module, class_name)
-
         # Set up the logging per worker if the flag is set to True.
         if per_worker_logging:
 
-            formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s',
-                                          datefmt='%H:%M:%S')
-
             # Each worker should have its own log file.
-            logger = logging.getLogger()
-
-            if not len(logger.handlers):
-
-                logger_handler = logging.FileHandler('{}.log'.format(get_worker().id))
-                logger_handler.setFormatter(formatter)
-
-                logger.setLevel(logging.INFO)
-                logger.addHandler(logger_handler)
+            kwargs['logger_path'] = '{}.log'.format(get_worker().id)
 
         if available_resources.number_of_gpus > 0:
 
@@ -339,11 +370,13 @@ class DaskLSFBackend(BaseDaskBackend):
 
             logging.info(f'Launching a job with access to GPUs {available_resources._gpu_device_indices}')
 
-        return_value = Multiprocessor.run(function, *args, **kwargs)
+        return_value = _Multiprocessor.run(function, *args, **kwargs)
         return return_value
         # return function(*args, **kwargs)
 
     def submit_task(self, function, *args, **kwargs):
+
+        from propertyestimator.workflow.plugins import available_protocols
 
         key = kwargs.pop('key', None)
 
@@ -361,13 +394,13 @@ class DaskLSFBackend(BaseDaskBackend):
                                    key=key)
 
 
-class DaskLocalClusterBackend(BaseDaskBackend):
+class DaskLocalCluster(BaseDaskBackend):
     """A property estimator backend which uses a dask `LocalCluster` to
     run calculations.
     """
 
     def __init__(self, number_of_workers=1, resources_per_worker=ComputeResources()):
-        """Constructs a new DaskLocalClusterBackend"""
+        """Constructs a new DaskLocalCluster"""
 
         super().__init__(number_of_workers, resources_per_worker)
 
@@ -411,7 +444,7 @@ class DaskLocalClusterBackend(BaseDaskBackend):
             for index, worker in enumerate(self._cluster.workers):
                 self._gpu_device_indices_by_worker[worker.id] = str(index)
 
-        super(DaskLocalClusterBackend, self).start()
+        super(DaskLocalCluster, self).start()
 
     @staticmethod
     def _wrapped_function(function, *args, **kwargs):
@@ -426,7 +459,7 @@ class DaskLocalClusterBackend(BaseDaskBackend):
 
             logging.info('Launching a job with access to GPUs {}'.format(gpu_assignments[worker_id]))
 
-        return_value = Multiprocessor.run(function, *args, **kwargs)
+        return_value = _Multiprocessor.run(function, *args, **kwargs)
         return return_value
         # return function(*args, **kwargs)
 
@@ -434,7 +467,7 @@ class DaskLocalClusterBackend(BaseDaskBackend):
 
         key = kwargs.pop('key', None)
 
-        return self._client.submit(DaskLocalClusterBackend._wrapped_function,
+        return self._client.submit(DaskLocalCluster._wrapped_function,
                                    function,
                                    *args,
                                    **kwargs,
