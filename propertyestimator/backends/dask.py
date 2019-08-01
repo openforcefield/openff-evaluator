@@ -17,51 +17,66 @@ from simtk import unit
 from .backends import PropertyEstimatorBackend, ComputeResources, QueueWorkerResources
 
 
-class Multiprocessor:
+class _Multiprocessor:
     """A temporary utility class which runs a given
     function in a separate process.
     """
 
     @staticmethod
     def _wrapper(func, queue, args, kwargs):
+        """A wrapper around the function to run in a separate
+        process which sets up logging and handle any extra
+        module loading.
 
-        from propertyestimator.workflow.plugins import available_protocols
-
-        # Each spun up worker doesn't automatically import
-        # all of the modules which were imported in the main
-        # launch script, and as such custom plugins will no
-        # longer be registered. We re-import / register them
-        # here.
-        if 'available_protocols' in kwargs:
-
-            protocols_to_import = kwargs.pop('available_protocols')
-
-            for protocol_class in protocols_to_import:
-
-                module_name = '.'.join(protocol_class.split('.')[:-1])
-                class_name = protocol_class.split('.')[-1]
-
-                imported_module = importlib.import_module(module_name)
-                available_protocols[class_name] = getattr(imported_module, class_name)
-
-        if 'logger_path' in kwargs:
-
-            formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s',
-                                          datefmt='%H:%M:%S')
-
-            logger_path = kwargs.pop('logger_path')
-
-            logger = logging.getLogger()
-
-            if not len(logger.handlers):
-
-                logger_handler = logging.FileHandler(logger_path)
-                logger_handler.setFormatter(formatter)
-
-                logger.setLevel(logging.INFO)
-                logger.addHandler(logger_handler)
+        Parameters
+        ----------
+        func: function
+            The function to run in this process.
+        queue: Queue
+            The queue used to pass the results back
+            to the parent process.
+        args: tuple
+            The args to pass to the function
+        kwargs: dict
+            The kwargs to pass to the function
+        """
 
         try:
+
+            from propertyestimator.workflow.plugins import available_protocols
+
+            # Each spun up worker doesn't automatically import
+            # all of the modules which were imported in the main
+            # launch script, and as such custom plugins will no
+            # longer be registered. We re-import / register them
+            # here.
+            if 'available_protocols' in kwargs:
+
+                protocols_to_import = kwargs.pop('available_protocols')
+
+                for protocol_class in protocols_to_import:
+                    module_name = '.'.join(protocol_class.split('.')[:-1])
+                    class_name = protocol_class.split('.')[-1]
+
+                    imported_module = importlib.import_module(module_name)
+                    available_protocols[class_name] = getattr(imported_module, class_name)
+
+            if 'logger_path' in kwargs:
+
+                formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s',
+                                              datefmt='%H:%M:%S')
+
+                logger_path = kwargs.pop('logger_path')
+
+                logger = logging.getLogger()
+
+                if not len(logger.handlers):
+                    logger_handler = logging.FileHandler(logger_path)
+                    logger_handler.setFormatter(formatter)
+
+                    logger.setLevel(logging.INFO)
+                    logger.addHandler(logger_handler)
+
             return_value = func(*args, **kwargs)
             queue.put(return_value)
         except Exception as e:
@@ -97,7 +112,7 @@ class Multiprocessor:
         queue = manager.Queue()
         target_args = [function, queue, args, kwargs]
 
-        process = multiprocessing.Process(target=Multiprocessor._wrapper, args=target_args)
+        process = multiprocessing.Process(target=_Multiprocessor._wrapper, args=target_args)
         process.start()
 
         return_value = queue.get()
@@ -355,7 +370,7 @@ class DaskLSFBackend(BaseDaskBackend):
 
             logging.info(f'Launching a job with access to GPUs {available_resources._gpu_device_indices}')
 
-        return_value = Multiprocessor.run(function, *args, **kwargs)
+        return_value = _Multiprocessor.run(function, *args, **kwargs)
         return return_value
         # return function(*args, **kwargs)
 
@@ -443,7 +458,7 @@ class DaskLocalCluster(BaseDaskBackend):
 
             logging.info('Launching a job with access to GPUs {}'.format(gpu_assignments[worker_id]))
 
-        return_value = Multiprocessor.run(function, *args, **kwargs)
+        return_value = _Multiprocessor.run(function, *args, **kwargs)
         return return_value
         # return function(*args, **kwargs)
 
