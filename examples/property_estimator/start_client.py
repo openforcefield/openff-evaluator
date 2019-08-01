@@ -17,7 +17,7 @@ def compute_estimate_sync():
     # Load in the data set of interest.
     data_set = ThermoMLDataSet.from_file(get_data_filename('properties/single_density.xml'))
     # Load in the force field to use.
-    force_field = smirnoff.ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
+    force_field = smirnoff.ForceField('smirnoff99Frosst-1.1.0.offxml')
 
     # Create the client object.
     property_estimator = client.PropertyEstimatorClient()
@@ -36,7 +36,7 @@ def compute_estimate_async():
     # Load in the data set of interest.
     data_set = ThermoMLDataSet.from_file(get_data_filename('properties/single_dielectric.xml'))
     # Load in the force field to use.
-    force_field = smirnoff.ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
+    force_field = smirnoff.ForceField('smirnoff99Frosst-1.1.0.offxml')
 
     # new_property_0 = copy.deepcopy(data_set.properties['COCCO{1.0}'][0])
     # new_property_0.thermodynamic_state.temperature -= 2.0 * unit.kelvin

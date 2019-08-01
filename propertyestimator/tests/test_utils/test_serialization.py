@@ -220,7 +220,7 @@ def test_force_field_serialization():
 
     from openforcefield.typing.engines import smirnoff
 
-    force_field = smirnoff.ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
+    force_field = smirnoff.ForceField('smirnoff99Frosst-1.1.0.offxml')
 
     serialized_force_field = serialize_force_field(force_field)
     deserialized_force_field = deserialize_force_field(serialized_force_field)

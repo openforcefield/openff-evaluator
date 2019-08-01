@@ -316,7 +316,7 @@ def build_tip3p_smirnoff_force_field(file_path=None):
     """
     from openforcefield.typing.engines.smirnoff import ForceField
     
-    smirnoff_force_field_path = get_data_filename('forcefield/smirnoff99Frosst.offxml')
+    smirnoff_force_field_path = 'smirnoff99Frosst-1.1.0.offxml'
     tip3p_force_field_path = get_data_filename('forcefield/tip3p.offxml')
 
     smirnoff_force_field_with_tip3p = ForceField(smirnoff_force_field_path,

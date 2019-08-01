@@ -97,7 +97,7 @@ def test_full_gradient_workflow():
 
     with tempfile.TemporaryDirectory() as temporary_directory:
 
-        force_field = smirnoff.ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
+        force_field = smirnoff.ForceField('smirnoff99Frosst-1.1.0.offxml')
 
         storage_directory = path.join(temporary_directory, 'storage')
         working_directory = path.join(temporary_directory, 'working')

@@ -54,7 +54,7 @@ def test_estimate_request():
         dummy_data_set = PhysicalPropertyDataSet()
         dummy_data_set.properties[dummy_property.substance.identifier] = [dummy_property]
 
-        force_field = smirnoff.ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
+        force_field = smirnoff.ForceField('smirnoff99Frosst-1.1.0.offxml')
 
         calculation_backend = DaskLocalCluster(1, ComputeResources())
         storage_backend = LocalFileStorage(storage_directory)
