@@ -197,7 +197,7 @@ class RunOpenMMSimulation(BaseProtocol):
         self._steps = 1000
 
         self._thermostat_friction = 1.0 / unit.picoseconds
-        self._timestep = 0.001 * unit.picoseconds
+        self._timestep = 0.002 * unit.picoseconds
 
         self._output_frequency = 500000
 
@@ -477,7 +477,7 @@ class BaseYankProtocol(BaseProtocol):
         super().__init__(protocol_id)
 
         self._thermodynamic_state = None
-        self._timestep = 1 * unit.femtosecond
+        self._timestep = 2 * unit.femtosecond
 
         self._number_of_iterations = 1
 
