@@ -6,6 +6,7 @@ import copy
 import json
 import logging
 import math
+import os
 import re
 import time
 import traceback
@@ -1326,8 +1327,7 @@ class WorkflowGraph:
             protocol = available_protocols[protocol_schema.type](protocol_schema.id)
             protocol.schema = protocol_schema
 
-            if not path.isdir(directory):
-                makedirs(directory)
+            os.makedirs(directory, exist_ok=True)
 
             # Pass the outputs of previously executed protocols as input to the
             # protocol to execute.
