@@ -25,6 +25,25 @@ class Multiprocessor:
     @staticmethod
     def _wrapper(func, queue, args, kwargs):
 
+        from propertyestimator.workflow.plugins import available_protocols
+
+        # Each spun up worker doesn't automatically import
+        # all of the modules which were imported in the main
+        # launch script, and as such custom plugins will no
+        # longer be registered. We re-import / register them
+        # here.
+        if 'available_protocols' in kwargs:
+
+            protocols_to_import = kwargs.pop('available_protocols')
+
+            for protocol_class in protocols_to_import:
+
+                module_name = '.'.join(protocol_class.split('.')[:-1])
+                class_name = protocol_class.split('.')[-1]
+
+                imported_module = importlib.import_module(module_name)
+                available_protocols[class_name] = getattr(imported_module, class_name)
+
         if 'logger_path' in kwargs:
 
             formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s',
@@ -316,27 +335,10 @@ class DaskLSFBackend(BaseDaskBackend):
     @staticmethod
     def _wrapped_function(function, *args, **kwargs):
 
-        from propertyestimator.workflow.plugins import available_protocols
-
         available_resources = kwargs['available_resources']
-
-        protocols_to_import = kwargs.pop('available_protocols')
         per_worker_logging = kwargs.pop('per_worker_logging')
 
         gpu_assignments = kwargs.pop('gpu_assignments')
-
-        # Each spun up worker doesn't automatically import
-        # all of the modules which were imported in the main
-        # launch script, and as such custom plugins will no
-        # longer be registered. We re-import / register them
-        # here.
-        for protocol_class in protocols_to_import:
-
-            module_name = '.'.join(protocol_class.split('.')[:-1])
-            class_name = protocol_class.split('.')[-1]
-
-            imported_module = importlib.import_module(module_name)
-            available_protocols[class_name] = getattr(imported_module, class_name)
 
         # Set up the logging per worker if the flag is set to True.
         if per_worker_logging:
