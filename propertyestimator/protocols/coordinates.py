@@ -67,6 +67,11 @@ class BuildCoordinatesPackmol(BaseProtocol):
         """
         pass
 
+    @protocol_input(str)
+    def change_chains(self):
+        """ If a string of the format `chain B`, this will set the chain of the file to be solvated."""
+        pass
+
     @protocol_output(str)
     def coordinate_file_path(self):
         """The file path to the created PDB coordinate file."""
@@ -247,7 +252,8 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
                                                center_box=self._center_solute_in_box,
                                                verbose=self._verbose_packmol,
                                                working_directory=packmol_directory,
-                                               retain_working_files=self._retain_packmol_files)
+                                               retain_working_files=self._retain_packmol_files,
+                                               change_chains=self._change_chains)
 
         if topology is None or positions is None:
             return PropertyEstimatorException(directory=directory,
