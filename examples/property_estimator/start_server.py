@@ -4,7 +4,7 @@ import shutil
 from os import path
 
 from propertyestimator import server
-from propertyestimator.backends import DaskLocalClusterBackend
+from propertyestimator.backends import DaskLocalCluster
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.utils import setup_timestamp_logging
 
@@ -24,7 +24,7 @@ def start_property_estimator_server():
 
     # Create a calculation backend to perform workflow
     # calculations on.
-    calculation_backend = DaskLocalClusterBackend(1)
+    calculation_backend = DaskLocalCluster(1)
     # Create a backend to handle storing and retrieving
     # cached simulation data.
     storage_backend = LocalFileStorage()

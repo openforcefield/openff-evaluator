@@ -144,7 +144,7 @@ class DaskLSFBackend(BaseDaskBackend):
                  adaptive_interval='10000ms',
                  disable_nanny_process=True):
 
-        """Constructs a new DaskLocalClusterBackend
+        """Constructs a new DaskLocalCluster
 
         Parameters
         ----------
@@ -361,13 +361,13 @@ class DaskLSFBackend(BaseDaskBackend):
                                    key=key)
 
 
-class DaskLocalClusterBackend(BaseDaskBackend):
+class DaskLocalCluster(BaseDaskBackend):
     """A property estimator backend which uses a dask `LocalCluster` to
     run calculations.
     """
 
     def __init__(self, number_of_workers=1, resources_per_worker=ComputeResources()):
-        """Constructs a new DaskLocalClusterBackend"""
+        """Constructs a new DaskLocalCluster"""
 
         super().__init__(number_of_workers, resources_per_worker)
 
@@ -411,7 +411,7 @@ class DaskLocalClusterBackend(BaseDaskBackend):
             for index, worker in enumerate(self._cluster.workers):
                 self._gpu_device_indices_by_worker[worker.id] = str(index)
 
-        super(DaskLocalClusterBackend, self).start()
+        super(DaskLocalCluster, self).start()
 
     @staticmethod
     def _wrapped_function(function, *args, **kwargs):
@@ -434,7 +434,7 @@ class DaskLocalClusterBackend(BaseDaskBackend):
 
         key = kwargs.pop('key', None)
 
-        return self._client.submit(DaskLocalClusterBackend._wrapped_function,
+        return self._client.submit(DaskLocalCluster._wrapped_function,
                                    function,
                                    *args,
                                    key=key,
