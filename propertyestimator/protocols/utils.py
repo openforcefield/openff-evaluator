@@ -4,6 +4,8 @@ A set of utilities for setting up property estimation workflows.
 import copy
 from collections import namedtuple
 
+from simtk import unit
+
 from propertyestimator.protocols import analysis, forcefield, gradients, groups, reweighting, coordinates, simulation
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.workflow import WorkflowOptions
@@ -188,12 +190,12 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
         3) Perform an energy minimisation on the system.
 
         4) Run a short NPT equilibration simulation for 100000 steps
-           using a timestep of 1fs.
+           using a timestep of 2fs.
 
         5) Within a conditional group (up to a maximum of 100 times):
 
             5a) Run a longer NPT production simulation for 1000000 steps
-           using a timestep of 1fs
+           using a timestep of 2fs
 
             5b) Extract the average value of an observable and
                 it's uncertainty.
@@ -255,6 +257,7 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
     equilibration_simulation.ensemble = Ensemble.NPT
     equilibration_simulation.steps = 100000
     equilibration_simulation.output_frequency = 5000
+    equilibration_simulation.timestep = 2.0 * unit.femtosecond
     equilibration_simulation.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
     equilibration_simulation.input_coordinate_file = ProtocolPath('output_coordinate_file', energy_minimisation.id)
     equilibration_simulation.system_path = ProtocolPath('system_path', assign_parameters.id)
@@ -264,6 +267,7 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
     production_simulation.ensemble = Ensemble.NPT
     production_simulation.steps = 1000000
     production_simulation.output_frequency = 10000
+    production_simulation.timestep = 2.0 * unit.femtosecond
     production_simulation.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
     production_simulation.input_coordinate_file = ProtocolPath('output_coordinate_file', equilibration_simulation.id)
     production_simulation.system_path = ProtocolPath('system_path', assign_parameters.id)
