@@ -14,7 +14,6 @@ from dask_jobqueue import LSFCluster
 from distributed import get_worker
 from simtk import unit
 
-from propertyestimator.workflow.plugins import available_protocols
 from .backends import PropertyEstimatorBackend, ComputeResources, QueueWorkerResources
 
 
@@ -299,6 +298,8 @@ class DaskLSFBackend(BaseDaskBackend):
     @staticmethod
     def _wrapped_function(function, *args, **kwargs):
 
+        from propertyestimator.workflow.plugins import available_protocols
+
         available_resources = kwargs['available_resources']
 
         protocols_to_import = kwargs.pop('available_protocols')
@@ -350,6 +351,8 @@ class DaskLSFBackend(BaseDaskBackend):
         # return function(*args, **kwargs)
 
     def submit_task(self, function, *args, **kwargs):
+
+        from propertyestimator.workflow.plugins import available_protocols
 
         key = kwargs.pop('key', None)
 
