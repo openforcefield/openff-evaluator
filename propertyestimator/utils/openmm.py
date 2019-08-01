@@ -3,7 +3,6 @@ A set of utilities for helping to perform simulations using openmm.
 """
 import logging
 import os
-import tempfile
 
 
 def setup_platform_with_resources(compute_resources, high_precision=False):
