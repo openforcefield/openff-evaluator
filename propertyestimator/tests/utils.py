@@ -4,7 +4,7 @@ import shutil
 from enum import Enum
 
 from propertyestimator import server
-from propertyestimator.backends import DaskLocalClusterBackend, ComputeResources, QueueWorkerResources, DaskLSFBackend
+from propertyestimator.backends import DaskLocalCluster, ComputeResources, QueueWorkerResources, DaskLSFBackend
 from propertyestimator.datasets import PhysicalPropertyDataSet
 from propertyestimator.properties import Density
 from propertyestimator.properties import PropertyPhase, CalculationSource, DielectricConstant, EnthalpyOfMixing
@@ -37,11 +37,11 @@ def setup_server(backend_type=BackendType.LocalCPU, max_number_of_workers=1, con
     calculation_backend = None
 
     if backend_type == BackendType.LocalCPU:
-        calculation_backend = DaskLocalClusterBackend(number_of_workers=1)
+        calculation_backend = DaskLocalCluster(number_of_workers=1)
 
     elif backend_type == BackendType.LocalGPU:
 
-        calculation_backend = DaskLocalClusterBackend(number_of_workers=1,
+        calculation_backend = DaskLocalCluster(number_of_workers=1,
                                                       resources_per_worker=ComputeResources(1,
                                                                                             1,
                                                                                             ComputeResources.
@@ -52,7 +52,7 @@ def setup_server(backend_type=BackendType.LocalCPU, max_number_of_workers=1, con
         queue_resources = QueueWorkerResources(number_of_threads=1,
                                                number_of_gpus=1,
                                                preferred_gpu_toolkit=QueueWorkerResources.GPUToolkit.CUDA,
-                                               per_thread_memory_limit=8 * (unit.giga * unit.byte),
+                                               per_thread_memory_limit=12 * (unit.giga * unit.byte),
                                                wallclock_time_limit="05:59")
 
         worker_script_commands = [

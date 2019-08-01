@@ -91,7 +91,8 @@ Calculation Backends API
     :nosignatures:
     :toctree: api/generated/
 
-    DaskLocalClusterBackend
+    DaskLocalCluster
+    DaskLSFCluster
 
 Storage Backends API
 --------------------

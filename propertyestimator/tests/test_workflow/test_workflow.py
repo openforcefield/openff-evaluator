@@ -7,7 +7,7 @@ from collections import OrderedDict
 import pytest
 from simtk import unit
 
-from propertyestimator.backends import DaskLocalClusterBackend, ComputeResources
+from propertyestimator.backends import DaskLocalCluster, ComputeResources
 from propertyestimator.layers import available_layers
 from propertyestimator.layers.layers import CalculationLayerResult
 from propertyestimator.layers.simulation import Workflow, WorkflowGraph
@@ -240,7 +240,7 @@ def test_simple_workflow_graph():
         workflow_graph = WorkflowGraph(temporary_directory)
         workflow_graph.add_workflow(dummy_workflow)
 
-        dask_local_backend = DaskLocalClusterBackend(1, ComputeResources(1))
+        dask_local_backend = DaskLocalCluster(1, ComputeResources(1))
         dask_local_backend.start()
 
         results_futures = workflow_graph.submit(dask_local_backend)
@@ -290,7 +290,7 @@ def test_simple_workflow_graph_with_groups():
         workflow_graph = WorkflowGraph(temporary_directory)
         workflow_graph.add_workflow(dummy_workflow)
 
-        dask_local_backend = DaskLocalClusterBackend(1, ComputeResources(1))
+        dask_local_backend = DaskLocalCluster(1, ComputeResources(1))
         dask_local_backend.start()
 
         results_futures = workflow_graph.submit(dask_local_backend)
