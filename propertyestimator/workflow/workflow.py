@@ -23,7 +23,6 @@ from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedBaseModel, TypedJSONEncoder, TypedJSONDecoder
 from propertyestimator.utils.string import extract_variable_index_and_name
 from propertyestimator.utils.utils import SubhookedABCMeta, get_nested_attribute
-from propertyestimator.workflow.plugins import available_protocols
 from propertyestimator.workflow.protocols import BaseProtocol
 from propertyestimator.workflow.schemas import WorkflowSchema, ProtocolReplicator, WorkflowSimulationDataToStore, \
     WorkflowDataCollectionToStore
@@ -247,6 +246,7 @@ class Workflow:
         schema: WorkflowSchema
             The schema to use when creating the protocols
         """
+        from propertyestimator.workflow.plugins import available_protocols
 
         self._apply_replicators(schema)
 
@@ -558,6 +558,8 @@ class Workflow:
             A list of the values which will be inserted
             into the newly replicated protocols.
         """
+        from propertyestimator.workflow.plugins import available_protocols
+
         schema_to_replicate = schema.protocols[protocol_path.start_protocol]
         replacement_string = '$({})'.format(replicator.id)
 
@@ -638,6 +640,8 @@ class Workflow:
         template_values: :obj:`list` of :obj:`Any`
             The list of values that the protocols were replicated for.
         """
+        from propertyestimator.workflow.plugins import available_protocols
+
         replacement_string = '$({})'.format(replicator.id)
 
         for protocol_id in schema.protocols:
@@ -1271,6 +1275,9 @@ class WorkflowGraph:
         dict of str and Any
             A dictionary which contains the outputs of the executed protocol.
         """
+
+        from propertyestimator.workflow.plugins import available_protocols
+        logging.info(f'Available protocols: {available_protocols}')
 
         # The path where the output of this protocol will be stored.
         output_dictionary_path = path.join(directory, '{}_output.json'.format(protocol_schema.id))
