@@ -40,8 +40,8 @@ class PropertyEstimatorServer(TCPServer):
     Setting up a general server instance using a dask LocalCluster backend:
 
     >>> # Create the backend which will be responsible for distributing the calculations
-    >>> from propertyestimator.backends import DaskLocalClusterBackend, ComputeResources
-    >>> calculation_backend = DaskLocalClusterBackend(1)
+    >>> from propertyestimator.backends import DaskLocalCluster, ComputeResources
+    >>> calculation_backend = DaskLocalCluster(1)
     >>>
     >>> # Calculate the backend which will be responsible for storing and retrieving
     >>> # the data from previous calculations

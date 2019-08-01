@@ -144,7 +144,7 @@ class DaskLSFBackend(BaseDaskBackend):
                  adaptive_interval='10000ms',
                  disable_nanny_process=False):
 
-        """Constructs a new DaskLocalClusterBackend
+        """Constructs a new DaskLocalCluster
 
         Parameters
         ----------
@@ -239,6 +239,7 @@ class DaskLSFBackend(BaseDaskBackend):
         # gracefully (such that the task won't be marked as failed by
         # dask).
         dask.config.set({'distributed.scheduler.allowed-failures': 500})
+        # dask.config.set({'distributed.worker.daemon': False})
 
         self._minimum_number_of_workers = minimum_number_of_workers
         self._maximum_number_of_workers = maximum_number_of_workers
@@ -360,13 +361,13 @@ class DaskLSFBackend(BaseDaskBackend):
                                    key=key)
 
 
-class DaskLocalClusterBackend(BaseDaskBackend):
+class DaskLocalCluster(BaseDaskBackend):
     """A property estimator backend which uses a dask `LocalCluster` to
     run calculations.
     """
 
     def __init__(self, number_of_workers=1, resources_per_worker=ComputeResources()):
-        """Constructs a new DaskLocalClusterBackend"""
+        """Constructs a new DaskLocalCluster"""
 
         super().__init__(number_of_workers, resources_per_worker)
 
@@ -410,7 +411,7 @@ class DaskLocalClusterBackend(BaseDaskBackend):
             for index, worker in enumerate(self._cluster.workers):
                 self._gpu_device_indices_by_worker[worker.id] = str(index)
 
-        super(DaskLocalClusterBackend, self).start()
+        super(DaskLocalCluster, self).start()
 
     @staticmethod
     def _wrapped_function(function, *args, **kwargs):
@@ -433,7 +434,7 @@ class DaskLocalClusterBackend(BaseDaskBackend):
 
         key = kwargs.pop('key', None)
 
-        return self._client.submit(DaskLocalClusterBackend._wrapped_function,
+        return self._client.submit(DaskLocalCluster._wrapped_function,
                                    function,
                                    *args,
                                    key=key,
