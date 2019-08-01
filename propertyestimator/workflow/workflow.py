@@ -1277,7 +1277,6 @@ class WorkflowGraph:
         """
 
         from propertyestimator.workflow.plugins import available_protocols
-        logging.info(f'Available protocols: {available_protocols}')
 
         # The path where the output of this protocol will be stored.
         output_dictionary_path = path.join(directory, '{}_output.json'.format(protocol_schema.id))
