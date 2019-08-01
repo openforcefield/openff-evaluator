@@ -95,6 +95,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
         self._box_aspect_ratio = [1.0, 1.0, 1.0]
 
         self._final_number_of_molecules = None
+        self._change_chains = "chain B"
 
     def _build_molecule_arrays(self, directory):
         """Converts the input substance into a list of openeye OEMol's and a list of
