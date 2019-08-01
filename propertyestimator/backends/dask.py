@@ -29,6 +29,10 @@ class Multiprocessor:
             return_value = func(*args, **kwargs)
             queue.put(return_value)
         except Exception as e:
+
+            formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+            logging.info(formatted_exception)
+
             queue.put(e)
 
     @staticmethod
