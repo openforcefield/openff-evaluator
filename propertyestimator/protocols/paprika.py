@@ -808,6 +808,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
         self._results_dictionary = paprika.analyze(host=self._paprika_setup.host,
                                                    guest=self._paprika_setup.guest,
+                                                   guest_orientation=self.taproom_guest_orientation,
                                                    topology_file='restrained.pdb',
                                                    trajectory_mask='*.dcd',
                                                    directory_path=directory).results
