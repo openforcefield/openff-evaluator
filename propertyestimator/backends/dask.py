@@ -228,7 +228,8 @@ class DaskLSFBackend(BaseDaskBackend):
                                    job_extra=job_extra,
                                    env_extra=self._setup_script_commands,
                                    extra=extra,
-                                   local_directory='dask-worker-space')
+                                   local_directory='dask-worker-space',
+                                   log_directory='dask-worker-logs')
 
         self._cluster.adapt(minimum=self._minimum_number_of_workers,
                             maximum=self._maximum_number_of_workers, interval=self._adaptive_interval)
