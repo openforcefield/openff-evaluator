@@ -635,7 +635,10 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
             build_solvated_complex_system.charged_molecule_paths = [host_mol2_path]
 
-            build_solvated_complex_system.execute(window_directory, None)
+            result = build_solvated_complex_system.execute(window_directory, None)
+
+            if isinstance(result, PropertyEstimatorException):
+                raise ValueError(f'{result.directory}: {result.message}')
 
             unrestrained_xml_path = build_solvated_complex_system.system_path
 
