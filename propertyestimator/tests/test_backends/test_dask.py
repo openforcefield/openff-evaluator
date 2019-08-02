@@ -1,7 +1,4 @@
-import pytest
-
 from propertyestimator.backends import DaskLSFBackend, QueueWorkerResources
-from propertyestimator.backends.dask import _Multiprocessor
 from propertyestimator.workflow.plugins import available_protocols
 
 
@@ -32,16 +29,6 @@ def test_dask_lsf_creation():
     gpu_backend.stop()
 
 
-@pytest.mark.skip(reason="This code currently hangs only on travis.")
-def test_multiprocessor():
-
-    expected_output = 12345
-
-    return_value = _Multiprocessor.run(dummy_function, expected_output)
-    assert expected_output == return_value
-
-
-@pytest.mark.skip(reason="This code currently hangs only on travis.")
 def test_lsf_wrapped_function():
 
     available_resources = QueueWorkerResources()
