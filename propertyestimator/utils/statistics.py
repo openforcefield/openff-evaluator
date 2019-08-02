@@ -163,6 +163,15 @@ class StatisticsArray:
         file_path: str
             The file path to save the csv file to.
         """
+
+        if len(self._internal_data) == 0:
+
+            # Handle the case where there is no data in the array.
+            with open(file_path, 'w') as file:
+                file.write('')
+
+            return
+
         data_list = []
         units_list = {}
 
@@ -207,7 +216,7 @@ class StatisticsArray:
             file_contents = file.read()
 
             if len(file_contents) < 1:
-                raise ValueError('The statistics file is empty.')
+                return cls()
 
             file_contents = file_contents[1:]
 

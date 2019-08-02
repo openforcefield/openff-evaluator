@@ -297,7 +297,10 @@ class RunOpenMMSimulation(BaseProtocol):
 
         # Save the newly generated statistics data as a pandas csv file.
         working_statistics = StatisticsArray.from_openmm_csv(self._temporary_statistics_path, pressure)
-        working_statistics = self._calculate_reduced_potential(working_statistics)
+
+        if ObservableType.PotentialEnergy in working_statistics:
+            # Handle the edge case where the number of steps = 0
+            working_statistics = self._calculate_reduced_potential(working_statistics)
 
         working_statistics.to_pandas_csv(self._statistics_file_path)
 
@@ -375,7 +378,7 @@ class RunOpenMMSimulation(BaseProtocol):
             # Load the simulation state from a checkpoint file.
             logging.info(f'Loading the checkpoint from {checkpoint_path}.')
 
-            with open(checkpoint_path, 'rb') as file:
+            with open(checkpoint_path, 'r') as file:
                 checkpoint_state = XmlSerializer.deserialize(file.read())
 
             simulation.context.setState(checkpoint_state)
