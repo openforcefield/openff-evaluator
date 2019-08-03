@@ -811,7 +811,9 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                                                    guest_orientation=self.taproom_guest_orientation,
                                                    topology_file='restrained.pdb',
                                                    trajectory_mask='*.dcd',
-                                                   directory_path=directory).results
+                                                   directory_path=directory,
+                                                   guest_residue_name=self._paprika_setup.guest_yaml["name"] if
+                                                   self._paprika_setup.guest != "release" else None).results
 
         super(OpenMMPaprikaProtocol, self)._perform_analysis(directory)
 
