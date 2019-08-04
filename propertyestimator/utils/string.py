@@ -38,10 +38,6 @@ def extract_variable_index_and_name(string):
         raise ValueError('Property name containts a ] without a matching [: '
                          '{}'.format(string))
 
-    if start_bracket_index > end_bracket_index:
-        raise ValueError('Property name containts a ] before a [: '
-                         '{}'.format(string))
-
     if end_bracket_index == start_bracket_index + 1:
         raise ValueError('There is no index between the array brackets: '
                          '{}'.format(string))
