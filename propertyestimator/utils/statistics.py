@@ -339,6 +339,63 @@ class StatisticsArray:
 
         return return_object
 
+    @classmethod
+    def join(cls, *existing_instances):
+        """Joins multiple statistics arrays together in the order
+        that they appear in the args list.
+
+        Parameters
+        ----------
+        existing_instances: StatisticsArray
+            The existing arrays to join together.
+
+        Returns
+        -------
+        StatisticsArray
+            The created array object.
+        """
+
+        number_of_arrays = sum([1 for instance in existing_instances])
+
+        if number_of_arrays < 2:
+            raise ValueError('At least two arrays must be passed.')
+
+        new_values = {}
+
+        observable_types = [observable_type for observable_type in ObservableType if
+                            observable_type in existing_instances[0]]
+
+        for observable_type in observable_types:
+
+            new_length = 0
+
+            for existing_instance in existing_instances:
+
+                if observable_type not in existing_instance:
+
+                    raise ValueError('The arrays must contain the same'
+                                     'types of observable.')
+
+                new_length += len(existing_instance)
+
+            new_array = np.zeros(new_length)
+            expected_unit = StatisticsArray._observable_units[observable_type]
+
+            counter = 0
+
+            for existing_instance in existing_instances:
+
+                for value in existing_instance[observable_type]:
+                    new_array[counter] = value.value_in_unit(expected_unit)
+                    counter += 1
+
+            new_values[observable_type] = new_array * expected_unit
+
+        return_object = cls()
+        return_object._internal_data = new_values
+
+        return return_object
+
 
 def bootstrap(bootstrap_function, iterations=200, relative_sample_size=1.0, data_sub_counts=None, **data_kwargs):
     """Performs bootstrapping on a data set to calculate the
