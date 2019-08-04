@@ -222,6 +222,9 @@ class RunOpenMMSimulation(BaseProtocol):
 
         self._checkpoint_path = None
 
+        self._context = None
+        self._integrator = None
+
     def execute(self, directory, available_resources):
 
         temperature = self._thermodynamic_state.temperature
@@ -260,11 +263,13 @@ class RunOpenMMSimulation(BaseProtocol):
         self._statistics_file_path = os.path.join(directory, 'statistics.csv')
 
         # Set up the simulation objects.
-        context, integrator = self._setup_simulation_objects(temperature,
-                                                             pressure,
-                                                             available_resources)
+        if self._context is None or self._integrator is None:
 
-        result = self._simulate(directory, temperature, pressure, context, integrator)
+            self._context, self._integrator = self._setup_simulation_objects(temperature,
+                                                                             pressure,
+                                                                             available_resources)
+
+        result = self._simulate(directory, temperature, pressure, self._context, self._integrator)
         return result
 
     def _setup_simulation_objects(self, temperature, pressure, available_resources):
