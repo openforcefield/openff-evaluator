@@ -453,7 +453,11 @@ class RunOpenMMSimulation(BaseProtocol):
 
         # Build the reporters which we will use to report the state
         # of the simulation.
-        topology = app.PDBFile(self._input_coordinate_file).topology
+        input_pdb_file = app.PDBFile(self._input_coordinate_file)
+        topology = input_pdb_file.topology
+
+        with open(os.path.join(directory, 'input.pdb'), 'w+') as configuration_file:
+            app.PDBFile.writeFile(input_pdb_file.topology, input_pdb_file.positions, configuration_file)
 
         trajectory_file_object = open(self._temporary_trajectory_path, 'wb')
         trajectory_dcd_object = app.DCDFile(trajectory_file_object,
