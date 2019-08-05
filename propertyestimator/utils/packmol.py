@@ -462,12 +462,32 @@ def _create_pdb_and_topology(molecule, file_path):
 
         # Load in the OE created mol2 file.
         oe_mol2 = mdtraj.load_mol2(mol2_file.name)
+        smiles = oechem.OEMolToSmiles(molecule)
 
         # Choose a random residue name.
-        residue_name = ''.join([random.choice(string.ascii_uppercase) for _ in range(3)])
+        residue_map = {}
 
         for residue in oe_mol2.topology.residues:
-            residue.name = residue_name
+
+            if smiles == 'O':
+                residue.name = 'HOH'
+
+            residue_map[residue.name] = None
+
+        water_residue_names = frozenset(['H2O', 'HHO', 'OHH', 'HOH', 'OH2', 'SOL', 'WAT',
+                                         'TIP', 'TIP2', 'TIP3', 'TIP4'])
+
+        for original_residue_name in residue_map:
+
+            new_residue_name = ''.join([random.choice(string.ascii_uppercase) for _ in range(3)])
+
+            if original_residue_name in water_residue_names:
+                new_residue_name = 'HOH'
+
+            residue_map[original_residue_name] = new_residue_name
+
+        for residue in oe_mol2.topology.residues:
+            residue.name = residue_map[residue.name]
 
         # Create the final pdb file.
         oe_mol2.save_pdb(file_path)
