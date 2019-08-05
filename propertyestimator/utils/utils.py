@@ -159,6 +159,21 @@ def setup_timestamp_logging(file_path=None):
     logger.addHandler(logger_handler)
 
 
+def safe_unlink(file_path):
+    """Attempts to remove the file at the given path,
+    catching any file not found exceptions.
+
+    Parameters
+    ----------
+    file_path: str
+        The path to the file to remove.
+    """
+    try:
+        os.unlink(file_path)
+    except OSError:
+        pass
+
+
 def get_nested_attribute(containing_object, name):
     """A recursive version of getattr, which has full support
     for attribute names which contain list / dict indices

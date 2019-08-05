@@ -163,6 +163,15 @@ class StatisticsArray:
         file_path: str
             The file path to save the csv file to.
         """
+
+        if len(self._internal_data) == 0:
+
+            # Handle the case where there is no data in the array.
+            with open(file_path, 'w') as file:
+                file.write('')
+
+            return
+
         data_list = []
         units_list = {}
 
@@ -207,7 +216,7 @@ class StatisticsArray:
             file_contents = file.read()
 
             if len(file_contents) < 1:
-                raise ValueError('The statistics file is empty.')
+                return cls()
 
             file_contents = file_contents[1:]
 
@@ -324,6 +333,63 @@ class StatisticsArray:
 
             copied_values = copy.deepcopy(existing_instance[observable_type])
             new_values[observable_type] = copied_values[data_indices]
+
+        return_object = cls()
+        return_object._internal_data = new_values
+
+        return return_object
+
+    @classmethod
+    def join(cls, *existing_instances):
+        """Joins multiple statistics arrays together in the order
+        that they appear in the args list.
+
+        Parameters
+        ----------
+        existing_instances: StatisticsArray
+            The existing arrays to join together.
+
+        Returns
+        -------
+        StatisticsArray
+            The created array object.
+        """
+
+        number_of_arrays = sum([1 for instance in existing_instances])
+
+        if number_of_arrays < 2:
+            raise ValueError('At least two arrays must be passed.')
+
+        new_values = {}
+
+        observable_types = [observable_type for observable_type in ObservableType if
+                            observable_type in existing_instances[0]]
+
+        for observable_type in observable_types:
+
+            new_length = 0
+
+            for existing_instance in existing_instances:
+
+                if observable_type not in existing_instance:
+
+                    raise ValueError('The arrays must contain the same'
+                                     'types of observable.')
+
+                new_length += len(existing_instance)
+
+            new_array = np.zeros(new_length)
+            expected_unit = StatisticsArray._observable_units[observable_type]
+
+            counter = 0
+
+            for existing_instance in existing_instances:
+
+                for value in existing_instance[observable_type]:
+                    new_array[counter] = value.value_in_unit(expected_unit)
+                    counter += 1
+
+            new_values[observable_type] = new_array * expected_unit
 
         return_object = cls()
         return_object._internal_data = new_values
