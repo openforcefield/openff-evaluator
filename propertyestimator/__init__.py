@@ -7,6 +7,7 @@ Property calculation toolkit from the Open Forcefield Consortium.
 # Safe to remove with Python 3-only code
 from __future__ import absolute_import
 
+import os
 import pkg_resources
 
 from ._version import get_versions
@@ -26,9 +27,7 @@ for entry_point in pkg_resources.iter_entry_points('propertyestimator.plugins'):
 
 # Set up pint.
 from pint import UnitRegistry
-
 unit = UnitRegistry()
-unit.define("dalton = gram / mole = u = amu = Da")
 
 # Handle versioneer
 versions = get_versions()

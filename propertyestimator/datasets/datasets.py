@@ -170,7 +170,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         >>> from propertyestimator.datasets import ThermoMLDataSet
         >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
         >>>
-        >>> from simtk import unit
+        >>> from propertyestimator import unit
         >>> data_set.filter_by_temperature(min_temperature=130*unit.kelvin, max_temperature=260*unit.kelvin)
         """
 
@@ -197,7 +197,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         >>> from propertyestimator.datasets import ThermoMLDataSet
         >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
         >>>
-        >>> from simtk import unit
+        >>> from propertyestimator import unit
         >>> data_set.filter_by_temperature(min_pressure=70*unit.kilopascal, max_temperature=150*unit.kilopascal)
         """
         def filter_function(x):

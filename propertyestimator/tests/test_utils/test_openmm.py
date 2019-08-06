@@ -41,6 +41,17 @@ def _get_all_pint_units():
     return all_pint_units
 
 
+def test_daltons():
+
+    openmm_quantity = random() * simtk_unit.dalton
+    openmm_raw_value = openmm_quantity.value_in_unit(simtk_unit.gram / simtk_unit.mole)
+
+    pint_quantity = openmm_quantity_to_pint(openmm_quantity)
+    pint_raw_value = pint_quantity.to(unit.gram / unit.mole).magnitude
+
+    assert np.allclose(openmm_raw_value, pint_raw_value)
+
+
 @pytest.mark.parametrize("openmm_unit", _get_all_openmm_units())
 @pytest.mark.parametrize("value", [random(), randint(1, 10), [random(), random()], np.array([random(), random()])])
 def test_openmm_unit_to_pint(openmm_unit, value):
@@ -105,7 +116,7 @@ def test_combinatorial_openmm_to_pint():
             assert np.isclose(openmm_raw_value, pint_raw_value)
 
 
-@pytest.mark.parametrize("openmm_unit", _get_all_openmm_units())
+@pytest.mark.parametrize("openmm_unit", {*_get_all_openmm_units(), simtk_unit.dalton**2, simtk_unit.dalton**3})
 @pytest.mark.parametrize("value", [random(), randint(1, 10), [random(), random()], np.array([random(), random()])])
 def test_openmm_unit_conversions(openmm_unit, value):
 
@@ -153,10 +164,28 @@ def test_pint_unit_conversions(pint_unit, value):
 
 
 def test_constants():
+
     assert np.isclose(simtk_unit.AVOGADRO_CONSTANT_NA.value_in_unit((1.0 / simtk_unit.mole).unit),
                       (1.0 * unit.avogadro_number).to((1.0 / unit.mole).units))
-    assert np.isclose(simtk_unit.BOLTZMANN_CONSTANT_kB.value_in_unit(simtk_unit.joule / simtk_unit.kelvin),
-                      (1.0 * unit.boltzmann_constant).to(unit.joule / unit.kelvin))
+
+    assert np.isclose(simtk_unit.BOLTZMANN_CONSTANT_kB.value_in_unit(simtk_unit.joule /
+                                                                     simtk_unit.kelvin),
+                      (1.0 * unit.boltzmann_constant).to(unit.joule /
+                                                         unit.kelvin))
+
     assert np.isclose(simtk_unit.MOLAR_GAS_CONSTANT_R.value_in_unit(simtk_unit.joule /
-                                                                    simtk_unit.kelvin / simtk_unit.mole),
-                      (1.0 * unit.molar_gas_constant).to(unit.joule / unit.kelvin / unit.mole))
+                                                                    simtk_unit.kelvin /
+                                                                    simtk_unit.mole),
+                      (1.0 * unit.molar_gas_constant).to(unit.joule /
+                                                         unit.kelvin /
+                                                         unit.mole))
+
+    assert np.isclose(simtk_unit.GRAVITATIONAL_CONSTANT_G.value_in_unit(simtk_unit.meter**2 *
+                                                                        simtk_unit.newton /
+                                                                        simtk_unit.kilogram**2),
+                      (1.0 * unit.newtonian_constant_of_gravitation).to(unit.meter**2 *
+                                                                        unit.newton /
+                                                                        unit.kilogram**2))
+
+    assert np.isclose(simtk_unit.SPEED_OF_LIGHT_C.value_in_unit(simtk_unit.meter / simtk_unit.seconds),
+                      (1.0 * unit.speed_of_light).to(unit.meter / unit.seconds))

@@ -3,8 +3,8 @@ Units tests for propertyestimator.datasets
 """
 
 import pytest
-from simtk import unit
 
+from propertyestimator import unit
 from propertyestimator.datasets import ThermoMLDataSet, PhysicalPropertyDataSet
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.datasets.thermoml import unit_from_thermoml_string

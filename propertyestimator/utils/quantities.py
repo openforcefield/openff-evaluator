@@ -3,8 +3,9 @@ their uncertainties
 """
 
 import numpy as np
-from simtk import unit
 from uncertainties import ufloat
+
+from propertyestimator import unit
 
 
 class EstimatedQuantity:
@@ -31,7 +32,7 @@ class EstimatedQuantity:
     Examples
     --------
     To add two **independent** quantities together:
-    >>> from simtk import unit
+    >>> from propertyestimator import unit
     >>>
     >>> a_value = 5 * unit.angstrom
     >>> a_uncertainty = 0.03 * unit.angstrom
@@ -108,7 +109,7 @@ class EstimatedQuantity:
         assert isinstance(value, unit.Quantity)
         assert isinstance(uncertainty, unit.Quantity)
 
-        assert value.unit.is_compatible(uncertainty.unit)
+        assert unit.get_base_units(value.units)[-1] == unit.get_base_units(uncertainty.units)[-1]
 
         self._value = value
         self._uncertainty = uncertainty
@@ -226,16 +227,10 @@ class EstimatedQuantity:
             The unit of the values encoded in the ufloat object.
         """
 
-        value_in_default_unit_system = estimated_quantity.value.in_unit_system(unit.md_unit_system)
-        uncertainty_in_default_unit_system = estimated_quantity.uncertainty.in_unit_system(unit.md_unit_system)
+        value_unit = estimated_quantity.value.units
 
-        value_unit = value_in_default_unit_system.unit
-        unitless_value = estimated_quantity.value.value_in_unit(value_unit)
-
-        uncertainty_unit = uncertainty_in_default_unit_system.unit
-        unitless_uncertainty = estimated_quantity.uncertainty.value_in_unit(uncertainty_unit)
-
-        assert value_unit == uncertainty_unit
+        unitless_value = estimated_quantity.value.magnitude
+        unitless_uncertainty = estimated_quantity.uncertainty.to(value_unit).magnitude
 
         return ufloat(unitless_value, unitless_uncertainty), value_unit
 

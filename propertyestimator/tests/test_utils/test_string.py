@@ -2,7 +2,6 @@
 Units tests for propertyestimator.utils.statistics
 """
 import pytest
-from simtk import unit
 
 from propertyestimator.utils import string
 

@@ -7,14 +7,16 @@ import re
 from os import path
 
 import numpy as np
-from simtk import unit, openmm
+from simtk import openmm
 from simtk.openmm import app
 
+from propertyestimator import unit
 from propertyestimator.properties.properties import ParameterGradientKey, ParameterGradient
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.openmm import setup_platform_with_resources
+from propertyestimator.utils.openmm import pint_quantity_to_openmm, setup_platform_with_resources, \
+    openmm_quantity_to_pint
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import StatisticsArray, ObservableType
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
@@ -151,9 +153,11 @@ class GradientReducedPotentials(BaseProtocol):
         -------
         simtk.openmm.System
             The created system.
-        float
+        simtk.unit.Quantity
             The new value of the perturbed parameter.
         """
+        # As this method deals mainly with the toolkit, we stick to
+        # simtk units here.
         from openforcefield.typing.engines.smirnoff import ForceField
 
         parameter_tag = self._parameter_key.tag
@@ -237,20 +241,24 @@ class GradientReducedPotentials(BaseProtocol):
 
         Returns
         ---------
-        simtk.unit.Quantity
+        propertyestimator.unit.Quantity
             A unit bearing `np.ndarray` which contains the reduced potential.
         PropertyEstimatorException, optional
             Any exceptions that were raised.
         """
+        from simtk import unit as simtk_unit
 
-        integrator = openmm.VerletIntegrator(0.1 * unit.femtoseconds)
+        integrator = openmm.VerletIntegrator(0.1 * simtk_unit.femtoseconds)
 
         platform = setup_platform_with_resources(compute_resources, True)
         openmm_context = openmm.Context(system, integrator, platform)
 
         reduced_potentials = np.zeros(trajectory.n_frames, dtype=np.float64)
 
-        beta = 1.0 / (unit.BOLTZMANN_CONSTANT_kB * self._thermodynamic_state.temperature)
+        temperature = pint_quantity_to_openmm(self._thermodynamic_state.temperature)
+        beta = 1.0 / (simtk_unit.BOLTZMANN_CONSTANT_kB * temperature)
+
+        pressure = pint_quantity_to_openmm(self._thermodynamic_state.pressure)
 
         for frame_index in range(trajectory.n_frames):
 
@@ -262,10 +270,10 @@ class GradientReducedPotentials(BaseProtocol):
 
             state = openmm_context.getState(getEnergy=True)
 
-            unreduced_potential = state.getPotentialEnergy() / unit.AVOGADRO_CONSTANT_NA
+            unreduced_potential = state.getPotentialEnergy() / simtk_unit.AVOGADRO_CONSTANT_NA
 
-            if self._thermodynamic_state.pressure is not None and self.enable_pbc:
-                unreduced_potential += self._thermodynamic_state.pressure * state.getPeriodicBoxVolume()
+            if pressure is not None and self.enable_pbc:
+                unreduced_potential += pressure * state.getPeriodicBoxVolume()
 
             # set box vectors
             reduced_potentials[frame_index] = unreduced_potential * beta
@@ -305,6 +313,9 @@ class GradientReducedPotentials(BaseProtocol):
         forward_system, self._forward_parameter_value = self._build_reduced_system(target_force_field,
                                                                                    topology,
                                                                                    self._perturbation_scale)
+
+        self._reverse_parameter_value = openmm_quantity_to_pint(self._reverse_parameter_value)
+        self._forward_parameter_value = openmm_quantity_to_pint(self._forward_parameter_value)
 
         # Calculate the reduced potentials.
         reverse_reduced_potentials, error = self._evaluate_reduced_potential(reverse_system,

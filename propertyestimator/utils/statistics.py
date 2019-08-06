@@ -8,7 +8,8 @@ from io import StringIO
 
 import numpy as np
 import pandas as pd
-from simtk import unit
+
+from propertyestimator import unit
 
 
 class ObservableType(Enum):
@@ -33,13 +34,13 @@ class StatisticsArray:
     """
 
     _observable_units = {
-        ObservableType.PotentialEnergy: unit.kilojoules_per_mole,
-        ObservableType.KineticEnergy: unit.kilojoules_per_mole,
-        ObservableType.TotalEnergy: unit.kilojoules_per_mole,
+        ObservableType.PotentialEnergy: unit.kilojoules / unit.mole,
+        ObservableType.KineticEnergy: unit.kilojoules / unit.mole,
+        ObservableType.TotalEnergy: unit.kilojoules / unit.mole,
         ObservableType.Temperature: unit.kelvin,
         ObservableType.Volume: unit.nanometer**3,
         ObservableType.Density: unit.gram / unit.milliliter,
-        ObservableType.Enthalpy: unit.kilojoules_per_mole,
+        ObservableType.Enthalpy: unit.kilojoules / unit.mole,
         ObservableType.ReducedPotential: unit.dimensionless
     }
 
@@ -90,9 +91,9 @@ class StatisticsArray:
 
         Returns
         -------
-        np.ndarray
-            The data (shape=(len(self)) dtype=unit.Quantity) of the given
-            type, or `None` if not present in the array.
+        unit.Quantity
+            The unit wrapped data (shape=(len(self)) dtype=float) of the
+            given type, or `None` if not present in the array.
         """
 
         key = self._validate_key(key)
@@ -105,8 +106,8 @@ class StatisticsArray:
         ----------
         key: ObservableType or str
             The type of observable to set.
-        value: np.ndarray
-            The data to set with shape=len(self) and dtype=unit.Quantity
+        value: unit.Quantity
+            The unit wrapped data to set with shape=len(self) and dtype=float
         """
 
         key = self._validate_key(key)
@@ -117,9 +118,9 @@ class StatisticsArray:
                              f'shape of the array ({len(self)})')
 
         if not isinstance(value, unit.Quantity):
-            raise ValueError('The data must be a unit bearing `simtk.unit.Quantity`')
+            raise ValueError('The data must be a unit bearing `propertyestimator.unit.Quantity`')
 
-        if not value.unit.is_compatible(StatisticsArray._observable_units[key]):
+        if unit.get_base_units(value.units)[-1] != unit.get_base_units(StatisticsArray._observable_units[key])[-1]:
 
             raise ValueError(f'{key} must have units compatible with '
                              f'{StatisticsArray._observable_units[key]}')
@@ -183,8 +184,8 @@ class StatisticsArray:
             data = self._internal_data[observable_type]
             unit_type = StatisticsArray._observable_units[observable_type]
 
-            data_list.append(data.value_in_unit(unit_type))
-            units_list[observable_type] = unit_type.get_symbol()
+            data_list.append(data.to(unit_type).magnitude)
+            units_list[observable_type] = f'{unit_type:~}'
 
         data_array = np.array(data_list).transpose()
 
@@ -235,9 +236,9 @@ class StatisticsArray:
         }
 
         openmm_header_to_unit = {
-            'Potential Energy (kJ/mole)': unit.kilojoules_per_mole,
-            'Kinetic Energy (kJ/mole)': unit.kilojoules_per_mole,
-            'Total Energy (kJ/mole)': unit.kilojoules_per_mole,
+            'Potential Energy (kJ/mole)': unit.kilojoules / unit.mole,
+            'Kinetic Energy (kJ/mole)': unit.kilojoules / unit.mole,
+            'Total Energy (kJ/mole)': unit.kilojoules / unit.mole,
             'Temperature (K)': unit.kelvin,
             'Box Volume (nm^3)': unit.nanometer ** 3,
             'Density (g/mL)': unit.gram / unit.milliliter
@@ -254,7 +255,7 @@ class StatisticsArray:
         if pressure is not None:
 
             values[ObservableType.Enthalpy] = values[ObservableType.TotalEnergy] + \
-                                              values[ObservableType.Volume] * pressure * unit.AVOGADRO_CONSTANT_NA
+                                              values[ObservableType.Volume] * pressure * unit.avogadro_number
 
         return_object = cls()
         return_object._internal_data = values
@@ -386,7 +387,7 @@ class StatisticsArray:
             for existing_instance in existing_instances:
 
                 for value in existing_instance[observable_type]:
-                    new_array[counter] = value.value_in_unit(expected_unit)
+                    new_array[counter] = value.to(expected_unit).magnitude
                     counter += 1
 
             new_values[observable_type] = new_array * expected_unit

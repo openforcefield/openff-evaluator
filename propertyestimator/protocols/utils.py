@@ -4,8 +4,7 @@ A set of utilities for setting up property estimation workflows.
 import copy
 from collections import namedtuple
 
-from simtk import unit
-
+from propertyestimator import unit
 from propertyestimator.protocols import analysis, forcefield, gradients, groups, reweighting, coordinates, simulation
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.workflow import WorkflowOptions

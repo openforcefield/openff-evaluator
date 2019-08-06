@@ -9,13 +9,13 @@ from os import path
 
 import numpy as np
 import pymbar
-from simtk import unit
 
+from propertyestimator import unit
 from propertyestimator.storage.dataclasses import StoredDataCollection
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.openmm import setup_platform_with_resources
+from propertyestimator.utils.openmm import pint_quantity_to_openmm, setup_platform_with_resources
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from propertyestimator.utils.statistics import bootstrap, StatisticsArray, ObservableType
@@ -415,7 +415,7 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         import openmmtools
         import mdtraj
 
-        from simtk import openmm
+        from simtk import openmm, unit as simtk_unit
         from simtk.openmm import XmlSerializer
 
         trajectory = mdtraj.load_dcd(self._trajectory_file_path, self._coordinate_file_path)
@@ -423,7 +423,8 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         with open(self._system_path, 'rb') as file:
             self._system = XmlSerializer.deserialize(file.read().decode())
 
-        pressure = self._thermodynamic_state.pressure
+        temperature = pint_quantity_to_openmm(self._thermodynamic_state.temperature)
+        pressure = pint_quantity_to_openmm(self._thermodynamic_state.pressure)
 
         if self._enable_pbc:
             self._system.setDefaultPeriodicBoxVectors(*trajectory.openmm_boxes(0))
@@ -431,10 +432,10 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
             pressure = None
 
         openmm_state = openmmtools.states.ThermodynamicState(system=self._system,
-                                                             temperature=self._thermodynamic_state.temperature,
+                                                             temperature=temperature,
                                                              pressure=pressure)
 
-        integrator = openmmtools.integrators.VelocityVerletIntegrator(0.01*unit.femtoseconds)
+        integrator = openmmtools.integrators.VelocityVerletIntegrator(0.01*simtk_unit.femtoseconds)
 
         # Setup the requested platform:
         platform = setup_platform_with_resources(available_resources, self._high_precision)
@@ -572,7 +573,7 @@ class ReweightWithMBARProtocol(BaseProtocol):
                                                       'a list of unit.Quantity wrapped ndarray\'s.')
 
         observables = self._prepare_observables_array(self._reference_observables)
-        observable_unit = self._reference_observables[0].unit
+        observable_unit = self._reference_observables[0].units
 
         if self._bootstrap_uncertainties:
             self._execute_with_bootstrapping(observable_unit, observables=observables)
@@ -604,7 +605,7 @@ class ReweightWithMBARProtocol(BaseProtocol):
             statistics_array = StatisticsArray.from_pandas_csv(file_path)
             reduced_potentials = statistics_array[ObservableType.ReducedPotential]
 
-            reference_reduced_potentials.append(reduced_potentials.value_in_unit(unit.dimensionless))
+            reference_reduced_potentials.append(reduced_potentials.to(unit.dimensionless).magnitude)
 
         # Load in the target reduced potentials.
         if len(target_reduced_potentials) > 1:
@@ -617,7 +618,7 @@ class ReweightWithMBARProtocol(BaseProtocol):
             statistics_array = StatisticsArray.from_pandas_csv(file_path)
             reduced_potentials = statistics_array[ObservableType.ReducedPotential]
 
-            target_reduced_potentials.append(reduced_potentials.value_in_unit(unit.dimensionless))
+            target_reduced_potentials.append(reduced_potentials.to(unit.dimensionless).magnitude)
 
         reference_reduced_potentials = np.array(reference_reduced_potentials)
         target_reduced_potentials = np.array(target_reduced_potentials)
@@ -630,7 +631,7 @@ class ReweightWithMBARProtocol(BaseProtocol):
 
         Parameters
         ----------
-        observable_unit: simtk.unit.Unit:
+        observable_unit: propertyestimator.unit.Unit:
             The expected unit of the reweighted observable.
         observables: dict of str and numpy.ndarray
             The observables to reweight which have been stripped of their units.
@@ -732,7 +733,7 @@ class ReweightWithMBARProtocol(BaseProtocol):
         number_of_configurations = frame_counts.sum()
 
         observable_dimensions = 1 if len(reference_observables[0].shape) == 1 else reference_observables[0].shape[1]
-        observable_unit = reference_observables[0].unit
+        observable_unit = reference_observables[0].units
 
         observables = np.zeros((observable_dimensions, number_of_configurations))
 
@@ -744,7 +745,7 @@ class ReweightWithMBARProtocol(BaseProtocol):
 
             for index in range(0, frame_counts[index_k]):
 
-                value = observables_k[index].value_in_unit(observable_unit)
+                value = observables_k[index].to(observable_unit).magnitude
 
                 if not isinstance(value, np.ndarray):
                     observables[0][start_index + index] = value

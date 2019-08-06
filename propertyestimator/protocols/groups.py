@@ -13,13 +13,12 @@ import logging
 from enum import Enum, unique
 from os import path, makedirs
 
+from propertyestimator import unit
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.workflow import plugins
 from propertyestimator.workflow.decorators import MergeBehaviour, protocol_input
 from propertyestimator.workflow.plugins import register_calculation_protocol, available_protocols
-from simtk import unit
-
 from propertyestimator.workflow.protocols import BaseProtocol, ProtocolPath
 from propertyestimator.workflow.schemas import ProtocolGroupSchema
 
@@ -781,7 +780,7 @@ class ConditionalGroup(ProtocolGroup):
         right_hand_value_correct_units = right_hand_value
 
         if isinstance(right_hand_value, unit.Quantity) and isinstance(left_hand_value, unit.Quantity):
-            right_hand_value_correct_units = right_hand_value.in_units_of(left_hand_value.unit)
+            right_hand_value_correct_units = right_hand_value.to(left_hand_value.units)
 
         logging.info(f'Evaluating condition for protocol {self.id}: '
                      f'{left_hand_value} {condition.type} {right_hand_value_correct_units}')

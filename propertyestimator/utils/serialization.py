@@ -5,17 +5,22 @@ A collection of classes which aid in serializing data types.
 import importlib
 import inspect
 import json
-import numpy as np
 from abc import ABC, abstractmethod
 from enum import Enum
 
-from openforcefield.utils import string_to_unit, unit_to_string
-from simtk import unit
+import numpy as np
 
+from propertyestimator import unit
 from propertyestimator.utils.quantities import EstimatedQuantity
 
 
 def _type_string_to_object(type_string):
+
+    if type_string == 'propertyestimator.unit.Unit':
+        return unit.Unit
+    if type_string == 'propertyestimator.unit.Quantity':
+        return unit.Quantity
+
     last_period_index = type_string.rfind('.')
 
     if last_period_index < 0 or last_period_index == len(type_string) - 1:
@@ -40,8 +45,40 @@ def _type_string_to_object(type_string):
     return class_object
 
 
+def _type_to_type_string(object_type):
+    """Converts a type to a serializable string.
+
+    Parameters
+    ----------
+    object_type: type
+        The type to convert.
+
+    Returns
+    -------
+    str
+        The converted type.
+    """
+
+    if (issubclass(object_type, unit.Unit) or
+        f'{object_type.__module__}.{object_type.__qualname__}' ==
+        'pint.quantity.build_quantity_class.<locals>.Unit'):
+
+        return 'propertyestimator.unit.Unit'
+    if (issubclass(object_type, unit.Quantity) or
+        f'{object_type.__module__}.{object_type.__qualname__}' ==
+        'pint.quantity.build_quantity_class.<locals>.Quantity'):
+
+        return 'propertyestimator.unit.Quantity'
+
+    qualified_name = object_type.__qualname__
+    qualified_name = qualified_name.replace('.', '->')
+
+    return_value = '{}.{}'.format(object_type.__module__, qualified_name)
+    return return_value
+
+
 def serialize_quantity(quantity):
-    """Serializes a simtk.unit.Quantity into a dictionary of the form
+    """Serializes a propertyestimator.unit.Quantity into a dictionary of the form
     `{'value': quantity.value_in_unit(quantity.unit), 'unit': quantity.unit}`
 
     Parameters
@@ -52,26 +89,26 @@ def serialize_quantity(quantity):
     Returns
     -------
     dict of str and str
-        A dictionary representation of a simtk.unit.Quantity
+        A dictionary representation of a propertyestimator.unit.Quantity
         with keys of {"value", "unit"}
     """
 
-    value = quantity.value_in_unit(quantity.unit)
-    return {'value': value, 'unit': unit_to_string(quantity.unit)}
+    value = quantity.magnitude
+    return {'value': value, 'unit': str(quantity.units)}
 
 
 def deserialize_quantity(serialized):
-    """Deserialize a simtk.unit.Quantity from a dictionary.
+    """Deserialize a propertyestimator.unit.Quantity from a dictionary.
 
     Parameters
     ----------
     serialized : dict of str and str
-        A dictionary representation of a simtk.unit.Quantity
+        A dictionary representation of a propertyestimator.unit.Quantity
         which must have keys {"value", "unit"}
 
     Returns
     -------
-    simtk.unit.Quantity
+    propertyestimator.unit.Quantity
         The deserialized quantity.
     """
 
@@ -81,9 +118,9 @@ def deserialize_quantity(serialized):
     value_unit = unit.dimensionless
 
     if serialized['unit'] is not None:
-        value_unit = string_to_unit(serialized['unit'])
+        value_unit = unit(serialized['unit'])
 
-    return unit.Quantity(serialized['value'], value_unit)
+    return serialized['value'] * value_unit
 
 
 def deserialize_estimated_quantity(quantity_dictionary):
@@ -104,7 +141,7 @@ def deserialize_estimated_quantity(quantity_dictionary):
     if '@type' in quantity_dictionary:
         quantity_dictionary.pop('@type')
 
-    return_object = EstimatedQuantity(unit.Quantity(), unit.Quantity(), 'empty_source')
+    return_object = EstimatedQuantity(unit.Quantity(0.0), unit.Quantity(0.0), 'empty_source')
     return_object.__setstate__(quantity_dictionary)
 
     return return_object
@@ -265,17 +302,22 @@ class TypedJSONEncoder(json.JSONEncoder):
             return super(TypedJSONEncoder, self).default(value_to_serialize)
 
         # Otherwise, we need to add a @type attribute to it.
-        qualified_name = type_to_serialize.__qualname__
-        qualified_name = qualified_name.replace('.', '->')
-
-        type_tag = '{}.{}'.format(type_to_serialize.__module__, qualified_name)
+        type_tag = _type_to_type_string(type_to_serialize)
         serializable_dictionary = {}
+
+        if type_tag == 'propertyestimator.unit.Unit':
+            type_to_serialize = unit.Unit
+        if type_tag == 'propertyestimator.unit.Quantity':
+            type_to_serialize = unit.Quantity
 
         custom_encoder = None
 
         for encoder_type in TypedJSONEncoder._custom_supported_types:
 
             if isinstance(encoder_type, str):
+
+                qualified_name = type_to_serialize.__qualname__
+                qualified_name = qualified_name.replace('.', '->')
 
                 if encoder_type != qualified_name:
                     continue

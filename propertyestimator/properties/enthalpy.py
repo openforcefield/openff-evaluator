@@ -4,8 +4,7 @@ A collection of enthalpy physical property definitions.
 
 from collections import namedtuple
 
-from simtk import unit
-
+from propertyestimator import unit
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.properties.properties import PhysicalProperty, PropertyPhase
@@ -617,7 +616,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
         energy_of_vaporization.value_a = ProtocolPath('value', extract_liquid_energy.id)
 
         ideal_volume = miscellaneous.MultiplyValue('ideal_volume')
-        ideal_volume.value = EstimatedQuantity(unit.constants.MOLAR_GAS_CONSTANT_R,
+        ideal_volume.value = EstimatedQuantity(1.0 * unit.molar_gas_constant,
                                                0.0 * unit.joule / unit.mole / unit.kelvin,
                                                'Universal Constant')
         ideal_volume.multiplier = ProtocolPath('thermodynamic_state.temperature', 'global')
@@ -791,7 +790,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
         energy_of_vaporization.value_a = ProtocolPath('value', liquid_protocols.mbar_protocol.id)
 
         ideal_volume = miscellaneous.MultiplyValue('ideal_volume')
-        ideal_volume.value = EstimatedQuantity(unit.constants.MOLAR_GAS_CONSTANT_R,
+        ideal_volume.value = EstimatedQuantity(1.0 * unit.molar_gas_constant,
                                                0.0 * unit.joule / unit.mole / unit.kelvin,
                                                'Universal Constant')
         ideal_volume.multiplier = ProtocolPath('thermodynamic_state.temperature', 'global')

@@ -115,6 +115,9 @@ def openmm_quantity_to_pint(openmm_quantity):
         The converted quantity.
     """
 
+    if openmm_quantity is None:
+        return None
+
     assert isinstance(openmm_quantity, simtk_unit.Quantity)
 
     if openmm_quantity.unit in unsupported_openmm_units:
@@ -146,6 +149,9 @@ def openmm_unit_to_pint(openmm_unit):
     """
     from openforcefield.utils import unit_to_string
 
+    if openmm_unit is None:
+        return None
+
     assert isinstance(openmm_unit, simtk_unit.Unit)
 
     if openmm_unit in unsupported_openmm_units:
@@ -154,6 +160,12 @@ def openmm_unit_to_pint(openmm_unit):
                          f'currently supported by pint.')
 
     openmm_unit_string = unit_to_string(openmm_unit)
+
+    # Handle the case whereby OMM treats daltons as having
+    # units of g / mol, whereas SI and pint define them to
+    # have units of kg.
+    openmm_unit_string = (None if openmm_unit_string is None else
+                          openmm_unit_string.replace('dalton', '(gram / mole)'))
 
     try:
         pint_unit = unit(openmm_unit_string).units
@@ -185,6 +197,9 @@ def pint_quantity_to_openmm(pint_quantity):
         The converted quantity.
     """
 
+    if pint_quantity is None:
+        return None
+
     assert isinstance(pint_quantity, unit.Quantity)
 
     pint_unit = pint_quantity.units
@@ -214,6 +229,9 @@ def pint_unit_to_openmm(pint_unit):
         The converted unit.
     """
     from openforcefield.utils import string_to_unit
+
+    if pint_unit is None:
+        return None
 
     assert isinstance(pint_unit, unit.Unit)
 

@@ -1,9 +1,8 @@
 """
 An API for importing a ThermoML archive.
 """
-
+import copy
 import logging
-import pickle
 import re
 import traceback
 from enum import unique, Enum
@@ -12,17 +11,18 @@ from urllib.request import urlopen
 from xml.etree import ElementTree
 
 import numpy as np
-from simtk import unit
+from propertyestimator import unit
 
 from propertyestimator.properties import PropertyPhase, MeasurementSource
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
+from propertyestimator.utils.openmm import openmm_quantity_to_pint
 from .datasets import PhysicalPropertyDataSet
 from .plugins import registered_thermoml_properties
 
 
 def unit_from_thermoml_string(full_string):
-    """A non-ideal way to convert a string to a simtk.unit.Unit
+    """A non-ideal way to convert a string to a propertyestimator.unit.Unit
 
     Parameters
     ----------
@@ -31,8 +31,8 @@ def unit_from_thermoml_string(full_string):
 
     Returns
     ----------
-    simtk.unit.Unit, None
-        None if the string is unitless, otherwise a simtk.unit.Unit
+    propertyestimator.unit.Unit
+        The parsed unit.
     """
 
     full_string_split = full_string.split(',')
@@ -43,7 +43,7 @@ def unit_from_thermoml_string(full_string):
     if unit_string == 'K':
         return unit.kelvin
     elif unit_string == '1/K':
-        return (1.0 / unit.kelvin).unit
+        return (1.0 / unit.kelvin).units
     elif unit_string == 'kPa':
         return unit.kilopascal
     elif unit_string == 'kPa*dm3/mol':
@@ -57,7 +57,7 @@ def unit_from_thermoml_string(full_string):
     elif unit_string == 'mol/dm3':
         return unit.mole / unit.decimeter ** 3
     elif unit_string == 'kJ/mol':
-        return unit.kilojoule_per_mole
+        return unit.kilojoule / unit.mole
     elif unit_string == 'm3/kg':
         return unit.meter ** 3 / unit.kilogram
     elif unit_string == 'mol/m3':
@@ -71,15 +71,15 @@ def unit_from_thermoml_string(full_string):
     elif unit_string == 'J/K/m3':
         return unit.joule / unit.kelvin / unit.meter ** 3
     elif unit_string == '1/kPa':
-        return (1.0 / unit.kilopascal).unit
+        return (1.0 / unit.kilopascal).units
     elif unit_string == 'm/s':
         return unit.meter / unit.second
     elif unit_string == 'MHz':
-        return (1.0 / unit.megasecond).unit
+        return (1.0 / unit.megasecond).units
     elif unit_string == 'N/m':
         return unit.newton / unit.meter
     elif len(unit_string) == 0:
-        return None
+        return unit.dimensionless
     else:
         raise NotImplementedError('The unit (' + unit_string + ') is not currently supported')
 
@@ -223,7 +223,7 @@ class ThermoMLConstraint:
         return_value = cls()
 
         return_value.type = ThermoMLConstraintType.from_node(type_node)
-        return_value.value = unit.Quantity(value, unit_type)
+        return_value.value = value * unit_type
 
         if compound_index_node is not None:
             return_value.compound_index = int(compound_index_node.text)
@@ -242,7 +242,7 @@ class ThermoMLConstraint:
         ----------
         variable : ThermoMLVariableDefinition
             The variable to convert.
-        value : simtk.unit.Quantity
+        value : propertyestimator.unit.Quantity
             The value of the constant.
 
         Returns
@@ -590,12 +590,12 @@ class ThermoMLProperty:
 
     @property
     def temperature(self):
-        """simtk.unit.Quantity or None: The temperature at which the property was collected."""
+        """propertyestimator.unit.Quantity or None: The temperature at which the property was collected."""
         return None if self.thermodynamic_state is None else self.thermodynamic_state.temperature
 
     @property
     def pressure(self):
-        """simtk.unit.Quantity or None: The pressure at which the property was collected."""
+        """propertyestimator.unit.Quantity or None: The pressure at which the property was collected."""
         return None if self.thermodynamic_state is None else self.thermodynamic_state.pressure
 
     @staticmethod
@@ -773,9 +773,9 @@ class ThermoMLProperty:
         uncertainty_quantity = uncertainty
 
         if not isinstance(value_quantity, unit.Quantity):
-            value_quantity = unit.Quantity(value, self.default_unit)
+            value_quantity = value * self.default_unit
         if not isinstance(uncertainty_quantity, unit.Quantity):
-            uncertainty_quantity = unit.Quantity(uncertainty, self.default_unit)
+            uncertainty_quantity = uncertainty * self.default_unit
 
         self.value = value_quantity
         self.uncertainty = uncertainty_quantity
@@ -1016,10 +1016,11 @@ class ThermoMLPureOrMixtureData:
 
         Returns
         -------
-        simtk.unit.Quantity
+        propertyestimator.unit.Quantity
             The molecular weight.
         """
 
+        from simtk import unit as simtk_unit
         from openforcefield.topology import Molecule
 
         try:
@@ -1029,12 +1030,12 @@ class ThermoMLPureOrMixtureData:
             formatted_exception = traceback.format_exception(None, e, e.__traceback__)
             raise ValueError(f'The toolkit raised an exception for the {smiles} smiles pattern: {formatted_exception}')
 
-        molecular_weight = 0.0 * unit.dalton
+        molecular_weight = 0.0 * simtk_unit.dalton
 
         for atom in molecule.atoms:
             molecular_weight += atom.mass
 
-        return molecular_weight
+        return openmm_quantity_to_pint(molecular_weight)
 
     @staticmethod
     def _solvent_mole_fractions_to_moles(solvent_mass, solvent_mole_fractions, solvent_compounds):
@@ -1043,7 +1044,7 @@ class ThermoMLPureOrMixtureData:
 
         Parameters
         ----------
-        solvent_mass: simtk.unit.Quantity
+        solvent_mass: propertyestimator.unit.Quantity
             The total mass of the solvent in units compatible with kg.
         solvent_mole_fractions: dict of int and float
             The mole fractions of any solvent compounds in the system.
@@ -1055,7 +1056,7 @@ class ThermoMLPureOrMixtureData:
         dict of int and unit.Quantity
             A dictionary of the moles of each solvent compound.
         """
-        weighted_molecular_weights = 0.0 * unit.dalton
+        weighted_molecular_weights = 0.0 * unit.gram / unit.mole
         number_of_moles = {}
 
         for solvent_index in solvent_compounds:
@@ -1108,7 +1109,7 @@ class ThermoMLPureOrMixtureData:
             mole_fraction = constraint.value
 
             if isinstance(mole_fraction, unit.Quantity):
-                mole_fraction = mole_fraction.value_in_unit(unit.dimensionless)
+                mole_fraction = mole_fraction.to(unit.dimensionless).magnitude
 
             mole_fractions[constraint.compound_index] = mole_fraction
             total_mol_fraction += mole_fractions[constraint.compound_index]
@@ -1183,7 +1184,7 @@ class ThermoMLPureOrMixtureData:
             mass_fraction = constraint.value
 
             if isinstance(mass_fraction, unit.Quantity):
-                mass_fraction = mass_fraction.value_in_unit(unit.dimensionless)
+                mass_fraction = mass_fraction.to(unit.dimensionless).magnitude
 
             mass_fractions[constraint.compound_index] = mass_fraction
             total_mass_fraction += mass_fraction
@@ -1204,7 +1205,10 @@ class ThermoMLPureOrMixtureData:
                 if compound_index in mass_fractions:
                     continue
 
-                mass_fractions[compound_index] = 1.0 - total_mass_fraction
+                mass_fractions[compound_index] = (1.0 - total_mass_fraction)\
+
+                if isinstance(mass_fractions[compound_index], unit.Quantity):
+                    mass_fractions[compound_index] = mass_fractions[compound_index].to(unit.dimensionless).magnitude
 
         total_mass = 1 * unit.gram
         total_solvent_mass = total_mass
@@ -1520,7 +1524,7 @@ class ThermoMLPureOrMixtureData:
         for compound_index in mole_fractions:
 
             if isinstance(mole_fractions[compound_index], unit.Quantity):
-                mole_fractions[compound_index] = mole_fractions[compound_index].value_in_unit(unit.dimensionless)
+                mole_fractions[compound_index] = mole_fractions[compound_index].to(unit.dimensionless).magnitude
 
         total_mol_fraction = sum([value for value in mole_fractions.values()])
 
@@ -1585,7 +1589,7 @@ class ThermoMLPureOrMixtureData:
 
             for global_constraint in global_constraints:
 
-                constraint = pickle.loads(pickle.dumps(global_constraint, -1))
+                constraint = copy.deepcopy(global_constraint)
                 constraints.append(constraint)
 
                 if constraint.type == ThermoMLConstraintType.Temperature:
@@ -1664,9 +1668,8 @@ class ThermoMLPureOrMixtureData:
 
                     continue
 
-                # measured_property = copy.deepcopy(property_definition)
+                measured_property = copy.deepcopy(property_definition)
                 # measured_property = json.loads(json.dumps(property_definition))
-                measured_property = pickle.loads(pickle.dumps(property_definition, -1))
                 measured_property.thermodynamic_state = thermodynamic_state
 
                 property_value_node = property_node.find('.//ThermoML:nPropValue', namespace)

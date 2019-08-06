@@ -6,7 +6,6 @@ form a larger property estimation workflow.
 import copy
 
 from propertyestimator.utils import graph, utils
-from propertyestimator.utils.serialization import deserialize_quantity
 from propertyestimator.utils.utils import get_nested_attribute, set_nested_attribute
 from propertyestimator.workflow.decorators import protocol_input, MergeBehaviour
 from propertyestimator.workflow.schemas import ProtocolSchema
@@ -187,9 +186,6 @@ class BaseProtocol:
         for input_full_path in schema_value.inputs:
 
             value = copy.deepcopy(schema_value.inputs[input_full_path])
-
-            if isinstance(value, dict) and 'unit' in value and 'unitless_value' in value:
-                value = deserialize_quantity(value)
 
             input_path = ProtocolPath.from_string(input_full_path)
             self.set_value(input_path, value)

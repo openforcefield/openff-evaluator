@@ -12,7 +12,7 @@ import dask
 from dask import distributed
 from dask_jobqueue import LSFCluster
 from distributed import get_worker
-from simtk import unit
+from propertyestimator import unit
 
 from .backends import PropertyEstimatorBackend, ComputeResources, QueueWorkerResources
 
@@ -263,7 +263,6 @@ class DaskLSFBackend(BaseDaskBackend):
         >>> # Create the backend which will adaptively try to spin up between one and
         >>> # ten workers with the requested resources depending on the calculation load.
         >>> from propertyestimator.backends import DaskLSFBackend
-        >>> from simtk.unit import unit
         >>>
         >>> lsf_backend = DaskLSFBackend(minimum_number_of_workers=1,
         >>>                              maximum_number_of_workers=10,
@@ -314,7 +313,7 @@ class DaskLSFBackend(BaseDaskBackend):
         from dask_jobqueue.lsf import lsf_detect_units, lsf_format_bytes_ceil
 
         requested_memory = self._resources_per_worker.per_thread_memory_limit
-        memory_bytes = requested_memory.value_in_unit(unit.byte)
+        memory_bytes = requested_memory.to(unit.byte).magnitude
 
         lsf_units = lsf_detect_units()
         memory_string = f'{lsf_format_bytes_ceil(memory_bytes, lsf_units=lsf_units)}{lsf_units.upper()}'

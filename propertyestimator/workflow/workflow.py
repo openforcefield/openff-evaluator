@@ -15,8 +15,7 @@ from enum import Enum
 from math import sqrt
 from os import path, makedirs
 
-from simtk import unit
-
+from propertyestimator import unit
 from propertyestimator.storage.dataclasses import BaseStoredData, StoredSimulationData, StoredDataCollection
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
@@ -68,7 +67,7 @@ class WorkflowOptions:
             than
 
             `relative_uncertainty_fraction` * property_to_estimate.uncertainty
-        absolute_uncertainty: simtk.unit.Quantity, optional
+        absolute_uncertainty: propertyestimator.unit.Quantity, optional
             If the convergence mode is set to `AbsoluteUncertainty`, then workflows
             will by default run simulations until the estimated uncertainty is less
             than the `absolute_uncertainty`
@@ -914,9 +913,9 @@ class Workflow:
             - substance: `Substance` - The composition of the system of interest.
             - components: list of `Substance` - The components present in the system for
                                               which the property is being estimated.
-            - target_uncertainty: simtk.unit.Quantity - The target uncertainty with which
+            - target_uncertainty: propertyestimator.unit.Quantity - The target uncertainty with which
                                                         properties should be estimated.
-            - per_component_uncertainty: simtk.unit.Quantity - The target uncertainty divided
+            - per_component_uncertainty: propertyestimator.unit.Quantity - The target uncertainty divided
                                                                by the sqrt of the number of
                                                                components in the system + 1
             - force_field_path: str - A path to the force field parameters with which the
@@ -951,7 +950,7 @@ class Workflow:
         if (isinstance(physical_property.uncertainty, unit.Quantity) and not
             isinstance(target_uncertainty, unit.Quantity)):
 
-            target_uncertainty = unit.Quantity(target_uncertainty, physical_property.uncertainty.unit)
+            target_uncertainty = target_uncertainty * physical_property.uncertainty.units
 
         # +1 comes from inclusion of the full mixture as a possible component.
         per_component_uncertainty = target_uncertainty / sqrt(physical_property.substance.number_of_components + 1)
@@ -1162,7 +1161,7 @@ class WorkflowGraph:
 
             submitted_futures[node_id] = backend.submit_task(WorkflowGraph._execute_protocol,
                                                              node.directory,
-                                                             node.schema,
+                                                             node.schema.json(),
                                                              *dependency_futures,
                                                              key=f'execute_{node_id}')
 
@@ -1225,7 +1224,7 @@ class WorkflowGraph:
             target_uncertainty = None
 
             if include_uncertainty_check and 'target_uncertainty' in workflow.global_metadata:
-                target_uncertainty = workflow.global_metadata['target_uncertainty']
+                target_uncertainty = workflow.global_metadata['target_uncertainty'].to_tuple()
 
             # Gather the values and uncertainties of each property being calculated.
             value_futures.append(backend.submit_task(WorkflowGraph._gather_results,
@@ -1258,13 +1257,13 @@ class WorkflowGraph:
             json.dump(output_dictionary, file, cls=TypedJSONEncoder)
 
     @staticmethod
-    def _execute_protocol(directory, protocol_schema, *previous_output_paths, available_resources, **_):
+    def _execute_protocol(directory, protocol_schema_json, *previous_output_paths, available_resources, **_):
         """Executes a protocol whose state is defined by the ``protocol_schema``.
 
         Parameters
         ----------
-        protocol_schema: protocols.ProtocolSchema
-            The schema defining the protocol to execute.
+        protocol_schema_json: str
+            The JSON schema defining the protocol to execute.
         previous_output_paths: tuple of str
             Paths to the results of previous protocol executions.
 
@@ -1277,6 +1276,9 @@ class WorkflowGraph:
         """
 
         from propertyestimator.workflow.plugins import available_protocols
+        from propertyestimator.workflow import protocols
+
+        protocol_schema = protocols.ProtocolSchema.parse_json(protocol_schema_json)
 
         # The path where the output of this protocol will be stored.
         output_dictionary_path = path.join(directory, '{}_output.json'.format(protocol_schema.id))
@@ -1432,6 +1434,9 @@ class WorkflowGraph:
             will be returned if the target uncertainty is set but not met.
         """
         from propertyestimator.layers.layers import CalculationLayerResult
+
+        if target_uncertainty is not None:
+            target_uncertainty = unit.Quantity.from_tuple(target_uncertainty)
 
         return_object = CalculationLayerResult()
         return_object.property_id = property_to_return.id

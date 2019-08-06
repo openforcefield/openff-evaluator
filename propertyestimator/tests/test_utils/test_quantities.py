@@ -3,8 +3,8 @@ for the EstimatedQuantity class.
 """
 
 import pytest
-from simtk import unit
 
+from propertyestimator import unit
 from propertyestimator.utils import quantities
 
 

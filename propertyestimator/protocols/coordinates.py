@@ -6,9 +6,9 @@ import logging
 from enum import Enum
 from os import path
 
-from simtk import unit
 from simtk.openmm import app
 
+from propertyestimator import unit
 from propertyestimator.substances import Substance
 from propertyestimator.utils import packmol, create_molecule_from_smiles
 from propertyestimator.utils.exceptions import PropertyEstimatorException
@@ -142,16 +142,19 @@ class BuildCoordinatesPackmol(BaseProtocol):
             The directory to save the results in.
         topology : simtk.openmm.Topology
             The topology of the created system.
-        positions : simtk.unit.Quantity
-            A `simtk.unit.Quantity` wrapped `numpy.ndarray` (shape=[natoms,3]) which contains
-            the created positions with units compatible with angstroms.
+        positions : propertyestimator.unit.Quantity
+            A `propertyestimator.unit.Quantity` wrapped `numpy.ndarray` (shape=[natoms,3])
+            which contains the created positions with units compatible with angstroms.
         """
+
+        from simtk import unit as simtk_unit
+        simtk_positions = positions.to(unit.angstrom).magnitude * simtk_unit.angstrom
 
         self._coordinate_file_path = path.join(directory, 'output.pdb')
 
         with open(self._coordinate_file_path, 'w+') as minimised_file:
             # noinspection PyTypeChecker
-            app.PDBFile.writeFile(topology, positions, minimised_file)
+            app.PDBFile.writeFile(topology, simtk_positions, minimised_file)
 
         logging.info('Coordinates generated: ' + self._substance.identifier)
 
@@ -375,6 +378,7 @@ class BuildDockedCoordinates(BaseProtocol):
 
         import mdtraj
         from openeye import oechem, oedocking
+        from simtk import unit as simtk_unit
 
         logging.info('Initializing the receptor molecule.')
         receptor_molecule = self._create_receptor()
@@ -450,10 +454,10 @@ class BuildDockedCoordinates(BaseProtocol):
 
         complex_positions = []
 
-        complex_positions.extend(ligand_trajectory.openmm_positions(0).value_in_unit(unit.angstrom))
-        complex_positions.extend(receptor_trajectory.openmm_positions(0).value_in_unit(unit.angstrom))
+        complex_positions.extend(ligand_trajectory.openmm_positions(0).value_in_unit(simtk_unit.angstrom))
+        complex_positions.extend(receptor_trajectory.openmm_positions(0).value_in_unit(simtk_unit.angstrom))
 
-        complex_positions *= unit.angstrom
+        complex_positions *= simtk_unit.angstrom
 
         self._docked_complex_coordinate_path = path.join(directory, 'complex.pdb')
 
