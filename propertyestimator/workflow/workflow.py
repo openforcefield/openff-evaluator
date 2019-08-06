@@ -6,7 +6,6 @@ import copy
 import json
 import logging
 import math
-import os
 import re
 import time
 import traceback
@@ -1280,7 +1279,7 @@ class WorkflowGraph:
 
         # The path where the output of this protocol will be stored.
         output_dictionary_path = path.join(directory, '{}_output.json'.format(protocol_schema.id))
-        os.makedirs(directory, exist_ok=True)
+        makedirs(directory, exist_ok=True)
 
         # We need to make sure ALL exceptions are handled within this method,
         # or any function which will be executed on a calculation backend to
