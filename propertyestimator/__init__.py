@@ -24,6 +24,12 @@ for entry_point in pkg_resources.iter_entry_points('propertyestimator.plugins'):
         formatted_exception = traceback.format_exception(None, e, e.__traceback__)
         logging.warning(f'Could not load the {entry_point} plugin: {formatted_exception}')
 
+# Set up pint.
+from pint import UnitRegistry
+
+unit = UnitRegistry()
+unit.define("dalton = gram / mole = u = amu = Da")
+
 # Handle versioneer
 versions = get_versions()
 __version__ = versions['version']

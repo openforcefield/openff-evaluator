@@ -4,6 +4,10 @@ A set of utilities for helping to perform simulations using openmm.
 import logging
 import os
 
+from pint import UndefinedUnitError
+
+from propertyestimator import unit
+
 
 def setup_platform_with_resources(compute_resources, high_precision=False):
     """Creates an OpenMM `Platform` object which requests a set
@@ -68,6 +72,114 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
         logging.info('Setting up a simulation with {} threads'.format(compute_resources.number_of_threads))
 
     return platform
+
+
+def openmm_quantity_to_pint(openmm_quantity):
+    """Converts a `simtk.unit.Quantity` to a `pint.Quantity`.
+
+    Parameters
+    ----------
+    openmm_quantity: simtk.unit.Quantity
+        The quantity to convert.
+
+    Returns
+    -------
+    pint.Quantity
+        The converted quantity.
+    """
+
+    if isinstance(openmm_quantity, float):
+        return openmm_quantity * unit.dimensionless
+
+    openmm_unit = openmm_quantity.unit
+    openmm_raw_value = openmm_quantity.value_in_unit(openmm_unit)
+
+    pint_unit = openmm_unit_to_pint(openmm_unit)
+    pint_quantity = openmm_raw_value * pint_unit
+
+    return pint_quantity
+
+
+def openmm_unit_to_pint(openmm_unit):
+    """Converts a `simtk.unit.Unit` to a `pint.Unit`.
+
+    Parameters
+    ----------
+    openmm_unit: simtk.unit.Unit
+        The unit to convert.
+
+    Returns
+    -------
+    pint.Unit
+        The converted unit.
+    """
+    from openforcefield.utils import unit_to_string
+
+    openmm_unit_string = unit_to_string(openmm_unit)
+
+    try:
+        pint_unit = unit(openmm_unit_string).units
+    except UndefinedUnitError:
+
+        logging.info(f'The {openmm_unit_string} OMM unit string (based on the {openmm_unit} object) '
+                     f'is undefined in pint')
+
+        raise
+
+    return pint_unit
+
+
+def pint_quantity_to_openmm(pint_quantity):
+    """Converts a `pint.Quantity` to a `simtk.unit.Quantity`.
+
+    Parameters
+    ----------
+    pint_quantity: pint.Quantity
+        The quantity to convert.
+
+    Returns
+    -------
+    simtk.unit.Quantity
+        The converted quantity.
+    """
+
+    pint_unit = pint_quantity.units
+    pint_raw_value = pint_quantity.magnitude
+
+    openmm_unit = pint_unit_to_openmm(pint_unit)
+    openmm_quantity = pint_raw_value * openmm_unit
+
+    return openmm_quantity
+
+
+def pint_unit_to_openmm(pint_unit):
+    """Converts a `pint.Unit` to a `simtk.unit.Unit`.
+
+    Parameters
+    ----------
+    pint_unit: pint.Unit
+        The unit to convert.
+
+    Returns
+    -------
+    simtk.unit.Unit
+        The converted unit.
+    """
+    from openforcefield.utils import string_to_unit
+
+    pint_unit_string = str(pint_unit)
+
+    try:
+        # noinspection PyTypeChecker
+        openmm_unit = string_to_unit(pint_unit_string)
+    except AttributeError:
+
+        logging.info(f'The {pint_unit_string} pint unit string (based on the {pint_unit} object) '
+                     f'could not be understood by `openforcefield.utils.string_to_unit`')
+
+        raise
+
+    return openmm_unit
 
 
 class StateReporter:
