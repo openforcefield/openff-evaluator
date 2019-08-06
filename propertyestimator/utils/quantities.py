@@ -227,12 +227,13 @@ class EstimatedQuantity:
             The unit of the values encoded in the ufloat object.
         """
 
-        value_unit = estimated_quantity.value.units
+        base_value = estimated_quantity.value.to_base_units()
+        base_value_unit = base_value.units
 
-        unitless_value = estimated_quantity.value.magnitude
-        unitless_uncertainty = estimated_quantity.uncertainty.to(value_unit).magnitude
+        unitless_value = base_value.magnitude
+        unitless_uncertainty = estimated_quantity.uncertainty.to(base_value_unit).magnitude
 
-        return ufloat(unitless_value, unitless_uncertainty), value_unit
+        return ufloat(unitless_value, unitless_uncertainty), base_value_unit
 
     def __eq__(self, other):
 
