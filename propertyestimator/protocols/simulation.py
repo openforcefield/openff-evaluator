@@ -597,7 +597,7 @@ class RunOpenMMSimulation(BaseProtocol):
         self._output_coordinate_file = os.path.join(directory, 'output.pdb')
 
         with open(self._output_coordinate_file, 'w+') as configuration_file:
-            app.PDBFile.writeFile(topology,positions, configuration_file)
+            app.PDBFile.writeFile(topology, positions, configuration_file)
 
         logging.info(f'Simulation performed in the {str(self._ensemble)} ensemble: {self._id}')
         return self._get_output_dictionary()
