@@ -88,8 +88,8 @@ def openmm_quantity_to_pint(openmm_quantity):
         The converted quantity.
     """
 
-    if isinstance(openmm_quantity, float):
-        return openmm_quantity * unit.dimensionless
+    from simtk import unit as simtk_unit
+    assert isinstance(openmm_quantity, simtk_unit.Quantity)
 
     openmm_unit = openmm_quantity.unit
     openmm_raw_value = openmm_quantity.value_in_unit(openmm_unit)
@@ -114,6 +114,9 @@ def openmm_unit_to_pint(openmm_unit):
         The converted unit.
     """
     from openforcefield.utils import unit_to_string
+
+    from simtk import unit as simtk_unit
+    assert isinstance(openmm_unit, simtk_unit.Unit)
 
     openmm_unit_string = unit_to_string(openmm_unit)
 
@@ -143,6 +146,8 @@ def pint_quantity_to_openmm(pint_quantity):
         The converted quantity.
     """
 
+    assert isinstance(pint_quantity, unit.Quantity)
+
     pint_unit = pint_quantity.units
     pint_raw_value = pint_quantity.magnitude
 
@@ -166,6 +171,8 @@ def pint_unit_to_openmm(pint_unit):
         The converted unit.
     """
     from openforcefield.utils import string_to_unit
+
+    assert isinstance(pint_unit, unit.Unit)
 
     pint_unit_string = str(pint_unit)
 
