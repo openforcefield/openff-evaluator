@@ -7,6 +7,7 @@ import os
 from pint import UndefinedUnitError
 
 from propertyestimator import unit
+from simtk import unit as simtk_unit
 
 
 def setup_platform_with_resources(compute_resources, high_precision=False):
@@ -74,6 +75,32 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
     return platform
 
 
+# Some openmm units are not currently supported.
+unsupported_openmm_units = {
+    simtk_unit.yottojoule,
+    simtk_unit.item,
+    simtk_unit.yottopascal,
+    simtk_unit.century,
+    simtk_unit.yottosecond,
+    simtk_unit.yottogram,
+    simtk_unit.bohr,
+    simtk_unit.yottocalorie,
+    simtk_unit.yottoliter,
+    simtk_unit.yottometer,
+    simtk_unit.debye,
+    simtk_unit.yottonewton,
+    simtk_unit.ban,
+    simtk_unit.yottomolar,
+    simtk_unit.nat,
+    simtk_unit.mmHg,
+    simtk_unit.year,
+    simtk_unit.psi,
+    simtk_unit.pound_mass,
+    simtk_unit.stone,
+    simtk_unit.millenium
+}
+
+
 def openmm_quantity_to_pint(openmm_quantity):
     """Converts a `simtk.unit.Quantity` to a `pint.Quantity`.
 
@@ -88,8 +115,12 @@ def openmm_quantity_to_pint(openmm_quantity):
         The converted quantity.
     """
 
-    from simtk import unit as simtk_unit
     assert isinstance(openmm_quantity, simtk_unit.Quantity)
+
+    if openmm_quantity.unit in unsupported_openmm_units:
+
+        raise ValueError(f'Quantities bearing the {openmm_quantity.unit} are not '
+                         f'currently supported by pint.')
 
     openmm_unit = openmm_quantity.unit
     openmm_raw_value = openmm_quantity.value_in_unit(openmm_unit)
@@ -115,8 +146,12 @@ def openmm_unit_to_pint(openmm_unit):
     """
     from openforcefield.utils import unit_to_string
 
-    from simtk import unit as simtk_unit
     assert isinstance(openmm_unit, simtk_unit.Unit)
+
+    if openmm_unit in unsupported_openmm_units:
+
+        raise ValueError(f'Quantities bearing the {openmm_unit} are not '
+                         f'currently supported by pint.')
 
     openmm_unit_string = unit_to_string(openmm_unit)
 
@@ -134,6 +169,10 @@ def openmm_unit_to_pint(openmm_unit):
 
 def pint_quantity_to_openmm(pint_quantity):
     """Converts a `pint.Quantity` to a `simtk.unit.Quantity`.
+
+    Notes
+    -----
+    Not all pint units are available in OpenMM.
 
     Parameters
     ----------
@@ -159,6 +198,10 @@ def pint_quantity_to_openmm(pint_quantity):
 
 def pint_unit_to_openmm(pint_unit):
     """Converts a `pint.Unit` to a `simtk.unit.Unit`.
+
+    Notes
+    -----
+    Not all pint units are available in OpenMM.
 
     Parameters
     ----------

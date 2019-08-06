@@ -7,7 +7,7 @@ from simtk import unit as simtk_unit
 
 from propertyestimator import unit
 from propertyestimator.utils.openmm import openmm_quantity_to_pint, pint_quantity_to_openmm, openmm_unit_to_pint, \
-    pint_unit_to_openmm
+    pint_unit_to_openmm, unsupported_openmm_units
 
 
 def _get_all_openmm_units():
@@ -21,32 +21,7 @@ def _get_all_openmm_units():
     all_openmm_units = set([unit_type for _, unit_type in inspect.getmembers(simtk_unit)
                            if isinstance(unit_type, simtk_unit.Unit)])
 
-    # There are some units known to not be supported
-    excluded_units = {
-        simtk_unit.yottojoule,
-        simtk_unit.item,
-        simtk_unit.yottopascal,
-        simtk_unit.century,
-        simtk_unit.yottosecond,
-        simtk_unit.yottogram,
-        simtk_unit.bohr,
-        simtk_unit.yottocalorie,
-        simtk_unit.yottoliter,
-        simtk_unit.yottometer,
-        simtk_unit.debye,
-        simtk_unit.yottonewton,
-        simtk_unit.ban,
-        simtk_unit.yottomolar,
-        simtk_unit.nat,
-        simtk_unit.mmHg,
-        simtk_unit.year,
-        simtk_unit.psi,
-        simtk_unit.pound_mass,
-        simtk_unit.stone,
-        simtk_unit.millenium
-    }
-
-    all_openmm_units = all_openmm_units.difference(excluded_units)
+    all_openmm_units = all_openmm_units.difference(unsupported_openmm_units)
 
     return all_openmm_units
 
@@ -64,6 +39,7 @@ def _get_all_pint_units():
 
     all_pint_units = [openmm_unit_to_pint(openmm_unit) for openmm_unit in all_openmm_units]
     return all_pint_units
+
 
 @pytest.mark.parametrize("openmm_unit", _get_all_openmm_units())
 @pytest.mark.parametrize("value", [random(), randint(1, 10), [random(), random()], np.array([random(), random()])])
