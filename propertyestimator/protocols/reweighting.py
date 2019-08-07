@@ -4,7 +4,6 @@ A collection of protocols for reweighting cached simulation data.
 
 import json
 import logging
-import sys
 from os import path
 
 import numpy as np
@@ -576,9 +575,14 @@ class ReweightWithMBARProtocol(BaseProtocol):
         observable_unit = self._reference_observables[0].units
 
         if self._bootstrap_uncertainties:
-            self._execute_with_bootstrapping(observable_unit, observables=observables)
+            error = self._execute_with_bootstrapping(observable_unit, observables=observables)
         else:
-            self._execute_without_bootstrapping(observable_unit, observables=observables)
+            error = self._execute_without_bootstrapping(observable_unit, observables=observables)
+
+        if error is not None:
+
+            error.directory = directory
+            return error
 
         return self._get_output_dictionary()
 
@@ -635,6 +639,11 @@ class ReweightWithMBARProtocol(BaseProtocol):
             The expected unit of the reweighted observable.
         observables: dict of str and numpy.ndarray
             The observables to reweight which have been stripped of their units.
+
+        Returns
+        -------
+        PropertyEstimatorException, optional
+            None if the method executed normally, otherwise the exception that was raised.
         """
 
         reference_reduced_potentials, target_reduced_potentials = self._load_reduced_potentials()
@@ -668,10 +677,9 @@ class ReweightWithMBARProtocol(BaseProtocol):
 
         if self._effective_samples < self._required_effective_samples:
 
-            logging.info(f'{self.id}: There was not enough effective samples '
-                         f'to reweight - {self._effective_samples} < {self._required_effective_samples}')
-
-            uncertainty = sys.float_info.max
+            return PropertyEstimatorException(message=f'{self.id}: There was not enough effective samples '
+                                                      f'to reweight - {self._effective_samples} < '
+                                                      f'{self._required_effective_samples}')
 
         self._value = EstimatedQuantity(value * observable_unit,
                                         uncertainty * observable_unit,
@@ -703,10 +711,9 @@ class ReweightWithMBARProtocol(BaseProtocol):
 
         if self._effective_samples < self._required_effective_samples:
 
-            logging.info(f'{self.id}: There was not enough effective samples '
-                         f'to reweight - {self._effective_samples} < {self._required_effective_samples}')
-
-            uncertainty = sys.float_info.max
+            return PropertyEstimatorException(message=f'{self.id}: There was not enough effective samples '
+                                                      f'to reweight - {self._effective_samples} < '
+                                                      f'{self._required_effective_samples}')
 
         self._value = EstimatedQuantity(values[observable_key] * observable_unit,
                                         uncertainty * observable_unit,
