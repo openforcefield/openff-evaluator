@@ -510,7 +510,7 @@ class DaskLocalCluster(BaseDaskBackend):
 
         if self._resources_per_worker.number_of_gpus > 0:
 
-            for index, worker in enumerate(self._cluster.workers):
+            for index, worker in self._cluster.workers.items():
                 self._gpu_device_indices_by_worker[worker.id] = str(index)
 
         super(DaskLocalCluster, self).start()
