@@ -2,8 +2,8 @@
 A collection of protocols for running analysing the results of molecular simulations.
 """
 import numpy as np
-from simtk import unit
 
+from propertyestimator import unit
 from propertyestimator.substances import Substance
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity

@@ -5,8 +5,8 @@ import os
 
 import numpy as np
 import pytest
-from simtk import unit
 
+from propertyestimator import unit
 from propertyestimator.utils import get_data_filename
 from propertyestimator.utils.statistics import StatisticsArray, bootstrap, ObservableType
 

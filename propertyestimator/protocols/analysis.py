@@ -6,8 +6,8 @@ import logging
 from os import path
 
 import numpy as np
-from simtk import unit
 
+from propertyestimator import unit
 from propertyestimator.utils import statistics, timeseries
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
@@ -187,23 +187,23 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
 
         values = self._statistics[self._statistics_type]
 
-        statistics_unit = values[0].unit
-        values.value_in_unit(statistics_unit)
+        statistics_unit = values[0].units
 
-        values = np.array(values) / float(self._divisor)
+        unitless_values = values.to(statistics_unit).magnitude
+        unitless_values = np.array(unitless_values) / float(self._divisor)
 
-        values, self._equilibration_index, self._statistical_inefficiency = \
-            timeseries.decorrelate_time_series(values)
+        unitless_values, self._equilibration_index, self._statistical_inefficiency = \
+            timeseries.decorrelate_time_series(unitless_values)
 
         final_value, final_uncertainty = bootstrap(self._bootstrap_function,
                                                    self._bootstrap_iterations,
                                                    self._bootstrap_sample_size,
-                                                   values=values)
+                                                   values=unitless_values)
 
-        self._uncorrelated_values = values * statistics_unit
+        self._uncorrelated_values = unitless_values * statistics_unit
 
-        self._value = EstimatedQuantity(unit.Quantity(final_value, statistics_unit),
-                                        unit.Quantity(final_uncertainty, statistics_unit), self.id)
+        self._value = EstimatedQuantity(final_value * statistics_unit,
+                                        final_uncertainty * statistics_unit, self.id)
 
         logging.info('Extracted {}: {}'.format(self._statistics_type, self.id))
 

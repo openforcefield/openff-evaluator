@@ -7,6 +7,7 @@ Property calculation toolkit from the Open Forcefield Consortium.
 # Safe to remove with Python 3-only code
 from __future__ import absolute_import
 
+import os
 import pkg_resources
 
 from ._version import get_versions
@@ -23,6 +24,10 @@ for entry_point in pkg_resources.iter_entry_points('propertyestimator.plugins'):
 
         formatted_exception = traceback.format_exception(None, e, e.__traceback__)
         logging.warning(f'Could not load the {entry_point} plugin: {formatted_exception}')
+
+# Set up pint.
+from pint import UnitRegistry
+unit = UnitRegistry()
 
 # Handle versioneer
 versions = get_versions()

@@ -210,9 +210,6 @@ class PropertyCalculationLayer:
 
                 matches = [x for x in server_request.queued_properties if x.id == returned_output.property_id]
 
-                for match in matches:
-                    server_request.queued_properties.remove(match)
-
                 if len(matches) > 1:
                     raise ValueError(f'A property id ({returned_output.property_id}) conflict occurred.')
 
@@ -233,6 +230,12 @@ class PropertyCalculationLayer:
                                      'queue based calculation backends, but should be investigated.')
 
                     continue
+
+                if returned_output.exception is not None:
+                    continue
+
+                for match in matches:
+                    server_request.queued_properties.remove(match)
 
                 substance_id = returned_output.calculated_property.substance.identifier
 

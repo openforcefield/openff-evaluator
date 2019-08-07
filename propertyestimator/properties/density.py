@@ -136,7 +136,10 @@ class Density(PhysicalProperty):
                                              coordinate_path,
                                              trajectory_path,
                                              'grad',
-                                             ProtocolPath('uncorrelated_values', density_calculation.id))
+                                             ProtocolPath('uncorrelated_values', density_calculation.id),
+                                             effective_sample_indices=ProtocolPath('effective_sample_indices',
+                                                                                   base_reweighting_protocols.
+                                                                                   mbar_protocol.id))
 
         schema = WorkflowSchema(property_type=Density.__name__)
         schema.id = '{}{}'.format(Density.__name__, 'Schema')

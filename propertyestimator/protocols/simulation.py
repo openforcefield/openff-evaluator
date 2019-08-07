@@ -10,12 +10,14 @@ from enum import Enum
 
 import numpy as np
 import yaml
-from simtk import unit, openmm
+from simtk import openmm, unit as simtk_unit
 from simtk.openmm import app
 
+from propertyestimator import unit
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.openmm import setup_platform_with_resources
+from propertyestimator.utils.openmm import setup_platform_with_resources, openmm_quantity_to_pint,\
+    pint_quantity_to_openmm
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import StatisticsArray, ObservableType
 from propertyestimator.utils.utils import temporarily_change_directory, safe_unlink
@@ -72,7 +74,7 @@ class RunEnergyMinimisation(BaseProtocol):
 
         self._enable_pbc = True
 
-        self._tolerance = 10*unit.kilojoules_per_mole
+        self._tolerance = 10*unit.kilojoules / unit.mole
         self._max_iterations = 0
 
         self._output_coordinate_file = None
@@ -100,7 +102,7 @@ class RunEnergyMinimisation(BaseProtocol):
                 force.setNonbondedMethod(0)  # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1
 
         # TODO: Expose the constraint tolerance
-        integrator = openmm.VerletIntegrator(0.002 * unit.picoseconds)
+        integrator = openmm.VerletIntegrator(0.002 * simtk_unit.picoseconds)
         simulation = app.Simulation(input_pdb_file.topology, self._system, integrator, platform)
 
         box_vectors = input_pdb_file.topology.getPeriodicBoxVectors()
@@ -111,7 +113,7 @@ class RunEnergyMinimisation(BaseProtocol):
         simulation.context.setPeriodicBoxVectors(*box_vectors)
         simulation.context.setPositions(input_pdb_file.positions)
 
-        simulation.minimizeEnergy(self._tolerance, self._max_iterations)
+        simulation.minimizeEnergy(pint_quantity_to_openmm(self._tolerance), self._max_iterations)
 
         positions = simulation.context.getState(getPositions=True).getPositions()
 
@@ -227,8 +229,10 @@ class RunOpenMMSimulation(BaseProtocol):
 
     def execute(self, directory, available_resources):
 
-        temperature = self._thermodynamic_state.temperature
-        pressure = None if self._ensemble == Ensemble.NVT else self._thermodynamic_state.pressure
+        # We handle most things in OMM units here.
+        temperature = pint_quantity_to_openmm(self._thermodynamic_state.temperature)
+        pressure = pint_quantity_to_openmm(None if self._ensemble == Ensemble.NVT else
+                                           self._thermodynamic_state.pressure)
 
         if temperature is None:
 
@@ -328,9 +332,12 @@ class RunOpenMMSimulation(BaseProtocol):
         system = openmm_state.get_system(remove_thermostat=True)
 
         # Set up the integrator.
+        thermostat_friction = pint_quantity_to_openmm(self._thermostat_friction)
+        timestep = pint_quantity_to_openmm(self._timestep)
+
         integrator = openmmtools.integrators.LangevinIntegrator(temperature=temperature,
-                                                                collision_rate=self._thermostat_friction,
-                                                                timestep=self._timestep)
+                                                                collision_rate=thermostat_friction,
+                                                                timestep=timestep)
 
         # Create the simulation context.
         context = openmm.Context(system, integrator, platform)
@@ -394,33 +401,36 @@ class RunOpenMMSimulation(BaseProtocol):
         StatisticsArray
             The statistics array with statistics appended.
         """
-        beta = 1.0 / (unit.BOLTZMANN_CONSTANT_kB * temperature)
+        temperature = openmm_quantity_to_pint(temperature)
+        pressure = openmm_quantity_to_pint(pressure)
 
-        potential_energies = np.array(raw_statistics[ObservableType.PotentialEnergy]) * unit.kilojoule_per_mole
-        kinetic_energies = np.array(raw_statistics[ObservableType.KineticEnergy]) * unit.kilojoule_per_mole
+        beta = 1.0 / (unit.boltzmann_constant * temperature)
+
+        potential_energies = np.array(raw_statistics[ObservableType.PotentialEnergy]) * unit.kilojoules / unit.mole
+        kinetic_energies = np.array(raw_statistics[ObservableType.KineticEnergy]) * unit.kilojoules / unit.mole
         volumes = np.array(raw_statistics[ObservableType.Volume]) * unit.angstrom ** 3
 
         # Calculate the instantaneous temperature, taking account the
         # systems degrees of freedom.
-        temperatures = 2.0 * kinetic_energies / (degrees_of_freedom * unit.MOLAR_GAS_CONSTANT_R)
+        temperatures = 2.0 * kinetic_energies / (degrees_of_freedom * unit.molar_gas_constant)
 
         # Calculate the systems enthalpy and reduced potential.
         total_energies = potential_energies + kinetic_energies
         enthalpies = None
 
-        reduced_potentials = potential_energies / unit.AVOGADRO_CONSTANT_NA
+        reduced_potentials = potential_energies / unit.avogadro_number
 
         if pressure is not None:
 
             pv_terms = pressure * volumes
 
             reduced_potentials += pv_terms
-            enthalpies = total_energies + pv_terms * unit.AVOGADRO_CONSTANT_NA
+            enthalpies = total_energies + pv_terms * unit.avogadro_number
 
         reduced_potentials = (beta * reduced_potentials) * unit.dimensionless
 
         # Calculate the systems density.
-        densities = total_mass / (volumes * unit.AVOGADRO_CONSTANT_NA)
+        densities = total_mass / (volumes * unit.avogadro_number)
 
         statistics_array = StatisticsArray()
 
@@ -484,17 +494,19 @@ class RunOpenMMSimulation(BaseProtocol):
         system = context.getSystem()
 
         degrees_of_freedom = sum([3 for i in range(system.getNumParticles()) if
-                                  system.getParticleMass(i) > 0 * unit.dalton])
+                                  system.getParticleMass(i) > 0 * simtk_unit.dalton])
 
         degrees_of_freedom -= system.getNumConstraints()
 
         if any(type(system.getForce(i)) == openmm.CMMotionRemover for i in range(system.getNumForces())):
             degrees_of_freedom -= 3
 
-        total_mass = 0.0 * unit.dalton
+        total_mass = 0.0 * simtk_unit.dalton
 
         for i in range(system.getNumParticles()):
             total_mass += system.getParticleMass(i)
+
+        total_mass = openmm_quantity_to_pint(total_mass)
 
         # Perform the simulation.
         current_step_count = 0
@@ -520,11 +532,11 @@ class RunOpenMMSimulation(BaseProtocol):
 
                 # Write out the energies and system statistics.
                 raw_statistics[ObservableType.PotentialEnergy].append(state.getPotentialEnergy().
-                                                                      value_in_unit(unit.kilojoule_per_mole))
+                                                                      value_in_unit(simtk_unit.kilojoules_per_mole))
                 raw_statistics[ObservableType.KineticEnergy].append(state.getKineticEnergy().
-                                                                    value_in_unit(unit.kilojoule_per_mole))
+                                                                    value_in_unit(simtk_unit.kilojoules_per_mole))
                 raw_statistics[ObservableType.Volume].append(state.getPeriodicBoxVolume().
-                                                             value_in_unit(unit.angstrom ** 3))
+                                                             value_in_unit(simtk_unit.angstrom ** 3))
 
                 self._write_statistics_array(raw_statistics, temperature, pressure,
                                              degrees_of_freedom, total_mass)
@@ -693,8 +705,8 @@ class BaseYankProtocol(BaseProtocol):
             'verbose': self._verbose,
             'output_dir': '.',
 
-            'temperature': quantity_to_string(self._thermodynamic_state.temperature),
-            'pressure': quantity_to_string(self._thermodynamic_state.pressure),
+            'temperature': quantity_to_string(pint_quantity_to_openmm(self._thermodynamic_state.temperature)),
+            'pressure': quantity_to_string(pint_quantity_to_openmm(self._thermodynamic_state.pressure)),
 
             'minimize': True,
 
@@ -702,7 +714,7 @@ class BaseYankProtocol(BaseProtocol):
             'default_nsteps_per_iteration': self._steps_per_iteration,
             'checkpoint_interval': self._checkpoint_interval,
 
-            'default_timestep': quantity_to_string(self._timestep),
+            'default_timestep': quantity_to_string(pint_quantity_to_openmm(self._timestep)),
 
             'annihilate_electrostatics': True,
             'annihilate_sterics': False,
@@ -932,8 +944,8 @@ class BaseYankProtocol(BaseProtocol):
             if error is not None:
                 return PropertyEstimatorException(directory, error)
 
-        self._estimated_free_energy = EstimatedQuantity(free_energy,
-                                                        free_energy_uncertainty,
+        self._estimated_free_energy = EstimatedQuantity(openmm_quantity_to_pint(free_energy),
+                                                        openmm_quantity_to_pint(free_energy_uncertainty),
                                                         self._id)
 
         return self._get_output_dictionary()

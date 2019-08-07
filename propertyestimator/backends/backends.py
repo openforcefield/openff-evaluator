@@ -4,7 +4,7 @@ Defines the base API for the property estimator task calculation backend.
 import re
 from enum import Enum
 
-from simtk import unit
+from propertyestimator import unit
 
 
 class ComputeResources:
@@ -50,9 +50,10 @@ class ComputeResources:
         self._number_of_gpus = number_of_gpus
 
         self._preferred_gpu_toolkit = preferred_gpu_toolkit
-        self._gpu_device_indices = None  # A workaround for when using a local cluster
-                                         # backend which is strictly for internal purposes
-                                         # only for now.
+        # A workaround for when using a local cluster
+        # backend which is strictly for internal purposes
+        # only for now.
+        self._gpu_device_indices = None
         
         assert self._number_of_threads >= 0
         assert self._number_of_gpus >= 0
@@ -108,7 +109,7 @@ class QueueWorkerResources(ComputeResources):
         return self._wallclock_time_limit
 
     def __init__(self, number_of_threads=1, number_of_gpus=0, preferred_gpu_toolkit=None,
-                 per_thread_memory_limit=1*(unit.giga*unit.bytes), wallclock_time_limit="01:00"):
+                 per_thread_memory_limit=1*unit.gigabytes, wallclock_time_limit="01:00"):
         """Constructs a new ComputeResources object.
 
         Notes
@@ -136,7 +137,7 @@ class QueueWorkerResources(ComputeResources):
         assert self._per_thread_memory_limit is not None
 
         assert (isinstance(self._per_thread_memory_limit, unit.Quantity) and
-                self._per_thread_memory_limit.unit.is_compatible(unit.byte))
+                unit.get_base_units(unit.byte)[-1] == unit.get_base_units(self._per_thread_memory_limit.units)[-1])
 
         assert self._per_thread_memory_limit > 0 * unit.byte
 

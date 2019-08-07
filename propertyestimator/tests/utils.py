@@ -1,9 +1,9 @@
-import json
 import os
 import shutil
 from enum import Enum
 
 from propertyestimator import server
+from propertyestimator import unit
 from propertyestimator.backends import DaskLocalCluster, ComputeResources, QueueWorkerResources, DaskLSFBackend
 from propertyestimator.datasets import PhysicalPropertyDataSet
 from propertyestimator.properties import Density
@@ -13,9 +13,7 @@ from propertyestimator.storage import LocalFileStorage, StoredSimulationData
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import get_data_filename
-from propertyestimator.utils.serialization import TypedJSONEncoder
 from propertyestimator.workflow import WorkflowOptions
-from simtk import unit
 
 
 class BackendType(Enum):
@@ -25,7 +23,8 @@ class BackendType(Enum):
     CPU = 'CPU'
 
 
-def setup_server(backend_type=BackendType.LocalCPU, max_number_of_workers=1, conda_environment='propertyestimator'):
+def setup_server(backend_type=BackendType.LocalCPU, max_number_of_workers=1,
+                 conda_environment='propertyestimator', worker_memory=8 * unit.gigabyte):
 
     working_directory = 'working_directory'
     storage_directory = 'storage_directory'
@@ -52,7 +51,7 @@ def setup_server(backend_type=BackendType.LocalCPU, max_number_of_workers=1, con
         queue_resources = QueueWorkerResources(number_of_threads=1,
                                                number_of_gpus=1,
                                                preferred_gpu_toolkit=QueueWorkerResources.GPUToolkit.CUDA,
-                                               per_thread_memory_limit=12 * (unit.giga * unit.byte),
+                                               per_thread_memory_limit=worker_memory,
                                                wallclock_time_limit="05:59")
 
         worker_script_commands = [
@@ -76,7 +75,7 @@ def setup_server(backend_type=BackendType.LocalCPU, max_number_of_workers=1, con
     elif backend_type == BackendType.CPU:
 
         queue_resources = QueueWorkerResources(number_of_threads=1,
-                                               per_thread_memory_limit=10 * (unit.giga * unit.byte),
+                                               per_thread_memory_limit=worker_memory,
                                                wallclock_time_limit="01:30")
 
         worker_script_commands = [
@@ -287,8 +286,8 @@ def create_filterable_data_set():
                                                                                 pressure=1.5 * unit.atmosphere),
                                          phase=PropertyPhase.Solid,
                                          substance=oxygen_substance,
-                                         value=1 * unit.kilojoules_per_mole,
-                                         uncertainty=0.11 * unit.kilojoules_per_mole,
+                                         value=1 * unit.kilojoules / unit.mole,
+                                         uncertainty=0.11 * unit.kilojoules / unit.mole,
                                          source=source)
 
     data_set = PhysicalPropertyDataSet()

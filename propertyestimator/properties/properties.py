@@ -306,12 +306,12 @@ class PhysicalProperty(TypedBaseModel):
 
     @property
     def temperature(self):
-        """simtk.unit.Quantity or None: The temperature at which the property was collected."""
+        """propertyestimator.unit.Quantity or None: The temperature at which the property was collected."""
         return None if self.thermodynamic_state is None else self.thermodynamic_state.temperature
 
     @property
     def pressure(self):
-        """simtk.unit.Quantity or None: The pressure at which the property was collected."""
+        """propertyestimator.unit.Quantity or None: The pressure at which the property was collected."""
         return None if self.thermodynamic_state is None else self.thermodynamic_state.pressure
 
     @property
@@ -332,9 +332,9 @@ class PhysicalProperty(TypedBaseModel):
 
         Parameters
         ----------
-        value : simtk.unit.Quantity
+        value : propertyestimator.unit.Quantity
             The value of the property.
-        uncertainty : simtk.unit.Quantity
+        uncertainty : propertyestimator.unit.Quantity
             The uncertainty in the properties value.
         """
         self.value = value

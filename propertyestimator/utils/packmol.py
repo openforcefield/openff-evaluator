@@ -17,8 +17,8 @@ from distutils.spawn import find_executable
 
 import numpy as np
 from simtk import openmm
-from simtk import unit
 
+from propertyestimator import unit
 from propertyestimator.utils.utils import temporarily_change_directory
 
 PACKMOL_PATH = find_executable("packmol") or shutil.which("packmol") or \
@@ -72,10 +72,10 @@ def pack_box(molecules,
         A file path to the PDB coordinates of the structure to be solvated.
     tolerance : float
         The minimum spacing between molecules during packing in angstroms.
-    box_size : simtk.unit.Quantity, optional
+    box_size : propertyestimator.unit.Quantity, optional
         The size of the box to generate in units compatible with angstroms. If `None`,
         `mass_density` must be provided.
-    mass_density : simtk.unit.Quantity, optional
+    mass_density : propertyestimator.unit.Quantity, optional
         Target mass density for final system with units compatible with g/mL. If `None`,
         `box_size` must be provided.
     box_aspect_ratio: list of float, optional
@@ -94,8 +94,8 @@ def pack_box(molecules,
     -------
     topology : simtk.openmm.Topology
         Topology of the resulting system
-    positions : simtk.unit.Quantity
-        A `simtk.unit.Quantity` wrapped `numpy.ndarray` (shape=[natoms,3]) which contains
+    positions : propertyestimator.unit.Quantity
+        A `propertyestimator.unit.Quantity` wrapped `numpy.ndarray` (shape=[natoms,3]) which contains
         the created positions with units compatible with angstroms.
     """
 
@@ -104,7 +104,7 @@ def pack_box(molecules,
 
     if box_size is not None and len(box_size) != 3:
 
-        raise ValueError('`box_size` must be a simtk.unit.Quantity '
+        raise ValueError('`box_size` must be a propertyestimator.unit.Quantity '
                          'wrapped list of length 3')
 
     if mass_density is not None and box_aspect_ratio is None:
@@ -172,7 +172,7 @@ def pack_box(molecules,
                                                             number_of_copies,
                                                             mass_density)
 
-        initial_box_length_angstrom = initial_box_length.value_in_unit(unit.angstrom)
+        initial_box_length_angstrom = initial_box_length.to(unit.angstrom).magnitude
 
         aspect_ratio_normalizer = (box_aspect_ratio[0] *
                                    box_aspect_ratio[1] *
@@ -186,7 +186,7 @@ def pack_box(molecules,
 
         box_size /= aspect_ratio_normalizer
 
-    unitless_box_angstrom = box_size.value_in_unit(unit.angstrom)
+    unitless_box_angstrom = box_size.to(unit.angstrom).magnitude
 
     packmol_input = _HEADER_TEMPLATE.format(tolerance, output_file_name)
 
@@ -265,13 +265,14 @@ def pack_box(molecules,
 
     # Add a 2 angstrom buffer to help alleviate PBC issues.
     box_vectors = [
-        openmm.Vec3((box_size[0] + 2.0 * unit.angstrom).value_in_unit(unit.nanometers), 0, 0),
-        openmm.Vec3(0, (box_size[1] + 2.0 * unit.angstrom).value_in_unit(unit.nanometers), 0),
-        openmm.Vec3(0, 0, (box_size[2] + 2.0 * unit.angstrom).value_in_unit(unit.nanometers))
+        openmm.Vec3((box_size[0] + 2.0 * unit.angstrom).to(unit.nanometers).magnitude, 0, 0),
+        openmm.Vec3(0, (box_size[1] + 2.0 * unit.angstrom).to(unit.nanometers).magnitude, 0),
+        openmm.Vec3(0, 0, (box_size[2] + 2.0 * unit.angstrom).to(unit.nanometers).magnitude)
     ]
 
     # Set the periodic box vectors.
-    topology.setPeriodicBoxVectors(box_vectors * unit.nanometers)
+    from simtk import unit as simtk_unit
+    topology.setPeriodicBoxVectors(box_vectors * simtk_unit.nanometers)
 
     return topology, positions
 
@@ -291,20 +292,21 @@ def _approximate_volume_by_density(molecules,
         Number of copies of the molecules.
     box_scaleup_factor : float, optional, default = 1.1
         Factor by which the estimated box size is increased
-    mass_density : simtk.unit.Quantity with units compatible with grams/milliliters, optional,
-                   default = 1.0*grams/milliliters
-        Target mass density for final system, if available.
+    mass_density : propertyestimator.unit.Quantity, optional
+        The target mass density for final system, if available.
+        It should have units compatible with grams/milliliters.
 
     Returns
     -------
-    box_edge : simtk.unit.Quantity with units compatible with angstroms
-        The size (edge length) of the box to generate.
+    box_edge : propertyestimator.unit.Quantity
+        The size (edge length) of the box to generate in units
+        compatible with angstroms.
 
     Notes
     -----
-    By default, boxes are only modestly large. This approach has not been extensively tested for stability but has been
-    used in the Mobley lab for perhaps ~100 different systems without substantial problems.
-
+    By default, boxes are only modestly large. This approach has not been
+    extensively tested for stability but has been used in the Mobley lab
+    for perhaps ~100 different systems without substantial problems.
     """
     from openeye import oechem
 
@@ -314,7 +316,7 @@ def _approximate_volume_by_density(molecules,
     for (molecule, number) in zip(molecules, n_copies):
 
         molecule_mass = oechem.OECalculateMolecularWeight(molecule) * \
-                        unit.grams / unit.mole / unit.AVOGADRO_CONSTANT_NA
+                        unit.grams / unit.mole / unit.avogadro_number
 
         molecule_volume = molecule_mass / mass_density
 
@@ -352,13 +354,14 @@ def _correct_packmol_output(file_path, molecule_topologies,
     """
 
     import mdtraj
+    from simtk import unit as simtk_unit
 
     trajectory = mdtraj.load(file_path)
 
     atoms_data_frame, _ = trajectory.topology.to_dataframe()
 
     all_bonds = []
-    all_positions = trajectory.openmm_positions(0)
+    all_positions = trajectory.openmm_positions(0).value_in_unit(simtk_unit.angstrom) * unit.angstrom
 
     all_topologies = []
     all_copies = []
@@ -388,7 +391,8 @@ def _correct_packmol_output(file_path, molecule_topologies,
 
             offset += molecule_topology.n_atoms
 
-    all_bonds = np.unique(all_bonds, axis=0).tolist()
+    if len(all_bonds) > 0:
+        all_bonds = np.unique(all_bonds, axis=0).tolist()
 
     # We have to check whether there are any existing bonds, because mdtraj will
     # sometimes automatically detect some based on residue names (e.g HOH), and

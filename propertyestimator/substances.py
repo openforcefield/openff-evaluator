@@ -7,8 +7,8 @@ import math
 from enum import Enum
 
 import numpy as np
-from simtk import unit
 
+from propertyestimator import unit
 from propertyestimator.utils.serialization import TypedBaseModel
 
 

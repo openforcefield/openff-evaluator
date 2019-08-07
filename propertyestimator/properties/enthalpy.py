@@ -4,8 +4,7 @@ A collection of enthalpy physical property definitions.
 
 from collections import namedtuple
 
-from simtk import unit
-
+from propertyestimator import unit
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.properties.properties import PhysicalProperty, PropertyPhase
@@ -617,7 +616,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
         energy_of_vaporization.value_a = ProtocolPath('value', extract_liquid_energy.id)
 
         ideal_volume = miscellaneous.MultiplyValue('ideal_volume')
-        ideal_volume.value = EstimatedQuantity(unit.constants.MOLAR_GAS_CONSTANT_R,
+        ideal_volume.value = EstimatedQuantity(1.0 * unit.molar_gas_constant,
                                                0.0 * unit.joule / unit.mole / unit.kelvin,
                                                'Universal Constant')
         ideal_volume.multiplier = ProtocolPath('thermodynamic_state.temperature', 'global')
@@ -791,7 +790,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
         energy_of_vaporization.value_a = ProtocolPath('value', liquid_protocols.mbar_protocol.id)
 
         ideal_volume = miscellaneous.MultiplyValue('ideal_volume')
-        ideal_volume.value = EstimatedQuantity(unit.constants.MOLAR_GAS_CONSTANT_R,
+        ideal_volume.value = EstimatedQuantity(1.0 * unit.molar_gas_constant,
                                                0.0 * unit.joule / unit.mole / unit.kelvin,
                                                'Universal Constant')
         ideal_volume.multiplier = ProtocolPath('thermodynamic_state.temperature', 'global')
@@ -820,7 +819,9 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                              liquid_trajectory_path,
                                              'grad',
                                              ProtocolPath('uncorrelated_values', extract_liquid_energy.id),
-                                             id_prefix='liquid_')
+                                             id_prefix='liquid_',
+                                             effective_sample_indices=ProtocolPath('effective_sample_indices',
+                                                                                   liquid_protocols.mbar_protocol.id))
 
         # Set up the gas phase gradient calculations
         gas_coordinate_path = ProtocolPath('output_coordinate_path', gas_protocols.concatenate_trajectories.id)
@@ -834,7 +835,9 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                              'grad',
                                              ProtocolPath('uncorrelated_values', extract_gas_energy.id),
                                              id_prefix='gas_',
-                                             enable_pbc=False)
+                                             enable_pbc=False,
+                                             effective_sample_indices=ProtocolPath('effective_sample_indices',
+                                                                                   gas_protocols.mbar_protocol.id))
 
         # Combine the gradients.
         combine_gradients = gradients.SubtractGradients('combine_gradients_$(grad)')
