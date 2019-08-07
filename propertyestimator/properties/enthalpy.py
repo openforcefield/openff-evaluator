@@ -819,7 +819,9 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                              liquid_trajectory_path,
                                              'grad',
                                              ProtocolPath('uncorrelated_values', extract_liquid_energy.id),
-                                             id_prefix='liquid_')
+                                             id_prefix='liquid_',
+                                             effective_sample_indices=ProtocolPath('effective_sample_indices',
+                                                                                   liquid_protocols.mbar_protocol.id))
 
         # Set up the gas phase gradient calculations
         gas_coordinate_path = ProtocolPath('output_coordinate_path', gas_protocols.concatenate_trajectories.id)
@@ -833,7 +835,9 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                              'grad',
                                              ProtocolPath('uncorrelated_values', extract_gas_energy.id),
                                              id_prefix='gas_',
-                                             enable_pbc=False)
+                                             enable_pbc=False,
+                                             effective_sample_indices=ProtocolPath('effective_sample_indices',
+                                                                                   gas_protocols.mbar_protocol.id))
 
         # Combine the gradients.
         combine_gradients = gradients.SubtractGradients('combine_gradients_$(grad)')

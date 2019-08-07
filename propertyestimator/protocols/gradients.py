@@ -88,6 +88,12 @@ class GradientReducedPotentials(BaseProtocol):
         system which only contains the parameter of interest.
         """
 
+    @protocol_input(list)
+    def effective_sample_indices(self):
+        """NOTE - this is currently a placeholder input ONLY, and
+        currently is not used for anything.
+        """
+
     @protocol_output(list)
     def reference_potential_paths(self):
         pass
@@ -135,6 +141,10 @@ class GradientReducedPotentials(BaseProtocol):
 
         self._reverse_parameter_value = None
         self._forward_parameter_value = None
+
+        # This is currently a placeholder variable ONLY
+        # and should not be used for anything.
+        self._effective_sample_indices = []
 
     def _build_reduced_system(self, original_force_field, topology, scale_amount=None):
         """Produces an OpenMM system containing only forces for the specified parameter,

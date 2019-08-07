@@ -20,7 +20,7 @@ from propertyestimator.utils import timeseries
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import bootstrap
-from propertyestimator.workflow import plugins
+from propertyestimator.workflow import plugins, WorkflowOptions
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
 from propertyestimator.workflow.schemas import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
@@ -429,6 +429,10 @@ class DielectricConstant(PhysicalProperty):
         mbar_protocol.bootstrap_uncertainties = True
         mbar_protocol.bootstrap_iterations = 200
 
+        # TODO: Implement a cleaner way to handle this.
+        if options.convergence_mode == WorkflowOptions.ConvergenceMode.NoChecks:
+            mbar_protocol.required_effective_samples = -1
+
         # Make a copy of the mbar reweighting schema to use for evaulating gradients by reweighting.
         mbar_template_schema = mbar_protocol.schema
 
@@ -454,7 +458,9 @@ class DielectricConstant(PhysicalProperty):
                                              coordinate_path,
                                              trajectory_path,
                                              'grad',
-                                             template_reweighting_schema=mbar_template_schema)
+                                             template_reweighting_schema=mbar_template_schema,
+                                             effective_sample_indices=ProtocolPath('effective_sample_indices',
+                                                                                   mbar_protocol.id))
 
         schema = WorkflowSchema(property_type=DielectricConstant.__name__)
         schema.id = '{}{}'.format(DielectricConstant.__name__, 'Schema')
