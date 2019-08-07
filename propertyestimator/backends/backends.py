@@ -4,7 +4,7 @@ Defines the base API for the property estimator task calculation backend.
 import re
 from enum import Enum
 
-from propertyestimator import unit as unit
+from propertyestimator import unit
 
 
 class ComputeResources:
