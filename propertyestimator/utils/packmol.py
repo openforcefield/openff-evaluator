@@ -391,7 +391,8 @@ def _correct_packmol_output(file_path, molecule_topologies,
 
             offset += molecule_topology.n_atoms
 
-    all_bonds = np.unique(all_bonds, axis=0).tolist()
+    if len(all_bonds) > 0:
+        all_bonds = np.unique(all_bonds, axis=0).tolist()
 
     # We have to check whether there are any existing bonds, because mdtraj will
     # sometimes automatically detect some based on residue names (e.g HOH), and
