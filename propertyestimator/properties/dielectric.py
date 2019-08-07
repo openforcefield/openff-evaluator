@@ -262,15 +262,20 @@ class ReweightDielectricConstant(reweighting.ReweightWithMBARProtocol):
         volumes = self._prepare_observables_array(self._reference_volumes)
 
         if self._bootstrap_uncertainties:
-            self._execute_with_bootstrapping(unit.dimensionless,
-                                             dipoles=dipole_moments,
-                                             dipoles_sqr=dipole_moments_sqr,
-                                             volumes=volumes)
+            error = self._execute_with_bootstrapping(unit.dimensionless,
+                                                     dipoles=dipole_moments,
+                                                     dipoles_sqr=dipole_moments_sqr,
+                                                     volumes=volumes)
         else:
 
             return PropertyEstimatorException(directory=directory,
                                               message='Dielectric constant can only be reweighted in conjunction '
                                                       'with bootstrapped uncertainties.')
+
+        if error is not None:
+
+            error.directory = directory
+            return error
 
         return self._get_output_dictionary()
 
