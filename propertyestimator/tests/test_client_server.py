@@ -12,7 +12,6 @@ from propertyestimator.properties import Density
 from propertyestimator.server import PropertyEstimatorServer
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.tests.utils import create_dummy_property
-from propertyestimator.utils import get_data_filename
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 
 

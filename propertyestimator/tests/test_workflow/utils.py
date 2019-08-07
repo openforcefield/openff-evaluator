@@ -1,7 +1,4 @@
-from simtk import unit
-
-from propertyestimator.client import PropertyEstimatorOptions
-from propertyestimator.utils import get_data_filename
+from propertyestimator import unit
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import Workflow
 from propertyestimator.workflow.decorators import protocol_input, protocol_output

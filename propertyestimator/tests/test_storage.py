@@ -4,14 +4,12 @@ Units tests for propertyestimator.storage
 import os
 import tempfile
 
-from simtk import unit
-
+from propertyestimator import unit
 from propertyestimator.storage import LocalFileStorage, StoredSimulationData
 from propertyestimator.storage.dataclasses import BaseStoredData, StoredDataCollection
 from propertyestimator.substances import Substance
 from propertyestimator.tests.utils import create_dummy_stored_simulation_data, create_dummy_substance
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils import get_data_filename
 
 
 class DummyDataClass1(BaseStoredData):

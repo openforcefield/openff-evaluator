@@ -5,8 +5,9 @@ A collection of dielectric physical property definitions.
 import logging
 
 import numpy as np
-from simtk import openmm, unit
+from simtk import openmm
 
+from propertyestimator import unit
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties import PhysicalProperty, PropertyPhase
 from propertyestimator.properties.plugins import register_estimable_property
@@ -19,7 +20,7 @@ from propertyestimator.utils import timeseries
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import bootstrap
-from propertyestimator.workflow import plugins
+from propertyestimator.workflow import plugins, WorkflowOptions
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
 from propertyestimator.workflow.schemas import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
@@ -42,7 +43,7 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
 
     @protocol_output(unit.Quantity)
     def uncorrelated_volumes(self):
-        """The uncorrelated volumes which were used in the dielect
+        """The uncorrelated volumes which were used in the dielectric
         calculation."""
         pass
 
@@ -99,7 +100,7 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
         e0 = 8.854187817E-12 * unit.farad / unit.meter  # Taken from QCElemental
 
         dielectric_constant = 1.0 + dipole_variance / (3 *
-                                                       unit.BOLTZMANN_CONSTANT_kB *
+                                                       unit.boltzmann_constant *
                                                        temperature *
                                                        volume *
                                                        e0)
@@ -109,6 +110,8 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
     def execute(self, directory, available_resources):
 
         import mdtraj
+        from simtk import unit as simtk_unit
+        from simtk.openmm import XmlSerializer
 
         logging.info('Extracting dielectrics: ' + self.id)
 
@@ -118,8 +121,6 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
             return base_exception
 
         charge_list = []
-
-        from simtk.openmm import XmlSerializer
 
         with open(self._system_path, 'rb') as file:
             self._system = XmlSerializer.deserialize(file.read().decode())
@@ -134,7 +135,7 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
             for atom_index in range(force.getNumParticles()):
 
                 charge = force.getParticleParameters(atom_index)[0]
-                charge /= unit.elementary_charge
+                charge = charge.value_in_unit(simtk_unit.elementary_charge)
 
                 charge_list.append(charge)
 
@@ -150,7 +151,7 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
 
         volumes = self.trajectory[sample_indices].unitcell_volumes
 
-        self._uncorrelated_values = unit.Quantity(dipole_moments, None)
+        self._uncorrelated_values = dipole_moments * unit.dimensionless
         self._uncorrelated_volumes = volumes * unit.nanometer ** 3
 
         value, uncertainty = bootstrap(self._bootstrap_function,
@@ -159,8 +160,8 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
                                        dipoles=dipole_moments,
                                        volumes=volumes)
 
-        self._value = EstimatedQuantity(unit.Quantity(value, None),
-                                        unit.Quantity(uncertainty, None), self.id)
+        self._value = EstimatedQuantity(value * unit.dimensionless,
+                                        uncertainty * unit.dimensionless, self.id)
 
         logging.info('Extracted dielectrics: ' + self.id)
 
@@ -219,7 +220,7 @@ class ReweightDielectricConstant(reweighting.ReweightWithMBARProtocol):
         e0 = 8.854187817E-12 * unit.farad / unit.meter  # Taken from QCElemental
 
         dielectric_constant = 1.0 + dipole_variance / (3 *
-                                                       unit.BOLTZMANN_CONSTANT_kB *
+                                                       unit.boltzmann_constant *
                                                        self._thermodynamic_state.temperature *
                                                        volume *
                                                        e0)
@@ -261,15 +262,20 @@ class ReweightDielectricConstant(reweighting.ReweightWithMBARProtocol):
         volumes = self._prepare_observables_array(self._reference_volumes)
 
         if self._bootstrap_uncertainties:
-            self._execute_with_bootstrapping(unit.dimensionless,
-                                             dipoles=dipole_moments,
-                                             dipoles_sqr=dipole_moments_sqr,
-                                             volumes=volumes)
+            error = self._execute_with_bootstrapping(unit.dimensionless,
+                                                     dipoles=dipole_moments,
+                                                     dipoles_sqr=dipole_moments_sqr,
+                                                     volumes=volumes)
         else:
 
             return PropertyEstimatorException(directory=directory,
                                               message='Dielectric constant can only be reweighted in conjunction '
                                                       'with bootstrapped uncertainties.')
+
+        if error is not None:
+
+            error.directory = directory
+            return error
 
         return self._get_output_dictionary()
 
@@ -423,6 +429,10 @@ class DielectricConstant(PhysicalProperty):
         mbar_protocol.bootstrap_uncertainties = True
         mbar_protocol.bootstrap_iterations = 200
 
+        # TODO: Implement a cleaner way to handle this.
+        if options.convergence_mode == WorkflowOptions.ConvergenceMode.NoChecks:
+            mbar_protocol.required_effective_samples = -1
+
         # Make a copy of the mbar reweighting schema to use for evaulating gradients by reweighting.
         mbar_template_schema = mbar_protocol.schema
 
@@ -448,7 +458,9 @@ class DielectricConstant(PhysicalProperty):
                                              coordinate_path,
                                              trajectory_path,
                                              'grad',
-                                             template_reweighting_schema=mbar_template_schema)
+                                             template_reweighting_schema=mbar_template_schema,
+                                             effective_sample_indices=ProtocolPath('effective_sample_indices',
+                                                                                   mbar_protocol.id))
 
         schema = WorkflowSchema(property_type=DielectricConstant.__name__)
         schema.id = '{}{}'.format(DielectricConstant.__name__, 'Schema')

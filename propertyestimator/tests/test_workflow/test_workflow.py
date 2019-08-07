@@ -5,8 +5,8 @@ import tempfile
 from collections import OrderedDict
 
 import pytest
-from simtk import unit
 
+from propertyestimator import unit
 from propertyestimator.backends import DaskLocalCluster, ComputeResources
 from propertyestimator.layers import available_layers
 from propertyestimator.layers.layers import CalculationLayerResult
@@ -21,7 +21,7 @@ from propertyestimator.tests.test_workflow.utils import DummyReplicableProtocol,
     DummyEstimatedQuantityProtocol
 from propertyestimator.tests.utils import create_dummy_property
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils import get_data_filename, graph
+from propertyestimator.utils import graph
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import WorkflowOptions, WorkflowSchema
 from propertyestimator.workflow.schemas import ProtocolReplicator

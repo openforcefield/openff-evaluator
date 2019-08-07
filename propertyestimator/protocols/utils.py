@@ -4,8 +4,7 @@ A set of utilities for setting up property estimation workflows.
 import copy
 from collections import namedtuple
 
-from simtk import unit
-
+from propertyestimator import unit
 from propertyestimator.protocols import analysis, forcefield, gradients, groups, reweighting, coordinates, simulation
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.workflow import WorkflowOptions
@@ -386,7 +385,8 @@ def generate_gradient_protocol_group(reference_force_field_paths,
                                      perturbation_scale=1.0e-4,
                                      substance_source=None,
                                      id_prefix='',
-                                     enable_pbc=True):
+                                     enable_pbc=True,
+                                     effective_sample_indices=None):
     """Constructs a set of protocols which, when combined in a workflow schema,
     may be executed to reweight a set of existing data to estimate a particular
     property. The reweighted observable of interest will be calculated by
@@ -427,6 +427,10 @@ def generate_gradient_protocol_group(reference_force_field_paths,
     enable_pbc: bool
         If true, periodic boundary conditions are employed when recalculating
         the reduced potentials.
+    effective_sample_indices: ProtocolPath, optional
+        A placeholder variable which can be used to make the gradient protocols
+        dependant on an MBAR protcol to ensure gradients aren't calcuated when
+        the MBAR protocol failed due to insufficient samples.
 
     Returns
     -------
@@ -466,6 +470,9 @@ def generate_gradient_protocol_group(reference_force_field_paths,
 
     reduced_potentials.use_subset_of_force_field = True
     reduced_potentials.enable_pbc = enable_pbc
+
+    if effective_sample_indices is not None:
+        reduced_potentials.effective_sample_indices = effective_sample_indices
 
     # Set up the protocols which will actually reweight the value of the
     # observable to the forward and reverse states.

@@ -5,9 +5,9 @@ import tempfile
 from os import path
 
 import pytest
-from simtk import unit
 from simtk.openmm.app import PDBFile
 
+from propertyestimator import unit
 from propertyestimator.backends import ComputeResources
 from propertyestimator.properties.dielectric import ExtractAverageDielectric
 from propertyestimator.protocols.analysis import ExtractAverageStatistic, ExtractUncorrelatedTrajectoryData, \

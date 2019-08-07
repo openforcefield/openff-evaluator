@@ -7,7 +7,6 @@ from enum import Enum
 from os import path
 
 import numpy as np
-from simtk import unit
 from simtk.openmm import app
 
 from propertyestimator.substances import Substance
@@ -119,21 +118,22 @@ class BuildSmirnoffSystem(BaseProtocol):
             The molecules with assigned charges.
         """
         from openforcefield.topology import Molecule
+        from simtk import unit as simtk_unit
 
         sodium = Molecule.from_smiles('[Na+]')
-        sodium.partial_charges = np.array([1.0]) * unit.elementary_charge
+        sodium.partial_charges = np.array([1.0]) * simtk_unit.elementary_charge
 
         potassium = Molecule.from_smiles('[K+]')
-        potassium.partial_charges = np.array([1.0]) * unit.elementary_charge
+        potassium.partial_charges = np.array([1.0]) * simtk_unit.elementary_charge
 
         calcium = Molecule.from_smiles('[Ca+2]')
-        calcium.partial_charges = np.array([2.0]) * unit.elementary_charge
+        calcium.partial_charges = np.array([2.0]) * simtk_unit.elementary_charge
 
         chlorine = Molecule.from_smiles('[Cl-]')
-        chlorine.partial_charges = np.array([-1.0]) * unit.elementary_charge
+        chlorine.partial_charges = np.array([-1.0]) * simtk_unit.elementary_charge
 
         water = Molecule.from_smiles('O')
-        water.partial_charges = np.array([-0.834, 0.417, 0.417]) * unit.elementary_charge
+        water.partial_charges = np.array([-0.834, 0.417, 0.417]) * simtk_unit.elementary_charge
 
         return [sodium, potassium, calcium, chlorine, water]
 

@@ -5,8 +5,8 @@ import tempfile
 from os import path
 
 from openforcefield.typing.engines import smirnoff
-from simtk import unit
 
+from propertyestimator import unit
 from propertyestimator.backends import ComputeResources, DaskLocalCluster
 from propertyestimator.client import PropertyEstimatorClient, PropertyEstimatorOptions, ConnectionOptions
 from propertyestimator.datasets import PhysicalPropertyDataSet
@@ -17,7 +17,6 @@ from propertyestimator.server import PropertyEstimatorServer
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import Ensemble, ThermodynamicState
-from propertyestimator.utils import get_data_filename
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.workflow import WorkflowOptions
 

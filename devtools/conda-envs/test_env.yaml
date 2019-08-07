@@ -22,6 +22,7 @@ dependencies:
   - numpy
   - pandas
   - openmm
+  - pint
   - packmol
   - pymbar
   - mdtraj
