@@ -12,6 +12,7 @@ from propertyestimator.backends import ComputeResources
 from propertyestimator.properties.dielectric import ExtractAverageDielectric
 from propertyestimator.protocols.analysis import ExtractAverageStatistic, ExtractUncorrelatedTrajectoryData, \
     ExtractUncorrelatedStatisticsData
+from propertyestimator.protocols.binding import AddBindingFreeEnergies
 from propertyestimator.protocols.coordinates import BuildCoordinatesPackmol, SolvateExistingStructure
 from propertyestimator.protocols.forcefield import BuildSmirnoffSystem
 from propertyestimator.protocols.miscellaneous import AddValues, FilterSubstanceByRole, SubtractValues
@@ -318,22 +319,21 @@ def test_solvation_protocol():
         assert solvated_pdb.topology.getNumResidues() == 10
 
 
-from propertyestimator.protocols.binding import AddBindingFreeEnergies, AddBindingEnthalpies
-
-# This can probably be eliminated once your `pint` PR is merged.
-
-from pint import UnitRegistry
-ureg = UnitRegistry()
-
-
 def test_binding_free_energies():
-    delta_g_one = (10.0 * unit.kilocalorie / unit.mole).plus_minus(1.0 * unit.kilocalorie / unit.mole)
-    delta_g_two = (20.0 * unit.kilocalorie / unit.mole).plus_minus(2.0 * unit.kilocalorie / unit.mole)
+
+    compute_resources = ComputeResources(number_of_threads=1)
+
+    delta_g_one = EstimatedQuantity(10.0 * unit.kilocalorie / unit.mole,
+                                    1.0 * unit.kilocalorie / unit.mole, 'test_source_1')
+
+    delta_g_two = EstimatedQuantity(20.0 * unit.kilocalorie / unit.mole,
+                                    2.0 * unit.kilocalorie / unit.mole, 'test_source_2')
+
     thermodynamic_state = ThermodynamicState(298*unit.kelvin, 1*unit.atmosphere)
 
-    sum = AddBindingFreeEnergies("add_binding_free_energies")
-    sum.values = [delta_g_one, delta_g_one]
-    sum.thermodynamic_state = thermodynamic_state
-    resources = ComputeResources(number_of_threads=1, number_of_gpus=0,
-                                 preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA)
-    sum.execute('asdfasdf', resources)
+    sum_protocol = AddBindingFreeEnergies("add_binding_free_energies")
+
+    sum_protocol.values = [delta_g_one, delta_g_two]
+    sum_protocol.thermodynamic_state = thermodynamic_state
+
+    sum_protocol.execute('', compute_resources)

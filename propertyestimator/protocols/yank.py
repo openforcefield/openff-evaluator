@@ -3,18 +3,19 @@ A collection of protocols for performing free energy calculations using
 the YANK software package.
 """
 import logging
+import os
 import shutil
 import threading
 import traceback
 from enum import Enum
-from os import path
 
 import yaml
-from simtk import unit
 
+from propertyestimator import unit
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.openmm import setup_platform_with_resources
+from propertyestimator.utils.openmm import setup_platform_with_resources, pint_quantity_to_openmm, \
+    openmm_quantity_to_pint
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.utils import temporarily_change_directory
 from propertyestimator.workflow.decorators import protocol_input, protocol_output, MergeBehaviour
@@ -78,7 +79,7 @@ class BaseYankProtocol(BaseProtocol):
         super().__init__(protocol_id)
 
         self._thermodynamic_state = None
-        self._timestep = 1 * unit.femtosecond
+        self._timestep = 2 * unit.femtosecond
 
         self._number_of_iterations = 1
 
@@ -106,12 +107,6 @@ class BaseYankProtocol(BaseProtocol):
             A yaml compatible dictionary of YANK options.
         """
 
-        # TODO: Should we be specifying `constraints` here?
-        #       I imagine we shouldn't when passing OMM
-        #       system.xml files.
-        #
-        # TODO: Same with `anisotropic_dispersion_cutoff`
-
         from openforcefield.utils import quantity_to_string
 
         platform_name = 'CPU'
@@ -130,8 +125,8 @@ class BaseYankProtocol(BaseProtocol):
             'verbose': self._verbose,
             'output_dir': '.',
 
-            'temperature': quantity_to_string(self._thermodynamic_state.temperature),
-            'pressure': quantity_to_string(self._thermodynamic_state.pressure),
+            'temperature': quantity_to_string(pint_quantity_to_openmm(self._thermodynamic_state.temperature)),
+            'pressure': quantity_to_string(pint_quantity_to_openmm(self._thermodynamic_state.pressure)),
 
             'minimize': True,
 
@@ -139,7 +134,7 @@ class BaseYankProtocol(BaseProtocol):
             'default_nsteps_per_iteration': self._steps_per_iteration,
             'checkpoint_interval': self._checkpoint_interval,
 
-            'default_timestep': quantity_to_string(self._timestep),
+            'default_timestep': quantity_to_string(pint_quantity_to_openmm(self._timestep)),
 
             'annihilate_electrostatics': True,
             'annihilate_sterics': False,
@@ -337,7 +332,7 @@ class BaseYankProtocol(BaseProtocol):
 
     def execute(self, directory, available_resources):
 
-        yaml_filename = path.join(directory, 'yank.yaml')
+        yaml_filename = os.path.join(directory, 'yank.yaml')
 
         # Create the yank yaml input file from a dictionary of options.
         with open(yaml_filename, 'w') as file:
@@ -369,8 +364,8 @@ class BaseYankProtocol(BaseProtocol):
             if error is not None:
                 return PropertyEstimatorException(directory, error)
 
-        self._estimated_free_energy = EstimatedQuantity(free_energy,
-                                                        free_energy_uncertainty,
+        self._estimated_free_energy = EstimatedQuantity(openmm_quantity_to_pint(free_energy),
+                                                        openmm_quantity_to_pint(free_energy_uncertainty),
                                                         self._id)
 
         return self._get_output_dictionary()
@@ -514,22 +509,22 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         # Because of quirks in where Yank looks files while doing temporary
         # directory changes, we need to copy the coordinate files locally so
         # they are correctly found.
-        shutil.copyfile(self._solvated_ligand_coordinates, path.join(directory, self._local_ligand_coordinates))
-        shutil.copyfile(self._solvated_ligand_system, path.join(directory, self._local_ligand_system))
+        shutil.copyfile(self._solvated_ligand_coordinates, os.path.join(directory, self._local_ligand_coordinates))
+        shutil.copyfile(self._solvated_ligand_system, os.path.join(directory, self._local_ligand_system))
 
-        shutil.copyfile(self._solvated_complex_coordinates, path.join(directory, self._local_complex_coordinates))
-        shutil.copyfile(self._solvated_complex_system, path.join(directory, self._local_complex_system))
+        shutil.copyfile(self._solvated_complex_coordinates, os.path.join(directory, self._local_complex_coordinates))
+        shutil.copyfile(self._solvated_complex_system, os.path.join(directory, self._local_complex_system))
 
         result = super(LigandReceptorYankProtocol, self).execute(directory, available_resources)
 
         if isinstance(result, PropertyEstimatorException):
             return result
 
-        ligand_yank_path = path.join(directory, 'experiments', 'solvent.nc')
-        complex_yank_path = path.join(directory, 'experiments', 'complex.nc')
+        ligand_yank_path = os.path.join(directory, 'experiments', 'solvent.nc')
+        complex_yank_path = os.path.join(directory, 'experiments', 'complex.nc')
 
-        self._solvated_ligand_trajectory_path = path.join(directory, 'ligand.dcd')
-        self._solvated_complex_trajectory_path = path.join(directory, 'complex.dcd')
+        self._solvated_ligand_trajectory_path = os.path.join(directory, 'ligand.dcd')
+        self._solvated_complex_trajectory_path = os.path.join(directory, 'complex.dcd')
 
         self._extract_trajectory(ligand_yank_path, self._solvated_ligand_trajectory_path)
         self._extract_trajectory(complex_yank_path, self._solvated_complex_trajectory_path)

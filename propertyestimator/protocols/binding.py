@@ -2,23 +2,15 @@
 A collection of protocols for running analysing the results of molecular simulations.
 """
 
-import logging
-from os import path
-
 import numpy as np
 
 from propertyestimator import unit
-from propertyestimator.utils import statistics, timeseries
-from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.utils.statistics import StatisticsArray, bootstrap
-from propertyestimator.workflow.decorators import protocol_input, protocol_output, MergeBehaviour
-from propertyestimator.workflow.plugins import register_calculation_protocol
-from propertyestimator.workflow.protocols import BaseProtocol
-from propertyestimator.thermodynamics import ThermodynamicState
-
-
 from propertyestimator.protocols.miscellaneous import AddValues
+from propertyestimator.thermodynamics import ThermodynamicState
+from propertyestimator.utils.quantities import EstimatedQuantity
+from propertyestimator.workflow.decorators import protocol_input, protocol_output
+from propertyestimator.workflow.plugins import register_calculation_protocol
+
 
 @register_calculation_protocol()
 class AddBindingFreeEnergies(AddValues):
@@ -26,8 +18,8 @@ class AddBindingFreeEnergies(AddValues):
 
     Notes
     -----
-    The `values` input must either be a list of unit.Quantity, a ProtocolPath to a list
-    of unit.Quantity, or a list of ProtocolPath which each point to a unit.Quantity.
+    The `values` input must either be a list of EstimatedQuantity, a ProtocolPath to a list
+    of EstimatedQuantity, or a list of ProtocolPath which each point to a EstimatedQuantity.
     """
 
     @protocol_input(list)
@@ -45,46 +37,67 @@ class AddBindingFreeEnergies(AddValues):
         """The sum of the values."""
         pass
 
+    @protocol_output(unit.Quantity)
+    def confidence_intervals(self):
+        """The confidence intervals on the summed free energy."""
+        pass
+
     def __init__(self, protocol_id):
-        """Constructs a new AddValues object."""
+        """Constructs a new AddBindingFreeEnergies object."""
         super().__init__(protocol_id)
 
         self._values = None
         self._thermodynamic_state = None
+
         self._result = None
+        self._confidence_intervals = None
 
     def execute(self, directory, available_resources):
 
         results_dictionary = self.bootstrap()
-        self._result = results_dictionary["mean"]
+
+        self._result = EstimatedQuantity(results_dictionary['mean'],
+                                         results_dictionary['sem'],
+                                         self._id)
+
+        self._confidence_intervals = results_dictionary['ci']
 
         return self._get_output_dictionary()
 
     def bootstrap(self, cycles=1000, with_replacement=True):
-        R = (1 * unit.molar_gas_constant).to(unit.kilocalorie / unit.mole / unit.kelvin)
-        T = self.thermodynamic_state.temperature
-        beta = 1.0 / (R * T)
+
+        default_unit = unit.kilocalorie / unit.mole
+
+        boltzmann_factor = self.thermodynamic_state.temperature * unit.molar_gas_constant
+        boltzmann_factor.ito(default_unit)
+
+        beta = 1.0 / boltzmann_factor
 
         cycle_result = np.empty(cycles)
+
         for cycle_index, cycle in enumerate(range(cycles)):
-            cycle_values = np.empty(len(self.values))
-            for value_index, value in enumerate(self.values):
 
-                magnitude, sem, units = _workaround_pint(value)
-                cycle_values[value_index] = np.random.normal(magnitude, sem)
+            cycle_values = np.empty(len(self._values))
 
-            cycle_values *= units
-            magnitude, sem, units = _workaround_pint(-R * T * np.log(np.sum(np.exp(-beta * cycle_values))))
-            cycle_result[cycle_index] = magnitude
+            for value_index, value in enumerate(self._values):
 
-        cycle_result *= units
-        mean = np.mean(cycle_result)
-        sem = np.std(cycle_result)
+                mean = value.value.to(default_unit).magnitude
+                sem = value.uncertainty.to(default_unit).magnitude
+
+                sampled_value = np.random.normal(mean, sem) * default_unit
+                cycle_values[value_index] = (-beta * sampled_value).to(unit.dimensionless).magnitude
+
+            cycle_result[cycle_index] = np.log(np.sum(np.exp(cycle_values)))
+
+        mean = np.mean(-boltzmann_factor * cycle_result)
+        sem = np.std(-boltzmann_factor * cycle_result)
 
         ci = np.empty((2))
         sorted_statistics = np.sort(cycle_result)
         ci[0] = sorted_statistics[int(0.025 * cycles)]
         ci[1] = sorted_statistics[int(0.985 * cycles)]
+
+        ci = -boltzmann_factor * ci
 
         results = {"mean": mean,
                    "sem": sem,
@@ -106,17 +119,3 @@ class AddBindingEnthalpies(AddValues):
     def values(self):
         """The values to add together."""
         pass
-
-
-def _workaround_pint(quantity):
-    # Work around https://github.com/hgrecco/pint/issues/484
-
-    from pint.measurement import _Measurement
-    magnitude = quantity.value.magnitude
-    if isinstance(quantity, _Measurement):
-        uncertainty = quantity.error.magnitude
-    else:
-        uncertainty = None
-    units = quantity.units
-
-    return magnitude, uncertainty, units
