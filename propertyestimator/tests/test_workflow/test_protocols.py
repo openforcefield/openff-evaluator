@@ -42,14 +42,13 @@ def test_default_protocol_schemas(available_protocol):
 
 
 def test_nested_protocol_paths():
-
     value_protocol_a = DummyEstimatedQuantityProtocol('protocol_a')
     value_protocol_a.input_value = EstimatedQuantity(1 * unit.kelvin, 0.1 * unit.kelvin, 'constant')
 
     assert value_protocol_a.get_value(ProtocolPath('input_value.value')) == value_protocol_a.input_value.value
 
-    value_protocol_a.set_value(ProtocolPath('input_value._value'), 0.5*unit.kelvin)
-    assert value_protocol_a.input_value.value == 0.5*unit.kelvin
+    value_protocol_a.set_value(ProtocolPath('input_value._value'), 0.5 * unit.kelvin)
+    assert value_protocol_a.input_value.value == 0.5 * unit.kelvin
 
     value_protocol_b = DummyEstimatedQuantityProtocol('protocol_b')
     value_protocol_b.input_value = EstimatedQuantity(2 * unit.kelvin, 0.05 * unit.kelvin, 'constant')
@@ -76,7 +75,6 @@ def test_nested_protocol_paths():
     assert isinstance(input_values, dict) and len(input_values) == 3
 
     for index, value_reference in enumerate(input_values):
-
         input_value = add_values_protocol.get_value(value_reference)
         assert input_value.full_path == add_values_protocol.values[index].full_path
 
@@ -95,7 +93,6 @@ def test_nested_protocol_paths():
     assert isinstance(input_values, dict) and len(input_values) == 2
 
     for index, value_reference in enumerate(input_values):
-
         input_value = dummy_dict_protocol.get_value(value_reference)
 
         dummy_dict_keys = list(dummy_dict_protocol.input_value.keys())
@@ -131,10 +128,9 @@ def test_base_simulation_protocols():
     water_substance.add_component(Substance.Component(smiles='O'),
                                   Substance.MoleFraction())
 
-    thermodynamic_state = ThermodynamicState(298*unit.kelvin, 1*unit.atmosphere)
+    thermodynamic_state = ThermodynamicState(298 * unit.kelvin, 1 * unit.atmosphere)
 
     with tempfile.TemporaryDirectory() as temporary_directory:
-
         force_field_path = path.join(temporary_directory, 'ff.offxml')
         build_tip3p_smirnoff_force_field(force_field_path)
 
@@ -228,11 +224,9 @@ def test_base_simulation_protocols():
 
 
 def test_addition_subtract_protocols():
-
     with tempfile.TemporaryDirectory() as temporary_directory:
-
-        quantity_a = EstimatedQuantity(1*unit.kelvin, 0.1*unit.kelvin, 'dummy_source_1')
-        quantity_b = EstimatedQuantity(2*unit.kelvin, 0.2*unit.kelvin, 'dummy_source_2')
+        quantity_a = EstimatedQuantity(1 * unit.kelvin, 0.1 * unit.kelvin, 'dummy_source_1')
+        quantity_b = EstimatedQuantity(2 * unit.kelvin, 0.2 * unit.kelvin, 'dummy_source_2')
 
         add_quantities = AddValues('add')
         add_quantities.values = [quantity_a, quantity_b]
@@ -261,7 +255,6 @@ def test_substance_filtering_protocol(filter_role):
     role correctly works."""
 
     def create_substance():
-
         test_substance = Substance()
 
         test_substance.add_component(Substance.Component('C', role=Substance.ComponentRole.Solute),
@@ -298,7 +291,6 @@ def test_solvation_protocol():
     water_substance.add_component(Substance.Component('O'), Substance.MoleFraction(1.0))
 
     with tempfile.TemporaryDirectory() as temporary_directory:
-
         build_methanol_coordinates = BuildCoordinatesPackmol('build_methanol')
 
         build_methanol_coordinates.max_molecules = 1
@@ -319,7 +311,8 @@ def test_solvation_protocol():
         assert solvated_pdb.topology.getNumResidues() == 10
 
 
-def test_binding_free_energies():
+def test_add_binding_free_energies_protocol():
+    """Tests adding together two binding free energies. """
 
     compute_resources = ComputeResources(number_of_threads=1)
 
@@ -329,7 +322,7 @@ def test_binding_free_energies():
     delta_g_two = EstimatedQuantity(-20.0 * unit.kilocalorie / unit.mole,
                                     2.0 * unit.kilocalorie / unit.mole, 'test_source_2')
 
-    thermodynamic_state = ThermodynamicState(298*unit.kelvin, 1*unit.atmosphere)
+    thermodynamic_state = ThermodynamicState(298 * unit.kelvin, 1 * unit.atmosphere)
 
     sum_protocol = AddBindingFreeEnergies("add_binding_free_energies")
 
@@ -337,9 +330,73 @@ def test_binding_free_energies():
     sum_protocol.thermodynamic_state = thermodynamic_state
 
     sum_protocol.execute('', compute_resources)
-    print(sum_protocol.result)
 
-def test_binding_enthalpies():
+    assert isinstance(sum_protocol.result, EstimatedQuantity)
+    assert sum_protocol.result.value.magnitude == pytest.approx(-20.0, abs=0.1)
+    assert sum_protocol.result.uncertainty.magnitude == pytest.approx(2.0, abs=0.1)
+    assert sum_protocol.result.value.units == unit.kilocalorie / unit.mole
+
+
+def test_add_binding_free_energy_protocol_unit_handling():
+    """Tests adding together two binding free energies with unit conversion. """
+
+    compute_resources = ComputeResources(number_of_threads=1)
+
+    delta_g_one = EstimatedQuantity((-10.0 * unit.kilocalorie / unit.mole).to(unit.kilojoule / unit.mole),
+                                    (1.0 * unit.kilocalorie / unit.mole).to(unit.kilojoule / unit.mole),
+                                    'test_source_1')
+
+    delta_g_two = EstimatedQuantity((-20.0 * unit.kilocalorie / unit.mole).to(unit.kilojoule / unit.mole),
+                                    (2.0 * unit.kilocalorie / unit.mole).to(unit.kilojoule / unit.mole),
+                                    'test_source_2')
+
+    thermodynamic_state = ThermodynamicState(298 * unit.kelvin, 1 * unit.atmosphere)
+
+    sum_protocol = AddBindingFreeEnergies("add_binding_free_energies")
+
+    sum_protocol.values = [delta_g_one, delta_g_two]
+    sum_protocol.thermodynamic_state = thermodynamic_state
+
+    sum_protocol.execute('', compute_resources)
+
+    assert isinstance(sum_protocol.result, EstimatedQuantity)
+    assert sum_protocol.result.value.magnitude == pytest.approx(-20.0, abs=0.1)
+    assert sum_protocol.result.uncertainty.magnitude == pytest.approx(2.0, abs=0.1)
+    assert sum_protocol.result.value.units == unit.kilocalorie / unit.mole
+
+
+def test_add_binding_free_energy_protocol_cycle_convergence():
+    """Tests adding together two binding free energies uses sufficient number of bootstrap samples. """
+
+    compute_resources = ComputeResources(number_of_threads=1)
+
+    delta_g_one = EstimatedQuantity((-10.0 * unit.kilocalorie / unit.mole).to(unit.kilojoule / unit.mole),
+                                    (1.0 * unit.kilocalorie / unit.mole).to(unit.kilojoule / unit.mole),
+                                    'test_source_1')
+
+    delta_g_two = EstimatedQuantity((-20.0 * unit.kilocalorie / unit.mole).to(unit.kilojoule / unit.mole),
+                                    (2.0 * unit.kilocalorie / unit.mole).to(unit.kilojoule / unit.mole),
+                                    'test_source_2')
+
+    thermodynamic_state = ThermodynamicState(298 * unit.kelvin, 1 * unit.atmosphere)
+
+    sum_protocol = AddBindingFreeEnergies("add_binding_free_energies")
+
+    sum_protocol.values = [delta_g_one, delta_g_two]
+    sum_protocol.thermodynamic_state = thermodynamic_state
+
+    for cycle_exponent in range(3, 5):
+        sum_protocol.cycles = 10 ** cycle_exponent
+        sum_protocol.execute('', compute_resources)
+
+        assert isinstance(sum_protocol.result, EstimatedQuantity)
+        assert sum_protocol.result.value.magnitude == pytest.approx(-20.0, abs=0.1)
+        assert sum_protocol.result.uncertainty.magnitude == pytest.approx(2.0, abs=0.1)
+        assert sum_protocol.result.value.units == unit.kilocalorie / unit.mole
+
+
+def test_add_binding_enthalpies_protocol():
+    """Tests adding together two binding enthalpies with associated binding free energies. """
 
     compute_resources = ComputeResources(number_of_threads=1)
 
@@ -355,12 +412,16 @@ def test_binding_enthalpies():
     delta_h_two = EstimatedQuantity(-4.0 * unit.kilocalorie / unit.mole,
                                     2.0 * unit.kilocalorie / unit.mole, 'test_source_2')
 
-    thermodynamic_state = ThermodynamicState(298*unit.kelvin, 1*unit.atmosphere)
+    thermodynamic_state = ThermodynamicState(298 * unit.kelvin, 1 * unit.atmosphere)
 
     sum_protocol = AddBindingEnthalpies("add_binding_enthalpies")
 
-    sum_protocol.values = [(delta_g_one, delta_h_one), (delta_g_two, delta_h_two)]
+    sum_protocol.values = [(delta_h_one, delta_g_one,), (delta_h_two, delta_g_two)]
     sum_protocol.thermodynamic_state = thermodynamic_state
 
     sum_protocol.execute('', compute_resources)
-    print(sum_protocol.result)
+
+    assert isinstance(sum_protocol.result, EstimatedQuantity)
+    assert sum_protocol.result.value.magnitude == pytest.approx(-4.0, abs=0.1)
+    assert sum_protocol.result.uncertainty.magnitude == pytest.approx(2.0, abs=0.1)
+    assert sum_protocol.result.value.units == unit.kilocalorie / unit.mole
