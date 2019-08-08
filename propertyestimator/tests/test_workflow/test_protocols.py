@@ -12,7 +12,7 @@ from propertyestimator.backends import ComputeResources
 from propertyestimator.properties.dielectric import ExtractAverageDielectric
 from propertyestimator.protocols.analysis import ExtractAverageStatistic, ExtractUncorrelatedTrajectoryData, \
     ExtractUncorrelatedStatisticsData
-from propertyestimator.protocols.binding import AddBindingFreeEnergies
+from propertyestimator.protocols.binding import AddBindingFreeEnergies, AddBindingEnthalpies
 from propertyestimator.protocols.coordinates import BuildCoordinatesPackmol, SolvateExistingStructure
 from propertyestimator.protocols.forcefield import BuildSmirnoffSystem
 from propertyestimator.protocols.miscellaneous import AddValues, FilterSubstanceByRole, SubtractValues
@@ -323,10 +323,10 @@ def test_binding_free_energies():
 
     compute_resources = ComputeResources(number_of_threads=1)
 
-    delta_g_one = EstimatedQuantity(10.0 * unit.kilocalorie / unit.mole,
+    delta_g_one = EstimatedQuantity(-10.0 * unit.kilocalorie / unit.mole,
                                     1.0 * unit.kilocalorie / unit.mole, 'test_source_1')
 
-    delta_g_two = EstimatedQuantity(20.0 * unit.kilocalorie / unit.mole,
+    delta_g_two = EstimatedQuantity(-20.0 * unit.kilocalorie / unit.mole,
                                     2.0 * unit.kilocalorie / unit.mole, 'test_source_2')
 
     thermodynamic_state = ThermodynamicState(298*unit.kelvin, 1*unit.atmosphere)
@@ -337,3 +337,31 @@ def test_binding_free_energies():
     sum_protocol.thermodynamic_state = thermodynamic_state
 
     sum_protocol.execute('', compute_resources)
+    print(sum_protocol.result)
+
+def test_binding_enthalpies():
+
+    compute_resources = ComputeResources(number_of_threads=1)
+
+    delta_g_one = EstimatedQuantity(-10.0 * unit.kilocalorie / unit.mole,
+                                    1.0 * unit.kilocalorie / unit.mole, 'test_source_1')
+
+    delta_h_one = EstimatedQuantity(-2.0 * unit.kilocalorie / unit.mole,
+                                    1.0 * unit.kilocalorie / unit.mole, 'test_source_1')
+
+
+    delta_g_two = EstimatedQuantity(-20.0 * unit.kilocalorie / unit.mole,
+                                    2.0 * unit.kilocalorie / unit.mole, 'test_source_2')
+
+    delta_h_two = EstimatedQuantity(-4.0 * unit.kilocalorie / unit.mole,
+                                    2.0 * unit.kilocalorie / unit.mole, 'test_source_2')
+
+    thermodynamic_state = ThermodynamicState(298*unit.kelvin, 1*unit.atmosphere)
+
+    sum_protocol = AddBindingEnthalpies("add_binding_enthalpies")
+
+    sum_protocol.values = [(delta_g_one, delta_h_one), (delta_g_two, delta_g_two)]
+    sum_protocol.thermodynamic_state = thermodynamic_state
+
+    sum_protocol.execute('', compute_resources)
+    print(sum_protocol.result)
