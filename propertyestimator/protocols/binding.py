@@ -179,7 +179,7 @@ class AddBindingEnthalpies(AddValues):
 
         for cycle_index, cycle in enumerate(range(cycles)):
 
-            cycle_values = np.empty(len(self._values), 2)
+            cycle_values = np.empty((len(self._values), 2))
 
             for value_index, value in enumerate(self._values):
 
@@ -205,8 +205,8 @@ class AddBindingEnthalpies(AddValues):
             cycle_result[cycle_index] = np.sum(cycle_values[:, 0] * np.exp(cycle_values[:, 1])) \
                                         / np.sum(np.exp(cycle_values[:, 1]))
 
-        mean = np.mean(cycle_result)
-        sem = np.std(cycle_result)
+        mean = np.mean(cycle_result) * default_unit
+        sem = np.std(cycle_result) * default_unit
 
         ci = np.empty((2))
         sorted_statistics = np.sort(cycle_result)
