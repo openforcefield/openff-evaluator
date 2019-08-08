@@ -316,3 +316,24 @@ def test_solvation_protocol():
         solvated_pdb = PDBFile(solvate_coordinates.coordinate_file_path)
 
         assert solvated_pdb.topology.getNumResidues() == 10
+
+
+from propertyestimator.protocols.binding import AddBindingFreeEnergies, AddBindingEnthalpies
+
+# This can probably be eliminated once your `pint` PR is merged.
+
+from pint import UnitRegistry
+ureg = UnitRegistry()
+
+
+def test_binding_free_energies():
+    delta_g_one = (10.0 * unit.kilocalorie / unit.mole).plus_minus(1.0 * unit.kilocalorie / unit.mole)
+    delta_g_two = (20.0 * unit.kilocalorie / unit.mole).plus_minus(2.0 * unit.kilocalorie / unit.mole)
+    thermodynamic_state = ThermodynamicState(298*unit.kelvin, 1*unit.atmosphere)
+
+    sum = AddBindingFreeEnergies("add_binding_free_energies")
+    sum.values = [delta_g_one, delta_g_one]
+    sum.thermodynamic_state = thermodynamic_state
+    resources = ComputeResources(number_of_threads=1, number_of_gpus=0,
+                                 preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA)
+    sum.execute('asdfasdf', resources)
