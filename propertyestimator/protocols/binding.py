@@ -196,7 +196,7 @@ class AddBindingEnthalpies(AddValues):
                 sampled_enthalpy = np.random.normal(mean_enthalpy, sem_enthalpy) * default_unit
                 sampled_free_energy = np.random.normal(mean_free_energy, sem_free_energy) * default_unit
 
-                cycle_values[value_index][0] = (-beta * sampled_enthalpy).to(unit.dimensionless).magnitude
+                cycle_values[value_index][0] = (sampled_enthalpy).magnitude
                 cycle_values[value_index][1] = (-beta * sampled_free_energy).to(unit.dimensionless).magnitude
 
             #      Σ_{n} [ ΔH_{n} × exp(-βΔG°_{n}) ]
@@ -205,6 +205,8 @@ class AddBindingEnthalpies(AddValues):
 
             cycle_result[cycle_index] = np.sum(cycle_values[:, 0] * np.exp(cycle_values[:, 1])) \
                                         / np.sum(np.exp(cycle_values[:, 1]))
+
+
 
         mean = np.mean(cycle_result) * default_unit
         sem = np.std(cycle_result) * default_unit
