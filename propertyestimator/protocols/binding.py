@@ -48,9 +48,11 @@ class AddBindingFreeEnergies(AddValues):
 
         self._values = None
         self._thermodynamic_state = None
+        self.cycles = 1000
 
         self._result = None
         self._confidence_intervals = None
+
 
     def execute(self, directory, available_resources):
 
@@ -64,7 +66,7 @@ class AddBindingFreeEnergies(AddValues):
 
         return self._get_output_dictionary()
 
-    def bootstrap(self, cycles=1000, with_replacement=True):
+    def bootstrap(self):
 
         default_unit = unit.kilocalorie / unit.mole
 
@@ -73,9 +75,9 @@ class AddBindingFreeEnergies(AddValues):
 
         beta = 1.0 / boltzmann_factor
 
-        cycle_result = np.empty(cycles)
+        cycle_result = np.empty(self.cycles)
 
-        for cycle_index, cycle in enumerate(range(cycles)):
+        for cycle_index, cycle in enumerate(range(self.cycles)):
 
             cycle_values = np.empty(len(self._values))
 
@@ -95,8 +97,8 @@ class AddBindingFreeEnergies(AddValues):
 
         ci = np.empty(2)
         sorted_statistics = np.sort(cycle_result)
-        ci[0] = sorted_statistics[int(0.025 * cycles)]
-        ci[1] = sorted_statistics[int(0.975 * cycles)]
+        ci[0] = sorted_statistics[int(0.025 * self.cycles)]
+        ci[1] = sorted_statistics[int(0.975 * self.cycles)]
 
         ci = -boltzmann_factor * ci
 
@@ -152,6 +154,7 @@ class AddBindingEnthalpies(AddValues):
 
         self._values = None
         self._thermodynamic_state = None
+        self.cycles = 1000
 
         self._result = None
         self._confidence_intervals = None
@@ -168,7 +171,7 @@ class AddBindingEnthalpies(AddValues):
 
         return self._get_output_dictionary()
 
-    def bootstrap(self, cycles=1000, with_replacement=True):
+    def bootstrap(self):
 
         default_unit = unit.kilocalorie / unit.mole
 
@@ -177,9 +180,9 @@ class AddBindingEnthalpies(AddValues):
 
         beta = 1.0 / boltzmann_factor
 
-        cycle_result = np.empty(cycles)
+        cycle_result = np.empty(self.cycles)
 
-        for cycle_index, cycle in enumerate(range(cycles)):
+        for cycle_index, cycle in enumerate(range(self.cycles)):
 
             cycle_values = np.empty((len(self._values), 2))
 
@@ -208,8 +211,8 @@ class AddBindingEnthalpies(AddValues):
 
         ci = np.empty(2)
         sorted_statistics = np.sort(cycle_result)
-        ci[0] = sorted_statistics[int(0.025 * cycles)]
-        ci[1] = sorted_statistics[int(0.975 * cycles)]
+        ci[0] = sorted_statistics[int(0.025 * self.cycles)]
+        ci[1] = sorted_statistics[int(0.975 * self.cycles)]
 
         results = {"mean": mean,
                    "sem": sem,
