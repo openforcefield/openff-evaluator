@@ -1,5 +1,5 @@
 """
-A collection of protocols for running analysing the results of molecular simulations.
+A collection of protocols for analyzing the results of binding calculations.
 """
 
 import numpy as np
@@ -80,19 +80,20 @@ class AddBindingFreeEnergies(AddValues):
             cycle_values = np.empty(len(self._values))
 
             for value_index, value in enumerate(self._values):
-
                 mean = value.value.to(default_unit).magnitude
                 sem = value.uncertainty.to(default_unit).magnitude
 
                 sampled_value = np.random.normal(mean, sem) * default_unit
                 cycle_values[value_index] = (-beta * sampled_value).to(unit.dimensionless).magnitude
 
+            # ΔG° = -RT × Log[ Σ_{n} exp(-βΔG°_{n}) ]
+
             cycle_result[cycle_index] = np.log(np.sum(np.exp(cycle_values)))
 
         mean = np.mean(-boltzmann_factor * cycle_result)
         sem = np.std(-boltzmann_factor * cycle_result)
 
-        ci = np.empty((2))
+        ci = np.empty(2)
         sorted_statistics = np.sort(cycle_result)
         ci[0] = sorted_statistics[int(0.025 * cycles)]
         ci[1] = sorted_statistics[int(0.975 * cycles)]
@@ -104,6 +105,7 @@ class AddBindingFreeEnergies(AddValues):
                    "ci": ci}
 
         return results
+
 
 @register_calculation_protocol()
 class AddBindingEnthalpies(AddValues):
@@ -123,9 +125,10 @@ class AddBindingEnthalpies(AddValues):
     Journal of Chemical Theory and Computation (2015-08-26) https://doi.org/f7q3mj
     DOI: 10.1021/acs.jctc.5b00405 · PMID: 26523125 · PMCID: PMC4614838
     """
+
     @protocol_input(list)
     def enthalpy_free_energy_tuple(self):
-        """The enthalpies to add together, passed as a tuple, with their respective binding free energies."""
+        """The enthalpies to add together, passed as a tuple with their respective binding free energies."""
         pass
 
     @protocol_input(ThermodynamicState)
@@ -142,7 +145,6 @@ class AddBindingEnthalpies(AddValues):
     def confidence_intervals(self):
         """The confidence intervals on the summed enthalpy."""
         pass
-
 
     def __init__(self, protocol_id):
         """Constructs a new AddBindingEnthalpies object."""
@@ -182,10 +184,6 @@ class AddBindingEnthalpies(AddValues):
             cycle_values = np.empty((len(self._values), 2))
 
             for value_index, value in enumerate(self._values):
-
-
-                # Now, value is a tuple of (enthalpy, free energy)
-
                 mean_enthalpy = value[0].value.to(default_unit).magnitude
                 sem_enthalpy = value[0].uncertainty.to(default_unit).magnitude
 
@@ -198,9 +196,9 @@ class AddBindingEnthalpies(AddValues):
                 cycle_values[value_index][0] = (-beta * sampled_enthalpy).to(unit.dimensionless).magnitude
                 cycle_values[value_index][1] = (-beta * sampled_free_energy).to(unit.dimensionless).magnitude
 
-            #      Σ_{n} (ΔH_{n} × exp(-βΔG°_{n}))
-            # ΔH = -------------------------------
-            #           Σ_{n} exp(-βΔG°_{n})
+            #      Σ_{n} [ ΔH_{n} × exp(-βΔG°_{n}) ]
+            # ΔH = ---------------------------------
+            #            Σ_{n} exp(-βΔG°_{n})
 
             cycle_result[cycle_index] = np.sum(cycle_values[:, 0] * np.exp(cycle_values[:, 1])) \
                                         / np.sum(np.exp(cycle_values[:, 1]))
@@ -208,7 +206,7 @@ class AddBindingEnthalpies(AddValues):
         mean = np.mean(cycle_result) * default_unit
         sem = np.std(cycle_result) * default_unit
 
-        ci = np.empty((2))
+        ci = np.empty(2)
         sorted_statistics = np.sort(cycle_result)
         ci[0] = sorted_statistics[int(0.025 * cycles)]
         ci[1] = sorted_statistics[int(0.975 * cycles)]
