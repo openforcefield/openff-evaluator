@@ -32,7 +32,7 @@ class AddBindingFreeEnergies(AddValues):
         """The thermodynamic state at which the free energies were measured."""
         pass
 
-    @protocol_input(ThermodynamicState)
+    @protocol_input(int)
     def bootstrap_cycles(self):
         """The number of bootstrap cycles to perform when estimating
         the uncertainty in the combined free energies."""
@@ -150,7 +150,7 @@ class AddBindingEnthalpies(AddValues):
         """The thermodynamic state at which the free energies were measured."""
         pass
 
-    @protocol_input(ThermodynamicState)
+    @protocol_input(int)
     def bootstrap_cycles(self):
         """The number of bootstrap cycles to perform when estimating
         the uncertainty in the combined free energies."""
