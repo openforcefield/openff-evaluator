@@ -2,6 +2,7 @@
 A collection of protocols for running molecular simulations.
 """
 import logging
+import math
 import os
 import shutil
 import threading
@@ -178,6 +179,20 @@ class RunOpenMMSimulation(BaseProtocol):
         """If true, periodic boundary conditions will be enabled."""
         pass
 
+    @protocol_input(bool)
+    def save_rolling_statistics(self):
+        """If True, the statisitics file will be written to every
+        `output_frequency` number of steps, rather than just once
+        at the end of the simulation.
+
+        Notes
+        -----
+        In future when either saving the statistics to file has been
+        optimised, or an option for the frequency to save to the file
+        has been added, this option will be removed.
+        """
+        pass
+
     @protocol_output(str)
     def output_coordinate_file(self):
         """The file path to the coordinates of the final system configuration."""
@@ -212,6 +227,8 @@ class RunOpenMMSimulation(BaseProtocol):
         self._system_path = None
 
         self._enable_pbc = True
+
+        self._save_rolling_statistics = True
 
         self._output_coordinate_file = None
 
@@ -377,7 +394,7 @@ class RunOpenMMSimulation(BaseProtocol):
 
         return context, integrator
 
-    def _write_statistics_array(self, raw_statistics, temperature, pressure,
+    def _write_statistics_array(self, raw_statistics, current_step, temperature, pressure,
                                 degrees_of_freedom, total_mass):
         """Appends a set of statistics to an existing `statistics_array`.
         Those statistics are potential energy, kinetic energy, total energy,
@@ -385,8 +402,11 @@ class RunOpenMMSimulation(BaseProtocol):
 
         Parameters
         ----------
-        raw_statistics: dict of ObservableType and float
-            A dictionary of potential energies, kinetic energies and volumes.
+        raw_statistics: dict of ObservableType and numpy.ndarray
+            A dictionary of potential energies (kJ/mol), kinetic
+            energies (kJ/mol) and volumes (angstrom**3).
+        current_step: int
+            The index of the current step.
         temperature: simtk.unit.Quantity
             The temperature the system is being simulated at.
         pressure: simtk.unit.Quantity
@@ -406,9 +426,13 @@ class RunOpenMMSimulation(BaseProtocol):
 
         beta = 1.0 / (unit.boltzmann_constant * temperature)
 
-        potential_energies = np.array(raw_statistics[ObservableType.PotentialEnergy]) * unit.kilojoules / unit.mole
-        kinetic_energies = np.array(raw_statistics[ObservableType.KineticEnergy]) * unit.kilojoules / unit.mole
-        volumes = np.array(raw_statistics[ObservableType.Volume]) * unit.angstrom ** 3
+        raw_potential_energies = raw_statistics[ObservableType.PotentialEnergy][0:current_step + 1]
+        raw_kinetic_energies = raw_statistics[ObservableType.KineticEnergy][0:current_step + 1]
+        raw_volumes = raw_statistics[ObservableType.Volume][0:current_step + 1]
+
+        potential_energies = raw_potential_energies * unit.kilojoules / unit.mole
+        kinetic_energies = raw_kinetic_energies * unit.kilojoules / unit.mole
+        volumes = raw_volumes * unit.angstrom ** 3
 
         # Calculate the instantaneous temperature, taking account the
         # systems degrees of freedom.
@@ -482,10 +506,12 @@ class RunOpenMMSimulation(BaseProtocol):
                                             self._output_frequency,
                                             False)
 
+        expected_number_of_statistics = math.ceil(self.steps / self.output_frequency)
+
         raw_statistics = {
-            ObservableType.PotentialEnergy: [],
-            ObservableType.KineticEnergy: [],
-            ObservableType.Volume: []
+            ObservableType.PotentialEnergy: np.zeros(expected_number_of_statistics),
+            ObservableType.KineticEnergy: np.zeros(expected_number_of_statistics),
+            ObservableType.Volume: np.zeros(expected_number_of_statistics),
         }
 
         # Define any constants needed for extracting system statistics
@@ -510,6 +536,8 @@ class RunOpenMMSimulation(BaseProtocol):
 
         # Perform the simulation.
         current_step_count = 0
+        current_step = 0
+
         result = None
 
         try:
@@ -520,10 +548,10 @@ class RunOpenMMSimulation(BaseProtocol):
                 integrator.step(steps_to_take)
 
                 state = context.getState(getPositions=True,
-                                         getVelocities=True,
-                                         getForces=True,
                                          getEnergy=True,
-                                         getParameters=True,
+                                         getVelocities=False,
+                                         getForces=False,
+                                         getParameters=False,
                                          enforcePeriodicBox=self.enable_pbc)
 
                 # Write out the current frame of the trajectory.
@@ -531,31 +559,48 @@ class RunOpenMMSimulation(BaseProtocol):
                                                  periodicBoxVectors=state.getPeriodicBoxVectors())
 
                 # Write out the energies and system statistics.
-                raw_statistics[ObservableType.PotentialEnergy].append(state.getPotentialEnergy().
-                                                                      value_in_unit(simtk_unit.kilojoules_per_mole))
-                raw_statistics[ObservableType.KineticEnergy].append(state.getKineticEnergy().
-                                                                    value_in_unit(simtk_unit.kilojoules_per_mole))
-                raw_statistics[ObservableType.Volume].append(state.getPeriodicBoxVolume().
-                                                             value_in_unit(simtk_unit.angstrom ** 3))
+                raw_statistics[ObservableType.PotentialEnergy][current_step] = \
+                    state.getPotentialEnergy().value_in_unit(simtk_unit.kilojoules_per_mole)
+                raw_statistics[ObservableType.KineticEnergy][current_step] = \
+                    state.getKineticEnergy().value_in_unit(simtk_unit.kilojoules_per_mole)
+                raw_statistics[ObservableType.Volume][current_step] = \
+                    state.getPeriodicBoxVolume().value_in_unit(simtk_unit.angstrom ** 3)
 
-                self._write_statistics_array(raw_statistics, temperature, pressure,
-                                             degrees_of_freedom, total_mass)
+                if self._save_rolling_statistics:
 
-                # Create a checkpoint file.
-                state_xml = openmm.XmlSerializer.serialize(state)
-
-                with open(self._checkpoint_path, 'w') as file:
-                    file.write(state_xml)
+                    self._write_statistics_array(raw_statistics, current_step, temperature,
+                                                 pressure, degrees_of_freedom, total_mass)
 
                 current_step_count += steps_to_take
+                current_step += 1
 
         except Exception as e:
 
+            formatted_exception = f'{traceback.format_exception(None, e, e.__traceback__)}'
+
             result = PropertyEstimatorException(directory=directory,
-                                                message='Simulation failed: {}'.format(e))
+                                                message=f'The simulation failed unexpectedly: '
+                                                        f'{formatted_exception}')
+
+        # Create a checkpoint file.
+        state = context.getState(getPositions=True,
+                                 getEnergy=True,
+                                 getVelocities=True,
+                                 getForces=True,
+                                 getParameters=True,
+                                 enforcePeriodicBox=self.enable_pbc)
+
+        state_xml = openmm.XmlSerializer.serialize(state)
+
+        with open(self._checkpoint_path, 'w') as file:
+            file.write(state_xml)
 
         # Make sure to close the open trajectory stream.
         trajectory_file_object.close()
+
+        # Save the final statistics
+        self._write_statistics_array(raw_statistics, current_step, temperature,
+                                     pressure, degrees_of_freedom, total_mass)
 
         if isinstance(result, PropertyEstimatorException):
             return result

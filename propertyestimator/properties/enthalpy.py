@@ -604,11 +604,13 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         gas_protocols.equilibration_simulation.ensemble = Ensemble.NVT
         gas_protocols.equilibration_simulation.enable_pbc = False
+        gas_protocols.equilibration_simulation.save_rolling_statistics = False
 
         gas_protocols.production_simulation.ensemble = Ensemble.NVT
-        gas_protocols.production_simulation.steps = 5000000
-        gas_protocols.production_simulation.output_frequency = 25000
+        gas_protocols.production_simulation.steps = 20000000
+        gas_protocols.production_simulation.output_frequency = 2500
         gas_protocols.production_simulation.enable_pbc = False
+        gas_protocols.production_simulation.save_rolling_statistics = False
 
         # Combine the values to estimate the final energy of vaporization
         energy_of_vaporization = miscellaneous.SubtractValues('energy_of_vaporization')
