@@ -11,6 +11,9 @@ from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import setup_timestamp_logging
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 
+# Read taproom
+# Do the calculation for each orientation
+# Pass a list of `result` objects to Add
 
 def main():
     """An integrated test of calculating the gradients of observables with
@@ -52,7 +55,8 @@ def main():
     host_guest_protocol.force_field = AmberPaprikaProtocol.ForceField.GAFF
 
     result = host_guest_protocol.execute(host_guest_directory, resources)
-    
+
+
     if isinstance(result, PropertyEstimatorException):
         
         logging.info(f'The attach / pull calculations failed with error: {result.message}')
