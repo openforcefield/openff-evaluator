@@ -32,6 +32,12 @@ class AddBindingFreeEnergies(AddValues):
         """The thermodynamic state at which the free energies were measured."""
         pass
 
+    @protocol_input(ThermodynamicState)
+    def bootstrap_cycles(self):
+        """The number of bootstrap cycles to perform when estimating
+        the uncertainty in the combined free energies."""
+        pass
+
     @protocol_output(EstimatedQuantity)
     def result(self):
         """The sum of the values."""
@@ -48,25 +54,35 @@ class AddBindingFreeEnergies(AddValues):
 
         self._values = None
         self._thermodynamic_state = None
-        self.cycles = 1000
+        self._bootstrap_cycles = 1000
 
         self._result = None
         self._confidence_intervals = None
 
-
     def execute(self, directory, available_resources):
 
-        results_dictionary = self.bootstrap()
+        mean, uncertainty, confidence_intervals = self.bootstrap()
 
-        self._result = EstimatedQuantity(results_dictionary['mean'],
-                                         results_dictionary['sem'],
+        self._result = EstimatedQuantity(mean,
+                                         uncertainty,
                                          self._id)
 
-        self._confidence_intervals = results_dictionary['ci']
+        self._confidence_intervals = confidence_intervals
 
         return self._get_output_dictionary()
 
     def bootstrap(self):
+        """
+
+        Returns
+        -------
+        unit.Quantity
+            The summed free energies.
+        unit.Quantity
+            The uncertainty in the summed free energies
+        unit.Quantity
+            A unit wrapped list of the confidence intervals.
+        """
 
         default_unit = unit.kilocalorie / unit.mole
 
@@ -75,9 +91,9 @@ class AddBindingFreeEnergies(AddValues):
 
         beta = 1.0 / boltzmann_factor
 
-        cycle_result = np.empty(self.cycles)
+        cycle_result = np.empty(self.bootstrap_cycles)
 
-        for cycle_index, cycle in enumerate(range(self.cycles)):
+        for cycle_index, cycle in enumerate(range(self.bootstrap_cycles)):
 
             cycle_values = np.empty(len(self._values))
 
@@ -95,18 +111,14 @@ class AddBindingFreeEnergies(AddValues):
         mean = np.mean(-boltzmann_factor * cycle_result)
         sem = np.std(-boltzmann_factor * cycle_result)
 
-        ci = np.empty(2)
+        confidence_intervals = np.empty(2)
         sorted_statistics = np.sort(cycle_result)
-        ci[0] = sorted_statistics[int(0.025 * self.cycles)]
-        ci[1] = sorted_statistics[int(0.975 * self.cycles)]
+        confidence_intervals[0] = sorted_statistics[int(0.025 * self.bootstrap_cycles)]
+        confidence_intervals[1] = sorted_statistics[int(0.975 * self.bootstrap_cycles)]
 
-        ci = -boltzmann_factor * ci
+        confidence_intervals = -boltzmann_factor * confidence_intervals
 
-        results = {"mean": mean,
-                   "sem": sem,
-                   "ci": ci}
-
-        return results
+        return mean, sem, confidence_intervals
 
 
 @register_calculation_protocol()
@@ -138,6 +150,12 @@ class AddBindingEnthalpies(AddValues):
         """The thermodynamic state at which the free energies were measured."""
         pass
 
+    @protocol_input(ThermodynamicState)
+    def bootstrap_cycles(self):
+        """The number of bootstrap cycles to perform when estimating
+        the uncertainty in the combined free energies."""
+        pass
+
     @protocol_output(EstimatedQuantity)
     def result(self):
         """The sum of the values."""
@@ -154,24 +172,33 @@ class AddBindingEnthalpies(AddValues):
 
         self._values = None
         self._thermodynamic_state = None
-        self.cycles = 1000
+        self._bootstrap_cycles = 1000
 
         self._result = None
         self._confidence_intervals = None
 
     def execute(self, directory, available_resources):
 
-        results_dictionary = self.bootstrap()
+        mean, uncertainty, confidence_intervals = self.bootstrap()
 
-        self._result = EstimatedQuantity(results_dictionary['mean'],
-                                         results_dictionary['sem'],
+        self._result = EstimatedQuantity(mean,
+                                         uncertainty,
                                          self._id)
-
-        self._confidence_intervals = results_dictionary['ci']
 
         return self._get_output_dictionary()
 
     def bootstrap(self):
+        """
+
+        Returns
+        -------
+        unit.Quantity
+            The summed enthalpies.
+        unit.Quantity
+            The uncertainty in the summed enthalpies
+        unit.Quantity
+            A unit wrapped list of the confidence intervals.
+        """
 
         default_unit = unit.kilocalorie / unit.mole
 
@@ -180,9 +207,9 @@ class AddBindingEnthalpies(AddValues):
 
         beta = 1.0 / boltzmann_factor
 
-        cycle_result = np.empty(self.cycles)
+        cycle_result = np.empty(self._bootstrap_cycles)
 
-        for cycle_index, cycle in enumerate(range(self.cycles)):
+        for cycle_index, cycle in enumerate(range(self._bootstrap_cycles)):
 
             cycle_values = np.empty((len(self._values), 2))
 
@@ -196,7 +223,7 @@ class AddBindingEnthalpies(AddValues):
                 sampled_enthalpy = np.random.normal(mean_enthalpy, sem_enthalpy) * default_unit
                 sampled_free_energy = np.random.normal(mean_free_energy, sem_free_energy) * default_unit
 
-                cycle_values[value_index][0] = (sampled_enthalpy).magnitude
+                cycle_values[value_index][0] = sampled_enthalpy
                 cycle_values[value_index][1] = (-beta * sampled_free_energy).to(unit.dimensionless).magnitude
 
             #      Σ_{n} [ ΔH_{n} × exp(-βΔG°_{n}) ]
@@ -206,18 +233,12 @@ class AddBindingEnthalpies(AddValues):
             cycle_result[cycle_index] = np.sum(cycle_values[:, 0] * np.exp(cycle_values[:, 1])) \
                                         / np.sum(np.exp(cycle_values[:, 1]))
 
-
-
         mean = np.mean(cycle_result) * default_unit
         sem = np.std(cycle_result) * default_unit
 
-        ci = np.empty(2)
+        confidence_intervals = np.empty(2)
         sorted_statistics = np.sort(cycle_result)
-        ci[0] = sorted_statistics[int(0.025 * self.cycles)]
-        ci[1] = sorted_statistics[int(0.975 * self.cycles)]
+        confidence_intervals[0] = sorted_statistics[int(0.025 * self._bootstrap_cycles)]
+        confidence_intervals[1] = sorted_statistics[int(0.975 * self._bootstrap_cycles)]
 
-        results = {"mean": mean,
-                   "sem": sem,
-                   "ci": ci}
-
-        return results
+        return mean, sem, confidence_intervals * default_unit
