@@ -516,10 +516,10 @@ class RunOpenMMSimulation(BaseProtocol):
                 integrator.step(steps_to_take)
 
                 state = context.getState(getPositions=True,
-                                         getVelocities=True,
-                                         getForces=True,
                                          getEnergy=True,
-                                         getParameters=True,
+                                         getVelocities=False,
+                                         getForces=False,
+                                         getParameters=False,
                                          enforcePeriodicBox=self.enable_pbc)
 
                 # Write out the current frame of the trajectory.
@@ -537,12 +537,6 @@ class RunOpenMMSimulation(BaseProtocol):
                 self._write_statistics_array(raw_statistics, temperature, pressure,
                                              degrees_of_freedom, total_mass)
 
-                # Create a checkpoint file.
-                state_xml = openmm.XmlSerializer.serialize(state)
-
-                with open(self._checkpoint_path, 'w') as file:
-                    file.write(state_xml)
-
                 current_step_count += steps_to_take
 
         except Exception as e:
@@ -555,6 +549,19 @@ class RunOpenMMSimulation(BaseProtocol):
 
         if isinstance(result, PropertyEstimatorException):
             return result
+
+        # Create a checkpoint file.
+        state = context.getState(getPositions=True,
+                                 getEnergy=True,
+                                 getVelocities=False,
+                                 getForces=False,
+                                 getParameters=False,
+                                 enforcePeriodicBox=self.enable_pbc)
+
+        state_xml = openmm.XmlSerializer.serialize(state)
+
+        with open(self._checkpoint_path, 'w') as file:
+            file.write(state_xml)
 
         # Move the trajectory and statistics files to their
         # final location.
