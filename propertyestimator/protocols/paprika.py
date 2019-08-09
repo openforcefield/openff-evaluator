@@ -273,22 +273,12 @@ class BasePaprikaProtocol(BaseProtocol):
                              self._paprika_setup.wall_restraints + \
                              self._paprika_setup.guest_restraints:
 
-                try:
-                    restraint.index1 = index_from_mask(build_pdb_file, restraint.mask1, use_amber_indices)
-                except:
-                    pass
-                try:
-                    restraint.index2 = index_from_mask(build_pdb_file, restraint.mask2, use_amber_indices)
-                except:
-                    pass
-                try:
+                restraint.index1 = index_from_mask(build_pdb_file, restraint.mask1, use_amber_indices)
+                restraint.index2 = index_from_mask(build_pdb_file, restraint.mask2, use_amber_indices)
+                if restraint.mask3:
                     restraint.index3 = index_from_mask(build_pdb_file, restraint.mask3, use_amber_indices)
-                except:
-                    pass
-                try:
+                if restraint.mask4:
                     restraint.index4 = index_from_mask(build_pdb_file, restraint.mask4, use_amber_indices)
-                except:
-                    pass
 
     def _setup_restraints(self):
 
