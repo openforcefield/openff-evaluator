@@ -640,6 +640,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
     def _apply_parameters(self):
 
+        from simtk import unit as simtk_unit
         super(OpenMMPaprikaProtocol, self)._apply_parameters()
 
         if (self._force_field == BasePaprikaProtocol.ForceField.GAFF or
@@ -665,10 +666,10 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                     position += cell_vectors[1] / 2.0
                     position += cell_vectors[2] / 2.0
 
-                    new_positions.append(position.value_in_unit(unit.angstrom))
+                    new_positions.append(position.value_in_unit(simtk_unit.angstrom))
 
                 with open(self._solvated_coordinate_paths[index], 'w+') as file:
-                    PDBFile.writeFile(pdb_file.topology, new_positions * unit.angstrom, file)
+                    PDBFile.writeFile(pdb_file.topology, new_positions * simtk_unit.angstrom, file)
 
                 prmtop = AmberPrmtopFile(os.path.join(window_directory, 'structure.prmtop'))
 
@@ -972,7 +973,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             amber_simulation.cntrl["ntr"] = 1
             amber_simulation.cntrl["restraint_wt"] = 50.0
             amber_simulation.cntrl["restraintmask"] = "'@DUM'"
-            amber_simulation.cntrl["dt"] = timestep.value_in_unit(unit.picoseconds)
+            amber_simulation.cntrl["dt"] = timestep.to(unit.picoseconds).magnitude
             amber_simulation.cntrl["nstlim"] = number_of_equilibration_steps
             amber_simulation.cntrl["ntwx"] = equilibration_output_frequency
             amber_simulation.cntrl["barostat"] = 2
@@ -1016,7 +1017,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             amber_simulation.cntrl["ntr"] = 1
             amber_simulation.cntrl["restraint_wt"] = 50.0
             amber_simulation.cntrl["restraintmask"] = "'@DUM'"
-            amber_simulation.cntrl["dt"] = timestep.value_in_unit(unit.picoseconds)
+            amber_simulation.cntrl["dt"] = timestep.to(unit.picoseconds).magnitude
             amber_simulation.cntrl["nstlim"] = number_of_production_steps
             amber_simulation.cntrl["ntwx"] = production_output_frequency
             amber_simulation.cntrl["barostat"] = 2
