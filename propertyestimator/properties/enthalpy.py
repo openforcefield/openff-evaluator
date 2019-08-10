@@ -684,7 +684,9 @@ class EnthalpyOfVaporization(PhysicalProperty):
         gas_raw_potentials.statistics_type = ObservableType.PotentialEnergy
         
         gas_coordinate_source = ProtocolPath('output_coordinate_file', gas_protocols.equilibration_simulation.id)
-        gas_trajectory_source = ProtocolPath('trajectory_file_path', gas_protocols.production_simulation.id)
+        gas_trajectory_source = ProtocolPath('trajectory_file_path',
+                                             gas_protocols.converge_uncertainty.id,
+                                             gas_protocols.production_simulation.id)
         gas_observables_source = ProtocolPath('values', gas_raw_potentials.id)
 
         gas_gradient_group, gas_gradient_replicator, gas_gradient_source = \
