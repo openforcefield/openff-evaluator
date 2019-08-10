@@ -118,12 +118,18 @@ def get_paprika_host_guest_substance(host_name, guest_name, ionic_strength=None)
     for entry_point in pkg_resources.iter_entry_points(group="taproom.benchmarks"):
         installed_benchmarks[entry_point.name] = entry_point.load()
 
+
+    substances = []
+    orientations = []
     host_yaml_paths = []
+
     for orientation in installed_benchmarks["host_guest_systems"][host_name]["yaml"]:
         if f"host" in orientation.name:
             host_yaml_paths.append(orientation)
-
-    substances = []
+            # This is fragile because it depends on a particular naming scheme.
+            # Annnd this is going to fail if we only have a single orientation.
+            # FIX ME
+            orientations.append(orientation.name.split("-")[1].split(".")[0])
 
     for host_yaml_path in host_yaml_paths:
 
@@ -150,4 +156,5 @@ def get_paprika_host_guest_substance(host_name, guest_name, ionic_strength=None)
             guest_smiles = mol2_to_smiles(guest_mol2_path)
 
         substances.append(build_substance(guest_smiles, host_smiles, ionic_strength))
-    return substances
+
+    return substances, orientations
