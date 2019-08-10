@@ -572,7 +572,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
         """
 
         # Define the number of molecules for the liquid phase
-        number_of_liquid_molecules = 1000
+        number_of_liquid_molecules = 256
 
         # Define a custom conditional group.
         converge_uncertainty = groups.ConditionalGroup(f'converge_uncertainty')
@@ -608,7 +608,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         gas_protocols.production_simulation.ensemble = Ensemble.NVT
         gas_protocols.production_simulation.steps = 20000000
-        gas_protocols.production_simulation.output_frequency = 2500
+        gas_protocols.production_simulation.output_frequency = 2000
         gas_protocols.production_simulation.enable_pbc = False
         gas_protocols.production_simulation.save_rolling_statistics = False
 
@@ -655,11 +655,18 @@ class EnthalpyOfVaporization(PhysicalProperty):
             converge_uncertainty.add_condition(condition)
 
         # Set up the liquid gradient calculations
+        liquid_raw_potentials = analysis.ExtractStatistic(f'extract_raw_liquid_potentials')
+        liquid_raw_potentials.statistics_path = ProtocolPath('statistics_file_path',
+                                                             liquid_protocols.converge_uncertainty.id,
+                                                             liquid_protocols.production_simulation.id)
+        liquid_raw_potentials.statistics_type = ObservableType.PotentialEnergy
+        liquid_raw_potentials.divisor = number_of_liquid_molecules
+
         liquid_coordinate_source = ProtocolPath('output_coordinate_file', liquid_protocols.equilibration_simulation.id)
-        liquid_trajectory_source = ProtocolPath('output_trajectory_path',
-                                                liquid_protocols.extract_uncorrelated_trajectory.id)
-        liquid_observables_source = ProtocolPath('uncorrelated_values', converge_uncertainty.id,
-                                                                        liquid_protocols.analysis_protocol.id)
+        liquid_trajectory_source = ProtocolPath('trajectory_file_path',
+                                                liquid_protocols.converge_uncertainty.id,
+                                                liquid_protocols.production_simulation.id)
+        liquid_observables_source = ProtocolPath('values', liquid_raw_potentials.id)
 
         liquid_gradient_group, liquid_gradient_replicator, liquid_gradient_source = \
             generate_gradient_protocol_group([ProtocolPath('force_field_path', 'global')],
@@ -670,10 +677,15 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                              id_prefix='liquid_')
 
         # Set up the gas gradient calculations
+        gas_raw_potentials = analysis.ExtractStatistic(f'extract_raw_gas_potentials')
+        gas_raw_potentials.statistics_path = ProtocolPath('statistics_file_path',
+                                                          gas_protocols.converge_uncertainty.id,
+                                                          gas_protocols.production_simulation.id)
+        gas_raw_potentials.statistics_type = ObservableType.PotentialEnergy
+        
         gas_coordinate_source = ProtocolPath('output_coordinate_file', gas_protocols.equilibration_simulation.id)
-        gas_trajectory_source = ProtocolPath('output_trajectory_path', gas_protocols.extract_uncorrelated_trajectory.id)
-        gas_observables_source = ProtocolPath('uncorrelated_values', converge_uncertainty.id,
-                                                                     gas_protocols.analysis_protocol.id)
+        gas_trajectory_source = ProtocolPath('trajectory_file_path', gas_protocols.production_simulation.id)
+        gas_observables_source = ProtocolPath('values', gas_raw_potentials.id)
 
         gas_gradient_group, gas_gradient_replicator, gas_gradient_source = \
             generate_gradient_protocol_group([ProtocolPath('force_field_path', 'global')],
@@ -720,6 +732,9 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
             gas_protocols.extract_uncorrelated_trajectory.id: gas_protocols.extract_uncorrelated_trajectory.schema,
             gas_protocols.extract_uncorrelated_statistics.id: gas_protocols.extract_uncorrelated_statistics.schema,
+
+            liquid_raw_potentials.id: liquid_raw_potentials.schema,
+            gas_raw_potentials.id: gas_raw_potentials.schema,
 
             liquid_gradient_group.id: liquid_gradient_group.schema,
             gas_gradient_group.id: gas_gradient_group.schema,

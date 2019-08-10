@@ -211,6 +211,70 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
 
 
 @register_calculation_protocol()
+class ExtractStatistic(BaseProtocol):
+    """Extracts the value from a statistics file which was generated
+    during a simulation.
+    """
+
+    @protocol_input(str)
+    def statistics_path(self):
+        """The file path to the file which contains the statistics."""
+        pass
+
+    @protocol_input(statistics.ObservableType)
+    def statistics_type(self):
+        """The type of statistic to extract."""
+        pass
+
+    @protocol_input(int)
+    def divisor(self):
+        """A divisor to divide the statistic by. This is useful
+        if a statistic (such as enthalpy) needs to be normalised
+        by the number of molecules."""
+        pass
+
+    @protocol_output(unit.Quantity)
+    def values(self):
+        """The values of the statistic."""
+        pass
+
+    def __init__(self, protocol_id):
+
+        super().__init__(protocol_id)
+
+        self._statistics_path = None
+        self._statistics_type = statistics.ObservableType.PotentialEnergy
+
+        self._divisor = 1
+
+        self._values = None
+
+    def execute(self, directory, available_resources):
+
+        logging.info('Extracting {}: {}'.format(self._statistics_type, self.id))
+
+        if self._statistics_path is None:
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='The ExtractAverageStatistic protocol '
+                                                       'requires a previously calculated statistics file')
+
+        statistics_array = statistics.StatisticsArray.from_pandas_csv(self.statistics_path)
+
+        if self._statistics_type not in statistics_array:
+
+            return PropertyEstimatorException(directory=directory,
+                                              message=f'The {self._statistics_path} statistics file contains no '
+                                                      f'data of type {self._statistics_type}.')
+
+        self._values = statistics_array[self._statistics_type] / float(self._divisor)
+
+        logging.info('Extracted {}: {}'.format(self._statistics_type, self.id))
+
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
 class ExtractUncorrelatedData(BaseProtocol):
     """An abstract base class for protocols which will subsample
     a data set, yielding only equilibrated, uncorrelated data.
