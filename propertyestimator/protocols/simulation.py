@@ -193,6 +193,21 @@ class RunOpenMMSimulation(BaseProtocol):
         """
         pass
 
+    @protocol_input(bool)
+    def allow_gpu_platforms(self):
+        """If true, OpenMM will be allowed to run using
+        a GPU if available, otherwise it will be constrained
+        to only using CPUs."""
+        pass
+
+    @protocol_input(bool)
+    def high_precision(self):
+        """If true, OpenMM will be run using a platform with
+        high precision settings. This will be the Reference
+        platform when only a CPU is available, or double
+        precision mode when a GPU is available."""
+        pass
+
     @protocol_output(str)
     def output_coordinate_file(self):
         """The file path to the coordinates of the final system configuration."""
@@ -229,6 +244,9 @@ class RunOpenMMSimulation(BaseProtocol):
         self._enable_pbc = True
 
         self._save_rolling_statistics = True
+
+        self._allow_gpu_platforms = True
+        self._high_precision = False
 
         self._output_coordinate_file = None
 
@@ -320,7 +338,12 @@ class RunOpenMMSimulation(BaseProtocol):
         from simtk.openmm import XmlSerializer
 
         # Create a platform with the correct resources.
-        platform = setup_platform_with_resources(available_resources)
+        if not self._allow_gpu_platforms:
+
+            from propertyestimator.backends import ComputeResources
+            available_resources = ComputeResources(available_resources.number_of_threads)
+
+        platform = setup_platform_with_resources(available_resources, self._high_precision)
 
         # Load in the system object from the provided xml file.
         with open(self._system_path, 'r') as file:

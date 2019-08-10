@@ -612,6 +612,15 @@ class EnthalpyOfVaporization(PhysicalProperty):
         gas_protocols.production_simulation.enable_pbc = False
         gas_protocols.production_simulation.save_rolling_statistics = False
 
+        # Due to a bizarre issue where the OMM Reference platform is
+        # the fastest at computing properties of a single molecule
+        # in vacuum, we enforce those inputs which will force the
+        # gas calculations to run on the Reference platform.
+        gas_protocols.equilibration_simulation.high_precision = True
+        gas_protocols.equilibration_simulation.allow_gpu_platforms = False
+        gas_protocols.production_simulation.high_precision = True
+        gas_protocols.production_simulation.allow_gpu_platforms = False
+
         # Combine the values to estimate the final energy of vaporization
         energy_of_vaporization = miscellaneous.SubtractValues('energy_of_vaporization')
         energy_of_vaporization.value_b = ProtocolPath('value', extract_gas_energy.id)
