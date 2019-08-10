@@ -20,10 +20,10 @@ from paprika.io import save_restraints
 from paprika.restraints import amber_restraints
 from paprika.tleap import System
 from paprika.utils import index_from_mask
-from simtk import unit
 from simtk.openmm import XmlSerializer
 from simtk.openmm.app import AmberPrmtopFile, HBonds, PME, PDBFile
 
+from propertyestimator import unit
 from propertyestimator.backends import ComputeResources
 from propertyestimator.protocols import miscellaneous, coordinates, forcefield, simulation, groups
 from propertyestimator.substances import Substance
@@ -483,31 +483,31 @@ class BasePaprikaProtocol(BaseProtocol):
         if 'attach' in self._results_dictionary:
 
             self._attach_free_energy = EstimatedQuantity(
-                -self._results_dictionary['attach']['ti-block']['fe'] * unit.kilocalorie_per_mole,
-                self._results_dictionary['attach']['ti-block']['sem'] * unit.kilocalorie_per_mole, self._id)
+                -self._results_dictionary['attach']['ti-block']['fe'] * unit.kilocalorie / unit.mole,
+                self._results_dictionary['attach']['ti-block']['sem'] * unit.kilocalorie / unit.mole, self._id)
 
         if 'pull' in self._results_dictionary:
 
             self._pull_free_energy = EstimatedQuantity(
-                -self._results_dictionary['pull']['ti-block']['fe'] * unit.kilocalorie_per_mole,
-                self._results_dictionary['pull']['ti-block']['sem'] * unit.kilocalorie_per_mole, self._id)
+                -self._results_dictionary['pull']['ti-block']['fe'] * unit.kilocalorie / unit.mole,
+                self._results_dictionary['pull']['ti-block']['sem'] * unit.kilocalorie / unit.mole, self._id)
 
         if 'release' in self._results_dictionary:
 
             self._release_free_energy = EstimatedQuantity(
-                self._results_dictionary['release']['ti-block']['fe'] * unit.kilocalorie_per_mole,
-                self._results_dictionary['release']['ti-block']['sem'] * unit.kilocalorie_per_mole, self._id)
+                self._results_dictionary['release']['ti-block']['fe'] * unit.kilocalorie / unit.mole,
+                self._results_dictionary['release']['ti-block']['sem'] * unit.kilocalorie / unit.mole, self._id)
 
         if 'ref_state_work' in self._results_dictionary:
 
             self._reference_free_energy = EstimatedQuantity(
-                -self._results_dictionary['ref_state_work'] * unit.kilocalorie_per_mole,
-                0 * unit.kilocalorie_per_mole, self._id)
+                -self._results_dictionary['ref_state_work'] * unit.kilocalorie / unit.mole,
+                0 * unit.kilocalorie / unit.mole, self._id)
 
         if 'symmetry_correction' in self._results_dictionary:
             self._symmetry_correction = EstimatedQuantity(
-                self._results_dictionary['symmetry_correction'] * unit.kilocalorie_per_mole,
-                0 * unit.kilocalorie_per_mole, self._id)
+                self._results_dictionary['symmetry_correction'] * unit.kilocalorie / unit.mole,
+                0 * unit.kilocalorie / unit.mole, self._id)
 
 
         return None
