@@ -1,7 +1,7 @@
 """
 A collection of enthalpy physical property definitions.
 """
-
+import logging
 from collections import namedtuple
 
 import numpy as np
@@ -162,6 +162,12 @@ class EnthalpyFluctuationGradient(BaseProtocol):
 
         beta = 1.0 / (self._thermodynamic_state.temperature * unit.molar_gas_constant)
         beta.ito(unit.mole / unit.kilojoule)
+
+        logging.info(f'{beta}')
+        logging.info(f'{average_energy_gradient}')
+        logging.info(f'{average_energy}')
+        logging.info(f'{np.mean(potential_energies * potential_energy_gradients)}')
+        logging.info(f'{average_energy * average_energy_gradient}')
 
         gradient_value = (average_energy_gradient -
                           beta * (np.mean(potential_energies * potential_energy_gradients) -
