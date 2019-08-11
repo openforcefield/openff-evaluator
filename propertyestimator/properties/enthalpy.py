@@ -4,10 +4,13 @@ A collection of enthalpy physical property definitions.
 
 from collections import namedtuple
 
+import numpy as np
+
 from propertyestimator import unit
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.properties.properties import PhysicalProperty, PropertyPhase
+from propertyestimator.properties.properties import PhysicalProperty, PropertyPhase, ParameterGradientKey, \
+    ParameterGradient
 from propertyestimator.protocols import analysis, coordinates, forcefield, groups, miscellaneous, simulation, \
     reweighting, gradients
 from propertyestimator.protocols.utils import generate_base_reweighting_protocols, generate_base_simulation_protocols, \
@@ -15,10 +18,10 @@ from propertyestimator.protocols.utils import generate_base_reweighting_protocol
 from propertyestimator.storage import StoredSimulationData
 from propertyestimator.storage.dataclasses import StoredDataCollection
 from propertyestimator.substances import Substance
-from propertyestimator.thermodynamics import Ensemble
+from propertyestimator.thermodynamics import Ensemble, ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.utils.statistics import ObservableType
+from propertyestimator.utils.statistics import ObservableType, StatisticsArray
 from propertyestimator.workflow import plugins, WorkflowOptions
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
 from propertyestimator.workflow.protocols import BaseProtocol
@@ -98,27 +101,27 @@ class EnthalpyFluctuationGradient(BaseProtocol):
 
     @protocol_input(str)
     def statistics_path(self):
-        """The path to the values of U(theta), V(theta) and u(theta) stored in a `StatisticsArray`."""
+        """The path to the values of U(theta) and u(theta) stored in a `StatisticsArray`."""
         pass
 
     @protocol_input(str)
     def reverse_statistics_path(self):
-        """The path to the values of U(theta-h), V(theta-h) and u(theta-h) stored in a `StatisticsArray`."""
+        """The path to the values of U(theta-h) and u(theta-h) stored in a `StatisticsArray`."""
         pass
 
     @protocol_input(str)
     def forward_statistics_path(self):
-        """The path to the values of U(theta+h), V(theta+h) and u(theta+h) stored in a `StatisticsArray`."""
+        """The path to the values of U(theta+h) and u(theta+h) stored in a `StatisticsArray`."""
         pass
 
     @protocol_input(unit.Quantity)
     def reverse_parameter_value(self):
-        """The value of x-h."""
+        """The value of theta-h."""
         pass
 
     @protocol_input(unit.Quantity)
     def forward_parameter_value(self):
-        """The value of x+h."""
+        """The value of theta+h."""
         pass
 
     @protocol_output(ParameterGradient)
@@ -651,7 +654,6 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                  coordinate_file_path,
                                  trajectory_file_path,
                                  statistics_file_path,
-                                 observable_values=None,
                                  replicator_id='repl',
                                  perturbation_scale=1.0e-4,
                                  id_prefix='',
@@ -674,31 +676,20 @@ class EnthalpyOfVaporization(PhysicalProperty):
         reduced_potentials.use_subset_of_force_field = True
         reduced_potentials.enable_pbc = enable_pbc
 
-        # Set up the protocols which will actually reweight the value of the
-        # observable to the forward and reverse states.
-        reverse_mbar = reweighting.ReweightWithMBARProtocol(f'{id_prefix}reverse_gradient_mbar_$({replicator_id})')
-        reverse_mbar.reference_observables = [observable_values]
-        reverse_mbar.required_effective_samples = 0
-        reverse_mbar.bootstrap_uncertainties = False
-        reverse_mbar.reference_reduced_potentials = ProtocolPath('reference_potential_paths', reduced_potentials.id)
-        reverse_mbar.target_reduced_potentials = [ProtocolPath('reverse_potentials_path', reduced_potentials.id)]
-        reverse_mbar.bootstrap_iterations = min(1, reverse_mbar.bootstrap_iterations)
-
-        forward_mbar = reweighting.ReweightWithMBARProtocol(f'{id_prefix}forward_gradient_mbar_$({replicator_id})')
-        forward_mbar.reference_observables = [observable_values]
-        forward_mbar.required_effective_samples = 0
-        forward_mbar.bootstrap_uncertainties = False
-        forward_mbar.reference_reduced_potentials = ProtocolPath('reference_potential_paths', reduced_potentials.id)
-        forward_mbar.target_reduced_potentials = [ProtocolPath('forward_potentials_path', reduced_potentials.id)]
-        forward_mbar.bootstrap_iterations = min(1, forward_mbar.bootstrap_iterations)
-
         # Set up the protocol which will actually evaluate the parameter gradient
         # using the fluctuation method.
-
+        fluctuation_gradient = EnthalpyFluctuationGradient(f'{id_prefix}enthalpy_fluctuation_$({replicator_id})')
+        fluctuation_gradient.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
+        fluctuation_gradient.parameter_key = ReplicatorValue(replicator_id)
+        fluctuation_gradient.statistics_path = statistics_file_path
+        fluctuation_gradient.reverse_statistics_path = ProtocolPath('reverse_potentials_path', reduced_potentials.id)
+        fluctuation_gradient.forward_statistics_path = ProtocolPath('forward_potentials_path', reduced_potentials.id)
+        fluctuation_gradient.reverse_parameter_value = ProtocolPath('reverse_parameter_value', reduced_potentials.id)
+        fluctuation_gradient.forward_parameter_value = ProtocolPath('forward_parameter_value', reduced_potentials.id)
 
         # Assemble all of the protocols into a convenient group wrapper.
         gradient_group = groups.ProtocolGroup(f'{id_prefix}gradient_group_$({replicator_id})')
-        gradient_group.add_protocols(reduced_potentials, reverse_mbar, forward_mbar, central_difference)
+        gradient_group.add_protocols(reduced_potentials, fluctuation_gradient)
 
         protocols_to_replicate = [ProtocolPath('', gradient_group.id)]
 
@@ -711,7 +702,9 @@ class EnthalpyOfVaporization(PhysicalProperty):
         parameter_replicator.protocols_to_replicate = protocols_to_replicate
         parameter_replicator.template_values = ProtocolPath('parameter_gradient_keys', 'global')
 
-        return gradient_group, parameter_replicator, ProtocolPath('gradient', gradient_group.id, central_difference.id)
+        return gradient_group, parameter_replicator, ProtocolPath('gradient', 
+                                                                  gradient_group.id, 
+                                                                  fluctuation_gradient.id)
 
     @staticmethod
     def get_default_simulation_workflow_schema(options=None):
@@ -813,58 +806,54 @@ class EnthalpyOfVaporization(PhysicalProperty):
             converge_uncertainty.add_condition(condition)
 
         # Set up the liquid gradient calculations
-        liquid_raw_potentials = analysis.ExtractStatistic(f'extract_raw_liquid_potentials')
-        liquid_raw_potentials.statistics_path = ProtocolPath('statistics_file_path',
-                                                             liquid_protocols.converge_uncertainty.id,
-                                                             liquid_protocols.production_simulation.id)
-        liquid_raw_potentials.statistics_type = ObservableType.PotentialEnergy
-        liquid_raw_potentials.divisor = number_of_liquid_molecules
-
         liquid_coordinate_source = ProtocolPath('output_coordinate_file', liquid_protocols.equilibration_simulation.id)
         liquid_trajectory_source = ProtocolPath('trajectory_file_path',
                                                 liquid_protocols.converge_uncertainty.id,
                                                 liquid_protocols.production_simulation.id)
-        liquid_observables_source = ProtocolPath('values', liquid_raw_potentials.id)
+        liquid_statistics_source = ProtocolPath('statistics_file_path',
+                                                liquid_protocols.converge_uncertainty.id,
+                                                liquid_protocols.production_simulation.id)
 
-        liquid_gradient_group, liquid_gradient_replicator, liquid_gradient_source = \
-            generate_gradient_protocol_group([ProtocolPath('force_field_path', 'global')],
-                                             ProtocolPath('force_field_path', 'global'),
-                                             liquid_coordinate_source,
-                                             liquid_trajectory_source,
-                                             observable_values=liquid_observables_source,
-                                             id_prefix='liquid_')
+        liquid_gradient_group, liquid_gradient_replicator, liquid_gradient_source = EnthalpyOfVaporization.\
+            _generate_gradient_group([ProtocolPath('force_field_path', 'global')],
+                                      ProtocolPath('force_field_path', 'global'),
+                                      liquid_coordinate_source,
+                                      liquid_trajectory_source,
+                                      liquid_statistics_source,
+                                      id_prefix='liquid_')
 
         # Set up the gas gradient calculations
-        gas_raw_potentials = analysis.ExtractStatistic(f'extract_raw_gas_potentials')
-        gas_raw_potentials.statistics_path = ProtocolPath('statistics_file_path',
-                                                          gas_protocols.converge_uncertainty.id,
-                                                          gas_protocols.production_simulation.id)
-        gas_raw_potentials.statistics_type = ObservableType.PotentialEnergy
-        
         gas_coordinate_source = ProtocolPath('output_coordinate_file', gas_protocols.equilibration_simulation.id)
         gas_trajectory_source = ProtocolPath('trajectory_file_path',
                                              gas_protocols.converge_uncertainty.id,
                                              gas_protocols.production_simulation.id)
-        gas_observables_source = ProtocolPath('values', gas_raw_potentials.id)
+        gas_statistics_source = ProtocolPath('statistics_file_path',
+                                             gas_protocols.converge_uncertainty.id,
+                                             gas_protocols.production_simulation.id)
 
-        gas_gradient_group, gas_gradient_replicator, gas_gradient_source = \
-            generate_gradient_protocol_group([ProtocolPath('force_field_path', 'global')],
-                                             ProtocolPath('force_field_path', 'global'),
-                                             gas_coordinate_source,
-                                             gas_trajectory_source,
-                                             observable_values=gas_observables_source,
-                                             id_prefix='gas_',
-                                             enable_pbc=False)
+        gas_gradient_group, gas_gradient_replicator, gas_gradient_source = EnthalpyOfVaporization. \
+            _generate_gradient_group([ProtocolPath('force_field_path', 'global')],
+                                     ProtocolPath('force_field_path', 'global'),
+                                     gas_coordinate_source,
+                                     gas_trajectory_source,
+                                     gas_statistics_source,
+                                     id_prefix='gas_',
+                                     enable_pbc=False)
 
         # Combine the gradients.
+        scale_liquid_gradient = gradients.DivideGradientByScalar('scale_liquid_gradient_$(repl)')
+        scale_liquid_gradient.value = liquid_gradient_source
+        scale_liquid_gradient.divisor = number_of_liquid_molecules
+
         combine_gradients = gradients.SubtractGradients('combine_gradients_$(repl)')
         combine_gradients.value_b = gas_gradient_source
-        combine_gradients.value_a = liquid_gradient_source
+        combine_gradients.value_a = ProtocolPath('result', scale_liquid_gradient.id)
 
         # Combine the gradient replicators.
         gradient_replicator = ProtocolReplicator(replicator_id=liquid_gradient_replicator.id)
         gradient_replicator.protocols_to_replicate = [*liquid_gradient_replicator.protocols_to_replicate,
                                                       *gas_gradient_replicator.protocols_to_replicate,
+                                                      ProtocolPath('', scale_liquid_gradient.id),
                                                       ProtocolPath('', combine_gradients.id)]
         gradient_replicator.template_values = ProtocolPath('parameter_gradient_keys', 'global')
 
@@ -893,12 +882,10 @@ class EnthalpyOfVaporization(PhysicalProperty):
             gas_protocols.extract_uncorrelated_trajectory.id: gas_protocols.extract_uncorrelated_trajectory.schema,
             gas_protocols.extract_uncorrelated_statistics.id: gas_protocols.extract_uncorrelated_statistics.schema,
 
-            liquid_raw_potentials.id: liquid_raw_potentials.schema,
-            gas_raw_potentials.id: gas_raw_potentials.schema,
-
             liquid_gradient_group.id: liquid_gradient_group.schema,
             gas_gradient_group.id: gas_gradient_group.schema,
 
+            scale_liquid_gradient.id: scale_liquid_gradient.schema,
             combine_gradients.id: combine_gradients.schema
         }
 
