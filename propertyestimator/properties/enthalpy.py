@@ -79,6 +79,96 @@ class WeightValueByMoleFraction(BaseProtocol):
         return self._get_output_dictionary()
 
 
+@plugins.register_calculation_protocol()
+class EnthalpyFluctuationGradient(BaseProtocol):
+    """Multiplies a value by the mole fraction of a component
+    in a mixture substance.
+    """
+
+    @protocol_input(ParameterGradientKey)
+    def parameter_key(self):
+        """The key that describes which parameters this
+        gradient was estimated for."""
+        pass
+
+    @protocol_input(ThermodynamicState)
+    def thermodynamic_state(self):
+        """The thermodynamic conditions under which the enthalpy was measured."""
+        pass
+
+    @protocol_input(str)
+    def statistics_path(self):
+        """The path to the values of U(theta), V(theta) and u(theta) stored in a `StatisticsArray`."""
+        pass
+
+    @protocol_input(str)
+    def reverse_statistics_path(self):
+        """The path to the values of U(theta-h), V(theta-h) and u(theta-h) stored in a `StatisticsArray`."""
+        pass
+
+    @protocol_input(str)
+    def forward_statistics_path(self):
+        """The path to the values of U(theta+h), V(theta+h) and u(theta+h) stored in a `StatisticsArray`."""
+        pass
+
+    @protocol_input(unit.Quantity)
+    def reverse_parameter_value(self):
+        """The value of x-h."""
+        pass
+
+    @protocol_input(unit.Quantity)
+    def forward_parameter_value(self):
+        """The value of x+h."""
+        pass
+
+    @protocol_output(ParameterGradient)
+    def gradient(self):
+        """The estimated gradient."""
+        pass
+
+    def __init__(self, protocol_id):
+        super().__init__(protocol_id)
+
+        self._parameter_key = None
+        self._thermodynamic_state = None
+
+        self._statistics_path = None
+
+        self._reverse_statistics_path = None
+        self._forward_statistics_path = None
+
+        self._reverse_parameter_value = None
+        self._forward_parameter_value = None
+
+        self._gradient = None
+
+    def execute(self, directory, available_resources):
+
+        reverse_statistics = StatisticsArray.from_pandas_csv(self._reverse_statistics_path)
+        forward_statistics = StatisticsArray.from_pandas_csv(self._forward_statistics_path)
+
+        potential_energy_gradients = ((forward_statistics[ObservableType.PotentialEnergy] -
+                                       reverse_statistics[ObservableType.PotentialEnergy]) /
+                                      (self._forward_parameter_value - self._reverse_parameter_value))
+
+        statistics = StatisticsArray.from_pandas_csv(self._statistics_path)
+        potential_energies = statistics[ObservableType.PotentialEnergy]
+
+        average_energy_gradient = np.mean(potential_energy_gradients)
+        average_energy = np.mean(potential_energies)
+
+        beta = 1.0 / (self._thermodynamic_state.temperature * unit.molar_gas_constant)
+        beta.ito(unit.mole / unit.kilojoule)
+
+        gradient_value = (average_energy_gradient -
+                          beta * (np.mean(potential_energies * potential_energy_gradients) -
+                                  average_energy * average_energy_gradient))
+
+        self._gradient = ParameterGradient(self._parameter_key, gradient_value)
+
+        return self._get_output_dictionary()
+
+
 @register_estimable_property()
 @register_thermoml_property(thermoml_string='Excess molar enthalpy (molar enthalpy of mixing), kJ/mol',
                             supported_phases=PropertyPhase.Liquid)
@@ -381,7 +471,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         mixed_output_to_store.statistics_file_path = ProtocolPath('output_statistics_path',
                                                                   mixed_system_workflow.subsample_statistics.id)
 
-        mixed_output_to_store.statistical_inefficiency = ProtocolPath('statistical_inefficiency', 
+        mixed_output_to_store.statistical_inefficiency = ProtocolPath('statistical_inefficiency',
                                                                       mixed_system_workflow.converge_uncertainty.id,
                                                                       'mixed_extract_enthalpy')
 
@@ -550,10 +640,78 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         if calculation_layer == 'SimulationLayer':
             return EnthalpyOfVaporization.get_default_simulation_workflow_schema(options)
-        elif calculation_layer == 'ReweightingLayer':
-            return EnthalpyOfVaporization.get_default_reweighting_workflow_schema(options)
+        # elif calculation_layer == 'ReweightingLayer':
+        #     return EnthalpyOfVaporization.get_default_reweighting_workflow_schema(options)
 
         return None
+
+    @staticmethod
+    def _generate_gradient_group(reference_force_field_paths,
+                                 target_force_field_path,
+                                 coordinate_file_path,
+                                 trajectory_file_path,
+                                 statistics_file_path,
+                                 observable_values=None,
+                                 replicator_id='repl',
+                                 perturbation_scale=1.0e-4,
+                                 id_prefix='',
+                                 enable_pbc=True):
+
+        # Define the protocol which will evaluate the reduced potentials of the
+        # reference, forward and reverse states using only a subset of the full
+        # force field.
+        reduced_potentials = gradients.GradientReducedPotentials(f'{id_prefix}gradient_reduced_potentials_'
+                                                                 f'$({replicator_id})')
+
+        reduced_potentials.substance = ProtocolPath('substance', 'global')
+        reduced_potentials.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
+        reduced_potentials.reference_force_field_paths = reference_force_field_paths
+        reduced_potentials.force_field_path = target_force_field_path
+        reduced_potentials.trajectory_file_path = trajectory_file_path
+        reduced_potentials.coordinate_file_path = coordinate_file_path
+        reduced_potentials.parameter_key = ReplicatorValue(replicator_id)
+        reduced_potentials.perturbation_scale = perturbation_scale
+        reduced_potentials.use_subset_of_force_field = True
+        reduced_potentials.enable_pbc = enable_pbc
+
+        # Set up the protocols which will actually reweight the value of the
+        # observable to the forward and reverse states.
+        reverse_mbar = reweighting.ReweightWithMBARProtocol(f'{id_prefix}reverse_gradient_mbar_$({replicator_id})')
+        reverse_mbar.reference_observables = [observable_values]
+        reverse_mbar.required_effective_samples = 0
+        reverse_mbar.bootstrap_uncertainties = False
+        reverse_mbar.reference_reduced_potentials = ProtocolPath('reference_potential_paths', reduced_potentials.id)
+        reverse_mbar.target_reduced_potentials = [ProtocolPath('reverse_potentials_path', reduced_potentials.id)]
+        reverse_mbar.bootstrap_iterations = min(1, reverse_mbar.bootstrap_iterations)
+
+        forward_mbar = reweighting.ReweightWithMBARProtocol(f'{id_prefix}forward_gradient_mbar_$({replicator_id})')
+        forward_mbar.reference_observables = [observable_values]
+        forward_mbar.required_effective_samples = 0
+        forward_mbar.bootstrap_uncertainties = False
+        forward_mbar.reference_reduced_potentials = ProtocolPath('reference_potential_paths', reduced_potentials.id)
+        forward_mbar.target_reduced_potentials = [ProtocolPath('forward_potentials_path', reduced_potentials.id)]
+        forward_mbar.bootstrap_iterations = min(1, forward_mbar.bootstrap_iterations)
+
+        # Set up the protocol which will actually evaluate the parameter gradient
+        # using the fluctuation method.
+
+
+        # Assemble all of the protocols into a convenient group wrapper.
+        gradient_group = groups.ProtocolGroup(f'{id_prefix}gradient_group_$({replicator_id})')
+        gradient_group.add_protocols(reduced_potentials, reverse_mbar, forward_mbar, central_difference)
+
+        protocols_to_replicate = [ProtocolPath('', gradient_group.id)]
+
+        protocols_to_replicate.extend([ProtocolPath('', gradient_group.id, protocol_id) for
+                                       protocol_id in gradient_group.protocols])
+
+        # Create the replicator which will copy the group for each parameter gradient
+        # which will be calculated.
+        parameter_replicator = ProtocolReplicator(replicator_id=replicator_id)
+        parameter_replicator.protocols_to_replicate = protocols_to_replicate
+        parameter_replicator.template_values = ProtocolPath('parameter_gradient_keys', 'global')
+
+        return gradient_group, parameter_replicator, ProtocolPath('gradient', gradient_group.id, central_difference.id)
 
     @staticmethod
     def get_default_simulation_workflow_schema(options=None):
