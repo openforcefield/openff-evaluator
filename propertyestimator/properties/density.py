@@ -63,10 +63,15 @@ class Density(PhysicalProperty):
                                                                                       options)
 
         # Set up the gradient calculations
+        extract_raw_density = analysis.ExtractStatistic('extract_raw_density')
+        extract_raw_density.statistics_type = ObservableType.Density
+        extract_raw_density.statistics_path = ProtocolPath('statistics_file_path',
+                                                           protocols.converge_uncertainty.id,
+                                                           protocols.production_simulation.id)
+
         coordinate_source = ProtocolPath('output_coordinate_file', protocols.equilibration_simulation.id)
         trajectory_source = ProtocolPath('output_trajectory_path', protocols.extract_uncorrelated_trajectory.id)
-        observables_source = ProtocolPath('uncorrelated_values', protocols.converge_uncertainty.id,
-                                                                 protocols.analysis_protocol.id)
+        observables_source = ProtocolPath('values', extract_raw_density.id)
 
         gradient_group, gradient_replicator, gradient_source = \
             generate_gradient_protocol_group([ProtocolPath('force_field_path', 'global')],
@@ -87,6 +92,7 @@ class Density(PhysicalProperty):
             protocols.converge_uncertainty.id: protocols.converge_uncertainty.schema,
             protocols.extract_uncorrelated_trajectory.id: protocols.extract_uncorrelated_trajectory.schema,
             protocols.extract_uncorrelated_statistics.id: protocols.extract_uncorrelated_statistics.schema,
+            extract_raw_density.id: extract_raw_density.schema,
             gradient_group.id: gradient_group.schema
         }
 
