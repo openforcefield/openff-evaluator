@@ -250,31 +250,6 @@ def pint_unit_to_openmm(pint_unit):
     return openmm_unit
 
 
-class BufferedFileObject:
-    """A wrapper around a file object whose flush method
-    does not do anything. The sole purpose of this class is
-    to stop the OpenMM DCDFile reporter flushing to file
-    after each step, which may be a bottle neck if the file
-    is to be written to very frequently (e.g. when simulating
-    a gas an saving many frames.
-    """
-
-    def __init__(self, file_object):
-        self._file_object = file_object
-
-    def seek(self, *args, **kwargs):
-        self._file_object.seek(*args, **kwargs)
-
-    def read(self, *args, **kwargs):
-        return self._file_object.read(*args, **kwargs)
-
-    def write(self, *args, **kwargs):
-        return self._file_object.write(*args, **kwargs)
-
-    def flush(self):
-        pass
-
-
 class StateReporter:
     """StateReporter saves periodic checkpoints of a simulation context's
     state.
