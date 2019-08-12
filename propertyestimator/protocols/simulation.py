@@ -521,11 +521,11 @@ class RunOpenMMSimulation(BaseProtocol):
         with open(os.path.join(directory, 'input.pdb'), 'w+') as configuration_file:
             app.PDBFile.writeFile(input_pdb_file.topology, input_pdb_file.positions, configuration_file)
 
-        trajectory_file_object = open(self._temporary_trajectory_path, 'wb')
-
         if self._save_rolling_statistics:
+            trajectory_file_object = open(self._temporary_trajectory_path, 'wb')
             trajectory_file_object_wrapper = trajectory_file_object
         else:
+            trajectory_file_object = open(self._temporary_trajectory_path, 'wb', 1048576)
             trajectory_file_object_wrapper = BufferedFileObject(trajectory_file_object)
 
         trajectory_dcd_object = app.DCDFile(trajectory_file_object_wrapper,
@@ -569,6 +569,8 @@ class RunOpenMMSimulation(BaseProtocol):
 
         result = None
 
+        position_buffer = []
+
         try:
 
             while current_step_count < self.steps:
@@ -584,8 +586,16 @@ class RunOpenMMSimulation(BaseProtocol):
                                          enforcePeriodicBox=self.enable_pbc)
 
                 # Write out the current frame of the trajectory.
-                trajectory_dcd_object.writeModel(positions=state.getPositions(),
-                                                 periodicBoxVectors=state.getPeriodicBoxVectors())
+                position_buffer.append(state.getPositions())
+
+                if len(position_buffer) > 0 and len(position_buffer) % 200 == 0:
+
+                    for positions in position_buffer:
+
+                        trajectory_dcd_object.writeModel(positions=positions,
+                                                         periodicBoxVectors=state.getPeriodicBoxVectors())
+
+                    position_buffer = []
 
                 # Write out the energies and system statistics.
                 raw_statistics[ObservableType.PotentialEnergy][current_step] = \
@@ -624,7 +634,15 @@ class RunOpenMMSimulation(BaseProtocol):
         with open(self._checkpoint_path, 'w') as file:
             file.write(state_xml)
 
-        # Make sure to close the open trajectory stream.
+        # Make sure to close the open trajectory stream after
+        # saving any remaining positions.
+        for positions in position_buffer:
+
+            trajectory_dcd_object.writeModel(positions=positions,
+                                             periodicBoxVectors=state.getPeriodicBoxVectors())
+
+        position_buffer = []
+
         trajectory_file_object.close()
 
         # Save the final statistics
