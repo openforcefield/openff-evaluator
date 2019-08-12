@@ -375,8 +375,6 @@ class GradientReducedPotentials(BaseProtocol):
                 return error
 
             self._reference_potential_paths.append(path.join(directory, f'reference_{index}.csv'))
-
-            statistics_array = StatisticsArray()
             statistics_array[ObservableType.ReducedPotential] = reference_reduced_potentials
             statistics_array.to_pandas_csv(self._reference_potential_paths[-1])
 

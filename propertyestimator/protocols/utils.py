@@ -271,7 +271,6 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
     production_simulation.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
     production_simulation.input_coordinate_file = ProtocolPath('output_coordinate_file', equilibration_simulation.id)
     production_simulation.system_path = ProtocolPath('system_path', assign_parameters.id)
-    production_simulation.save_rolling_statistics = False
 
     # Set up a conditional group to ensure convergence of uncertainty
     if conditional_group is None:
