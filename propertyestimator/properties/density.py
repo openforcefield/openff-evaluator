@@ -70,7 +70,9 @@ class Density(PhysicalProperty):
                                                            protocols.production_simulation.id)
 
         coordinate_source = ProtocolPath('output_coordinate_file', protocols.equilibration_simulation.id)
-        trajectory_source = ProtocolPath('output_trajectory_path', protocols.extract_uncorrelated_trajectory.id)
+        trajectory_source = ProtocolPath('trajectory_file_path',
+                                         protocols.converge_uncertainty.id,
+                                         protocols.production_simulation.id)
         observables_source = ProtocolPath('values', extract_raw_density.id)
 
         gradient_group, gradient_replicator, gradient_source = \
