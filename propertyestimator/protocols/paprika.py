@@ -484,19 +484,19 @@ class BasePaprikaProtocol(BaseProtocol):
 
             self._attach_free_energy = EstimatedQuantity(
                 -self._results_dictionary['attach']['ti-block']['fe'] * unit.kilocalorie / unit.mole,
-                self._results_dictionary['attach']['ti-block']['sem'] * unit.kilocalorie / unit.mole, self._id)
+                self._results_dictionary['attach']['ti-block']['sem'] * unit.kilocalorie / unit.mole, self._id + "_attach")
 
         if 'pull' in self._results_dictionary:
 
             self._pull_free_energy = EstimatedQuantity(
                 -self._results_dictionary['pull']['ti-block']['fe'] * unit.kilocalorie / unit.mole,
-                self._results_dictionary['pull']['ti-block']['sem'] * unit.kilocalorie / unit.mole, self._id)
+                self._results_dictionary['pull']['ti-block']['sem'] * unit.kilocalorie / unit.mole, self._id + "_pull")
 
         if 'release' in self._results_dictionary:
 
             self._release_free_energy = EstimatedQuantity(
                 self._results_dictionary['release']['ti-block']['fe'] * unit.kilocalorie / unit.mole,
-                self._results_dictionary['release']['ti-block']['sem'] * unit.kilocalorie / unit.mole, self._id)
+                self._results_dictionary['release']['ti-block']['sem'] * unit.kilocalorie / unit.mole, self._id + "_release")
 
         if 'ref_state_work' in self._results_dictionary:
 

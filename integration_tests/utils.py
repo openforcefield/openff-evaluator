@@ -123,13 +123,9 @@ def get_paprika_host_guest_substance(host_name, guest_name, ionic_strength=None)
     orientations = []
     host_yaml_paths = []
 
-    for orientation in installed_benchmarks["host_guest_systems"][host_name]["yaml"]:
-        if f"host" in orientation.name:
-            host_yaml_paths.append(orientation)
-            # This is fragile because it depends on a particular naming scheme.
-            # Annnd this is going to fail if we only have a single orientation.
-            # FIX ME
-            orientations.append(orientation.name.split("-")[1].split(".")[0])
+    for orientation, yaml_path in installed_benchmarks["host_guest_systems"][host_name]["yaml"].items():
+            host_yaml_paths.append(yaml_path)
+            orientations.append(orientation)
 
     for host_yaml_path in host_yaml_paths:
 
