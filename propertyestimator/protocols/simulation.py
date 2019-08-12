@@ -180,10 +180,16 @@ class RunOpenMMSimulation(BaseProtocol):
         pass
 
     @protocol_input(bool)
-    def output_write_frequency(self):
-        """The frequency (as a multiple of the `output_frequency`
-        that the statistics and trajectory are transferred from a
-        a buffer object to disk.
+    def save_rolling_statistics(self):
+        """If True, the statisitics file will be written to every
+        `output_frequency` number of steps, rather than just once
+        at the end of the simulation.
+
+        Notes
+        -----
+        In future when either saving the statistics to file has been
+        optimised, or an option for the frequency to save to the file
+        has been added, this option will be removed.
         """
         pass
 
@@ -237,7 +243,7 @@ class RunOpenMMSimulation(BaseProtocol):
 
         self._enable_pbc = True
 
-        self._output_write_frequency = 1
+        self._save_rolling_statistics = True
 
         self._allow_gpu_platforms = True
         self._high_precision = False
@@ -515,9 +521,14 @@ class RunOpenMMSimulation(BaseProtocol):
         with open(os.path.join(directory, 'input.pdb'), 'w+') as configuration_file:
             app.PDBFile.writeFile(input_pdb_file.topology, input_pdb_file.positions, configuration_file)
 
-        trajectory_file_object = open(self._temporary_trajectory_path, 'wb')
+        if self._save_rolling_statistics:
+            trajectory_file_object = open(self._temporary_trajectory_path, 'wb')
+            trajectory_file_object_wrapper = trajectory_file_object
+        else:
+            trajectory_file_object = open(self._temporary_trajectory_path, 'wb', 1048576)
+            trajectory_file_object_wrapper = BufferedFileObject(trajectory_file_object)
 
-        trajectory_dcd_object = app.DCDFile(trajectory_file_object,
+        trajectory_dcd_object = app.DCDFile(trajectory_file_object_wrapper,
                                             topology,
                                             integrator.getStepSize(),
                                             0,
@@ -574,8 +585,17 @@ class RunOpenMMSimulation(BaseProtocol):
                                          getParameters=False,
                                          enforcePeriodicBox=self.enable_pbc)
 
-                # Store the current frame of the trajectory.
+                # Write out the current frame of the trajectory.
                 position_buffer.append(state.getPositions())
+
+                if len(position_buffer) > 0 and len(position_buffer) % 200 == 0:
+
+                    for positions in position_buffer:
+
+                        trajectory_dcd_object.writeModel(positions=positions,
+                                                         periodicBoxVectors=state.getPeriodicBoxVectors())
+
+                    position_buffer = []
 
                 # Write out the energies and system statistics.
                 raw_statistics[ObservableType.PotentialEnergy][current_step] = \
@@ -585,14 +605,7 @@ class RunOpenMMSimulation(BaseProtocol):
                 raw_statistics[ObservableType.Volume][current_step] = \
                     state.getPeriodicBoxVolume().value_in_unit(simtk_unit.angstrom ** 3)
 
-                # Save the trajectory and statistics to disk.
-                if len(position_buffer) % self._output_write_frequency == 0:
-
-                    for positions in position_buffer:
-                        trajectory_dcd_object.writeModel(positions=positions,
-                                                         periodicBoxVectors=state.getPeriodicBoxVectors())
-
-                    position_buffer = []
+                if self._save_rolling_statistics:
 
                     self._write_statistics_array(raw_statistics, current_step, temperature,
                                                  pressure, degrees_of_freedom, total_mass)
