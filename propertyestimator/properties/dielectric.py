@@ -42,6 +42,17 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
         pass
 
     @protocol_output(unit.Quantity)
+    def dipole_moments(self):
+        """The raw (possibly correlated) dipole moments which were used in
+        the dielectric calculation."""
+        pass
+
+    @protocol_output(unit.Quantity)
+    def volumes(self):
+        """The volumes which were used in the dielectric calculation."""
+        pass
+
+    @protocol_output(unit.Quantity)
     def uncorrelated_volumes(self):
         """The uncorrelated volumes which were used in the dielectric
         calculation."""
@@ -56,6 +67,8 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
         self._thermodynamic_state = None
 
         self._uncorrelated_volumes = None
+        self._dipole_moments = None
+        self._volumes = None
 
     def _bootstrap_function(self, **sample_kwargs):
         """Calculates the static dielectric constant from an
@@ -140,6 +153,7 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
                 charge_list.append(charge)
 
         dipole_moments = mdtraj.geometry.dipole_moments(self.trajectory, charge_list)
+        self._dipole_moments = dipole_moments * unit.dimensionless
 
         dipole_moments, self._equilibration_index, self._statistical_inefficiency = \
             timeseries.decorrelate_time_series(dipole_moments)
@@ -150,6 +164,7 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
         sample_indices = [index + self._equilibration_index for index in sample_indices]
 
         volumes = self.trajectory[sample_indices].unitcell_volumes
+        self._volumes = self.trajectory.unitcell_volumes * unit.nanometer ** 3
 
         self._uncorrelated_values = dipole_moments * unit.dimensionless
         self._uncorrelated_volumes = volumes * unit.nanometer ** 3
@@ -339,10 +354,10 @@ class DielectricConstant(PhysicalProperty):
         # Set up the gradient calculations. For dielectric constants, we need to use
         # a slightly specialised reweighting protocol which we set up here.
         gradient_mbar_protocol = ReweightDielectricConstant('gradient_mbar')
-        gradient_mbar_protocol.reference_observables = [ProtocolPath('uncorrelated_values',
+        gradient_mbar_protocol.reference_observables = [ProtocolPath('dipole_moments',
                                                                      protocols.converge_uncertainty.id,
                                                                      extract_dielectric.id)]
-        gradient_mbar_protocol.reference_volumes = [ProtocolPath('uncorrelated_volumes',
+        gradient_mbar_protocol.reference_volumes = [ProtocolPath('volumes',
                                                                  protocols.converge_uncertainty.id,
                                                                  extract_dielectric.id)]
         gradient_mbar_protocol.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
