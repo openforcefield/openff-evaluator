@@ -17,8 +17,8 @@ from simtk.openmm import app
 from propertyestimator import unit
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.openmm import setup_platform_with_resources, openmm_quantity_to_pint,\
-    pint_quantity_to_openmm
+from propertyestimator.utils.openmm import setup_platform_with_resources, openmm_quantity_to_pint, \
+    pint_quantity_to_openmm, BufferedFileObject
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import StatisticsArray, ObservableType
 from propertyestimator.utils.utils import temporarily_change_directory, safe_unlink
@@ -522,7 +522,13 @@ class RunOpenMMSimulation(BaseProtocol):
             app.PDBFile.writeFile(input_pdb_file.topology, input_pdb_file.positions, configuration_file)
 
         trajectory_file_object = open(self._temporary_trajectory_path, 'wb')
-        trajectory_dcd_object = app.DCDFile(trajectory_file_object,
+
+        if self._save_rolling_statistics:
+            trajectory_file_object_wrapper = trajectory_file_object
+        else:
+            trajectory_file_object_wrapper = BufferedFileObject(trajectory_file_object)
+
+        trajectory_dcd_object = app.DCDFile(trajectory_file_object_wrapper,
                                             topology,
                                             integrator.getStepSize(),
                                             0,
