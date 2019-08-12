@@ -18,7 +18,7 @@ from propertyestimator import unit
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.openmm import setup_platform_with_resources, openmm_quantity_to_pint, \
-    pint_quantity_to_openmm
+    pint_quantity_to_openmm, BufferedFileObject
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import StatisticsArray, ObservableType
 from propertyestimator.utils.utils import temporarily_change_directory, safe_unlink
