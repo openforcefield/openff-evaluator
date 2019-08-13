@@ -241,7 +241,7 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
 
     build_coordinates = coordinates.BuildCoordinatesPackmol(f'build_coordinates{id_suffix}')
     build_coordinates.substance = ProtocolPath('substance', 'global')
-    build_coordinates.max_molecules = 256
+    build_coordinates.max_molecules = 1000
 
     assign_parameters = forcefield.BuildSmirnoffSystem(f'assign_parameters{id_suffix}')
     assign_parameters.force_field_path = ProtocolPath('force_field_path', 'global')
