@@ -655,7 +655,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                  trajectory_file_path,
                                  statistics_file_path,
                                  replicator_id='repl',
-                                 perturbation_scale=1.0e-4,
+                                 perturbation_scale=1.0e-3,
                                  id_prefix='',
                                  enable_pbc=True):
 
@@ -758,8 +758,8 @@ class EnthalpyOfVaporization(PhysicalProperty):
         gas_protocols.equilibration_simulation.save_rolling_statistics = False
 
         gas_protocols.production_simulation.ensemble = Ensemble.NVT
-        gas_protocols.production_simulation.steps = 20000000
-        gas_protocols.production_simulation.output_frequency = 2000
+        gas_protocols.production_simulation.steps = 10000000
+        gas_protocols.production_simulation.output_frequency = 10000
         gas_protocols.production_simulation.enable_pbc = False
         gas_protocols.production_simulation.save_rolling_statistics = False
 
