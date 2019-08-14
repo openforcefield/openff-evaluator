@@ -17,7 +17,7 @@ import numpy as np
 import paprika
 from paprika.amber import Simulation
 from paprika.io import save_restraints
-from paprika.restraints import amber_restraints
+from paprika.restraints import amber
 from paprika.tleap import System
 from paprika.utils import index_from_mask
 from simtk.openmm import XmlSerializer
