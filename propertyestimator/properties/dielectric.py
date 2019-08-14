@@ -42,6 +42,17 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
         pass
 
     @protocol_output(unit.Quantity)
+    def dipole_moments(self):
+        """The raw (possibly correlated) dipole moments which were used in
+        the dielectric calculation."""
+        pass
+
+    @protocol_output(unit.Quantity)
+    def volumes(self):
+        """The volumes which were used in the dielectric calculation."""
+        pass
+
+    @protocol_output(unit.Quantity)
     def uncorrelated_volumes(self):
         """The uncorrelated volumes which were used in the dielectric
         calculation."""
@@ -55,6 +66,8 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
 
         self._thermodynamic_state = None
 
+        self._dipole_moments = None
+        self._volumes = None
         self._uncorrelated_volumes = None
 
     def _bootstrap_function(self, **sample_kwargs):
@@ -140,6 +153,7 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
                 charge_list.append(charge)
 
         dipole_moments = mdtraj.geometry.dipole_moments(self.trajectory, charge_list)
+        self._dipole_moments = dipole_moments * unit.dimensionless
 
         dipole_moments, self._equilibration_index, self._statistical_inefficiency = \
             timeseries.decorrelate_time_series(dipole_moments)
@@ -150,6 +164,7 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
         sample_indices = [index + self._equilibration_index for index in sample_indices]
 
         volumes = self.trajectory[sample_indices].unitcell_volumes
+        self._volumes = self.trajectory.unitcell_volumes * unit.nanometer ** 3
 
         self._uncorrelated_values = dipole_moments * unit.dimensionless
         self._uncorrelated_volumes = volumes * unit.nanometer ** 3
