@@ -16,7 +16,7 @@ from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.openmm import pint_quantity_to_openmm, setup_platform_with_resources, \
-    openmm_quantity_to_pint
+    openmm_quantity_to_pint, disable_pbc
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import StatisticsArray, ObservableType
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
@@ -229,7 +229,7 @@ class GradientReducedPotentials(BaseProtocol):
 
         return system, parameter_value
 
-    def _evaluate_reduced_potential(self, system, trajectory, compute_resources):
+    def _evaluate_reduced_potential(self, system, trajectory, file_path, compute_resources):
         """Return the potential energy.
         Parameters
         ----------
@@ -238,6 +238,8 @@ class GradientReducedPotentials(BaseProtocol):
             specified parameter.
         trajectory: mdtraj.Trajectory
             A trajectory of configurations to evaluate.
+        file_path: str
+            The path to save the reduced potentials to.
         compute_resources: ComputeResources
             The compute resources available to execute on.
 
@@ -255,6 +257,7 @@ class GradientReducedPotentials(BaseProtocol):
         platform = setup_platform_with_resources(compute_resources, True)
         openmm_context = openmm.Context(system, integrator, platform)
 
+        potentials = np.zeros(trajectory.n_frames, dtype=np.float64)
         reduced_potentials = np.zeros(trajectory.n_frames, dtype=np.float64)
 
         temperature = pint_quantity_to_openmm(self._thermodynamic_state.temperature)
@@ -278,10 +281,16 @@ class GradientReducedPotentials(BaseProtocol):
                 unreduced_potential += pressure * state.getPeriodicBoxVolume()
 
             # set box vectors
+            potentials[frame_index] = state.getPotentialEnergy().value_in_unit(simtk_unit.kilojoule_per_mole)
             reduced_potentials[frame_index] = unreduced_potential * beta
 
+        potentials *= unit.kilojoule / unit.mole
         reduced_potentials *= unit.dimensionless
-        return reduced_potentials, None
+
+        statistics_array = StatisticsArray()
+        statistics_array[ObservableType.PotentialEnergy] = potentials
+        statistics_array[ObservableType.ReducedPotential] = reduced_potentials
+        statistics_array.to_pandas_csv(file_path)
 
     def execute(self, directory, available_resources):
 
@@ -320,29 +329,11 @@ class GradientReducedPotentials(BaseProtocol):
         self._forward_parameter_value = openmm_quantity_to_pint(self._forward_parameter_value)
 
         # Calculate the reduced potentials.
-        reverse_reduced_potentials, error = self._evaluate_reduced_potential(reverse_system,
-                                                                             trajectory,
-                                                                             available_resources)
-
-        if isinstance(error, PropertyEstimatorException):
-            return error
-
-        forward_reduced_potentials, error = self._evaluate_reduced_potential(forward_system,
-                                                                             trajectory,
-                                                                             available_resources)
-
-        if isinstance(error, PropertyEstimatorException):
-            return error
-
         self._reverse_potentials_path = path.join(directory, 'reverse.csv')
         self._forward_potentials_path = path.join(directory, 'forward.csv')
 
-        statistics_array = StatisticsArray()
-        statistics_array[ObservableType.ReducedPotential] = reverse_reduced_potentials
-        statistics_array.to_pandas_csv(self._reverse_potentials_path)
-
-        statistics_array[ObservableType.ReducedPotential] = forward_reduced_potentials
-        statistics_array.to_pandas_csv(self._forward_potentials_path)
+        self._evaluate_reduced_potential(reverse_system, trajectory, self._reverse_potentials_path, available_resources)
+        self._evaluate_reduced_potential(forward_system, trajectory, self._forward_potentials_path, available_resources)
 
         # Compute the reduced reference energy if any reference force field files
         # have been provided.
@@ -351,16 +342,12 @@ class GradientReducedPotentials(BaseProtocol):
             reference_force_field = ForceField(reference_force_field_path, allow_cosmetic_attributes=True)
             reference_system, _ = self._build_reduced_system(reference_force_field, topology)
 
-            reference_reduced_potentials, error = self._evaluate_reduced_potential(reference_system,
-                                                                                   trajectory,
-                                                                                   available_resources)
+            reference_potentials_path = path.join(directory, f'reference_{index}.csv')
 
-            if isinstance(error, PropertyEstimatorException):
-                return error
+            self._evaluate_reduced_potential(reference_system, trajectory,
+                                             reference_potentials_path, available_resources)
 
-            self._reference_potential_paths.append(path.join(directory, f'reference_{index}.csv'))
-            statistics_array[ObservableType.ReducedPotential] = reference_reduced_potentials
-            statistics_array.to_pandas_csv(self._reference_potential_paths[-1])
+            self._reference_potential_paths.append(reference_potentials_path)
 
         logging.info(f'Finished calculating the reduced gradient potentials.')
 

@@ -561,7 +561,8 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         # Set up the gas gradient calculations
         gas_coordinate_source = ProtocolPath('output_coordinate_file', gas_protocols.equilibration_simulation.id)
-        gas_trajectory_source = ProtocolPath('output_trajectory_path', gas_protocols.extract_uncorrelated_trajectory.id)
+        gas_trajectory_source = ProtocolPath('trajectory_file_path', converge_uncertainty.id,
+                                                gas_protocols.production_simulation.id)
 
         gas_gradient_group, gas_gradient_replicator, gas_gradient_source = \
             generate_gradient_protocol_group(reweight_potential_template,
