@@ -2,12 +2,11 @@
 A set of utilities for helping to perform simulations using openmm.
 """
 import logging
-import os
 
 from pint import UndefinedUnitError
+from simtk import unit as simtk_unit, openmm
 
 from propertyestimator import unit
-from simtk import unit as simtk_unit
 
 
 def setup_platform_with_resources(compute_resources, high_precision=False):
@@ -250,68 +249,23 @@ def pint_unit_to_openmm(pint_unit):
     return openmm_unit
 
 
-class StateReporter:
-    """StateReporter saves periodic checkpoints of a simulation context's
-    state.
+def disable_pbc(system):
+    """Disables any periodic boundary conditions being applied
+    to non-bonded forces by setting the non-bonded method to
+    `NoCutoff = 0`
 
-    This is intended to be a cross-hardware replacement for the built-in
-    `simtk.openmm.CheckpointReporter`.
-
-    Notes
-    -----
-    This class is entirely based on the `simtk.openmm.CheckpointReporter`
-    class.
+    Parameters
+    ----------
+    system: simtk.openmm.system
+        The system which should have periodic boundary conditions
+        disabled.
     """
-    def __init__(self, file_path, report_interval):
-        """Create a new `StateReporter` object.
 
-        Parameters
-        ----------
-        file_path : str
-            The path to the file to write to.
-        report_interval : int
-            The interval (in steps) at which to write the state of the system.
-        """
+    for force_index in range(system.getNumForces()):
 
-        self._report_interval = report_interval
-        self._file_path = file_path
+        force = system.getForce(force_index)
 
-    def describeNextReport(self, simulation):
-        """Get information about the next report this object will generate.
+        if not isinstance(force, openmm.NonbondedForce):
+            continue
 
-        Parameters
-        ----------
-        simulation : Simulation
-            The Simulation to generate a report for
-
-        Returns
-        -------
-        tuple
-            A five element tuple. The first element is the number of steps
-            until the next report. The remaining elements specify whether
-            that report will require positions, velocities, forces, and
-            energies respectively.
-        """
-        steps = self._report_interval - simulation.currentStep % self._report_interval
-        return steps, True, True, True, True
-
-    def report(self, _, state):
-        """Generate a report.
-
-        Parameters
-        ----------
-        state : State
-            The current state of the simulation
-        """
-        from simtk.openmm import XmlSerializer
-
-        # Serialize the state
-        state_xml = XmlSerializer.serialize(state)
-
-        # Attempt to do a thread safe write.
-        file_path = self._file_path + '.tmp'
-
-        with open(file_path, 'w') as file:
-            file.write(state_xml)
-
-        os.replace(file_path, self._file_path)
+        force.setNonbondedMethod(0)  # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1

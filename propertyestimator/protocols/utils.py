@@ -2,11 +2,13 @@
 A set of utilities for setting up property estimation workflows.
 """
 import copy
-from collections import namedtuple
+from collections import namedtuple, Iterable
 
 from propertyestimator import unit
-from propertyestimator.protocols import analysis, forcefield, gradients, groups, reweighting, coordinates, simulation
+from propertyestimator.protocols import analysis, forcefield, gradients, groups, reweighting, coordinates, simulation, \
+    storage
 from propertyestimator.thermodynamics import Ensemble
+from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow import WorkflowOptions
 from propertyestimator.workflow.plugins import available_protocols
 from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSimulationDataToStore
@@ -14,6 +16,7 @@ from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 BaseReweightingProtocols = namedtuple('BaseReweightingProtocols', 'unpack_stored_data '
                                                                   'analysis_protocol '
+                                                                  'decorrelate_statistics '
                                                                   'decorrelate_trajectory '
                                                                   'concatenate_trajectories '
                                                                   'build_reference_system '
@@ -34,7 +37,7 @@ BaseSimulationProtocols = namedtuple('BaseSimulationProtocols', 'build_coordinat
                                                                 'extract_uncorrelated_statistics ')
 
 
-def generate_base_reweighting_protocols(analysis_protocol, workflow_options,
+def generate_base_reweighting_protocols(analysis_protocol, mbar_protocol, workflow_options,
                                         replicator_id='data_repl', id_suffix=''):
     """Constructs a set of protocols which, when combined in a workflow schema,
     may be executed to reweight a set of existing data to estimate a particular
@@ -46,6 +49,10 @@ def generate_base_reweighting_protocols(analysis_protocol, workflow_options,
     analysis_protocol: AveragePropertyProtocol
         The protocol which will take input from the stored data,
         and generate a set of observables to reweight.
+    mbar_protocol: BaseReweightingProtocol
+        A template mbar reweighting protocol, which has it's reference
+        observables already set. This method will automatically set the
+        reduced potentials on this object.
     workflow_options: WorkflowOptions
         The options being used to generate a workflow.
     replicator_id: str
@@ -65,80 +72,84 @@ def generate_base_reweighting_protocols(analysis_protocol, workflow_options,
 
     assert isinstance(analysis_protocol, analysis.AveragePropertyProtocol)
 
+    assert f'$({replicator_id})' in analysis_protocol.id
+    assert f'$({replicator_id})' not in mbar_protocol.id
+
     replicator_suffix = '_$({}){}'.format(replicator_id, id_suffix)
 
     # Unpack all the of the stored data.
-    unpack_stored_data = reweighting.UnpackStoredSimulationData('unpack_data{}'.format(replicator_suffix))
+    unpack_stored_data = storage.UnpackStoredSimulationData('unpack_data{}'.format(replicator_suffix))
     unpack_stored_data.simulation_data_path = ReplicatorValue(replicator_id)
 
     # The autocorrelation time of each of the stored files will be calculated for this property
     # using the passed in analysis protocol.
+    if isinstance(analysis_protocol, analysis.ExtractAverageStatistic):
 
-    # Decorrelate the frames of the stored trajectory.
+        analysis_protocol.statistics_path = ProtocolPath('statistics_file_path', unpack_stored_data.id)
+
+    elif isinstance(analysis_protocol, analysis.AverageTrajectoryProperty):
+
+        analysis_protocol.input_coordinate_file = ProtocolPath('coordinate_file_path', unpack_stored_data.id)
+        analysis_protocol.trajectory_path = ProtocolPath('trajectory_file_path', unpack_stored_data.id)
+
+    # Decorrelate the frames of the stored trajectory and statistics arrays.
+    decorrelate_statistics = analysis.ExtractUncorrelatedStatisticsData('decorrelate_stats{}'.format(replicator_suffix))
+    decorrelate_statistics.statistical_inefficiency = ProtocolPath('statistical_inefficiency', analysis_protocol.id)
+    decorrelate_statistics.equilibration_index = ProtocolPath('equilibration_index', analysis_protocol.id)
+    decorrelate_statistics.input_statistics_path = ProtocolPath('statistics_file_path', unpack_stored_data.id)
+
     decorrelate_trajectory = analysis.ExtractUncorrelatedTrajectoryData('decorrelate_traj{}'.format(replicator_suffix))
-
-    decorrelate_trajectory.statistical_inefficiency = ProtocolPath('statistical_inefficiency',
-                                                                   analysis_protocol.id)
-    decorrelate_trajectory.equilibration_index = ProtocolPath('equilibration_index',
-                                                              analysis_protocol.id)
-    decorrelate_trajectory.input_coordinate_file = ProtocolPath('coordinate_file_path',
-                                                                unpack_stored_data.id)
-    decorrelate_trajectory.input_trajectory_path = ProtocolPath('trajectory_file_path',
-                                                                unpack_stored_data.id)
+    decorrelate_trajectory.statistical_inefficiency = ProtocolPath('statistical_inefficiency', analysis_protocol.id)
+    decorrelate_trajectory.equilibration_index = ProtocolPath('equilibration_index', analysis_protocol.id)
+    decorrelate_trajectory.input_coordinate_file = ProtocolPath('coordinate_file_path', unpack_stored_data.id)
+    decorrelate_trajectory.input_trajectory_path = ProtocolPath('trajectory_file_path', unpack_stored_data.id)
 
     # Stitch together all of the trajectories
-    concatenate_trajectories = reweighting.ConcatenateTrajectories('concat_traj' + id_suffix)
-
-    concatenate_trajectories.input_coordinate_paths = [ProtocolPath('coordinate_file_path',
-                                                                    unpack_stored_data.id)]
-
-    concatenate_trajectories.input_trajectory_paths = [ProtocolPath('output_trajectory_path',
-                                                                    decorrelate_trajectory.id)]
+    join_trajectories = reweighting.ConcatenateTrajectories('concat_traj' + id_suffix)
+    join_trajectories.input_coordinate_paths = [ProtocolPath('coordinate_file_path', unpack_stored_data.id)]
+    join_trajectories.input_trajectory_paths = [ProtocolPath('output_trajectory_path', decorrelate_trajectory.id)]
 
     # Calculate the reduced potentials for each of the reference states.
     build_reference_system = forcefield.BuildSmirnoffSystem('build_system{}'.format(replicator_suffix))
-
     build_reference_system.force_field_path = ProtocolPath('force_field_path', unpack_stored_data.id)
     build_reference_system.substance = ProtocolPath('substance', unpack_stored_data.id)
-    build_reference_system.coordinate_file_path = ProtocolPath('coordinate_file_path',
-                                                               unpack_stored_data.id)
+    build_reference_system.coordinate_file_path = ProtocolPath('coordinate_file_path', unpack_stored_data.id)
 
     reduced_reference_potential = reweighting.CalculateReducedPotentialOpenMM('reduced_potential{}'.format(
                                                                               replicator_suffix))
-
     reduced_reference_potential.system_path = ProtocolPath('system_path', build_reference_system.id)
-    reduced_reference_potential.thermodynamic_state = ProtocolPath('thermodynamic_state',
-                                                                   unpack_stored_data.id)
-    reduced_reference_potential.coordinate_file_path = ProtocolPath('coordinate_file_path',
-                                                                    unpack_stored_data.id)
-    reduced_reference_potential.trajectory_file_path = ProtocolPath('output_trajectory_path',
-                                                                    concatenate_trajectories.id)
+    reduced_reference_potential.thermodynamic_state = ProtocolPath('thermodynamic_state', unpack_stored_data.id)
+    reduced_reference_potential.coordinate_file_path = ProtocolPath('coordinate_file_path', unpack_stored_data.id)
+    reduced_reference_potential.trajectory_file_path = ProtocolPath('output_trajectory_path', join_trajectories.id)
 
     # Calculate the reduced potential of the target state.
     build_target_system = forcefield.BuildSmirnoffSystem('build_system_target' + id_suffix)
-
     build_target_system.force_field_path = ProtocolPath('force_field_path', 'global')
     build_target_system.substance = ProtocolPath('substance', 'global')
-    build_target_system.coordinate_file_path = ProtocolPath('output_coordinate_path',
-                                                            concatenate_trajectories.id)
+    build_target_system.coordinate_file_path = ProtocolPath('output_coordinate_path', join_trajectories.id)
 
     reduced_target_potential = reweighting.CalculateReducedPotentialOpenMM('reduced_potential_target' + id_suffix)
-
     reduced_target_potential.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
     reduced_target_potential.system_path = ProtocolPath('system_path', build_target_system.id)
-    reduced_target_potential.coordinate_file_path = ProtocolPath('output_coordinate_path',
-                                                                 concatenate_trajectories.id)
-    reduced_target_potential.trajectory_file_path = ProtocolPath('output_trajectory_path',
-                                                                 concatenate_trajectories.id)
+    reduced_target_potential.coordinate_file_path = ProtocolPath('output_coordinate_path', join_trajectories.id)
+    reduced_target_potential.trajectory_file_path = ProtocolPath('output_trajectory_path', join_trajectories.id)
 
     # Finally, apply MBAR to get the reweighted value.
-    mbar_protocol = reweighting.ReweightWithMBARProtocol('mbar' + id_suffix)
-
-    mbar_protocol.reference_reduced_potentials = [ProtocolPath('statistics_file_path',
-                                                               reduced_reference_potential.id)]
-
-    mbar_protocol.reference_observables = [ProtocolPath('uncorrelated_values', analysis_protocol.id)]
+    mbar_protocol.reference_reduced_potentials = [ProtocolPath('statistics_file_path', reduced_reference_potential.id)]
     mbar_protocol.target_reduced_potentials = [ProtocolPath('statistics_file_path', reduced_target_potential.id)]
+
+    if (isinstance(mbar_protocol, reweighting.ReweightStatistics) and
+        mbar_protocol.statistics_type != ObservableType.PotentialEnergy and
+        mbar_protocol.statistics_type != ObservableType.TotalEnergy and
+        mbar_protocol.statistics_type != ObservableType.Enthalpy and
+        mbar_protocol.statistics_type != ObservableType.ReducedPotential):
+
+        mbar_protocol.statistics_paths = [ProtocolPath('output_statistics_path', decorrelate_statistics.id)]
+
+    elif isinstance(mbar_protocol, reweighting.ReweightStatistics):
+
+        mbar_protocol.statistics_paths = [ProtocolPath('statistics_file_path', reduced_target_potential.id)]
+        mbar_protocol.frame_counts = [ProtocolPath('number_of_uncorrelated_samples', decorrelate_statistics.id)]
 
     # TODO: Implement a cleaner way to handle this.
     if workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.NoChecks:
@@ -146,8 +157,9 @@ def generate_base_reweighting_protocols(analysis_protocol, workflow_options,
 
     base_protocols = BaseReweightingProtocols(unpack_stored_data,
                                               analysis_protocol,
+                                              decorrelate_statistics,
                                               decorrelate_trajectory,
-                                              concatenate_trajectories,
+                                              join_trajectories,
                                               build_reference_system,
                                               reduced_reference_potential,
                                               build_target_system,
@@ -349,39 +361,12 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
     return base_protocols, final_value_source, output_to_store
 
 
-def _get_default_gradient_reweighting_schema(observable_values, id_prefix=''):
-    """Generates the schema for a `ReweightWithMBARProtocol` with settings
-    appropriate for use in reweighting observables for direct gradients
-    evaluations.
-
-    Parameters
-    ----------
-    observable_values: ProtocolPath, optional
-        The path to the observables whose gradient is to be determined.
-    id_prefix: str
-        An optional string to prepend to the id of the protocol.
-
-    Returns
-    -------
-    ProtocolSchema
-        The created schema.
-    """
-
-    mbar_protocol = reweighting.ReweightWithMBARProtocol(f'{id_prefix}gradient_mbar')
-    mbar_protocol.reference_observables = [observable_values]
-    mbar_protocol.required_effective_samples = 0
-    mbar_protocol.bootstrap_uncertainties = False
-
-    return mbar_protocol.schema
-
-
-def generate_gradient_protocol_group(reference_force_field_paths,
+def generate_gradient_protocol_group(template_reweighting_protocol,
+                                     reference_force_field_paths,
                                      target_force_field_path,
                                      coordinate_file_path,
                                      trajectory_file_path,
                                      replicator_id='repl',
-                                     observable_values=None,
-                                     template_reweighting_schema=None,
                                      perturbation_scale=1.0e-4,
                                      substance_source=None,
                                      id_prefix='',
@@ -394,7 +379,17 @@ def generate_gradient_protocol_group(reference_force_field_paths,
 
     Parameters
     ----------
-    reference_force_field_paths: list of ProtocolPath
+    template_reweighting_protocol: BaseMBARProtocol
+        A template protocol which will be used to reweight the observable of
+        interest to small perturbations to the parameter of interest. These
+        will then be used to calculate the finite difference gradient. This
+        utility takes care of setting the target and reference reduced potentials.
+
+        In the case that the template is of type `ReweightStatistics` and the
+        observable is an energy, the statistics path will automatically be pointed
+        to the energies evaluated using the perturbed parameter as opposed to the
+        energy measured during the reference simulation.
+    reference_force_field_paths: ProtocolPath or list of ProtocolPath
         The paths to the force field parameters which were used to generate
         the trajectories from which the observables of interest were calculated.
     target_force_field_path: ProtocolPath
@@ -410,11 +405,6 @@ def generate_gradient_protocol_group(reference_force_field_paths,
     replicator_id: str
         A unique id which will be used for the protocol replicator which will
         replicate this group for every parameter of interest.
-    observable_values: ProtocolPath, optional
-        The path to the observables whose gradient is to be determined. This
-        parameter is mutually exclusive with `template_reweighting_schema`.
-    template_reweighting_schema: ReweightWithMBARProtocol
-        Not yet implemented.
     perturbation_scale: float
         The default amount to perturb parameters by.
     substance_source: ProtocolPath, optional
@@ -444,11 +434,14 @@ def generate_gradient_protocol_group(reference_force_field_paths,
         A protocol path which points to the final gradient value.
     """
 
-    if ((observable_values is not None and template_reweighting_schema is not None) or
-        (observable_values is None and template_reweighting_schema is None)):
+    assert isinstance(template_reweighting_protocol, reweighting.BaseMBARProtocol)
 
-        raise ValueError('Either `observable_values` or `template_reweighting_schema` '
-                         'must not be `None` (but not both).')
+    # Set values of the optional parameters.
+    substance_source = ProtocolPath('substance', 'global') if substance_source is None else substance_source
+    effective_sample_indices = effective_sample_indices if effective_sample_indices is not None else []
+
+    if not isinstance(reference_force_field_paths, Iterable):
+        reference_force_field_paths = [reference_force_field_paths]
 
     # Define the protocol which will evaluate the reduced potentials of the
     # reference, forward and reverse states using only a subset of the full
@@ -456,46 +449,51 @@ def generate_gradient_protocol_group(reference_force_field_paths,
     reduced_potentials = gradients.GradientReducedPotentials(f'{id_prefix}gradient_reduced_potentials_'
                                                              f'$({replicator_id})')
 
-    reduced_potentials.substance = (ProtocolPath('substance', 'global') if substance_source is None
-                                                                        else substance_source)
+    reduced_potentials.substance = substance_source
     reduced_potentials.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
     reduced_potentials.reference_force_field_paths = reference_force_field_paths
     reduced_potentials.force_field_path = target_force_field_path
-
     reduced_potentials.trajectory_file_path = trajectory_file_path
     reduced_potentials.coordinate_file_path = coordinate_file_path
-
     reduced_potentials.parameter_key = ReplicatorValue(replicator_id)
     reduced_potentials.perturbation_scale = perturbation_scale
-
     reduced_potentials.use_subset_of_force_field = True
     reduced_potentials.enable_pbc = enable_pbc
-
-    if effective_sample_indices is not None:
-        reduced_potentials.effective_sample_indices = effective_sample_indices
+    reduced_potentials.effective_sample_indices = effective_sample_indices
 
     # Set up the protocols which will actually reweight the value of the
     # observable to the forward and reverse states.
-    if template_reweighting_schema is None:
-        template_reweighting_schema = _get_default_gradient_reweighting_schema(observable_values, id_prefix)
+    template_reweighting_protocol.bootstrap_iterations = 1
+    template_reweighting_protocol.required_effective_samples = 0
+    template_reweighting_protocol.reference_reduced_potentials = ProtocolPath('reference_potential_paths',
+                                                                              reduced_potentials.id)
 
+    # We need to make sure we use the observable evaluated at the target state
+    # if the observable depends on the parameter being reweighted.
+    use_target_state_energies = (isinstance(template_reweighting_protocol, reweighting.ReweightStatistics) and
+                                 (template_reweighting_protocol.statistics_type == ObservableType.PotentialEnergy or
+                                  template_reweighting_protocol.statistics_type == ObservableType.TotalEnergy or
+                                  template_reweighting_protocol.statistics_type == ObservableType.Enthalpy or
+                                  template_reweighting_protocol.statistics_type == ObservableType.ReducedPotential))
+
+    template_reweighting_schema = template_reweighting_protocol.schema
+
+    # Create the reweighting protocols from the template schema.
     reverse_mbar_schema = copy.deepcopy(template_reweighting_schema)
-    reverse_mbar_schema.id = f'{id_prefix}reverse_{reverse_mbar_schema.id}_$({replicator_id})'
-
+    reverse_mbar_schema.id = f'{id_prefix}reverse_reweight_$({replicator_id})'
     reverse_mbar = available_protocols[reverse_mbar_schema.type](reverse_mbar_schema.id)
     reverse_mbar.schema = reverse_mbar_schema
-    reverse_mbar.reference_reduced_potentials = ProtocolPath('reference_potential_paths', reduced_potentials.id)
     reverse_mbar.target_reduced_potentials = [ProtocolPath('reverse_potentials_path', reduced_potentials.id)]
-    reverse_mbar.bootstrap_iterations = min(1, reverse_mbar.bootstrap_iterations)
 
     forward_mbar_schema = copy.deepcopy(template_reweighting_schema)
-    forward_mbar_schema.id = f'{id_prefix}forward_{forward_mbar_schema.id}_$({replicator_id})'
-
+    forward_mbar_schema.id = f'{id_prefix}forward_reweight_$({replicator_id})'
     forward_mbar = available_protocols[forward_mbar_schema.type](forward_mbar_schema.id)
     forward_mbar.schema = forward_mbar_schema
-    forward_mbar.reference_reduced_potentials = ProtocolPath('reference_potential_paths', reduced_potentials.id)
     forward_mbar.target_reduced_potentials = [ProtocolPath('forward_potentials_path', reduced_potentials.id)]
-    forward_mbar.bootstrap_iterations = min(1, reverse_mbar.bootstrap_iterations)
+
+    if use_target_state_energies:
+        reverse_mbar.statistics_paths = [ProtocolPath('reverse_potentials_path', reduced_potentials.id)]
+        forward_mbar.statistics_paths = [ProtocolPath('forward_potentials_path', reduced_potentials.id)]
 
     # Set up the protocol which will actually evaluate the parameter gradient
     # using the central difference method.

@@ -17,8 +17,8 @@ from simtk.openmm import app
 from propertyestimator import unit
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.openmm import setup_platform_with_resources, openmm_quantity_to_pint,\
-    pint_quantity_to_openmm
+from propertyestimator.utils.openmm import setup_platform_with_resources, openmm_quantity_to_pint, \
+    pint_quantity_to_openmm, disable_pbc
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import StatisticsArray, ObservableType
 from propertyestimator.utils.utils import temporarily_change_directory, safe_unlink
@@ -352,14 +352,7 @@ class RunOpenMMSimulation(BaseProtocol):
         # Disable the periodic boundary conditions if requested.
         if not self._enable_pbc:
 
-            for force_index in range(system.getNumForces()):
-                force = system.getForce(force_index)
-
-                if not isinstance(force, openmm.NonbondedForce):
-                    continue
-
-                force.setNonbondedMethod(0)  # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1
-
+            disable_pbc(system)
             pressure = None
 
         # Use the openmmtools ThermodynamicState object to help
