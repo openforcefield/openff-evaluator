@@ -2,231 +2,20 @@
 A collection of protocols for reweighting cached simulation data.
 """
 
-import json
-import logging
 from os import path
 
 import numpy as np
 import pymbar
 
 from propertyestimator import unit
-from propertyestimator.storage.dataclasses import StoredDataCollection
-from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.openmm import pint_quantity_to_openmm, setup_platform_with_resources
+from propertyestimator.utils.openmm import pint_quantity_to_openmm, setup_platform_with_resources, disable_pbc
 from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from propertyestimator.utils.statistics import bootstrap, StatisticsArray, ObservableType
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
-
-
-@register_calculation_protocol()
-class UnpackStoredDataCollection(BaseProtocol):
-    """Loads a `StoredDataCollection` object from disk,
-    and makes its inner data objects easily accessible to other protocols.
-    """
-
-    @protocol_input(tuple)
-    def input_data_path(self):
-        """A tuple which contains both the path to the simulation data object,
-        it's ancillary data directory, and the force field which was used to
-        generate the stored data."""
-        pass
-
-    @protocol_output(dict)
-    def collection_data_paths(self):
-        """A dictionary of data object path, data directory path and force field
-        path tuples partitioned by the unique collection keys."""
-        pass
-
-    def __init__(self, protocol_id):
-        """Constructs a new UnpackStoredDataCollection object."""
-        super().__init__(protocol_id)
-
-        self._input_data_path = None
-        self._collection_data_paths = None
-
-    def execute(self, directory, available_resources):
-
-        if len(self._input_data_path) != 3:
-
-            return PropertyEstimatorException(directory=directory,
-                                              message='The input data path should be a tuple '
-                                                      'of a path to the data object, directory, and a path '
-                                                      'to the force field used to generate it.')
-
-        data_object_path = self._input_data_path[0]
-        data_directory = self._input_data_path[1]
-        force_field_path = self._input_data_path[2]
-
-        if not path.isfile(data_object_path):
-
-            return PropertyEstimatorException(directory=directory,
-                                              message='The path to the data object'
-                                                      'is invalid: {}'.format(data_object_path))
-
-        if not path.isdir(data_directory):
-
-            return PropertyEstimatorException(directory=directory,
-                                              message='The path to the data directory'
-                                                      'is invalid: {}'.format(data_directory))
-
-        if not path.isfile(force_field_path):
-
-            return PropertyEstimatorException(directory=directory,
-                                              message='The path to the force field'
-                                                      'is invalid: {}'.format(force_field_path))
-
-        data_object = None
-
-        with open(data_object_path, 'r') as file:
-            data_object = json.load(file, cls=TypedJSONDecoder)
-
-        if not isinstance(data_object, StoredDataCollection):
-
-            return PropertyEstimatorException(directory=directory,
-                                              message=f'The data object must be a `StoredDataCollection` '
-                                                      f'and not a {type(data_object)}')
-
-        self._collection_data_paths = {}
-
-        for data_key, inner_data_object in data_object.data.items():
-
-            inner_object_path = path.join(directory, f'{data_key}.json')
-            inner_directory_path = path.join(data_directory, data_key)
-
-            with open(inner_object_path, 'w') as file:
-                json.dump(inner_data_object, file, cls=TypedJSONEncoder)
-
-            self._collection_data_paths[data_key] = (inner_object_path,
-                                                     inner_directory_path,
-                                                     force_field_path)
-
-        return self._get_output_dictionary()
-
-
-@register_calculation_protocol()
-class UnpackStoredSimulationData(BaseProtocol):
-    """Loads a `StoredSimulationData` object from disk,
-    and makes its attributes easily accessible to other protocols.
-    """
-
-    @protocol_input(tuple)
-    def simulation_data_path(self):
-        """A tuple which contains both the path to the simulation data object,
-        it's ancillary data directory, and the force field which was used to
-        generate the stored data."""
-        pass
-
-    @protocol_output(Substance)
-    def substance(self):
-        """The substance which was stored."""
-        pass
-
-    @protocol_output(int)
-    def total_number_of_molecules(self):
-        """The total number of molecules in the stored system."""
-        pass
-
-    @protocol_output(ThermodynamicState)
-    def thermodynamic_state(self):
-        """The thermodynamic state which was stored."""
-        pass
-
-    @protocol_output(float)
-    def statistical_inefficiency(self):
-        """The statistical inefficiency of the stored data."""
-        pass
-
-    @protocol_output(str)
-    def coordinate_file_path(self):
-        """A path to the stored simulation trajectory."""
-        pass
-
-    @protocol_output(str)
-    def trajectory_file_path(self):
-        """A path to the stored simulation trajectory."""
-        pass
-
-    @protocol_output(str)
-    def statistics_file_path(self):
-        """A path to the stored simulation statistics array."""
-        pass
-
-    @protocol_output(str)
-    def force_field_path(self):
-        """A path to the force field parameters used to generate
-        the stored data."""
-        pass
-
-    def __init__(self, protocol_id):
-        """Constructs a new UnpackStoredSimulationData object."""
-        super().__init__(protocol_id)
-
-        self._simulation_data_path = None
-
-        self._substance = None
-        self._total_number_of_molecules = None
-
-        self._thermodynamic_state = None
-
-        self._statistical_inefficiency = None
-
-        self._coordinate_file_path = None
-        self._trajectory_file_path = None
-
-        self._statistics_file_path = None
-
-        self._force_field_path = None
-
-    def execute(self, directory, available_resources):
-
-        if len(self._simulation_data_path) != 3:
-
-            return PropertyEstimatorException(directory=directory,
-                                              message='The simulation data path should be a tuple '
-                                                      'of a path to the data object, directory, and a path '
-                                                      'to the force field used to generate it.')
-
-        data_object_path = self._simulation_data_path[0]
-        data_directory = self._simulation_data_path[1]
-        force_field_path = self._simulation_data_path[2]
-
-        if not path.isdir(data_directory):
-
-            return PropertyEstimatorException(directory=directory,
-                                              message='The path to the data directory'
-                                                      'is invalid: {}'.format(data_directory))
-
-        if not path.isfile(force_field_path):
-
-            return PropertyEstimatorException(directory=directory,
-                                              message='The path to the force field'
-                                                      'is invalid: {}'.format(force_field_path))
-
-        data_object = None
-
-        with open(data_object_path, 'r') as file:
-            data_object = json.load(file, cls=TypedJSONDecoder)
-
-        self._substance = data_object.substance
-        self._total_number_of_molecules = data_object.total_number_of_molecules
-
-        self._thermodynamic_state = data_object.thermodynamic_state
-
-        self._statistical_inefficiency = data_object.statistical_inefficiency
-
-        self._coordinate_file_path = path.join(data_directory, data_object.coordinate_file_name)
-        self._trajectory_file_path = path.join(data_directory, data_object.trajectory_file_name)
-
-        self._statistics_file_path = path.join(data_directory, data_object.statistics_file_name)
-
-        self._force_field_path = force_field_path
-
-        return self._get_output_dictionary()
 
 
 @register_calculation_protocol()
@@ -292,66 +81,6 @@ class ConcatenateTrajectories(BaseProtocol):
 
         self._output_trajectory_path = path.join(directory, 'output_trajectory.dcd')
         output_trajectory.save_dcd(self._output_trajectory_path)
-
-        return self._get_output_dictionary()
-
-
-@register_calculation_protocol()
-class SubsampleTrajectory(BaseProtocol):
-    """A protocol which will subsample a specified selection of frames from
-    a trajectory.
-    """
-
-    @protocol_input(list)
-    def indices(self):
-        """The indices of the frames to retain."""
-        pass
-
-    @protocol_input(str)
-    def input_coordinate_file(self):
-        """The file path to the starting coordinates of a trajectory."""
-        pass
-
-    @protocol_input(str)
-    def input_trajectory_path(self):
-        """The file path to the trajectory to subsample."""
-        pass
-
-    @protocol_output(str)
-    def output_trajectory_path(self):
-        """The file path to the subsampled trajectory."""
-        pass
-
-    def __init__(self, protocol_id):
-
-        super().__init__(protocol_id)
-
-        self._indices = None
-
-        self._input_coordinate_file = None
-        self._input_trajectory_path = None
-
-        self._output_trajectory_path = None
-
-    def execute(self, directory, available_resources):
-
-        import mdtraj
-
-        logging.info('Subsampling trajectory: {}'.format(self.id))
-
-        if self._input_trajectory_path is None:
-
-            return PropertyEstimatorException(directory=directory,
-                                              message='The ExtractUncorrelatedTrajectoryData protocol '
-                                                       'requires a previously calculated trajectory')
-
-        trajectory = mdtraj.load_dcd(filename=self._input_trajectory_path, top=self._input_coordinate_file)
-        trajectory = trajectory[self._indices]
-
-        self._output_trajectory_path = path.join(directory, 'uncorrelated_trajectory.dcd')
-        trajectory.save_dcd(self._output_trajectory_path)
-
-        logging.info('Trajectory subsampled: {}'.format(self.id))
 
         return self._get_output_dictionary()
 
@@ -441,23 +170,15 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         openmm_system = openmm_state.get_system(True, True)
 
         if not self._enable_pbc:
-
-            for force_index in range(openmm_system.getNumForces()):
-
-                force = openmm_system.getForce(force_index)
-
-                if not isinstance(force, openmm.NonbondedForce):
-                    continue
-
-                force.setNonbondedMethod(0)  # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1
+            disable_pbc(openmm_system)
 
         openmm_context = openmm.Context(openmm_system, integrator, platform)
 
+        potential_energies = np.zeros(trajectory.n_frames)
         reduced_potentials = np.zeros(trajectory.n_frames)
 
         for frame_index in range(trajectory.n_frames):
 
-            # positions = trajectory.openmm_positions(frame_index)
             if self._enable_pbc:
                 box_vectors = trajectory.openmm_boxes(frame_index)
                 openmm_context.setPeriodicBoxVectors(*box_vectors)
@@ -465,10 +186,13 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
             positions = trajectory.xyz[frame_index]
             openmm_context.setPositions(positions)
 
-            # set box vectors
+            potential_energy = openmm_context.getState(getEnergy=True).getPotentialEnergy()
+
+            potential_energies[frame_index] = potential_energy.value_in_unit(simtk_unit.kilojoule_per_mole)
             reduced_potentials[frame_index] = openmm_state.reduced_potential(openmm_context)
 
         statistics_array = StatisticsArray()
+        statistics_array[ObservableType.PotentialEnergy] = potential_energies * unit.kilojoule / unit.mole
         statistics_array[ObservableType.ReducedPotential] = reduced_potentials * unit.dimensionless
 
         self._statistics_file_path = path.join(directory, 'statistics.csv')
@@ -478,7 +202,7 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
 
 
 @register_calculation_protocol()
-class ReweightWithMBARProtocol(BaseProtocol):
+class BaseMBARProtocol(BaseProtocol):
     """Reweights a set of observables using MBAR to calculate
     the average value of the observables at a different state
     than they were originally measured.
@@ -487,11 +211,6 @@ class ReweightWithMBARProtocol(BaseProtocol):
     @protocol_input(list)
     def reference_reduced_potentials(self):
         """A list of paths to the reduced potentials of each reference state."""
-        pass
-
-    @protocol_input(list)
-    def reference_observables(self):
-        """A list of the observables to be reweighted from each reference state."""
         pass
 
     @protocol_input(list)
@@ -539,7 +258,7 @@ class ReweightWithMBARProtocol(BaseProtocol):
         pass
 
     def __init__(self, protocol_id):
-        """Constructs a new ReweightWithMBARProtocol object."""
+        """Constructs a new BaseMBARProtocol object."""
         super().__init__(protocol_id)
 
         self._reference_reduced_potentials = None
@@ -910,3 +629,71 @@ class ReweightWithMBARProtocol(BaseProtocol):
                 uncertainties[observable_key] = np.array(uncertainty)
 
         return values, uncertainties, effective_samples
+
+
+@register_calculation_protocol()
+class ReweightStatistics(BaseMBARProtocol):
+    """Reweights a set of observables from a `StatisticsArray` using MBAR.
+    """
+
+    @protocol_input(list)
+    def statistics_paths(self):
+        """The file paths to the statistics array which contains the observables
+        of interest from each state."""
+        pass
+
+    @protocol_input(ObservableType)
+    def statistics_type(self):
+        """The type of observable to reweight."""
+        pass
+
+    @protocol_input(list)
+    def frame_counts(self):
+        """An optional list which describes how many of the statistics in the
+        array belong to each reference state. If this input is used, only a
+        single file path should be passed to the `statistics_paths` input."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new ReweightWithMBARProtocol object."""
+        super().__init__(protocol_id)
+
+        self._statistics_paths = None
+        self._statistics_type = None
+
+        self._frame_counts = []
+
+    def execute(self, directory, available_resources):
+
+        if self._statistics_paths is None or len(self._statistics_paths) == 0:
+            return PropertyEstimatorException(directory, 'No statistics paths were provided.')
+
+        if len(self._frame_counts) > 0 and len(self._statistics_paths) != 1:
+            return PropertyEstimatorException(directory, 'The frame counts input can only be used when only'
+                                                         'a single path is passed to the `statistics_paths`'
+                                                         'input.')
+
+        statistics_arrays = [StatisticsArray.from_pandas_csv(file_path) for file_path in self._statistics_paths]
+        self._reference_observables = []
+
+        if len(self._frame_counts) > 0:
+
+            statistics_array = statistics_arrays[0]
+            current_index = 0
+
+            for frame_count in self._frame_counts:
+
+                if frame_count <= 0:
+                    return PropertyEstimatorException(directory, 'The frame counts must be > 0.')
+
+                observables = statistics_array[self._statistics_type][current_index:frame_count]
+                self._reference_observables.append(observables)
+
+                current_index += frame_count
+
+        else:
+
+            self._reference_observables = [statistics_array[self._statistics_type] for
+                                           statistics_array in statistics_arrays]
+
+        return super(ReweightStatistics, self).execute(directory, available_resources)

@@ -5,7 +5,7 @@ A collection of density physical property definitions.
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties import PhysicalProperty, PropertyPhase
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.protocols import analysis
+from propertyestimator.protocols import analysis, reweighting
 from propertyestimator.protocols.utils import generate_base_simulation_protocols, generate_base_reweighting_protocols, \
     generate_gradient_protocol_group
 from propertyestimator.storage import StoredSimulationData
@@ -63,17 +63,25 @@ class Density(PhysicalProperty):
                                                                                       options)
 
         # Set up the gradient calculations
+        reweight_density_template = reweighting.ReweightStatistics('')
+        reweight_density_template.statistics_type = ObservableType.Density
+        reweight_density_template.statistics_paths = [ProtocolPath('statistics_file_path',
+                                                                   protocols.converge_uncertainty.id,
+                                                                   protocols.production_simulation.id)]
+
         coordinate_source = ProtocolPath('output_coordinate_file', protocols.equilibration_simulation.id)
-        trajectory_source = ProtocolPath('output_trajectory_path', protocols.extract_uncorrelated_trajectory.id)
-        observables_source = ProtocolPath('uncorrelated_values', protocols.converge_uncertainty.id,
-                                                                 protocols.analysis_protocol.id)
+        trajectory_source = ProtocolPath('trajectory_file_path', protocols.converge_uncertainty.id,
+                                         protocols.production_simulation.id)
+        statistics_source = ProtocolPath('statistics_file_path', protocols.converge_uncertainty.id,
+                                         protocols.production_simulation.id)
 
         gradient_group, gradient_replicator, gradient_source = \
-            generate_gradient_protocol_group([ProtocolPath('force_field_path', 'global')],
+            generate_gradient_protocol_group(reweight_density_template,
+                                             ProtocolPath('force_field_path', 'global'),
                                              ProtocolPath('force_field_path', 'global'),
                                              coordinate_source,
                                              trajectory_source,
-                                             observable_values=observables_source)
+                                             statistics_source)
 
         # Build the workflow schema.
         schema = WorkflowSchema(property_type=Density.__name__)
@@ -118,38 +126,46 @@ class Density(PhysicalProperty):
         # The protocol which will be used to calculate the densities from
         # the existing data.
         density_calculation = analysis.ExtractAverageStatistic('calc_density_$(data_repl)')
-        base_reweighting_protocols, data_replicator = generate_base_reweighting_protocols(density_calculation,
-                                                                                          options)
-
         density_calculation.statistics_type = ObservableType.Density
-        density_calculation.statistics_path = ProtocolPath('statistics_file_path',
-                                                           base_reweighting_protocols.unpack_stored_data.id)
+
+        reweight_density = reweighting.ReweightStatistics('reweight_density')
+        reweight_density.statistics_type = ObservableType.Density
+
+        reweighting_protocols, data_replicator = generate_base_reweighting_protocols(density_calculation,
+                                                                                     reweight_density,
+                                                                                     options)
 
         # Set up the gradient calculations
-        coordinate_path = ProtocolPath('output_coordinate_path', base_reweighting_protocols.concatenate_trajectories.id)
-        trajectory_path = ProtocolPath('output_trajectory_path', base_reweighting_protocols.concatenate_trajectories.id)
+        coordinate_path = ProtocolPath('output_coordinate_path', reweighting_protocols.concatenate_trajectories.id)
+        trajectory_path = ProtocolPath('output_trajectory_path', reweighting_protocols.concatenate_trajectories.id)
+
+        reweight_density_template = reweighting.ReweightStatistics('')
+        reweight_density_template.statistics_type = ObservableType.Density
+        reweight_density_template.statistics_paths = [ProtocolPath('statistics_file_path',
+                                                                   reweighting_protocols.unpack_stored_data.id)]
 
         gradient_group, gradient_replicator, gradient_source = \
-            generate_gradient_protocol_group([ProtocolPath('force_field_path',
-                                                           base_reweighting_protocols.unpack_stored_data.id)],
+            generate_gradient_protocol_group(reweight_density_template,
+                                             [ProtocolPath('force_field_path',
+                                                           reweighting_protocols.unpack_stored_data.id)],
                                              ProtocolPath('force_field_path', 'global'),
                                              coordinate_path,
                                              trajectory_path,
-                                             'grad',
-                                             ProtocolPath('uncorrelated_values', density_calculation.id),
+                                             replicator_id='grad',
+                                             use_subset_of_force_field=False,
                                              effective_sample_indices=ProtocolPath('effective_sample_indices',
-                                                                                   base_reweighting_protocols.
+                                                                                   reweighting_protocols.
                                                                                    mbar_protocol.id))
 
         schema = WorkflowSchema(property_type=Density.__name__)
         schema.id = '{}{}'.format(Density.__name__, 'Schema')
 
-        schema.protocols = {protocol.id: protocol.schema for protocol in base_reweighting_protocols}
+        schema.protocols = {protocol.id: protocol.schema for protocol in reweighting_protocols}
         schema.protocols[gradient_group.id] = gradient_group.schema
 
         schema.replicators = [data_replicator, gradient_replicator]
 
         schema.gradients_sources = [gradient_source]
-        schema.final_value_source = ProtocolPath('value', base_reweighting_protocols.mbar_protocol.id)
+        schema.final_value_source = ProtocolPath('value', reweighting_protocols.mbar_protocol.id)
 
         return schema
