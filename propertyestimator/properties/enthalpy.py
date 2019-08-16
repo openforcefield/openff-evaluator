@@ -761,14 +761,29 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                                                                    gas_protocols.mbar_protocol.id))
 
         # Combine the gradients.
+        # TODO - this is an obvious failing of the current workflow code that we have to
+        #        resort to this to get the number of molecules. This should be fixed ASAP
+        #        once a better typing system is in.
+        divide_data_collection = storage.UnpackStoredDataCollection('divide_data_collection')
+        divide_data_collection.input_data_path = ProtocolPath('full_system_data[0]', 'global')
+
+        divide_data = storage.UnpackStoredSimulationData('molecule_count')
+        divide_data.simulation_data_path = ProtocolPath('collection_data_paths[liquid]',
+                                                        divide_data_collection.id)
+
+        scale_liquid_gradient = gradients.DivideGradientByScalar('scale_liquid_gradient_$(grad)')
+        scale_liquid_gradient.value = liquid_gradient_source
+        scale_liquid_gradient.divisor = ProtocolPath('total_number_of_molecules', divide_data.id)
+
         combine_gradients = gradients.SubtractGradients('combine_gradients_$(grad)')
         combine_gradients.value_b = gas_gradient_source
-        combine_gradients.value_a = liquid_gradient_source
+        combine_gradients.value_a = ProtocolPath('result', scale_liquid_gradient.id)
 
         # Combine the gradient replicators.
         gradient_replicator = ProtocolReplicator(liquid_gradient_replicator.id)
         gradient_replicator.protocols_to_replicate = [*liquid_gradient_replicator.protocols_to_replicate,
                                                       *gas_gradient_replicator.protocols_to_replicate,
+                                                      ProtocolPath('', scale_liquid_gradient.id),
                                                       ProtocolPath('', combine_gradients.id)]
         gradient_replicator.template_values = ProtocolPath('parameter_gradient_keys', 'global')
 
@@ -787,6 +802,9 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         schema.protocols[liquid_gradient_group.id] = liquid_gradient_group.schema
         schema.protocols[gas_gradient_group.id] = gas_gradient_group.schema
+        schema.protocols[divide_data_collection.id] = divide_data_collection.schema
+        schema.protocols[divide_data.id] = divide_data.schema
+        schema.protocols[scale_liquid_gradient.id] = scale_liquid_gradient.schema
         schema.protocols[combine_gradients.id] = combine_gradients.schema
 
         schema.replicators = [data_replicator, gradient_replicator]
