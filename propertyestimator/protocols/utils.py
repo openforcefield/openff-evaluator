@@ -366,11 +366,13 @@ def generate_gradient_protocol_group(template_reweighting_protocol,
                                      target_force_field_path,
                                      coordinate_file_path,
                                      trajectory_file_path,
+                                     statistics_file_path='',
                                      replicator_id='repl',
                                      perturbation_scale=1.0e-4,
                                      substance_source=None,
                                      id_prefix='',
                                      enable_pbc=True,
+                                     use_subset_of_force_field=True,
                                      effective_sample_indices=None):
     """Constructs a set of protocols which, when combined in a workflow schema,
     may be executed to reweight a set of existing data to estimate a particular
@@ -402,6 +404,11 @@ def generate_gradient_protocol_group(template_reweighting_protocol,
     trajectory_file_path: ProtocolPath
         A path to the simulation trajectory which was used
         to estimate the observable of interest.
+    statistics_file_path: ProtocolPath, optional
+        A path to the statistics where were generated from
+        the trajectory passed to the `trajectory_file_path`
+        parameter. This is optional in cases where multiple
+        reference force fields are passed to this method.
     replicator_id: str
         A unique id which will be used for the protocol replicator which will
         replicate this group for every parameter of interest.
@@ -417,6 +424,9 @@ def generate_gradient_protocol_group(template_reweighting_protocol,
     enable_pbc: bool
         If true, periodic boundary conditions are employed when recalculating
         the reduced potentials.
+    use_subset_of_force_field: bool
+        If True, any reduced potentials will only be calculated from a subset
+        of the force field which depends on the parameter of interest.
     effective_sample_indices: ProtocolPath, optional
         A placeholder variable which can be used to make the gradient protocols
         dependant on an MBAR protcol to ensure gradients aren't calcuated when
@@ -452,12 +462,13 @@ def generate_gradient_protocol_group(template_reweighting_protocol,
     reduced_potentials.substance = substance_source
     reduced_potentials.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
     reduced_potentials.reference_force_field_paths = reference_force_field_paths
+    reduced_potentials.reference_statistics_path = statistics_file_path
     reduced_potentials.force_field_path = target_force_field_path
     reduced_potentials.trajectory_file_path = trajectory_file_path
     reduced_potentials.coordinate_file_path = coordinate_file_path
     reduced_potentials.parameter_key = ReplicatorValue(replicator_id)
     reduced_potentials.perturbation_scale = perturbation_scale
-    reduced_potentials.use_subset_of_force_field = True
+    reduced_potentials.use_subset_of_force_field = use_subset_of_force_field
     reduced_potentials.enable_pbc = enable_pbc
     reduced_potentials.effective_sample_indices = effective_sample_indices
 

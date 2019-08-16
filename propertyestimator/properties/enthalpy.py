@@ -550,6 +550,8 @@ class EnthalpyOfVaporization(PhysicalProperty):
         liquid_coordinate_source = ProtocolPath('output_coordinate_file', liquid_protocols.equilibration_simulation.id)
         liquid_trajectory_source = ProtocolPath('trajectory_file_path', converge_uncertainty.id,
                                                 liquid_protocols.production_simulation.id)
+        liquid_statistics_source = ProtocolPath('statistics_file_path', liquid_protocols.converge_uncertainty.id,
+                                                liquid_protocols.production_simulation.id)
 
         liquid_gradient_group, liquid_gradient_replicator, liquid_gradient_source = \
             generate_gradient_protocol_group(reweight_potential_template,
@@ -557,12 +559,15 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                              ProtocolPath('force_field_path', 'global'),
                                              liquid_coordinate_source,
                                              liquid_trajectory_source,
+                                             liquid_statistics_source,
                                              id_prefix='liquid_')
 
         # Set up the gas gradient calculations
         gas_coordinate_source = ProtocolPath('output_coordinate_file', gas_protocols.equilibration_simulation.id)
         gas_trajectory_source = ProtocolPath('trajectory_file_path', converge_uncertainty.id,
                                                 gas_protocols.production_simulation.id)
+        gas_statistics_source = ProtocolPath('statistics_file_path', gas_protocols.converge_uncertainty.id,
+                                             gas_protocols.production_simulation.id)
 
         gas_gradient_group, gas_gradient_replicator, gas_gradient_source = \
             generate_gradient_protocol_group(reweight_potential_template,
@@ -570,6 +575,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                              ProtocolPath('force_field_path', 'global'),
                                              gas_coordinate_source,
                                              gas_trajectory_source,
+                                             gas_statistics_source,
                                              id_prefix='gas_',
                                              enable_pbc=False)
 
@@ -727,6 +733,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                              liquid_trajectory_path,
                                              replicator_id='grad',
                                              id_prefix='liquid_',
+                                             use_subset_of_force_field=False,
                                              effective_sample_indices=ProtocolPath('effective_sample_indices',
                                                                                    liquid_protocols.mbar_protocol.id))
 
@@ -742,6 +749,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                              gas_trajectory_path,
                                              replicator_id='grad',
                                              id_prefix='gas_',
+                                             use_subset_of_force_field=False,
                                              enable_pbc=False,
                                              effective_sample_indices=ProtocolPath('effective_sample_indices',
                                                                                    gas_protocols.mbar_protocol.id))

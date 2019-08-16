@@ -72,13 +72,16 @@ class Density(PhysicalProperty):
         coordinate_source = ProtocolPath('output_coordinate_file', protocols.equilibration_simulation.id)
         trajectory_source = ProtocolPath('trajectory_file_path', protocols.converge_uncertainty.id,
                                          protocols.production_simulation.id)
+        statistics_source = ProtocolPath('statistics_file_path', protocols.converge_uncertainty.id,
+                                         protocols.production_simulation.id)
 
         gradient_group, gradient_replicator, gradient_source = \
             generate_gradient_protocol_group(reweight_density_template,
                                              ProtocolPath('force_field_path', 'global'),
                                              ProtocolPath('force_field_path', 'global'),
                                              coordinate_source,
-                                             trajectory_source)
+                                             trajectory_source,
+                                             statistics_source)
 
         # Build the workflow schema.
         schema = WorkflowSchema(property_type=Density.__name__)
@@ -148,7 +151,8 @@ class Density(PhysicalProperty):
                                              ProtocolPath('force_field_path', 'global'),
                                              coordinate_path,
                                              trajectory_path,
-                                             'grad',
+                                             replicator_id='grad',
+                                             use_subset_of_force_field=False,
                                              effective_sample_indices=ProtocolPath('effective_sample_indices',
                                                                                    reweighting_protocols.
                                                                                    mbar_protocol.id))
