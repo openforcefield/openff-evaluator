@@ -496,8 +496,8 @@ class EnthalpyOfVaporization(PhysicalProperty):
         gas_protocols.equilibration_simulation.enable_pbc = False
         gas_protocols.equilibration_simulation.save_rolling_statistics = False
         gas_protocols.production_simulation.ensemble = Ensemble.NVT
-        gas_protocols.production_simulation.steps = 20000000
-        gas_protocols.production_simulation.output_frequency = 2500
+        gas_protocols.production_simulation.steps = 15000000
+        gas_protocols.production_simulation.output_frequency = 5000
         gas_protocols.production_simulation.enable_pbc = False
         gas_protocols.production_simulation.save_rolling_statistics = False
 
@@ -580,14 +580,19 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                              enable_pbc=False)
 
         # Combine the gradients.
+        scale_liquid_gradient = gradients.DivideGradientByScalar('scale_liquid_gradient_$(repl)')
+        scale_liquid_gradient.value = liquid_gradient_source
+        scale_liquid_gradient.divisor = number_of_liquid_molecules
+
         combine_gradients = gradients.SubtractGradients('combine_gradients_$(repl)')
         combine_gradients.value_b = gas_gradient_source
-        combine_gradients.value_a = liquid_gradient_source
+        combine_gradients.value_a = ProtocolPath('result', scale_liquid_gradient.id)
 
         # Combine the gradient replicators.
         gradient_replicator = ProtocolReplicator(replicator_id=liquid_gradient_replicator.id)
         gradient_replicator.protocols_to_replicate = [*liquid_gradient_replicator.protocols_to_replicate,
                                                       *gas_gradient_replicator.protocols_to_replicate,
+                                                      ProtocolPath('', scale_liquid_gradient.id),
                                                       ProtocolPath('', combine_gradients.id)]
         gradient_replicator.template_values = ProtocolPath('parameter_gradient_keys', 'global')
 
@@ -619,6 +624,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
             liquid_gradient_group.id: liquid_gradient_group.schema,
             gas_gradient_group.id: gas_gradient_group.schema,
 
+            scale_liquid_gradient.id: scale_liquid_gradient.schema,
             combine_gradients.id: combine_gradients.schema
         }
 

@@ -253,6 +253,7 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
 
     build_coordinates = coordinates.BuildCoordinatesPackmol(f'build_coordinates{id_suffix}')
     build_coordinates.substance = ProtocolPath('substance', 'global')
+    build_coordinates.max_molecules = 1000
 
     assign_parameters = forcefield.BuildSmirnoffSystem(f'assign_parameters{id_suffix}')
     assign_parameters.force_field_path = ProtocolPath('force_field_path', 'global')
@@ -277,7 +278,7 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
     production_simulation = simulation.RunOpenMMSimulation(f'production_simulation{id_suffix}')
     production_simulation.ensemble = Ensemble.NPT
     production_simulation.steps = 1000000
-    production_simulation.output_frequency = 7500
+    production_simulation.output_frequency = 3000
     production_simulation.timestep = 2.0 * unit.femtosecond
     production_simulation.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
     production_simulation.input_coordinate_file = ProtocolPath('output_coordinate_file', equilibration_simulation.id)
