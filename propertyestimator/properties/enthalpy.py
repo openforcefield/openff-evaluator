@@ -21,7 +21,7 @@ from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow import plugins, WorkflowOptions
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
 from propertyestimator.workflow.protocols import BaseProtocol
-from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSimulationDataToStore, WorkflowSchema, \
+from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSchema, \
     WorkflowDataCollectionToStore
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
