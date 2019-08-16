@@ -463,7 +463,15 @@ def _create_pdb_and_topology(molecule, file_path):
         oe_mol2 = mdtraj.load_mol2(mol2_file.name)
 
         # Choose a random residue name.
+        from mdtraj.core import residue_names
+
         residue_name = ''.join([random.choice(string.ascii_uppercase) for _ in range(3)])
+
+        while (residue_name in residue_names._AMINO_ACID_CODES or
+               residue_name in residue_names._SOLVENT_TYPES or
+               residue_name in residue_names._WATER_RESIDUES):
+
+            residue_name = ''.join([random.choice(string.ascii_uppercase) for _ in range(3)])
 
         for residue in oe_mol2.topology.residues:
             residue.name = residue_name
