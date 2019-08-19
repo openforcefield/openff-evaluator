@@ -463,7 +463,23 @@ def _create_pdb_and_topology(molecule, file_path):
         oe_mol2 = mdtraj.load_mol2(mol2_file.name)
 
         # Choose a random residue name.
+        from mdtraj.core import residue_names
+
         residue_name = ''.join([random.choice(string.ascii_uppercase) for _ in range(3)])
+
+        # Make sure the residue is not already reserved, as this can occasionally
+        # result in bonds being automatically added in the wrong places when
+        # loading the pdb file either through mdtraj or openmm
+        forbidden_residue_names = [*residue_names._AMINO_ACID_CODES,
+                                   *residue_names._SOLVENT_TYPES,
+                                   *residue_names._WATER_RESIDUES,
+                                   'ADE', 'CYT', 'CYX', 'DAD', 'DGU', 'FOR', 'GUA',
+                                   'HID', 'HIE', 'HIH', 'HSD', 'HSH', 'HSP', 'NMA'
+                                                                             'THY', 'URA']
+
+        while residue_name in forbidden_residue_names:
+            # Re-choose the residue name until we find a safe one.
+            residue_name = ''.join([random.choice(string.ascii_uppercase) for _ in range(3)])
 
         for residue in oe_mol2.topology.residues:
             residue.name = residue_name
