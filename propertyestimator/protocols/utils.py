@@ -106,8 +106,8 @@ def generate_base_reweighting_protocols(analysis_protocol, mbar_protocol, workfl
 
     # Stitch together all of the trajectories
     join_trajectories = reweighting.ConcatenateTrajectories('concat_traj' + id_suffix)
-    join_trajectories.input_coordinate_paths = [ProtocolPath('coordinate_file_path', unpack_stored_data.id)]
-    join_trajectories.input_trajectory_paths = [ProtocolPath('output_trajectory_path', decorrelate_trajectory.id)]
+    join_trajectories.input_coordinate_paths = ProtocolPath('coordinate_file_path', unpack_stored_data.id)
+    join_trajectories.input_trajectory_paths = ProtocolPath('output_trajectory_path', decorrelate_trajectory.id)
 
     # Calculate the reduced potentials for each of the reference states.
     build_reference_system = forcefield.BuildSmirnoffSystem('build_system{}'.format(replicator_suffix))
@@ -135,7 +135,7 @@ def generate_base_reweighting_protocols(analysis_protocol, mbar_protocol, workfl
     reduced_target_potential.trajectory_file_path = ProtocolPath('output_trajectory_path', join_trajectories.id)
 
     # Finally, apply MBAR to get the reweighted value.
-    mbar_protocol.reference_reduced_potentials = [ProtocolPath('statistics_file_path', reduced_reference_potential.id)]
+    mbar_protocol.reference_reduced_potentials = ProtocolPath('statistics_file_path', reduced_reference_potential.id)
     mbar_protocol.target_reduced_potentials = [ProtocolPath('statistics_file_path', reduced_target_potential.id)]
 
     if (isinstance(mbar_protocol, reweighting.ReweightStatistics) and
@@ -144,12 +144,12 @@ def generate_base_reweighting_protocols(analysis_protocol, mbar_protocol, workfl
         mbar_protocol.statistics_type != ObservableType.Enthalpy and
         mbar_protocol.statistics_type != ObservableType.ReducedPotential):
 
-        mbar_protocol.statistics_paths = [ProtocolPath('output_statistics_path', decorrelate_statistics.id)]
+        mbar_protocol.statistics_paths = ProtocolPath('output_statistics_path', decorrelate_statistics.id)
 
     elif isinstance(mbar_protocol, reweighting.ReweightStatistics):
 
         mbar_protocol.statistics_paths = [ProtocolPath('statistics_file_path', reduced_target_potential.id)]
-        mbar_protocol.frame_counts = [ProtocolPath('number_of_uncorrelated_samples', decorrelate_statistics.id)]
+        mbar_protocol.frame_counts = ProtocolPath('number_of_uncorrelated_samples', decorrelate_statistics.id)
 
     # TODO: Implement a cleaner way to handle this.
     if workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.NoChecks:
@@ -451,9 +451,6 @@ def generate_gradient_protocol_group(template_reweighting_protocol,
     # Set values of the optional parameters.
     substance_source = ProtocolPath('substance', 'global') if substance_source is None else substance_source
     effective_sample_indices = effective_sample_indices if effective_sample_indices is not None else []
-
-    if not isinstance(reference_force_field_paths, Iterable):
-        reference_force_field_paths = [reference_force_field_paths]
 
     # Define the protocol which will evaluate the reduced potentials of the
     # reference, forward and reverse states using only a subset of the full

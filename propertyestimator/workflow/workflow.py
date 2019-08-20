@@ -210,7 +210,7 @@ class Workflow:
 
         for label in schema.outputs_to_store:
             self._append_uuid_to_output_to_store(schema.outputs_to_store[label])
-            self.outputs_to_store = schema.outputs_to_store[label]
+            self.outputs_to_store[label] = schema.outputs_to_store[label]
 
         self._build_protocols(schema)
         self._build_dependants_graph()
