@@ -23,7 +23,7 @@ from propertyestimator.utils.utils import SubhookedABCMeta, get_nested_attribute
 from propertyestimator.workflow.protocols import BaseProtocol
 from propertyestimator.workflow.schemas import WorkflowSchema, ProtocolReplicator, WorkflowSimulationDataToStore, \
     WorkflowDataCollectionToStore
-from propertyestimator.workflow.utils import ProtocolPath
+from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
 class IWorkflowProperty(SubhookedABCMeta):
@@ -380,65 +380,60 @@ class Workflow:
 
             for index, template_value in enumerate(template_values):
 
-                replacement_string = f'$({replicator.id})'
-                replicated_source = ProtocolPath.from_string(gradient_source.full_path.replace(replacement_string,
-                                                                                               str(index)))
+                replicated_source = ProtocolPath.from_string(
+                    gradient_source.full_path.replace(replicator.placeholder_id, str(index)))
 
                 replicated_gradient_sources.append(replicated_source)
 
         self.gradients_sources = replicated_gradient_sources
 
-        self._apply_replicator_to_outputs(schema, replicator, template_values)
+        # Replicate any outputs.
+        self._apply_replicator_to_outputs(replicator, template_values)
 
-    # def _apply_replicator_to_outputs(self, schema, replicator, template_values):
-    #
-    #     outputs_to_replicate = []
-    #
-    #     for output_label in self.outputs_to_store:
-    #
-    #         replicator_ids = self._find_replicator_ids(output_label)
-    #
-    #         if len(replicator_ids) <= 0 or replicator.id not in replicator_ids:
-    #             continue
-    #
-    #         if isinstance(self.outputs_to_store[output_label], WorkflowDataCollectionToStore):
-    #             raise NotImplementedError('`WorkflowDataCollectionToStore` cannot currently '
-    #                                       'be replicated.')
-    #
-    #         outputs_to_replicate.append(output_label)
-    #
-    #     # Check to see if there are any outputs to store pointing to
-    #     # protocols which are being replicated.
-    #     for output_label in outputs_to_replicate:
-    #
-    #         output_to_replicate = self.outputs_to_store.pop(output_label)
-    #
-    #         for index, template_value in enumerate(template_values):
-    #
-    #             replacement_string = '$({})'.format(replicator.id)
-    #
-    #             replicated_label = output_label.replace(replacement_string, str(index))
-    #             replicated_output = copy.deepcopy(output_to_replicate)
-    #
-    #             for attribute_key in replicated_output.__getstate__():
-    #
-    #                 attribute_value = getattr(replicated_output, attribute_key)
-    #
-    #                 if isinstance(attribute_value, ProtocolPath):
-    #
-    #                     attribute_value = ProtocolPath.from_string(
-    #                         attribute_value.full_path.replace(replacement_string, str(index)))
-    #
-    #                 elif isinstance(attribute_value, ReplicatorValue):
-    #
-    #                     if attribute_value.replicator_id != replicator.id:
-    #                         continue
-    #
-    #                     attribute_value = template_value
-    #
-    #                 setattr(replicated_output, attribute_key, attribute_value)
-    #
-    #             self.outputs_to_store[replicated_label] = replicated_output
+    def _apply_replicator_to_outputs(self, replicator, template_values):
+
+        outputs_to_replicate = []
+
+        for output_label in self.outputs_to_store:
+
+            if output_label.find(replicator.id) < 0:
+                continue
+
+            if isinstance(self.outputs_to_store[output_label], WorkflowDataCollectionToStore):
+                raise NotImplementedError('`WorkflowDataCollectionToStore` cannot currently be replicated.')
+
+            outputs_to_replicate.append(output_label)
+
+        # Check to see if there are any outputs to store pointing to
+        # protocols which are being replicated.
+        for output_label in outputs_to_replicate:
+
+            output_to_replicate = self.outputs_to_store.pop(output_label)
+
+            for index, template_value in enumerate(template_values):
+
+                replicated_label = output_label.replace(replicator.placeholder_id, str(index))
+                replicated_output = copy.deepcopy(output_to_replicate)
+
+                for attribute_key in replicated_output.__getstate__():
+
+                    attribute_value = getattr(replicated_output, attribute_key)
+
+                    if isinstance(attribute_value, ProtocolPath):
+
+                        attribute_value = ProtocolPath.from_string(
+                            attribute_value.full_path.replace(replicator.placeholder_id, str(index)))
+
+                    elif isinstance(attribute_value, ReplicatorValue):
+
+                        if attribute_value.replicator_id != replicator.id:
+                            continue
+
+                        attribute_value = template_value
+
+                    setattr(replicated_output, attribute_key, attribute_value)
+
+                self.outputs_to_store[replicated_label] = replicated_output
 
     def _build_dependants_graph(self):
         """Builds a dictionary of key value pairs where each key represents the id of a
