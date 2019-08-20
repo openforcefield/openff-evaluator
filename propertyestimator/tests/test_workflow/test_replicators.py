@@ -140,10 +140,10 @@ def test_advanced_group_replicators():
     dummy_replicated_protocol_2 = DummyEstimatedQuantityProtocol(f'dummy_2_$({replicator_id})')
     dummy_replicated_protocol_2.input_value = ReplicatorValue(replicator_id)
 
-    dummy_group_2 = ProtocolGroup('dummy_group_2')
+    dummy_group_2 = ProtocolGroup(f'dummy_group_2_$({replicator_id})')
     dummy_group_2.add_protocols(dummy_replicated_protocol_2)
 
-    dummy_group = ProtocolGroup('dummy_group')
+    dummy_group = ProtocolGroup(f'dummy_group_$({replicator_id})')
     dummy_group.add_protocols(dummy_replicated_protocol, dummy_group_2)
     dummy_schema.protocols[dummy_group.id] = dummy_group.schema
 
@@ -177,20 +177,23 @@ def test_advanced_group_replicators():
     dummy_workflow = Workflow(dummy_property, dummy_metadata, '')
     dummy_workflow.schema = dummy_schema
 
-    assert len(dummy_workflow.protocols) == 5
+    assert len(dummy_workflow.protocols) == 6
 
-    assert dummy_workflow.protocols[dummy_group.id].protocols['dummy_0'].input_value == replicator.template_values[0]
-    assert dummy_workflow.protocols[dummy_group.id].protocols['dummy_1'].input_value == replicator.template_values[1]
+    assert dummy_workflow.protocols['dummy_group_0'].protocols['dummy_0'].input_value == replicator.template_values[0]
+    assert 'dummy_1' not in dummy_workflow.protocols['dummy_group_0'].protocols
+
+    assert dummy_workflow.protocols['dummy_group_1'].protocols['dummy_1'].input_value == replicator.template_values[1]
+    assert 'dummy_0' not in dummy_workflow.protocols['dummy_group_1'].protocols
 
     assert dummy_workflow.protocols['dummy_single_0'].input_value == ProtocolPath('output_value',
-                                                                                  dummy_group.id, 'dummy_0')
+                                                                                  'dummy_group_0', 'dummy_0')
     assert dummy_workflow.protocols['dummy_single_1'].input_value == ProtocolPath('output_value',
-                                                                                  dummy_group.id, 'dummy_1')
+                                                                                  'dummy_group_1', 'dummy_1')
 
-    assert dummy_workflow.protocols['dummy_single_2_0'].input_value == ProtocolPath('output_value', dummy_group.id,
-                                                                                    dummy_group_2.id, 'dummy_2_0')
-    assert dummy_workflow.protocols['dummy_single_2_1'].input_value == ProtocolPath('output_value', dummy_group.id,
-                                                                                    dummy_group_2.id, 'dummy_2_1')
+    assert dummy_workflow.protocols['dummy_single_2_0'].input_value == ProtocolPath('output_value', 'dummy_group_0',
+                                                                                    'dummy_group_2_0', 'dummy_2_0')
+    assert dummy_workflow.protocols['dummy_single_2_1'].input_value == ProtocolPath('output_value', 'dummy_group_1',
+                                                                                    'dummy_group_2_1', 'dummy_2_1')
 
 
 def test_nested_replicators():

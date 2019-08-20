@@ -603,9 +603,16 @@ class ProtocolGroup(BaseProtocol):
 
         return self._protocols[target_protocol_id].set_value(reference_path_clone, value)
 
-    def apply_replicator(self, replicator, template_values, update_input_references=False):
+    def apply_replicator(self, replicator, template_values, template_index=-1, template_value=None,
+                         update_input_references=False):
 
-        protocols, replication_map = replicator.apply(self.protocols, template_values)
+        protocols, replication_map = replicator.apply(self.protocols, template_values,
+                                                      template_index, template_value)
+
+        if (template_index >= 0 or template_value is not None) and update_input_references is True:
+
+            raise ValueError('Specific template indices and values cannot be passed '
+                             'when `update_input_references` is True')
 
         if update_input_references:
             replicator.update_references(protocols, replication_map, template_values)

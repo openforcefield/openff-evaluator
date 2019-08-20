@@ -327,7 +327,7 @@ class GradientReducedPotentials(BaseProtocol):
 
         if len(self._reference_force_field_paths) != 1 and self._use_subset_of_force_field:
 
-            return PropertyEstimatorException(directory, 'A single reference force field must be'
+            return PropertyEstimatorException(directory, 'A single reference force field must be '
                                                          'provided when calculating the reduced '
                                                          'potentials using a subset of the full force')
 
