@@ -6,7 +6,6 @@ import copy
 import json
 import logging
 import math
-import re
 import time
 import traceback
 import uuid
@@ -18,13 +17,13 @@ from propertyestimator import unit
 from propertyestimator.storage.dataclasses import BaseStoredData, StoredSimulationData, StoredDataCollection
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import TypedBaseModel, TypedJSONEncoder, TypedJSONDecoder
+from propertyestimator.utils.serialization import TypedJSONEncoder, TypedJSONDecoder
 from propertyestimator.utils.string import extract_variable_index_and_name
 from propertyestimator.utils.utils import SubhookedABCMeta, get_nested_attribute
 from propertyestimator.workflow.protocols import BaseProtocol
 from propertyestimator.workflow.schemas import WorkflowSchema, ProtocolReplicator, WorkflowSimulationDataToStore, \
     WorkflowDataCollectionToStore
-from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
+from propertyestimator.workflow.utils import ProtocolPath
 
 
 class IWorkflowProperty(SubhookedABCMeta):
@@ -119,7 +118,7 @@ class Workflow:
     def schema(self, value):
         self._set_schema(value)
 
-    def __init__(self, physical_property, global_metadata):
+    def __init__(self, physical_property, global_metadata, workflow_uuid=None):
         """
         Constructs a new Workflow object.
 
@@ -130,13 +129,16 @@ class Workflow:
         global_metadata: dict of str and Any
             A dictionary of the global metadata available to each
             of the workflow properties.
+        workflow_uuid: str, optional
+            An optional uuid to assign to this workflow. If none is provided,
+            one will be chosen at random.
         """
         assert physical_property is not None and global_metadata is not None
 
         self.physical_property = physical_property
         self.global_metadata = global_metadata
 
-        self.uuid = str(uuid.uuid4())
+        self.uuid = workflow_uuid if workflow_uuid is not None else str(uuid.uuid4())
 
         self.protocols = {}
 
@@ -191,6 +193,7 @@ class Workflow:
         schema = WorkflowSchema.parse_json(value.json())
 
         if schema.final_value_source is not None:
+
             self.final_value_source = ProtocolPath.from_string(schema.final_value_source.full_path)
             self.final_value_source.append_uuid(self.uuid)
 
@@ -205,36 +208,36 @@ class Workflow:
 
         self.outputs_to_store = {}
 
-        for output_label in schema.outputs_to_store:
-
-            output_to_store = schema.outputs_to_store[output_label]
-
-            for attribute_key in output_to_store.__getstate__():
-
-                attribute_value = getattr(output_to_store, attribute_key)
-
-                if not isinstance(attribute_value, ProtocolPath):
-                    continue
-
-                attribute_value.append_uuid(self.uuid)
-
-            if isinstance(output_to_store, WorkflowDataCollectionToStore):
-
-                for inner_data in output_to_store.data.values():
-
-                    for attribute_key in inner_data.__getstate__():
-
-                        attribute_value = getattr(inner_data, attribute_key)
-
-                        if not isinstance(attribute_value, ProtocolPath):
-                            continue
-
-                        attribute_value.append_uuid(self.uuid)
-
-            self.outputs_to_store[output_label] = output_to_store
+        for label in schema.outputs_to_store:
+            self._append_uuid_to_output_to_store(schema.outputs_to_store[label])
+            self.outputs_to_store = schema.outputs_to_store[label]
 
         self._build_protocols(schema)
         self._build_dependants_graph()
+
+    def _append_uuid_to_output_to_store(self, output_to_store):
+        """Appends this workflows uuid to all of the protocol paths
+        within an output to store, and all of its child outputs.
+
+        Parameters
+        ----------
+        output_to_store: WorkflowOutputToStore
+            The output to store to append the uuid to.
+        """
+
+        for attribute_key in output_to_store.__getstate__():
+
+            attribute_value = getattr(output_to_store, attribute_key)
+
+            if not isinstance(attribute_value, ProtocolPath):
+                continue
+
+            attribute_value.append_uuid(self.uuid)
+
+        if isinstance(output_to_store, WorkflowDataCollectionToStore):
+
+            for inner_data in output_to_store.data.values():
+                self._append_uuid_to_output_to_store(inner_data)
 
     def _build_protocols(self, schema):
         """Creates a set of protocols based on a WorkflowSchema.
@@ -271,6 +274,53 @@ class Workflow:
             protocol.set_uuid(self.uuid)
             self.protocols[protocol.id] = protocol
 
+    def _get_template_values(self, replicator):
+        """Returns the values which which will be passed to the replicated
+        protocols, evaluating any protocol paths to retrieve the referenced
+        values.
+
+        Parameters
+        ----------
+        replicator: ProtocolReplicator
+            The replictor which is replicating the protocols.
+
+        Returns
+        -------
+        Any
+            The template values.
+        """
+
+        invalid_value_error = ValueError(f'Template values must either be a constant or come '
+                                         f'from the global scope (and not from {replicator.template_values})')
+
+        # Get the list of values which will be passed to the newly created protocols.
+        if isinstance(replicator.template_values, ProtocolPath):
+
+            if not replicator.template_values.is_global:
+                raise invalid_value_error
+
+            return get_nested_attribute(self.global_metadata, replicator.template_values.property_name)
+
+        elif not isinstance(replicator.template_values, list):
+            raise NotImplementedError()
+
+        evaluated_template_values = []
+
+        for template_value in replicator.template_values:
+
+            if not isinstance(template_value, ProtocolPath):
+
+                evaluated_template_values.append(template_value)
+                continue
+
+            if not template_value.is_global:
+                raise invalid_value_error
+
+            evaluated_template_values.append(get_nested_attribute(self.global_metadata,
+                                                                  template_value.property_name))
+
+        return evaluated_template_values
+
     def _apply_replicators(self, schema):
         """Applies each of the protocol replicators in turn to the schema.
 
@@ -285,117 +335,9 @@ class Workflow:
             replicator = schema.replicators.pop(0)
 
             # Apply this replicator
-            self._build_replicated_protocols(schema, replicator)
+            self._apply_replicator(schema, replicator)
 
-            if len(schema.replicators) == 0:
-                continue
-
-            # Look over all of the replicators left to apply and update them
-            # to point to the newly replicated protocols where appropriate.
-            replacement_string = '$({})'.format(replicator.id)
-            new_indices = [str(index) for index in range(len(replicator.template_values))]
-
-            updated_replicators = []
-
-            for replicator_to_update in schema.replicators:
-
-                should_replicate_replicator = False
-
-                for protocol_path in replicator_to_update.protocols_to_replicate:
-
-                    if protocol_path.full_path.find(replacement_string) >= 0:
-
-                        should_replicate_replicator = True
-                        break
-
-                # Check whether this replicator is nested, and hence should be replicated.
-                if not should_replicate_replicator:
-
-                    updated_replicators.append(replicator_to_update)
-                    continue
-
-                # Create the new replicators
-                for template_index in new_indices:
-
-                    new_replicator_id = '{}_{}'.format(replicator_to_update.id, template_index)
-                    new_replicator = ProtocolReplicator(new_replicator_id)
-
-                    if isinstance(replicator_to_update.template_values, ProtocolPath):
-
-                        updated_path = replicator_to_update.template_values.full_path.replace(replacement_string,
-                                                                                              template_index)
-
-                        new_replicator.template_values = ProtocolPath.from_string(updated_path)
-
-                    elif isinstance(replicator_to_update.template_values, list):
-
-                        updated_values = []
-
-                        for template_value in replicator_to_update.template_values:
-
-                            if not isinstance(template_value, ProtocolPath):
-
-                                updated_values.append(template_value)
-                                continue
-
-                            updated_path = template_value.full_path.replace(replacement_string,
-                                                                            template_index)
-
-                            updated_values.append(ProtocolPath.from_string(updated_path))
-
-                        new_replicator.template_values = updated_values
-
-                    else:
-
-                        new_replicator.template_values = replicator.template_values
-
-                    updated_replicators.append(new_replicator)
-
-                # Set up the protocols for each of the new replicators.
-                all_protocols_to_replicate = []
-
-                all_protocols_to_replicate.extend(replicator.protocols_to_replicate)
-                all_protocols_to_replicate.extend(x for x in replicator_to_update.protocols_to_replicate
-                                                  if x not in all_protocols_to_replicate)
-
-                for protocol_path in all_protocols_to_replicate:
-
-                    if protocol_path.start_protocol != protocol_path.last_protocol:
-
-                        raise ValueError('Cannot replicate replicators which replicate grouped'
-                                         'protocols...')
-
-                    for template_index in new_indices:
-
-                        replicated_path = ProtocolPath.from_string(protocol_path.full_path.replace(replacement_string,
-                                                                                                   template_index))
-
-                        protocol_schema_json = schema.protocols[replicated_path.start_protocol].json()
-
-                        if protocol_schema_json.find(replicator_to_update.id) < 0:
-                            continue
-
-                        schema.protocols.pop(replicated_path.start_protocol)
-
-                        new_replicator_id = '{}_{}'.format(replicator_to_update.id, template_index)
-
-                        updated_schema_json = protocol_schema_json.replace(replicator_to_update.id,
-                                                                           new_replicator_id)
-
-                        updated_schema = TypedBaseModel.parse_json(updated_schema_json)
-                        schema.protocols[updated_schema.id] = updated_schema
-
-                        if protocol_path not in replicator_to_update.protocols_to_replicate:
-                            continue
-
-                        updated_path = replicated_path.full_path.replace(replicator_to_update.id, new_replicator_id)
-
-                        updated_replicators[int(template_index)].protocols_to_replicate.append(
-                            ProtocolPath.from_string(updated_path))
-
-            schema.replicators = updated_replicators
-
-    def _build_replicated_protocols(self, schema, replicator):
+    def _apply_replicator(self, schema, replicator):
         """A method to create a set of protocol schemas based on a ProtocolReplicator,
         and add them to the list of existing schemas.
 
@@ -403,55 +345,33 @@ class Workflow:
         ----------
         schema: WorkflowSchema
             The schema which contains the protocol definitions
-        replicator: :obj:`ProtocolReplicator`
+        replicator: `ProtocolReplicator`
             The replicator which describes which new protocols should
             be created.
         """
 
-        template_values = replicator.template_values
+        from propertyestimator.workflow.plugins import available_protocols
 
-        # Get the list of values which will be passed to the newly created protocols -
-        # in particular those specified by `generator_protocol.template_targets`
-        if isinstance(template_values, ProtocolPath):
-
-            if not template_values.is_global:
-                raise ValueError('Template values must either be a constant or come'
-                                 'from the global scope (and not from {})'.format(template_values))
-
-            template_values = get_nested_attribute(self.global_metadata, template_values.property_name)
-
-        elif isinstance(template_values, list):
-
-            new_values = []
-
-            for template_value in template_values:
-
-                if not isinstance(template_value, ProtocolPath):
-
-                    new_values.append(template_value)
-                    continue
-
-                if not template_value.is_global:
-                    raise ValueError('Template values must either be a constant or come'
-                                     'from the global scope (and not from {})'.format(template_value))
-
-                new_values.append(get_nested_attribute(self.global_metadata, template_value.property_name))
-
-            template_values = new_values
-
-        replicator.template_values = template_values
-
-        replicated_protocols = []
+        # Get the list of values which will be passed to the newly created protocols.
+        template_values = self._get_template_values(replicator)
 
         # Replicate the protocols.
-        for protocol_path in replicator.protocols_to_replicate:
+        protocols = {}
 
-            if protocol_path.start_protocol in replicated_protocols:
-                continue
+        for protocol_id, protocol_schema in schema.protocols.items():
 
-            replicated_protocols.append(protocol_path.start_protocol)
+            protocol = available_protocols[protocol_schema.type](schema.id)
+            protocol.schema = protocol_schema
+            protocols[protocol_id] = protocol
 
-            self._replicate_protocol(schema, protocol_path, replicator, template_values)
+        replicated_protocols, replication_map = replicator.apply(protocols, template_values)
+        replicator.update_references(replicated_protocols, replication_map, template_values)
+
+        # Update the schema with the replicated protocols.
+        schema.protocols = {}
+
+        for protocol_id in replicated_protocols:
+            schema.protocols[protocol_id] = replicated_protocols[protocol_id].schema
 
         # Make sure to correctly replicate gradient sources.
         replicated_gradient_sources = []
@@ -468,235 +388,57 @@ class Workflow:
 
         self.gradients_sources = replicated_gradient_sources
 
-        outputs_to_replicate = []
-
-        for output_label in self.outputs_to_store:
-
-            replicator_ids = self._find_replicator_ids(output_label)
-
-            if len(replicator_ids) <= 0 or replicator.id not in replicator_ids:
-                continue
-
-            if isinstance(self.outputs_to_store[output_label], WorkflowDataCollectionToStore):
-
-                raise NotImplementedError('`WorkflowDataCollectionToStore` cannot currently '
-                                          'be replicated.')
-
-            outputs_to_replicate.append(output_label)
-
-        # Check to see if there are any outputs to store pointing to
-        # protocols which are being replicated.
-        for output_label in outputs_to_replicate:
-
-            output_to_replicate = self.outputs_to_store.pop(output_label)
-
-            for index, template_value in enumerate(template_values):
-
-                replacement_string = '$({})'.format(replicator.id)
-
-                replicated_label = output_label.replace(replacement_string, str(index))
-                replicated_output = copy.deepcopy(output_to_replicate)
-
-                for attribute_key in replicated_output.__getstate__():
-
-                    attribute_value = getattr(replicated_output, attribute_key)
-
-                    if isinstance(attribute_value, ProtocolPath):
-
-                        attribute_value = ProtocolPath.from_string(
-                            attribute_value.full_path.replace(replacement_string, str(index)))
-
-                    elif isinstance(attribute_value, ReplicatorValue):
-
-                        if attribute_value.replicator_id != replicator.id:
-                            continue
-
-                        attribute_value = template_value
-
-                    setattr(replicated_output, attribute_key, attribute_value)
-
-                self.outputs_to_store[replicated_label] = replicated_output
-
-        # Find any non-replicated protocols which take input from the replication templates,
-        # and redirect the path to point to the actual replicated protocol.
-        self._update_references_to_replicated(schema, replicator, template_values)
-
-    @staticmethod
-    def _find_replicator_ids(string):
-        """Returns a list of any replicator ids (defined within a $(...))
-        that are present in a given string.
-
-        Parameters
-        ----------
-        string: str
-            The string to search for replicator ids
-
-        Returns
-        -------
-        list of str
-            A list of any found replicator ids
-        """
-        return re.findall('[$][(](.*?)[)]', string, flags=0)
-
-    @staticmethod
-    def _replicate_protocol(schema, protocol_path, replicator, template_values):
-        """Replicates a protocol in the workflow according to a
-        :obj:`ProtocolReplicator`
-
-        Parameters
-        ----------
-        schema: WorkflowSchema
-            The schema which contains the protocol definitions
-        protocol_path: :obj:`ProtocolPath`
-            A reference path to the protocol to replicate.
-        replicator: :obj:`ProtocolReplicator`
-            The replicator object which describes how this
-            protocol will be replicated.
-        template_values: :obj:`list` of :obj:`Any`
-            A list of the values which will be inserted
-            into the newly replicated protocols.
-        """
-        from propertyestimator.workflow.plugins import available_protocols
-
-        schema_to_replicate = schema.protocols[protocol_path.start_protocol]
-        replacement_string = '$({})'.format(replicator.id)
-
-        if protocol_path.start_protocol == protocol_path.last_protocol:
-
-            # If the protocol is not a group, replicate the protocol directly.
-            for index in range(len(template_values)):
-
-                replicated_schema_id = schema_to_replicate.id.replace(replacement_string, str(index))
-
-                protocol = available_protocols[schema_to_replicate.type](replicated_schema_id)
-                protocol.schema = schema_to_replicate
-
-                # If this protocol references other protocols which are being
-                # replicated, point it to the replicated version with the same index.
-                for other_path in replicator.protocols_to_replicate:
-
-                    _, other_path_components = ProtocolPath.to_components(other_path.full_path)
-
-                    for protocol_id_to_rename in other_path_components:
-                        protocol.replace_protocol(protocol_id_to_rename,
-                                                  protocol_id_to_rename.replace(replacement_string, str(index)))
-
-                schema.protocols[protocol.id] = protocol.schema
-
-            schema.protocols.pop(protocol_path.start_protocol)
-
-        else:
-
-            # Otherwise, let the group replicate its own protocols.
-            protocol = available_protocols[schema_to_replicate.type](schema_to_replicate.id)
-            protocol.schema = schema_to_replicate
-
-            protocol.apply_replicator(replicator, template_values)
-            schema.protocols[protocol.id] = protocol.schema
-
-        # Go through all of the newly created protocols, and update
-        # their references and their values if targeted by the replicator.
-        for index, template_value in enumerate(template_values):
-
-            protocol_id = schema_to_replicate.id.replace(replacement_string, str(index))
-
-            protocol_schema = schema.protocols[protocol_id]
-
-            protocol = available_protocols[protocol_schema.type](protocol_schema.id)
-            protocol.schema = protocol_schema
-
-            template_value = template_values[index]
-
-            # Pass the template values to the target protocols.
-            for required_input in protocol.required_inputs:
-
-                input_value = protocol.get_value(required_input)
-
-                if not isinstance(input_value, ReplicatorValue):
-                    continue
-
-                if input_value.replicator_id != replicator.id:
-                    continue
-
-                protocol.set_value(required_input, template_value)
-
-            schema.protocols[protocol_id] = protocol.schema
-
-    @staticmethod
-    def _update_references_to_replicated(schema, replicator, template_values):
-        """Finds any non-replicated protocols which take input from a protocol
-         which was replicated, and redirects the path to point to the actual
-         replicated protocol.
-
-        Parameters
-        ----------
-        schema: WorkflowSchema
-            The schema which contains the protocol definitions
-        replicator: :obj:`ProtocolReplicator`
-            The replicator object which described how the protocols
-            should have been replicated.
-        template_values: :obj:`list` of :obj:`Any`
-            The list of values that the protocols were replicated for.
-        """
-        from propertyestimator.workflow.plugins import available_protocols
-
-        replacement_string = '$({})'.format(replicator.id)
-
-        for protocol_id in schema.protocols:
-
-            protocol_schema = schema.protocols[protocol_id]
-
-            protocol = available_protocols[protocol_schema.type](protocol_schema.id)
-            protocol.schema = protocol_schema
-
-            # Look at each of the protocols inputs and see if its value is either a ProtocolPath,
-            # or a list of ProtocolPath's.
-            for required_input in protocol.required_inputs:
-
-                all_value_references = protocol.get_value_references(required_input)
-                replicated_value_references = {}
-
-                for source_path, value_reference in all_value_references.items():
-
-                    if not replicator.replicates_protocol_or_child(value_reference):
-                        continue
-
-                    replicated_value_references[source_path] = value_reference
-
-                if len(replicated_value_references) == 0:
-                    continue
-
-                generated_path_list = {}
-
-                for source_path, value_reference in replicated_value_references.items():
-                    # Replace the input value with a list of ProtocolPath's that point to
-                    # the newly generated protocols.
-                    path_list = [ProtocolPath.from_string(value_reference.full_path.replace(replacement_string,
-                                                                                            str(index)))
-                                 for index in range(len(template_values))]
-
-                    generated_path_list[value_reference] = path_list
-
-                input_value = protocol.get_value(required_input)
-
-                if isinstance(input_value, ProtocolPath):
-                    protocol.set_value(required_input, generated_path_list[input_value])
-                    continue
-
-                new_list_value = []
-
-                for value in input_value:
-
-                    if not isinstance(value, ProtocolPath) or value not in generated_path_list:
-                        new_list_value.append(value)
-                        continue
-
-                    new_list_value.extend(generated_path_list[value])
-
-                protocol.set_value(required_input, new_list_value)
-
-            # Update the schema of the modified protocol.
-            schema.protocols[protocol_id] = protocol.schema
+        self._apply_replicator_to_outputs(schema, replicator, template_values)
+
+    # def _apply_replicator_to_outputs(self, schema, replicator, template_values):
+    #
+    #     outputs_to_replicate = []
+    #
+    #     for output_label in self.outputs_to_store:
+    #
+    #         replicator_ids = self._find_replicator_ids(output_label)
+    #
+    #         if len(replicator_ids) <= 0 or replicator.id not in replicator_ids:
+    #             continue
+    #
+    #         if isinstance(self.outputs_to_store[output_label], WorkflowDataCollectionToStore):
+    #             raise NotImplementedError('`WorkflowDataCollectionToStore` cannot currently '
+    #                                       'be replicated.')
+    #
+    #         outputs_to_replicate.append(output_label)
+    #
+    #     # Check to see if there are any outputs to store pointing to
+    #     # protocols which are being replicated.
+    #     for output_label in outputs_to_replicate:
+    #
+    #         output_to_replicate = self.outputs_to_store.pop(output_label)
+    #
+    #         for index, template_value in enumerate(template_values):
+    #
+    #             replacement_string = '$({})'.format(replicator.id)
+    #
+    #             replicated_label = output_label.replace(replacement_string, str(index))
+    #             replicated_output = copy.deepcopy(output_to_replicate)
+    #
+    #             for attribute_key in replicated_output.__getstate__():
+    #
+    #                 attribute_value = getattr(replicated_output, attribute_key)
+    #
+    #                 if isinstance(attribute_value, ProtocolPath):
+    #
+    #                     attribute_value = ProtocolPath.from_string(
+    #                         attribute_value.full_path.replace(replacement_string, str(index)))
+    #
+    #                 elif isinstance(attribute_value, ReplicatorValue):
+    #
+    #                     if attribute_value.replicator_id != replicator.id:
+    #                         continue
+    #
+    #                     attribute_value = template_value
+    #
+    #                 setattr(replicated_output, attribute_key, attribute_value)
+    #
+    #             self.outputs_to_store[replicated_label] = replicated_output
 
     def _build_dependants_graph(self):
         """Builds a dictionary of key value pairs where each key represents the id of a

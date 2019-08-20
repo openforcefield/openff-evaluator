@@ -168,16 +168,6 @@ def generate_base_reweighting_protocols(analysis_protocol, mbar_protocol, workfl
 
     # Create the replicator object.
     component_replicator = ProtocolReplicator(replicator_id=replicator_id)
-    component_replicator.protocols_to_replicate = []
-
-    # Pass it paths to the protocols to be replicated.
-    for protocol in base_protocols:
-
-        if protocol.id.find('$({})'.format(replicator_id)) < 0:
-            continue
-
-        component_replicator.protocols_to_replicate.append(ProtocolPath('', protocol.id))
-
     component_replicator.template_values = ProtocolPath('full_system_data', 'global')
 
     return base_protocols, component_replicator
@@ -520,15 +510,9 @@ def generate_gradient_protocol_group(template_reweighting_protocol,
     gradient_group = groups.ProtocolGroup(f'{id_prefix}gradient_group_$({replicator_id})')
     gradient_group.add_protocols(reduced_potentials, reverse_mbar, forward_mbar, central_difference)
 
-    protocols_to_replicate = [ProtocolPath('', gradient_group.id)]
-
-    protocols_to_replicate.extend([ProtocolPath('', gradient_group.id, protocol_id) for
-                                   protocol_id in gradient_group.protocols])
-
     # Create the replicator which will copy the group for each parameter gradient
     # which will be calculated.
     parameter_replicator = ProtocolReplicator(replicator_id=replicator_id)
-    parameter_replicator.protocols_to_replicate = protocols_to_replicate
     parameter_replicator.template_values = ProtocolPath('parameter_gradient_keys', 'global')
 
     return gradient_group, parameter_replicator, ProtocolPath('gradient', gradient_group.id, central_difference.id)
