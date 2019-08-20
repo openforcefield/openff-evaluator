@@ -27,15 +27,10 @@ from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
 @plugins.register_calculation_protocol()
-class WeightValueByMoleFraction(BaseProtocol):
+class BaseWeightByMoleFraction(BaseProtocol):
     """Multiplies a value by the mole fraction of a component
     in a mixture substance.
     """
-    @protocol_input(EstimatedQuantity)
-    def value(self, value):
-        """The value to be weighted."""
-        pass
-
     @protocol_input(Substance)
     def component(self, value):
         """The component (e.g water) to which this value belongs."""
@@ -46,12 +41,6 @@ class WeightValueByMoleFraction(BaseProtocol):
         """The full substance of which the component of interest is a part."""
         pass
 
-    @protocol_output(EstimatedQuantity)
-    def weighted_value(self, value):
-        """The value weighted by the `component`s mole fraction as determined from
-        the `full_substance`."""
-        pass
-
     def __init__(self, protocol_id):
         super().__init__(protocol_id)
 
@@ -60,6 +49,21 @@ class WeightValueByMoleFraction(BaseProtocol):
         self._full_substance = None
 
         self._weighted_value = None
+
+    def _weight_values(self, mole_fraction):
+        """Weights a value by a components mole fraction.
+
+        Parameters
+        ----------
+        mole_fraction: float
+            The mole fraction to weight by.
+
+        Returns
+        -------
+        Any
+            The weighted value.
+        """
+        raise NotImplementedError()
 
     def execute(self, directory, available_resources):
 
@@ -74,8 +78,61 @@ class WeightValueByMoleFraction(BaseProtocol):
                                               message=f'The component {main_component} was given in an '
                                                       f'exact amount, and not a mole fraction')
 
-        self._weighted_value = self.value * amount.value
+        self._weighted_value = self._weight_value(amount.value)
         return self._get_output_dictionary()
+
+
+@plugins.register_calculation_protocol()
+class WeightQuantityByMoleFraction(BaseWeightByMoleFraction):
+    """Multiplies a quantity by the mole fraction of a component
+    in a mixture substance.
+    """
+    @protocol_input(EstimatedQuantity)
+    def value(self):
+        """The value to be weighted."""
+        pass
+
+    @protocol_output(EstimatedQuantity)
+    def weighted_value(self, value):
+        """The value weighted by the `component`s mole fraction as determined from
+        the `full_substance`."""
+        pass
+
+    def _weight_values(self, mole_fraction):
+        """
+        Returns
+        -------
+        EstimatedQuantity
+            The weighted value.
+        """
+        return self._value.value * mole_fraction
+
+
+@plugins.register_calculation_protocol()
+class WeightGradientByMoleFraction(BaseWeightByMoleFraction):
+    """Multiplies a gradient by the mole fraction of a component
+    in a mixture substance.
+    """
+    @protocol_input(ParameterGradient)
+    def value(self):
+        """The value to be weighted."""
+        pass
+
+    @protocol_output(ParameterGradient)
+    def weighted_value(self, value):
+        """The value weighted by the `component`s mole fraction as determined from
+        the `full_substance`."""
+        pass
+
+    def _weight_values(self, mole_fraction):
+            """
+            Returns
+            -------
+            ParameterGradient
+                The weighted value.
+            """
+            return ParameterGradient(self._value.key,
+                                     self._value.value * mole_fraction)
 
 
 @register_estimable_property()
@@ -101,8 +158,18 @@ class EnthalpyOfMixing(PhysicalProperty):
         return StoredSimulationData
 
     @staticmethod
-    def _get_enthalpy_protocols(id_suffix='', weight_by_mole_fraction=False,
-                                options=None, substance_reference=None):
+    def get_default_workflow_schema(calculation_layer, options=None):
+
+        if calculation_layer == 'SimulationLayer':
+            return EnthalpyOfMixing.get_default_simulation_workflow_schema(options)
+        elif calculation_layer == 'ReweightingLayer':
+            return EnthalpyOfMixing.get_default_reweighting_workflow_schema(options)
+
+        return None
+
+    @staticmethod
+    def _get_enthalpy_protocols(id_suffix, gradient_replicator_id, replicator_id=None,
+                                weight_by_mole_fraction=False, substance_reference=None, options=None):
 
         """Returns the set of protocols which when combined in a workflow
         will yield the enthalpy of a substance.
@@ -111,15 +178,21 @@ class EnthalpyOfMixing(PhysicalProperty):
         ----------
         id_suffix: str
             A suffix to append to the id of each of the returned protocols.
+        gradient_replicator_id: str
+            The id of the replicator which will clone those protocols which will
+            estimate the gradient of the enthalpy with respect to a given parameter.
+        replicator_id: str, optional
+            The id of the replicator which will be used to clone these protocols.
+            This will be appended to the id of each of the returned protocols if
+            set.
         weight_by_mole_fraction: bool
             If true, an extra protocol will be added to weight the calculated
-            enthalpy by the mole fraction of the component inside of the
-            convergence loop.
-        options: WorkflowOptions
-            The options to use when setting up the workflows.
+            enthalpy by the mole fraction of the component.
         substance_reference: ProtocolPath or PlaceholderInput, optional
             An optional protocol path (or replicator reference) to the substance
             whose enthalpy is being estimated.
+        options: WorkflowOptions
+            The options to use when setting up the workflows.
 
         Returns
         -------
@@ -130,12 +203,25 @@ class EnthalpyOfMixing(PhysicalProperty):
         WorkflowSimulationDataToStore
             An object which describes the default data from a simulation to store,
             such as the uncorrelated statistics and configurations.
+        ProtocolGroup
+            The group of protocols which will calculate the gradient of the enthalpy
+            with respect to a given property.
+        ProtocolReplicator
+            The protocol which will replicate the gradient group for every gradient to
+            estimate.
+        ProtocolPath
+            A reference to the value of the gradient.
         """
+
+        full_id_suffix = id_suffix
+
+        if replicator_id is not None:
+            full_id_suffix = f'{id_suffix}_$({replicator_id})'
 
         if substance_reference is None:
             substance_reference = ProtocolPath('substance', 'global')
 
-        # Define the protocol which will extract the average density from
+        # Define the protocol which will extract the average enthalpy from
         # the results of a simulation.
         extract_enthalpy = analysis.ExtractAverageStatistic(f'extract_enthalpy{id_suffix}')
         extract_enthalpy.statistics_type = ObservableType.Enthalpy
@@ -143,10 +229,14 @@ class EnthalpyOfMixing(PhysicalProperty):
         # Define the protocols which will run the simulation itself.
         simulation_protocols, value_source, output_to_store = generate_base_simulation_protocols(extract_enthalpy,
                                                                                                  options,
-                                                                                                 id_suffix)
+                                                                                                 id_suffix,
+                                                                                                 replicator_id=
+                                                                                                 replicator_id)
+
+        number_of_molecules = ProtocolPath('final_number_of_molecules', simulation_protocols.build_coordinates.id)
 
         # Divide the enthalpy by the number of molecules in the system
-        extract_enthalpy.divisor = ProtocolPath('final_number_of_molecules', simulation_protocols.build_coordinates.id)
+        extract_enthalpy.divisor = number_of_molecules
 
         # Use the correct substance.
         simulation_protocols.build_coordinates.substance = substance_reference
@@ -159,13 +249,10 @@ class EnthalpyOfMixing(PhysicalProperty):
 
             # The component workflows need an extra step to multiply their enthalpies by their
             # relative mole fraction.
-            weight_by_mole_fraction = WeightValueByMoleFraction(f'weight_by_mole_fraction{id_suffix}')
-
+            weight_by_mole_fraction = WeightQuantityByMoleFraction(f'weight_by_mole_fraction{id_suffix}')
             weight_by_mole_fraction.value = ProtocolPath('value', extract_enthalpy.id)
             weight_by_mole_fraction.full_substance = ProtocolPath('substance', 'global')
-
-            # Again, set the component as a placeholder which will be set by the replicator.
-            weight_by_mole_fraction.component = ReplicatorValue('repl')
+            weight_by_mole_fraction.component = ReplicatorValue(replicator_id)
 
             conditional_group.add_protocols(weight_by_mole_fraction)
 
@@ -178,17 +265,52 @@ class EnthalpyOfMixing(PhysicalProperty):
                                                                            conditional_group.id,
                                                                            weight_by_mole_fraction.id)
 
-        return simulation_protocols, value_source, output_to_store
+        # Set up the gradient calculations
+        reweight_enthalpy_template = reweighting.ReweightStatistics('')
+        reweight_enthalpy_template.statistics_type = ObservableType.Enthalpy
+        reweight_enthalpy_template.statistics_paths = [ProtocolPath('statistics_file_path',
+                                                                    conditional_group.id,
+                                                                    simulation_protocols.production_simulation.id)]
 
-    @staticmethod
-    def get_default_workflow_schema(calculation_layer, options=None):
+        coordinate_source = ProtocolPath('output_coordinate_file', simulation_protocols.equilibration_simulation.id)
+        trajectory_source = ProtocolPath('trajectory_file_path', simulation_protocols.converge_uncertainty.id,
+                                         simulation_protocols.production_simulation.id)
+        statistics_source = ProtocolPath('statistics_file_path', simulation_protocols.converge_uncertainty.id,
+                                         simulation_protocols.production_simulation.id)
 
-        if calculation_layer == 'SimulationLayer':
-            return EnthalpyOfMixing.get_default_simulation_workflow_schema(options)
-        elif calculation_layer == 'ReweightingLayer':
-            return EnthalpyOfMixing.get_default_reweighting_workflow_schema(options)
+        gradient_group, gradient_replicator, gradient_source = \
+            generate_gradient_protocol_group(reweight_enthalpy_template,
+                                             ProtocolPath('force_field_path', 'global'),
+                                             ProtocolPath('force_field_path', 'global'),
+                                             coordinate_source,
+                                             trajectory_source,
+                                             statistics_source,
+                                             replicator_id=gradient_replicator_id,
+                                             substance_source=substance_reference,
+                                             id_suffix=id_suffix,
+                                             group_id_suffix=full_id_suffix)
 
-        return None
+        if weight_by_mole_fraction:
+
+            # The component workflows need an extra step to multiply their gradients by their
+            # relative mole fraction.
+            weight_gradient = WeightGradientByMoleFraction(f'weight_gradient_by_mole_fraction{id_suffix}')
+            weight_gradient.value = gradient_source
+            weight_gradient.full_substance = ProtocolPath('substance', 'global')
+            weight_gradient.component = substance_reference
+
+            gradient_group.add_protocols(weight_gradient)
+            gradient_source = ProtocolPath('weighted_value', gradient_group.id, weight_gradient.id)
+
+        scale_gradient = gradients.DivideGradientByScalar(f'scale_gradient{id_suffix}')
+        scale_gradient.value = gradient_source
+        scale_gradient.divisor = number_of_molecules
+
+        gradient_group.add_protocols(scale_gradient)
+        gradient_source = ProtocolPath('result', gradient_group.id, scale_gradient.id)
+
+        return (simulation_protocols, value_source, output_to_store,
+                gradient_group, gradient_replicator, gradient_source)
 
     @staticmethod
     def get_default_simulation_workflow_schema(options=None):
@@ -206,27 +328,46 @@ class EnthalpyOfMixing(PhysicalProperty):
             The schema to follow when estimating this property.
         """
 
+        # Define the id of the replicator which will clone the gradient protocols
+        # for each gradient key to be estimated.
+        gradient_replicator_id = 'gradient_replicator'
+
         # Set up a general workflow for calculating the enthalpy of one of the system components.
         # Here we affix a prefix which contains the special string $(comp_index). Protocols which are
         # replicated by a replicator will have the $(comp_index) tag in their id replaced by the index
         # of the replication.
+        component_replicator_id = 'component_replicator'
+        component_substance = ReplicatorValue(component_replicator_id)
+
         (component_protocols,
-         component_value,
-         component_output_to_store) = EnthalpyOfMixing._get_enthalpy_protocols('_component_$(repl)', True,
-                                                                               options, ReplicatorValue('repl'))
+         component_enthalpy,
+         component_output,
+         component_gradient_group,
+         component_gradient_replicator,
+         component_gradient) = EnthalpyOfMixing._get_enthalpy_protocols(id_suffix='_component',
+                                                                        gradient_replicator_id=gradient_replicator_id,
+                                                                        replicator_id=component_replicator_id,
+                                                                        weight_by_mole_fraction=True,
+                                                                        substance_reference=component_substance,
+                                                                        options=options)
 
         # Set up a workflow to calculate the enthalpy of the full, mixed system.
-        (mixed_system_protocols,
-         mixed_system_value,
-         mixed_system_output_to_store) = EnthalpyOfMixing._get_enthalpy_protocols('_mixed', False, options)
+        (full_system_protocols,
+         full_system_enthalpy,
+         full_output,
+         full_system_gradient_group,
+         full_system_gradient_replicator,
+         full_system_gradient) = EnthalpyOfMixing._get_enthalpy_protocols(id_suffix='_full',
+                                                                          gradient_replicator_id=gradient_replicator_id,
+                                                                          options=options)
 
         # Finally, set up the protocols which will be responsible for adding together
         # the component enthalpies, and subtracting these from the mixed system enthalpy.
         add_component_enthalpies = miscellaneous.AddValues('add_component_enthalpies')
-        add_component_enthalpies.values = [component_value]
+        add_component_enthalpies.values = [component_enthalpy]
 
         calculate_enthalpy_of_mixing = miscellaneous.SubtractValues('calculate_enthalpy_of_mixing')
-        calculate_enthalpy_of_mixing.value_b = mixed_system_value
+        calculate_enthalpy_of_mixing.value_b = full_system_enthalpy
         calculate_enthalpy_of_mixing.value_a = ProtocolPath('result', add_component_enthalpies.id)
 
         # Create the replicator object which defines how the pure component
@@ -254,6 +395,20 @@ class EnthalpyOfMixing(PhysicalProperty):
 
         component_replicator.template_values = ProtocolPath('components', 'global')
 
+        # Combine the gradients.
+        add_component_gradients = gradients.AddGradients(f'add_component_gradients'
+                                                         f'_$({gradient_replicator_id})'
+                                                         f'_$({component_replicator_id})')
+        add_component_gradients.values = [component_gradient]
+
+        combine_gradients = gradients.SubtractGradients(f'combine_gradients_$({gradient_replicator_id})')
+        combine_gradients.value_b = full_system_gradient
+        combine_gradients.value_a = ProtocolPath('result', add_component_gradients.id)
+
+        # Combine the gradient replicators.
+        gradient_replicator = ProtocolReplicator(replicator_id=gradient_replicator_id)
+        gradient_replicator.template_values = ProtocolPath('parameter_gradient_keys', 'global')
+
         # Build the final workflow schema
         schema = WorkflowSchema(property_type=EnthalpyOfMixing.__name__)
         schema.id = '{}{}'.format(EnthalpyOfMixing.__name__, 'Schema')
@@ -265,34 +420,40 @@ class EnthalpyOfMixing(PhysicalProperty):
             component_protocols.equilibration_simulation.id: component_protocols.equilibration_simulation.schema,
             component_protocols.converge_uncertainty.id: component_protocols.converge_uncertainty.schema,
 
-            mixed_system_protocols.build_coordinates.id: mixed_system_protocols.build_coordinates.schema,
-            mixed_system_protocols.assign_parameters.id: mixed_system_protocols.assign_parameters.schema,
-            mixed_system_protocols.energy_minimisation.id: mixed_system_protocols.energy_minimisation.schema,
-            mixed_system_protocols.equilibration_simulation.id: mixed_system_protocols.equilibration_simulation.schema,
-            mixed_system_protocols.converge_uncertainty.id: mixed_system_protocols.converge_uncertainty.schema,
+            full_system_protocols.build_coordinates.id: full_system_protocols.build_coordinates.schema,
+            full_system_protocols.assign_parameters.id: full_system_protocols.assign_parameters.schema,
+            full_system_protocols.energy_minimisation.id: full_system_protocols.energy_minimisation.schema,
+            full_system_protocols.equilibration_simulation.id: full_system_protocols.equilibration_simulation.schema,
+            full_system_protocols.converge_uncertainty.id: full_system_protocols.converge_uncertainty.schema,
 
             component_protocols.extract_uncorrelated_trajectory.id:
                 component_protocols.extract_uncorrelated_trajectory.schema,
             component_protocols.extract_uncorrelated_statistics.id:
                 component_protocols.extract_uncorrelated_statistics.schema,
 
-            mixed_system_protocols.extract_uncorrelated_trajectory.id:
-                mixed_system_protocols.extract_uncorrelated_trajectory.schema,
-            mixed_system_protocols.extract_uncorrelated_statistics.id:
-                mixed_system_protocols.extract_uncorrelated_statistics.schema,
+            full_system_protocols.extract_uncorrelated_trajectory.id:
+                full_system_protocols.extract_uncorrelated_trajectory.schema,
+            full_system_protocols.extract_uncorrelated_statistics.id:
+                full_system_protocols.extract_uncorrelated_statistics.schema,
 
             add_component_enthalpies.id: add_component_enthalpies.schema,
-            calculate_enthalpy_of_mixing.id: calculate_enthalpy_of_mixing.schema
+            calculate_enthalpy_of_mixing.id: calculate_enthalpy_of_mixing.schema,
+            
+            component_gradient_group.id: component_gradient_group.schema,
+            full_system_gradient_group.id: full_system_gradient_group.schema,
+            add_component_gradients.id: add_component_gradients.schema,
+            combine_gradients.id: combine_gradients.schema
         }
 
-        schema.replicators = [component_replicator]
+        schema.replicators = [gradient_replicator, component_replicator]
 
         # Finally, tell the schemas where to look for its final values.
+        schema.gradients_sources = [ProtocolPath('result', combine_gradients.id)]
         schema.final_value_source = ProtocolPath('result', calculate_enthalpy_of_mixing.id)
 
         schema.outputs_to_store = {
-            'mixed_system': mixed_system_output_to_store,
-            'component_$(repl)': component_output_to_store
+            'full_system': full_output,
+            f'component_$({component_replicator_id})': component_output
         }
 
         return schema
@@ -350,7 +511,7 @@ class EnthalpyOfMixing(PhysicalProperty):
 
         # Set up the protocols which will be responsible for adding together
         # the component enthalpies, and subtracting these from the mixed system enthalpy.
-        weight_by_mole_fraction = WeightValueByMoleFraction('weight_comp_$(comp_repl)')
+        weight_by_mole_fraction = WeightQuantityByMoleFraction('weight_comp_$(comp_repl)')
         weight_by_mole_fraction.value = ProtocolPath('value', pure_protocols.mbar_protocol.id)
         weight_by_mole_fraction.full_substance = ProtocolPath('substance', 'global')
         weight_by_mole_fraction.component = ReplicatorValue('comp_repl')
@@ -560,7 +721,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                              liquid_coordinate_source,
                                              liquid_trajectory_source,
                                              liquid_statistics_source,
-                                             id_prefix='liquid_')
+                                             id_suffix='_liquid')
 
         # Set up the gas gradient calculations
         gas_coordinate_source = ProtocolPath('output_coordinate_file', gas_protocols.equilibration_simulation.id)
@@ -576,7 +737,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                              gas_coordinate_source,
                                              gas_trajectory_source,
                                              gas_statistics_source,
-                                             id_prefix='gas_',
+                                             id_suffix='_gas',
                                              enable_pbc=False)
 
         # Combine the gradients.
@@ -738,7 +899,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                              liquid_coordinate_path,
                                              liquid_trajectory_path,
                                              replicator_id='grad',
-                                             id_prefix='liquid_',
+                                             id_suffix='_liquid',
                                              use_subset_of_force_field=False,
                                              effective_sample_indices=ProtocolPath('effective_sample_indices',
                                                                                    liquid_protocols.mbar_protocol.id))
@@ -754,7 +915,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                              gas_coordinate_path,
                                              gas_trajectory_path,
                                              replicator_id='grad',
-                                             id_prefix='gas_',
+                                             id_suffix='_gas',
                                              use_subset_of_force_field=False,
                                              enable_pbc=False,
                                              effective_sample_indices=ProtocolPath('effective_sample_indices',
