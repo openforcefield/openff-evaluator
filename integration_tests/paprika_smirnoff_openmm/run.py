@@ -18,8 +18,8 @@ def main():
     respect to force field parameters using the property estimator"""
     setup_timestamp_logging()
 
-    host = 'cb6'
-    guest = 'but'
+    host = 'acd'
+    guest = 'bam'
 
     # Set up the object which describes how many compute resources available
     # on the machine on which the calculations will run.
