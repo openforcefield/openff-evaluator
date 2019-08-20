@@ -783,7 +783,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                 shutil.move(trajectory_path, os.path.join(window_directory, 'trajectory.dcd'))
                 shutil.move(coordinate_path, os.path.join(window_directory, 'input.pdb'))
 
-                shutil.rmtree(simulation_directory)
+                # shutil.rmtree(simulation_directory)
 
             except Exception as e:
 
@@ -862,7 +862,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
                                  self._paprika_setup.wall_restraints + \
                                  self._paprika_setup.guest_restraints:
 
-                    value += amber_restraints.amber_restraint_line(restraint, window)
+                    value += amber.amber_restraint_line(restraint, window)
 
                 file.write(value)
 
