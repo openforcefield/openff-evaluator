@@ -157,62 +157,6 @@ def test_density_dielectric_merging():
                    dielectric_workflow.protocols[protocol_id_B].schema.json()
 
 
-def test_nested_replicators():
-
-    dummy_schema = WorkflowSchema()
-
-    dummy_protocol = DummyReplicableProtocol('dummy_$(rep_a)_$(rep_b)')
-
-    dummy_protocol.replicated_value_a = ReplicatorValue('rep_a')
-    dummy_protocol.replicated_value_b = ReplicatorValue('rep_b')
-
-    dummy_schema.protocols[dummy_protocol.id] = dummy_protocol.schema
-
-    dummy_schema.final_value_source = ProtocolPath('final_value', dummy_protocol.id)
-
-    replicator_a = ProtocolReplicator(replicator_id='rep_a')
-
-    replicator_a.template_values = ['a', 'b']
-    replicator_a.protocols_to_replicate = [ProtocolPath('', dummy_protocol.id)]
-
-    replicator_b = ProtocolReplicator(replicator_id='rep_b')
-
-    replicator_b.template_values = [1, 2]
-    replicator_b.protocols_to_replicate = [ProtocolPath('', dummy_protocol.id)]
-
-    dummy_schema.replicators = [
-        replicator_a,
-        replicator_b
-    ]
-
-    dummy_schema.validate_interfaces()
-
-    dummy_property = create_dummy_property(Density)
-
-    dummy_metadata = Workflow.generate_default_metadata(dummy_property,
-                                                        'smirnoff99Frosst-1.1.0.offxml',
-                                                        [])
-
-    dummy_workflow = Workflow(dummy_property, dummy_metadata)
-    dummy_workflow.schema = dummy_schema
-
-    assert len(dummy_workflow.protocols) == 4
-
-    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_0_0'].replicated_value_a == 'a'
-    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_0_1'].replicated_value_a == 'a'
-
-    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_1_0'].replicated_value_a == 'b'
-    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_1_1'].replicated_value_a == 'b'
-
-    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_0_0'].replicated_value_b == 1
-    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_0_1'].replicated_value_b == 2
-
-    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_1_0'].replicated_value_b == 1
-    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_1_1'].replicated_value_b == 2
-
-    print(dummy_workflow.schema)
-
-
 def test_simple_workflow_graph():
     dummy_schema = WorkflowSchema()
 

@@ -7,8 +7,9 @@ from collections import namedtuple
 from propertyestimator import unit
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.properties.properties import PhysicalProperty, PropertyPhase
+from propertyestimator.properties.properties import PhysicalProperty, PropertyPhase, ParameterGradient
 from propertyestimator.protocols import analysis, groups, miscellaneous, reweighting, gradients, storage
+from propertyestimator.protocols.groups import ProtocolGroup
 from propertyestimator.protocols.utils import generate_base_reweighting_protocols, generate_base_simulation_protocols, \
     generate_gradient_protocol_group
 from propertyestimator.storage import StoredSimulationData
@@ -372,27 +373,7 @@ class EnthalpyOfMixing(PhysicalProperty):
 
         # Create the replicator object which defines how the pure component
         # enthalpy estimation protocols will be replicated for each component.
-        component_replicator = ProtocolReplicator(replicator_id='repl')
-
-        # TODO: This is terrible, the workflow should determine this from the
-        #       protocol id's.
-        component_replicator.protocols_to_replicate = [
-            ProtocolPath('', component_protocols.build_coordinates.id),
-            ProtocolPath('', component_protocols.assign_parameters.id),
-            ProtocolPath('', component_protocols.energy_minimisation.id),
-            ProtocolPath('', component_protocols.equilibration_simulation.id),
-            ProtocolPath('', component_protocols.converge_uncertainty.id),
-            ProtocolPath('', component_protocols.extract_uncorrelated_trajectory.id),
-            ProtocolPath('', component_protocols.extract_uncorrelated_statistics.id)
-        ]
-
-        for component_protocol_id in component_protocols.converge_uncertainty.protocols:
-
-            path_to_protocol = ProtocolPath('', component_protocols.converge_uncertainty.id,
-                                                component_protocol_id)
-
-            component_replicator.protocols_to_replicate.append(path_to_protocol)
-
+        component_replicator = ProtocolReplicator(replicator_id=component_replicator_id)
         component_replicator.template_values = ProtocolPath('components', 'global')
 
         # Combine the gradients.
@@ -541,14 +522,6 @@ class EnthalpyOfMixing(PhysicalProperty):
         # Set up a replicator that will re-run the pure reweighting workflow for each
         # component in the system.
         pure_component_replicator = ProtocolReplicator(replicator_id='comp_repl')
-        pure_component_replicator.protocols_to_replicate = [
-            ProtocolPath('', weight_by_mole_fraction.id),
-            ProtocolPath('', pure_divide_by_molecules.id)
-        ]
-
-        for pure_protocol in pure_protocols:
-            pure_component_replicator.protocols_to_replicate.append(ProtocolPath('', pure_protocol.id))
-
         pure_component_replicator.template_values = ProtocolPath('components', 'global')
 
         # Build the final workflow schema.
@@ -751,10 +724,6 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         # Combine the gradient replicators.
         gradient_replicator = ProtocolReplicator(replicator_id=liquid_gradient_replicator.id)
-        gradient_replicator.protocols_to_replicate = [*liquid_gradient_replicator.protocols_to_replicate,
-                                                      *gas_gradient_replicator.protocols_to_replicate,
-                                                      ProtocolPath('', scale_liquid_gradient.id),
-                                                      ProtocolPath('', combine_gradients.id)]
         gradient_replicator.template_values = ProtocolPath('parameter_gradient_keys', 'global')
 
         # Build the workflow schema.
@@ -880,9 +849,6 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         # Combine the data replicators
         data_replicator = ProtocolReplicator(liquid_data_replicator.id)
-        data_replicator.protocols_to_replicate = [ProtocolPath('', unpack_data_collection.id),
-                                                  *liquid_data_replicator.protocols_to_replicate,
-                                                  *gas_data_replicator.protocols_to_replicate]
         data_replicator.template_values = liquid_data_replicator.template_values
 
         # Set up the liquid phase gradient calculations
@@ -942,10 +908,6 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         # Combine the gradient replicators.
         gradient_replicator = ProtocolReplicator(liquid_gradient_replicator.id)
-        gradient_replicator.protocols_to_replicate = [*liquid_gradient_replicator.protocols_to_replicate,
-                                                      *gas_gradient_replicator.protocols_to_replicate,
-                                                      ProtocolPath('', scale_liquid_gradient.id),
-                                                      ProtocolPath('', combine_gradients.id)]
         gradient_replicator.template_values = ProtocolPath('parameter_gradient_keys', 'global')
 
         # Build the workflow schema.
