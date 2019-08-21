@@ -79,7 +79,7 @@ class BaseWeightByMoleFraction(BaseProtocol):
                                               message=f'The component {main_component} was given in an '
                                                       f'exact amount, and not a mole fraction')
 
-        self._weighted_value = self._weight_value(amount.value)
+        self._weighted_value = self._weight_values(amount.value)
         return self._get_output_dictionary()
 
 
@@ -106,7 +106,7 @@ class WeightQuantityByMoleFraction(BaseWeightByMoleFraction):
         EstimatedQuantity
             The weighted value.
         """
-        return self._value.value * mole_fraction
+        return self._value * mole_fraction
 
 
 @plugins.register_calculation_protocol()
@@ -336,7 +336,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         component_substance = ReplicatorValue(component_replicator_id)
 
         (component_protocols,
-         component_enthalpy,
+         component_enthalpies,
          component_output,
          component_gradient_group,
          component_gradient_replicator,
@@ -360,7 +360,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         # Finally, set up the protocols which will be responsible for adding together
         # the component enthalpies, and subtracting these from the mixed system enthalpy.
         add_component_enthalpies = miscellaneous.AddValues('add_component_enthalpies')
-        add_component_enthalpies.values = [component_enthalpy]
+        add_component_enthalpies.values = component_enthalpies
 
         calculate_enthalpy_of_mixing = miscellaneous.SubtractValues('calculate_enthalpy_of_mixing')
         calculate_enthalpy_of_mixing.value_b = full_system_enthalpy
