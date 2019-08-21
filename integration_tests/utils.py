@@ -1,5 +1,7 @@
+import logging
 import pkg_resources
 import yaml
+from openforcefield.topology import Molecule
 
 from propertyestimator.properties import Density
 from propertyestimator.protocols import coordinates, groups, simulation
@@ -107,6 +109,22 @@ def build_substance(ligand_smiles, receptor_smiles, ionic_strength=None):
         substance.add_component(component=chlorine, amount=Substance.MoleFraction(salt_mole_fraction))
 
     substance.add_component(component=water, amount=Substance.MoleFraction(water_mole_fraction))
+
+    host_molecule_charge = Molecule.from_smiles(receptor_smiles).total_charge
+    if ligand_smiles:
+        guest_molecule_charge = Molecule.from_smiles(ligand_smiles).total_charge
+    else:
+        guest_molecule_charge = 0
+
+    net_charge = host_molecule_charge + guest_molecule_charge
+    counterions_needed = abs(int(net_charge))
+    if net_charge <= -0.9999:
+        substance.add_component(sodium, Substance.ExactAmount(counterions_needed))
+    elif net_charge >= 0.9999:
+        substance.add_component(chlorine, Substance.ExactAmount(counterions_needed))
+    else:
+        # This should be close to zero.
+        logging.debug(f'Receptor-ligand complex net charge = {net_charge}. Not adding counterions.')
 
     return substance
 
