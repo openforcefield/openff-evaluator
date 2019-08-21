@@ -2,7 +2,7 @@
 A set of utilities for setting up property estimation workflows.
 """
 import copy
-from collections import namedtuple, Iterable
+from collections import namedtuple
 
 from propertyestimator import unit
 from propertyestimator.protocols import analysis, forcefield, gradients, groups, reweighting, coordinates, simulation, \
