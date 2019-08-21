@@ -364,7 +364,7 @@ class BasePaprikaProtocol(BaseProtocol):
         host_mol2 = os.path.join(window_directory_to_base, f'{self._paprika_setup.host}.{gaff_version}.mol2')
 
         load_host_frcmod = f'loadamberparams {host_frcmod}'
-        load_host_mol2 = f'{self._paprika_setup.host.upper()} = loadmol2 {host_mol2}'
+        load_host_mol2 = f'{self._paprika_setup.host_yaml["resname"].upper()} = loadmol2 {host_mol2}'
 
         load_guest_frcmod = ''
         load_guest_mol2 = ''
@@ -375,7 +375,7 @@ class BasePaprikaProtocol(BaseProtocol):
             guest_mol2 = os.path.join(window_directory_to_base, f'{self._paprika_setup.guest}.{gaff_version}.mol2')
 
             load_guest_frcmod = f'loadamberparams {guest_frcmod}'
-            load_guest_mol2 = f'{self._paprika_setup.guest.upper()} = loadmol2 {guest_mol2}'
+            load_guest_mol2 = f'{self._paprika_setup.guest_yaml["name"].upper()} = loadmol2 {guest_mol2}'
 
         # window_pdb_file = PDBFile(self._solvated_coordinate_paths[index])
         # cell_vectors = window_pdb_file.topology.getPeriodicBoxVectors()
@@ -675,7 +675,9 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
                 prmtop = AmberPrmtopFile(os.path.join(window_directory, 'structure.prmtop'))
 
-                system = prmtop.createSystem(nonbondedMethod=PME, nonbondedCutoff=self._gaff_cutoff,
+                cutoff = self._gaff_cutoff.to(unit.angstrom).magnitude * simtk_unit.angstrom
+
+                system = prmtop.createSystem(nonbondedMethod=PME, nonbondedCutoff=cutoff,
                                              constraints=HBonds, removeCMMotion=False)
 
                 system_xml = XmlSerializer.serialize(system)
