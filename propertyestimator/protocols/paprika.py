@@ -671,7 +671,8 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                     new_positions.append(position.value_in_unit(simtk_unit.angstrom))
 
                 with open(self._solvated_coordinate_paths[index], 'w+') as file:
-                    PDBFile.writeFile(pdb_file.topology, new_positions * simtk_unit.angstrom, file)
+                    PDBFile.writeFile(pdb_file.topology, new_positions * simtk_unit.angstrom,
+                                      file, keepIds=True)
 
                 prmtop = AmberPrmtopFile(os.path.join(window_directory, 'structure.prmtop'))
 
