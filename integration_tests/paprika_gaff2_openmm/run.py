@@ -52,7 +52,7 @@ def main():
         host_guest_protocol.number_of_production_steps = 50
         host_guest_protocol.equilibration_output_frequency = 1
         host_guest_protocol.production_output_frequency = 1
-        host_guest_protocol.number_of_solvent_molecules = 1
+        host_guest_protocol.number_of_solvent_molecules = 2
 
         host_guest_protocol.taproom_host_name = host
         host_guest_protocol.taproom_guest_name = guest
@@ -102,7 +102,7 @@ def main():
     host_protocol.number_of_production_steps = 1
     host_protocol.equilibration_output_frequency = 25
     host_protocol.production_output_frequency = 1
-
+    host_protocol.number_of_solvent_molecules = 2
 
     host_protocol.force_field = OpenMMPaprikaProtocol.ForceField.GAFF2
 
