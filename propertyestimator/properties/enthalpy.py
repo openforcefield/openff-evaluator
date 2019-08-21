@@ -504,7 +504,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         weight_by_mole_fraction = WeightQuantityByMoleFraction(f'weight_comp_$({component_replicator_id})')
         weight_by_mole_fraction.value = ProtocolPath('value', component_protocols.mbar_protocol.id)
         weight_by_mole_fraction.full_substance = ProtocolPath('substance', 'global')
-        weight_by_mole_fraction.component = ReplicatorValue('comp_repl')
+        weight_by_mole_fraction.component = ReplicatorValue(component_replicator_id)
 
         # Divide by the component enthalpies by the number of molecules in the system
         # TODO cleanup replicators so can target a single replicated protocol rather
