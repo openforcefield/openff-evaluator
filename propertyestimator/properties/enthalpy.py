@@ -450,45 +450,59 @@ class EnthalpyOfMixing(PhysicalProperty):
             The schema to follow when estimating this property.
         """
 
+        component_replicator_id = 'component_replicator'
+        component_data_replicator_id = f'component_$({component_replicator_id})_replicator'
+        
+        full_data_replicator_id = 'full_data_replicator'
+
         # Set up the protocols which will reweight data for the full system.
-        extract_mixed_enthalpy = analysis.ExtractAverageStatistic('extract_enthalpy_$(mix_data_repl)_mixture')
-        extract_mixed_enthalpy.statistics_type = ObservableType.Enthalpy
-        reweight_mixed_enthalpy = reweighting.ReweightStatistics('reweight_mixed_enthalpy')
-        reweight_mixed_enthalpy.statistics_type = ObservableType.Enthalpy
+        extract_full_enthalpy = analysis.ExtractAverageStatistic(f'extract_enthalpy_'
+                                                                 f'$({full_data_replicator_id})_full')
+        reweight_full_enthalpy = reweighting.ReweightStatistics('reweight_full_enthalpy')
 
-        mixture_protocols, mixture_data_replicator = generate_base_reweighting_protocols(extract_mixed_enthalpy,
-                                                                                         reweight_mixed_enthalpy,
-                                                                                         options,
-                                                                                         'mix_data_repl',
-                                                                                         '_mixture')
+        extract_full_enthalpy.statistics_type = ObservableType.Enthalpy
+        reweight_full_enthalpy.statistics_type = ObservableType.Enthalpy
 
-        extract_mixed_enthalpy.statistics_path = ProtocolPath('statistics_file_path',
-                                                              mixture_protocols.unpack_stored_data.id)
+        (full_system_protocols,
+         full_system_data_replicator) = generate_base_reweighting_protocols(analysis_protocol=extract_full_enthalpy,
+                                                                            mbar_protocol=reweight_full_enthalpy,
+                                                                            workflow_options=options,
+                                                                            replicator_id=full_data_replicator_id,
+                                                                            id_suffix='_full')
+
+        extract_full_enthalpy.statistics_path = ProtocolPath('statistics_file_path',
+                                                              full_system_protocols.unpack_stored_data.id)
 
         # Set up the protocols which will reweight data for each of the components.
-        extract_pure_enthalpy = analysis.ExtractAverageStatistic(
-            'extract_enthalpy_$(pure_data_repl)_comp_$(comp_repl)')
-        extract_pure_enthalpy.statistics_type = ObservableType.Enthalpy
-        reweight_pure_enthalpy = reweighting.ReweightStatistics(
-            'reweight_comp_enthalpy_comp_$(comp_repl)')
-        reweight_pure_enthalpy.statistics_type = ObservableType.Enthalpy
+        extract_component_enthalpy = analysis.ExtractAverageStatistic(f'extract_enthalpy_'
+                                                                      f'$({component_data_replicator_id})_component_'
+                                                                      f'$({component_replicator_id})')
 
-        pure_protocols, pure_data_replicator = generate_base_reweighting_protocols(extract_pure_enthalpy,
-                                                                                   reweight_pure_enthalpy,
-                                                                                   options,
-                                                                                   'pure_data_repl',
-                                                                                   '_pure_$(comp_repl)')
+        reweight_component_enthalpy = reweighting.ReweightStatistics(f'reweight_enthalpy_component_'
+                                                                     f'$({component_replicator_id})')
 
-        extract_pure_enthalpy.statistics_path = ProtocolPath('statistics_file_path',
-                                                             pure_protocols.unpack_stored_data.id)
+        extract_component_enthalpy.statistics_type = ObservableType.Enthalpy
+        reweight_component_enthalpy.statistics_type = ObservableType.Enthalpy
 
-        # Make sure the replicator is only replicating over data from the pure component.
-        pure_data_replicator.template_values = ProtocolPath('component_data[$(comp_repl)]', 'global')
+        (component_protocols,
+         component_data_replicator) = generate_base_reweighting_protocols(analysis_protocol=extract_component_enthalpy,
+                                                                          mbar_protocol=reweight_component_enthalpy,
+                                                                          workflow_options=options,
+                                                                          replicator_id=component_data_replicator_id,
+                                                                          id_suffix=f'_component_'
+                                                                                    f'$({component_replicator_id})')
+
+        extract_component_enthalpy.statistics_path = ProtocolPath('statistics_file_path',
+                                                                  component_protocols.unpack_stored_data.id)
+
+        # Make sure the replicator is only replicating over data from the component component.
+        component_data_replicator.template_values = ProtocolPath(f'component_data[$({component_replicator_id})]',
+                                                                 'global')
 
         # Set up the protocols which will be responsible for adding together
-        # the component enthalpies, and subtracting these from the mixed system enthalpy.
-        weight_by_mole_fraction = WeightQuantityByMoleFraction('weight_comp_$(comp_repl)')
-        weight_by_mole_fraction.value = ProtocolPath('value', pure_protocols.mbar_protocol.id)
+        # the component enthalpies, and subtracting these from the full system enthalpy.
+        weight_by_mole_fraction = WeightQuantityByMoleFraction(f'weight_comp_$({component_replicator_id})')
+        weight_by_mole_fraction.value = ProtocolPath('value', component_protocols.mbar_protocol.id)
         weight_by_mole_fraction.full_substance = ProtocolPath('substance', 'global')
         weight_by_mole_fraction.component = ReplicatorValue('comp_repl')
 
@@ -498,26 +512,26 @@ class EnthalpyOfMixing(PhysicalProperty):
         divisor_data = storage.UnpackStoredSimulationData('divisor_data')
         divisor_data.simulation_data_path = ProtocolPath('full_system_data[0]', 'global')
 
-        pure_divide_by_molecules = miscellaneous.DivideValue('divide_by_molecules_$(comp_repl)')
-        pure_divide_by_molecules.value = ProtocolPath('weighted_value', weight_by_mole_fraction.id)
-        pure_divide_by_molecules.divisor = ProtocolPath('total_number_of_molecules', divisor_data.id)
+        component_divide_by_molecules = miscellaneous.DivideValue(f'divide_by_molecules_$({component_replicator_id})')
+        component_divide_by_molecules.value = ProtocolPath('weighted_value', weight_by_mole_fraction.id)
+        component_divide_by_molecules.divisor = ProtocolPath('total_number_of_molecules', divisor_data.id)
 
-        # Divide by the mixture enthalpy by the number of molecules in the system
-        mixture_divide_by_molecules = miscellaneous.DivideValue('divide_by_mixture_molecules')
-        mixture_divide_by_molecules.value = ProtocolPath('value', mixture_protocols.mbar_protocol.id)
-        mixture_divide_by_molecules.divisor = ProtocolPath('total_number_of_molecules', divisor_data.id)
+        # Divide by the full_system enthalpy by the number of molecules in the system
+        full_system_divide_by_molecules = miscellaneous.DivideValue('divide_by_full_system_molecules')
+        full_system_divide_by_molecules.value = ProtocolPath('value', full_system_protocols.mbar_protocol.id)
+        full_system_divide_by_molecules.divisor = ProtocolPath('total_number_of_molecules', divisor_data.id)
 
         add_component_enthalpies = miscellaneous.AddValues('add_component_enthalpies')
-        add_component_enthalpies.values = [ProtocolPath('result', pure_divide_by_molecules.id)]
+        add_component_enthalpies.values = [ProtocolPath('result', component_divide_by_molecules.id)]
 
         calculate_enthalpy_of_mixing = miscellaneous.SubtractValues('calculate_enthalpy_of_mixing')
-        calculate_enthalpy_of_mixing.value_b = ProtocolPath('result', mixture_divide_by_molecules.id)
+        calculate_enthalpy_of_mixing.value_b = ProtocolPath('result', full_system_divide_by_molecules.id)
         calculate_enthalpy_of_mixing.value_a = ProtocolPath('result', add_component_enthalpies.id)
 
-        # Set up a replicator that will re-run the pure reweighting workflow for each
+        # Set up a replicator that will re-run the component reweighting workflow for each
         # component in the system.
-        pure_component_replicator = ProtocolReplicator(replicator_id='comp_repl')
-        pure_component_replicator.template_values = ProtocolPath('components', 'global')
+        component_replicator = ProtocolReplicator(replicator_id=component_replicator_id)
+        component_replicator.template_values = ProtocolPath('components', 'global')
 
         # Build the final workflow schema.
         schema = WorkflowSchema(property_type=EnthalpyOfMixing.__name__)
@@ -527,19 +541,19 @@ class EnthalpyOfMixing(PhysicalProperty):
 
         schema.protocols[divisor_data.id] = divisor_data.schema
 
-        schema.protocols.update({protocol.id: protocol.schema for protocol in mixture_protocols})
-        schema.protocols.update({protocol.id: protocol.schema for protocol in pure_protocols})
+        schema.protocols.update({protocol.id: protocol.schema for protocol in full_system_protocols})
+        schema.protocols.update({protocol.id: protocol.schema for protocol in component_protocols})
 
         schema.protocols[weight_by_mole_fraction.id] = weight_by_mole_fraction.schema
-        schema.protocols[pure_divide_by_molecules.id] = pure_divide_by_molecules.schema
-        schema.protocols[mixture_divide_by_molecules.id] = mixture_divide_by_molecules.schema
+        schema.protocols[component_divide_by_molecules.id] = component_divide_by_molecules.schema
+        schema.protocols[full_system_divide_by_molecules.id] = full_system_divide_by_molecules.schema
         schema.protocols[add_component_enthalpies.id] = add_component_enthalpies.schema
         schema.protocols[calculate_enthalpy_of_mixing.id] = calculate_enthalpy_of_mixing.schema
 
         schema.replicators = [
-            mixture_data_replicator,
-            pure_component_replicator,
-            pure_data_replicator
+            full_system_data_replicator,
+            component_replicator,
+            component_data_replicator
         ]
 
         schema.final_value_source = ProtocolPath('result', calculate_enthalpy_of_mixing.id)
