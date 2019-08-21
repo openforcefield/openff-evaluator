@@ -676,6 +676,7 @@ class EnthalpyOfMixing(PhysicalProperty):
             gradient_replicator
         ]
 
+        schema.gradients_sources = [ProtocolPath('result', scale_gradient_molar_gas.id)]
         schema.final_value_source = ProtocolPath('result', multiply_by_molar_gas_constant.id)
 
         return schema
