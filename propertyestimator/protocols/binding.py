@@ -98,7 +98,10 @@ class AddBindingFreeEnergies(AddValues):
             cycle_values = np.empty(len(self._values))
 
             for value_index, value in enumerate(self._values):
-                mean = value.value.to(default_unit).magnitude
+                # pAPRika computes the work of _un_binding, but we want to bootstrap on the binding free energy, which
+                # weights the lowest energy (most negative) conformation more. Therefore, these values should be
+                # mulitplied by -1.
+                mean = -1 * value.value.to(default_unit).magnitude
                 sem = value.uncertainty.to(default_unit).magnitude
 
                 sampled_value = np.random.normal(mean, sem) * default_unit
@@ -214,10 +217,14 @@ class AddBindingEnthalpies(AddValues):
             cycle_values = np.empty((len(self._values), 2))
 
             for value_index, value in enumerate(self._values):
+                # pAPRika computes the work of _un_binding, but we want to bootstrap on the binding free energy, which
+                # weights the lowest energy (most negative) conformation more. Therefore, these values should be
+                # mulitplied by -1.
+
                 mean_enthalpy = value[0].value.to(default_unit).magnitude
                 sem_enthalpy = value[0].uncertainty.to(default_unit).magnitude
 
-                mean_free_energy = value[1].value.to(default_unit).magnitude
+                mean_free_energy = -1 * value[1].value.to(default_unit).magnitude
                 sem_free_energy = value[1].uncertainty.to(default_unit).magnitude
 
                 sampled_enthalpy = np.random.normal(mean_enthalpy, sem_enthalpy) * default_unit
