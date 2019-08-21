@@ -77,7 +77,7 @@ class Density(PhysicalProperty):
 
         gradient_group, gradient_replicator, gradient_source = \
             generate_gradient_protocol_group(reweight_density_template,
-                                             ProtocolPath('force_field_path', 'global'),
+                                             [ProtocolPath('force_field_path', 'global')],
                                              ProtocolPath('force_field_path', 'global'),
                                              coordinate_source,
                                              trajectory_source,
@@ -123,17 +123,20 @@ class Density(PhysicalProperty):
             The schema to follow when estimating this property.
         """
 
+        data_replicator_id = 'data_replicator'
+
         # The protocol which will be used to calculate the densities from
         # the existing data.
-        density_calculation = analysis.ExtractAverageStatistic('calc_density_$(data_repl)')
+        density_calculation = analysis.ExtractAverageStatistic(f'calc_density_$({data_replicator_id})')
         density_calculation.statistics_type = ObservableType.Density
 
-        reweight_density = reweighting.ReweightStatistics('reweight_density')
+        reweight_density = reweighting.ReweightStatistics(f'reweight_density')
         reweight_density.statistics_type = ObservableType.Density
 
         reweighting_protocols, data_replicator = generate_base_reweighting_protocols(density_calculation,
                                                                                      reweight_density,
-                                                                                     options)
+                                                                                     options,
+                                                                                     data_replicator_id)
 
         # Set up the gradient calculations
         coordinate_path = ProtocolPath('output_coordinate_path', reweighting_protocols.concatenate_trajectories.id)
@@ -141,13 +144,13 @@ class Density(PhysicalProperty):
 
         reweight_density_template = reweighting.ReweightStatistics('')
         reweight_density_template.statistics_type = ObservableType.Density
-        reweight_density_template.statistics_paths = [ProtocolPath('statistics_file_path',
-                                                                   reweighting_protocols.unpack_stored_data.id)]
+        reweight_density_template.statistics_paths = ProtocolPath('statistics_file_path',
+                                                                  reweighting_protocols.unpack_stored_data.id)
 
         gradient_group, gradient_replicator, gradient_source = \
             generate_gradient_protocol_group(reweight_density_template,
-                                             [ProtocolPath('force_field_path',
-                                                           reweighting_protocols.unpack_stored_data.id)],
+                                             ProtocolPath('force_field_path',
+                                                          reweighting_protocols.unpack_stored_data.id),
                                              ProtocolPath('force_field_path', 'global'),
                                              coordinate_path,
                                              trajectory_path,

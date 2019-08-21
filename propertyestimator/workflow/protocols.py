@@ -517,7 +517,8 @@ class BaseProtocol:
 
         set_nested_attribute(self, reference_path.property_name, value)
 
-    def apply_replicator(self, replicator, template_values, update_input_references=False):
+    def apply_replicator(self, replicator, template_values, template_index=-1,
+                         template_value=None, update_input_references=False):
         """Applies a `ProtocolReplicator` to this protocol. This method
         should clone any protocols whose id contains the id of the
         replicator (in the format `$(replicator.id)`).
@@ -527,13 +528,40 @@ class BaseProtocol:
         replicator: ProtocolReplicator
             The replicator to apply.
         template_values: list of Any
-            The values to pass to each of the replicated protocols.
+            A list of the values which will be inserted
+            into the newly replicated protocols.
+
+            This parameter is mutually exclusive with
+            `template_index` and `template_value`
+        template_index: int, optional
+            A specific value which should be used for any
+            protocols flagged as to be replicated by the
+            replicator. This option is mainly used when
+            replicating children of an already replicated
+            protocol.
+
+            This parameter is mutually exclusive with
+            `template_values` and must be set along with
+            a `template_value`.
+        template_value: Any, optional
+            A specific index which should be used for any
+            protocols flagged as to be replicated by the
+            replicator. This option is mainly used when
+            replicating children of an already replicated
+            protocol.
+
+            This parameter is mutually exclusive with
+            `template_values` and must be set along with
+            a `template_index`.
         update_input_references: bool
             If true, any protocols which take their input from a protocol
             which was flagged for replication will be updated to take input
-            from the acutally replicated protocol. This should only be set
+            from the actually replicated protocol. This should only be set
             to true if this protocol is not nested within a workflow or a
             protocol group.
+
+            This option cannot be used when a specific `template_index` or
+            `template_value` is providied.
 
         Returns
         -------

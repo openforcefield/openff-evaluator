@@ -365,10 +365,10 @@ class DielectricConstant(PhysicalProperty):
         # Set up the gradient calculations. For dielectric constants, we need to use
         # a slightly specialised reweighting protocol which we set up here.
         gradient_mbar_protocol = ReweightDielectricConstant('gradient_mbar')
-        gradient_mbar_protocol.reference_dipole_moments = [ProtocolPath('uncorrelated_values',
+        gradient_mbar_protocol.reference_dipole_moments = [ProtocolPath('dipole_moments',
                                                                         protocols.converge_uncertainty.id,
                                                                         extract_dielectric.id)]
-        gradient_mbar_protocol.reference_volumes = [ProtocolPath('uncorrelated_volumes',
+        gradient_mbar_protocol.reference_volumes = [ProtocolPath('volumes',
                                                                  protocols.converge_uncertainty.id,
                                                                  extract_dielectric.id)]
         gradient_mbar_protocol.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
@@ -381,7 +381,7 @@ class DielectricConstant(PhysicalProperty):
 
         gradient_group, gradient_replicator, gradient_source = \
             generate_gradient_protocol_group(gradient_mbar_protocol,
-                                             ProtocolPath('force_field_path', 'global'),
+                                             [ProtocolPath('force_field_path', 'global')],
                                              ProtocolPath('force_field_path', 'global'),
                                              coordinate_source,
                                              trajectory_source,
@@ -427,14 +427,16 @@ class DielectricConstant(PhysicalProperty):
             The schema to follow when estimating this property.
         """
 
+        data_replicator_id = 'data_replicator'
+
         # Set up a protocol to extract the dielectric constant from the stored data.
-        extract_dielectric = ExtractAverageDielectric('calc_dielectric_$(data_repl)')
+        extract_dielectric = ExtractAverageDielectric(f'calc_dielectric_$({data_replicator_id})')
 
         # For the dielectric constant, we employ a slightly more advanced reweighting
         # protocol set up for calculating fluctuation properties.
         reweight_dielectric = ReweightDielectricConstant('reweight_dielectric')
-        reweight_dielectric.reference_dipole_moments = [ProtocolPath('uncorrelated_values', extract_dielectric.id)]
-        reweight_dielectric.reference_volumes = [ProtocolPath('uncorrelated_volumes', extract_dielectric.id)]
+        reweight_dielectric.reference_dipole_moments = ProtocolPath('uncorrelated_values', extract_dielectric.id)
+        reweight_dielectric.reference_volumes = ProtocolPath('uncorrelated_volumes', extract_dielectric.id)
         reweight_dielectric.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
         reweight_dielectric.bootstrap_uncertainties = True
         reweight_dielectric.bootstrap_iterations = 200
@@ -445,7 +447,8 @@ class DielectricConstant(PhysicalProperty):
 
         reweighting_protocols, data_replicator = generate_base_reweighting_protocols(extract_dielectric,
                                                                                      reweight_dielectric,
-                                                                                     options)
+                                                                                     options,
+                                                                                     data_replicator_id)
 
         # Make sure input is taken from the correct protocol outputs.
         extract_dielectric.system_path = ProtocolPath('system_path', reweighting_protocols.build_reference_system.id)
@@ -458,8 +461,8 @@ class DielectricConstant(PhysicalProperty):
 
         gradient_group, gradient_replicator, gradient_source = \
             generate_gradient_protocol_group(reweight_dielectric_template,
-                                             [ProtocolPath('force_field_path',
-                                                           reweighting_protocols.unpack_stored_data.id)],
+                                             ProtocolPath('force_field_path',
+                                                          reweighting_protocols.unpack_stored_data.id),
                                              ProtocolPath('force_field_path', 'global'),
                                              coordinate_path,
                                              trajectory_path,

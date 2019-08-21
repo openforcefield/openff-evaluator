@@ -214,10 +214,8 @@ class EnthalpyOfMixing(PhysicalProperty):
             A reference to the value of the gradient.
         """
 
-        full_id_suffix = id_suffix
-
         if replicator_id is not None:
-            full_id_suffix = f'{id_suffix}_$({replicator_id})'
+            id_suffix = f'{id_suffix}_$({replicator_id})'
 
         if substance_reference is None:
             substance_reference = ProtocolPath('substance', 'global')
@@ -230,9 +228,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         # Define the protocols which will run the simulation itself.
         simulation_protocols, value_source, output_to_store = generate_base_simulation_protocols(extract_enthalpy,
                                                                                                  options,
-                                                                                                 id_suffix,
-                                                                                                 replicator_id=
-                                                                                                 replicator_id)
+                                                                                                 id_suffix)
 
         number_of_molecules = ProtocolPath('final_number_of_molecules', simulation_protocols.build_coordinates.id)
 
@@ -288,8 +284,7 @@ class EnthalpyOfMixing(PhysicalProperty):
                                              statistics_source,
                                              replicator_id=gradient_replicator_id,
                                              substance_source=substance_reference,
-                                             id_suffix=id_suffix,
-                                             group_id_suffix=full_id_suffix)
+                                             id_suffix=id_suffix)
 
         if weight_by_mole_fraction:
 
@@ -689,7 +684,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         liquid_gradient_group, liquid_gradient_replicator, liquid_gradient_source = \
             generate_gradient_protocol_group(reweight_potential_template,
-                                             ProtocolPath('force_field_path', 'global'),
+                                             [ProtocolPath('force_field_path', 'global')],
                                              ProtocolPath('force_field_path', 'global'),
                                              liquid_coordinate_source,
                                              liquid_trajectory_source,
@@ -705,7 +700,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         gas_gradient_group, gas_gradient_replicator, gas_gradient_source = \
             generate_gradient_protocol_group(reweight_potential_template,
-                                             ProtocolPath('force_field_path', 'global'),
+                                             [ProtocolPath('force_field_path', 'global')],
                                              ProtocolPath('force_field_path', 'global'),
                                              gas_coordinate_source,
                                              gas_trajectory_source,
@@ -860,7 +855,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         liquid_gradient_group, liquid_gradient_replicator, liquid_gradient_source = \
             generate_gradient_protocol_group(reweight_potential_template,
-                                             [ProtocolPath('force_field_path', liquid_protocols.unpack_stored_data.id)],
+                                             ProtocolPath('force_field_path', liquid_protocols.unpack_stored_data.id),
                                              ProtocolPath('force_field_path', 'global'),
                                              liquid_coordinate_path,
                                              liquid_trajectory_path,
@@ -876,7 +871,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         gas_gradient_group, gas_gradient_replicator, gas_gradient_source = \
             generate_gradient_protocol_group(reweight_potential_template,
-                                             [ProtocolPath('force_field_path', gas_protocols.unpack_stored_data.id)],
+                                             ProtocolPath('force_field_path', gas_protocols.unpack_stored_data.id),
                                              ProtocolPath('force_field_path', 'global'),
                                              gas_coordinate_path,
                                              gas_trajectory_path,

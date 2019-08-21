@@ -210,7 +210,7 @@ class Workflow:
 
         for label in schema.outputs_to_store:
             self._append_uuid_to_output_to_store(schema.outputs_to_store[label])
-            self.outputs_to_store = schema.outputs_to_store[label]
+            self.outputs_to_store[label] = schema.outputs_to_store[label]
 
         self._build_protocols(schema)
         self._build_dependants_graph()
@@ -389,6 +389,19 @@ class Workflow:
 
         # Replicate any outputs.
         self._apply_replicator_to_outputs(replicator, template_values)
+
+        for other_replicator in schema.replicators:
+
+            # Get the list of values which will be passed to the newly created protocols.
+            if (not isinstance(other_replicator.template_values, ProtocolPath) or
+                replicator.placeholder_id not in other_replicator.template_values.full_path):
+
+                continue
+
+            other_replicator.template_values = [
+                ProtocolPath.from_string(other_replicator.template_values.full_path.replace(
+                    replicator.placeholder_id, str(index))) for index in range(len(template_values))
+            ]
 
     def _apply_replicator_to_outputs(self, replicator, template_values):
 

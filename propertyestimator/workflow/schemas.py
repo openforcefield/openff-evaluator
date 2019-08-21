@@ -84,8 +84,11 @@ class ProtocolReplicator(TypedBaseModel):
 
     Notes
     -----
-    * The `template_values` property must be a list of either constant values,
-      or `ProtocolPath` objects which take their value from the `global` scope.
+        * The `template_values` property must be a list of either constant values,
+          or `ProtocolPath` objects which take their value from the `global` scope.
+        * If children of replicated protocols are also flagged as to be replicated,
+          they will only have their ids changed to match the index of the parent
+          protocol, as opposed to being fully replicated.
     """
 
     @property
@@ -117,7 +120,7 @@ class ProtocolReplicator(TypedBaseModel):
         self.id = state['id']
         self.template_values = state['template_values']
 
-    def apply(self, protocols, template_values):
+    def apply(self, protocols, template_values=None, template_index=-1, template_value=None):
         """Applies this replicator to the provided set of protocols and any of
         their children.
 
@@ -133,6 +136,29 @@ class ProtocolReplicator(TypedBaseModel):
             A list of the values which will be inserted
             into the newly replicated protocols.
 
+            This parameter is mutually exclusive with
+            `template_index` and `template_value`
+        template_index: int, optional
+            A specific value which should be used for any
+            protocols flagged as to be replicated by this
+            replicator. This option is mainly used when
+            replicating children of an already replicated
+            protocol.
+
+            This parameter is mutually exclusive with
+            `template_values` and must be set along with
+            a `template_value`.
+        template_value: Any, optional
+            A specific index which should be used for any
+            protocols flagged as to be replicated by this
+            replicator. This option is mainly used when
+            replicating children of an already replicated
+            protocol.
+
+            This parameter is mutually exclusive with
+            `template_values` and must be set along with
+            a `template_index`.
+
         Returns
         -------
         dict of str and BaseProtocol
@@ -144,63 +170,93 @@ class ProtocolReplicator(TypedBaseModel):
             index into the `template_values` array.
         """
 
+        if ((template_values is not None and (template_index >= 0 or template_value is not None)) or
+            (template_values is None and (template_index < 0 or template_value is None))):
+
+            raise ValueError(f'Either the template values array must be set, or a specific '
+                             f'template index and value must be passed.')
+
         replicated_protocols = {}
         replicated_protocol_map = {}
 
         for protocol_id, protocol in protocols.items():
 
-            replicated_child_ids = protocol.apply_replicator(self, template_values)
+            should_replicate = self.placeholder_id in protocol_id
 
-            # Append the id of this protocols to any replicated child protocols.
-            for child_id, replicated_ids in replicated_child_ids.items():
-
-                child_id.prepend_protocol_id(protocol.id)
-
-                for replicated_id, _ in replicated_ids:
-                    replicated_id.prepend_protocol_id(protocol.id)
-
-                replicated_protocol_map.update(replicated_child_ids)
-
-            # Check whether this protocol should be replicated
-            if self.placeholder_id not in protocol_id:
+            # If this protocol should not be directly replicated then try and
+            # replicate any child protocols...
+            if not should_replicate:
 
                 replicated_protocols[protocol_id] = protocol
+
+                self._apply_to_protocol_children(protocol, replicated_protocol_map,
+                                                 template_values, template_index, template_value)
+
                 continue
 
-            if len(replicated_child_ids) > 0:
-                raise RuntimeError(f'A replicator was used to both replicate a number of child '
-                                   f'protocols {replicated_child_ids}, as well as the parent '
-                                   f'protocol {protocol_id}. This is not supported.')
-
-            replicated_protocol_map[ProtocolPath('', protocol_id)] = []
-
-            # Handle the case where the protocol to be replicated is directly within
-            # the protocol dictionary.
-            for index, template_value in enumerate(template_values):
-
-                protocol_schema = protocol.schema
-                protocol_schema.id = protocol_schema.id.replace(self.placeholder_id, str(index))
-
-                replicated_protocol = available_protocols[protocol_schema.type](protocol_schema.id)
-                replicated_protocol.schema = protocol_schema
-
-                replicated_protocol_map[ProtocolPath('', protocol_id)].append(
-                    (ProtocolPath('', replicated_protocol.id), index))
-
-                # Pass the template values to any inputs which require them.
-                for required_input in replicated_protocol.required_inputs:
-
-                    input_value = replicated_protocol.get_value(required_input)
-
-                    if (not isinstance(input_value, ReplicatorValue) or
-                            input_value.replicator_id != self.id):
-                        continue
-
-                    replicated_protocol.set_value(required_input, template_value)
-
-                replicated_protocols[replicated_protocol.id] = replicated_protocol
+            # ..otherwise, we need to replicate this protocol.
+            replicated_protocols.update(self._apply_to_protocol(protocol, replicated_protocol_map,
+                                                                template_values, template_index, template_value))
 
         return replicated_protocols, replicated_protocol_map
+
+    def _apply_to_protocol(self, protocol, replicated_protocol_map, template_values=None,
+                           template_index=-1, template_value=None):
+
+        replicated_protocol_map[ProtocolPath('', protocol.id)] = []
+        replicated_protocols = {}
+
+        template_values_dict = {template_index: template_value}
+
+        if template_values is not None:
+
+            template_values_dict = {index: template_value for
+                                    index, template_value in enumerate(template_values)}
+
+        for index, template_value in template_values_dict.items():
+
+            protocol_schema = protocol.schema
+            protocol_schema.id = protocol_schema.id.replace(self.placeholder_id, str(index))
+
+            replicated_protocol = available_protocols[protocol_schema.type](protocol_schema.id)
+            replicated_protocol.schema = protocol_schema
+
+            replicated_protocol_map[ProtocolPath('', protocol.id)].append(
+                (ProtocolPath('', replicated_protocol.id), index))
+
+            # Pass the template values to any inputs which require them.
+            for required_input in replicated_protocol.required_inputs:
+
+                input_value = replicated_protocol.get_value(required_input)
+
+                if (not isinstance(input_value, ReplicatorValue) or
+                        input_value.replicator_id != self.id):
+                    continue
+
+                replicated_protocol.set_value(required_input, template_value)
+
+            self._apply_to_protocol_children(replicated_protocol, replicated_protocol_map,
+                                             None, index, template_value)
+
+            replicated_protocols[replicated_protocol.id] = replicated_protocol
+
+        return replicated_protocols
+
+    def _apply_to_protocol_children(self, protocol, replicated_protocol_map, template_values=None,
+                                    template_index=-1, template_value=None):
+
+        replicated_child_ids = protocol.apply_replicator(self, template_values,
+                                                         template_index, template_value)
+
+        # Append the id of this protocols to any replicated child protocols.
+        for child_id, replicated_ids in replicated_child_ids.items():
+
+            child_id.prepend_protocol_id(protocol.id)
+
+            for replicated_id, _ in replicated_ids:
+                replicated_id.prepend_protocol_id(protocol.id)
+
+            replicated_protocol_map.update(replicated_child_ids)
 
     def update_references(self, protocols, replication_map, template_values):
         """Redirects the input references of protocols to the replicated
