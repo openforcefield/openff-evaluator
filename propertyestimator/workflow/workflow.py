@@ -210,7 +210,7 @@ class Workflow:
 
         for label in schema.outputs_to_store:
             self._append_uuid_to_output_to_store(schema.outputs_to_store[label])
-            self.outputs_to_store[label] = schema.outputs_to_store[label]
+            self.outputs_to_store[label] = self._build_output_to_store(schema.outputs_to_store[label])
 
         self._build_protocols(schema)
         self._build_dependants_graph()
@@ -238,6 +238,43 @@ class Workflow:
 
             for inner_data in output_to_store.data.values():
                 self._append_uuid_to_output_to_store(inner_data)
+
+    def _build_output_to_store(self, output_to_store_schema):
+        """Builds a WorkflowOutputToStore object from the
+        an entry defined in the schema.
+
+        Parameters
+        ----------
+        output_to_store_schema: WorkflowOutputToStore
+            The entry defined in the workflow schema.
+
+        Returns
+        -------
+        WorkflowOutputToStore
+            The built object with all of its inputs correctly set.
+        """
+
+        output_to_store = copy.deepcopy(output_to_store_schema)
+
+        for attribute_key in output_to_store.__getstate__():
+
+            attribute_value = getattr(output_to_store, attribute_key)
+
+            if not isinstance(attribute_value, ProtocolPath) or not attribute_value.is_global:
+                continue
+
+            attribute_value = get_nested_attribute(self.global_metadata, attribute_value.property_name)
+            setattr(output_to_store, attribute_key, attribute_value)
+
+        # Make sure to also up any child data objects.
+        if isinstance(output_to_store, WorkflowDataCollectionToStore):
+
+            for child_data_label in output_to_store.data:
+
+                child_data = self._build_output_to_store(output_to_store.data[child_data_label])
+                output_to_store.data[child_data_label] = child_data
+
+        return output_to_store
 
     def _build_protocols(self, schema):
         """Creates a set of protocols based on a WorkflowSchema.
