@@ -69,7 +69,7 @@ def main():
             logging.info(f'The attach / pull calculations failed with error: {result.message}')
             return
 
-            substance_results.append(host_guest_protocol)
+        substance_results.append(host_guest_protocol)
 
     if len(host_guest_substances) > 1:
 
