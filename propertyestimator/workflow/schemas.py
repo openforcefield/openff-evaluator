@@ -1,7 +1,6 @@
 """
 A collection of schemas which represent elements of a property calculation workflow.
 """
-import re
 
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedBaseModel
@@ -229,8 +228,12 @@ class ProtocolReplicator(TypedBaseModel):
 
                 input_value = replicated_protocol.get_value(required_input)
 
-                if (not isinstance(input_value, ReplicatorValue) or
-                        input_value.replicator_id != self.id):
+                if not isinstance(input_value, ReplicatorValue):
+                    continue
+
+                elif input_value.replicator_id != self.id:
+
+                    input_value.replicator_id = input_value.replicator_id.replace(self.placeholder_id, str(index))
                     continue
 
                 replicated_protocol.set_value(required_input, template_value)

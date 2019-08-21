@@ -197,6 +197,9 @@ class Workflow:
             self.final_value_source = ProtocolPath.from_string(schema.final_value_source.full_path)
             self.final_value_source.append_uuid(self.uuid)
 
+        self._build_protocols(schema)
+        self._build_dependants_graph()
+
         self.gradients_sources = []
 
         for gradient_source in schema.gradients_sources:
@@ -211,9 +214,6 @@ class Workflow:
         for label in schema.outputs_to_store:
             self._append_uuid_to_output_to_store(schema.outputs_to_store[label])
             self.outputs_to_store[label] = self._build_output_to_store(schema.outputs_to_store[label])
-
-        self._build_protocols(schema)
-        self._build_dependants_graph()
 
     def _append_uuid_to_output_to_store(self, output_to_store):
         """Appends this workflows uuid to all of the protocol paths
@@ -374,6 +374,9 @@ class Workflow:
             # Apply this replicator
             self._apply_replicator(schema, replicator)
 
+            if schema.json().find(replicator.placeholder_id) >= 0:
+                raise RuntimeError(f'The {replicator.id} replicator was not fully applied.')
+
     def _apply_replicator(self, schema, replicator):
         """A method to create a set of protocol schemas based on a ProtocolReplicator,
         and add them to the list of existing schemas.
@@ -413,7 +416,7 @@ class Workflow:
         # Make sure to correctly replicate gradient sources.
         replicated_gradient_sources = []
 
-        for gradient_source in self.gradients_sources:
+        for gradient_source in schema.gradients_sources:
 
             for index, template_value in enumerate(template_values):
 
@@ -422,34 +425,34 @@ class Workflow:
 
                 replicated_gradient_sources.append(replicated_source)
 
-        self.gradients_sources = replicated_gradient_sources
+        schema.gradients_sources = replicated_gradient_sources
 
         # Replicate any outputs.
-        self._apply_replicator_to_outputs(replicator, template_values)
+        self._apply_replicator_to_outputs(replicator, schema, template_values)
+        # Replicate any replicators.
+        self._apply_replicator_to_replicators(replicator, schema, template_values)
 
-        for other_replicator in schema.replicators:
+    def _apply_replicator_to_outputs(self, replicator, schema, template_values):
+        """Applies a replicator to a schema outputs to store.
 
-            # Get the list of values which will be passed to the newly created protocols.
-            if (not isinstance(other_replicator.template_values, ProtocolPath) or
-                replicator.placeholder_id not in other_replicator.template_values.full_path):
-
-                continue
-
-            other_replicator.template_values = [
-                ProtocolPath.from_string(other_replicator.template_values.full_path.replace(
-                    replicator.placeholder_id, str(index))) for index in range(len(template_values))
-            ]
-
-    def _apply_replicator_to_outputs(self, replicator, template_values):
+        Parameters
+        ----------
+        replicator: ProtocolReplicator
+            The replicator to apply.
+        schema: WorkflowSchema
+            The schema which defines the outputs to store.
+        template_values: List of Any
+            The values being applied by the replicator.
+        """
 
         outputs_to_replicate = []
 
-        for output_label in self.outputs_to_store:
+        for output_label in schema.outputs_to_store:
 
             if output_label.find(replicator.id) < 0:
                 continue
 
-            if isinstance(self.outputs_to_store[output_label], WorkflowDataCollectionToStore):
+            if isinstance(schema.outputs_to_store[output_label], WorkflowDataCollectionToStore):
                 raise NotImplementedError('`WorkflowDataCollectionToStore` cannot currently be replicated.')
 
             outputs_to_replicate.append(output_label)
@@ -458,7 +461,7 @@ class Workflow:
         # protocols which are being replicated.
         for output_label in outputs_to_replicate:
 
-            output_to_replicate = self.outputs_to_store.pop(output_label)
+            output_to_replicate = schema.outputs_to_store.pop(output_label)
 
             for index, template_value in enumerate(template_values):
 
@@ -477,13 +480,84 @@ class Workflow:
                     elif isinstance(attribute_value, ReplicatorValue):
 
                         if attribute_value.replicator_id != replicator.id:
+
+                            # Make sure to handle nested dependent replicators.
+                            attribute_value.replicator_id = attribute_value.replicator_id.replace(
+                                replicator.placeholder_id, str(index))
+
                             continue
 
                         attribute_value = template_value
 
                     setattr(replicated_output, attribute_key, attribute_value)
 
-                self.outputs_to_store[replicated_label] = replicated_output
+                schema.outputs_to_store[replicated_label] = replicated_output
+
+    @staticmethod
+    def _apply_replicator_to_replicators(replicator, schema, template_values):
+        """Applies a replicator to any replicators which depend upon
+        it (e.g. replicators with ids similar to `other_id_$(replicator.id)`).
+
+        Parameters
+        ----------
+        replicator: ProtocolReplicator
+            The replicator being applied.
+        schema: WorkflowSchema
+            The workflow schema to which the replicator belongs.
+        template_values: List of Any
+            The values which the replicator is applying.
+        """
+
+        # Look over all of the replicators left to apply and update them
+        # to point to the newly replicated protocols where appropriate.
+        new_indices = [str(index) for index in range(len(template_values))]
+
+        replicators = []
+
+        for original_replicator in schema.replicators:
+
+            # Check whether this replicator will be replicated.
+            if replicator.placeholder_id not in original_replicator.id:
+
+                replicators.append(original_replicator)
+                continue
+
+            # Create the replicated replicators
+            for template_index in new_indices:
+
+                replicator_id = original_replicator.id.replace(replicator.placeholder_id, template_index)
+
+                new_replicator = ProtocolReplicator(replicator_id)
+                new_replicator.template_values = original_replicator.template_values
+
+                # Make sure to replace any reference to the applied replicator
+                # with the actual index.
+                if isinstance(new_replicator.template_values, ProtocolPath):
+
+                    updated_path = new_replicator.template_values.full_path.replace(replicator.placeholder_id,
+                                                                                    template_index)
+
+                    new_replicator.template_values = ProtocolPath.from_string(updated_path)
+
+                elif isinstance(new_replicator.template_values, list):
+
+                    updated_values = []
+
+                    for template_value in new_replicator.template_values:
+
+                        if not isinstance(template_value, ProtocolPath):
+
+                            updated_values.append(template_value)
+                            continue
+
+                        updated_path = template_value.full_path.replace(replicator.placeholder_id, template_index)
+                        updated_values.append(ProtocolPath.from_string(updated_path))
+
+                    new_replicator.template_values = updated_values
+
+                replicators.append(new_replicator)
+
+        schema.replicators = replicators
 
     def _build_dependants_graph(self):
         """Builds a dictionary of key value pairs where each key represents the id of a

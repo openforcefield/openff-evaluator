@@ -17,15 +17,14 @@ from propertyestimator.properties.dielectric import DielectricConstant
 from propertyestimator.properties.plugins import registered_properties
 from propertyestimator.protocols.groups import ConditionalGroup
 from propertyestimator.substances import Substance
-from propertyestimator.tests.test_workflow.utils import DummyReplicableProtocol, create_dummy_metadata, \
+from propertyestimator.tests.test_workflow.utils import create_dummy_metadata, \
     DummyEstimatedQuantityProtocol
 from propertyestimator.tests.utils import create_dummy_property
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import graph
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import WorkflowOptions, WorkflowSchema
-from propertyestimator.workflow.schemas import ProtocolReplicator
-from propertyestimator.workflow.utils import ReplicatorValue, ProtocolPath
+from propertyestimator.workflow.utils import ProtocolPath
 
 
 @pytest.mark.parametrize("registered_property_name", registered_properties)

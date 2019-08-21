@@ -244,3 +244,43 @@ def test_nested_replicators():
     assert dummy_workflow.protocols['dummy_1_1'].replicated_value_b == 2
 
     print(dummy_workflow.schema)
+
+
+def test_advanced_nested_replicators():
+
+    dummy_schema = WorkflowSchema()
+
+    replicator_a = ProtocolReplicator(replicator_id='replicator_a')
+    replicator_a.template_values = ['a', 'b']
+
+    replicator_b = ProtocolReplicator(replicator_id=f'replicator_b_{replicator_a.placeholder_id}')
+    replicator_b.template_values = ProtocolPath(f'dummy_list[{replicator_a.placeholder_id}]', 'global')
+
+    dummy_protocol = DummyReplicableProtocol(f'dummy_'
+                                             f'{replicator_a.placeholder_id}_'
+                                             f'{replicator_b.placeholder_id}')
+
+    dummy_protocol.replicated_value_a = ReplicatorValue(replicator_a.id)
+    dummy_protocol.replicated_value_b = ReplicatorValue(replicator_b.id)
+
+    dummy_schema.protocols[dummy_protocol.id] = dummy_protocol.schema
+    dummy_schema.replicators = [replicator_a, replicator_b]
+
+    dummy_schema.validate_interfaces()
+
+    dummy_property = create_dummy_property(Density)
+    dummy_metadata = Workflow.generate_default_metadata(dummy_property, 'smirnoff99Frosst-1.1.0.offxml', [])
+    dummy_metadata['dummy_list'] = [[1], [2]]
+
+    dummy_workflow = Workflow(dummy_property, dummy_metadata, '')
+    dummy_workflow.schema = dummy_schema
+
+    assert len(dummy_workflow.protocols) == 2
+
+    assert dummy_workflow.protocols['dummy_0_0'].replicated_value_a == 'a'
+    assert dummy_workflow.protocols['dummy_0_0'].replicated_value_b == 1
+
+    assert dummy_workflow.protocols['dummy_1_0'].replicated_value_a == 'b'
+    assert dummy_workflow.protocols['dummy_1_0'].replicated_value_b == 2
+
+    print(dummy_workflow.schema)
