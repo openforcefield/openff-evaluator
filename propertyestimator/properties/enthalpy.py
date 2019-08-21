@@ -126,14 +126,14 @@ class WeightGradientByMoleFraction(BaseWeightByMoleFraction):
         pass
 
     def _weight_values(self, mole_fraction):
-            """
-            Returns
-            -------
-            ParameterGradient
-                The weighted value.
-            """
-            return ParameterGradient(self._value.key,
-                                     self._value.value * mole_fraction)
+        """
+        Returns
+        -------
+        ParameterGradient
+            The weighted value.
+        """
+        return ParameterGradient(self._value.key,
+                                 self._value.value * mole_fraction)
 
 
 @register_estimable_property()
