@@ -218,6 +218,8 @@ class BasePaprikaProtocol(BaseProtocol):
             solvate_complex.max_molecules = self._number_of_solvent_molecules
             solvate_complex.box_aspect_ratio = self._simulation_box_aspect_ratio
             solvate_complex.center_solute_in_box = False
+            # THIS IS JUST FOR SMALL BOXES!
+            solvate_complex.mass_density = 0.005 * unit.grams / unit.milliliters
 
             solvate_complex.substance = filter_solvent.filtered_substance
             solvate_complex.solute_coordinate_file = window_file_path
