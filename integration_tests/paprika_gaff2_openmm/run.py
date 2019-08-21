@@ -22,7 +22,7 @@ def main():
 
     # Set up the object which describes how many compute resources available
     # on the machine on which the calculations will run.
-    resources = ComputeResources(number_of_threads=4, number_of_gpus=4,
+    resources = ComputeResources(number_of_threads=1, number_of_gpus=0,
                                  preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA)
 
 

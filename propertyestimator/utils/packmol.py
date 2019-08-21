@@ -478,10 +478,27 @@ def _create_pdb_and_topology(molecule, file_path):
 
             residue_map[residue.name] = None
 
+            if smiles == '[Cl-]':
+
+                residue_map[residue.name] = 'Cl-'
+
+                for atom in residue.atoms:
+                    atom.name = 'Cl-'
+
+            elif smiles == '[Na+]':
+
+                residue_map[residue.name] = 'Na+'
+
+                for atom in residue.atoms:
+                    atom.name = 'Na+'
+
         water_residue_names = frozenset(['H2O', 'HHO', 'OHH', 'HOH', 'OH2', 'SOL', 'WAT',
                                          'TIP', 'TIP2', 'TIP3', 'TIP4'])
 
         for original_residue_name in residue_map:
+
+            if residue_map[original_residue_name] is not None:
+                continue
 
             new_residue_name = ''.join([random.choice(string.ascii_uppercase) for _ in range(3)])
 
@@ -497,3 +514,4 @@ def _create_pdb_and_topology(molecule, file_path):
         oe_mol2.save_pdb(file_path)
 
     return oe_mol2.topology
+
