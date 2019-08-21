@@ -418,6 +418,11 @@ class Workflow:
 
         for gradient_source in schema.gradients_sources:
 
+            if replicator.placeholder_id not in gradient_source.full_path:
+
+                replicated_gradient_sources.append(gradient_source)
+                continue
+
             for index, template_value in enumerate(template_values):
 
                 replicated_source = ProtocolPath.from_string(
@@ -723,7 +728,7 @@ class Workflow:
 
             for parameter_key in parameter_gradient_keys:
 
-                if parameter_key.tag not in labelled_molecule:
+                if parameter_key.tag not in labelled_molecule or parameter_key in reduced_parameter_keys:
                     continue
 
                 contains_parameter = False

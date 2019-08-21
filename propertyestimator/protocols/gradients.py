@@ -526,6 +526,48 @@ class DivideGradientByScalar(BaseProtocol):
 
 
 @register_calculation_protocol()
+class MultiplyGradientByScalar(BaseProtocol):
+    """A protocol which multiplies a gradient by a specified scalar
+
+    Notes
+    -----
+    Once a more robust type system is built-in, this will be deprecated
+    by `MultiplyValue`.
+    """
+
+    @protocol_input(ParameterGradient)
+    def value(self):
+        """The value to divide."""
+        pass
+
+    @protocol_input(unit.Quantity)
+    def scalar(self):
+        """The scalar to multiply by."""
+        pass
+
+    @protocol_output(ParameterGradient)
+    def result(self):
+        """The result of the division."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new DivideValue object."""
+        super().__init__(protocol_id)
+
+        self._value = None
+        self._scalar = None
+
+        self._result = None
+
+    def execute(self, directory, available_resources):
+
+        self._result = ParameterGradient(self._value.key,
+                                         self._value.value * self._scalar)
+
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
 class AddGradients(BaseProtocol):
     """A temporary protocol to add together multiple gradients.
 

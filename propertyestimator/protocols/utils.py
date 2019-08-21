@@ -140,8 +140,6 @@ def generate_base_reweighting_protocols(analysis_protocol, mbar_protocol, workfl
 
     if (isinstance(mbar_protocol, reweighting.ReweightStatistics) and
         mbar_protocol.statistics_type != ObservableType.PotentialEnergy and
-        mbar_protocol.statistics_type != ObservableType.TotalEnergy and
-        mbar_protocol.statistics_type != ObservableType.Enthalpy and
         mbar_protocol.statistics_type != ObservableType.ReducedPotential):
 
         mbar_protocol.statistics_paths = ProtocolPath('output_statistics_path', decorrelate_statistics.id)
@@ -472,8 +470,6 @@ def generate_gradient_protocol_group(template_reweighting_protocol,
     # if the observable depends on the parameter being reweighted.
     use_target_state_energies = (isinstance(template_reweighting_protocol, reweighting.ReweightStatistics) and
                                  (template_reweighting_protocol.statistics_type == ObservableType.PotentialEnergy or
-                                  template_reweighting_protocol.statistics_type == ObservableType.TotalEnergy or
-                                  template_reweighting_protocol.statistics_type == ObservableType.Enthalpy or
                                   template_reweighting_protocol.statistics_type == ObservableType.ReducedPotential))
 
     template_reweighting_schema = template_reweighting_protocol.schema
