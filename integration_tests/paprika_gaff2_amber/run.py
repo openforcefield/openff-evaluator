@@ -2,7 +2,7 @@
 import logging
 import os as os
 
-from simtk import unit
+from propertyestimator import unit
 
 from integration_tests.utils import get_paprika_host_guest_substance
 from propertyestimator.backends import ComputeResources

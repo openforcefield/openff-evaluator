@@ -2,7 +2,7 @@
 import logging
 import os as os
 
-from simtk import unit
+from propertyestimator import unit
 
 from integration_tests.utils import get_paprika_host_guest_substance
 from propertyestimator.backends import ComputeResources
@@ -69,7 +69,7 @@ def main():
             logging.info(f'The attach / pull calculations failed with error: {result.message}')
             return
 
-            substance_results.append(host_guest_protocol)
+        substance_results.append(host_guest_protocol)
 
     if len(host_guest_substances) > 1:
 
