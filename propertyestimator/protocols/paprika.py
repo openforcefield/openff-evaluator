@@ -218,8 +218,10 @@ class BasePaprikaProtocol(BaseProtocol):
             solvate_complex.max_molecules = self._number_of_solvent_molecules
             solvate_complex.box_aspect_ratio = self._simulation_box_aspect_ratio
             solvate_complex.center_solute_in_box = False
-            # THIS IS JUST FOR SMALL BOXES!
+
+            ##############
             solvate_complex.mass_density = 0.005 * unit.grams / unit.milliliters
+            ##############
 
             solvate_complex.substance = filter_solvent.filtered_substance
             solvate_complex.solute_coordinate_file = window_file_path
@@ -1056,9 +1058,12 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
 
         self._results_dictionary = paprika.analyze(host=self._paprika_setup.host,
                                                    guest=self._paprika_setup.guest,
-                                                   topology_file='structure.prmtop',
-                                                   trajectory_mask='production.nc',
-                                                   directory_path=directory).results
+                                                   guest_orientation=self.taproom_guest_orientation,
+                                                   topology_file='restrained.pdb',
+                                                   trajectory_mask='*.dcd',
+                                                   directory_path=directory,
+                                                   guest_residue_name=self._paprika_setup.guest_yaml["name"] if
+                                                   self._paprika_setup.guest != "release" else None).results
 
         super(AmberPaprikaProtocol, self)._perform_analysis(directory)
 
