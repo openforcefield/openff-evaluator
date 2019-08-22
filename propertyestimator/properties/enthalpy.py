@@ -918,37 +918,55 @@ class EnthalpyOfVaporization(PhysicalProperty):
             The schema to follow when estimating this property.
         """
 
+        # Set up the data replicator (we use the same one for the gas and liquid phase)
+        data_replicator = ProtocolReplicator('data_replicator')
+        data_replicator.template_values = ProtocolPath('full_system_data', 'global')
+        # Set up the gradient replicator
+        gradient_replicator = ProtocolReplicator('gradient_replicator')
+        gradient_replicator.template_values = ProtocolPath('parameter_gradient_keys', 'global')
+
         # Set up a protocol to extract both the liquid and gas phase data
-        unpack_data_collection = storage.UnpackStoredDataCollection('unpack_data_collection_$(data_repl)')
-        unpack_data_collection.input_data_path = ReplicatorValue('data_repl')
+        unpack_data_collection = storage.UnpackStoredDataCollection(f'unpack_data_collection_'
+                                                                    f'{data_replicator.placeholder_id}')
+        unpack_data_collection.input_data_path = ReplicatorValue(data_replicator.id)
 
         # Set up a protocol to extract the liquid phase energy from the existing data.
-        extract_liquid_energy = analysis.ExtractAverageStatistic('extract_liquid_energy_$(data_repl)')
+        extract_liquid_energy = analysis.ExtractAverageStatistic(f'extract_liquid_energy_'
+                                                                 f'{data_replicator.placeholder_id}')
         extract_liquid_energy.statistics_type = ObservableType.PotentialEnergy
+
         reweight_liquid_energy = reweighting.ReweightStatistics('reweight_liquid_energy')
         reweight_liquid_energy.statistics_type = ObservableType.PotentialEnergy
 
-        liquid_protocols, liquid_data_replicator = generate_base_reweighting_protocols(extract_liquid_energy,
-                                                                                       reweight_liquid_energy,
-                                                                                       options,
-                                                                                       id_suffix='_liquid')
+        liquid_protocols, _ = generate_base_reweighting_protocols(extract_liquid_energy,
+                                                                  reweight_liquid_energy,
+                                                                  options,
+                                                                  id_suffix='_liquid',
+                                                                  replicator_id=data_replicator.id)
 
         liquid_protocols.unpack_stored_data.simulation_data_path = ProtocolPath('collection_data_paths[liquid]',
                                                                                 unpack_data_collection.id)
 
-        extract_liquid_energy.divisor = ProtocolPath('total_number_of_molecules',
-                                                     liquid_protocols.unpack_stored_data.id)
+        # Extract the number of liquid phase molecules from the first data collection.
+        number_of_liquid_molecules = ProtocolPath('total_number_of_molecules',
+            liquid_protocols.unpack_stored_data.id.replace(data_replicator.placeholder_id, '0'))
+
+        divide_by_liquid_molecules = miscellaneous.DivideValue('divide_by_liquid_molecules')
+        divide_by_liquid_molecules.value = ProtocolPath('value', liquid_protocols.mbar_protocol.id)
+        divide_by_liquid_molecules.divisor = number_of_liquid_molecules
 
         # Set up a protocol to extract the gas phase energy from the existing data.
-        extract_gas_energy = analysis.ExtractAverageStatistic('extract_gas_energy_$(data_repl)')
+        extract_gas_energy = analysis.ExtractAverageStatistic('extract_gas_energy_'
+                                                              f'{data_replicator.placeholder_id}')
         extract_gas_energy.statistics_type = ObservableType.PotentialEnergy
         reweight_gas_energy = reweighting.ReweightStatistics('reweight_gas_energy')
         reweight_gas_energy.statistics_type = ObservableType.PotentialEnergy
 
-        gas_protocols, gas_data_replicator = generate_base_reweighting_protocols(extract_gas_energy,
-                                                                                 reweight_gas_energy,
-                                                                                 options,
-                                                                                 id_suffix='_gas')
+        gas_protocols, _ = generate_base_reweighting_protocols(extract_gas_energy,
+                                                               reweight_gas_energy,
+                                                               options,
+                                                               id_suffix='_gas',
+                                                               replicator_id=data_replicator.id)
 
         # Turn of PBC for the gas phase.
         gas_protocols.reduced_reference_potential.enable_pbc = False
@@ -963,7 +981,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
         # Combine the values to estimate the final enthalpy of vaporization
         energy_of_vaporization = miscellaneous.SubtractValues('energy_of_vaporization')
         energy_of_vaporization.value_b = ProtocolPath('value', gas_protocols.mbar_protocol.id)
-        energy_of_vaporization.value_a = ProtocolPath('value', liquid_protocols.mbar_protocol.id)
+        energy_of_vaporization.value_a = ProtocolPath('result', divide_by_liquid_molecules.id)
 
         ideal_volume = miscellaneous.MultiplyValue('ideal_volume')
         ideal_volume.value = EstimatedQuantity(1.0 * unit.molar_gas_constant,
@@ -977,10 +995,6 @@ class EnthalpyOfVaporization(PhysicalProperty):
             ProtocolPath('result', ideal_volume.id)
         ]
 
-        # Combine the data replicators
-        data_replicator = ProtocolReplicator(liquid_data_replicator.id)
-        data_replicator.template_values = liquid_data_replicator.template_values
-
         # Set up the liquid phase gradient calculations
         reweight_potential_template = reweighting.ReweightStatistics('')
         reweight_potential_template.statistics_type = ObservableType.PotentialEnergy
@@ -988,13 +1002,13 @@ class EnthalpyOfVaporization(PhysicalProperty):
         liquid_coordinate_path = ProtocolPath('output_coordinate_path', liquid_protocols.concatenate_trajectories.id)
         liquid_trajectory_path = ProtocolPath('output_trajectory_path', liquid_protocols.concatenate_trajectories.id)
 
-        liquid_gradient_group, liquid_gradient_replicator, liquid_gradient_source = \
+        liquid_gradient_group, _, liquid_gradient_source = \
             generate_gradient_protocol_group(reweight_potential_template,
                                              ProtocolPath('force_field_path', liquid_protocols.unpack_stored_data.id),
                                              ProtocolPath('force_field_path', 'global'),
                                              liquid_coordinate_path,
                                              liquid_trajectory_path,
-                                             replicator_id='grad',
+                                             replicator_id=gradient_replicator.id,
                                              id_suffix='_liquid',
                                              use_subset_of_force_field=False,
                                              effective_sample_indices=ProtocolPath('effective_sample_indices',
@@ -1004,13 +1018,13 @@ class EnthalpyOfVaporization(PhysicalProperty):
         gas_coordinate_path = ProtocolPath('output_coordinate_path', gas_protocols.concatenate_trajectories.id)
         gas_trajectory_path = ProtocolPath('output_trajectory_path', gas_protocols.concatenate_trajectories.id)
 
-        gas_gradient_group, gas_gradient_replicator, gas_gradient_source = \
+        gas_gradient_group, _, gas_gradient_source = \
             generate_gradient_protocol_group(reweight_potential_template,
                                              ProtocolPath('force_field_path', gas_protocols.unpack_stored_data.id),
                                              ProtocolPath('force_field_path', 'global'),
                                              gas_coordinate_path,
                                              gas_trajectory_path,
-                                             replicator_id='grad',
+                                             replicator_id=gradient_replicator.id,
                                              id_suffix='_gas',
                                              use_subset_of_force_field=False,
                                              enable_pbc=False,
@@ -1018,27 +1032,14 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                                                                    gas_protocols.mbar_protocol.id))
 
         # Combine the gradients.
-        # TODO - this is an obvious failing of the current workflow code that we have to
-        #        resort to this to get the number of molecules. This should be fixed ASAP
-        #        once a better typing system is in.
-        divide_data_collection = storage.UnpackStoredDataCollection('divide_data_collection')
-        divide_data_collection.input_data_path = ProtocolPath('full_system_data[0]', 'global')
+        divide_liquid_gradient = gradients.DivideGradientByScalar(f'divide_liquid_gradient_'
+                                                                  f'{gradient_replicator.placeholder_id}')
+        divide_liquid_gradient.value = liquid_gradient_source
+        divide_liquid_gradient.divisor = number_of_liquid_molecules
 
-        divide_data = storage.UnpackStoredSimulationData('molecule_count')
-        divide_data.simulation_data_path = ProtocolPath('collection_data_paths[liquid]',
-                                                        divide_data_collection.id)
-
-        scale_liquid_gradient = gradients.DivideGradientByScalar('scale_liquid_gradient_$(grad)')
-        scale_liquid_gradient.value = liquid_gradient_source
-        scale_liquid_gradient.divisor = ProtocolPath('total_number_of_molecules', divide_data.id)
-
-        combine_gradients = gradients.SubtractGradients('combine_gradients_$(grad)')
+        combine_gradients = gradients.SubtractGradients(f'combine_gradients_{gradient_replicator.placeholder_id}')
         combine_gradients.value_b = gas_gradient_source
-        combine_gradients.value_a = ProtocolPath('result', scale_liquid_gradient.id)
-
-        # Combine the gradient replicators.
-        gradient_replicator = ProtocolReplicator(liquid_gradient_replicator.id)
-        gradient_replicator.template_values = ProtocolPath('parameter_gradient_keys', 'global')
+        combine_gradients.value_a = ProtocolPath('result', divide_liquid_gradient.id)
 
         # Build the workflow schema.
         schema = WorkflowSchema(property_type=EnthalpyOfVaporization.__name__)
@@ -1049,15 +1050,14 @@ class EnthalpyOfVaporization(PhysicalProperty):
         schema.protocols.update({protocol.id: protocol.schema for protocol in liquid_protocols})
         schema.protocols.update({protocol.id: protocol.schema for protocol in gas_protocols})
 
+        schema.protocols[divide_by_liquid_molecules.id] = divide_by_liquid_molecules.schema
         schema.protocols[energy_of_vaporization.id] = energy_of_vaporization.schema
         schema.protocols[ideal_volume.id] = ideal_volume.schema
         schema.protocols[enthalpy_of_vaporization.id] = enthalpy_of_vaporization.schema
 
         schema.protocols[liquid_gradient_group.id] = liquid_gradient_group.schema
         schema.protocols[gas_gradient_group.id] = gas_gradient_group.schema
-        schema.protocols[divide_data_collection.id] = divide_data_collection.schema
-        schema.protocols[divide_data.id] = divide_data.schema
-        schema.protocols[scale_liquid_gradient.id] = scale_liquid_gradient.schema
+        schema.protocols[divide_liquid_gradient.id] = divide_liquid_gradient.schema
         schema.protocols[combine_gradients.id] = combine_gradients.schema
 
         schema.replicators = [data_replicator, gradient_replicator]

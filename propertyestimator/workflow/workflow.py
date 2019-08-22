@@ -1217,7 +1217,7 @@ class WorkflowGraph:
                     property_name = target_path.property_name
                     property_index = None
 
-                    nested_property_name = property_name
+                    nested_property_name = None
 
                     if property_name.find('.') > 0:
 
@@ -1227,13 +1227,17 @@ class WorkflowGraph:
                     if property_name.find('[') >= 0 or property_name.find(']') >= 0:
                         property_name, property_index = extract_variable_index_and_name(property_name)
 
-                    previous_value = previous_outputs_by_path[ProtocolPath(property_name,
-                                                                           target_path.start_protocol)]
+                    _, target_protocol_ids = ProtocolPath.to_components(target_path.full_path)
+
+                    target_value = previous_outputs_by_path[ProtocolPath(property_name,
+                                                                         *target_protocol_ids)]
 
                     if property_index is not None:
-                        previous_value = previous_value[property_index]
+                        target_value = target_value[property_index]
 
-                    target_value = get_nested_attribute(previous_value, nested_property_name)
+                    if nested_property_name is not None:
+                        target_value = get_nested_attribute(target_value, nested_property_name)
+
                     protocol.set_value(source_path, target_value)
 
             logging.info('Executing protocol: {}'.format(protocol.id))
