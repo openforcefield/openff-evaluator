@@ -1214,17 +1214,26 @@ class WorkflowGraph:
 
                         continue
 
-                    # TODO: Add better support for array indexing.
-                    if target_path.property_name.find('[') >= 0 or target_path.property_name.find(']') >= 0:
+                    property_name = target_path.property_name
+                    property_index = None
 
-                        attribute_name, array_index = extract_variable_index_and_name(target_path.property_name)
+                    nested_property_name = property_name
 
-                        array_value = previous_outputs_by_path[ProtocolPath(attribute_name, target_path.start_protocol)]
-                        target_value = array_value[array_index]
+                    if property_name.find('.') > 0:
 
-                    else:
-                        target_value = previous_outputs_by_path[target_path]
+                        nested_property_name = '.'.join(property_name.split('.')[1:])
+                        property_name = property_name.split('.')[0]
 
+                    if property_name.find('[') >= 0 or property_name.find(']') >= 0:
+                        property_name, property_index = extract_variable_index_and_name(property_name)
+
+                    previous_value = previous_outputs_by_path[ProtocolPath(property_name,
+                                                                           target_path.start_protocol)]
+
+                    if property_index is not None:
+                        previous_value = previous_value[property_index]
+
+                    target_value = get_nested_attribute(previous_value, nested_property_name)
                     protocol.set_value(source_path, target_value)
 
             logging.info('Executing protocol: {}'.format(protocol.id))

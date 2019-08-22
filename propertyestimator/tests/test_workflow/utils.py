@@ -53,6 +53,29 @@ class DummyReplicableProtocol(BaseProtocol):
 
 
 @register_calculation_protocol()
+class DummyQuantityProtocol(BaseProtocol):
+
+    @protocol_input(unit.Quantity)
+    def input_value(self):
+        pass
+
+    @protocol_output(unit.Quantity)
+    def output_value(self):
+        pass
+
+    def __init__(self, protocol_id):
+
+        super().__init__(protocol_id)
+
+        self._input_value = None
+        self._output_value = None
+
+    def execute(self, directory, available_resources):
+        self._output_value = self._input_value
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
 class DummyEstimatedQuantityProtocol(BaseProtocol):
 
     @protocol_input(EstimatedQuantity)
@@ -82,7 +105,16 @@ class DummyProtocolWithDictInput(BaseProtocol):
     def input_value(self):
         pass
 
+    @protocol_output(dict)
+    def output_value(self):
+        pass
+
     def __init__(self, protocol_id):
 
         super().__init__(protocol_id)
         self._input_value = None
+        self._output_value = None
+
+    def execute(self, directory, available_resources):
+        self._output_value = self._input_value
+        return self._get_output_dictionary()

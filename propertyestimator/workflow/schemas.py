@@ -1,6 +1,7 @@
 """
 A collection of schemas which represent elements of a property calculation workflow.
 """
+import re
 
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedBaseModel
@@ -521,6 +522,75 @@ class WorkflowSchema(TypedBaseModel):
 
         self.outputs_to_store = state['outputs_to_store']
 
+    def _find_protocols_to_be_replicated(self, replicator, protocols=None):
+        """Finds all protocols which have been flagged to be replicated
+        by a specified replicator.
+
+        Parameters
+        ----------
+        replicator: ProtocolReplicator
+            The replicator of interest.
+        protocols: dict of str and ProtocolSchema or list of ProtocolSchema, optional
+            The protocols to search through. If None, then
+            all protocols in this schema will be searched.
+
+        Returns
+        -------
+        list of str
+            The ids of the protocols to be replicated by the specified replicator
+        """
+
+        if protocols is None:
+            protocols = self.protocols
+
+        if isinstance(protocols, list):
+            protocols = {protocol.id: protocol for protocol in protocols}
+
+        protocols_to_replicate = []
+
+        for protocol_id, protocol in protocols.items():
+
+            if protocol_id.find(replicator.placeholder_id) >= 0:
+                protocols_to_replicate.append(protocol_id)
+
+            # Search through any children
+            if not isinstance(protocol, ProtocolGroupSchema):
+                continue
+
+            protocols_to_replicate.extend(self._find_protocols_to_be_replicated(replicator,
+                                                                                protocol.grouped_protocol_schemas))
+
+        return protocols_to_replicate
+
+    def _get_unreplicated_path(self, protocol_path):
+        """Checks to see if the protocol pointed to by this path will only
+        exist after a replicator has been applied, and if so, returns a
+        path to the unreplicated protocol.
+
+        Parameters
+        ----------
+        protocol_path: ProtocolPath
+            The path to convert to an unreplicated path.
+
+        Returns
+        -------
+        ProtocolPath
+            The path which should point to only unreplicated protocols
+        """
+
+        full_unreplicated_path = str(protocol_path.full_path)
+
+        for replicator in self.replicators:
+
+            protocols_to_replicate = self._find_protocols_to_be_replicated(replicator)
+
+            for protocol_id in protocols_to_replicate:
+
+                match_pattern = protocol_id.replace(replicator.placeholder_id, r'\d+')
+                full_unreplicated_path = re.sub(match_pattern, protocol_id, full_unreplicated_path)
+
+        return ProtocolPath.from_string(full_unreplicated_path)
+
     def _validate_replicators(self):
 
         for replicator in self.replicators:
@@ -703,6 +773,8 @@ class WorkflowSchema(TypedBaseModel):
                     if value_reference.is_global:
                         # We handle global input validation separately
                         continue
+
+                    value_reference = self._get_unreplicated_path(value_reference)
 
                     # Make sure the other protocol whose output we are interested
                     # in actually exists.

@@ -18,13 +18,14 @@ from propertyestimator.properties.plugins import registered_properties
 from propertyestimator.protocols.groups import ConditionalGroup
 from propertyestimator.substances import Substance
 from propertyestimator.tests.test_workflow.utils import create_dummy_metadata, \
-    DummyEstimatedQuantityProtocol
+    DummyEstimatedQuantityProtocol, DummyQuantityProtocol, DummyProtocolWithDictInput
 from propertyestimator.tests.utils import create_dummy_property
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import graph
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import WorkflowOptions, WorkflowSchema
-from propertyestimator.workflow.utils import ProtocolPath
+from propertyestimator.workflow.schemas import ProtocolReplicator
+from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
 @pytest.mark.parametrize("registered_property_name", registered_properties)
@@ -243,3 +244,64 @@ def test_simple_workflow_graph_with_groups():
         result = results_futures[0].result()
         assert isinstance(result, CalculationLayerResult)
         assert result.calculated_property.value == 1 * unit.kelvin
+
+
+def test_nested_input():
+
+    dummy_schema = WorkflowSchema()
+
+    dict_protocol = DummyProtocolWithDictInput('dict_protocol')
+    dict_protocol.input_value = {'a': ThermodynamicState(temperature=1*unit.kelvin)}
+    dummy_schema.protocols[dict_protocol.id] = dict_protocol.schema
+
+    quantity_protocol = DummyQuantityProtocol('quantity_protocol')
+    quantity_protocol.input_value = ProtocolPath('output_value[a].temperature', dict_protocol.id)
+    dummy_schema.protocols[quantity_protocol.id] = quantity_protocol.schema
+
+    dummy_schema.validate_interfaces()
+
+    dummy_property = create_dummy_property(Density)
+
+    dummy_workflow = Workflow(dummy_property, {})
+    dummy_workflow.schema = dummy_schema
+
+    with tempfile.TemporaryDirectory() as temporary_directory:
+
+        workflow_graph = WorkflowGraph(temporary_directory)
+        workflow_graph.add_workflow(dummy_workflow)
+
+        dask_local_backend = DaskLocalCluster(1, ComputeResources(1))
+        dask_local_backend.start()
+
+        results_futures = workflow_graph.submit(dask_local_backend)
+
+        assert len(results_futures) == 1
+
+        result = results_futures[0].result()
+        assert isinstance(result, CalculationLayerResult)
+
+
+def test_index_replicated_protocol():
+
+    dummy_schema = WorkflowSchema()
+
+    dummy_replicator = ProtocolReplicator('dummy_replicator')
+    dummy_replicator.template_values = ['a', 'b', 'c', 'd']
+    dummy_schema.replicators = [dummy_replicator]
+
+    replicated_protocol = DummyEstimatedQuantityProtocol(f'protocol_{dummy_replicator.placeholder_id}')
+    replicated_protocol.input_value = ReplicatorValue(dummy_replicator.id)
+    dummy_schema.protocols[replicated_protocol.id] = replicated_protocol.schema
+
+    for index in range(len(dummy_replicator.template_values)):
+
+        indexing_protocol = DummyEstimatedQuantityProtocol(f'indexing_protocol_{index}')
+        indexing_protocol.input_value = ProtocolPath('output_value', f'protocol_{index}')
+        dummy_schema.protocols[indexing_protocol.id] = indexing_protocol.schema
+
+    dummy_schema.validate_interfaces()
+
+    dummy_property = create_dummy_property(Density)
+
+    dummy_workflow = Workflow(dummy_property, {})
+    dummy_workflow.schema = dummy_schema
