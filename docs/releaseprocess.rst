@@ -65,7 +65,7 @@ To cut a new release on GitHub:
 To trigger the build in ``omnia``:
 
 1) Create branch or fork of omnia-md/conda-recipes with the following changes to propertyestimator in
-`meta.yaml<https://github.com/omnia-md/conda-recipes/blob/master/propertyestimator/meta.yaml>_`:
+`meta.yaml<https://github.com/omnia-md/conda-recipes/blob/master/propertyestimator/meta.yaml>`_:
 
   a) Set ``git_tag`` to match the git release tag
   b) Update the ``version`` to match the release (this will go into the conda package name)
@@ -80,8 +80,8 @@ To trigger the build in ``omnia``:
   c) Travis will run on this PR (~30 minutes) and attempt to build the package. Under no conditions will the package
      be uploaded before the PR is merged. This step is just to ensure that building doesn't crash.
   d) If the build is successful the PR should be reviewed and merged by the ``omnia`` maintainers
-  e) **Once merged into master** Package is built again on travis, and pushed to the channel set in meta.yaml (main,beta, or rc)
-  f) If we have `upload: rc`, we would install with `conda install -c omnia/label/rc propertyestimator`
+  e) **Once merged into master** the package is built again on travis, and pushed to the channel set in
+     meta.yaml (``main``, ``beta``, or ``rc``)
 
 3) Test the ``omnia`` package:
 
