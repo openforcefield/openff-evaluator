@@ -69,14 +69,13 @@ class ProtocolReplicator(TypedBaseModel):
     """A protocol replicator contains the information necessary to replicate
     parts of a property estimation workflow.
 
-    The protocols referenced by `protocols_to_replicate` will be cloned for
-    each value present in `template_values`. Protocols that are being replicated
-    will also have any ReplicatorValue inputs replaced with the actual value.
+    Any protocol whose id includes `$(replicator.id)` (where `replicator.id` is the
+    id of a replicator) will be cloned for each value present in `template_values`.
+    Protocols that are being replicated will also have any ReplicatorValue inputs replaced
+    with the actual value taken from `template_values`.
 
-    Each of the protocols referenced in the `protocols_to_replicate` must have an id
-    which contains the '$(id_index)' string (e.g component_$(id_index)_build_coordinates)
-    where here *`id` is the id of the replicator* - when the protocol is replicated, $(id_index)
-    will be replaced by the protocols actual index, which corresponds to a value in the
+    When the protocol is replicated, the `$(replicator.id)` placeholder in the protocol
+    id will be replaced an integer which corresponds to the index of a value in the
     `template_values` array.
 
     Any protocols which take input from a replicated protocol will be updated to
@@ -85,11 +84,18 @@ class ProtocolReplicator(TypedBaseModel):
 
     Notes
     -----
-    * The protocols referenced to by `template_targets` **must not** be protocols
-      which are being replicated.
-    * The `template_values` property must be a list of either constant values,
-      or :obj:`ProtocolPath`'s which take their value from the `global` scope.
+        * The `template_values` property must be a list of either constant values,
+          or `ProtocolPath` objects which take their value from the `global` scope.
+        * If children of replicated protocols are also flagged as to be replicated,
+          they will only have their ids changed to match the index of the parent
+          protocol, as opposed to being fully replicated.
     """
+
+    @property
+    def placeholder_id(self):
+        """The string which protocols to be replicated should include in
+        their ids."""
+        return f'$({self.id})'
 
     def __init__(self, replicator_id=''):
         """Constructs a new ProtocolReplicator object.
@@ -100,38 +106,235 @@ class ProtocolReplicator(TypedBaseModel):
             The id of this replicator.
         """
         self.id = replicator_id
-
-        self.protocols_to_replicate = []
         self.template_values = None
 
     def __getstate__(self):
 
         return {
             'id': self.id,
-
-            'protocols_to_replicate': self.protocols_to_replicate,
             'template_values': self.template_values
         }
 
     def __setstate__(self, state):
 
         self.id = state['id']
-
-        self.protocols_to_replicate = state['protocols_to_replicate']
         self.template_values = state['template_values']
 
-    def replicates_protocol_or_child(self, protocol_path):
-        """Returns whether the protocol pointed to by `protocol_path` (or
-        any of its children) will be replicated by this replicator."""
+    def apply(self, protocols, template_values=None, template_index=-1, template_value=None):
+        """Applies this replicator to the provided set of protocols and any of
+        their children.
 
-        for path_to_replace in self.protocols_to_replicate:
+        This protocol should be followed by a call to `update_references`
+        to ensure that all protocols which take their input from a replicated
+        protocol get correctly updated.
 
-            if path_to_replace.full_path.find(protocol_path.start_protocol) < 0:
+        Parameters
+        ----------
+        protocols: dict of str and BaseProtocol
+            The protocols to apply the replicator to.
+        template_values: list of Any
+            A list of the values which will be inserted
+            into the newly replicated protocols.
+
+            This parameter is mutually exclusive with
+            `template_index` and `template_value`
+        template_index: int, optional
+            A specific value which should be used for any
+            protocols flagged as to be replicated by this
+            replicator. This option is mainly used when
+            replicating children of an already replicated
+            protocol.
+
+            This parameter is mutually exclusive with
+            `template_values` and must be set along with
+            a `template_value`.
+        template_value: Any, optional
+            A specific index which should be used for any
+            protocols flagged as to be replicated by this
+            replicator. This option is mainly used when
+            replicating children of an already replicated
+            protocol.
+
+            This parameter is mutually exclusive with
+            `template_values` and must be set along with
+            a `template_index`.
+
+        Returns
+        -------
+        dict of str and BaseProtocol
+            The replicated protocols.
+        dict of ProtocolPath and list of tuple of ProtocolPath and int
+            A dictionary of references to all of the protocols which have
+            been replicated, with keys of original protocol ids. Each value
+            is comprised of a list of the replicated protocol ids, and their
+            index into the `template_values` array.
+        """
+
+        if ((template_values is not None and (template_index >= 0 or template_value is not None)) or
+            (template_values is None and (template_index < 0 or template_value is None))):
+
+            raise ValueError(f'Either the template values array must be set, or a specific '
+                             f'template index and value must be passed.')
+
+        replicated_protocols = {}
+        replicated_protocol_map = {}
+
+        for protocol_id, protocol in protocols.items():
+
+            should_replicate = self.placeholder_id in protocol_id
+
+            # If this protocol should not be directly replicated then try and
+            # replicate any child protocols...
+            if not should_replicate:
+
+                replicated_protocols[protocol_id] = protocol
+
+                self._apply_to_protocol_children(protocol, replicated_protocol_map,
+                                                 template_values, template_index, template_value)
+
                 continue
 
-            return True
+            # ..otherwise, we need to replicate this protocol.
+            replicated_protocols.update(self._apply_to_protocol(protocol, replicated_protocol_map,
+                                                                template_values, template_index, template_value))
 
-        return False
+        return replicated_protocols, replicated_protocol_map
+
+    def _apply_to_protocol(self, protocol, replicated_protocol_map, template_values=None,
+                           template_index=-1, template_value=None):
+
+        replicated_protocol_map[ProtocolPath('', protocol.id)] = []
+        replicated_protocols = {}
+
+        template_values_dict = {template_index: template_value}
+
+        if template_values is not None:
+
+            template_values_dict = {index: template_value for
+                                    index, template_value in enumerate(template_values)}
+
+        for index, template_value in template_values_dict.items():
+
+            protocol_schema = protocol.schema
+            protocol_schema.id = protocol_schema.id.replace(self.placeholder_id, str(index))
+
+            replicated_protocol = available_protocols[protocol_schema.type](protocol_schema.id)
+            replicated_protocol.schema = protocol_schema
+
+            replicated_protocol_map[ProtocolPath('', protocol.id)].append(
+                (ProtocolPath('', replicated_protocol.id), index))
+
+            # Pass the template values to any inputs which require them.
+            for required_input in replicated_protocol.required_inputs:
+
+                input_value = replicated_protocol.get_value(required_input)
+
+                if not isinstance(input_value, ReplicatorValue):
+                    continue
+
+                elif input_value.replicator_id != self.id:
+
+                    input_value.replicator_id = input_value.replicator_id.replace(self.placeholder_id, str(index))
+                    continue
+
+                replicated_protocol.set_value(required_input, template_value)
+
+            self._apply_to_protocol_children(replicated_protocol, replicated_protocol_map,
+                                             None, index, template_value)
+
+            replicated_protocols[replicated_protocol.id] = replicated_protocol
+
+        return replicated_protocols
+
+    def _apply_to_protocol_children(self, protocol, replicated_protocol_map, template_values=None,
+                                    template_index=-1, template_value=None):
+
+        replicated_child_ids = protocol.apply_replicator(self, template_values,
+                                                         template_index, template_value)
+
+        # Append the id of this protocols to any replicated child protocols.
+        for child_id, replicated_ids in replicated_child_ids.items():
+
+            child_id.prepend_protocol_id(protocol.id)
+
+            for replicated_id, _ in replicated_ids:
+                replicated_id.prepend_protocol_id(protocol.id)
+
+            replicated_protocol_map.update(replicated_child_ids)
+
+    def update_references(self, protocols, replication_map, template_values):
+        """Redirects the input references of protocols to the replicated
+        versions.
+
+        Parameters
+        ----------
+        protocols: dict of str and BaseProtocol
+            The protocols which have had this replicator applied
+            to them.
+        replication_map: dict of ProtocolPath and list of tuple of ProtocolPath and int
+            A dictionary of references to all of the protocols which have
+            been replicated, with keys of original protocol ids. Each value
+            is comprised of a list of the replicated protocol ids, and their
+            index into the `template_values` array.
+        template_values: List of Any
+            A list of the values which will be inserted
+            into the newly replicated protocols.
+        """
+
+        inverse_replication_map = {}
+
+        for original_id, replicated_ids in replication_map.items():
+            for replicated_id, index in replicated_ids:
+                inverse_replication_map[replicated_id] = (original_id, index)
+
+        for protocol_id, protocol in protocols.items():
+
+            # Look at each of the protocols inputs and see if its value is either a ProtocolPath,
+            # or a list of ProtocolPath's.
+            for required_input in protocol.required_inputs:
+
+                all_value_references = protocol.get_value_references(required_input)
+                replicated_value_references = {}
+
+                for source_path, value_reference in all_value_references.items():
+
+                    if self.placeholder_id not in value_reference.full_path:
+                        continue
+
+                    replicated_value_references[source_path] = value_reference
+
+                # If this protocol does not take input from one of the replicated protocols,
+                # then we are done.
+                if len(replicated_value_references) == 0:
+                    continue
+
+                for source_path, value_reference in replicated_value_references.items():
+
+                    full_source_path = ProtocolPath.from_string(source_path.full_path)
+                    full_source_path.prepend_protocol_id(protocol_id)
+
+                    # If the protocol was not itself replicated by this replicator, its value
+                    # is set to a list containing references to all newly replicated protocols.
+                    # Otherwise, the value will be set to a reference to just the protocol which
+                    # was replicated using the same index.
+                    value_source = [ProtocolPath.from_string(value_reference.full_path.replace(
+                        self.placeholder_id, str(index))) for index in range(len(template_values))]
+
+                    for replicated_id, map_tuple in inverse_replication_map.items():
+
+                        original_id, replicated_index = map_tuple
+
+                        if full_source_path.protocol_path.find(replicated_id.protocol_path) < 0:
+                            continue
+
+                        value_source = ProtocolPath.from_string(value_reference.full_path.replace(
+                            self.placeholder_id, str(replicated_index)))
+
+                        break
+
+                    # Replace the input value with a list of ProtocolPath's that point to
+                    # the newly generated protocols.
+                    protocol.set_value(source_path, value_source)
 
 
 class WorkflowOutputToStore:
@@ -319,14 +522,88 @@ class WorkflowSchema(TypedBaseModel):
 
         self.outputs_to_store = state['outputs_to_store']
 
+    def _find_protocols_to_be_replicated(self, replicator, protocols=None):
+        """Finds all protocols which have been flagged to be replicated
+        by a specified replicator.
+
+        Parameters
+        ----------
+        replicator: ProtocolReplicator
+            The replicator of interest.
+        protocols: dict of str and ProtocolSchema or list of ProtocolSchema, optional
+            The protocols to search through. If None, then
+            all protocols in this schema will be searched.
+
+        Returns
+        -------
+        list of str
+            The ids of the protocols to be replicated by the specified replicator
+        """
+
+        if protocols is None:
+            protocols = self.protocols
+
+        if isinstance(protocols, list):
+            protocols = {protocol.id: protocol for protocol in protocols}
+
+        protocols_to_replicate = []
+
+        for protocol_id, protocol in protocols.items():
+
+            if protocol_id.find(replicator.placeholder_id) >= 0:
+                protocols_to_replicate.append(protocol_id)
+
+            # Search through any children
+            if not isinstance(protocol, ProtocolGroupSchema):
+                continue
+
+            protocols_to_replicate.extend(self._find_protocols_to_be_replicated(replicator,
+                                                                                protocol.grouped_protocol_schemas))
+
+        return protocols_to_replicate
+
+    def _get_unreplicated_path(self, protocol_path):
+        """Checks to see if the protocol pointed to by this path will only
+        exist after a replicator has been applied, and if so, returns a
+        path to the unreplicated protocol.
+
+        Parameters
+        ----------
+        protocol_path: ProtocolPath
+            The path to convert to an unreplicated path.
+
+        Returns
+        -------
+        ProtocolPath
+            The path which should point to only unreplicated protocols
+        """
+
+        full_unreplicated_path = str(protocol_path.full_path)
+
+        for replicator in self.replicators:
+
+            if replicator.placeholder_id in full_unreplicated_path:
+                continue
+
+            protocols_to_replicate = self._find_protocols_to_be_replicated(replicator)
+
+            for protocol_id in protocols_to_replicate:
+
+                match_pattern = re.escape(protocol_id.replace(replicator.placeholder_id, r'\d+'))
+                match_pattern = match_pattern.replace(re.escape(r'\d+'), r'\d+')
+
+                full_unreplicated_path = re.sub(match_pattern, protocol_id, full_unreplicated_path)
+
+        return ProtocolPath.from_string(full_unreplicated_path)
+
     def _validate_replicators(self):
 
         for replicator in self.replicators:
 
             assert replicator.id is not None and len(replicator.id) > 0
 
-            if len(replicator.protocols_to_replicate) == 0:
-                raise ValueError('A replicator does not have any protocols to replicate.')
+            # if len(replicator.protocols_to_replicate) == 0:
+            #     raise ValueError('A replicator does not have any protocols to replicate.')
 
             if (not isinstance(replicator.template_values, list) and
                 not isinstance(replicator.template_values, ProtocolPath)):
@@ -350,22 +627,11 @@ class WorkflowSchema(TypedBaseModel):
                     raise ValueError('Template values must either be a constant, or come from the global '
                                      'scope.')
 
-            for protocol_path in replicator.protocols_to_replicate:
+            if (self.final_value_source is not None and
+                self.final_value_source.protocol_path.find(replicator.placeholder_id) >= 0):
 
-                if protocol_path.start_protocol not in self.protocols:
-                    raise ValueError('The value source {} does not exist.'.format(protocol_path))
-
-                if protocol_path == self.final_value_source:
-
-                    raise ValueError('The final value source cannot come from'
-                                     'a protocol which is being replicated.')
-
-                protocol_schema = self.protocols[protocol_path.start_protocol]
-
-                if re.search(r'\$\(.*\)', protocol_schema.id) is None:
-
-                    raise ValueError('Protocols which are being replicated must contain '
-                                     'the replicator id $(id) their protocol id.')
+                raise ValueError('The final value source cannot come from'
+                                 'a protocol which is being replicated.')
 
     def _validate_final_value(self):
 
@@ -513,6 +779,8 @@ class WorkflowSchema(TypedBaseModel):
                         # We handle global input validation separately
                         continue
 
+                    value_reference = self._get_unreplicated_path(value_reference)
+
                     # Make sure the other protocol whose output we are interested
                     # in actually exists.
                     if value_reference.start_protocol not in self.protocols:
@@ -532,6 +800,23 @@ class WorkflowSchema(TypedBaseModel):
 
                     # Will throw the correct exception if missing.
                     other_protocol_object.get_value(value_reference)
+
+                    is_replicated_reference = False
+
+                    for replicator in self.replicators:
+
+                        if ((replicator.placeholder_id in protocol_id and
+                             replicator.placeholder_id in value_reference.protocol_path) or
+                            (replicator.placeholder_id not in protocol_id and
+                             replicator.placeholder_id not in value_reference.protocol_path)):
+
+                            continue
+
+                        is_replicated_reference = True
+                        break
+
+                    if is_replicated_reference:
+                        continue
 
                     expected_input_type = protocol_object.get_attribute_type(source_path)
                     expected_output_type = other_protocol_object.get_attribute_type(value_reference)

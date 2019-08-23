@@ -46,7 +46,7 @@ class ConcatenateTrajectories(BaseProtocol):
         pass
 
     def __init__(self, protocol_id):
-        """Constructs a new AddValues object."""
+        """Constructs a new ConcatenateTrajectories object."""
         super().__init__(protocol_id)
 
         self._input_coordinate_paths = None
@@ -86,6 +86,50 @@ class ConcatenateTrajectories(BaseProtocol):
 
 
 @register_calculation_protocol()
+class ConcatenateStatistics(BaseProtocol):
+    """A protocol which concatenates multiple trajectories into
+    a single one.
+    """
+
+    @protocol_input(list)
+    def input_statistics_paths(self):
+        """A list of paths to the different statistics arrays."""
+        pass
+
+    @protocol_output(str)
+    def output_statistics_path(self):
+        """The path the csv file which contains the concatenated statistics."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new ConcatenateStatistics object."""
+        super().__init__(protocol_id)
+
+        self._input_statistics_paths = None
+        self._output_statistics_path = None
+
+    def execute(self, directory, available_resources):
+
+        if len(self._input_statistics_paths) == 0:
+
+            return PropertyEstimatorException(directory=directory, message='No statistics arrays were '
+                                                                           'given to concatenate.')
+
+        arrays = [StatisticsArray.from_pandas_csv(file_path) for
+                  file_path in self._input_statistics_paths]
+
+        if len(arrays) > 1:
+            output_array = StatisticsArray.join(*arrays)
+        else:
+            output_array = arrays[0]
+
+        self._output_statistics_path = path.join(directory, 'output_statistics.csv')
+        output_array.to_pandas_csv(self._output_statistics_path)
+
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
 class CalculateReducedPotentialOpenMM(BaseProtocol):
     """Calculates the reduced potential for a given
     set of configurations.
@@ -93,10 +137,13 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
 
     @protocol_input(ThermodynamicState)
     def thermodynamic_state(self):
+        """The state to calculate the reduced potential at."""
         pass
 
     @protocol_input(str)
     def system_path(self):
+        """The path to the system object which describes the systems
+        potential energy function."""
         pass
 
     @protocol_input(bool)
@@ -106,23 +153,44 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
 
     @protocol_input(str)
     def coordinate_file_path(self):
+        """The path to the coordinate file which contains topology
+        information about the system."""
         pass
 
     @protocol_input(str)
     def trajectory_file_path(self):
+        """The path to the trajectory file which contains the
+        configurations to calculate the energies of."""
+        pass
+
+    @protocol_input(str)
+    def kinetic_energies_path(self):
+        """The file path to a statistics array which contain the kinetic energies
+        of each frame in the trajectory."""
         pass
 
     @protocol_input(bool)
     def high_precision(self):
+        """If true, OpenMM will be run in double precision mode."""
+        pass
+
+    @protocol_input(bool)
+    def use_internal_energy(self):
+        """If true the internal energy, rather than the potential energy
+        will be used when calculating the reduced potential. This is required
+        when reweighting properties which depend on the total energy, such as
+        enthalpy."""
         pass
 
     @protocol_output(str)
     def statistics_file_path(self):
-        """A file path to the StatisticsArray file which contains the reduced potentials."""
+        """A file path to the StatisticsArray file which contains the reduced potentials,
+        and the potential, kinetic and total energies and enthalpies evaluated at the specified
+        state and using the specified system object."""
         pass
 
     def __init__(self, protocol_id):
-        """Constructs a new UnpackStoredSimulationData object."""
+        """Constructs a new CalculateReducedPotentialOpenMM object."""
         super().__init__(protocol_id)
 
         self._thermodynamic_state = None
@@ -133,6 +201,9 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
 
         self._coordinate_file_path = None
         self._trajectory_file_path = None
+
+        self._kinetic_energies_path = None
+        self._use_internal_energy = False
 
         self._statistics_file_path = None
 
@@ -191,9 +262,21 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
             potential_energies[frame_index] = potential_energy.value_in_unit(simtk_unit.kilojoule_per_mole)
             reduced_potentials[frame_index] = openmm_state.reduced_potential(openmm_context)
 
+        kinetic_energies = StatisticsArray.from_pandas_csv(self._kinetic_energies_path)[ObservableType.KineticEnergy]
+
         statistics_array = StatisticsArray()
         statistics_array[ObservableType.PotentialEnergy] = potential_energies * unit.kilojoule / unit.mole
+        statistics_array[ObservableType.KineticEnergy] = kinetic_energies
         statistics_array[ObservableType.ReducedPotential] = reduced_potentials * unit.dimensionless
+
+        statistics_array[ObservableType.TotalEnergy] = (statistics_array[ObservableType.PotentialEnergy] +
+                                                        statistics_array[ObservableType.KineticEnergy])
+
+        statistics_array[ObservableType.Enthalpy] = (statistics_array[ObservableType.ReducedPotential] *
+                                                     self._thermodynamic_state.inverse_beta + kinetic_energies)
+
+        if self._use_internal_energy:
+            statistics_array[ObservableType.ReducedPotential] += kinetic_energies * self._thermodynamic_state.beta
 
         self._statistics_file_path = path.join(directory, 'statistics.csv')
         statistics_array.to_pandas_csv(self._statistics_file_path)
@@ -639,7 +722,9 @@ class ReweightStatistics(BaseMBARProtocol):
     @protocol_input(list)
     def statistics_paths(self):
         """The file paths to the statistics array which contains the observables
-        of interest from each state."""
+        of interest from each state. If the observable of interest is dependant
+        on the changing variable (e.g. the potential energy) then this must be a
+        path to the observable re-evaluated at the new state."""
         pass
 
     @protocol_input(ObservableType)
@@ -673,7 +758,11 @@ class ReweightStatistics(BaseMBARProtocol):
                                                          'a single path is passed to the `statistics_paths`'
                                                          'input.')
 
+        if self._statistics_type == ObservableType.KineticEnergy:
+            return PropertyEstimatorException(directory, f'Kinetic energies cannot be reweighted.')
+
         statistics_arrays = [StatisticsArray.from_pandas_csv(file_path) for file_path in self._statistics_paths]
+
         self._reference_observables = []
 
         if len(self._frame_counts) > 0:
@@ -693,7 +782,9 @@ class ReweightStatistics(BaseMBARProtocol):
 
         else:
 
-            self._reference_observables = [statistics_array[self._statistics_type] for
-                                           statistics_array in statistics_arrays]
+            for statistics_array in statistics_arrays:
+
+                observables = statistics_array[self._statistics_type]
+                self._reference_observables.append(observables)
 
         return super(ReweightStatistics, self).execute(directory, available_resources)

@@ -327,7 +327,7 @@ class GradientReducedPotentials(BaseProtocol):
 
         if len(self._reference_force_field_paths) != 1 and self._use_subset_of_force_field:
 
-            return PropertyEstimatorException(directory, 'A single reference force field must be'
+            return PropertyEstimatorException(directory, 'A single reference force field must be '
                                                          'provided when calculating the reduced '
                                                          'potentials using a subset of the full force')
 
@@ -521,6 +521,107 @@ class DivideGradientByScalar(BaseProtocol):
 
         self._result = ParameterGradient(self._value.key,
                                          self._value.value / float(self._divisor))
+
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class MultiplyGradientByScalar(BaseProtocol):
+    """A protocol which multiplies a gradient by a specified scalar
+
+    Notes
+    -----
+    Once a more robust type system is built-in, this will be deprecated
+    by `MultiplyValue`.
+    """
+
+    @protocol_input(ParameterGradient)
+    def value(self):
+        """The value to divide."""
+        pass
+
+    @protocol_input(unit.Quantity)
+    def scalar(self):
+        """The scalar to multiply by."""
+        pass
+
+    @protocol_output(ParameterGradient)
+    def result(self):
+        """The result of the division."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new DivideValue object."""
+        super().__init__(protocol_id)
+
+        self._value = None
+        self._scalar = None
+
+        self._result = None
+
+    def execute(self, directory, available_resources):
+
+        self._result = ParameterGradient(self._value.key,
+                                         self._value.value * self._scalar)
+
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class AddGradients(BaseProtocol):
+    """A temporary protocol to add together multiple gradients.
+
+    Notes
+    -----
+    Once a more robust type system is built-in, this will be deprecated
+    by `AddValues`.
+    """
+
+    @protocol_input(list)
+    def values(self):
+        """The gradients to add together."""
+        pass
+
+    @protocol_output(ParameterGradient)
+    def result(self):
+        """The sum of the values."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new AddGradients object."""
+        super().__init__(protocol_id)
+
+        self._values = None
+        self._result = None
+
+    def execute(self, directory, available_resources):
+
+        if len(self._values) < 1:
+            return PropertyEstimatorException(directory, 'There were no gradients to add together')
+
+        gradient_key = self._values[0].key
+        gradient_value = None
+
+        for gradient in self._values:
+
+            if gradient_key == gradient.key:
+                continue
+
+            return PropertyEstimatorException(directory,
+                                              f'Only gradients with the same key can be '
+                                              f'added together (a={gradient_key} b={gradient.key})')
+
+        for gradient in self._values:
+
+            if gradient_value is None:
+
+                gradient_value = gradient.value
+                continue
+
+            gradient_value += gradient.value
+
+        self._result = ParameterGradient(key=gradient_key,
+                                         value=gradient_value)
 
         return self._get_output_dictionary()
 

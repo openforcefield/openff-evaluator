@@ -2,7 +2,7 @@
 A set of utilities for setting up property estimation workflows.
 """
 import copy
-from collections import namedtuple, Iterable
+from collections import namedtuple
 
 from propertyestimator import unit
 from propertyestimator.protocols import analysis, forcefield, gradients, groups, reweighting, coordinates, simulation, \
@@ -19,6 +19,7 @@ BaseReweightingProtocols = namedtuple('BaseReweightingProtocols', 'unpack_stored
                                                                   'decorrelate_statistics '
                                                                   'decorrelate_trajectory '
                                                                   'concatenate_trajectories '
+                                                                  'concatenate_statistics '
                                                                   'build_reference_system '
                                                                   'reduced_reference_potential '
                                                                   'build_target_system '
@@ -106,8 +107,11 @@ def generate_base_reweighting_protocols(analysis_protocol, mbar_protocol, workfl
 
     # Stitch together all of the trajectories
     join_trajectories = reweighting.ConcatenateTrajectories('concat_traj' + id_suffix)
-    join_trajectories.input_coordinate_paths = [ProtocolPath('coordinate_file_path', unpack_stored_data.id)]
-    join_trajectories.input_trajectory_paths = [ProtocolPath('output_trajectory_path', decorrelate_trajectory.id)]
+    join_trajectories.input_coordinate_paths = ProtocolPath('coordinate_file_path', unpack_stored_data.id)
+    join_trajectories.input_trajectory_paths = ProtocolPath('output_trajectory_path', decorrelate_trajectory.id)
+
+    join_statistics = reweighting.ConcatenateStatistics('concat_stats' + id_suffix)
+    join_statistics.input_statistics_paths = ProtocolPath('output_statistics_path', decorrelate_statistics.id)
 
     # Calculate the reduced potentials for each of the reference states.
     build_reference_system = forcefield.BuildSmirnoffSystem('build_system{}'.format(replicator_suffix))
@@ -121,6 +125,7 @@ def generate_base_reweighting_protocols(analysis_protocol, mbar_protocol, workfl
     reduced_reference_potential.thermodynamic_state = ProtocolPath('thermodynamic_state', unpack_stored_data.id)
     reduced_reference_potential.coordinate_file_path = ProtocolPath('coordinate_file_path', unpack_stored_data.id)
     reduced_reference_potential.trajectory_file_path = ProtocolPath('output_trajectory_path', join_trajectories.id)
+    reduced_reference_potential.kinetic_energies_path = ProtocolPath('output_statistics_path', join_statistics.id)
 
     # Calculate the reduced potential of the target state.
     build_target_system = forcefield.BuildSmirnoffSystem('build_system_target' + id_suffix)
@@ -133,9 +138,10 @@ def generate_base_reweighting_protocols(analysis_protocol, mbar_protocol, workfl
     reduced_target_potential.system_path = ProtocolPath('system_path', build_target_system.id)
     reduced_target_potential.coordinate_file_path = ProtocolPath('output_coordinate_path', join_trajectories.id)
     reduced_target_potential.trajectory_file_path = ProtocolPath('output_trajectory_path', join_trajectories.id)
+    reduced_target_potential.kinetic_energies_path = ProtocolPath('output_statistics_path', join_statistics.id)
 
     # Finally, apply MBAR to get the reweighted value.
-    mbar_protocol.reference_reduced_potentials = [ProtocolPath('statistics_file_path', reduced_reference_potential.id)]
+    mbar_protocol.reference_reduced_potentials = ProtocolPath('statistics_file_path', reduced_reference_potential.id)
     mbar_protocol.target_reduced_potentials = [ProtocolPath('statistics_file_path', reduced_target_potential.id)]
 
     if (isinstance(mbar_protocol, reweighting.ReweightStatistics) and
@@ -144,12 +150,12 @@ def generate_base_reweighting_protocols(analysis_protocol, mbar_protocol, workfl
         mbar_protocol.statistics_type != ObservableType.Enthalpy and
         mbar_protocol.statistics_type != ObservableType.ReducedPotential):
 
-        mbar_protocol.statistics_paths = [ProtocolPath('output_statistics_path', decorrelate_statistics.id)]
+        mbar_protocol.statistics_paths = ProtocolPath('output_statistics_path', decorrelate_statistics.id)
 
     elif isinstance(mbar_protocol, reweighting.ReweightStatistics):
 
         mbar_protocol.statistics_paths = [ProtocolPath('statistics_file_path', reduced_target_potential.id)]
-        mbar_protocol.frame_counts = [ProtocolPath('number_of_uncorrelated_samples', decorrelate_statistics.id)]
+        mbar_protocol.frame_counts = ProtocolPath('number_of_uncorrelated_samples', decorrelate_statistics.id)
 
     # TODO: Implement a cleaner way to handle this.
     if workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.NoChecks:
@@ -160,6 +166,7 @@ def generate_base_reweighting_protocols(analysis_protocol, mbar_protocol, workfl
                                               decorrelate_statistics,
                                               decorrelate_trajectory,
                                               join_trajectories,
+                                              join_statistics,
                                               build_reference_system,
                                               reduced_reference_potential,
                                               build_target_system,
@@ -168,16 +175,6 @@ def generate_base_reweighting_protocols(analysis_protocol, mbar_protocol, workfl
 
     # Create the replicator object.
     component_replicator = ProtocolReplicator(replicator_id=replicator_id)
-    component_replicator.protocols_to_replicate = []
-
-    # Pass it paths to the protocols to be replicated.
-    for protocol in base_protocols:
-
-        if protocol.id.find('$({})'.format(replicator_id)) < 0:
-            continue
-
-        component_replicator.protocols_to_replicate.append(ProtocolPath('', protocol.id))
-
     component_replicator.template_values = ProtocolPath('full_system_data', 'global')
 
     return base_protocols, component_replicator
@@ -371,7 +368,7 @@ def generate_gradient_protocol_group(template_reweighting_protocol,
                                      replicator_id='repl',
                                      perturbation_scale=1.0e-4,
                                      substance_source=None,
-                                     id_prefix='',
+                                     id_suffix='',
                                      enable_pbc=True,
                                      use_subset_of_force_field=True,
                                      effective_sample_indices=None):
@@ -415,12 +412,12 @@ def generate_gradient_protocol_group(template_reweighting_protocol,
         replicate this group for every parameter of interest.
     perturbation_scale: float
         The default amount to perturb parameters by.
-    substance_source: ProtocolPath, optional
+    substance_source: PlaceholderInput, optional
         An optional protocol path to the substance whose gradient
         is being estimated. If None, the global property substance
         is used.
-    id_prefix: str
-        An optional string to prepend to the beginning of each of the
+    id_suffix: str
+        An optional string to append to the end of each of the
         protocol ids.
     enable_pbc: bool
         If true, periodic boundary conditions are employed when recalculating
@@ -451,14 +448,10 @@ def generate_gradient_protocol_group(template_reweighting_protocol,
     substance_source = ProtocolPath('substance', 'global') if substance_source is None else substance_source
     effective_sample_indices = effective_sample_indices if effective_sample_indices is not None else []
 
-    if not isinstance(reference_force_field_paths, Iterable):
-        reference_force_field_paths = [reference_force_field_paths]
-
     # Define the protocol which will evaluate the reduced potentials of the
     # reference, forward and reverse states using only a subset of the full
     # force field.
-    reduced_potentials = gradients.GradientReducedPotentials(f'{id_prefix}gradient_reduced_potentials_'
-                                                             f'$({replicator_id})')
+    reduced_potentials = gradients.GradientReducedPotentials(f'gradient_reduced_potentials{id_suffix}')
 
     reduced_potentials.substance = substance_source
     reduced_potentials.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
@@ -484,21 +477,21 @@ def generate_gradient_protocol_group(template_reweighting_protocol,
     # if the observable depends on the parameter being reweighted.
     use_target_state_energies = (isinstance(template_reweighting_protocol, reweighting.ReweightStatistics) and
                                  (template_reweighting_protocol.statistics_type == ObservableType.PotentialEnergy or
+                                  template_reweighting_protocol.statistics_type == ObservableType.ReducedPotential or
                                   template_reweighting_protocol.statistics_type == ObservableType.TotalEnergy or
-                                  template_reweighting_protocol.statistics_type == ObservableType.Enthalpy or
-                                  template_reweighting_protocol.statistics_type == ObservableType.ReducedPotential))
+                                  template_reweighting_protocol.statistics_type == ObservableType.Enthalpy))
 
     template_reweighting_schema = template_reweighting_protocol.schema
 
     # Create the reweighting protocols from the template schema.
     reverse_mbar_schema = copy.deepcopy(template_reweighting_schema)
-    reverse_mbar_schema.id = f'{id_prefix}reverse_reweight_$({replicator_id})'
+    reverse_mbar_schema.id = f'reverse_reweight{id_suffix}'
     reverse_mbar = available_protocols[reverse_mbar_schema.type](reverse_mbar_schema.id)
     reverse_mbar.schema = reverse_mbar_schema
     reverse_mbar.target_reduced_potentials = [ProtocolPath('reverse_potentials_path', reduced_potentials.id)]
 
     forward_mbar_schema = copy.deepcopy(template_reweighting_schema)
-    forward_mbar_schema.id = f'{id_prefix}forward_reweight_$({replicator_id})'
+    forward_mbar_schema.id = f'forward_reweight{id_suffix}'
     forward_mbar = available_protocols[forward_mbar_schema.type](forward_mbar_schema.id)
     forward_mbar.schema = forward_mbar_schema
     forward_mbar.target_reduced_potentials = [ProtocolPath('forward_potentials_path', reduced_potentials.id)]
@@ -509,7 +502,7 @@ def generate_gradient_protocol_group(template_reweighting_protocol,
 
     # Set up the protocol which will actually evaluate the parameter gradient
     # using the central difference method.
-    central_difference = gradients.CentralDifferenceGradient(f'{id_prefix}central_difference_$({replicator_id})')
+    central_difference = gradients.CentralDifferenceGradient(f'central_difference{id_suffix}')
     central_difference.parameter_key = ReplicatorValue(replicator_id)
     central_difference.reverse_observable_value = ProtocolPath('value', reverse_mbar.id)
     central_difference.forward_observable_value = ProtocolPath('value', forward_mbar.id)
@@ -517,18 +510,12 @@ def generate_gradient_protocol_group(template_reweighting_protocol,
     central_difference.forward_parameter_value = ProtocolPath('forward_parameter_value', reduced_potentials.id)
 
     # Assemble all of the protocols into a convenient group wrapper.
-    gradient_group = groups.ProtocolGroup(f'{id_prefix}gradient_group_$({replicator_id})')
+    gradient_group = groups.ProtocolGroup(f'gradient_group_$({replicator_id}){id_suffix}')
     gradient_group.add_protocols(reduced_potentials, reverse_mbar, forward_mbar, central_difference)
-
-    protocols_to_replicate = [ProtocolPath('', gradient_group.id)]
-
-    protocols_to_replicate.extend([ProtocolPath('', gradient_group.id, protocol_id) for
-                                   protocol_id in gradient_group.protocols])
 
     # Create the replicator which will copy the group for each parameter gradient
     # which will be calculated.
     parameter_replicator = ProtocolReplicator(replicator_id=replicator_id)
-    parameter_replicator.protocols_to_replicate = protocols_to_replicate
     parameter_replicator.template_values = ProtocolPath('parameter_gradient_keys', 'global')
 
     return gradient_group, parameter_replicator, ProtocolPath('gradient', gradient_group.id, central_difference.id)
