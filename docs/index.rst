@@ -20,7 +20,6 @@ Index
 
 * :doc:`install`
 * :doc:`gettingstarted`
-* :doc:`overview`
 * :doc:`physicalproperties`
 * :doc:`propertydatasets`
 
@@ -31,29 +30,12 @@ Index
 
   install
   gettingstarted
-  overview
   physicalproperties
   propertydatasets
-
-
-**Server Documentation**
-
-* :doc:`calculationbackends`
-* :doc:`storagebackends`
-
-.. toctree::
-  :maxdepth: 2
-  :hidden:
-  :caption: Server Documentation
-
-  calculationbackends
-  storagebackends
 
 **Developer Documentation**
 
 * :doc:`api`
-* :doc:`builddocs`
-* :doc:`plugins`
 
 .. toctree::
   :maxdepth: 2
@@ -61,5 +43,3 @@ Index
   :caption: Developer Documentation
 
   api
-  builddocs
-  plugins
