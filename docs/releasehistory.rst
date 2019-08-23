@@ -8,7 +8,7 @@ Releases will eventually follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
-All early releases however all releases will simply recieve a ``minor`` version bump, regardless of
+All early releases however will simply recieve a ``micro`` version bump regardless of
 how major the changes may be.
 
 0.0.1 - Initial Release
