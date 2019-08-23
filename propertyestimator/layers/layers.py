@@ -6,8 +6,9 @@ import logging
 import traceback
 from os import path
 
+from propertyestimator.storage.dataclasses import StoredDataCollection
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
+from propertyestimator.utils.serialization import TypedJSONDecoder
 
 available_layers = {}
 
@@ -16,11 +17,9 @@ def register_calculation_layer():
     """A decorator which registers a class as being a calculation layer
     which may be used in property calculations.
 
-    TODO: Turn the below into a link.
-
     See Also
     --------
-    Plugins - extending the estimator.
+    TODO: add documentation for plugin support
     """
 
     def decorator(cls):
@@ -40,10 +39,23 @@ def return_args(*args, **kwargs):
 
 class CalculationLayerResult:
     """The output returned from attempting to calculate a property on
-     a PropertyCalculationLayer.
+    a PropertyCalculationLayer.
 
-     TODO - this should be a child class of calculation layer I think.
-     """
+    Attributes
+    ----------
+    property_id: str
+        The unique id of the original physical property that this
+        calculation layer attempts to estimate.
+    calculated_property: PhysicalProperty, optional
+        The property which was estimated by this layer. The will
+        be `None` if the layer could not estimate the property.
+    exception: PropertyEstimatorException, optional
+        The exception which was raised when estimating the property
+        of interest, if any.
+    data_to_store: list of tuple of str and str
+        A list of pairs of a path to a JSON serialized `BaseStoredData`
+        object, and the path to the corresponding data directory.
+    """
 
     def __init__(self):
         """Constructs a new CalculationLayerResult object.
@@ -53,7 +65,7 @@ class CalculationLayerResult:
         self.calculated_property = None
         self.exception = None
 
-        self.data_directories_to_store = []
+        self.data_to_store = []
 
     def __getstate__(self):
 
@@ -61,7 +73,7 @@ class CalculationLayerResult:
             'property_id': self.property_id,
             'calculated_property': self.calculated_property,
             'exception': self.exception,
-            'data_directories_to_store': self.data_directories_to_store
+            'data_to_store': self.data_to_store
         }
 
     def __setstate__(self, state):
@@ -71,7 +83,7 @@ class CalculationLayerResult:
         self.calculated_property = state['calculated_property']
         self.exception = state['exception']
 
-        self.data_directories_to_store = state['data_directories_to_store']
+        self.data_to_store = state['data_to_store']
 
 
 class PropertyCalculationLayer:
@@ -169,40 +181,46 @@ class PropertyCalculationLayer:
                     # If an exception was raised, make sure to add it to the list.
                     server_request.exceptions.append(returned_output.exception)
 
+                    logging.info(f'An exception was raised: '
+                                 f'{returned_output.exception.directory} - '
+                                 f'{returned_output.exception.message}')
+
                 else:
 
                     # Make sure to store any important calculation data if no exceptions
                     # were thrown.
-                    if (returned_output.data_directories_to_store is not None and
+                    if (returned_output.data_to_store is not None and
                         returned_output.calculated_property is not None):
 
-                        for data_directory in returned_output.data_directories_to_store:
+                        for data_tuple in returned_output.data_to_store:
 
-                            data_file = path.join(data_directory, 'data.json')
+                            data_object_path, data_directory_path = data_tuple
 
                             # Make sure the data directory / file to store actually exists
-                            if not path.isdir(data_directory) or not path.isfile(data_file):
-                                logging.info(f'Invalid data directory ({data_directory}) / file ({data_file})')
+                            if not path.isdir(data_directory_path) or not path.isfile(data_object_path):
+
+                                logging.info(f'Invalid data directory ({data_directory_path}) / '
+                                             f'file ({data_object_path})')
                                 continue
 
                             # Attach any extra metadata which is missing.
-                            with open(data_file, 'r') as file:
+                            with open(data_object_path, 'r') as file:
 
                                 data_object = json.load(file, cls=TypedJSONDecoder)
 
                                 if data_object.force_field_id is None:
                                     data_object.force_field_id = server_request.force_field_id
 
-                            with open(data_file, 'w') as file:
-                                json.dump(data_object, file, cls=TypedJSONEncoder)
+                                if isinstance(data_object, StoredDataCollection):
 
-                            substance_id = data_object.substance.identifier
-                            storage_backend.store_simulation_data(substance_id, data_directory)
+                                    for inner_data_object in data_object.data.values():
+
+                                        if inner_data_object.force_field_id is None:
+                                            inner_data_object.force_field_id = server_request.force_field_id
+
+                            storage_backend.store_simulation_data(data_object, data_directory_path)
 
                 matches = [x for x in server_request.queued_properties if x.id == returned_output.property_id]
-
-                for match in matches:
-                    server_request.queued_properties.remove(match)
 
                 if len(matches) > 1:
                     raise ValueError(f'A property id ({returned_output.property_id}) conflict occurred.')
@@ -215,34 +233,28 @@ class PropertyCalculationLayer:
 
                     continue
 
-                if returned_output.calculated_property is None and returned_output.exception is None:
-
-                    logging.info('A calculation layer did not return an estimated property nor did it'
-                                 'raise an Exception. This sometimes and expectedly occurs when using '
-                                 'queue based calculation backends, but should be investigated.')
-
-                    continue
-
                 if returned_output.calculated_property is None:
-                    # An exception has been recorded above, but for some reason no property has
-                    # been associated with it.
+
+                    if returned_output.exception is None:
+
+                        logging.info('A calculation layer did not return an estimated property nor did it '
+                                     'raise an Exception. This sometimes and expectedly occurs when using '
+                                     'queue based calculation backends, but should be investigated.')
+
                     continue
+
+                if returned_output.exception is not None:
+                    continue
+
+                for match in matches:
+                    server_request.queued_properties.remove(match)
 
                 substance_id = returned_output.calculated_property.substance.identifier
 
-                if returned_output.exception is None:
+                if substance_id not in server_request.estimated_properties:
+                    server_request.estimated_properties[substance_id] = []
 
-                    if substance_id not in server_request.estimated_properties:
-                        server_request.estimated_properties[substance_id] = []
-
-                    server_request.estimated_properties[substance_id].append(returned_output.calculated_property)
-
-                else:
-
-                    if substance_id not in server_request.unsuccessful_properties:
-                        server_request.unsuccessful_properties[substance_id] = []
-
-                    server_request.unsuccessful_properties[substance_id].append(returned_output.calculated_property)
+                server_request.estimated_properties[substance_id].append(returned_output.calculated_property)
 
         except Exception as e:
 

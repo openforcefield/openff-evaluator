@@ -3,6 +3,7 @@ A collection of protocols for running analysing the results of molecular simulat
 """
 import numpy as np
 
+from propertyestimator import unit
 from propertyestimator.substances import Substance
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
@@ -12,7 +13,7 @@ from propertyestimator.workflow.protocols import BaseProtocol
 
 
 @register_calculation_protocol()
-class AddQuantities(BaseProtocol):
+class AddValues(BaseProtocol):
     """A protocol to add together a list of values.
 
     Notes
@@ -32,7 +33,7 @@ class AddQuantities(BaseProtocol):
         pass
 
     def __init__(self, protocol_id):
-        """Constructs a new AddQuantities object."""
+        """Constructs a new AddValues object."""
         super().__init__(protocol_id)
 
         self._values = None
@@ -55,7 +56,7 @@ class AddQuantities(BaseProtocol):
 
 
 @register_calculation_protocol()
-class SubtractQuantities(BaseProtocol):
+class SubtractValues(BaseProtocol):
     """A protocol to subtract one value from another such that:
 
     `result = value_b - value_a`
@@ -77,7 +78,7 @@ class SubtractQuantities(BaseProtocol):
         pass
 
     def __init__(self, protocol_id):
-        """Constructs a new AddQuantities object."""
+        """Constructs a new AddValues object."""
         super().__init__(protocol_id)
 
         self._value_a = None
@@ -88,6 +89,79 @@ class SubtractQuantities(BaseProtocol):
     def execute(self, directory, available_resources):
 
         self._result = self._value_b - self._value_a
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class MultiplyValue(BaseProtocol):
+    """A protocol which multiplies a value by a specified scalar
+    """
+
+    @protocol_input(EstimatedQuantity)
+    def value(self):
+        """The value to multiply."""
+        pass
+
+    @protocol_input(unit.Quantity)
+    def multiplier(self):
+        """The scalar to multiply by."""
+        pass
+
+    @protocol_output(EstimatedQuantity)
+    def result(self):
+        """The result of the multiplication."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new MultiplyValue object."""
+        super().__init__(protocol_id)
+
+        self._value = None
+        self._multiplier = None
+
+        self._result = None
+
+    def execute(self, directory, available_resources):
+
+        self._result = EstimatedQuantity(self._value.value * self._multiplier,
+                                         self._value.uncertainty * self._multiplier,
+                                         *self._value.sources)
+
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class DivideValue(BaseProtocol):
+    """A protocol which divides a value by a specified scalar
+    """
+
+    @protocol_input(EstimatedQuantity)
+    def value(self):
+        """The value to divide."""
+        pass
+
+    @protocol_input(int)
+    def divisor(self):
+        """The scalar to divide by."""
+        pass
+
+    @protocol_output(EstimatedQuantity)
+    def result(self):
+        """The result of the division."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new DivideValue object."""
+        super().__init__(protocol_id)
+
+        self._value = None
+        self._divisor = None
+
+        self._result = None
+
+    def execute(self, directory, available_resources):
+
+        self._result = self._value / float(self._divisor)
         return self._get_output_dictionary()
 
 
@@ -120,7 +194,7 @@ class FilterSubstanceByRole(BaseProtocol):
         pass
 
     def __init__(self, protocol_id):
-        """Constructs a new AddQuantities object."""
+        """Constructs a new AddValues object."""
         super().__init__(protocol_id)
 
         self._input_substance = None

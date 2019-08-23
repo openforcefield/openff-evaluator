@@ -4,8 +4,7 @@ Defines an API for defining thermodynamic states.
 import math
 from enum import Enum
 
-from simtk import unit
-
+from propertyestimator import unit
 from propertyestimator.utils.serialization import TypedBaseModel
 
 
@@ -22,9 +21,9 @@ class ThermodynamicState(TypedBaseModel):
 
     Attributes
     ----------
-    temperature : simtk.unit.Quantity with units compatible with kelvin
+    temperature : propertyestimator.unit.Quantity with units compatible with kelvin
         The external temperature
-    pressure : simtk.unit.Quantity with units compatible with atmospheres
+    pressure : propertyestimator.unit.Quantity with units compatible with atmospheres
         The external pressure
 
     Examples
@@ -36,14 +35,24 @@ class ThermodynamicState(TypedBaseModel):
     Note that the pressure is only relevant for periodic systems.
     """
 
+    @property
+    def inverse_beta(self):
+        """Returns the temperature multiplied by the molar gas constant"""
+        return (self.temperature * unit.molar_gas_constant).to(unit.kilojoule / unit.mole)
+
+    @property
+    def beta(self):
+        """Returns one divided by the temperature multiplied by the molar gas constant"""
+        return 1.0 / self.inverse_beta
+
     def __init__(self, temperature=None, pressure=None):
         """Constructs a new ThermodynamicState object.
 
         Parameters
         ----------
-        temperature : simtk.unit.Quantity with units compatible with kelvin
+        temperature : propertyestimator.unit.Quantity with units compatible with kelvin
             The external temperature
-        pressure : simtk.unit.Quantity with units compatible with atmospheres
+        pressure : propertyestimator.unit.Quantity with units compatible with atmospheres
             The external pressure
         """
 
@@ -95,8 +104,10 @@ class ThermodynamicState(TypedBaseModel):
         if not isinstance(other, ThermodynamicState):
             return False
 
-        return (math.isclose(self.temperature / unit.kelvin, other.temperature / unit.kelvin) and
-                math.isclose(self.pressure / unit.atmosphere, other.pressure / unit.atmosphere))
+        return (math.isclose(self.temperature.to(unit.kelvin).magnitude,
+                             other.temperature.to(unit.kelvin).magnitude) and
+                math.isclose(self.pressure.to(unit.atmosphere).magnitude,
+                             other.pressure.to(unit.atmosphere).magnitude))
 
     def __ne__(self, other):
         return not (self == other)

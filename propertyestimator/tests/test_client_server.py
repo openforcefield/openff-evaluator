@@ -4,7 +4,7 @@ Units tests for propertyestimator.client and server
 import tempfile
 from os import path
 
-from propertyestimator.backends import DaskLocalClusterBackend, ComputeResources
+from propertyestimator.backends import DaskLocalCluster, ComputeResources
 from propertyestimator.client import PropertyEstimatorClient, PropertyEstimatorOptions
 from propertyestimator.datasets import PhysicalPropertyDataSet
 from propertyestimator.layers import register_calculation_layer, PropertyCalculationLayer
@@ -12,7 +12,6 @@ from propertyestimator.properties import Density
 from propertyestimator.server import PropertyEstimatorServer
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.tests.utils import create_dummy_property
-from propertyestimator.utils import get_data_filename
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 
 
@@ -54,9 +53,9 @@ def test_estimate_request():
         dummy_data_set = PhysicalPropertyDataSet()
         dummy_data_set.properties[dummy_property.substance.identifier] = [dummy_property]
 
-        force_field = smirnoff.ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
+        force_field = smirnoff.ForceField('smirnoff99Frosst-1.1.0.offxml')
 
-        calculation_backend = DaskLocalClusterBackend(1, ComputeResources())
+        calculation_backend = DaskLocalCluster(1, ComputeResources())
         storage_backend = LocalFileStorage(storage_directory)
 
         PropertyEstimatorServer(calculation_backend, storage_backend, working_directory=working_directory)

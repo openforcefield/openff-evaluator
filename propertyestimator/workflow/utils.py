@@ -68,6 +68,13 @@ class ProtocolPath(PlaceholderInput):
         return None if len(protocol_ids) == 0 else protocol_ids[len(protocol_ids) - 1]
 
     @property
+    def protocol_path(self):
+        """str: The full path referenced by this object excluding the
+        property name."""
+        _, protocol_ids = ProtocolPath.to_components(self._full_path)
+        return ProtocolPath.path_separator.join(protocol_ids)
+
+    @property
     def full_path(self):
         """str: The full path referenced by this object."""
         return self._full_path

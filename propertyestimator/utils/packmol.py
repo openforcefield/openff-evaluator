@@ -12,13 +12,13 @@ import random
 import shutil
 import string
 import subprocess
+import tempfile
 from distutils.spawn import find_executable
-from tempfile import mkdtemp
 
 import numpy as np
 from simtk import openmm
-from simtk import unit
 
+from propertyestimator import unit
 from propertyestimator.utils.utils import temporarily_change_directory
 
 PACKMOL_PATH = find_executable("packmol") or shutil.which("packmol") or \
@@ -54,6 +54,7 @@ def pack_box(molecules,
              tolerance=2.0,
              box_size=None,
              mass_density=None,
+             box_aspect_ratio=None,
              verbose=False,
              working_directory=None,
              retain_working_files=False):
@@ -71,12 +72,15 @@ def pack_box(molecules,
         A file path to the PDB coordinates of the structure to be solvated.
     tolerance : float
         The minimum spacing between molecules during packing in angstroms.
-    box_size : simtk.unit.Quantity, optional
+    box_size : propertyestimator.unit.Quantity, optional
         The size of the box to generate in units compatible with angstroms. If `None`,
         `mass_density` must be provided.
-    mass_density : simtk.unit.Quantity, optional
+    mass_density : propertyestimator.unit.Quantity, optional
         Target mass density for final system with units compatible with g/mL. If `None`,
         `box_size` must be provided.
+    box_aspect_ratio: list of float, optional
+        The aspect ratio of the simulation box, used in conjunction with the `mass_density`
+        parameter. If none, an isotropic ratio (i.e. [1.0, 1.0, 1.0]) is used.
     verbose : bool
         If True, verbose output is written.
     working_directory: str, optional
@@ -90,13 +94,26 @@ def pack_box(molecules,
     -------
     topology : simtk.openmm.Topology
         Topology of the resulting system
-    positions : simtk.unit.Quantity
-        A `simtk.unit.Quantity` wrapped `numpy.ndarray` (shape=[natoms,3]) which contains
+    positions : propertyestimator.unit.Quantity
+        A `propertyestimator.unit.Quantity` wrapped `numpy.ndarray` (shape=[natoms,3]) which contains
         the created positions with units compatible with angstroms.
     """
 
     if box_size is None and mass_density is None:
         raise ValueError('Either a `box_size` or `mass_density` must be specified.')
+
+    if box_size is not None and len(box_size) != 3:
+
+        raise ValueError('`box_size` must be a propertyestimator.unit.Quantity '
+                         'wrapped list of length 3')
+
+    if mass_density is not None and box_aspect_ratio is None:
+        box_aspect_ratio = [1.0, 1.0, 1.0]
+
+    if box_aspect_ratio is not None:
+
+        assert len(box_aspect_ratio) == 3
+        assert box_aspect_ratio[0] * box_aspect_ratio[1] * box_aspect_ratio[2] > 0
 
     # noinspection PyTypeChecker
     if len(molecules) != len(number_of_copies):
@@ -106,7 +123,7 @@ def pack_box(molecules,
 
     if working_directory is None:
 
-        working_directory = mkdtemp()
+        working_directory = tempfile.mkdtemp()
         temporary_directory = True
 
     elif not os.path.isdir(working_directory):
@@ -151,11 +168,25 @@ def pack_box(molecules,
     if box_size is None:
 
         # Estimate box_size from mass density.
-        box_size = _approximate_volume_by_density(molecules,
-                                                  number_of_copies,
-                                                  mass_density)
+        initial_box_length = _approximate_volume_by_density(molecules,
+                                                            number_of_copies,
+                                                            mass_density)
 
-    unitless_box_angstrom = box_size.value_in_unit(unit.angstrom)
+        initial_box_length_angstrom = initial_box_length.to(unit.angstrom).magnitude
+
+        aspect_ratio_normalizer = (box_aspect_ratio[0] *
+                                   box_aspect_ratio[1] *
+                                   box_aspect_ratio[2]) ** (1.0 / 3.0)
+
+        box_size = [
+            initial_box_length_angstrom * box_aspect_ratio[0],
+            initial_box_length_angstrom * box_aspect_ratio[1],
+            initial_box_length_angstrom * box_aspect_ratio[2]
+        ] * unit.angstrom
+
+        box_size /= aspect_ratio_normalizer
+
+    unitless_box_angstrom = box_size.to(unit.angstrom).magnitude
 
     packmol_input = _HEADER_TEMPLATE.format(tolerance, output_file_name)
 
@@ -165,16 +196,16 @@ def pack_box(molecules,
 
         packmol_input += _BOX_TEMPLATE.format(pdb_file_name,
                                               count,
-                                              unitless_box_angstrom,
-                                              unitless_box_angstrom,
-                                              unitless_box_angstrom)
+                                              unitless_box_angstrom[0],
+                                              unitless_box_angstrom[1],
+                                              unitless_box_angstrom[2])
 
     if structure_to_solvate_file_name is not None:
 
         packmol_input += _SOLVATE_TEMPLATE.format(structure_to_solvate_file_name,
-                                                  unitless_box_angstrom / 2.0,
-                                                  unitless_box_angstrom / 2.0,
-                                                  unitless_box_angstrom / 2.0)
+                                                  unitless_box_angstrom[0] / 2.0,
+                                                  unitless_box_angstrom[1] / 2.0,
+                                                  unitless_box_angstrom[2] / 2.0)
 
     # Write packmol input
     packmol_file_name = "packmol_input.txt"
@@ -233,14 +264,15 @@ def pack_box(molecules,
             shutil.rmtree(working_directory)
 
     # Add a 2 angstrom buffer to help alleviate PBC issues.
-    unitless_box_nm = (box_size + 2.0 * unit.angstrom).value_in_unit(unit.nanometers)
-
-    box_vector_x = openmm.Vec3(unitless_box_nm, 0, 0)
-    box_vector_y = openmm.Vec3(0, unitless_box_nm, 0)
-    box_vector_z = openmm.Vec3(0, 0, unitless_box_nm)
+    box_vectors = [
+        openmm.Vec3((box_size[0] + 2.0 * unit.angstrom).to(unit.nanometers).magnitude, 0, 0),
+        openmm.Vec3(0, (box_size[1] + 2.0 * unit.angstrom).to(unit.nanometers).magnitude, 0),
+        openmm.Vec3(0, 0, (box_size[2] + 2.0 * unit.angstrom).to(unit.nanometers).magnitude)
+    ]
 
     # Set the periodic box vectors.
-    topology.setPeriodicBoxVectors([box_vector_x, box_vector_y, box_vector_z] * unit.nanometers)
+    from simtk import unit as simtk_unit
+    topology.setPeriodicBoxVectors(box_vectors * simtk_unit.nanometers)
 
     return topology, positions
 
@@ -260,20 +292,21 @@ def _approximate_volume_by_density(molecules,
         Number of copies of the molecules.
     box_scaleup_factor : float, optional, default = 1.1
         Factor by which the estimated box size is increased
-    mass_density : simtk.unit.Quantity with units compatible with grams/milliliters, optional,
-                   default = 1.0*grams/milliliters
-        Target mass density for final system, if available.
+    mass_density : propertyestimator.unit.Quantity, optional
+        The target mass density for final system, if available.
+        It should have units compatible with grams/milliliters.
 
     Returns
     -------
-    box_edge : simtk.unit.Quantity with units compatible with angstroms
-        The size (edge length) of the box to generate.
+    box_edge : propertyestimator.unit.Quantity
+        The size (edge length) of the box to generate in units
+        compatible with angstroms.
 
     Notes
     -----
-    By default, boxes are only modestly large. This approach has not been extensively tested for stability but has been
-    used in the Mobley lab for perhaps ~100 different systems without substantial problems.
-
+    By default, boxes are only modestly large. This approach has not been
+    extensively tested for stability but has been used in the Mobley lab
+    for perhaps ~100 different systems without substantial problems.
     """
     from openeye import oechem
 
@@ -283,7 +316,7 @@ def _approximate_volume_by_density(molecules,
     for (molecule, number) in zip(molecules, n_copies):
 
         molecule_mass = oechem.OECalculateMolecularWeight(molecule) * \
-                        unit.grams / unit.mole / unit.AVOGADRO_CONSTANT_NA
+                        unit.grams / unit.mole / unit.avogadro_number
 
         molecule_volume = molecule_mass / mass_density
 
@@ -321,13 +354,14 @@ def _correct_packmol_output(file_path, molecule_topologies,
     """
 
     import mdtraj
+    from simtk import unit as simtk_unit
 
     trajectory = mdtraj.load(file_path)
 
     atoms_data_frame, _ = trajectory.topology.to_dataframe()
 
     all_bonds = []
-    all_positions = trajectory.openmm_positions(0)
+    all_positions = trajectory.openmm_positions(0).value_in_unit(simtk_unit.angstrom) * unit.angstrom
 
     all_topologies = []
     all_copies = []
@@ -357,7 +391,8 @@ def _correct_packmol_output(file_path, molecule_topologies,
 
             offset += molecule_topology.n_atoms
 
-    all_bonds = np.unique(all_bonds, axis=0).tolist()
+    if len(all_bonds) > 0:
+        all_bonds = np.unique(all_bonds, axis=0).tolist()
 
     # We have to check whether there are any existing bonds, because mdtraj will
     # sometimes automatically detect some based on residue names (e.g HOH), and
@@ -409,23 +444,46 @@ def _create_pdb_and_topology(molecule, file_path):
     import mdtraj
     from openeye import oechem
 
-    # Write the PDB file
-    pdb_flavor = oechem.OEOFlavor_PDB_Default
+    # Create a temporary mol2 file using OE, change its
+    # residue name (sometimes OE assigns the molecule an
+    # amino acid residue name even if that molecule is not
+    # an amino acid, e.g. C(CO)N is not Gly), save the
+    # altered object as a pdb.
+    with tempfile.NamedTemporaryFile(suffix='.mol2') as mol2_file:
 
-    ofs = oechem.oemolostream(file_path)
-    ofs.SetFlavor(oechem.OEFormat_PDB, pdb_flavor)
+        mol2_flavor = oechem.OEOFlavor_MOL2_DEFAULT
 
-    # Fix residue names
-    residue_name = ''.join([random.choice(string.ascii_uppercase) for _ in range(3)])
+        ofs = oechem.oemolostream(mol2_file.name)
+        ofs.SetFlavor(oechem.OEFormat_MOL2, mol2_flavor)
 
-    oechem.OEWriteConstMolecule(ofs, molecule)
-    ofs.close()
+        oechem.OEWriteConstMolecule(ofs, molecule)
+        ofs.close()
 
-    with open(file_path, 'rb') as file:
-        pdb_contents = file.read().decode().replace('UNL', residue_name)
+        # Load in the OE created mol2 file.
+        oe_mol2 = mdtraj.load_mol2(mol2_file.name)
 
-    with open(file_path, 'wb') as file:
-        file.write(pdb_contents.encode())
+        # Choose a random residue name.
+        from mdtraj.core import residue_names
 
-    oe_pdb = mdtraj.load_pdb(file_path)
-    return oe_pdb.topology
+        residue_name = ''.join([random.choice(string.ascii_uppercase) for _ in range(3)])
+
+        # Make sure the residue is not already reserved, as this can occasionally
+        # result in bonds being automatically added in the wrong places when
+        # loading the pdb file either through mdtraj or openmm
+        forbidden_residue_names = [*residue_names._AMINO_ACID_CODES,
+                                   *residue_names._SOLVENT_TYPES,
+                                   *residue_names._WATER_RESIDUES,
+                                   'ADE', 'CYT', 'CYX', 'DAD', 'DGU', 'FOR', 'GUA', 'HID',
+                                   'HIE', 'HIH', 'HSD', 'HSH', 'HSP', 'NMA', 'THY', 'URA']
+
+        while residue_name in forbidden_residue_names:
+            # Re-choose the residue name until we find a safe one.
+            residue_name = ''.join([random.choice(string.ascii_uppercase) for _ in range(3)])
+
+        for residue in oe_mol2.topology.residues:
+            residue.name = residue_name
+
+        # Create the final pdb file.
+        oe_mol2.save_pdb(file_path)
+
+    return oe_mol2.topology

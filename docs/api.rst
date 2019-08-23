@@ -127,8 +127,8 @@ Calculation Backends API
     :nosignatures:
     :toctree: api/generated/
 
-    DaskLocalClusterBackend
-    DaskLSFBackend
+    DaskLocalCluster
+    DaskLSFCluster
 
 Storage Backends API
 --------------------
@@ -230,6 +230,7 @@ Built-in Workflow Protocols
     ExtractAverageStatistic
     ExtractUncorrelatedData
     ExtractUncorrelatedTrajectoryData
+<<<<<<< HEAD
     ExtractUncorrelatedStatisticsData
 
 **Reweighting**
@@ -239,6 +240,10 @@ Built-in Workflow Protocols
     :nosignatures:
     :toctree: api/generated/
 
+=======
+    AddValues
+    SubtractValues
+>>>>>>> origin/master
     UnpackStoredSimulationData
     ConcatenateTrajectories
     CalculateReducedPotentialOpenMM

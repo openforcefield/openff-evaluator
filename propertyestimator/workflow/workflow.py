@@ -5,7 +5,7 @@ import abc
 import copy
 import json
 import logging
-import re
+import math
 import time
 import traceback
 import uuid
@@ -13,16 +13,16 @@ from enum import Enum
 from math import sqrt
 from os import path, makedirs
 
-from simtk import unit
-
-from propertyestimator.storage import StoredSimulationData
+from propertyestimator import unit
+from propertyestimator.storage.dataclasses import BaseStoredData, StoredSimulationData, StoredDataCollection
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import TypedBaseModel, TypedJSONEncoder, TypedJSONDecoder
+from propertyestimator.utils.serialization import TypedJSONEncoder, TypedJSONDecoder
+from propertyestimator.utils.string import extract_variable_index_and_name
 from propertyestimator.utils.utils import SubhookedABCMeta, get_nested_attribute
-from propertyestimator.workflow.plugins import available_protocols
 from propertyestimator.workflow.protocols import BaseProtocol
-from propertyestimator.workflow.schemas import WorkflowSchema, ProtocolReplicator
+from propertyestimator.workflow.schemas import WorkflowSchema, ProtocolReplicator, WorkflowSimulationDataToStore, \
+    WorkflowDataCollectionToStore
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
@@ -45,7 +45,7 @@ class WorkflowOptions:
         (`ConvergenceMode.RelativeUncertainty`) or is less than some absolute
         value (`ConvergenceMode.AbsoluteUncertainty`)."""
 
-        # NoChecks = 'NoChecks'
+        NoChecks = 'NoChecks'
         RelativeUncertainty = 'RelativeUncertainty'
         AbsoluteUncertainty = 'AbsoluteUncertainty'
 
@@ -65,7 +65,7 @@ class WorkflowOptions:
             than
 
             `relative_uncertainty_fraction` * property_to_estimate.uncertainty
-        absolute_uncertainty: simtk.unit.Quantity, optional
+        absolute_uncertainty: propertyestimator.unit.Quantity, optional
             If the convergence mode is set to `AbsoluteUncertainty`, then workflows
             will by default run simulations until the estimated uncertainty is less
             than the `absolute_uncertainty`
@@ -118,7 +118,7 @@ class Workflow:
     def schema(self, value):
         self._set_schema(value)
 
-    def __init__(self, physical_property, global_metadata):
+    def __init__(self, physical_property, global_metadata, workflow_uuid=None):
         """
         Constructs a new Workflow object.
 
@@ -129,13 +129,16 @@ class Workflow:
         global_metadata: dict of str and Any
             A dictionary of the global metadata available to each
             of the workflow properties.
+        workflow_uuid: str, optional
+            An optional uuid to assign to this workflow. If none is provided,
+            one will be chosen at random.
         """
         assert physical_property is not None and global_metadata is not None
 
         self.physical_property = physical_property
         self.global_metadata = global_metadata
 
-        self.uuid = str(uuid.uuid4())
+        self.uuid = workflow_uuid if workflow_uuid is not None else str(uuid.uuid4())
 
         self.protocols = {}
 
@@ -143,6 +146,8 @@ class Workflow:
         self.dependants_graph = {}
 
         self.final_value_source = None
+        self.gradients_sources = []
+
         self.outputs_to_store = {}
 
     def _get_schema(self):
@@ -163,7 +168,10 @@ class Workflow:
         for protocol_id, protocol in self.protocols.items():
             schema.protocols[protocol_id] = protocol.schema
 
-        schema.final_value_source = ProtocolPath.from_string(self.final_value_source.full_path)
+        if self.final_value_source is not None:
+            schema.final_value_source = ProtocolPath.from_string(self.final_value_source.full_path)
+
+        schema.gradients_sources = [ProtocolPath.from_string(source.full_path) for source in self.gradients_sources]
 
         schema.outputs_to_store = {}
 
@@ -184,28 +192,89 @@ class Workflow:
         """
         schema = WorkflowSchema.parse_json(value.json())
 
-        self.final_value_source = ProtocolPath.from_string(schema.final_value_source.full_path)
-        self.final_value_source.append_uuid(self.uuid)
+        if schema.final_value_source is not None:
 
-        self.outputs_to_store = {}
-
-        for output_label in schema.outputs_to_store:
-
-            output_to_store = schema.outputs_to_store[output_label]
-
-            for attribute_key in output_to_store.__getstate__():
-
-                attribute_value = getattr(output_to_store, attribute_key)
-
-                if not isinstance(attribute_value, ProtocolPath):
-                    continue
-
-                attribute_value.append_uuid(self.uuid)
-
-            self.outputs_to_store[output_label] = output_to_store
+            self.final_value_source = ProtocolPath.from_string(schema.final_value_source.full_path)
+            self.final_value_source.append_uuid(self.uuid)
 
         self._build_protocols(schema)
         self._build_dependants_graph()
+
+        self.gradients_sources = []
+
+        for gradient_source in schema.gradients_sources:
+
+            copied_source = ProtocolPath.from_string(gradient_source.full_path)
+            copied_source.append_uuid(self.uuid)
+
+            self.gradients_sources.append(copied_source)
+
+        self.outputs_to_store = {}
+
+        for label in schema.outputs_to_store:
+            self._append_uuid_to_output_to_store(schema.outputs_to_store[label])
+            self.outputs_to_store[label] = self._build_output_to_store(schema.outputs_to_store[label])
+
+    def _append_uuid_to_output_to_store(self, output_to_store):
+        """Appends this workflows uuid to all of the protocol paths
+        within an output to store, and all of its child outputs.
+
+        Parameters
+        ----------
+        output_to_store: WorkflowOutputToStore
+            The output to store to append the uuid to.
+        """
+
+        for attribute_key in output_to_store.__getstate__():
+
+            attribute_value = getattr(output_to_store, attribute_key)
+
+            if not isinstance(attribute_value, ProtocolPath):
+                continue
+
+            attribute_value.append_uuid(self.uuid)
+
+        if isinstance(output_to_store, WorkflowDataCollectionToStore):
+
+            for inner_data in output_to_store.data.values():
+                self._append_uuid_to_output_to_store(inner_data)
+
+    def _build_output_to_store(self, output_to_store_schema):
+        """Builds a WorkflowOutputToStore object from the
+        an entry defined in the schema.
+
+        Parameters
+        ----------
+        output_to_store_schema: WorkflowOutputToStore
+            The entry defined in the workflow schema.
+
+        Returns
+        -------
+        WorkflowOutputToStore
+            The built object with all of its inputs correctly set.
+        """
+
+        output_to_store = copy.deepcopy(output_to_store_schema)
+
+        for attribute_key in output_to_store.__getstate__():
+
+            attribute_value = getattr(output_to_store, attribute_key)
+
+            if not isinstance(attribute_value, ProtocolPath) or not attribute_value.is_global:
+                continue
+
+            attribute_value = get_nested_attribute(self.global_metadata, attribute_value.property_name)
+            setattr(output_to_store, attribute_key, attribute_value)
+
+        # Make sure to also up any child data objects.
+        if isinstance(output_to_store, WorkflowDataCollectionToStore):
+
+            for child_data_label in output_to_store.data:
+
+                child_data = self._build_output_to_store(output_to_store.data[child_data_label])
+                output_to_store.data[child_data_label] = child_data
+
+        return output_to_store
 
     def _build_protocols(self, schema):
         """Creates a set of protocols based on a WorkflowSchema.
@@ -215,6 +284,7 @@ class Workflow:
         schema: WorkflowSchema
             The schema to use when creating the protocols
         """
+        from propertyestimator.workflow.plugins import available_protocols
 
         self._apply_replicators(schema)
 
@@ -241,6 +311,53 @@ class Workflow:
             protocol.set_uuid(self.uuid)
             self.protocols[protocol.id] = protocol
 
+    def _get_template_values(self, replicator):
+        """Returns the values which which will be passed to the replicated
+        protocols, evaluating any protocol paths to retrieve the referenced
+        values.
+
+        Parameters
+        ----------
+        replicator: ProtocolReplicator
+            The replictor which is replicating the protocols.
+
+        Returns
+        -------
+        Any
+            The template values.
+        """
+
+        invalid_value_error = ValueError(f'Template values must either be a constant or come '
+                                         f'from the global scope (and not from {replicator.template_values})')
+
+        # Get the list of values which will be passed to the newly created protocols.
+        if isinstance(replicator.template_values, ProtocolPath):
+
+            if not replicator.template_values.is_global:
+                raise invalid_value_error
+
+            return get_nested_attribute(self.global_metadata, replicator.template_values.property_name)
+
+        elif not isinstance(replicator.template_values, list):
+            raise NotImplementedError()
+
+        evaluated_template_values = []
+
+        for template_value in replicator.template_values:
+
+            if not isinstance(template_value, ProtocolPath):
+
+                evaluated_template_values.append(template_value)
+                continue
+
+            if not template_value.is_global:
+                raise invalid_value_error
+
+            evaluated_template_values.append(get_nested_attribute(self.global_metadata,
+                                                                  template_value.property_name))
+
+        return evaluated_template_values
+
     def _apply_replicators(self, schema):
         """Applies each of the protocol replicators in turn to the schema.
 
@@ -255,117 +372,12 @@ class Workflow:
             replicator = schema.replicators.pop(0)
 
             # Apply this replicator
-            self._build_replicated_protocols(schema, replicator)
+            self._apply_replicator(schema, replicator)
 
-            if len(schema.replicators) == 0:
-                continue
+            if schema.json().find(replicator.placeholder_id) >= 0:
+                raise RuntimeError(f'The {replicator.id} replicator was not fully applied.')
 
-            # Look over all of the replicators left to apply and update them
-            # to point to the newly replicated protocols where appropriate.
-            replacement_string = '$({})'.format(replicator.id)
-            new_indices = [str(index) for index in range(len(replicator.template_values))]
-
-            updated_replicators = []
-
-            for replicator_to_update in schema.replicators:
-
-                should_replicate_replicator = False
-
-                for protocol_path in replicator_to_update.protocols_to_replicate:
-
-                    if protocol_path.full_path.find(replacement_string) >= 0:
-
-                        should_replicate_replicator = True
-                        break
-
-                # Check whether this replicator is nested, and hence should be replicated.
-                if not should_replicate_replicator:
-
-                    updated_replicators.append(replicator_to_update)
-                    continue
-
-                # Create the new replicators
-                for template_index in new_indices:
-
-                    new_replicator_id = '{}_{}'.format(replicator_to_update.id, template_index)
-                    new_replicator = ProtocolReplicator(new_replicator_id)
-
-                    if isinstance(replicator_to_update.template_values, ProtocolPath):
-
-                        updated_path = replicator_to_update.template_values.full_path.replace(replacement_string,
-                                                                                              template_index)
-
-                        new_replicator.template_values = ProtocolPath.from_string(updated_path)
-
-                    elif isinstance(replicator_to_update.template_values, list):
-
-                        updated_values = []
-
-                        for template_value in replicator_to_update.template_values:
-
-                            if not isinstance(template_value, ProtocolPath):
-
-                                updated_values.append(template_value)
-                                continue
-
-                            updated_path = template_value.full_path.replace(replacement_string,
-                                                                            template_index)
-
-                            updated_values.append(ProtocolPath.from_string(updated_path))
-
-                        new_replicator.template_values = updated_values
-
-                    else:
-
-                        new_replicator.template_values = replicator.template_values
-
-                    updated_replicators.append(new_replicator)
-
-                # Set up the protocols for each of the new replicators.
-                all_protocols_to_replicate = []
-
-                all_protocols_to_replicate.extend(replicator.protocols_to_replicate)
-                all_protocols_to_replicate.extend(x for x in replicator_to_update.protocols_to_replicate
-                                                  if x not in all_protocols_to_replicate)
-
-                for protocol_path in all_protocols_to_replicate:
-
-                    if protocol_path.start_protocol != protocol_path.last_protocol:
-
-                        raise ValueError('Cannot replicate replicators which replicate grouped'
-                                         'protocols...')
-
-                    for template_index in new_indices:
-
-                        replicated_path = ProtocolPath.from_string(protocol_path.full_path.replace(replacement_string,
-                                                                                                   template_index))
-
-                        protocol_schema_json = schema.protocols[replicated_path.start_protocol].json()
-
-                        if protocol_schema_json.find(replicator_to_update.id) < 0:
-                            continue
-
-                        schema.protocols.pop(replicated_path.start_protocol)
-
-                        new_replicator_id = '{}_{}'.format(replicator_to_update.id, template_index)
-
-                        updated_schema_json = protocol_schema_json.replace(replicator_to_update.id,
-                                                                           new_replicator_id)
-
-                        updated_schema = TypedBaseModel.parse_json(updated_schema_json)
-                        schema.protocols[updated_schema.id] = updated_schema
-
-                        if protocol_path not in replicator_to_update.protocols_to_replicate:
-                            continue
-
-                        updated_path = replicated_path.full_path.replace(replicator_to_update.id, new_replicator_id)
-
-                        updated_replicators[int(template_index)].protocols_to_replicate.append(
-                            ProtocolPath.from_string(updated_path))
-
-            schema.replicators = updated_replicators
-
-    def _build_replicated_protocols(self, schema, replicator):
+    def _apply_replicator(self, schema, replicator):
         """A method to create a set of protocol schemas based on a ProtocolReplicator,
         and add them to the list of existing schemas.
 
@@ -373,64 +385,80 @@ class Workflow:
         ----------
         schema: WorkflowSchema
             The schema which contains the protocol definitions
-        replicator: :obj:`ProtocolReplicator`
+        replicator: `ProtocolReplicator`
             The replicator which describes which new protocols should
             be created.
         """
 
-        template_values = replicator.template_values
+        from propertyestimator.workflow.plugins import available_protocols
 
-        # Get the list of values which will be passed to the newly created protocols -
-        # in particular those specified by `generator_protocol.template_targets`
-        if isinstance(template_values, ProtocolPath):
-
-            if not template_values.is_global:
-                raise ValueError('Template values must either be a constant or come'
-                                 'from the global scope (and not from {})'.format(template_values))
-
-            template_values = get_nested_attribute(self.global_metadata, template_values.property_name)
-
-        elif isinstance(template_values, list):
-
-            new_values = []
-
-            for template_value in template_values:
-
-                if not isinstance(template_value, ProtocolPath):
-
-                    new_values.append(template_value)
-                    continue
-
-                if not template_value.is_global:
-                    raise ValueError('Template values must either be a constant or come'
-                                     'from the global scope (and not from {})'.format(template_value))
-
-                new_values.append(get_nested_attribute(self.global_metadata, template_value.property_name))
-
-            template_values = new_values
-
-        replicator.template_values = template_values
-
-        replicated_protocols = []
+        # Get the list of values which will be passed to the newly created protocols.
+        template_values = self._get_template_values(replicator)
 
         # Replicate the protocols.
-        for protocol_path in replicator.protocols_to_replicate:
+        protocols = {}
 
-            if protocol_path.start_protocol in replicated_protocols:
+        for protocol_id, protocol_schema in schema.protocols.items():
+
+            protocol = available_protocols[protocol_schema.type](schema.id)
+            protocol.schema = protocol_schema
+            protocols[protocol_id] = protocol
+
+        replicated_protocols, replication_map = replicator.apply(protocols, template_values)
+        replicator.update_references(replicated_protocols, replication_map, template_values)
+
+        # Update the schema with the replicated protocols.
+        schema.protocols = {}
+
+        for protocol_id in replicated_protocols:
+            schema.protocols[protocol_id] = replicated_protocols[protocol_id].schema
+
+        # Make sure to correctly replicate gradient sources.
+        replicated_gradient_sources = []
+
+        for gradient_source in schema.gradients_sources:
+
+            if replicator.placeholder_id not in gradient_source.full_path:
+
+                replicated_gradient_sources.append(gradient_source)
                 continue
 
-            replicated_protocols.append(protocol_path.start_protocol)
+            for index, template_value in enumerate(template_values):
 
-            self._replicate_protocol(schema, protocol_path, replicator, template_values)
+                replicated_source = ProtocolPath.from_string(
+                    gradient_source.full_path.replace(replicator.placeholder_id, str(index)))
+
+                replicated_gradient_sources.append(replicated_source)
+
+        schema.gradients_sources = replicated_gradient_sources
+
+        # Replicate any outputs.
+        self._apply_replicator_to_outputs(replicator, schema, template_values)
+        # Replicate any replicators.
+        self._apply_replicator_to_replicators(replicator, schema, template_values)
+
+    def _apply_replicator_to_outputs(self, replicator, schema, template_values):
+        """Applies a replicator to a schema outputs to store.
+
+        Parameters
+        ----------
+        replicator: ProtocolReplicator
+            The replicator to apply.
+        schema: WorkflowSchema
+            The schema which defines the outputs to store.
+        template_values: List of Any
+            The values being applied by the replicator.
+        """
 
         outputs_to_replicate = []
 
-        for output_label in self.outputs_to_store:
+        for output_label in schema.outputs_to_store:
 
-            replicator_ids = self._find_replicator_ids(output_label)
-
-            if len(replicator_ids) <= 0 or replicator.id not in replicator_ids:
+            if output_label.find(replicator.id) < 0:
                 continue
+
+            if isinstance(schema.outputs_to_store[output_label], WorkflowDataCollectionToStore):
+                raise NotImplementedError('`WorkflowDataCollectionToStore` cannot currently be replicated.')
 
             outputs_to_replicate.append(output_label)
 
@@ -438,13 +466,11 @@ class Workflow:
         # protocols which are being replicated.
         for output_label in outputs_to_replicate:
 
-            output_to_replicate = self.outputs_to_store.pop(output_label)
+            output_to_replicate = schema.outputs_to_store.pop(output_label)
 
             for index, template_value in enumerate(template_values):
 
-                replacement_string = '$({})'.format(replicator.id)
-
-                replicated_label = output_label.replace(replacement_string, str(index))
+                replicated_label = output_label.replace(replicator.placeholder_id, str(index))
                 replicated_output = copy.deepcopy(output_to_replicate)
 
                 for attribute_key in replicated_output.__getstate__():
@@ -454,195 +480,89 @@ class Workflow:
                     if isinstance(attribute_value, ProtocolPath):
 
                         attribute_value = ProtocolPath.from_string(
-                            attribute_value.full_path.replace(replacement_string, str(index)))
+                            attribute_value.full_path.replace(replicator.placeholder_id, str(index)))
 
                     elif isinstance(attribute_value, ReplicatorValue):
 
                         if attribute_value.replicator_id != replicator.id:
+
+                            # Make sure to handle nested dependent replicators.
+                            attribute_value.replicator_id = attribute_value.replicator_id.replace(
+                                replicator.placeholder_id, str(index))
+
                             continue
 
                         attribute_value = template_value
 
                     setattr(replicated_output, attribute_key, attribute_value)
 
-                self.outputs_to_store[replicated_label] = replicated_output
-
-        # Find any non-replicated protocols which take input from the replication templates,
-        # and redirect the path to point to the actual replicated protocol.
-        self._update_references_to_replicated(schema, replicator, template_values)
+                schema.outputs_to_store[replicated_label] = replicated_output
 
     @staticmethod
-    def _find_replicator_ids(string):
-        """Returns a list of any replicator ids (defined within a $(...))
-        that are present in a given string.
+    def _apply_replicator_to_replicators(replicator, schema, template_values):
+        """Applies a replicator to any replicators which depend upon
+        it (e.g. replicators with ids similar to `other_id_$(replicator.id)`).
 
         Parameters
         ----------
-        string: str
-            The string to search for replicator ids
-
-        Returns
-        -------
-        list of str
-            A list of any found replicator ids
-        """
-        return re.findall('[$][(](.*?)[)]', string, flags=0)
-
-    @staticmethod
-    def _replicate_protocol(schema, protocol_path, replicator, template_values):
-        """Replicates a protocol in the workflow according to a
-        :obj:`ProtocolReplicator`
-
-        Parameters
-        ----------
+        replicator: ProtocolReplicator
+            The replicator being applied.
         schema: WorkflowSchema
-            The schema which contains the protocol definitions
-        protocol_path: :obj:`ProtocolPath`
-            A reference path to the protocol to replicate.
-        replicator: :obj:`ProtocolReplicator`
-            The replicator object which describes how this
-            protocol will be replicated.
-        template_values: :obj:`list` of :obj:`Any`
-            A list of the values which will be inserted
-            into the newly replicated protocols.
+            The workflow schema to which the replicator belongs.
+        template_values: List of Any
+            The values which the replicator is applying.
         """
-        schema_to_replicate = schema.protocols[protocol_path.start_protocol]
-        replacement_string = '$({})'.format(replicator.id)
 
-        if protocol_path.start_protocol == protocol_path.last_protocol:
+        # Look over all of the replicators left to apply and update them
+        # to point to the newly replicated protocols where appropriate.
+        new_indices = [str(index) for index in range(len(template_values))]
 
-            # If the protocol is not a group, replicate the protocol directly.
-            for index in range(len(template_values)):
+        replicators = []
 
-                replicated_schema_id = schema_to_replicate.id.replace(replacement_string, str(index))
+        for original_replicator in schema.replicators:
 
-                protocol = available_protocols[schema_to_replicate.type](replicated_schema_id)
-                protocol.schema = schema_to_replicate
+            # Check whether this replicator will be replicated.
+            if replicator.placeholder_id not in original_replicator.id:
 
-                # If this protocol references other protocols which are being
-                # replicated, point it to the replicated version with the same index.
-                for other_path in replicator.protocols_to_replicate:
+                replicators.append(original_replicator)
+                continue
 
-                    _, other_path_components = ProtocolPath.to_components(other_path.full_path)
+            # Create the replicated replicators
+            for template_index in new_indices:
 
-                    for protocol_id_to_rename in other_path_components:
-                        protocol.replace_protocol(protocol_id_to_rename,
-                                                  protocol_id_to_rename.replace(replacement_string, str(index)))
+                replicator_id = original_replicator.id.replace(replicator.placeholder_id, template_index)
 
-                schema.protocols[protocol.id] = protocol.schema
+                new_replicator = ProtocolReplicator(replicator_id)
+                new_replicator.template_values = original_replicator.template_values
 
-            schema.protocols.pop(protocol_path.start_protocol)
+                # Make sure to replace any reference to the applied replicator
+                # with the actual index.
+                if isinstance(new_replicator.template_values, ProtocolPath):
 
-        else:
+                    updated_path = new_replicator.template_values.full_path.replace(replicator.placeholder_id,
+                                                                                    template_index)
 
-            # Otherwise, let the group replicate its own protocols.
-            protocol = available_protocols[schema_to_replicate.type](schema_to_replicate.id)
-            protocol.schema = schema_to_replicate
+                    new_replicator.template_values = ProtocolPath.from_string(updated_path)
 
-            protocol.apply_replicator(replicator, template_values)
-            schema.protocols[protocol.id] = protocol.schema
+                elif isinstance(new_replicator.template_values, list):
 
-        # Go through all of the newly created protocols, and update
-        # their references and their values if targeted by the replicator.
-        for index, template_value in enumerate(template_values):
+                    updated_values = []
 
-            protocol_id = schema_to_replicate.id.replace(replacement_string, str(index))
+                    for template_value in new_replicator.template_values:
 
-            protocol_schema = schema.protocols[protocol_id]
+                        if not isinstance(template_value, ProtocolPath):
 
-            protocol = available_protocols[protocol_schema.type](protocol_schema.id)
-            protocol.schema = protocol_schema
+                            updated_values.append(template_value)
+                            continue
 
-            template_value = template_values[index]
+                        updated_path = template_value.full_path.replace(replicator.placeholder_id, template_index)
+                        updated_values.append(ProtocolPath.from_string(updated_path))
 
-            # Pass the template values to the target protocols.
-            for required_input in protocol.required_inputs:
+                    new_replicator.template_values = updated_values
 
-                input_value = protocol.get_value(required_input)
+                replicators.append(new_replicator)
 
-                if not isinstance(input_value, ReplicatorValue):
-                    continue
-
-                if input_value.replicator_id != replicator.id:
-                    continue
-
-                protocol.set_value(required_input, template_value)
-
-            schema.protocols[protocol_id] = protocol.schema
-
-    @staticmethod
-    def _update_references_to_replicated(schema, replicator, template_values):
-        """Finds any non-replicated protocols which take input from a protocol
-         which was replicated, and redirects the path to point to the actual
-         replicated protocol.
-
-        Parameters
-        ----------
-        schema: WorkflowSchema
-            The schema which contains the protocol definitions
-        replicator: :obj:`ProtocolReplicator`
-            The replicator object which described how the protocols
-            should have been replicated.
-        template_values: :obj:`list` of :obj:`Any`
-            The list of values that the protocols were replicated for.
-        """
-        replacement_string = '$({})'.format(replicator.id)
-
-        for protocol_id in schema.protocols:
-
-            protocol_schema = schema.protocols[protocol_id]
-
-            protocol = available_protocols[protocol_schema.type](protocol_schema.id)
-            protocol.schema = protocol_schema
-
-            # Look at each of the protocols inputs and see if its value is either a ProtocolPath,
-            # or a list of ProtocolPath's.
-            for required_input in protocol.required_inputs:
-
-                all_value_references = protocol.get_value_references(required_input)
-                replicated_value_references = {}
-
-                for source_path, value_reference in all_value_references.items():
-
-                    if not replicator.replicates_protocol_or_child(value_reference):
-                        continue
-
-                    replicated_value_references[source_path] = value_reference
-
-                if len(replicated_value_references) == 0:
-                    continue
-
-                generated_path_list = {}
-
-                for source_path, value_reference in replicated_value_references.items():
-                    # Replace the input value with a list of ProtocolPath's that point to
-                    # the newly generated protocols.
-                    path_list = [ProtocolPath.from_string(value_reference.full_path.replace(replacement_string,
-                                                                                            str(index)))
-                                 for index in range(len(template_values))]
-
-                    generated_path_list[value_reference] = path_list
-
-                input_value = protocol.get_value(required_input)
-
-                if isinstance(input_value, ProtocolPath):
-                    protocol.set_value(required_input, generated_path_list[input_value])
-                    continue
-
-                new_list_value = []
-
-                for value in input_value:
-
-                    if not isinstance(value, ProtocolPath) or value not in generated_path_list:
-                        new_list_value.append(value)
-                        continue
-
-                    new_list_value.extend(generated_path_list[value])
-
-                protocol.set_value(required_input, new_list_value)
-
-            # Update the schema of the modified protocol.
-            schema.protocols[protocol_id] = protocol.schema
+        schema.replicators = replicators
 
     def _build_dependants_graph(self):
         """Builds a dictionary of key value pairs where each key represents the id of a
@@ -731,7 +651,11 @@ class Workflow:
         if old_protocol_id in self.dependants_graph:
             self.dependants_graph[new_protocol_id] = self.dependants_graph.pop(old_protocol_id)
 
-        self.final_value_source.replace_protocol(old_protocol_id, new_protocol_id)
+        if self.final_value_source is not None:
+            self.final_value_source.replace_protocol(old_protocol_id, new_protocol_id)
+
+        for gradient_source in self.gradients_sources:
+            gradient_source.replace_protocol(old_protocol_id, new_protocol_id)
 
         for output_label in self.outputs_to_store:
 
@@ -747,8 +671,86 @@ class Workflow:
                 attribute_value.replace_protocol(old_protocol_id,
                                                  new_protocol_id)
 
+            if not isinstance(output_to_store, WorkflowDataCollectionToStore):
+                continue
+
+            for inner_data in output_to_store.data.values():
+
+                for attribute_key in inner_data.__getstate__():
+
+                    attribute_value = getattr(inner_data, attribute_key)
+
+                    if not isinstance(attribute_value, ProtocolPath):
+                        continue
+
+                    attribute_value.replace_protocol(old_protocol_id,
+                                                     new_protocol_id)
+
     @staticmethod
-    def generate_default_metadata(physical_property, force_field_path, estimator_options):
+    def _find_relevant_gradient_keys(substance, force_field_path, parameter_gradient_keys):
+        """Extract only those keys which may be applied to the
+        given substance.
+
+        Parameters
+        ----------
+        substance: Substance
+            The substance to compare against.
+        force_field_path: str
+            The path to the force field which contains the parameters.
+        parameter_gradient_keys: list of ParameterGradientKey
+            The original list of parameter gradient keys.
+
+        Returns
+        -------
+        list of ParameterGradientKey
+            The filtered list of parameter gradient keys.
+        """
+        from openforcefield.topology import Molecule, Topology
+        from openforcefield.typing.engines.smirnoff import ForceField
+
+        # noinspection PyTypeChecker
+        if parameter_gradient_keys is None or len(parameter_gradient_keys) == 0:
+            return []
+
+        force_field = ForceField(force_field_path, allow_cosmetic_attributes=True)
+
+        all_molecules = []
+
+        for component in substance.components:
+            all_molecules.append(Molecule.from_smiles(component.smiles))
+
+        topology = Topology.from_molecules(all_molecules)
+        labelled_molecules = force_field.label_molecules(topology)
+
+        reduced_parameter_keys = []
+
+        for labelled_molecule in labelled_molecules:
+
+            for parameter_key in parameter_gradient_keys:
+
+                if parameter_key.tag not in labelled_molecule or parameter_key in reduced_parameter_keys:
+                    continue
+
+                contains_parameter = False
+
+                for parameter in labelled_molecule[parameter_key.tag].store.values():
+
+                    if parameter.smirks != parameter_key.smirks:
+                        continue
+
+                    contains_parameter = True
+                    break
+
+                if not contains_parameter:
+                    continue
+
+                reduced_parameter_keys.append(parameter_key)
+
+        return reduced_parameter_keys
+
+    @staticmethod
+    def generate_default_metadata(physical_property, force_field_path,
+                                  parameter_gradient_keys=None, workflow_options=None):
         """Generates a default global metadata dictionary.
         
         Parameters
@@ -758,7 +760,10 @@ class Workflow:
             global scope.
         force_field_path: str
             The path to the force field parameters to use in the workflow.
-        estimator_options: PropertyEstimatorOptions
+        parameter_gradient_keys: list of ParameterGradientKey
+                A list of references to all of the parameters which all observables
+                should be differentiated with respect to.
+        workflow_options: WorkflowOptions, optional
             The options provided when an estimate request was submitted.
 
         Returns
@@ -773,13 +778,16 @@ class Workflow:
             - substance: `Substance` - The composition of the system of interest.
             - components: list of `Substance` - The components present in the system for
                                               which the property is being estimated.
-            - target_uncertainty: simtk.unit.Quantity - The target uncertainty with which
+            - target_uncertainty: propertyestimator.unit.Quantity - The target uncertainty with which
                                                         properties should be estimated.
-            - per_component_uncertainty: simtk.unit.Quantity - The target uncertainty divided
+            - per_component_uncertainty: propertyestimator.unit.Quantity - The target uncertainty divided
                                                                by the sqrt of the number of
                                                                components in the system + 1
             - force_field_path: str - A path to the force field parameters with which the
                                       property should be evaluated with.
+            - parameter_gradient_keys: list of ParameterGradientKey - A list of references to all of the
+                                                                      parameters which all observables
+                                                                      should be differentiated with respect to.
         """
         from propertyestimator.substances import Substance
 
@@ -792,28 +800,31 @@ class Workflow:
 
             components.append(component_substance)
 
-        if estimator_options is None:
-            workflow_options = WorkflowOptions()
-        elif (estimator_options.workflow_options is not None and
-            type(physical_property).__name__ in estimator_options.workflow_options):
-            workflow_options = estimator_options.workflow_options[type(physical_property).__name__]
-        else:
+        if workflow_options is None:
             workflow_options = WorkflowOptions()
 
         if workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.RelativeUncertainty:
             target_uncertainty = physical_property.uncertainty * workflow_options.relative_uncertainty_fraction
         elif workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.AbsoluteUncertainty:
             target_uncertainty = workflow_options.absolute_uncertainty
+        elif workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.NoChecks:
+            target_uncertainty = math.inf
         else:
             raise ValueError('The convergence mode {} is not supported.'.format(workflow_options.convergence_mode))
 
         if (isinstance(physical_property.uncertainty, unit.Quantity) and not
             isinstance(target_uncertainty, unit.Quantity)):
 
-            target_uncertainty = unit.Quantity(target_uncertainty, physical_property.uncertainty.unit)
+            target_uncertainty = target_uncertainty * physical_property.uncertainty.units
 
         # +1 comes from inclusion of the full mixture as a possible component.
         per_component_uncertainty = target_uncertainty / sqrt(physical_property.substance.number_of_components + 1)
+
+        # Find only those gradient keys which will actually be relevant to the
+        # property of interest
+        relevant_gradient_keys = Workflow._find_relevant_gradient_keys(physical_property.substance,
+                                                                       force_field_path,
+                                                                       parameter_gradient_keys)
 
         # Define a dictionary of accessible 'global' properties.
         global_metadata = {
@@ -822,7 +833,8 @@ class Workflow:
             "components": components,
             "target_uncertainty": target_uncertainty,
             "per_component_uncertainty": per_component_uncertainty,
-            "force_field_path": force_field_path
+            "force_field_path": force_field_path,
+            "parameter_gradient_keys": relevant_gradient_keys
         }
 
         # Include the properties metadata
@@ -925,15 +937,18 @@ class WorkflowGraph:
 
             if len(parent_protocol_ids) == 0:
                 self._root_protocol_ids.append(protocol_name)
-            else:
 
-                for protocol_id in workflow.dependants_graph:
+        if len(parent_protocol_ids) > 0:
 
-                    if (protocol_name not in workflow.dependants_graph[protocol_id] or
-                            protocol_id in self._dependants_graph[protocol_name]):
-                        continue
+            for protocol_id in workflow.dependants_graph:
 
-                    self._dependants_graph[protocol_id].append(protocol_name)
+                if (existing_protocol.id not in workflow.dependants_graph[protocol_id] or
+                    existing_protocol.id in self._dependants_graph[protocol_id] or
+                    protocol_id in self._dependants_graph[existing_protocol.id]):
+
+                    continue
+
+                self._dependants_graph[protocol_id].append(existing_protocol.id)
 
         return existing_protocol.id
 
@@ -1011,7 +1026,7 @@ class WorkflowGraph:
 
             submitted_futures[node_id] = backend.submit_task(WorkflowGraph._execute_protocol,
                                                              node.directory,
-                                                             node.schema,
+                                                             node.schema.json(),
                                                              *dependency_futures,
                                                              key=f'execute_{node_id}')
 
@@ -1029,11 +1044,17 @@ class WorkflowGraph:
 
             workflow.physical_property.source.provenance = provenance
 
-            value_node_id = workflow.final_value_source.start_protocol
+            final_futures = []
 
-            final_futures = [
-                submitted_futures[value_node_id],
-            ]
+            if workflow.final_value_source is not None:
+
+                value_node_id = workflow.final_value_source.start_protocol
+                final_futures = [submitted_futures[value_node_id]]
+
+            for gradient_source in workflow.gradients_sources:
+
+                protocol_id = gradient_source.start_protocol
+                final_futures.append(submitted_futures[protocol_id])
 
             for output_label in workflow.outputs_to_store:
 
@@ -1048,16 +1069,34 @@ class WorkflowGraph:
 
                     final_futures.append(submitted_futures[attribute_value.start_protocol])
 
+                if not isinstance(output_to_store, WorkflowDataCollectionToStore):
+                    continue
+
+                for inner_data in output_to_store.data.values():
+
+                    for attribute_key in inner_data.__getstate__():
+
+                        attribute_value = getattr(inner_data, attribute_key)
+
+                        if not isinstance(attribute_value, ProtocolPath):
+                            continue
+
+                        final_futures.append(submitted_futures[attribute_value.start_protocol])
+
+            if len(final_futures) == 0:
+                final_futures = [submitted_futures[key] for key in submitted_futures]
+
             target_uncertainty = None
 
             if include_uncertainty_check and 'target_uncertainty' in workflow.global_metadata:
-                target_uncertainty = workflow.global_metadata['target_uncertainty']
+                target_uncertainty = workflow.global_metadata['target_uncertainty'].to_tuple()
 
             # Gather the values and uncertainties of each property being calculated.
             value_futures.append(backend.submit_task(WorkflowGraph._gather_results,
                                                      self._root_directory,
                                                      workflow.physical_property,
                                                      workflow.final_value_source,
+                                                     workflow.gradients_sources,
                                                      workflow.outputs_to_store,
                                                      target_uncertainty,
                                                      *final_futures,
@@ -1083,13 +1122,13 @@ class WorkflowGraph:
             json.dump(output_dictionary, file, cls=TypedJSONEncoder)
 
     @staticmethod
-    def _execute_protocol(directory, protocol_schema, *previous_output_paths, available_resources, **kwargs):
+    def _execute_protocol(directory, protocol_schema_json, *previous_output_paths, available_resources, **_):
         """Executes a protocol whose state is defined by the ``protocol_schema``.
 
         Parameters
         ----------
-        protocol_schema: protocols.ProtocolSchema
-            The schema defining the protocol to execute.
+        protocol_schema_json: str
+            The JSON schema defining the protocol to execute.
         previous_output_paths: tuple of str
             Paths to the results of previous protocol executions.
 
@@ -1101,8 +1140,14 @@ class WorkflowGraph:
             A dictionary which contains the outputs of the executed protocol.
         """
 
+        from propertyestimator.workflow.plugins import available_protocols
+        from propertyestimator.workflow import protocols
+
+        protocol_schema = protocols.ProtocolSchema.parse_json(protocol_schema_json)
+
         # The path where the output of this protocol will be stored.
         output_dictionary_path = path.join(directory, '{}_output.json'.format(protocol_schema.id))
+        makedirs(directory, exist_ok=True)
 
         # We need to make sure ALL exceptions are handled within this method,
         # or any function which will be executed on a calculation backend to
@@ -1119,8 +1164,6 @@ class WorkflowGraph:
             previous_outputs_by_path = {}
 
             for parent_id, previous_output_path in previous_output_paths:
-
-                parent_output = None
 
                 try:
 
@@ -1158,9 +1201,6 @@ class WorkflowGraph:
             protocol = available_protocols[protocol_schema.type](protocol_schema.id)
             protocol.schema = protocol_schema
 
-            if not path.isdir(directory):
-                makedirs(directory)
-
             # Pass the outputs of previously executed protocols as input to the
             # protocol to execute.
             for input_path in protocol.required_inputs:
@@ -1174,7 +1214,31 @@ class WorkflowGraph:
 
                         continue
 
-                    protocol.set_value(source_path, previous_outputs_by_path[target_path])
+                    property_name = target_path.property_name
+                    property_index = None
+
+                    nested_property_name = None
+
+                    if property_name.find('.') > 0:
+
+                        nested_property_name = '.'.join(property_name.split('.')[1:])
+                        property_name = property_name.split('.')[0]
+
+                    if property_name.find('[') >= 0 or property_name.find(']') >= 0:
+                        property_name, property_index = extract_variable_index_and_name(property_name)
+
+                    _, target_protocol_ids = ProtocolPath.to_components(target_path.full_path)
+
+                    target_value = previous_outputs_by_path[ProtocolPath(property_name,
+                                                                         *target_protocol_ids)]
+
+                    if property_index is not None:
+                        target_value = target_value[property_index]
+
+                    if nested_property_name is not None:
+                        target_value = get_nested_attribute(target_value, nested_property_name)
+
+                    protocol.set_value(source_path, target_value)
 
             logging.info('Executing protocol: {}'.format(protocol.id))
 
@@ -1193,8 +1257,8 @@ class WorkflowGraph:
                 formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
                 exception = PropertyEstimatorException(directory=directory,
-                                                       message='Could not save the output dictionary of {} ({}): {}'.format(
-                                                               protocol.id, output_dictionary_path, formatted_exception))
+                                                       message=f'Could not save the output dictionary of {protocol.id} '
+                                                               f'({output_dictionary_path}): {formatted_exception}')
 
                 WorkflowGraph._save_protocol_output(output_dictionary_path, exception)
 
@@ -1215,8 +1279,8 @@ class WorkflowGraph:
             return protocol_schema.id, output_dictionary_path
 
     @staticmethod
-    def _gather_results(directory, property_to_return, value_reference, outputs_to_store,
-                        target_uncertainty, *protocol_result_paths, **kwargs):
+    def _gather_results(directory, property_to_return, value_reference, gradient_sources,
+                        outputs_to_store, target_uncertainty, *protocol_result_paths, **_):
         """Gather the value and uncertainty calculated from the submission graph
         and store them in the property to return.
 
@@ -1226,8 +1290,11 @@ class WorkflowGraph:
             The directory to store any working files in.
         property_to_return: PhysicalProperty
             The property to which the value and uncertainty belong.
-        value_reference: ProtocolPath
+        value_reference: ProtocolPath, optional
             A reference to which property in the output dictionary is the actual value.
+        gradient_sources: list of ProtocolPath
+            A list of references to those entries in the output dictionaries which correspond
+            to parameter gradients.
         outputs_to_store: dict of string and WorkflowOutputToStore
             A list of references to data which should be stored on the storage backend.
         target_uncertainty: unit.Quantity, optional
@@ -1246,6 +1313,9 @@ class WorkflowGraph:
         """
         from propertyestimator.layers.layers import CalculationLayerResult
 
+        if target_uncertainty is not None:
+            target_uncertainty = unit.Quantity.from_tuple(target_uncertainty)
+
         return_object = CalculationLayerResult()
         return_object.property_id = property_to_return.id
 
@@ -1253,8 +1323,6 @@ class WorkflowGraph:
             results_by_id = {}
 
             for protocol_id, protocol_result_path in protocol_result_paths:
-
-                protocol_results = None
 
                 try:
 
@@ -1289,32 +1357,43 @@ class WorkflowGraph:
                     final_path = ProtocolPath(property_name, *protocol_ids)
                     results_by_id[final_path] = output_value
 
-            if target_uncertainty is not None and results_by_id[value_reference].uncertainty > target_uncertainty:
+            if value_reference is not None:
 
-                logging.info('The final uncertainty ({}) was not less than the target threshold ({}).'.format(
-                    results_by_id[value_reference].uncertainty, target_uncertainty))
+                if (target_uncertainty is not None and
+                    results_by_id[value_reference].uncertainty > target_uncertainty):
 
-                return None
+                    logging.info('The final uncertainty ({}) was not less than the target threshold ({}).'.format(
+                        results_by_id[value_reference].uncertainty, target_uncertainty))
 
-            property_to_return.value = results_by_id[value_reference].value
-            property_to_return.uncertainty = results_by_id[value_reference].uncertainty
+                    return None
+
+                property_to_return.value = results_by_id[value_reference].value
+                property_to_return.uncertainty = results_by_id[value_reference].uncertainty
+
+            for gradient_source in gradient_sources:
+
+                gradient = results_by_id[gradient_source]
+                property_to_return.gradients.append(gradient)
 
             return_object.calculated_property = property_to_return
-            return_object.data_directories_to_store = []
+            return_object.data_to_store = []
 
-            # TODO: At the moment it is assumed that the output of a WorkflowGraph is
-            #       a set of StoredSimulationData. This should be abstracted and made
-            #       more general in future if possible.
             for output_to_store in outputs_to_store.values():
 
-                results_directory = path.join(directory, f'results_{property_to_return.id}')
+                substance_id = (property_to_return.substance.identifier if
+                                output_to_store.substance is None else
+                                output_to_store.substance.identifier)
 
-                WorkflowGraph._store_simulation_data(results_directory,
-                                                     output_to_store,
-                                                     property_to_return,
-                                                     results_by_id)
+                data_object_path = path.join(directory, f'results_{property_to_return.id}_{substance_id}.json')
+                data_directory = path.join(directory, f'results_{property_to_return.id}_{substance_id}')
 
-                return_object.data_directories_to_store.append(results_directory)
+                WorkflowGraph._store_output_data(data_object_path,
+                                                 data_directory,
+                                                 output_to_store,
+                                                 property_to_return,
+                                                 results_by_id)
+
+                return_object.data_to_store.append((data_object_path, data_directory))
 
         except Exception as e:
 
@@ -1327,14 +1406,18 @@ class WorkflowGraph:
         return return_object
 
     @staticmethod
-    def _store_simulation_data(storage_directory, output_to_store, physical_property, results_by_id):
+    def _store_output_data(data_object_path, data_directory, output_to_store,
+                           physical_property, results_by_id):
+
         """Collects all of the simulation to store, and saves it into a directory
         whose path will be passed to the storage backend to process.
 
         Parameters
         ----------
-        storage_directory: str
-            The directory to store the data in.
+        data_object_path: str
+            The file path to serialize the data object to.
+        data_directory: str
+            The path of the directory to store ancillary data in.
         output_to_store: WorkflowOutputToStore
             An object which contains `ProtocolPath`s pointing to the
             data to store.
@@ -1345,12 +1428,15 @@ class WorkflowGraph:
             The results of the protocols which formed the property
             estimation workflow.
         """
-        from shutil import copy as file_copy
 
-        if not path.isdir(storage_directory):
-            makedirs(storage_directory)
+        makedirs(data_directory, exist_ok=True)
 
-        stored_object = StoredSimulationData()
+        stored_object = BaseStoredData()
+
+        if type(output_to_store) == WorkflowSimulationDataToStore:
+            stored_object = StoredSimulationData()
+        elif type(output_to_store) == WorkflowDataCollectionToStore:
+            stored_object = StoredDataCollection()
 
         if output_to_store.substance is None:
             stored_object.substance = physical_property.substance
@@ -1363,23 +1449,72 @@ class WorkflowGraph:
         stored_object.provenance = physical_property.source
         stored_object.source_calculation_id = physical_property.id
 
+        if isinstance(output_to_store, WorkflowSimulationDataToStore):
+
+            WorkflowGraph._store_simulation_data(stored_object,
+                                                 data_directory,
+                                                 output_to_store,
+                                                 results_by_id)
+
+        elif isinstance(output_to_store, WorkflowDataCollectionToStore):
+
+            for data_key in output_to_store.data:
+
+                inner_data_object = StoredSimulationData()
+                inner_data_object.substance = stored_object.substance
+                inner_data_object.thermodynamic_state = stored_object.thermodynamic_state
+                inner_data_object.source_calculation_id = stored_object.source_calculation_id
+
+                inner_data_directory = path.join(data_directory, data_key)
+
+                makedirs(inner_data_directory, exist_ok=True)
+
+                WorkflowGraph._store_simulation_data(inner_data_object,
+                                                     inner_data_directory,
+                                                     output_to_store.data[data_key],
+                                                     results_by_id)
+
+                stored_object.data[data_key] = inner_data_object
+
+        with open(data_object_path, 'w') as file:
+            json.dump(stored_object, file, cls=TypedJSONEncoder)
+
+    @staticmethod
+    def _store_simulation_data(data_object, data_directory, output_to_store, results_by_id):
+        """Collects all of the simulation to store, and saves it into a directory
+        whose path will be passed to the storage backend to process.
+
+        Parameters
+        ----------
+        data_object: StoredSimulationData
+            The data object which is to be stored.
+        data_directory: str
+            The path of the directory to store ancillary data in.
+        output_to_store: WorkflowSimulationDataToStore
+            An object which contains `ProtocolPath`s pointing to the
+            data to store.
+        results_by_id: dict of ProtocolPath and any
+            The results of the protocols which formed the property
+            estimation workflow.
+        """
+        from shutil import copy as file_copy
+
+        data_object.total_number_of_molecules = results_by_id[output_to_store.total_number_of_molecules]
+
         # Copy the files into the directory to store.
         _, coordinate_file_name = path.split(results_by_id[output_to_store.coordinate_file_path])
         _, trajectory_file_name = path.split(results_by_id[output_to_store.trajectory_file_path])
 
         _, statistics_file_name = path.split(results_by_id[output_to_store.statistics_file_path])
 
-        file_copy(results_by_id[output_to_store.coordinate_file_path], storage_directory)
-        file_copy(results_by_id[output_to_store.trajectory_file_path], storage_directory)
+        file_copy(results_by_id[output_to_store.coordinate_file_path], data_directory)
+        file_copy(results_by_id[output_to_store.trajectory_file_path], data_directory)
 
-        file_copy(results_by_id[output_to_store.statistics_file_path], storage_directory)
+        file_copy(results_by_id[output_to_store.statistics_file_path], data_directory)
 
-        stored_object.coordinate_file_name = coordinate_file_name
-        stored_object.trajectory_file_name = trajectory_file_name
+        data_object.coordinate_file_name = coordinate_file_name
+        data_object.trajectory_file_name = trajectory_file_name
 
-        stored_object.statistics_file_name = statistics_file_name
+        data_object.statistics_file_name = statistics_file_name
 
-        stored_object.statistical_inefficiency = results_by_id[output_to_store.statistical_inefficiency]
-
-        with open(path.join(storage_directory, 'data.json'), 'w') as file:
-            json.dump(stored_object, file, cls=TypedJSONEncoder)
+        data_object.statistical_inefficiency = results_by_id[output_to_store.statistical_inefficiency]

@@ -5,10 +5,9 @@ import tempfile
 from collections import OrderedDict
 
 import pytest
-from simtk import unit
 
-from propertyestimator.backends import DaskLocalClusterBackend, ComputeResources
-from propertyestimator.client import PropertyEstimatorOptions
+from propertyestimator import unit
+from propertyestimator.backends import DaskLocalCluster, ComputeResources
 from propertyestimator.layers import available_layers
 from propertyestimator.layers.layers import CalculationLayerResult
 from propertyestimator.layers.simulation import Workflow, WorkflowGraph
@@ -18,15 +17,15 @@ from propertyestimator.properties.dielectric import DielectricConstant
 from propertyestimator.properties.plugins import registered_properties
 from propertyestimator.protocols.groups import ConditionalGroup
 from propertyestimator.substances import Substance
-from propertyestimator.tests.test_workflow.utils import DummyReplicableProtocol, create_dummy_metadata, \
-    DummyEstimatedQuantityProtocol
+from propertyestimator.tests.test_workflow.utils import create_dummy_metadata, \
+    DummyEstimatedQuantityProtocol, DummyQuantityProtocol, DummyProtocolWithDictInput
 from propertyestimator.tests.utils import create_dummy_property
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils import get_data_filename, graph
+from propertyestimator.utils import graph
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import WorkflowOptions, WorkflowSchema
 from propertyestimator.workflow.schemas import ProtocolReplicator
-from propertyestimator.workflow.utils import ReplicatorValue, ProtocolPath
+from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
 @pytest.mark.parametrize("registered_property_name", registered_properties)
@@ -124,12 +123,12 @@ def test_density_dielectric_merging():
     dielectric_schema = dielectric.get_default_workflow_schema('SimulationLayer', WorkflowOptions())
 
     density_metadata = Workflow.generate_default_metadata(density,
-                                                          get_data_filename('forcefield/smirnoff99Frosst.offxml'),
-                                                          PropertyEstimatorOptions())
+                                                          'smirnoff99Frosst-1.1.0.offxml',
+                                                          [])
 
     dielectric_metadata = Workflow.generate_default_metadata(density,
-                                                             get_data_filename('forcefield/smirnoff99Frosst.offxml'),
-                                                             PropertyEstimatorOptions())
+                                                             'smirnoff99Frosst-1.1.0.offxml',
+                                                             [])
 
     density_workflow = Workflow(density, density_metadata)
     density_workflow.schema = density_schema
@@ -156,62 +155,6 @@ def test_density_dielectric_merging():
 
             assert density_workflow.protocols[protocol_id_A].schema.json() != \
                    dielectric_workflow.protocols[protocol_id_B].schema.json()
-
-
-def test_nested_replicators():
-
-    dummy_schema = WorkflowSchema()
-
-    dummy_protocol = DummyReplicableProtocol('dummy_$(rep_a)_$(rep_b)')
-
-    dummy_protocol.replicated_value_a = ReplicatorValue('rep_a')
-    dummy_protocol.replicated_value_b = ReplicatorValue('rep_b')
-
-    dummy_schema.protocols[dummy_protocol.id] = dummy_protocol.schema
-
-    dummy_schema.final_value_source = ProtocolPath('final_value', dummy_protocol.id)
-
-    replicator_a = ProtocolReplicator(replicator_id='rep_a')
-
-    replicator_a.template_values = ['a', 'b']
-    replicator_a.protocols_to_replicate = [ProtocolPath('', dummy_protocol.id)]
-
-    replicator_b = ProtocolReplicator(replicator_id='rep_b')
-
-    replicator_b.template_values = [1, 2]
-    replicator_b.protocols_to_replicate = [ProtocolPath('', dummy_protocol.id)]
-
-    dummy_schema.replicators = [
-        replicator_a,
-        replicator_b
-    ]
-
-    dummy_schema.validate_interfaces()
-
-    dummy_property = create_dummy_property(Density)
-
-    dummy_metadata = Workflow.generate_default_metadata(dummy_property,
-                                                        get_data_filename('forcefield/smirnoff99Frosst.offxml'),
-                                                        PropertyEstimatorOptions())
-
-    dummy_workflow = Workflow(dummy_property, dummy_metadata)
-    dummy_workflow.schema = dummy_schema
-
-    assert len(dummy_workflow.protocols) == 4
-
-    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_0_0'].replicated_value_a == 'a'
-    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_0_1'].replicated_value_a == 'a'
-
-    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_1_0'].replicated_value_a == 'b'
-    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_1_1'].replicated_value_a == 'b'
-
-    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_0_0'].replicated_value_b == 1
-    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_0_1'].replicated_value_b == 2
-
-    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_1_0'].replicated_value_b == 1
-    assert dummy_workflow.protocols[dummy_workflow.uuid + '|dummy_1_1'].replicated_value_b == 2
-
-    print(dummy_workflow.schema)
 
 
 def test_simple_workflow_graph():
@@ -241,7 +184,7 @@ def test_simple_workflow_graph():
         workflow_graph = WorkflowGraph(temporary_directory)
         workflow_graph.add_workflow(dummy_workflow)
 
-        dask_local_backend = DaskLocalClusterBackend(1, ComputeResources(1))
+        dask_local_backend = DaskLocalCluster(1, ComputeResources(1))
         dask_local_backend.start()
 
         results_futures = workflow_graph.submit(dask_local_backend)
@@ -291,7 +234,7 @@ def test_simple_workflow_graph_with_groups():
         workflow_graph = WorkflowGraph(temporary_directory)
         workflow_graph.add_workflow(dummy_workflow)
 
-        dask_local_backend = DaskLocalClusterBackend(1, ComputeResources(1))
+        dask_local_backend = DaskLocalCluster(1, ComputeResources(1))
         dask_local_backend.start()
 
         results_futures = workflow_graph.submit(dask_local_backend)
@@ -301,3 +244,64 @@ def test_simple_workflow_graph_with_groups():
         result = results_futures[0].result()
         assert isinstance(result, CalculationLayerResult)
         assert result.calculated_property.value == 1 * unit.kelvin
+
+
+def test_nested_input():
+
+    dummy_schema = WorkflowSchema()
+
+    dict_protocol = DummyProtocolWithDictInput('dict_protocol')
+    dict_protocol.input_value = {'a': ThermodynamicState(temperature=1*unit.kelvin)}
+    dummy_schema.protocols[dict_protocol.id] = dict_protocol.schema
+
+    quantity_protocol = DummyQuantityProtocol('quantity_protocol')
+    quantity_protocol.input_value = ProtocolPath('output_value[a].temperature', dict_protocol.id)
+    dummy_schema.protocols[quantity_protocol.id] = quantity_protocol.schema
+
+    dummy_schema.validate_interfaces()
+
+    dummy_property = create_dummy_property(Density)
+
+    dummy_workflow = Workflow(dummy_property, {})
+    dummy_workflow.schema = dummy_schema
+
+    with tempfile.TemporaryDirectory() as temporary_directory:
+
+        workflow_graph = WorkflowGraph(temporary_directory)
+        workflow_graph.add_workflow(dummy_workflow)
+
+        dask_local_backend = DaskLocalCluster(1, ComputeResources(1))
+        dask_local_backend.start()
+
+        results_futures = workflow_graph.submit(dask_local_backend)
+
+        assert len(results_futures) == 1
+
+        result = results_futures[0].result()
+        assert isinstance(result, CalculationLayerResult)
+
+
+def test_index_replicated_protocol():
+
+    dummy_schema = WorkflowSchema()
+
+    dummy_replicator = ProtocolReplicator('dummy_replicator')
+    dummy_replicator.template_values = ['a', 'b', 'c', 'd']
+    dummy_schema.replicators = [dummy_replicator]
+
+    replicated_protocol = DummyEstimatedQuantityProtocol(f'protocol_{dummy_replicator.placeholder_id}')
+    replicated_protocol.input_value = ReplicatorValue(dummy_replicator.id)
+    dummy_schema.protocols[replicated_protocol.id] = replicated_protocol.schema
+
+    for index in range(len(dummy_replicator.template_values)):
+
+        indexing_protocol = DummyEstimatedQuantityProtocol(f'indexing_protocol_{index}')
+        indexing_protocol.input_value = ProtocolPath('output_value', f'protocol_{index}')
+        dummy_schema.protocols[indexing_protocol.id] = indexing_protocol.schema
+
+    dummy_schema.validate_interfaces()
+
+    dummy_property = create_dummy_property(Density)
+
+    dummy_workflow = Workflow(dummy_property, {})
+    dummy_workflow.schema = dummy_schema

@@ -13,13 +13,11 @@ import logging
 from enum import Enum, unique
 from os import path, makedirs
 
+from propertyestimator import unit
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.workflow import plugins
 from propertyestimator.workflow.decorators import MergeBehaviour, protocol_input
 from propertyestimator.workflow.plugins import register_calculation_protocol, available_protocols
-from simtk import unit
-
 from propertyestimator.workflow.protocols import BaseProtocol, ProtocolPath
 from propertyestimator.workflow.schemas import ProtocolGroupSchema
 
@@ -70,7 +68,19 @@ class ProtocolGroup(BaseProtocol):
     def __init__(self, protocol_id):
         """Constructs a new ProtocolGroup.
         """
+        self._dependants_graph = {}
+
+        self._root_protocols = []
+        self._execution_order = []
+
+        self._protocols = {}
+
         super().__init__(protocol_id)
+
+    def _initialize(self):
+        """Initialize the protocol."""
+
+        super(ProtocolGroup, self)._initialize()
 
         self._dependants_graph = {}
 
@@ -278,6 +288,8 @@ class ProtocolGroup(BaseProtocol):
         for protocol_id_to_execute in self._execution_order:
 
             protocol_to_execute = self._protocols[protocol_id_to_execute]
+            protocol_to_execute_schema = protocol_to_execute.schema
+
             working_directory = path.join(directory, protocol_to_execute.id)
 
             if not path.isdir(working_directory):
@@ -318,6 +330,8 @@ class ProtocolGroup(BaseProtocol):
 
                 output_dictionary[output_path_prepended.full_path] = return_value[output_path]
 
+            protocol_to_execute.schema = protocol_to_execute_schema
+
         return output_dictionary
 
     def can_merge(self, other):
@@ -337,14 +351,13 @@ class ProtocolGroup(BaseProtocol):
         if not super(ProtocolGroup, self).can_merge(other):
             return False
 
-        if len(self._root_protocols) != len(other.root_protocols):
-            # Only allow groups with the same number of root protocols
-            # to merge.
-            return False
+        # if len(self._root_protocols) != len(other.root_protocols):
+        #     # Only allow groups with the same number of root protocols
+        #     # to merge.
+        #     return False
 
         # Ensure that the starting points in each group can be
         # merged.
-        # TODO: Is this too strict / too lenient / just right?
         for self_root_id in self._root_protocols:
 
             self_protocol = self._protocols[self_root_id]
@@ -590,60 +603,25 @@ class ProtocolGroup(BaseProtocol):
 
         return self._protocols[target_protocol_id].set_value(reference_path_clone, value)
 
-    def apply_replicator(self, replicator, template_values):
-        """Applies a `ProtocolReplicator` to this groups protocols.
+    def apply_replicator(self, replicator, template_values, template_index=-1, template_value=None,
+                         update_input_references=False):
 
-        Parameters
-        ----------
-        replicator: :obj:`ProtocolReplicator`
-            The replicator to apply.
-        template_values
-            The values to pass to each of the replicated protocols.
-        """
-        replacement_string = '$({})'.format(replicator.id)
+        protocols, replication_map = replicator.apply(self.protocols, template_values,
+                                                      template_index, template_value)
 
-        for protocol_path in replicator.protocols_to_replicate:
+        if (template_index >= 0 or template_value is not None) and update_input_references is True:
 
-            if protocol_path.full_path.find(self.id) < 0:
-                continue
+            raise ValueError('Specific template indices and values cannot be passed '
+                             'when `update_input_references` is True')
 
-            # Start by coping the path, and removing the leading protocol ids
-            # until the path starts at this group.
-            protocol_path_copied = ProtocolPath.from_string(protocol_path.full_path)
-            path_starting_protocol = None
+        if update_input_references:
+            replicator.update_references(protocols, replication_map, template_values)
 
-            while path_starting_protocol != self.id:
-                path_starting_protocol = protocol_path_copied.pop_next_in_path()
+        # Re-initialize the group using the replicated protocols.
+        self._initialize()
+        self.add_protocols(*protocols.values())
 
-            # If the protocol to replicate is not in this group,
-            # pass the call down the protocol chain.
-            if protocol_path_copied.start_protocol != protocol_path_copied.last_protocol:
-
-                self.protocols[protocol_path_copied.start_protocol].apply_replicator(replicator,
-                                                                                     template_values)
-                continue
-
-            # Handle the case where the protocol to be replicated is within this group.
-            for index, template_value in enumerate(template_values):
-
-                protocol_schema = self.protocols[protocol_path_copied.start_protocol].schema
-                protocol_schema.id = protocol_schema.id.replace(replacement_string, str(index))
-
-                protocol = plugins.available_protocols[protocol_schema.type](protocol_schema.id)
-                protocol.schema = protocol_schema
-
-                for other_path in replicator.protocols_to_replicate:
-
-                    _, other_path_components = ProtocolPath.to_components(other_path.full_path)
-
-                    for protocol_id_to_rename in other_path_components:
-
-                        protocol.replace_protocol(protocol_id_to_rename,
-                                                  protocol_id_to_rename.replace(replacement_string, str(index)))
-
-                self.protocols[protocol.id] = protocol
-
-            self.protocols.pop(protocol_path_copied.start_protocol)
+        return replication_map
 
 
 @register_calculation_protocol()
@@ -705,6 +683,9 @@ class ConditionalGroup(ProtocolGroup):
 
         def __ne__(self, other):
             return not self.__eq__(other)
+
+        def __str__(self):
+            return f'{self.left_hand_value} {self.type} {self.right_hand_value}'
 
     @protocol_input(int, merge_behavior=MergeBehaviour.GreatestValue)
     def max_iterations(self):
@@ -775,7 +756,7 @@ class ConditionalGroup(ProtocolGroup):
         right_hand_value_correct_units = right_hand_value
 
         if isinstance(right_hand_value, unit.Quantity) and isinstance(left_hand_value, unit.Quantity):
-            right_hand_value_correct_units = right_hand_value.in_units_of(left_hand_value.unit)
+            right_hand_value_correct_units = right_hand_value.to(left_hand_value.units)
 
         logging.info(f'Evaluating condition for protocol {self.id}: '
                      f'{left_hand_value} {condition.type} {right_hand_value_correct_units}')
@@ -877,9 +858,7 @@ class ConditionalGroup(ProtocolGroup):
 
                 # Check to see if we have reached our goal.
                 if not self._evaluate_condition(condition):
-
                     conditions_met = False
-                    break
 
             if conditions_met:
 

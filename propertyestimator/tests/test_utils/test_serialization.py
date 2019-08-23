@@ -1,17 +1,15 @@
 """
 Units tests for propertyestimator.utils.serialization
 """
-import numpy as np
-
 import json
 from enum import Enum, IntEnum
 
+import numpy as np
 import pytest
-from simtk import unit
 
-from propertyestimator.utils import get_data_filename
+from propertyestimator import unit
 from propertyestimator.utils.serialization import serialize_force_field, deserialize_force_field, \
-    TypedBaseModel, TypedJSONEncoder, TypedJSONDecoder
+    TypedBaseModel, TypedJSONEncoder, TypedJSONDecoder, serialize_quantity, deserialize_quantity
 
 
 class Foo:
@@ -220,13 +218,30 @@ def test_force_field_serialization():
 
     from openforcefield.typing.engines import smirnoff
 
-    force_field = smirnoff.ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
+    force_field = smirnoff.ForceField('smirnoff99Frosst-1.1.0.offxml')
 
     serialized_force_field = serialize_force_field(force_field)
     deserialized_force_field = deserialize_force_field(serialized_force_field)
 
     assert (force_field.to_string(discard_cosmetic_attributes=False) ==
             deserialized_force_field.to_string(discard_cosmetic_attributes=False))
+
+
+def test_dimensionless_quantity_serialization():
+
+    test_value = 1.0 * unit.dimensionless
+
+    serialized_value = serialize_quantity(test_value)
+    deserialized_value = deserialize_quantity(serialized_value)
+
+    assert test_value == deserialized_value
+
+    test_value = unit.Quantity(1.0)
+
+    serialized_value = serialize_quantity(test_value)
+    deserialized_value = deserialize_quantity(serialized_value)
+
+    assert test_value == deserialized_value
 
 
 @pytest.mark.parametrize("float_type", [np.float16, np.float32, np.float64])

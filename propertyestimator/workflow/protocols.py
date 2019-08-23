@@ -6,7 +6,6 @@ form a larger property estimation workflow.
 import copy
 
 from propertyestimator.utils import graph, utils
-from propertyestimator.utils.serialization import deserialize_quantity
 from propertyestimator.utils.utils import get_nested_attribute, set_nested_attribute
 from propertyestimator.workflow.decorators import protocol_input, MergeBehaviour
 from propertyestimator.workflow.schemas import ProtocolSchema
@@ -103,21 +102,10 @@ class BaseProtocol:
         # Defines whether a protocol is allowed to try and merge with other identical ones.
         self._allow_merging = True
 
-        # Find the required inputs and outputs.
         self.provided_outputs = []
         self.required_inputs = []
 
-        output_attributes = utils.find_types_with_decorator(type(self), 'ProtocolOutputObject')
-        input_attributes = utils.find_types_with_decorator(type(self), 'ProtocolInputObject')
-
-        for output_attribute in output_attributes:
-            self.provided_outputs.append(ProtocolPath(output_attribute))
-
-        for input_attribute in input_attributes:
-            self.required_inputs.append(ProtocolPath(input_attribute))
-
-        # The directory in which to execute the protocol.
-        self.directory = None
+        self._initialize()
 
     def execute(self, directory, available_resources):
         """ Execute the protocol.
@@ -139,6 +127,25 @@ class BaseProtocol:
         """
 
         return self._get_output_dictionary()
+
+    def _initialize(self):
+        """Initialize the protocol."""
+
+        # Find the required inputs and outputs.
+        self.provided_outputs = []
+        self.required_inputs = []
+
+        output_attributes = utils.find_types_with_decorator(type(self), 'ProtocolOutputObject')
+        input_attributes = utils.find_types_with_decorator(type(self), 'ProtocolInputObject')
+
+        for output_attribute in output_attributes:
+            self.provided_outputs.append(ProtocolPath(output_attribute))
+
+        for input_attribute in input_attributes:
+            self.required_inputs.append(ProtocolPath(input_attribute))
+
+        # The directory in which to execute the protocol.
+        self.directory = None
 
     def _get_schema(self):
         """Returns this protocols properties (i.e id and parameters)
@@ -162,7 +169,9 @@ class BaseProtocol:
 
                 continue
 
-            schema.inputs[input_path.full_path] = self.get_value(input_path)
+            # Always make sure to only pass a copy of the input. Changing the schema
+            # should NOT change the protocol.
+            schema.inputs[input_path.full_path] = copy.deepcopy(self.get_value(input_path))
 
         return schema
 
@@ -185,9 +194,6 @@ class BaseProtocol:
         for input_full_path in schema_value.inputs:
 
             value = copy.deepcopy(schema_value.inputs[input_full_path])
-
-            if isinstance(value, dict) and 'unit' in value and 'unitless_value' in value:
-                value = deserialize_quantity(value)
 
             input_path = ProtocolPath.from_string(input_full_path)
             self.set_value(input_path, value)
@@ -405,14 +411,17 @@ class BaseProtocol:
         if isinstance(input_value, ProtocolPath):
             return {input_path: input_value}
 
-        if not isinstance(input_value, list) and not isinstance(input_value, dict):
+        if (not isinstance(input_value, list) and
+            not isinstance(input_value, tuple) and
+            not isinstance(input_value, dict)):
+
             return {}
 
         property_name, protocols_ids = ProtocolPath.to_components(input_path.full_path)
 
         return_paths = {}
 
-        if isinstance(input_value, list):
+        if isinstance(input_value, list) or isinstance(input_value, tuple):
 
             for index, list_value in enumerate(input_value):
 
@@ -508,14 +517,58 @@ class BaseProtocol:
 
         set_nested_attribute(self, reference_path.property_name, value)
 
-    def apply_replicator(self, replicator, template_values):
-        """Applies a `ProtocolReplicator` to this protocol.
+    def apply_replicator(self, replicator, template_values, template_index=-1,
+                         template_value=None, update_input_references=False):
+        """Applies a `ProtocolReplicator` to this protocol. This method
+        should clone any protocols whose id contains the id of the
+        replicator (in the format `$(replicator.id)`).
 
         Parameters
         ----------
-        replicator: :obj:`ProtocolReplicator`
+        replicator: ProtocolReplicator
             The replicator to apply.
-        template_values
-            The values to pass to each of the replicated protocols.
+        template_values: list of Any
+            A list of the values which will be inserted
+            into the newly replicated protocols.
+
+            This parameter is mutually exclusive with
+            `template_index` and `template_value`
+        template_index: int, optional
+            A specific value which should be used for any
+            protocols flagged as to be replicated by the
+            replicator. This option is mainly used when
+            replicating children of an already replicated
+            protocol.
+
+            This parameter is mutually exclusive with
+            `template_values` and must be set along with
+            a `template_value`.
+        template_value: Any, optional
+            A specific index which should be used for any
+            protocols flagged as to be replicated by the
+            replicator. This option is mainly used when
+            replicating children of an already replicated
+            protocol.
+
+            This parameter is mutually exclusive with
+            `template_values` and must be set along with
+            a `template_index`.
+        update_input_references: bool
+            If true, any protocols which take their input from a protocol
+            which was flagged for replication will be updated to take input
+            from the actually replicated protocol. This should only be set
+            to true if this protocol is not nested within a workflow or a
+            protocol group.
+
+            This option cannot be used when a specific `template_index` or
+            `template_value` is providied.
+
+        Returns
+        -------
+        dict of ProtocolPath and list of tuple of ProtocolPath and int
+            A dictionary of references to all of the protocols which have
+            been replicated, with keys of original protocol ids. Each value
+            is comprised of a list of the replicated protocol ids, and their
+            index into the `template_values` array.
         """
-        raise ValueError('The {} protocol does not contain any protocols to replicate.'.format(self.id))
+        return {}

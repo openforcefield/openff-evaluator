@@ -95,8 +95,8 @@ def create_molecule_from_smiles(smiles, number_of_conformers=1):
     from openeye import oechem, oeomega
 
     # Check cache
-    if smiles in _cached_molecules:
-        return copy.deepcopy(_cached_molecules[smiles])
+    if (number_of_conformers, smiles) in _cached_molecules:
+        return copy.deepcopy(_cached_molecules[(number_of_conformers, smiles)])
 
     # Create molecule from smiles.
     molecule = oechem.OEMol()
@@ -130,7 +130,7 @@ def create_molecule_from_smiles(smiles, number_of_conformers=1):
             logging.warning('Could not generate a conformer for ' + smiles)
             return None
 
-    _cached_molecules[smiles] = molecule
+    _cached_molecules[(number_of_conformers, smiles)] = molecule
 
     return molecule
 
@@ -157,6 +157,21 @@ def setup_timestamp_logging(file_path=None):
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     logger.addHandler(logger_handler)
+
+
+def safe_unlink(file_path):
+    """Attempts to remove the file at the given path,
+    catching any file not found exceptions.
+
+    Parameters
+    ----------
+    file_path: str
+        The path to the file to remove.
+    """
+    try:
+        os.unlink(file_path)
+    except OSError:
+        pass
 
 
 def get_nested_attribute(containing_object, name):

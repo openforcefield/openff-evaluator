@@ -6,8 +6,8 @@ import logging
 from os import path
 
 import numpy as np
-from simtk import unit
 
+from propertyestimator import unit
 from propertyestimator.utils import statistics, timeseries
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
@@ -149,12 +149,21 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
         """The file path to the trajectory to average over."""
         pass
 
+    @protocol_input(int)
+    def divisor(self):
+        """A divisor to divide the statistic by. This is useful
+        if a statistic (such as enthalpy) needs to be normalised
+        by the number of molecules."""
+        pass
+
     def __init__(self, protocol_id):
 
         super().__init__(protocol_id)
 
         self._statistics_path = None
         self._statistics_type = statistics.ObservableType.PotentialEnergy
+
+        self._divisor = 1
 
         self._statistics = None
 
@@ -170,31 +179,31 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
 
         self._statistics = statistics.StatisticsArray.from_pandas_csv(self.statistics_path)
 
-        values = self._statistics.get_observable(self._statistics_type)
-
-        if values is None or len(values) == 0:
+        if self._statistics_type not in self._statistics:
 
             return PropertyEstimatorException(directory=directory,
-                                              message='The {} statistics file contains no '
-                                                      'data.'.format(self._statistics_path))
+                                              message=f'The {self._statistics_path} statistics file contains no '
+                                                      f'data of type {self._statistics_type}.')
 
-        statistics_unit = values[0].unit
-        values.value_in_unit(statistics_unit)
+        values = self._statistics[self._statistics_type]
 
-        values = np.array(values)
+        statistics_unit = values[0].units
 
-        values, self._equilibration_index, self._statistical_inefficiency = \
-            timeseries.decorrelate_time_series(values)
+        unitless_values = values.to(statistics_unit).magnitude
+        unitless_values = np.array(unitless_values) / float(self._divisor)
+
+        unitless_values, self._equilibration_index, self._statistical_inefficiency = \
+            timeseries.decorrelate_time_series(unitless_values)
 
         final_value, final_uncertainty = bootstrap(self._bootstrap_function,
                                                    self._bootstrap_iterations,
                                                    self._bootstrap_sample_size,
-                                                   values=values)
+                                                   values=unitless_values)
 
-        self._uncorrelated_values = values * statistics_unit
+        self._uncorrelated_values = unitless_values * statistics_unit
 
-        self._value = EstimatedQuantity(unit.Quantity(final_value, statistics_unit),
-                                        unit.Quantity(final_uncertainty, statistics_unit), self.id)
+        self._value = EstimatedQuantity(final_value * statistics_unit,
+                                        final_uncertainty * statistics_unit, self.id)
 
         logging.info('Extracted {}: {}'.format(self._statistics_type, self.id))
 
@@ -325,16 +334,16 @@ class ExtractUncorrelatedStatisticsData(ExtractUncorrelatedData):
                                               message='The ExtractUncorrelatedStatisticsData protocol '
                                                        'requires a previously calculated statisitics file')
 
-        statistics = StatisticsArray.from_pandas_csv(self._input_statistics_path)
+        statistics_array = StatisticsArray.from_pandas_csv(self._input_statistics_path)
 
-        uncorrelated_indices = timeseries.get_uncorrelated_indices(len(statistics) - self._equilibration_index,
+        uncorrelated_indices = timeseries.get_uncorrelated_indices(len(statistics_array) - self._equilibration_index,
                                                                    self._statistical_inefficiency)
 
         uncorrelated_indices = [index + self._equilibration_index for index in uncorrelated_indices]
-        uncorrelated_statistics = statistics.from_statistics_array(statistics, uncorrelated_indices)
+        uncorrelated_statistics = StatisticsArray.from_existing(statistics_array, uncorrelated_indices)
 
         self._output_statistics_path = path.join(directory, 'uncorrelated_statistics.csv')
-        uncorrelated_statistics.save_as_pandas_csv(self._output_statistics_path)
+        uncorrelated_statistics.to_pandas_csv(self._output_statistics_path)
 
         logging.info('Statistics subsampled: {}'.format(self.id))
 

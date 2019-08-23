@@ -5,21 +5,21 @@ import tempfile
 from os import path
 
 import pytest
-from simtk import unit
 from simtk.openmm.app import PDBFile
 
+from propertyestimator import unit
 from propertyestimator.backends import ComputeResources
 from propertyestimator.properties.dielectric import ExtractAverageDielectric
 from propertyestimator.protocols.analysis import ExtractAverageStatistic, ExtractUncorrelatedTrajectoryData, \
     ExtractUncorrelatedStatisticsData
 from propertyestimator.protocols.coordinates import BuildCoordinatesPackmol, SolvateExistingStructure
 from propertyestimator.protocols.forcefield import BuildSmirnoffSystem
-from propertyestimator.protocols.miscellaneous import AddQuantities, FilterSubstanceByRole, SubtractQuantities
+from propertyestimator.protocols.miscellaneous import AddValues, FilterSubstanceByRole, SubtractValues
 from propertyestimator.protocols.simulation import RunEnergyMinimisation, RunOpenMMSimulation
 from propertyestimator.substances import Substance
 from propertyestimator.tests.test_workflow.utils import DummyEstimatedQuantityProtocol, DummyProtocolWithDictInput
+from propertyestimator.tests.utils import build_tip3p_smirnoff_force_field
 from propertyestimator.thermodynamics import Ensemble, ThermodynamicState
-from propertyestimator.utils import get_data_filename
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
@@ -56,7 +56,7 @@ def test_nested_protocol_paths():
     value_protocol_c = DummyEstimatedQuantityProtocol('protocol_c')
     value_protocol_c.input_value = EstimatedQuantity(4 * unit.kelvin, 0.01 * unit.kelvin, 'constant')
 
-    add_values_protocol = AddQuantities('add_values')
+    add_values_protocol = AddValues('add_values')
 
     add_values_protocol.values = [
         ProtocolPath('output_value', value_protocol_a.id),
@@ -102,7 +102,7 @@ def test_nested_protocol_paths():
 
         dummy_dict_protocol.set_value(value_reference, index)
 
-    add_values_protocol_2 = AddQuantities('add_values')
+    add_values_protocol_2 = AddValues('add_values')
 
     add_values_protocol_2.values = [
         [ProtocolPath('output_value', value_protocol_a.id)],
@@ -134,6 +134,9 @@ def test_base_simulation_protocols():
 
     with tempfile.TemporaryDirectory() as temporary_directory:
 
+        force_field_path = path.join(temporary_directory, 'ff.offxml')
+        build_tip3p_smirnoff_force_field(force_field_path)
+
         build_coordinates = BuildCoordinatesPackmol('')
 
         # Set the maximum number of molecules in the system.
@@ -152,7 +155,7 @@ def test_base_simulation_protocols():
         print('Assigning some parameters.')
         assign_force_field_parameters = BuildSmirnoffSystem('')
 
-        assign_force_field_parameters.force_field_path = get_data_filename('forcefield/smirnoff99Frosst.offxml')
+        assign_force_field_parameters.force_field_path = force_field_path
         assign_force_field_parameters.coordinate_file_path = path.join(temporary_directory, 'output.pdb')
         assign_force_field_parameters.substance = water_substance
 
@@ -230,7 +233,7 @@ def test_addition_subtract_protocols():
         quantity_a = EstimatedQuantity(1*unit.kelvin, 0.1*unit.kelvin, 'dummy_source_1')
         quantity_b = EstimatedQuantity(2*unit.kelvin, 0.2*unit.kelvin, 'dummy_source_2')
 
-        add_quantities = AddQuantities('add')
+        add_quantities = AddValues('add')
         add_quantities.values = [quantity_a, quantity_b]
 
         result = add_quantities.execute(temporary_directory, ComputeResources())
@@ -238,7 +241,7 @@ def test_addition_subtract_protocols():
         assert not isinstance(result, PropertyEstimatorException)
         assert add_quantities.result.value == 3 * unit.kelvin
 
-        sub_quantities = SubtractQuantities('sub')
+        sub_quantities = SubtractValues('sub')
         sub_quantities.value_b = quantity_b
         sub_quantities.value_a = quantity_a
 

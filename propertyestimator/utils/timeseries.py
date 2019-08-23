@@ -42,23 +42,17 @@ def calculate_statistical_inefficiency(time_series, minimum_samples=3):
         The statistical inefficiency.
     """
 
-    number_of_timesteps = time_series.shape[0]
-    time_series_dimension = 1 if len(time_series.shape) == 1 else time_series.shape[1]
+    # Make sure the time series has a consistent shape of
+    # (N_frames, dimension)
+    dimension = 1 if len(time_series.shape) == 1 else time_series.shape[1]
+    standardised_time_series = time_series.reshape((len(time_series), dimension))
 
-    time_series_mean = time_series.mean(0)
+    number_of_timesteps = standardised_time_series.shape[0]
 
-    shifted_data = time_series.astype(np.float32) - time_series_mean
+    time_series_mean = standardised_time_series.mean(axis=0)
+    time_series_shifted = standardised_time_series - time_series_mean
 
-    sigma_squared_array = np.zeros(number_of_timesteps)
-
-    for i in range(number_of_timesteps):
-
-        if time_series_dimension > 1:
-            sigma_squared_array[i] = shifted_data[i].dot(shifted_data[i])
-        else:
-            sigma_squared_array[i] = shifted_data[i] * shifted_data[i]
-
-    sigma_squared = sigma_squared_array.mean()
+    sigma_squared = np.mean(np.sum(time_series_shifted * time_series_shifted, axis=1), axis=0)
 
     if sigma_squared == 0:
         raise ParameterError('Sample covariance sigma_AB^2 = 0 -- cannot compute statistical inefficiency')
@@ -68,16 +62,9 @@ def calculate_statistical_inefficiency(time_series, minimum_samples=3):
 
     while current_timestep < number_of_timesteps - 1:
 
-        autocorrelation_array = np.zeros([number_of_timesteps - current_timestep, time_series_dimension])
-
-        for i in range(number_of_timesteps - current_timestep):
-
-            if time_series_dimension > 1:
-                autocorrelation_array[i] = shifted_data[i].dot(shifted_data[i + current_timestep])
-            else:
-                autocorrelation_array[i] = shifted_data[i] * shifted_data[i + current_timestep]
-
-        autocorrelation_function = autocorrelation_array.mean() / sigma_squared
+        autocorrelation_function = np.sum(np.sum(time_series_shifted[0:(number_of_timesteps - current_timestep)] *
+                                                 time_series_shifted[current_timestep:number_of_timesteps], axis=1),
+                                          axis=0) / (float(number_of_timesteps - current_timestep) * sigma_squared)
 
         if autocorrelation_function <= 0.0 and current_timestep > minimum_samples:
             break
@@ -160,6 +147,7 @@ def detect_equilibration(time_series, minimum_samples=3):
         try:
             statistical_inefficiency_array[current_timestep] = calculate_statistical_inefficiency(
                 time_series[current_timestep:number_of_timesteps], minimum_samples)
+
         except ParameterError:  # Fix for issue https://github.com/choderalab/pymbar/issues/122
             statistical_inefficiency_array[current_timestep] = (number_of_timesteps - current_timestep + 1)
 

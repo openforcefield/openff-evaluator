@@ -6,7 +6,6 @@ import json
 import logging
 from time import sleep
 
-from propertyestimator.workflow import WorkflowOptions
 from simtk import unit
 from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
@@ -16,6 +15,7 @@ from propertyestimator.layers import SurrogateLayer, ReweightingLayer, Simulatio
 from propertyestimator.properties.plugins import registered_properties
 from propertyestimator.utils.serialization import TypedBaseModel
 from propertyestimator.utils.tcp import PropertyEstimatorMessageTypes, pack_int, unpack_int
+from propertyestimator.workflow import WorkflowOptions
 
 
 class PropertyEstimatorOptions(TypedBaseModel):
@@ -38,7 +38,7 @@ class PropertyEstimatorOptions(TypedBaseModel):
         A dictionary of the WorkflowSchema which will be used to calculate any properties.
         The dictionary key represents the type of property the schema will calculate. The
         dictionary will be automatically populated with defaults if no entries are added.
-    workflow_options: dict of str and WorkflowOptions, optional
+    workflow_options: dict of str and dict of str and WorkflowOptions, optional
         The set of options which will be used when setting up the default estimation
         workflows, where the string key here is the property for which the options apply.
         As an example, the target (relative or absolute) uncertainty of each property may be set
@@ -86,7 +86,7 @@ class PropertyEstimatorOptions(TypedBaseModel):
                     self.allowed_calculation_layers.append(allowed_layer.__name__)
 
         self.workflow_schemas = {}
-        self.workflow_options = None
+        self.workflow_options = {}
 
         self.allow_protocol_merging = allow_protocol_merging
 
@@ -129,7 +129,7 @@ class PropertyEstimatorSubmission(TypedBaseModel):
     force_field: openforcefield.typing.engines.smirnoff.ForceField
         The force field parameters used during the calculations.
     """
-    def __init__(self, properties=None, force_field=None, options=None):
+    def __init__(self, properties=None, force_field=None, options=None, parameter_gradient_keys=None):
         """Constructs a new PropertyEstimatorSubmission object.
 
         Parameters
@@ -140,11 +140,16 @@ class PropertyEstimatorSubmission(TypedBaseModel):
             The options which control how the `properties` are estimated.
         force_field: openforcefield.typing.engines.smirnoff.ForceField
             The force field parameters used during the calculations.
+        parameter_gradient_keys: list of ParameterGradientKey
+            A list of references to all of the parameters which all observables
+            should be differentiated with respect to.
         """
         self.properties = properties or []
         self.options = options
 
         self.force_field = force_field
+
+        self.parameter_gradient_keys = [] if parameter_gradient_keys is None else parameter_gradient_keys
 
     def __getstate__(self):
 
@@ -153,6 +158,8 @@ class PropertyEstimatorSubmission(TypedBaseModel):
             'options': self.options,
 
             'force_field': self.force_field,
+
+            'parameter_gradient_keys': self.parameter_gradient_keys
         }
 
     def __setstate__(self, state):
@@ -161,6 +168,7 @@ class PropertyEstimatorSubmission(TypedBaseModel):
         self.options = state['options']
 
         self.force_field = state['force_field']
+        self.parameter_gradient_keys = state['parameter_gradient_keys']
 
 
 class PropertyEstimatorResult(TypedBaseModel):
@@ -320,7 +328,7 @@ class PropertyEstimatorClient:
     >>> # Filter the dataset to only include densities measured between 130-260 K
     >>> from propertyestimator.properties import Density
     >>>
-    >>> data_set.filter_by_properties(types=[Density])
+    >>> data_set.filter_by_property_types(Density)
     >>> data_set.filter_by_temperature(min_temperature=130*unit.kelvin, max_temperature=260*unit.kelvin)
     >>>
     >>> # Load initial parameters
@@ -351,16 +359,17 @@ class PropertyEstimatorClient:
     >>>
     >>> request = property_estimator.request_estimate(data_set, parameters, options)
 
-    Options for how properties should be estimated can be set on a per property basis. For example
-    the relative uncertainty that properties should estimated to within can be set as:
+    Options for how properties should be estimated can be set on a per property, and per layer
+    basis. For example, the relative uncertainty that properties should estimated to within by
+    the SimulationLayer can be set as:
 
     >>> from propertyestimator.workflow import WorkflowOptions
     >>>
     >>> workflow_options = WorkflowOptions(WorkflowOptions.ConvergenceMode.RelativeUncertainty,
     >>>                                    relative_uncertainty_fraction=0.1)
     >>> options.workflow_options = {
-    >>>     'Density': workflow_options,
-    >>>     'Dielectric': workflow_options
+    >>>     'Density': {'SimulationLayer': workflow_options},
+    >>>     'Dielectric': {'SimulationLayer': workflow_options}
     >>> }
 
     Or alternatively, as absolute uncertainty tolerance can be set as:
@@ -371,10 +380,25 @@ class PropertyEstimatorClient:
     >>>                                      absolute_uncertainty=0.02 * unit.dimensionless)
     >>>
     >>> options.workflow_options = {
-    >>>     'Density': density_options,
-    >>>     'Dielectric': dielectric_options
+    >>>     'Density': {'SimulationLayer': density_options},
+    >>>     'Dielectric': {'SimulationLayer': dielectric_options}
     >>> }
 
+    The gradients of the observables of interest with respect to a number of chosen
+    parameters can be requested by passing a `parameter_gradient_keys` parameter.
+    In the below example, gradients will be calculated with respect to both the
+    bond length parameter for the [#6:1]-[#8:2] chemical environment, and the bond
+    angle parameter for the [*:1]-[#8:2]-[*:3] chemical environment:
+
+    >>> from propertyestimator.properties import ParameterGradientKey
+    >>>
+    >>> parameter_gradient_keys = [
+    >>>     ParameterGradientKey('Bonds', '[#6:1]-[#8:2]', 'length')
+    >>>     ParameterGradientKey('Angles', '[*:1]-[#8:2]-[*:3]', 'angle')
+    >>> ]
+    >>>
+    >>> request = property_estimator.request_estimate(data_set, parameters, options, parameter_gradient_keys)
+    >>>
     """
 
     @property
@@ -521,7 +545,7 @@ class PropertyEstimatorClient:
 
         self._tcp_client = TCPClient()
 
-    def request_estimate(self, property_set, force_field, options=None):
+    def request_estimate(self, property_set, force_field, options=None, parameter_gradient_keys=None):
         """Requests that a PropertyEstimatorServer attempt to estimate the
         provided property set using the supplied force field and estimator options.
 
@@ -534,6 +558,9 @@ class PropertyEstimatorClient:
         options : PropertyEstimatorOptions, optional
             A set of estimator options. If None, default options
             will be used.
+        parameter_gradient_keys: list of ParameterGradientKey, optional
+            A list of references to all of the parameters which all observables
+            should be differentiated with respect to.
 
         Returns
         -------
@@ -584,18 +611,24 @@ class PropertyEstimatorClient:
                 options.workflow_schemas[type_name] = {}
 
             if type_name not in options.workflow_options:
-                options.workflow_options[type_name] = WorkflowOptions()
+                options.workflow_options[type_name] = {}
 
             for calculation_layer in options.allowed_calculation_layers:
+
+                property_type = registered_properties[type_name]()
+
+                if (calculation_layer not in options.workflow_options[type_name] or
+                    options.workflow_options[type_name][calculation_layer] is None):
+
+                    options.workflow_options[type_name][calculation_layer] = WorkflowOptions()
 
                 if (calculation_layer not in options.workflow_schemas[type_name] or
                     options.workflow_schemas[type_name][calculation_layer] is None):
 
-                    property_type = registered_properties[type_name]()
+                    default_schema = property_type.get_default_workflow_schema(
+                        calculation_layer, options.workflow_options[type_name][calculation_layer])
 
-                    options.workflow_schemas[type_name][calculation_layer] = \
-                        property_type.get_default_workflow_schema(calculation_layer,
-                                                                  options.workflow_options[type_name])
+                    options.workflow_schemas[type_name][calculation_layer] = default_schema
 
                 workflow = options.workflow_schemas[type_name][calculation_layer]
 
@@ -616,7 +649,8 @@ class PropertyEstimatorClient:
 
         submission = PropertyEstimatorSubmission(properties=properties_list,
                                                  force_field=force_field,
-                                                 options=options)
+                                                 options=options,
+                                                 parameter_gradient_keys=parameter_gradient_keys)
 
         request_id = IOLoop.current().run_sync(lambda: self._send_calculations_to_server(submission))
 

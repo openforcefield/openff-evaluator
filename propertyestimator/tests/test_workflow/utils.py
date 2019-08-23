@@ -1,7 +1,4 @@
-from simtk import unit
-
-from propertyestimator.client import PropertyEstimatorOptions
-from propertyestimator.utils import get_data_filename
+from propertyestimator import unit
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import Workflow
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
@@ -12,8 +9,8 @@ from propertyestimator.workflow.protocols import BaseProtocol
 def create_dummy_metadata(dummy_property, calculation_layer):
 
     global_metadata = Workflow.generate_default_metadata(dummy_property,
-                                                         get_data_filename('forcefield/smirnoff99Frosst.offxml'),
-                                                         PropertyEstimatorOptions())
+                                                         'smirnoff99Frosst-1.1.0.offxml',
+                                                         [])
 
     if calculation_layer == 'ReweightingLayer':
 
@@ -56,6 +53,29 @@ class DummyReplicableProtocol(BaseProtocol):
 
 
 @register_calculation_protocol()
+class DummyQuantityProtocol(BaseProtocol):
+
+    @protocol_input(unit.Quantity)
+    def input_value(self):
+        pass
+
+    @protocol_output(unit.Quantity)
+    def output_value(self):
+        pass
+
+    def __init__(self, protocol_id):
+
+        super().__init__(protocol_id)
+
+        self._input_value = None
+        self._output_value = None
+
+    def execute(self, directory, available_resources):
+        self._output_value = self._input_value
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
 class DummyEstimatedQuantityProtocol(BaseProtocol):
 
     @protocol_input(EstimatedQuantity)
@@ -85,7 +105,16 @@ class DummyProtocolWithDictInput(BaseProtocol):
     def input_value(self):
         pass
 
+    @protocol_output(dict)
+    def output_value(self):
+        pass
+
     def __init__(self, protocol_id):
 
         super().__init__(protocol_id)
         self._input_value = None
+        self._output_value = None
+
+    def execute(self, directory, available_resources):
+        self._output_value = self._input_value
+        return self._get_output_dictionary()

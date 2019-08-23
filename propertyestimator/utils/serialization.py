@@ -5,16 +5,22 @@ A collection of classes which aid in serializing data types.
 import importlib
 import inspect
 import json
-import numpy as np
 from abc import ABC, abstractmethod
 from enum import Enum
 
-from simtk import unit
+import numpy as np
 
+from propertyestimator import unit
 from propertyestimator.utils.quantities import EstimatedQuantity
 
 
 def _type_string_to_object(type_string):
+
+    if type_string == 'propertyestimator.unit.Unit':
+        return unit.Unit
+    if type_string == 'propertyestimator.unit.Quantity':
+        return unit.Quantity
+
     last_period_index = type_string.rfind('.')
 
     if last_period_index < 0 or last_period_index == len(type_string) - 1:
@@ -39,79 +45,82 @@ def _type_string_to_object(type_string):
     return class_object
 
 
-def serialize_quantity(quantity):
-    """
-    Serialized a simtk.unit.Quantity into a dict of {'unitless_value': X, 'unit': Y}
-
-    .. todo:: Currently duplicates Jeff Wagners implementation.
+def _type_to_type_string(object_type):
+    """Converts a type to a serializable string.
 
     Parameters
     ----------
-    quantity : A simtk.unit.Quantity-wrapped value or iterator over values
-        The object to serialize
+    object_type: type
+        The type to convert.
 
     Returns
     -------
-    serialzied : dict
-        The serialized object
+    str
+        The converted type.
     """
 
-    if not isinstance(quantity, unit.Quantity):
-        raise ValueError('{} is not a Quantity'.format(type(quantity)))
+    if (issubclass(object_type, unit.Unit) or
+        f'{object_type.__module__}.{object_type.__qualname__}' ==
+        'pint.quantity.build_quantity_class.<locals>.Unit'):
 
-    serialized = dict()
+        return 'propertyestimator.unit.Unit'
+    if (issubclass(object_type, unit.Quantity) or
+        f'{object_type.__module__}.{object_type.__qualname__}' ==
+        'pint.quantity.build_quantity_class.<locals>.Quantity'):
 
-    # If it's None, just return None in all fields
-    if quantity is None:
-        serialized['unitless_value'] = None
-        serialized['unit'] = None
-        return serialized
+        return 'propertyestimator.unit.Quantity'
 
-    # If it's not None, make sure it's a simtk.unit.Quantity
-    assert (hasattr(quantity, 'unit'))
+    qualified_name = object_type.__qualname__
+    qualified_name = qualified_name.replace('.', '->')
 
-    quantity_unit = list()
-    for base_unit in quantity.unit.iter_all_base_units():
-        quantity_unit.append((base_unit[0].name, base_unit[1]))
+    return_value = '{}.{}'.format(object_type.__module__, qualified_name)
+    return return_value
 
-    conversion_factor = quantity.unit.get_conversion_factor_to_base_units()
 
-    unitless_value = (quantity / quantity.unit) * conversion_factor
-    serialized['unitless_value'] = unitless_value
-    serialized['unit'] = quantity_unit
-    return serialized
+def serialize_quantity(quantity):
+    """Serializes a propertyestimator.unit.Quantity into a dictionary of the form
+    `{'value': quantity.value_in_unit(quantity.unit), 'unit': quantity.unit}`
+
+    Parameters
+    ----------
+    quantity : unit.Quantity
+        The quantity to serialize
+
+    Returns
+    -------
+    dict of str and str
+        A dictionary representation of a propertyestimator.unit.Quantity
+        with keys of {"value", "unit"}
+    """
+
+    value = quantity.magnitude
+    return {'value': value, 'unit': str(quantity.units)}
 
 
 def deserialize_quantity(serialized):
-    """
-    Deserializes a simtk.unit.Quantity.
-
-    .. todo:: Currently duplicates Jeff Wagners implementation.
+    """Deserialize a propertyestimator.unit.Quantity from a dictionary.
 
     Parameters
     ----------
-    serialized : dict
-        Serialized representation of a simtk.unit.Quantity. Must have keys ["unitless_value", "unit"]
+    serialized : dict of str and str
+        A dictionary representation of a propertyestimator.unit.Quantity
+        which must have keys {"value", "unit"}
 
     Returns
     -------
-    simtk.unit.Quantity
+    propertyestimator.unit.Quantity
+        The deserialized quantity.
     """
 
     if '@type' in serialized:
         serialized.pop('@type')
 
-    if (serialized['unitless_value'] is None) and (serialized['unit'] is None):
-        return None
-    quantity_unit = None
-    for unit_name, power in serialized['unit']:
-        unit_name = unit_name.replace(' ', '_')  # Convert eg. 'elementary charge' to 'elementary_charge'
-        if quantity_unit is None:
-            quantity_unit = (getattr(unit, unit_name) ** power)
-        else:
-            quantity_unit *= (getattr(unit, unit_name) ** power)
-    quantity = unit.Quantity(serialized['unitless_value'], quantity_unit)
-    return quantity
+    value_unit = unit.dimensionless
+
+    if serialized['unit'] is not None:
+        value_unit = unit(serialized['unit'])
+
+    return serialized['value'] * value_unit
 
 
 def deserialize_estimated_quantity(quantity_dictionary):
@@ -132,7 +141,7 @@ def deserialize_estimated_quantity(quantity_dictionary):
     if '@type' in quantity_dictionary:
         quantity_dictionary.pop('@type')
 
-    return_object = EstimatedQuantity(unit.Quantity(), unit.Quantity(), 'empty_source')
+    return_object = EstimatedQuantity(unit.Quantity(0.0), unit.Quantity(0.0), 'empty_source')
     return_object.__setstate__(quantity_dictionary)
 
     return return_object
@@ -235,6 +244,32 @@ def deserialize_enum(enum_dictionary):
     return enum_class(enum_value)
 
 
+def serialize_set(set_object):
+
+    if not isinstance(set_object, set):
+        raise ValueError('{} is not a set'.format(type(set)))
+
+    return {
+        'value': list(set_object)
+    }
+
+
+def deserialize_set(set_dictionary):
+
+    if 'value' not in set_dictionary:
+
+        raise ValueError('The serialized set dictionary must include'
+                         'the value of the set.')
+
+    set_value = set_dictionary['value']
+
+    if not isinstance(set_value, list):
+
+        raise ValueError('The value of the serialized set must be a list.')
+
+    return set(set_value)
+
+
 class TypedJSONEncoder(json.JSONEncoder):
 
     _natively_supported_types = [
@@ -245,6 +280,7 @@ class TypedJSONEncoder(json.JSONEncoder):
         Enum: serialize_enum,
         unit.Quantity: serialize_quantity,
         'ForceField': serialize_force_field,
+        set: serialize_set,
         np.float16: lambda x: {'value': float(x)},
         np.float32: lambda x: {'value': float(x)},
         np.float64: lambda x: {'value': float(x)},
@@ -266,17 +302,22 @@ class TypedJSONEncoder(json.JSONEncoder):
             return super(TypedJSONEncoder, self).default(value_to_serialize)
 
         # Otherwise, we need to add a @type attribute to it.
-        qualified_name = type_to_serialize.__qualname__
-        qualified_name = qualified_name.replace('.', '->')
-
-        type_tag = '{}.{}'.format(type_to_serialize.__module__, qualified_name)
+        type_tag = _type_to_type_string(type_to_serialize)
         serializable_dictionary = {}
+
+        if type_tag == 'propertyestimator.unit.Unit':
+            type_to_serialize = unit.Unit
+        if type_tag == 'propertyestimator.unit.Quantity':
+            type_to_serialize = unit.Quantity
 
         custom_encoder = None
 
         for encoder_type in TypedJSONEncoder._custom_supported_types:
 
             if isinstance(encoder_type, str):
+
+                qualified_name = type_to_serialize.__qualname__
+                qualified_name = qualified_name.replace('.', '->')
 
                 if encoder_type != qualified_name:
                     continue
@@ -329,6 +370,7 @@ class TypedJSONDecoder(json.JSONDecoder):
         unit.Quantity: deserialize_quantity,
         EstimatedQuantity: deserialize_estimated_quantity,
         'ForceField': deserialize_force_field,
+        set: deserialize_set,
         np.float16: lambda x: np.float16(x['value']),
         np.float32: lambda x: np.float32(x['value']),
         np.float64: lambda x: np.float64(x['value']),

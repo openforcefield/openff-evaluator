@@ -7,8 +7,8 @@ import math
 from enum import Enum
 
 import numpy as np
-from simtk import unit
 
+from propertyestimator import unit
 from propertyestimator.utils.serialization import TypedBaseModel
 
 
@@ -225,7 +225,7 @@ class Substance(TypedBaseModel):
 
             if value <= 0.0 or value > 1.0:
 
-                raise ValueError('A mole fraction must be greater than zero, and less than or'
+                raise ValueError('A mole fraction must be greater than zero, and less than or '
                                  'equal to one.')
 
             if math.floor(value * 1e6) < 1:
