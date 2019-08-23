@@ -14,7 +14,7 @@ how major the changes may be.
 0.0.1 - Initial Release
 -----------------------
 
-The initial release of the framework.
+The initial pre-alpha release of the framework.
 
 See our `installation instructions <https://property-estimator.readthedocs.io/en/latest/install.html>`_.
 
