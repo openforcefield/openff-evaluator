@@ -19,6 +19,7 @@ BaseReweightingProtocols = namedtuple('BaseReweightingProtocols', 'unpack_stored
                                                                   'decorrelate_statistics '
                                                                   'decorrelate_trajectory '
                                                                   'concatenate_trajectories '
+                                                                  'concatenate_statistics '
                                                                   'build_reference_system '
                                                                   'reduced_reference_potential '
                                                                   'build_target_system '
@@ -109,6 +110,9 @@ def generate_base_reweighting_protocols(analysis_protocol, mbar_protocol, workfl
     join_trajectories.input_coordinate_paths = ProtocolPath('coordinate_file_path', unpack_stored_data.id)
     join_trajectories.input_trajectory_paths = ProtocolPath('output_trajectory_path', decorrelate_trajectory.id)
 
+    join_statistics = reweighting.ConcatenateStatistics('concat_stats' + id_suffix)
+    join_statistics.input_statistics_paths = ProtocolPath('output_statistics_path', decorrelate_statistics.id)
+
     # Calculate the reduced potentials for each of the reference states.
     build_reference_system = forcefield.BuildSmirnoffSystem('build_system{}'.format(replicator_suffix))
     build_reference_system.force_field_path = ProtocolPath('force_field_path', unpack_stored_data.id)
@@ -121,6 +125,7 @@ def generate_base_reweighting_protocols(analysis_protocol, mbar_protocol, workfl
     reduced_reference_potential.thermodynamic_state = ProtocolPath('thermodynamic_state', unpack_stored_data.id)
     reduced_reference_potential.coordinate_file_path = ProtocolPath('coordinate_file_path', unpack_stored_data.id)
     reduced_reference_potential.trajectory_file_path = ProtocolPath('output_trajectory_path', join_trajectories.id)
+    reduced_reference_potential.kinetic_energies_path = ProtocolPath('output_statistics_path', join_statistics.id)
 
     # Calculate the reduced potential of the target state.
     build_target_system = forcefield.BuildSmirnoffSystem('build_system_target' + id_suffix)
@@ -133,6 +138,7 @@ def generate_base_reweighting_protocols(analysis_protocol, mbar_protocol, workfl
     reduced_target_potential.system_path = ProtocolPath('system_path', build_target_system.id)
     reduced_target_potential.coordinate_file_path = ProtocolPath('output_coordinate_path', join_trajectories.id)
     reduced_target_potential.trajectory_file_path = ProtocolPath('output_trajectory_path', join_trajectories.id)
+    reduced_target_potential.kinetic_energies_path = ProtocolPath('output_statistics_path', join_statistics.id)
 
     # Finally, apply MBAR to get the reweighted value.
     mbar_protocol.reference_reduced_potentials = ProtocolPath('statistics_file_path', reduced_reference_potential.id)
@@ -151,12 +157,6 @@ def generate_base_reweighting_protocols(analysis_protocol, mbar_protocol, workfl
         mbar_protocol.statistics_paths = [ProtocolPath('statistics_file_path', reduced_target_potential.id)]
         mbar_protocol.frame_counts = ProtocolPath('number_of_uncorrelated_samples', decorrelate_statistics.id)
 
-        if (mbar_protocol.statistics_type == ObservableType.TotalEnergy or
-            mbar_protocol.statistics_type == ObservableType.Enthalpy):
-
-            mbar_protocol.reference_statistics_paths = ProtocolPath('output_statistics_path',
-                                                                    decorrelate_statistics.id)
-
     # TODO: Implement a cleaner way to handle this.
     if workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.NoChecks:
         mbar_protocol.required_effective_samples = -1
@@ -166,6 +166,7 @@ def generate_base_reweighting_protocols(analysis_protocol, mbar_protocol, workfl
                                               decorrelate_statistics,
                                               decorrelate_trajectory,
                                               join_trajectories,
+                                              join_statistics,
                                               build_reference_system,
                                               reduced_reference_potential,
                                               build_target_system,
@@ -232,8 +233,6 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
         manually add the convergence conditions to this group.
         If `None`, a default group with uncertainty convergence
         conditions is automatically constructed.
-    replicator_id: str, optional
-        An optional replicator id.
 
     Returns
     -------
@@ -251,7 +250,7 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
 
     build_coordinates = coordinates.BuildCoordinatesPackmol(f'build_coordinates{id_suffix}')
     build_coordinates.substance = ProtocolPath('substance', 'global')
-    build_coordinates.max_molecules = 256
+    build_coordinates.max_molecules = 1000
 
     assign_parameters = forcefield.BuildSmirnoffSystem(f'assign_parameters{id_suffix}')
     assign_parameters.force_field_path = ProtocolPath('force_field_path', 'global')
@@ -265,8 +264,8 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
 
     equilibration_simulation = simulation.RunOpenMMSimulation(f'equilibration_simulation{id_suffix}')
     equilibration_simulation.ensemble = Ensemble.NPT
-    equilibration_simulation.steps = 10
-    equilibration_simulation.output_frequency = 2
+    equilibration_simulation.steps = 100000
+    equilibration_simulation.output_frequency = 5000
     equilibration_simulation.timestep = 2.0 * unit.femtosecond
     equilibration_simulation.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
     equilibration_simulation.input_coordinate_file = ProtocolPath('output_coordinate_file', energy_minimisation.id)
@@ -275,8 +274,8 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
     # Production
     production_simulation = simulation.RunOpenMMSimulation(f'production_simulation{id_suffix}')
     production_simulation.ensemble = Ensemble.NPT
-    production_simulation.steps = 10
-    production_simulation.output_frequency = 2
+    production_simulation.steps = 1000000
+    production_simulation.output_frequency = 3000
     production_simulation.timestep = 2.0 * unit.femtosecond
     production_simulation.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
     production_simulation.input_coordinate_file = ProtocolPath('output_coordinate_file', equilibration_simulation.id)
@@ -478,7 +477,9 @@ def generate_gradient_protocol_group(template_reweighting_protocol,
     # if the observable depends on the parameter being reweighted.
     use_target_state_energies = (isinstance(template_reweighting_protocol, reweighting.ReweightStatistics) and
                                  (template_reweighting_protocol.statistics_type == ObservableType.PotentialEnergy or
-                                  template_reweighting_protocol.statistics_type == ObservableType.ReducedPotential))
+                                  template_reweighting_protocol.statistics_type == ObservableType.ReducedPotential or
+                                  template_reweighting_protocol.statistics_type == ObservableType.TotalEnergy or
+                                  template_reweighting_protocol.statistics_type == ObservableType.Enthalpy))
 
     template_reweighting_schema = template_reweighting_protocol.schema
 

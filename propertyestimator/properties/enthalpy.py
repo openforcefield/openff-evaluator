@@ -264,7 +264,7 @@ class EnthalpyOfMixing(PhysicalProperty):
 
         # Set up the gradient calculations
         reweight_enthalpy_template = reweighting.ReweightStatistics('')
-        reweight_enthalpy_template.statistics_type = ObservableType.ReducedPotential
+        reweight_enthalpy_template.statistics_type = ObservableType.PotentialEnergy
         reweight_enthalpy_template.statistics_paths = [ProtocolPath('statistics_file_path',
                                                                     conditional_group.id,
                                                                     simulation_protocols.production_simulation.id)]
@@ -346,6 +346,9 @@ class EnthalpyOfMixing(PhysicalProperty):
             The protocols used to estimate the enthalpy of a substance.
         ProtocolPath
             A reference to the estimated enthalpy.
+        ProtocolReplicator
+            The replicator which will replicate each protocol for each
+            cached simulation datum.
         ProtocolGroup
             The group of protocols which will calculate the gradient of the reduced potential
             with respect to a given property.
@@ -376,31 +379,41 @@ class EnthalpyOfMixing(PhysicalProperty):
                                                                 replicator_id=data_replicator_id,
                                                                 id_suffix=id_suffix)
 
+        # Make sure we use the reduced internal potential when re-weighting enthalpies
+        protocols.reduced_reference_potential.use_internal_energy = True
+        protocols.reduced_target_potential.use_internal_energy = True
+
         # Make sure to use the correct substance.
         protocols.build_target_system.substance = substance_reference
 
+        value_source = ProtocolPath('value', protocols.mbar_protocol.id)
+
         # Set up the protocols which will be responsible for adding together
         # the component enthalpies, and subtracting these from the full system enthalpy.
-        if weight_by_mole_fraction:
+        weight_enthalpy = None
 
-            weight_by_mole_fraction = WeightQuantityByMoleFraction(f'weight{id_suffix}')
-            weight_by_mole_fraction.value = ProtocolPath('value', protocols.mbar_protocol.id)
-            weight_by_mole_fraction.full_substance = ProtocolPath('substance', 'global')
-            weight_by_mole_fraction.component = substance_reference
+        if weight_by_mole_fraction is True:
+
+            weight_enthalpy = WeightQuantityByMoleFraction(f'weight_enthalpy{id_suffix}')
+            weight_enthalpy.value = ProtocolPath('value', protocols.mbar_protocol.id)
+            weight_enthalpy.full_substance = ProtocolPath('substance', 'global')
+            weight_enthalpy.component = substance_reference
+
+            value_source = ProtocolPath('weighted_value', weight_enthalpy.id)
 
         # Divide by the component enthalpies by the number of molecules in the system
         number_of_molecules = ProtocolPath('total_number_of_molecules', protocols.
                                            unpack_stored_data.id.replace(f'$({data_replicator_id})', '0'))
 
         divide_by_molecules = miscellaneous.DivideValue(f'divide_by_molecules{id_suffix}')
-        divide_by_molecules.value = ProtocolPath('weighted_value', weight_by_mole_fraction.id)
+        divide_by_molecules.value = value_source
         divide_by_molecules.divisor = number_of_molecules
 
         value_source = ProtocolPath('result', divide_by_molecules.id)
 
         # Set up the gradient calculations.
         reweight_potential_template = reweighting.ReweightStatistics('')
-        reweight_potential_template.statistics_type = ObservableType.Enthalpy
+        reweight_potential_template.statistics_type = ObservableType.PotentialEnergy
 
         coordinate_path = ProtocolPath('output_coordinate_path', protocols.concatenate_trajectories.id)
         trajectory_path = ProtocolPath('output_trajectory_path', protocols.concatenate_trajectories.id)
@@ -421,7 +434,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         # Remove the group id from the path.
         gradient_source.pop_next_in_path()
 
-        if weight_by_mole_fraction:
+        if weight_by_mole_fraction is True:
 
             # The component workflows need an extra step to multiply their gradients by their
             # relative mole fraction.
@@ -440,7 +453,12 @@ class EnthalpyOfMixing(PhysicalProperty):
         gradient_group.add_protocols(scale_gradient)
         gradient_source = ProtocolPath('result', gradient_group.id, scale_gradient.id)
 
-        return protocols, value_source, gradient_group, gradient_source
+        all_protocols = (*protocols, divide_by_molecules)
+
+        if weight_enthalpy is not None:
+            all_protocols = (*all_protocols, weight_enthalpy)
+
+        return all_protocols, value_source, data_replicator, gradient_group, gradient_source
 
     @staticmethod
     def get_default_simulation_workflow_schema(options=None):
@@ -514,18 +532,6 @@ class EnthalpyOfMixing(PhysicalProperty):
         combine_gradients.value_b = full_system_gradient
         combine_gradients.value_a = ProtocolPath('result', add_component_gradients.id)
 
-        # A slightly unpleasant route to get d(U + pV)/dtheta from the d(reduced potential)/d theta
-        scale_gradient_temperature = gradients.MultiplyGradientByScalar(f'scale_temperature_'
-                                                                        f'$({gradient_replicator_id})')
-
-        scale_gradient_temperature.value = ProtocolPath('result', combine_gradients.id)
-        scale_gradient_temperature.scalar = ProtocolPath('thermodynamic_state.temperature', 'global')
-
-        scale_gradient_molar_gas = gradients.MultiplyGradientByScalar(f'scale_molar_gas_'
-                                                                      f'$({gradient_replicator_id})')
-        scale_gradient_molar_gas.value = ProtocolPath('result', scale_gradient_temperature.id)
-        scale_gradient_molar_gas.scalar = (1.0 * unit.molar_gas_constant).to(unit.kilojoule / (unit.mole * unit.kelvin))
-
         # Combine the gradient replicators.
         gradient_replicator = ProtocolReplicator(replicator_id=gradient_replicator_id)
         gradient_replicator.template_values = ProtocolPath('parameter_gradient_keys', 'global')
@@ -563,15 +569,13 @@ class EnthalpyOfMixing(PhysicalProperty):
             component_gradient_group.id: component_gradient_group.schema,
             full_system_gradient_group.id: full_system_gradient_group.schema,
             add_component_gradients.id: add_component_gradients.schema,
-            scale_gradient_temperature.id: scale_gradient_temperature.schema,
-            scale_gradient_molar_gas.id: scale_gradient_molar_gas.schema,
             combine_gradients.id: combine_gradients.schema
         }
 
         schema.replicators = [gradient_replicator, component_replicator]
 
         # Finally, tell the schemas where to look for its final values.
-        schema.gradients_sources = [ProtocolPath('result', scale_gradient_molar_gas.id)]
+        schema.gradients_sources = [ProtocolPath('result', combine_gradients.id)]
         schema.final_value_source = ProtocolPath('result', calculate_enthalpy_of_mixing.id)
 
         schema.outputs_to_store = {
@@ -597,41 +601,45 @@ class EnthalpyOfMixing(PhysicalProperty):
             The schema to follow when estimating this property.
         """
 
-        component_replicator_id =
-        component_data_replicator_id = f'component_$({component_replicator_id})_replicator'
-
         # Set up a replicator that will re-run the component reweighting workflow for each
         # component in the system.
-        component_replicator = ProtocolReplicator(replicator_id=component_replicator_id)
+        component_replicator = ProtocolReplicator(replicator_id='component_replicator')
         component_replicator.template_values = ProtocolPath('components', 'global')
 
         gradient_replicator = ProtocolReplicator('gradient')
         gradient_replicator.template_values = ProtocolPath('parameter_gradient_keys', 'global')
-        
-        full_data_replicator_id = 'full_data_replicator'
-        gradient_replicator_id = 'gradient'
 
         # Set up the protocols which will reweight data for the full system.
+        full_data_replicator_id = 'full_data_replicator'
+
         (full_protocols,
          full_enthalpy,
+         full_data_replicator,
          full_gradient_group,
          full_gradient_source) = EnthalpyOfMixing._get_reweighting_protocols('_full',
-                                                                             gradient_replicator_id,
+                                                                             gradient_replicator.id,
                                                                              full_data_replicator_id,
                                                                              options=options)
 
         # Set up the protocols which will reweight data for each component.
+        component_data_replicator_id = f'component_{component_replicator.placeholder_id}_data_replicator'
+
         (component_protocols,
          component_enthalpies,
+         component_data_replicator,
          component_gradient_group,
          component_gradient_source) = EnthalpyOfMixing._get_reweighting_protocols('_component',
-                                                                                  gradient_replicator_id,
+                                                                                  gradient_replicator.id,
                                                                                   component_data_replicator_id,
-                                                                                  replicator_id=component_replicator_id,
+                                                                                  replicator_id=component_replicator.id,
                                                                                   weight_by_mole_fraction=True,
                                                                                   substance_reference=ReplicatorValue(
-                                                                                      component_replicator_id),
+                                                                                      component_replicator.id),
                                                                                   options=options)
+
+        # Make sure the replicator is only replicating over component data.
+        component_data_replicator.template_values = ProtocolPath(f'component_data[$({component_replicator.id})]',
+                                                                 'global')
 
         add_component_potentials = miscellaneous.AddValues('add_component_potentials')
         add_component_potentials.values = component_enthalpies
@@ -642,10 +650,10 @@ class EnthalpyOfMixing(PhysicalProperty):
 
         # Combine the gradients.
         add_component_gradients = gradients.AddGradients(f'add_component_gradients'
-                                                         f'_$({gradient_replicator_id})')
+                                                         f'_{gradient_replicator.placeholder_id}')
         add_component_gradients.values = component_gradient_source
 
-        combine_gradients = gradients.SubtractGradients(f'combine_gradients_$({gradient_replicator_id})')
+        combine_gradients = gradients.SubtractGradients(f'combine_gradients_{gradient_replicator.placeholder_id}')
         combine_gradients.value_b = full_gradient_source
         combine_gradients.value_a = ProtocolPath('result', add_component_gradients.id)
 
@@ -655,30 +663,25 @@ class EnthalpyOfMixing(PhysicalProperty):
 
         schema.protocols = dict()
 
-        schema.protocols.update({protocol.id: protocol.schema for protocol in full_system_protocols})
+        schema.protocols.update({protocol.id: protocol.schema for protocol in full_protocols})
         schema.protocols.update({protocol.id: protocol.schema for protocol in component_protocols})
 
-        schema.protocols[weight_by_mole_fraction.id] = weight_by_mole_fraction.schema
-        schema.protocols[component_divide_by_molecules.id] = component_divide_by_molecules.schema
-        schema.protocols[full_system_divide_by_molecules.id] = full_system_divide_by_molecules.schema
         schema.protocols[add_component_potentials.id] = add_component_potentials.schema
         schema.protocols[calculate_excess_enthalpy.id] = calculate_excess_enthalpy.schema
 
-        # schema.protocols[component_gradient_group.id] = component_gradient_group.schema
-        # schema.protocols[full_system_gradient_group.id] = full_system_gradient_group.schema
-        # schema.protocols[add_component_gradients.id] = add_component_gradients.schema
-        # schema.protocols[combine_gradients.id] = combine_gradients.schema
-        # schema.protocols[scale_gradient_temperature.id] = scale_gradient_temperature.schema
-        # schema.protocols[scale_gradient_molar_gas.id] = scale_gradient_molar_gas.schema
+        schema.protocols[full_gradient_group.id] = full_gradient_group.schema
+        schema.protocols[component_gradient_group.id] = component_gradient_group.schema
+        schema.protocols[add_component_gradients.id] = add_component_gradients.schema
+        schema.protocols[combine_gradients.id] = combine_gradients.schema
 
         schema.replicators = [
-            full_system_data_replicator,
+            full_data_replicator,
             component_replicator,
             component_data_replicator,
             gradient_replicator
         ]
 
-        # schema.gradients_sources = [ProtocolPath('result', scale_gradient_molar_gas.id)]
+        schema.gradients_sources = [ProtocolPath('result', combine_gradients.id)]
         schema.final_value_source = ProtocolPath('result', calculate_excess_enthalpy.id)
 
         return schema
@@ -729,7 +732,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
         """
 
         # Define the number of molecules for the liquid phase
-        number_of_liquid_molecules = 1000
+        number_of_liquid_molecules = 256
 
         # Define a custom conditional group.
         converge_uncertainty = groups.ConditionalGroup(f'converge_uncertainty')
@@ -762,8 +765,8 @@ class EnthalpyOfVaporization(PhysicalProperty):
         gas_protocols.equilibration_simulation.enable_pbc = False
         gas_protocols.equilibration_simulation.save_rolling_statistics = False
         gas_protocols.production_simulation.ensemble = Ensemble.NVT
-        gas_protocols.production_simulation.steps = 15000000
-        gas_protocols.production_simulation.output_frequency = 5000
+        gas_protocols.production_simulation.steps = 150
+        gas_protocols.production_simulation.output_frequency = 5
         gas_protocols.production_simulation.enable_pbc = False
         gas_protocols.production_simulation.save_rolling_statistics = False
 
