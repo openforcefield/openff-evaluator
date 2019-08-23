@@ -1,7 +1,7 @@
 name: propertyestimator
 channels:
-    - omnia
     - conda-forge
+    - omnia
 dependencies:
     # Base depends
     - python ==3.6
@@ -19,9 +19,11 @@ dependencies:
     - lxml
     - icu 58*  # REQUIRED - DO NOT REMOVE.
     - openmm
+    - pint
     - packmol
     - pymbar
-    - dask
-    - dask_jobqueue
+    - dask >=2.2
+    - distributed >=2.2
+    - dask-jobqueue >=0.6.2
     - tornado <6
     - uncertainties
