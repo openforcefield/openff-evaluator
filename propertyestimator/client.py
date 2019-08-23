@@ -11,7 +11,7 @@ from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
 from tornado.tcpclient import TCPClient
 
-from propertyestimator.layers import SurrogateLayer, ReweightingLayer, SimulationLayer
+from propertyestimator.layers import ReweightingLayer, SimulationLayer
 from propertyestimator.properties.plugins import registered_properties
 from propertyestimator.utils.serialization import TypedBaseModel
 from propertyestimator.utils.tcp import PropertyEstimatorMessageTypes, pack_int, unpack_int
@@ -69,7 +69,6 @@ class PropertyEstimatorOptions(TypedBaseModel):
         if allowed_calculation_layers is None:
 
             self.allowed_calculation_layers = [
-                SurrogateLayer.__name__,
                 ReweightingLayer.__name__,
                 SimulationLayer.__name__
             ]
