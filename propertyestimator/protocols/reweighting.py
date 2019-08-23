@@ -637,9 +637,18 @@ class ReweightStatistics(BaseMBARProtocol):
     """
 
     @protocol_input(list)
+    def reference_statistics_paths(self):
+        """The file paths to the statistics array which contains the observables
+        at the reference state. This is only required when reweighting enthalpies
+        or total energies."""
+        pass
+
+    @protocol_input(list)
     def statistics_paths(self):
         """The file paths to the statistics array which contains the observables
-        of interest from each state."""
+        of interest from each state. If the observable of interest is dependant
+        on the changing variable (e.g. the potential energy) then this must be a
+        path to the observable re-evaluated at the new state."""
         pass
 
     @protocol_input(ObservableType)
@@ -658,6 +667,8 @@ class ReweightStatistics(BaseMBARProtocol):
         """Constructs a new ReweightWithMBARProtocol object."""
         super().__init__(protocol_id)
 
+        self._reference_statistics_paths = []
+
         self._statistics_paths = None
         self._statistics_type = None
 
@@ -673,7 +684,22 @@ class ReweightStatistics(BaseMBARProtocol):
                                                          'a single path is passed to the `statistics_paths`'
                                                          'input.')
 
+        if self._statistics_type == ObservableType.KineticEnergy:
+            return PropertyEstimatorException(directory, f'Kinetic energies cannot be reweighted.')
+
+        requires_kinetic_energy = (self._statistics_type == ObservableType.Enthalpy or
+                                   self._statistics_type == ObservableType.TotalEnergy)
+
+        if requires_kinetic_energy and (self._reference_statistics_paths is None or
+                                        len(self._reference_statistics_paths) == 0):
+
+            return PropertyEstimatorException(directory, f'The kinetic energies must be provided using '
+                                                         f'the `reference_statistics_paths` input when estimating '
+                                                         f'the {str(self._statistics_type)} statistics')
+
         statistics_arrays = [StatisticsArray.from_pandas_csv(file_path) for file_path in self._statistics_paths]
+        reference_arrays = [StatisticsArray.from_pandas_csv(file_path) for file_path in self._kinetic_energy_paths]
+
         self._reference_observables = []
 
         if len(self._frame_counts) > 0:
@@ -686,14 +712,32 @@ class ReweightStatistics(BaseMBARProtocol):
                 if frame_count <= 0:
                     return PropertyEstimatorException(directory, 'The frame counts must be > 0.')
 
-                observables = statistics_array[self._statistics_type][current_index:frame_count]
+                if requires_kinetic_energy:
+
+                    observables = (reference_arrays[0][self._statistics_type][current_index:frame_count] -
+                                   reference_arrays[0][ObservableType.PotentialEnergy][current_index:frame_count] +
+                                   statistics_array[ObservableType.PotentialEnergy][current_index:frame_count])
+
+                else:
+                    observables = statistics_array[self._statistics_type][current_index:frame_count]
+
                 self._reference_observables.append(observables)
 
                 current_index += frame_count
 
         else:
 
-            self._reference_observables = [statistics_array[self._statistics_type] for
-                                           statistics_array in statistics_arrays]
+            for index, statistics_array in statistics_arrays:
+
+                if requires_kinetic_energy:
+
+                    observables = (reference_arrays[index][self._statistics_type] -
+                                   reference_arrays[index][ObservableType.PotentialEnergy] +
+                                   statistics_array[ObservableType.PotentialEnergy])
+
+                else:
+                    observables = statistics_array[self._statistics_type]
+
+                self._reference_observables.append(observables)
 
         return super(ReweightStatistics, self).execute(directory, available_resources)

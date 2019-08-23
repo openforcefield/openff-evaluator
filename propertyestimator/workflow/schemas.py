@@ -582,11 +582,16 @@ class WorkflowSchema(TypedBaseModel):
 
         for replicator in self.replicators:
 
+            if replicator.placeholder_id in full_unreplicated_path:
+                continue
+
             protocols_to_replicate = self._find_protocols_to_be_replicated(replicator)
 
             for protocol_id in protocols_to_replicate:
 
-                match_pattern = protocol_id.replace(replicator.placeholder_id, r'\d+')
+                match_pattern = re.escape(protocol_id.replace(replicator.placeholder_id, r'\d+'))
+                match_pattern = match_pattern.replace(re.escape(r'\d+'), r'\d+')
+
                 full_unreplicated_path = re.sub(match_pattern, protocol_id, full_unreplicated_path)
 
         return ProtocolPath.from_string(full_unreplicated_path)

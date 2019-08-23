@@ -140,6 +140,8 @@ def generate_base_reweighting_protocols(analysis_protocol, mbar_protocol, workfl
 
     if (isinstance(mbar_protocol, reweighting.ReweightStatistics) and
         mbar_protocol.statistics_type != ObservableType.PotentialEnergy and
+        mbar_protocol.statistics_type != ObservableType.TotalEnergy and
+        mbar_protocol.statistics_type != ObservableType.Enthalpy and
         mbar_protocol.statistics_type != ObservableType.ReducedPotential):
 
         mbar_protocol.statistics_paths = ProtocolPath('output_statistics_path', decorrelate_statistics.id)
@@ -148,6 +150,12 @@ def generate_base_reweighting_protocols(analysis_protocol, mbar_protocol, workfl
 
         mbar_protocol.statistics_paths = [ProtocolPath('statistics_file_path', reduced_target_potential.id)]
         mbar_protocol.frame_counts = ProtocolPath('number_of_uncorrelated_samples', decorrelate_statistics.id)
+
+        if (mbar_protocol.statistics_type == ObservableType.TotalEnergy or
+            mbar_protocol.statistics_type == ObservableType.Enthalpy):
+
+            mbar_protocol.reference_statistics_paths = ProtocolPath('output_statistics_path',
+                                                                    decorrelate_statistics.id)
 
     # TODO: Implement a cleaner way to handle this.
     if workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.NoChecks:
@@ -243,7 +251,7 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
 
     build_coordinates = coordinates.BuildCoordinatesPackmol(f'build_coordinates{id_suffix}')
     build_coordinates.substance = ProtocolPath('substance', 'global')
-    build_coordinates.max_molecules = 1000
+    build_coordinates.max_molecules = 256
 
     assign_parameters = forcefield.BuildSmirnoffSystem(f'assign_parameters{id_suffix}')
     assign_parameters.force_field_path = ProtocolPath('force_field_path', 'global')
@@ -257,8 +265,8 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
 
     equilibration_simulation = simulation.RunOpenMMSimulation(f'equilibration_simulation{id_suffix}')
     equilibration_simulation.ensemble = Ensemble.NPT
-    equilibration_simulation.steps = 100000
-    equilibration_simulation.output_frequency = 5000
+    equilibration_simulation.steps = 10
+    equilibration_simulation.output_frequency = 2
     equilibration_simulation.timestep = 2.0 * unit.femtosecond
     equilibration_simulation.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
     equilibration_simulation.input_coordinate_file = ProtocolPath('output_coordinate_file', energy_minimisation.id)
@@ -267,8 +275,8 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
     # Production
     production_simulation = simulation.RunOpenMMSimulation(f'production_simulation{id_suffix}')
     production_simulation.ensemble = Ensemble.NPT
-    production_simulation.steps = 1000000
-    production_simulation.output_frequency = 3000
+    production_simulation.steps = 10
+    production_simulation.output_frequency = 2
     production_simulation.timestep = 2.0 * unit.femtosecond
     production_simulation.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
     production_simulation.input_coordinate_file = ProtocolPath('output_coordinate_file', equilibration_simulation.id)
@@ -405,7 +413,7 @@ def generate_gradient_protocol_group(template_reweighting_protocol,
         replicate this group for every parameter of interest.
     perturbation_scale: float
         The default amount to perturb parameters by.
-    substance_source: ProtocolPath, optional
+    substance_source: PlaceholderInput, optional
         An optional protocol path to the substance whose gradient
         is being estimated. If None, the global property substance
         is used.
