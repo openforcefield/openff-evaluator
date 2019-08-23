@@ -36,6 +36,8 @@ Index
 **Developer Documentation**
 
 * :doc:`api`
+* :doc:`releasehistory`
+* :doc:`releaseprocess`
 
 .. toctree::
   :maxdepth: 2
@@ -43,3 +45,5 @@ Index
   :caption: Developer Documentation
 
   api
+  releasehistory
+  releaseprocess
