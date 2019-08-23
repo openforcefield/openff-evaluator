@@ -732,7 +732,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
         """
 
         # Define the number of molecules for the liquid phase
-        number_of_liquid_molecules = 256
+        number_of_liquid_molecules = 1000
 
         # Define a custom conditional group.
         converge_uncertainty = groups.ConditionalGroup(f'converge_uncertainty')
@@ -765,8 +765,8 @@ class EnthalpyOfVaporization(PhysicalProperty):
         gas_protocols.equilibration_simulation.enable_pbc = False
         gas_protocols.equilibration_simulation.save_rolling_statistics = False
         gas_protocols.production_simulation.ensemble = Ensemble.NVT
-        gas_protocols.production_simulation.steps = 150
-        gas_protocols.production_simulation.output_frequency = 5
+        gas_protocols.production_simulation.steps = 15000000
+        gas_protocols.production_simulation.output_frequency = 5000
         gas_protocols.production_simulation.enable_pbc = False
         gas_protocols.production_simulation.save_rolling_statistics = False
 
