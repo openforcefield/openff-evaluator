@@ -13,7 +13,7 @@ from .storage import PropertyEstimatorStorage
 
 
 class LocalFileStorage(PropertyEstimatorStorage):
-    """A storage backend which stores files normally on the local
+    """A storage backend which stores files in directories on the local
     disk.
     """
 

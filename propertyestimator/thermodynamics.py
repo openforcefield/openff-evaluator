@@ -33,7 +33,6 @@ class ThermodynamicState(TypedBaseModel):
     >>> state = ThermodynamicState(temperature=298.0*unit.kelvin, pressure=1.0*unit.atmospheres)
 
     Note that the pressure is only relevant for periodic systems.
-
     """
 
     @property

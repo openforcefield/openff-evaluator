@@ -10,14 +10,16 @@ from propertyestimator.utils.serialization import TypedBaseModel
 
 class PhysicalPropertyDataSet(TypedBaseModel):
     """
-    A data set of physical property measurements / calculations.
-    Contains functionality for merging multiple data sets and
-    filtering existing ones.
+    An object for storing and curating data sets of both physical property
+    measurements and estimated. This class defines a number of convenience
+    functions for filtering out unwanted properties, and for generating
+    general statistics (such as the number of properties per substance)
+    about the set.
     """
 
     def __init__(self):
         """
-        Constructs a new PhysicalPropertyDataSet
+        Constructs a new PhysicalPropertyDataSet object.
         """
         self._properties = {}
         self._sources = []
@@ -25,8 +27,15 @@ class PhysicalPropertyDataSet(TypedBaseModel):
     @property
     def properties(self):
         """
-        dict of str and list of PhysicalProperty: The property list which
-        takes a substance as the key.
+        dict of str and list of PhysicalProperty: A list of all of the properties
+        within this set, partitioned by substance identifier.
+
+        TODO: Add a link to Substance.identifier when have access to sphinx docs.
+        TODO: Investigate why PhysicalProperty is not cross-linking.
+
+        See Also
+        --------
+        Substance.identifier()
         """
         return self._properties
 
@@ -129,7 +138,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         self.filter_by_function(filter_function)
 
     def filter_by_phases(self, phases):
-        """Filter the data set based on the phase of the property (e.g Liquid).
+        """Filter the data set based on the phase of the property (e.g liquid).
 
         Parameters
         ----------

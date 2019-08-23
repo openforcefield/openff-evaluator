@@ -12,11 +12,11 @@ import dask
 from dask import distributed
 from dask_jobqueue import LSFCluster
 from distributed import get_worker
-from distributed.metrics import time
 from distributed.deploy.adaptive import Adaptive
+from distributed.metrics import time
 from distributed.utils import ignoring
-from propertyestimator import unit
 
+from propertyestimator import unit
 from .backends import PropertyEstimatorBackend, ComputeResources, QueueWorkerResources
 
 
@@ -200,12 +200,12 @@ class _Multiprocessor:
 
 
 class BaseDaskBackend(PropertyEstimatorBackend):
-    """An base dask backend class, which implements functionality
-    which is common to all other dask backends.
+    """A base `dask` backend class, which implements functionality
+    which is common to all other `dask` based backends.
     """
 
     def __init__(self, number_of_workers=1, resources_per_worker=ComputeResources()):
-        """Constructs a new BaseDaskBackend"""
+        """Constructs a new BaseDaskBackend object."""
 
         super().__init__(number_of_workers, resources_per_worker)
 
@@ -235,7 +235,7 @@ class BaseDaskBackend(PropertyEstimatorBackend):
         """A function which is wrapped around any function submitted via
         `submit_task`, which adds extra meta data to the args and kwargs
         (such as the compute resources available to the function) and may
-        perform extra validation before the function is passed to dask.
+        perform extra validation before the function is passed to `dask`.
 
         Parameters
         ----------
@@ -257,8 +257,12 @@ class BaseDaskBackend(PropertyEstimatorBackend):
 
 
 class DaskLSFBackend(BaseDaskBackend):
-    """A property estimator backend which uses a dask-jobqueue `LSFCluster`
-    objects to run calculations within an existing LSF queue.
+    """A property estimator backend which uses a `dask_jobqueue` `LSFCluster`
+    object to run calculations within an existing LSF queue.
+
+    See Also
+    --------
+    dask_jobqueue.LSFCluster
     """
 
     def __init__(self,
@@ -271,7 +275,7 @@ class DaskLSFBackend(BaseDaskBackend):
                  adaptive_interval='10000ms',
                  disable_nanny_process=False):
 
-        """Constructs a new DaskLocalCluster
+        """Constructs a new DaskLSFBackend object
 
         Parameters
         ----------
@@ -464,8 +468,12 @@ class DaskLSFBackend(BaseDaskBackend):
 
 
 class DaskLocalCluster(BaseDaskBackend):
-    """A property estimator backend which uses a dask `LocalCluster` to
-    run calculations.
+    """A property estimator backend which uses a `dask` `LocalCluster`
+    object to run calculations on a single machine.
+
+    See Also
+    --------
+    dask.LocalCluster
     """
 
     def __init__(self, number_of_workers=1, resources_per_worker=ComputeResources()):

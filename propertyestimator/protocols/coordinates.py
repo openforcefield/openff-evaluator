@@ -62,9 +62,8 @@ class BuildCoordinatesPackmol(BaseProtocol):
     @protocol_output(int)
     def final_number_of_molecules(self):
         """The file path to the created PDB coordinate file.
-        TODO: This is a temporary addition until inputs are made
-              available as outputs by default.
         """
+        # TODO: This is a temporary addition until inputs are made available as outputs by default.
         pass
 
     @protocol_output(str)
@@ -73,6 +72,8 @@ class BuildCoordinatesPackmol(BaseProtocol):
         pass
 
     def __init__(self, protocol_id):
+        """Constructs a new BuildCoordinatesPackmol object.
+        """
 
         super().__init__(protocol_id)
 

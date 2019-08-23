@@ -202,14 +202,11 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
 
         5) Within a conditional group (up to a maximum of 100 times):
 
-            5a) Run a longer NPT production simulation for 1000000 steps
-           using a timestep of 2fs
+            5a) Run a longer NPT production simulation for 1000000 steps using a timestep of 2fs
 
-            5b) Extract the average value of an observable and
-                it's uncertainty.
+            5b) Extract the average value of an observable and it's uncertainty.
 
-            5c) If a convergence mode is set by the options,
-                check if the target uncertainty has been met.
+            5c) If a convergence mode is set by the options, check if the target uncertainty has been met.
                 If not, repeat steps 5a), 5b) and 5c).
 
         6) Extract uncorrelated configurations from a generated production

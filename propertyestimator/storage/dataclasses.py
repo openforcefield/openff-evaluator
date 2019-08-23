@@ -135,11 +135,13 @@ class StoredSimulationData(BaseStoredData):
     The ancillary directory which stores larger information such
     as trajectories should be of the form:
 
-    |--- data_object.json
-    |--- data_directory
-         |--- coordinate_file_name.pdb
-         |--- trajectory_file_name.dcd
-         |--- statistics_file_name.csv
+    .. code-block::
+
+        |--- data_object.json
+        |--- data_directory
+             |--- coordinate_file_name.pdb
+             |--- trajectory_file_name.dcd
+             |--- statistics_file_name.csv
 
     Attributes
     ----------
@@ -233,26 +235,25 @@ class StoredDataCollection(BaseStoredData):
     generated at the same state and using the same force field
     parameters.
 
-    Notes
-    -----
     The ancillary directory which stores larger information such
     as trajectories should be of the form:
 
-    |--- data_object.json
-    |--- data_directory
-         |--- data_key_1
-              |--- coordinate_file_name.pdb
-              |--- trajectory_file_name.dcd
-              |--- statistics_file_name.csv
-         |--- data_key_2
-              |--- coordinate_file_name.pdb
-              |--- trajectory_file_name.dcd
-              |--- statistics_file_name.csv
-         |--- data_key_3
-              |--- coordinate_file_name.pdb
-              |--- trajectory_file_name.dcd
-              |--- statistics_file_name.csv
-         ...
+    .. code-block::
+
+        |--- data_object.json
+        |--- data_directory
+            |--- data_key_1
+                 |--- coordinate_file_name.pdb
+                 |--- trajectory_file_name.dcd
+                 |--- statistics_file_name.csv
+            |--- data_key_2
+                 |--- coordinate_file_name.pdb
+                 |--- trajectory_file_name.dcd
+                 |--- statistics_file_name.csv
+            |--- data_key_3
+                 |--- coordinate_file_name.pdb
+                 |--- trajectory_file_name.dcd
+                 |--- statistics_file_name.csv
 
     Attributes
     ----------

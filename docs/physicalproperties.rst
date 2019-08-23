@@ -1,5 +1,5 @@
-Physical property measurements
-==================================
+Physical Property Measurements
+==============================
 
 .. warning:: This text is now out of date, but will be updated in future to reflect the
              latest version of the framework.

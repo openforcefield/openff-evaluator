@@ -16,6 +16,10 @@ available_layers = {}
 def register_calculation_layer():
     """A decorator which registers a class as being a calculation layer
     which may be used in property calculations.
+
+    See Also
+    --------
+    TODO: add documentation for plugin support
     """
 
     def decorator(cls):
@@ -83,12 +87,20 @@ class CalculationLayerResult:
 
 
 class PropertyCalculationLayer:
-    """An abstract representation of a calculation layer in the property calculation stack.
+    """An abstract representation of a calculation layer whose goal is
+    to estimate a set of physical properties using a single approach,
+    such as a layer which employs direct simulations to estimate properties,
+    or one which reweights cached simulation data to the same end.
 
     Notes
     -----
     Calculation layers must inherit from this class, and must override the
     `schedule_calculation` method.
+
+    See Also
+    --------
+    TODO: Link to a general page outlining what calculation layers are
+          and how they are used.
     """
 
     @staticmethod
