@@ -1,23 +1,26 @@
 Getting Started
 ===============
 
-Overview - currently consists of two parts. A server which will handle all estimation requests,
-coordinate with compute backend to perform calculations and cache data using a storage backend.
+The ``propertyestimator`` currently exists as two key components:
+
+* a client object which the user can use to request the estimation of data sets of
+  physical properties.
+
+* a server object which accepts requests from a client and performs the estimations.
+
+.. warning:: These instructions are still a work in progress, and may not run as expected.
 
 Creating an Estimator Server
 ----------------------------
 
-The :obj:`PropertyEstimatorClient` class creates objects that handle property estimation of all of the properties in a dataset,
-given a set or sets of parameters. The implementation will isolate the user from whatever backend (local machine,
-HPC cluster, `XSEDE resources <http://xsede.org>`_, `Amazon EC2 <https://aws.amazon.com/ec2>`_) is being used to compute
-the properties, as well as whether new simulations are being launched and analyzed or existing simulation data is being
-reweighted.
+The ``PropertyEstimatorServer`` class creates objects that handle property estimation of all of the properties in a
+dataset given a set.
 
-Create file server.py. Tell server to log to file in case of failure
+Create the file ``run_server.py``. Tell server to log to file in case of failure::
 
     setup_timestamp_logging()
 
-Create dir structure::
+Create directory structure to store intermediary results::
 
     # Set the name of the directory in which all temporary files
     # will be generated.
@@ -27,14 +30,14 @@ Create dir structure::
     if path.isdir(working_directory):
         shutil.rmtree(working_directory)
 
-Set up a calculation backend, different backends will take different optional arguments, but here is
-an example that will launch and use 10 worker processes on a cluster::
+Set up a calculation backend. Different backends will take different optional arguments, but here is
+an example that will launch a backend with a single worker process::
 
     # Create a calculation backend to perform workflow
     # calculations on.
-    calculation_backend = DaskLocalClusterBackend(1)
+    calculation_backend = DaskLocalCluster(1)
 
-Set up storage::
+Set up storage the storage backend which will cache any generated simulation data::
 
     # Create a backend to handle storing and retrieving
     # cached simulation data.
@@ -51,37 +54,40 @@ Start the server running::
     # estimation requests.
     property_server.start_listening_loop()
 
-Server will wait for requests until killed.
+To start the server, call the following command from the command line::
+
+    python run_server.py
+
+The server will wait for requests until killed.
 
 Submitting Estimation Requests
 ------------------------------
 
-Here, ``dataset`` is a ``PhysicalPropertyDataset`` or subclass, and ``force_fields`` is a list containing
-``ForceField`` objects used to parameterize the physical systems in the dataset.
-
-This can be a single parameter set or multiple (usually closely related) parameter sets::
+Create the file ``run_client.py`` Load in the data set of properties to estimate, and the force field parameters to
+use in the calculations::
 
     # Load in the data set of interest.
     data_set = ThermoMLDataSet.from_file(get_data_filename('properties/single_density.xml'))
 
     # Load in the force field to use.
-    force_field = smirnoff.ForceField(get_data_filename('forcefield/smirnoff99Frosst.offxml'))
+    force_field = smirnoff.ForceField('smirnoff99Frosst-1.1.0.offxml')
 
-Create the client object::
+Create the client object and use it to send the estimation request to the server::
 
     # Create the client object.
     property_estimator = client.PropertyEstimatorClient()
-    # Submit the request to a running server, and wait for the results.
+    # Submit the request to a running server.
     result = property_estimator.request_estimate(data_set, force_field)
 
-Query the result until all finished or errored::
+Query the result until all of the properties have either been estimated or have errored::
 
+    # Wait for the results synchronously.
+    results = request.results(True)
     logging.info('The server has returned a response: {}'.format(result))
 
-``PropertyEstimatorClient.computeProperties(...)`` returns a list of ``ComputedPhysicalProperty`` objects that provide access
-to several pieces of information:
+Save the results to a file::
 
-* ``property.value`` - the computed property value, with appropriate units
-* ``property.uncertainty`` - the statistical uncertainty in the computed property
-* ``property.parameters`` - a reference to the parameter set used to compute this property
-* ``property.property`` - a reference to the corresponding ``MeasuredPhysicalProperty`` this property was computed for
+    with open('results.json', 'w') as file:
+
+        json_results = json.dump(results, file, sort_keys=True, indent=2,
+                                 separators=(',', ': '), cls=TypedJSONEncoder)
