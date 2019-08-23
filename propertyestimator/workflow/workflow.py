@@ -27,6 +27,9 @@ from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
 class IWorkflowProperty(SubhookedABCMeta):
+    """Defines the interface a property must implement to be estimable
+    by a workflow.
+    """
 
     @staticmethod
     @abc.abstractmethod

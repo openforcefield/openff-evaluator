@@ -36,6 +36,10 @@ Physical Property API
     :toctree: api/generated/
 
     PhysicalProperty
+    PropertyPhase
+    Source
+    MeasurementSource
+    CalculationSource
 
 **Built-in Properties**
 
@@ -47,6 +51,8 @@ Physical Property API
     Density
     DielectricConstant
     EnthalpyOfMixing
+    EnthalpyOfVaporization
+    HostGuestBindingAffinity
 
 **Substance Definition**
 
@@ -65,6 +71,20 @@ Physical Property API
     :toctree: api/generated/
 
     ThermodynamicState
+
+**Metadata**
+
+.. currentmodule:: propertyestimator.properties
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    PropertyPhase
+    Source
+    MeasurementSource
+    CalculationSource
+    ParameterGradientKey
+    ParameterGradient
 
 Data Set API
 ------------
@@ -104,7 +124,6 @@ Calculation Layers API
     :nosignatures:
     :toctree: api/generated/
 
-    SurrogateLayer
     ReweightingLayer
     SimulationLayer
 
@@ -127,8 +146,9 @@ Calculation Backends API
     :nosignatures:
     :toctree: api/generated/
 
+    BaseDaskBackend
     DaskLocalCluster
-    DaskLSFCluster
+    DaskLSFBackend
 
 Storage Backends API
 --------------------
@@ -139,7 +159,6 @@ Storage Backends API
     :toctree: api/generated/
 
     PropertyEstimatorStorage
-    StoredSimulationData
 
 **Built-in Storage Backends**
 
@@ -149,6 +168,17 @@ Storage Backends API
     :toctree: api/generated/
 
     LocalFileStorage
+
+**Data Classes**
+
+.. currentmodule:: propertyestimator.storage.dataclasses
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    BaseStoredData
+    StoredSimulationData
+    StoredDataCollection
 
 Workflow API
 ------------
@@ -160,6 +190,8 @@ Workflow API
 
     Workflow
     WorkflowGraph
+    WorkflowOptions
+    IWorkflowProperty
 
 **Schema**
 
@@ -172,16 +204,41 @@ Workflow API
     ProtocolSchema
     ProtocolGroupSchema
     ProtocolReplicator
+    WorkflowOutputToStore
+    WorkflowSimulationDataToStore
+    WorkflowDataCollectionToStore
 
-**Protocol API**
+**Base Protocol API**
 
-.. currentmodule:: propertyestimator.workflow
+.. currentmodule:: propertyestimator.workflow.protocols
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
-    protocols.BaseProtocol
-    utils.ProtocolPath
+    BaseProtocol
+
+*Input / Output Utilities*
+
+.. currentmodule:: propertyestimator.workflow.utils
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    PlaceholderInput
+    ReplicatorValue
+    ProtocolPath
+
+**Decorators**
+
+.. currentmodule:: propertyestimator.workflow.decorators
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    protocol_input
+    protocol_output
+    BaseProtocolInputObject
+    MergeBehaviour
 
 Built-in Workflow Protocols
 ---------------------------
@@ -230,7 +287,6 @@ Built-in Workflow Protocols
     ExtractAverageStatistic
     ExtractUncorrelatedData
     ExtractUncorrelatedTrajectoryData
-<<<<<<< HEAD
     ExtractUncorrelatedStatisticsData
 
 **Reweighting**
@@ -240,14 +296,25 @@ Built-in Workflow Protocols
     :nosignatures:
     :toctree: api/generated/
 
-=======
-    AddValues
-    SubtractValues
->>>>>>> origin/master
-    UnpackStoredSimulationData
     ConcatenateTrajectories
+    ConcatenateStatistics
     CalculateReducedPotentialOpenMM
-    ReweightWithMBARProtocol
+    BaseMBARProtocol
+    ReweightStatistics
+
+**Gradients**
+
+.. currentmodule:: propertyestimator.protocols.gradients
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    GradientReducedPotentials
+    CentralDifferenceGradient
+    DivideGradientByScalar
+    MultiplyGradientByScalar
+    AddGradients
+    SubtractGradients
 
 **Groups**
 
@@ -260,6 +327,18 @@ Built-in Workflow Protocols
     ConditionalGroup
 
 
+**Storage**
+
+.. currentmodule:: propertyestimator.protocols.storage
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+
+    UnpackStoredDataCollection
+    UnpackStoredSimulationData
+
+
 **Miscellaneous**
 
 .. currentmodule:: propertyestimator.protocols.miscellaneous
@@ -267,6 +346,23 @@ Built-in Workflow Protocols
     :nosignatures:
     :toctree: api/generated/
 
-    AddQuantities
-    SubtractQuantities
+
+    AddValues
+    SubtractValues
+    MultiplyValue
+    DivideValue
     FilterSubstanceByRole
+
+Workflow Construction Utilities
+-------------------------------
+
+.. currentmodule:: propertyestimator.protocols.utils
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    BaseReweightingProtocols
+    BaseSimulationProtocols
+    generate_base_reweighting_protocols
+    generate_base_simulation_protocols
+    generate_gradient_protocol_group
