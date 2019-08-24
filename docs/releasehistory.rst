@@ -14,13 +14,13 @@ how major the changes may be.
 0.0.2 - Gradient Merging Bug Fix
 --------------------------------
 
-A minor release to fix a bugs with replicated gradient protocol merging.
+A minor release to fix bugs with replicated gradient protocol merging.
 
 Bugfixes
 """"""""
 
 * PR #90: Fixes merging gradient protocols with the same id.
-* PR #92: Fixes replicating protocols for more than 10 template values.
+* PR #92: Fixes replicating protocols over more than 10 template values.
 
 0.0.1 - Initial Release
 -----------------------
