@@ -117,6 +117,26 @@ class BasePaprikaProtocol(BaseProtocol):
     def simulation_box_aspect_ratio(self):
         pass
 
+    @protocol_input(bool)
+    def setup(self):
+        """Whether to run prepare the structures, apply the restraints, and solvate the windows."""
+        pass
+
+    @protocol_input(bool)
+    def simulate(self):
+        """Whether to simulate the windows."""
+        pass
+
+    @protocol_input(bool)
+    def analyze(self):
+        """Whether to analyze the results of the simulation."""
+        pass
+
+    @protocol_input(bool)
+    def debug(self):
+        """ Whether to run in debug mode."""
+        pass
+
     @protocol_output(EstimatedQuantity)
     def attach_free_energy(self):
         pass
@@ -140,6 +160,8 @@ class BasePaprikaProtocol(BaseProtocol):
     def __init__(self, protocol_id):
 
         super().__init__(protocol_id)
+
+        self._debug = False
 
         # Protocol inputs / outputs
         self._substance = None
@@ -175,6 +197,9 @@ class BasePaprikaProtocol(BaseProtocol):
         self._paprika_setup = None
 
         self._solvated_coordinate_paths = {}
+        self._setup = True
+        self._simulate = True
+        self._analyze = True
         self._results_dictionary = None
 
     def _setup_paprika(self, directory):
@@ -517,74 +542,92 @@ class BasePaprikaProtocol(BaseProtocol):
 
     def execute(self, directory, available_resources):
 
-        # Make sure the force field path to smirnoff has been set. When
-        # optional and mutual exclusive / dependant inputs are implemented
-        # this will not be needed.
-        if self._force_field == self.ForceField.SMIRNOFF and (self._force_field_path is None or
-                                                              len(self._force_field_path) == 0):
+        if self.setup:
 
-            return PropertyEstimatorException(directory=directory,
-                                              message='The path to a .offxml force field file must be specified '
-                                                      'when running with a SMIRNOFF force field.')
+            # Make sure the force field path to smirnoff has been set. When
+            # optional and mutual exclusive / dependant inputs are implemented
+            # this will not be needed.
+            if self._force_field == self.ForceField.SMIRNOFF and (self._force_field_path is None or
+                                                                  len(self._force_field_path) == 0):
 
-        if (available_resources.number_of_gpus > 0 and
-            available_resources.number_of_gpus != available_resources.number_of_threads):
+                return PropertyEstimatorException(directory=directory,
+                                                  message='The path to a .offxml force field file must be specified '
+                                                          'when running with a SMIRNOFF force field.')
 
-            return PropertyEstimatorException(directory=directory,
-                                              message='The number of available CPUs must match the number'
-                                                      'of available GPUs for this parallelisation scheme.')
+            if (available_resources.number_of_gpus > 0 and
+                available_resources.number_of_gpus != available_resources.number_of_threads):
 
-        # Create a new setup object which will load in a pAPRika host
-        # and guest yaml file, setup a directory structure for the
-        # paprika calculations, and create a set of coordinates for
-        # each of the windows along the pathway (without any solvent).
-        self._setup_paprika(directory)
+                return PropertyEstimatorException(directory=directory,
+                                                  message='The number of available CPUs must match the number'
+                                                          'of available GPUs for this parallelisation scheme.')
 
-        # Solvate each of the structures along the calculation path.
-        result = self._solvate_windows(directory, available_resources)
+            # Create a new setup object which will load in a pAPRika host
+            # and guest yaml file, setup a directory structure for the
+            # paprika calculations, and create a set of coordinates for
+            # each of the windows along the pathway (without any solvent).
+            self._setup_paprika(directory)
 
-        if isinstance(result, PropertyEstimatorException):
-            # Make sure the solvation was successful.
-            return result
+            # Solvate each of the structures along the calculation path.
+            result = self._solvate_windows(directory, available_resources)
 
-        if len(self._solvated_coordinate_paths) == 0:
+            if isinstance(result, PropertyEstimatorException):
+                # Make sure the solvation was successful.
+                return result
 
-            return PropertyEstimatorException(directory=directory,
-                                              message='There were no defined windows to a/p/r the guest along.')
+            if len(self._solvated_coordinate_paths) == 0:
 
-        # Apply parameters to each of the windows.
-        result = self._apply_parameters()
+                return PropertyEstimatorException(directory=directory,
+                                                  message='There were no defined windows to a/p/r the guest along.')
 
-        # Setup the actual restraints.
-        self._setup_restraints()
+            # Apply parameters to each of the windows.
+            result = self._apply_parameters()
 
-        # Save the restraints to a file, ready for analysis.
-        save_restraints(restraint_list=self._paprika_setup.static_restraints +
-                                       self._paprika_setup.conformational_restraints +
-                                       self._paprika_setup.symmetry_restraints +
-                                       self._paprika_setup.wall_restraints +
-                                       self._paprika_setup.guest_restraints,
-                        filepath=os.path.join(self._paprika_setup.directory, "restraints.json"))
+            # Setup the actual restraints.
+            self._setup_restraints()
 
-        if isinstance(result, PropertyEstimatorException):
-            # Make sure the parameter application was successful.
-            return result
+            # Save the restraints to a file, ready for analysis.
+            save_restraints(restraint_list=self._paprika_setup.static_restraints +
+                                           self._paprika_setup.conformational_restraints +
+                                           self._paprika_setup.symmetry_restraints +
+                                           self._paprika_setup.wall_restraints +
+                                           self._paprika_setup.guest_restraints,
+                            filepath=os.path.join(self._paprika_setup.directory, "restraints.json"))
 
-        # Run the simulations
-        result = self._run_windows(available_resources)
+            if isinstance(result, PropertyEstimatorException):
+                # Make sure the parameter application was successful.
+                return result
 
-        if isinstance(result, PropertyEstimatorException):
-            # Make sure the simulations were successful.
-            return result
+        if self.simulate:
 
-        # Finally, do the analysis to extract the free energy of binding.
-        result = self._perform_analysis(directory)
+            if not self._paprika_setup:
+                self._paprika_setup = paprika.setup(host=self._taproom_host_name,
+                                                    guest=self._taproom_guest_name,
+                                                    guest_orientation=self._taproom_guest_orientation,
+                                                    build=False)
 
-        if isinstance(result, PropertyEstimatorException):
-            # Make sure the analysis was successful.
-            return result
+            # Run the simulations
+            result = self._run_windows(available_resources)
 
-        return self._get_output_dictionary()
+            if isinstance(result, PropertyEstimatorException):
+                # Make sure the simulations were successful.
+                return result
+
+        if self.analyze:
+
+            if not self._paprika_setup:
+                self._paprika_setup = paprika.setup(host=self._taproom_host_name,
+                                                    guest=self._taproom_guest_name,
+                                                    guest_orientation=self._taproom_guest_orientation,
+                                                    build=False)
+
+            # Finally, do the analysis to extract the free energy of binding.
+            result = self._perform_analysis(directory)
+
+            if isinstance(result, PropertyEstimatorException):
+                # Make sure the analysis was successful.
+                return result
+
+            return self._get_output_dictionary()
 
 
 @register_calculation_protocol()
