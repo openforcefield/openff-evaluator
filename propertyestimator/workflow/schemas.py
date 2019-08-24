@@ -324,7 +324,7 @@ class ProtocolReplicator(TypedBaseModel):
 
                         original_id, replicated_index = map_tuple
 
-                        if full_source_path.protocol_path.find(replicated_id.protocol_path) < 0:
+                        if full_source_path.protocol_path != replicated_id.protocol_path:
                             continue
 
                         value_source = ProtocolPath.from_string(value_reference.full_path.replace(
