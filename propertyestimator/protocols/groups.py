@@ -700,11 +700,15 @@ class ConditionalGroup(ProtocolGroup):
     def __init__(self, protocol_id):
         """Constructs a new ConditionalGroup
         """
-        super().__init__(protocol_id)
-
         self._max_iterations = 10
         self._conditions = []
 
+        super().__init__(protocol_id)
+
+    def _initialize(self):
+        """Initialize the protocol."""
+
+        super(ConditionalGroup, self)._initialize()
         self.required_inputs.append(ProtocolPath('conditions'))
 
     def _set_schema(self, schema_value):
