@@ -807,7 +807,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                                                    guest=self._paprika_setup.guest,
                                                    guest_orientation=self.taproom_guest_orientation,
                                                    topology_file='restrained.pdb',
-                                                   trajectory_mask='production.dcd',
+                                                   trajectory_mask='trajectory.dcd',
                                                    directory_path=directory,
                                                    guest_residue_name=self._paprika_setup.guest_yaml["name"] if
                                                    self._paprika_setup.guest != "release" else None).results
