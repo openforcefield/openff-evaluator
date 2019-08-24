@@ -11,8 +11,8 @@ Releases will eventually follow the ``major.minor.micro`` scheme recommended by
 All early releases however will simply recieve a ``micro`` version bump regardless of
 how major the changes may be.
 
-0.0.2 - Gradient Merging Bug Fix
---------------------------------
+0.0.2 - Replicator Quick Fixes
+------------------------------
 
 A minor release to fix a number of minor bugs related to replicating protocols.
 
