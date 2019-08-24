@@ -441,6 +441,8 @@ def generate_gradient_protocol_group(template_reweighting_protocol,
 
     assert isinstance(template_reweighting_protocol, reweighting.BaseMBARProtocol)
 
+    id_suffix = f'{id_suffix}_$({replicator_id})'
+
     # Set values of the optional parameters.
     substance_source = ProtocolPath('substance', 'global') if substance_source is None else substance_source
     effective_sample_indices = effective_sample_indices if effective_sample_indices is not None else []
@@ -507,7 +509,7 @@ def generate_gradient_protocol_group(template_reweighting_protocol,
     central_difference.forward_parameter_value = ProtocolPath('forward_parameter_value', reduced_potentials.id)
 
     # Assemble all of the protocols into a convenient group wrapper.
-    gradient_group = groups.ProtocolGroup(f'gradient_group_$({replicator_id}){id_suffix}')
+    gradient_group = groups.ProtocolGroup(f'gradient_group_{id_suffix}')
     gradient_group.add_protocols(reduced_potentials, reverse_mbar, forward_mbar, central_difference)
 
     # Create the replicator which will copy the group for each parameter gradient
