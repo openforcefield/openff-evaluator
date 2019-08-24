@@ -808,7 +808,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                                                    guest=self._paprika_setup.guest,
                                                    guest_orientation=self.taproom_guest_orientation,
                                                    topology_file='restrained.pdb',
-                                                   trajectory_mask='*.dcd',
+                                                   trajectory_mask='production.dcd',
                                                    directory_path=directory,
                                                    guest_residue_name=self._paprika_setup.guest_yaml["name"] if
                                                    self._paprika_setup.guest != "release" else None).results
@@ -1060,7 +1060,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
                                                    guest=self._paprika_setup.guest,
                                                    guest_orientation=self.taproom_guest_orientation,
                                                    topology_file='restrained.pdb',
-                                                   trajectory_mask='*.nc',
+                                                   trajectory_mask='production.nc',
                                                    directory_path=directory,
                                                    guest_residue_name=self._paprika_setup.guest_yaml["name"] if
                                                    self._paprika_setup.guest != "release" else None).results
