@@ -20,7 +20,7 @@ This release...
 Bugfixes
 """"""""
 
-* PR #X: Fixes ...
+* PR #94: Fixes exception when testing equality of ``ProtocolPath`` objects
 
 
 0.0.2 - Replicator Quick Fixes
