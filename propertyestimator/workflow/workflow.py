@@ -14,6 +14,7 @@ from math import sqrt
 from os import path, makedirs
 
 from propertyestimator import unit
+from propertyestimator.forcefield import SmirnoffForceFieldSource, ForceFieldSource
 from propertyestimator.storage.dataclasses import BaseStoredData, StoredSimulationData, StoredDataCollection
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
@@ -709,13 +710,18 @@ class Workflow:
             The filtered list of parameter gradient keys.
         """
         from openforcefield.topology import Molecule, Topology
-        from openforcefield.typing.engines.smirnoff import ForceField
 
         # noinspection PyTypeChecker
         if parameter_gradient_keys is None or len(parameter_gradient_keys) == 0:
             return []
 
-        force_field = ForceField(force_field_path, allow_cosmetic_attributes=True)
+        with open(force_field_path) as file:
+            force_field_source = ForceFieldSource.parse_json(file.read())
+
+        if not isinstance(force_field_source, SmirnoffForceFieldSource):
+            return []
+
+        force_field = force_field_source.to_force_field()
 
         all_molecules = []
 

@@ -11,6 +11,7 @@ from simtk import openmm
 from simtk.openmm import app
 
 from propertyestimator import unit
+from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource
 from propertyestimator.properties.properties import ParameterGradientKey, ParameterGradient
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
@@ -321,7 +322,6 @@ class GradientReducedPotentials(BaseProtocol):
         import mdtraj
 
         from openforcefield.topology import Molecule, Topology
-        from openforcefield.typing.engines.smirnoff import ForceField
 
         logging.info(f'Calculating the reduced gradient potentials for {self._parameter_key}: {self._id}')
 
@@ -336,7 +336,15 @@ class GradientReducedPotentials(BaseProtocol):
             return PropertyEstimatorException(directory, 'The path to the statistics evaluated using '
                                                          'the full force field must be provided.')
 
-        target_force_field = ForceField(self._force_field_path)
+        with open(self._force_field_path) as file:
+            target_force_field_source = ForceFieldSource.parse_json(file.read())
+
+        if not isinstance(target_force_field_source, SmirnoffForceFieldSource):
+
+            return PropertyEstimatorException(directory, 'Only SMIRNOFF force fields are supported by '
+                                                         'this protocol.')
+
+        target_force_field = target_force_field_source.to_force_field()
 
         trajectory = mdtraj.load_dcd(self._trajectory_file_path,
                                      self._coordinate_file_path)
@@ -364,7 +372,14 @@ class GradientReducedPotentials(BaseProtocol):
         # have been provided.
         for index, reference_force_field_path in enumerate(self._reference_force_field_paths):
 
-            reference_force_field = ForceField(reference_force_field_path, allow_cosmetic_attributes=True)
+            with open(reference_force_field_path) as file:
+                reference_force_field_source = ForceFieldSource.parse_json(file.read())
+
+            if not isinstance(reference_force_field_source, SmirnoffForceFieldSource):
+                return PropertyEstimatorException(directory, 'Only SMIRNOFF force fields are supported by '
+                                                             'this protocol.')
+
+            reference_force_field = reference_force_field_source.to_force_field()
             reference_system, _ = self._build_reduced_system(reference_force_field, topology)
 
             reference_potentials_path = path.join(directory, f'reference_{index}.csv')

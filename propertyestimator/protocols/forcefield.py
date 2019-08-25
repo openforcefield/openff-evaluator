@@ -9,6 +9,7 @@ from os import path
 import numpy as np
 from simtk.openmm import app
 
+from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource
 from propertyestimator.substances import Substance
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
@@ -33,7 +34,8 @@ class BuildSmirnoffSystem(BaseProtocol):
 
     @protocol_input(str)
     def force_field_path(self, value):
-        """The file path to the force field parameters to assign to the system."""
+        """The file path to the force field parameters to assign to the system.
+        This path **must** point to a json serialized `SmirnoffForceFieldSource` object."""
         pass
 
     @protocol_input(str)
@@ -139,23 +141,29 @@ class BuildSmirnoffSystem(BaseProtocol):
 
     def execute(self, directory, available_resources):
 
-        from openforcefield.typing.engines.smirnoff import ForceField
         from openforcefield.topology import Molecule, Topology
 
         logging.info('Generating topology: ' + self.id)
 
         pdb_file = app.PDBFile(self._coordinate_file_path)
 
-        force_field = None
-
         try:
 
-            force_field = ForceField(self._force_field_path, allow_cosmetic_attributes=True)
+            with open(self._force_field_path) as file:
+                force_field_source = ForceFieldSource.parse_json(file.read())
 
         except Exception as e:
 
             return PropertyEstimatorException(directory=directory,
-                                              message='{} could not load the ForceField: {}'.format(self.id, e))
+                                              message='{} could not load the ForceFieldSource: {}'.format(self.id, e))
+
+        if not isinstance(force_field_source, SmirnoffForceFieldSource):
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='Only SMIRNOFF force fields are supported by this '
+                                                      'protocol.')
+
+        force_field = force_field_source.to_force_field()
 
         unique_molecules = []
         charged_molecules = []

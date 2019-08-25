@@ -76,11 +76,11 @@ class SimulationLayer(PropertyCalculationLayer):
                              data_model, callback, synchronous=False):
 
         # Store a temporary copy of the force field for protocols to easily access.
-        force_field = storage_backend.retrieve_force_field(data_model.force_field_id)
+        force_field_source = storage_backend.retrieve_force_field(data_model.force_field_id)
         force_field_path = path.join(layer_directory, 'force_field_{}'.format(data_model.force_field_id))
 
-        force_field.to_file(force_field_path, io_format='XML',
-                            discard_cosmetic_attributes=False)
+        with open(force_field_path, 'w') as file:
+            file.write(force_field_source.json())
 
         workflow_graph = SimulationLayer._build_workflow_graph(layer_directory,
                                                                data_model.queued_properties,

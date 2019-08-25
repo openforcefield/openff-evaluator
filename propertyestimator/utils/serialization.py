@@ -147,70 +147,6 @@ def deserialize_estimated_quantity(quantity_dictionary):
     return return_object
 
 
-def serialize_force_field(force_field):
-    """A method for turning an `openforcefield.typing.engines.smirnoff.ForceField`
-    object into a dictionary of primitives.
-
-    Notes
-    -----
-    This method is subject to change when new force field formats become
-    available.
-
-    Parameters
-    ----------
-    force_field: openforcefield.typing.engines.smirnoff.ForceField
-        The force field to serialize.
-    Returns
-    -------
-    dict of str and str
-        A dictionary containing an XML string representation of the
-        force field.
-    """
-
-    from openforcefield.typing.engines.smirnoff import ForceField
-
-    if not isinstance(force_field, ForceField):
-        raise ValueError('{} is not a ForceField'.format(type(force_field)))
-
-    return_dictionary = {
-        'xml': force_field.to_string(discard_cosmetic_attributes=False)
-    }
-
-    return return_dictionary
-
-
-def deserialize_force_field(force_field_dictionary):
-    """A method for deserializing a force field which has been
-    serialized as a dictionary by the `serialize_force_field` method.
-
-    Notes
-    -----
-    This method is subject to change when new force field formats become
-    available.
-
-    Parameters
-    ----------
-    force_field_dictionary: dict of str and str
-        A dictionary containing an XML string representation of the
-        force field, with key 'xml'.
-
-    Returns
-    -------
-    openforcefield.typing.engines.smirnoff.ForceField
-        The deserialized force field.
-    """
-
-    from openforcefield.typing.engines.smirnoff import ForceField
-
-    if '@type' in force_field_dictionary:
-        force_field_dictionary.pop('@type')
-
-    xml_string = force_field_dictionary['xml']
-
-    force_field = ForceField(xml_string, allow_cosmetic_attributes=True)
-    return force_field
-
-
 def serialize_enum(enum):
 
     if not isinstance(enum, Enum):
@@ -279,7 +215,6 @@ class TypedJSONEncoder(json.JSONEncoder):
     _custom_supported_types = {
         Enum: serialize_enum,
         unit.Quantity: serialize_quantity,
-        'ForceField': serialize_force_field,
         set: serialize_set,
         np.float16: lambda x: {'value': float(x)},
         np.float32: lambda x: {'value': float(x)},
@@ -369,7 +304,6 @@ class TypedJSONDecoder(json.JSONDecoder):
         Enum: deserialize_enum,
         unit.Quantity: deserialize_quantity,
         EstimatedQuantity: deserialize_estimated_quantity,
-        'ForceField': deserialize_force_field,
         set: deserialize_set,
         np.float16: lambda x: np.float16(x['value']),
         np.float32: lambda x: np.float32(x['value']),

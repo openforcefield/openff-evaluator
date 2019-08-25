@@ -134,8 +134,11 @@ def test_base_simulation_protocols():
 
     with tempfile.TemporaryDirectory() as temporary_directory:
 
+        force_filed_source = build_tip3p_smirnoff_force_field()
         force_field_path = path.join(temporary_directory, 'ff.offxml')
-        build_tip3p_smirnoff_force_field(force_field_path)
+
+        with open(force_field_path, 'w') as file:
+            file.write(force_filed_source.json())
 
         build_coordinates = BuildCoordinatesPackmol('')
 

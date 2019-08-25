@@ -8,8 +8,8 @@ import numpy as np
 import pytest
 
 from propertyestimator import unit
-from propertyestimator.utils.serialization import serialize_force_field, deserialize_force_field, \
-    TypedBaseModel, TypedJSONEncoder, TypedJSONDecoder, serialize_quantity, deserialize_quantity
+from propertyestimator.utils.serialization import TypedBaseModel, TypedJSONEncoder, TypedJSONDecoder, \
+    serialize_quantity, deserialize_quantity
 
 
 class Foo:
@@ -212,19 +212,6 @@ def test_polymorphic_dictionary():
     test_recreated_json = test_recreated.json()
 
     assert test_json == test_recreated_json
-
-
-def test_force_field_serialization():
-
-    from openforcefield.typing.engines import smirnoff
-
-    force_field = smirnoff.ForceField('smirnoff99Frosst-1.1.0.offxml')
-
-    serialized_force_field = serialize_force_field(force_field)
-    deserialized_force_field = deserialize_force_field(serialized_force_field)
-
-    assert (force_field.to_string(discard_cosmetic_attributes=False) ==
-            deserialized_force_field.to_string(discard_cosmetic_attributes=False))
 
 
 def test_dimensionless_quantity_serialization():
