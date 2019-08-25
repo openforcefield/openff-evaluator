@@ -11,6 +11,18 @@ Releases will eventually follow the ``major.minor.micro`` scheme recommended by
 All early releases however will simply recieve a ``micro`` version bump regardless of
 how major the changes may be.
 
+
+0.0.3 -
+------------------------------
+
+This release...
+
+Bugfixes
+""""""""
+
+* PR #X: Fixes ...
+
+
 0.0.2 - Replicator Quick Fixes
 ------------------------------
 
