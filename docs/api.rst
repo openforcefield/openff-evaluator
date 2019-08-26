@@ -25,7 +25,7 @@ Client Side API
     :toctree: api/generated/
 
     ForceFieldSource
-    SmirnoffSource
+    SmirnoffForceFieldSource
     AmberForceFieldSource
     OPLS2005ForceFieldSource
 
