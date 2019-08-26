@@ -1,15 +1,19 @@
 """
 A collection of protocols for assigning force field parameters to molecular systems.
 """
-
+import copy
+import io
 import logging
+import re
 from enum import Enum
 from os import path
 
 import numpy as np
+import requests
+from simtk import openmm
 from simtk.openmm import app
 
-from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource
+from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource, OPLS2005ForceFieldSource
 from propertyestimator.substances import Substance
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
@@ -18,8 +22,55 @@ from propertyestimator.workflow.protocols import BaseProtocol
 
 
 @register_calculation_protocol()
-class BuildSmirnoffSystem(BaseProtocol):
-    """Parametrise a set of molecules with a given smirnoff force field.
+class BaseBuildSystemProtocol(BaseProtocol):
+    """The base for any protocol whose role is to apply a set of
+    force field parameters to a given system.
+    """
+
+    @protocol_input(str)
+    def force_field_path(self, value):
+        """The file path to the force field parameters to assign to the system.
+        This path **must** point to a json serialized `SmirnoffForceFieldSource` object."""
+        pass
+
+    @protocol_input(str)
+    def coordinate_file_path(self, value):
+        """The file path to the coordinate file which defines the system to which the
+        force field parameters will be assigned."""
+        pass
+
+    @protocol_input(Substance)
+    def substance(self):
+        """The composition of the system."""
+        pass
+
+    @protocol_output(str)
+    def system_path(self):
+        """The file path to the system object which contains the
+        applied parameters."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new BaseBuildSystemProtocol object.
+        """
+        super().__init__(protocol_id)
+
+        # Inputs
+        self._force_field_path = None
+        self._coordinate_file_path = None
+        self._substance = None
+
+        # Outputs
+        self._system_path = None
+
+    def execute(self, directory, available_resources):
+        raise NotImplementedError()
+
+
+@register_calculation_protocol()
+class BuildSmirnoffSystem(BaseBuildSystemProtocol):
+    """Parametrise a set of molecules with a given smirnoff force field
+    using the `OpenFF toolkit <https://github.com/openforcefield/openforcefield>`_.
     """
     class WaterModel(Enum):
         """An enum which describes which water model is being
@@ -38,23 +89,12 @@ class BuildSmirnoffSystem(BaseProtocol):
         This path **must** point to a json serialized `SmirnoffForceFieldSource` object."""
         pass
 
-    @protocol_input(str)
-    def coordinate_file_path(self, value):
-        """The file path to the coordinate file which defines the system to which the
-        force field parameters will be assigned."""
-        pass
-
     @protocol_input(list)
     def charged_molecule_paths(self):
         """File paths to mol2 files which contain the charges assigned to molecules
         in the system. This input is helpful when dealing with large molecules (such
         as hosts in host-guest binding calculations) whose charges may by needed
         in multiple places, and hence should only be calculated once."""
-        pass
-
-    @protocol_input(Substance)
-    def substance(self):
-        """The composition of the system."""
         pass
 
     @protocol_input(WaterModel)
@@ -77,27 +117,16 @@ class BuildSmirnoffSystem(BaseProtocol):
         system."""
         pass
 
-    @protocol_output(str)
-    def system_path(self):
-        """The assigned system."""
-        pass
-
     def __init__(self, protocol_id):
+        """Constructs a new `BuildSmirnoffSystem` object.
+        """
 
         super().__init__(protocol_id)
 
-        # inputs
-        self._force_field_path = None
-        self._coordinate_file_path = None
-        self._substance = None
-
         self._water_model = BuildSmirnoffSystem.WaterModel.TIP3P
+
         self._apply_known_charges = True
-
         self._charged_molecule_paths = []
-
-        # outputs
-        self._system_path = None
 
     @staticmethod
     def _generate_known_charged_molecules():
@@ -211,5 +240,398 @@ class BuildSmirnoffSystem(BaseProtocol):
             file.write(system_xml.encode('utf-8'))
 
         logging.info('Topology generated: ' + self.id)
+
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class BuildOPLS2005System(BaseBuildSystemProtocol):
+    """Parametrise a set of molecules with the OPLS2005 force field.
+    using the `LigParGen server <http://zarbi.chem.yale.edu/ligpargen/>`_.
+
+    Notes
+    -----
+    This protocol is currently a work in progress and as such has limited
+    functionality compared to the more established `BuildSmirnoffSystem` protocol.
+
+    References
+    ----------
+    [1] Potential energy functions for atomic-level simulations of water and organic and
+        biomolecular systems. Jorgensen, W. L.; Tirado-Rives, J. Proc. Nat. Acad. Sci.
+        USA 2005, 102, 6665-6670
+    [2] 1.14*CM1A-LBCC: Localized Bond-Charge Corrected CM1A Charges for Condensed-Phase
+        Simulations. Dodda, L. S.; Vilseck, J. Z.; Tirado-Rives, J.; Jorgensen, W. L.
+        J. Phys. Chem. B, 2017, 121 (15), pp 3864-3870
+    [3] LigParGen web server: An automatic OPLS-AA parameter generator for organic ligands.
+        Dodda, L. S.;Cabeza de Vaca, I.; Tirado-Rives, J.; Jorgensen, W. L.
+        Nucleic Acids Research, Volume 45, Issue W1, 3 July 2017, Pages W331-W336
+    """
+
+    @protocol_input(str)
+    def force_field_path(self, value):
+        """The file path to the force field parameters to assign to the system.
+        This path **must** point to a json serialized `OPLS2005ForceFieldSource` object."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new `BuildOPLS2005System` object.
+        """
+        super().__init__(protocol_id)
+
+    @staticmethod
+    def _parameterize_smiles(smiles_pattern, force_field_source, directory):
+        """Uses the `LigParGen` server to apply a set of parameters to
+        a molecule defined by a smiles pattern.
+
+        Parameters
+        ----------
+        smiles_pattern: str
+            The smiles pattern which encodes the molecule to
+            parametrize.
+        force_field_source: OPLS2005ForceFieldSource
+            The parameters to use in the parameterization.
+        directory: str
+            The directory to save the results in.
+
+        Returns
+        -------
+        str
+            A file path to the `simtk.openmm.app.ForceField` template.
+        str
+            A file path to the pdb file containing the coordinates and topology
+            of the molecule.
+        """
+        from openforcefield.topology import Molecule
+
+        initial_request_url = 'http://zarbi.chem.yale.edu/cgi-bin/results_lpg.py'
+        empty_stream = io.BytesIO(b'\r\n')
+
+        molecule = Molecule.from_smiles(smiles_pattern)
+        total_charge = molecule.total_charge
+
+        charge_model = 'cm1abcc'
+
+        if (force_field_source.preferred_charge_model == OPLS2005ForceFieldSource.ChargeModel.CM1A_1_14 or
+            not np.isclose(total_charge, 0.0)):
+
+            charge_model = 'cm1a'
+
+            if force_field_source.preferred_charge_model != OPLS2005ForceFieldSource.ChargeModel.CM1A_1_14:
+
+                logging.warning(f'The preferred charge model is {str(force_field_source.preferred_charge_model)}, '
+                                f'however the system is charged and so the '
+                                f'{str(OPLS2005ForceFieldSource.ChargeModel.CM1A_1_14)} model will be used in its '
+                                f'place.')
+
+        data_body = {
+            'smiData': (None, smiles_pattern),
+            'molpdbfile': ('', empty_stream),
+            'checkopt': (None, 0),
+            'chargetype': (None, charge_model),
+            'dropcharge': (None, total_charge)
+        }
+
+        # Perform the initial request for LigParGen to parameterize the molecule.
+        request = requests.post(url=initial_request_url, files=data_body)
+
+        # Cleanup the empty stream
+        empty_stream.close()
+
+        if request.status_code != requests.codes.ok:
+            return f'The request failed with return code {request.status_code}.'
+
+        response_content = request.content
+
+        # Retrieve the server file name.
+        force_field_file_name = re.search(r'value=\"\/tmp\/(.*?).xml\"', response_content.decode())
+
+        if force_field_file_name is None:
+            return 'The request could not successfully be completed.'
+
+        force_field_file_name = force_field_file_name.group(1)
+
+        # Download the force field xml file.
+        download_request_url = 'http://zarbi.chem.yale.edu/cgi-bin/download_lpg.py'
+
+        download_force_field_body = {
+            'go': (None, 'XML'),
+            'fileout': (None, f'/tmp/{force_field_file_name}.xml'),
+        }
+
+        request = requests.post(url=download_request_url, files=download_force_field_body)
+
+        if request.status_code != requests.codes.ok:
+            return f'The request to download the system xml file failed with return code {request.status_code}.'
+
+        force_field_response = request.content
+        force_field_path = path.join(directory, f'{smiles_pattern}.xml')
+
+        with open(force_field_path, 'wb') as file:
+            file.write(force_field_response)
+
+        return force_field_path
+
+    @staticmethod
+    def _apply_opls_mixing_rules(system):
+        """Applies the OPLS mixing rules to the system.
+
+        Notes
+        -----
+        This method is based upon that found in the `LigParGen tutorial
+        <http://zarbi.chem.yale.edu/ligpargen/openMM_tutorial.html>`_.
+
+        Parameters
+        ----------
+        system: simtk.openmm.System
+            The system object to apply the OPLS mixing rules to.
+        """
+        from simtk import unit as simtk_unit
+
+        forces = [system.getForce(index) for index in range(system.getNumForces())]
+        forces = [force for force in forces if isinstance(force, openmm.NonbondedForce)]
+
+        for original_force in forces:
+
+            # Define a custom force with the OPLS mixing rules.
+            custom_force = openmm.CustomNonbondedForce('4*epsilon*((sigma/r)^12-(sigma/r)^6); '
+                                                       'sigma=sqrt(sigma1*sigma2); '
+                                                       'epsilon=sqrt(epsilon1*epsilon2)')
+
+            if original_force.getNonbondedMethod() == 4:  # Check for PME
+                custom_force.setNonbondedMethod(openmm.CustomNonbondedForce.CutoffPeriodic)
+            else:
+                custom_force.setNonbondedMethod(original_force.getNonbondedMethod())
+
+            custom_force.addPerParticleParameter('sigma')
+            custom_force.addPerParticleParameter('epsilon')
+            custom_force.setCutoffDistance(original_force.getCutoffDistance())
+
+            system.addForce(custom_force)
+
+            lennard_jones_parameters = {}
+
+            for index in range(original_force.getNumParticles()):
+                charge, sigma, epsilon = original_force.getParticleParameters(index)
+
+                # Copy the original vdW parameters over to the new custom force.
+                lennard_jones_parameters[index] = (sigma, epsilon)
+                custom_force.addParticle([sigma, epsilon])
+
+                # Disable the original vdW interactions, but leave the charged interactions
+                # turned on.
+                original_force.setParticleParameters(index, charge, sigma, epsilon * 0)
+
+            # Update the 1-4 exceptions.
+            for exception_index in range(original_force.getNumExceptions()):
+
+                (index_a, index_b, charge, sigma, epsilon) = original_force.getExceptionParameters(exception_index)
+
+                # Disable any 1-2, 1-3, 1-4 exceptions on the custom force, and instead let the
+                # original force handle it.
+                custom_force.addExclusion(index_a, index_b)
+
+                if not np.isclose(epsilon.value_in_unit(simtk_unit.kilojoule_per_mole), 0.0):
+                    sigma_14 = np.sqrt(lennard_jones_parameters[index_a][0] *
+                                       lennard_jones_parameters[index_b][0])
+
+                    epsilon_14 = np.sqrt(lennard_jones_parameters[index_a][1] *
+                                         lennard_jones_parameters[index_b][1])
+
+                    original_force.setExceptionParameters(exception_index, index_a, index_b,
+                                                          charge, sigma_14, epsilon_14)
+
+    @staticmethod
+    def _append_system(existing_system, system_to_append):
+        """Appends a system object onto the end of an existing system.
+
+        Parameters
+        ----------
+        existing_system: simtk.openmm.System
+            The base system to extend.
+        system_to_append: simtk.openmm.System
+            The system to append.
+        """
+        supported_force_types = [
+            openmm.HarmonicBondForce,
+            openmm.HarmonicAngleForce,
+            openmm.PeriodicTorsionForce,
+            openmm.NonbondedForce,
+        ]
+
+        number_of_appended_forces = 0
+        index_offset = existing_system.getNumParticles()
+
+        # Append the particles.
+        for index in range(system_to_append.getNumParticles()):
+            existing_system.addParticle(system_to_append.getParticleMass(index))
+
+        # Append the constraints
+        for index in range(system_to_append.getNumConstraints()):
+
+            index_a, index_b, distance = system_to_append.getConstraintParameters(index)
+            existing_system.addConstraint(index_a + index_offset,
+                                          index_b + index_offset, distance)
+
+        # Append the forces.
+        for existing_force in existing_system.getForces():
+
+            if type(existing_force) not in supported_force_types:
+                raise ValueError('The system contains an unsupported type of force.')
+
+            for force_to_append in system_to_append.getForces():
+
+                if type(force_to_append) != type(existing_force):
+                    continue
+
+                if isinstance(force_to_append, openmm.HarmonicBondForce):
+
+                    # Add the bonds.
+                    for index in range(force_to_append.getNumBonds()):
+
+                        index_a, index_b, *parameters = force_to_append.getBondParameters(index)
+                        existing_force.addBond(index_a + index_offset,
+                                               index_b + index_offset, *parameters)
+
+                elif isinstance(force_to_append, openmm.HarmonicAngleForce):
+
+                    # Add the angles.
+                    for index in range(force_to_append.getNumAngles()):
+
+                        index_a, index_b, index_c, *parameters = force_to_append.getAngleParameters(index)
+                        existing_force.addAngle(index_a + index_offset,
+                                                index_b + index_offset,
+                                                index_c + index_offset, *parameters)
+
+                elif isinstance(force_to_append, openmm.PeriodicTorsionForce):
+
+                    # Add the torsions.
+                    for index in range(force_to_append.getNumTorsions()):
+
+                        index_a, index_b, index_c, index_d, *parameters = force_to_append.getTorsionParameters(index)
+                        existing_force.addTorsion(index_a + index_offset,
+                                                  index_b + index_offset,
+                                                  index_c + index_offset,
+                                                  index_d + index_offset, *parameters)
+
+                elif isinstance(force_to_append, openmm.NonbondedForce):
+
+                    # Add the vdW parameters
+                    for index in range(force_to_append.getNumParticles()):
+                        existing_force.addParticle(*force_to_append.getParticleParameters(index))
+
+                    # Add the 1-2, 1-3 and 1-4 exceptions.
+                    for index in range(force_to_append.getNumExceptions()):
+
+                        index_a, index_b, *parameters = force_to_append.getExceptionParameters(index)
+                        existing_force.addException(index_a + index_offset,
+                                                    index_b + index_offset, *parameters)
+
+                number_of_appended_forces += 1
+
+        if number_of_appended_forces != system_to_append.getNumForces():
+            raise ValueError('Not all forces were appended.')
+
+    def execute(self, directory, available_resources):
+
+        import mdtraj
+        from openforcefield.topology import Molecule, Topology
+
+        logging.info(f'Generating an OPLS2005 system for {self._substance.identifier}: {self._id}')
+
+        try:
+
+            with open(self._force_field_path) as file:
+                force_field_source = ForceFieldSource.parse_json(file.read())
+
+        except Exception as e:
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='{} could not load the ForceFieldSource: {}'.format(self.id, e))
+
+        if not isinstance(force_field_source, OPLS2005ForceFieldSource):
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='Only SMIRNOFF force fields are supported by this '
+                                                      'protocol.')
+
+        # Load in the systems coordinates / topology
+        openmm_pdb_file = app.PDBFile(self._coordinate_file_path)
+
+        # Create an OFF topology for better insight into the layout of the system topology.
+        unique_molecules = [Molecule.from_smiles(component.smiles) for
+                            component in self._substance.components]
+
+        # Create a dictionary of representative topology molecules for each component.
+        topology = Topology.from_openmm(openmm_pdb_file.topology, unique_molecules)
+
+        # Create the template system objects for each component in the system.
+        system_templates = {}
+
+        for index, component in enumerate(self._substance.components):
+
+            # Create the force field template using the LigParGen server.
+            force_field_path = self._parameterize_smiles(component.smiles, force_field_source, directory)
+
+            reference_topology_molecule = None
+
+            # Create temporary pdb files for each molecule type in the system, with their constituent
+            # atoms ordered in the same way that they would be in the full system.
+            for topology_molecule in topology.topology_molecules:
+
+                if topology_molecule.reference_molecule.to_smiles() != unique_molecules[index].to_smiles():
+                    continue
+
+                reference_topology_molecule = topology_molecule
+                break
+
+            if reference_topology_molecule is None:
+                return PropertyEstimatorException('A topology molecule could not be matched to its reference.')
+
+            start_index = reference_topology_molecule.atom_start_topology_index
+            end_index = start_index + reference_topology_molecule.n_atoms
+            index_range = list(range(start_index, end_index))
+
+            component_pdb_file = mdtraj.load_pdb(self._coordinate_file_path, atom_indices=index_range)
+            component_topology = component_pdb_file.topology.to_openmm()
+            component_topology.setUnitCellDimensions(openmm_pdb_file.topology.getUnitCellDimensions())
+
+            # Create the system object.
+            force_field_template = app.ForceField(force_field_path)
+
+            component_system = force_field_template.createSystem(topology=component_topology,
+                                                                 nonbondedMethod=app.PME,
+                                                                 constraints=app.HBonds,
+                                                                 removeCMMotion=False)
+
+            system_templates[unique_molecules[index].to_smiles()] = component_system
+
+        # Create the full system object from the component templates.
+        system = None
+
+        for topology_molecule in topology.topology_molecules:
+
+            system_template = system_templates[topology_molecule.reference_molecule.to_smiles()]
+
+            if system is None:
+
+                # If no system has been set up yet, just use the first template.
+                system = copy.deepcopy(system_template)
+                continue
+
+            # Append the component template to the full system.
+            self._append_system(system, system_template)
+
+        # Apply the OPLS mixing rules.
+        self._apply_opls_mixing_rules(system)
+
+        # Serialize the system object.
+        system_xml = openmm.XmlSerializer.serialize(system)
+
+        self._system_path = path.join(directory, 'system.xml')
+
+        with open(self._system_path, 'wb') as file:
+            file.write(system_xml.encode('utf-8'))
+
+        logging.info(f'System generated: {self.id}')
 
         return self._get_output_dictionary()

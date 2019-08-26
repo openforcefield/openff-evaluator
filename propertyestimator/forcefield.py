@@ -178,7 +178,16 @@ class OPLS2005ForceFieldSource(ForceFieldSource):
         CM1A_1_14_LBCC = '1.14*CM1A-LBCC'
         CM1A_1_14 = '1.14*CM1A'
 
-    def __init__(self, preferred_charge_model):
+    @property
+    def preferred_charge_model(self):
+        """ChargeModel: The preferred charge model to apply. In some cases
+        the preferred charge model may not be applicable (e.g. 1.14*CM1A-LBCC
+        may only be applied to neutral molecules) and so another model may be
+        applied in its place.
+        """
+        return self._preferred_charge_model
+
+    def __init__(self, preferred_charge_model=ChargeModel.CM1A_1_14_LBCC):
         """Constructs a new OPLS2005ForceFieldSource object
 
         Parameters
