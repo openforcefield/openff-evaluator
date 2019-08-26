@@ -16,7 +16,8 @@ class ForceFieldSource(TypedBaseModel):
     -----
     It is likely that this class and classes based off of it will
     not be permanent fixtures of the framework, but rather will
-    exist until the force fields can be stored in a uniform format.
+    exist until the force fields can be stored in a uniform format /
+    object model.
     """
 
     @abc.abstractmethod
@@ -111,8 +112,13 @@ class SmirnoffForceFieldSource(ForceFieldSource):
 
 
 class AmberForceFieldSource(ForceFieldSource):
-    """A wrapper and those Amber force fields which can
-    be applied via `tleap`.
+    """A wrapper around Amber force fields which may be
+    applied via the `leap` software package.
+
+    Notes
+    -----
+    Currently this only supports force fields which are installed
+    alongside `leap`.
     """
 
     def __init__(self, leap_sources):
@@ -121,7 +127,7 @@ class AmberForceFieldSource(ForceFieldSource):
         Parameters
         ----------
         leap_sources: list of str
-            A list of the files which should be sourced by `tleap`
+            A list of the files which should be sourced by `leap`
             when applying the force field.
 
         Examples
@@ -151,7 +157,7 @@ class AmberForceFieldSource(ForceFieldSource):
 
 
 class OPLS2005ForceFieldSource(ForceFieldSource):
-    """A wrapper and the OPLS parameters which can be applied
+    """A wrapper and the OPLS2005 force field which can be applied
     via the `LigParGen server <http://zarbi.chem.yale.edu/ligpargen/>`_.
 
     References
@@ -172,18 +178,22 @@ class OPLS2005ForceFieldSource(ForceFieldSource):
         CM1A_1_14_LBCC = '1.14*CM1A-LBCC'
         CM1A_1_14 = '1.14*CM1A'
 
-    def __init__(self, charge_model):
+    def __init__(self, preferred_charge_model):
         """Constructs a new OPLS2005ForceFieldSource object
 
         Parameters
         ----------
-        charge_model: ChargeModel
-            The charge model to apply.
+        preferred_charge_model: ChargeModel
+            The preferred charge model to apply. In some cases
+            the preferred charge model may not be applicable
+            (e.g. 1.14*CM1A-LBCC may only be applied to neutral
+            molecules) and so another model may be applied in its
+            place.
         """
-        self._charge_model = charge_model
+        self._preferred_charge_model = preferred_charge_model
 
     def __getstate__(self):
-        return {'charge_model': self._charge_model}
+        return {'preferred_charge_model': self._preferred_charge_model}
 
     def __setstate__(self, state):
-        self._charge_model = state['charge_model']
+        self._preferred_charge_model = state['preferred_charge_model']
