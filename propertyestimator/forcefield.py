@@ -156,8 +156,8 @@ class AmberForceFieldSource(ForceFieldSource):
         self._leap_sources = state['leap_sources']
 
 
-class OPLS2005ForceFieldSource(ForceFieldSource):
-    """A wrapper and the OPLS2005 force field which can be applied
+class OPLSAAMForceFieldSource(ForceFieldSource):
+    """A wrapper and the OPLSAAM force field which can be applied
     via the `LigParGen server <http://zarbi.chem.yale.edu/ligpargen/>`_.
 
     References
@@ -188,7 +188,7 @@ class OPLS2005ForceFieldSource(ForceFieldSource):
         return self._preferred_charge_model
 
     def __init__(self, preferred_charge_model=ChargeModel.CM1A_1_14_LBCC):
-        """Constructs a new OPLS2005ForceFieldSource object
+        """Constructs a new OPLSAAMForceFieldSource object
 
         Parameters
         ----------

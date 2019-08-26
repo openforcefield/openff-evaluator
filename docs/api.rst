@@ -27,7 +27,7 @@ Client Side API
     ForceFieldSource
     SmirnoffForceFieldSource
     AmberForceFieldSource
-    OPLS2005ForceFieldSource
+    OPLSAAMForceFieldSource
 
 **Gradient Estimation**
 

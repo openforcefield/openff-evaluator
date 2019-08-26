@@ -13,7 +13,7 @@ import requests
 from simtk import openmm
 from simtk.openmm import app
 
-from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource, OPLS2005ForceFieldSource
+from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource, OPLSAAMForceFieldSource
 from propertyestimator.substances import Substance
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
@@ -245,8 +245,8 @@ class BuildSmirnoffSystem(BaseBuildSystemProtocol):
 
 
 @register_calculation_protocol()
-class BuildOPLS2005System(BaseBuildSystemProtocol):
-    """Parametrise a set of molecules with the OPLS2005 force field.
+class BuildOPLSAAMSystem(BaseBuildSystemProtocol):
+    """Parametrise a set of molecules with the OPLS-AA/M force field.
     using the `LigParGen server <http://zarbi.chem.yale.edu/ligpargen/>`_.
 
     Notes
@@ -270,11 +270,11 @@ class BuildOPLS2005System(BaseBuildSystemProtocol):
     @protocol_input(str)
     def force_field_path(self, value):
         """The file path to the force field parameters to assign to the system.
-        This path **must** point to a json serialized `OPLS2005ForceFieldSource` object."""
+        This path **must** point to a json serialized `OPLSAAMForceFieldSource` object."""
         pass
 
     def __init__(self, protocol_id):
-        """Constructs a new `BuildOPLS2005System` object.
+        """Constructs a new `BuildOPLSAAMSystem` object.
         """
         super().__init__(protocol_id)
 
@@ -288,7 +288,7 @@ class BuildOPLS2005System(BaseBuildSystemProtocol):
         smiles_pattern: str
             The smiles pattern which encodes the molecule to
             parametrize.
-        force_field_source: OPLS2005ForceFieldSource
+        force_field_source: OPLSAAMForceFieldSource
             The parameters to use in the parameterization.
         directory: str
             The directory to save the results in.
@@ -311,16 +311,16 @@ class BuildOPLS2005System(BaseBuildSystemProtocol):
 
         charge_model = 'cm1abcc'
 
-        if (force_field_source.preferred_charge_model == OPLS2005ForceFieldSource.ChargeModel.CM1A_1_14 or
+        if (force_field_source.preferred_charge_model == OPLSAAMForceFieldSource.ChargeModel.CM1A_1_14 or
             not np.isclose(total_charge, 0.0)):
 
             charge_model = 'cm1a'
 
-            if force_field_source.preferred_charge_model != OPLS2005ForceFieldSource.ChargeModel.CM1A_1_14:
+            if force_field_source.preferred_charge_model != OPLSAAMForceFieldSource.ChargeModel.CM1A_1_14:
 
                 logging.warning(f'The preferred charge model is {str(force_field_source.preferred_charge_model)}, '
                                 f'however the system is charged and so the '
-                                f'{str(OPLS2005ForceFieldSource.ChargeModel.CM1A_1_14)} model will be used in its '
+                                f'{str(OPLSAAMForceFieldSource.ChargeModel.CM1A_1_14)} model will be used in its '
                                 f'place.')
 
         data_body = {
@@ -536,7 +536,7 @@ class BuildOPLS2005System(BaseBuildSystemProtocol):
         import mdtraj
         from openforcefield.topology import Molecule, Topology
 
-        logging.info(f'Generating an OPLS2005 system for {self._substance.identifier}: {self._id}')
+        logging.info(f'Generating an OPLSAAM system for {self._substance.identifier}: {self._id}')
 
         try:
 
@@ -548,7 +548,7 @@ class BuildOPLS2005System(BaseBuildSystemProtocol):
             return PropertyEstimatorException(directory=directory,
                                               message='{} could not load the ForceFieldSource: {}'.format(self.id, e))
 
-        if not isinstance(force_field_source, OPLS2005ForceFieldSource):
+        if not isinstance(force_field_source, OPLSAAMForceFieldSource):
 
             return PropertyEstimatorException(directory=directory,
                                               message='Only SMIRNOFF force fields are supported by this '
