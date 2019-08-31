@@ -13,7 +13,7 @@ import requests
 from simtk import openmm
 from simtk.openmm import app
 
-from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource, OPLSAAMForceFieldSource
+from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource, LigParGenForceFieldSource
 from propertyestimator.substances import Substance
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
@@ -245,7 +245,7 @@ class BuildSmirnoffSystem(BaseBuildSystemProtocol):
 
 
 @register_calculation_protocol()
-class BuildOPLSAAMSystem(BaseBuildSystemProtocol):
+class BuildLigParGenSystem(BaseBuildSystemProtocol):
     """Parametrise a set of molecules with the OPLS-AA/M force field.
     using the `LigParGen server <http://zarbi.chem.yale.edu/ligpargen/>`_.
 
@@ -270,11 +270,11 @@ class BuildOPLSAAMSystem(BaseBuildSystemProtocol):
     @protocol_input(str)
     def force_field_path(self, value):
         """The file path to the force field parameters to assign to the system.
-        This path **must** point to a json serialized `OPLSAAMForceFieldSource` object."""
+        This path **must** point to a json serialized `LigParGenForceFieldSource` object."""
         pass
 
     def __init__(self, protocol_id):
-        """Constructs a new `BuildOPLSAAMSystem` object.
+        """Constructs a new `BuildLigParGenSystem` object.
         """
         super().__init__(protocol_id)
 
@@ -288,7 +288,7 @@ class BuildOPLSAAMSystem(BaseBuildSystemProtocol):
         smiles_pattern: str
             The smiles pattern which encodes the molecule to
             parametrize.
-        force_field_source: OPLSAAMForceFieldSource
+        force_field_source: LigParGenForceFieldSource
             The parameters to use in the parameterization.
         directory: str
             The directory to save the results in.
@@ -311,16 +311,16 @@ class BuildOPLSAAMSystem(BaseBuildSystemProtocol):
 
         charge_model = 'cm1abcc'
 
-        if (force_field_source.preferred_charge_model == OPLSAAMForceFieldSource.ChargeModel.CM1A_1_14 or
+        if (force_field_source.preferred_charge_model == LigParGenForceFieldSource.ChargeModel.CM1A_1_14 or
             not np.isclose(total_charge, 0.0)):
 
             charge_model = 'cm1a'
 
-            if force_field_source.preferred_charge_model != OPLSAAMForceFieldSource.ChargeModel.CM1A_1_14:
+            if force_field_source.preferred_charge_model != LigParGenForceFieldSource.ChargeModel.CM1A_1_14:
 
                 logging.warning(f'The preferred charge model is {str(force_field_source.preferred_charge_model)}, '
                                 f'however the system is charged and so the '
-                                f'{str(OPLSAAMForceFieldSource.ChargeModel.CM1A_1_14)} model will be used in its '
+                                f'{str(LigParGenForceFieldSource.ChargeModel.CM1A_1_14)} model will be used in its '
                                 f'place.')
 
         data_body = {
@@ -536,7 +536,7 @@ class BuildOPLSAAMSystem(BaseBuildSystemProtocol):
         import mdtraj
         from openforcefield.topology import Molecule, Topology
 
-        logging.info(f'Generating an OPLSAAM system for {self._substance.identifier}: {self._id}')
+        logging.info(f'Generating a system with LigParGen for {self._substance.identifier}: {self._id}')
 
         try:
 
@@ -548,7 +548,7 @@ class BuildOPLSAAMSystem(BaseBuildSystemProtocol):
             return PropertyEstimatorException(directory=directory,
                                               message='{} could not load the ForceFieldSource: {}'.format(self.id, e))
 
-        if not isinstance(force_field_source, OPLSAAMForceFieldSource):
+        if not isinstance(force_field_source, LigParGenForceFieldSource):
 
             return PropertyEstimatorException(directory=directory,
                                               message='Only SMIRNOFF force fields are supported by this '
