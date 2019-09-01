@@ -66,11 +66,13 @@ __BODY__ = """
 
         host_guest_protocol.thermodynamic_state = thermodynamic_state
 
-        host_guest_protocol.number_of_equilibration_steps = 50
-        host_guest_protocol.number_of_production_steps = 50
-        host_guest_protocol.equilibration_output_frequency = 1
-        host_guest_protocol.production_output_frequency = 1
-        host_guest_protocol.number_of_solvent_molecules = 2
+        host_guest_protocol.number_of_equilibration_steps = 5000
+        host_guest_protocol.equilibration_output_frequency = 500
+
+        host_guest_protocol.number_of_production_steps = 500000
+        host_guest_protocol.production_output_frequency = 5000
+        
+        host_guest_protocol.number_of_solvent_molecules = 2000
 
         host_guest_protocol.taproom_host_name = host
         host_guest_protocol.taproom_guest_name = guest
@@ -118,11 +120,13 @@ __BODY__ = """
     host_protocol.taproom_host_name = host
     host_protocol.taproom_name = None
 
-    host_protocol.number_of_equilibration_steps = 50
-    host_protocol.number_of_production_steps = 1
-    host_protocol.equilibration_output_frequency = 25
-    host_protocol.production_output_frequency = 1
-    host_protocol.number_of_solvent_molecules = 2
+    host_protocol.number_of_equilibration_steps = 5000
+    host_protocol.equilibration_output_frequency = 500
+
+    host_protocol.number_of_production_steps = 500000   
+    host_protocol.production_output_frequency = 5000
+    
+    host_protocol.number_of_solvent_molecules = 2000
 
     host_protocol.force_field = OpenMMPaprikaProtocol.ForceField.SMIRNOFF
     host_protocol.force_field_path = force_field_path
