@@ -59,6 +59,12 @@ def main():
 
         host_guest_protocol.force_field = OpenMMPaprikaProtocol.ForceField.GAFF2
 
+
+
+        host_guest_protocol.setup = False
+        host_guest_protocol.simulate = False
+        host_guest_protocol.analyze = True
+
         result = host_guest_protocol.execute(host_guest_directory, resources)
 
         if isinstance(result, PropertyEstimatorException):
@@ -75,11 +81,12 @@ def main():
 
         free_energies = [result.attach_free_energy + result.pull_free_energy for result in substance_results]
         for result in substance_results:
-            logging.info(f"Attach = {result.attach_free_energy.value.to(unit.kilocalorie / unit.mole)} ± {result.attach_free_energy.uncertainty.to(unit.kilocalorie / unit.mole)}",
-                         f"Pull={result.pull_free_energy.value.to(unit.kilocalorie / unit.mole)} ± {result.pull_free_energy.uncertainty.to(unit.kilocalorie / unit.mole)}")
-
-        logging.info(f"Combined Attach = {free_energies[0].value.to(unit.kilocalorie / unit.mole)} ± {free_energies[0].uncertainty.to(unit.kilocalorie / unit.mole)}")
-        logging.info(f"Combined Pull = {free_energies[1].value.to(unit.kilocalorie / unit.mole)} ± {free_energies[1].uncertainty.to(unit.kilocalorie / unit.mole)}")
+            string = [f"Attach = {result.attach_free_energy.value.to(unit.kilocalorie / unit.mole):0.2f~P} ± {result.attach_free_energy.uncertainty.to(unit.kilocalorie / unit.mole):0.2f~P}",
+                     f"Pull = {result.pull_free_energy.value.to(unit.kilocalorie / unit.mole):0.2f~P} ± {result.pull_free_energy.uncertainty.to(unit.kilocalorie / unit.mole):0.2f~P}"]
+            [logging.info(i) for i in string]
+        string = [f"Attach + Pull 1 = {free_energies[0].value.to(unit.kilocalorie / unit.mole):0.2f~P} ± {free_energies[0].uncertainty.to(unit.kilocalorie / unit.mole):0.2f~P}",
+                 f"Attach + Pull 2 = {free_energies[1].value.to(unit.kilocalorie / unit.mole):0.2f~P} ± {free_energies[1].uncertainty.to(unit.kilocalorie / unit.mole):0.2f~P}"]
+        [logging.info(i) for i in string]
 
         sum_protocol.values = free_energies
         sum_protocol.thermodynamic_state = thermodynamic_state
@@ -99,10 +106,14 @@ def main():
     host_protocol.taproom_name = None
 
     host_protocol.number_of_equilibration_steps = 50
-    host_protocol.number_of_production_steps = 1
+    host_protocol.number_of_production_steps = 50
     host_protocol.equilibration_output_frequency = 25
     host_protocol.production_output_frequency = 1
     host_protocol.number_of_solvent_molecules = 2
+
+    host_protocol.setup = False
+    host_protocol.simulate = False
+    host_protocol.analyze = True
 
     host_protocol.force_field = OpenMMPaprikaProtocol.ForceField.GAFF2
 
