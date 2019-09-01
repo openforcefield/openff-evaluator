@@ -55,13 +55,13 @@ __BODY__ = """
     for substance, orientation in zip(host_guest_substances, host_guest_orientations):
 
         # Create the protocol which will run the attach pull calculations
-        host_guest_protocol = OpenMMPaprikaProtocol(f'host_guest-{{orientation}}')
+        host_guest_protocol = OpenMMPaprikaProtocol(f'host_guest-{orientation}')
 
         host_guest_protocol.substance = substance
         host_guest_protocol.taproom_guest_orientation = orientation
 
         # Set up the required directories.
-        host_guest_directory = f'{{host}}-{{guest}}-{{orientation}}'
+        host_guest_directory = f'{host}-{guest}-{orientation}'
         os.makedirs(host_guest_directory, exist_ok=True)
 
         host_guest_protocol.thermodynamic_state = thermodynamic_state
@@ -83,7 +83,7 @@ __BODY__ = """
         result = host_guest_protocol.execute(host_guest_directory, resources)
 
         if isinstance(result, PropertyEstimatorException):
-            logging.info(f'The attach / pull calculations failed with error: {{result.message}}')
+            logging.info(f'The attach / pull calculations failed with error: {result.message}')
             return
 
         substance_results.append(host_guest_protocol)
@@ -96,11 +96,11 @@ __BODY__ = """
 
         free_energies = [result.attach_free_energy + result.pull_free_energy for result in substance_results]
         for result in substance_results:
-            logging.info(f"Attach = {{result.attach_free_energy.value.to(unit.kilocalorie / unit.mole)}} ± {{result.attach_free_energy.uncertainty.to(unit.kilocalorie / unit.mole)}}",
-                         f"Pull={{result.pull_free_energy.value.to(unit.kilocalorie / unit.mole)}} ± {{result.pull_free_energy.uncertainty.to(unit.kilocalorie / unit.mole)}}")
+            logging.info(f"Attach = {result.attach_free_energy.value.to(unit.kilocalorie / unit.mole)} ± {result.attach_free_energy.uncertainty.to(unit.kilocalorie / unit.mole)}",
+                         f"Pull={result.pull_free_energy.value.to(unit.kilocalorie / unit.mole)} ± {result.pull_free_energy.uncertainty.to(unit.kilocalorie / unit.mole)}")
 
-        logging.info(f"Combined Attach = {{free_energies[0].value.to(unit.kilocalorie / unit.mole)}} ± {{free_energies[0].uncertainty.to(unit.kilocalorie / unit.mole)}}")
-        logging.info(f"Combined Pull = {{free_energies[1].value.to(unit.kilocalorie / unit.mole)}} ± {{free_energies[1].uncertainty.to(unit.kilocalorie / unit.mole)}}")
+        logging.info(f"Combined Attach = {free_energies[0].value.to(unit.kilocalorie / unit.mole)} ± {free_energies[0].uncertainty.to(unit.kilocalorie / unit.mole)}")
+        logging.info(f"Combined Pull = {free_energies[1].value.to(unit.kilocalorie / unit.mole)} ± {free_energies[1].uncertainty.to(unit.kilocalorie / unit.mole)}")
 
         sum_protocol.values = free_energies
         sum_protocol.thermodynamic_state = thermodynamic_state
@@ -134,12 +134,12 @@ __BODY__ = """
     result = host_protocol.execute(host_directory, resources)
 
     if isinstance(result, PropertyEstimatorException):
-        logging.info(f'The release calculations failed with error: {{result.message}}')
+        logging.info(f'The release calculations failed with error: {result.message}')
         return
 
-    logging.info(f"Attach and Pull={{sum_protocol.result}} "
-                 f"Release={{host_protocol.release_free_energy}} "
-                 f'Reference={{host_guest_protocol.reference_free_energy}}')
+    logging.info(f"Attach and Pull={sum_protocol.result} "
+                 f"Release={host_protocol.release_free_energy} "
+                 f'Reference={host_guest_protocol.reference_free_energy}')
                          
 """
 
@@ -149,12 +149,12 @@ __RESULTS__ = """
     # I'm only saving the free energies at this point.
 
     results = dict()
-    results['attach_pull'] = {{sum_protocol.result}}
-    results['release'] = {{host_protocol.release_free_energy}}
-    results['reference'] = {{host_guest_protocol.reference_free_energy}}
-    results['total'] = -1 * ( {{sum_protocol.result}} - {{host_protocol.release_free_energy}} - {{host_guest_protocol.reference_free_energy}} )
+    results['attach_pull'] = {sum_protocol.result}
+    results['release'] = {host_protocol.release_free_energy}
+    results['reference'] = {host_guest_protocol.reference_free_energy}
+    results['total'] = -1 * ( {sum_protocol.result} - {host_protocol.release_free_energy} - {host_guest_protocol.reference_free_energy} )
     
-    with open(f'{{host}}-{{guest}}.json', "w") as f:
+    with open(f'{host}-{guest}.json', "w") as f:
         json.dump(results, f)
 """
 
