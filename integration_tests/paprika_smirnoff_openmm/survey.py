@@ -108,7 +108,7 @@ __BODY__ = """
         sum_protocol.execute('', resources)
 
     # Create the protocol which will run the release calculations
-    host_directory = f'{{host}}'
+    host_directory = f'{host}'
     os.makedirs(host_directory, exist_ok=True)
 
     # Create the protocol which will run the release calculations
