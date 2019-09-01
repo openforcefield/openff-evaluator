@@ -33,7 +33,7 @@ __CUSTOM_HOST_GUEST_BLOB__ = """
 __RESOURCES__ = """
     # Set up the object which describes how many compute resources available
     # on the machine on which the calculations will run.
-    resources = ComputeResources(number_of_threads=1, number_of_gpus=0,
+    resources = ComputeResources(number_of_threads=1, number_of_gpus=1,
                                  preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA)
 """
 
