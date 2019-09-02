@@ -48,8 +48,12 @@ __BODY__ = """
     thermodynamic_state = ThermodynamicState(temperature=298.15 * unit.kelvin,
                                              pressure=1.0 * unit.atmosphere)
 
-    host_guest_substances, host_guest_orientations = get_paprika_host_guest_substance(host, guest, ionic_strength=150 * unit.millimolar)
-    host_substance, _ = get_paprika_host_guest_substance(host, None, ionic_strength=150 * unit.millimolar)[0]
+    # host_guest_substances, host_guest_orientations = get_paprika_host_guest_substance(host, guest, ionic_strength=150 * unit.millimolar)
+    # host_substance, _ = get_paprika_host_guest_substance(host, None, ionic_strength=150 * unit.millimolar)[0]
+
+    host_guest_substances, host_guest_orientations = get_paprika_host_guest_substance(host, guest)
+    host_substance, _ = get_paprika_host_guest_substance(host, None)[0]
+
 
     substance_results = []
     for substance, orientation in zip(host_guest_substances, host_guest_orientations):
