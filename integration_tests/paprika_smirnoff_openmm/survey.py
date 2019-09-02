@@ -165,6 +165,27 @@ __CLOSING__ = f"""
 
 """
 
+__TSCC_HEADER__ = f"""
+#!/bin/bash
+#PBS -l walltime=36:00:00,nodes=1:ppn=16 -q home-gibbs
+#PBS -j oe -r n
+#PBS -N {0}
+"""
+
+__TSCC_BODY__ = f"""
+source {0}
+
+SCRDIR=/oasis/tscc/scratch/davids4/propertyestimator-survey/{1}
+mkdir -p $SCRDIR
+
+# Need the `-L` to resolve any links.
+rsync -avL $PBS_O_WORKDIR/ $SCRDIR/
+
+cd $SCRDIR
+conda activate propertyestimator
+python {2}
+"""
+
 def get_host_guest_pairs(benchmarks):
     """
     Given a set of benchmarks, create a list of (host, guest) tuples.
@@ -201,6 +222,12 @@ def main():
             f.write((__BODY__))
             f.write((__RESULTS__))
             f.write(textwrap.dedent(__CLOSING__))
+
+        with open(os.path.join(host, guest, f"{host}-{guest}.sh"), "w") as f:
+            f.write(textwrap.dedent((__TSCC_HEADER__.format("davids4"))))
+            f.write(textwrap.dedent((__TSCC_BODY__.format("/home/davids4/.bashrc",
+                                                          f"{host}-{guest}",
+                                                          f"{host}-{guest}.py"))))
 
 if __name__ == "__main__":
     main()
