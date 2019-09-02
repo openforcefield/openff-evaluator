@@ -165,14 +165,14 @@ __CLOSING__ = f"""
 
 """
 
-__TSCC_HEADER__ = f"""
+__TSCC_HEADER__ = """
 #!/bin/bash
-#PBS -l walltime=36:00:00,nodes=1:ppn=16 -q home-gibbs
+#PBS -l walltime=8:00:00,nodes=1:ppn=2 -q home-gibbs
 #PBS -j oe -r n
 #PBS -N {0}
 """
 
-__TSCC_BODY__ = f"""
+__TSCC_BODY__ = """
 source {0}
 
 SCRDIR=/oasis/tscc/scratch/davids4/propertyestimator-survey/{1}
