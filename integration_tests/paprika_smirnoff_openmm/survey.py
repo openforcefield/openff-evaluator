@@ -33,7 +33,7 @@ __CUSTOM_HOST_GUEST_BLOB__ = """
 __RESOURCES__ = """
     # Set up the object which describes how many compute resources available
     # on the machine on which the calculations will run.
-    resources = ComputeResources(number_of_threads=1, number_of_gpus=1,
+    resources = ComputeResources(number_of_threads=1, number_of_gpus=2,
                                  preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA)
 """
 
@@ -52,7 +52,7 @@ __BODY__ = """
     # host_substance, _ = get_paprika_host_guest_substance(host, None, ionic_strength=150 * unit.millimolar)[0]
 
     host_guest_substances, host_guest_orientations = get_paprika_host_guest_substance(host, guest)
-    host_substance, _ = get_paprika_host_guest_substance(host, None)[0]
+    # host_substance, _ = get_paprika_host_guest_substance(host, None)[0]
 
 
     substance_results = []
@@ -116,33 +116,33 @@ __BODY__ = """
     os.makedirs(host_directory, exist_ok=True)
 
     # Create the protocol which will run the release calculations
-    host_protocol = OpenMMPaprikaProtocol('host')
-
-    host_protocol.substance = host_substance
-    host_protocol.thermodynamic_state = thermodynamic_state
-
-    host_protocol.taproom_host_name = host
-    host_protocol.taproom_name = None
-
-    host_protocol.number_of_equilibration_steps = 5000
-    host_protocol.equilibration_output_frequency = 500
-
-    host_protocol.number_of_production_steps = 500000   
-    host_protocol.production_output_frequency = 5000
-    
-    host_protocol.number_of_solvent_molecules = 2000
-
-    host_protocol.force_field = OpenMMPaprikaProtocol.ForceField.SMIRNOFF
-    host_protocol.force_field_path = force_field_path
-
-    result = host_protocol.execute(host_directory, resources)
-
-    if isinstance(result, PropertyEstimatorException):
-        logging.info(f'The release calculations failed with error: {result.message}')
-        return
+    # host_protocol = OpenMMPaprikaProtocol('host')
+    # 
+    # host_protocol.substance = host_substance
+    # host_protocol.thermodynamic_state = thermodynamic_state
+    # 
+    # host_protocol.taproom_host_name = host
+    # host_protocol.taproom_name = None
+    # 
+    # host_protocol.number_of_equilibration_steps = 5000
+    # host_protocol.equilibration_output_frequency = 500
+    # 
+    # host_protocol.number_of_production_steps = 500000   
+    # host_protocol.production_output_frequency = 5000
+    # 
+    # host_protocol.number_of_solvent_molecules = 2000
+    # 
+    # host_protocol.force_field = OpenMMPaprikaProtocol.ForceField.SMIRNOFF
+    # host_protocol.force_field_path = force_field_path
+    # 
+    # result = host_protocol.execute(host_directory, resources)
+    # 
+    # if isinstance(result, PropertyEstimatorException):
+    #     logging.info(f'The release calculations failed with error: {result.message}')
+    #     return
 
     logging.info(f"Attach and Pull={sum_protocol.result} "
-                 f"Release={host_protocol.release_free_energy} "
+                 # f"Release={host_protocol.release_free_energy} "
                  f'Reference={host_guest_protocol.reference_free_energy}')
                          
 """
@@ -154,9 +154,9 @@ __RESULTS__ = """
 
     results = dict()
     results['attach_pull'] = {sum_protocol.result}
-    results['release'] = {host_protocol.release_free_energy}
+    # results['release'] = {host_protocol.release_free_energy}
     results['reference'] = {host_guest_protocol.reference_free_energy}
-    results['total'] = -1 * ( {sum_protocol.result} - {host_protocol.release_free_energy} - {host_guest_protocol.reference_free_energy} )
+    # results['total'] = -1 * ( {sum_protocol.result} - {host_protocol.release_free_energy} - {host_guest_protocol.reference_free_energy} )
     
     with open(f'{host}-{guest}.json', "w") as f:
         json.dump(results, f)
@@ -171,7 +171,7 @@ __CLOSING__ = f"""
 
 __TSCC_HEADER__ = """
 #!/bin/bash
-#PBS -l walltime=8:00:00,nodes=1:ppn=2 -q home-gibbs
+#PBS -l walltime=8:00:00,nodes=1:ppn=4 -q home-gibbs
 #PBS -j oe -r n
 #PBS -N {0}
 """
@@ -228,7 +228,7 @@ def main():
             f.write(textwrap.dedent(__CLOSING__))
 
         with open(os.path.join(host, guest, f"{host}-{guest}.sh"), "w") as f:
-            f.write(textwrap.dedent((__TSCC_HEADER__.format("davids4"))))
+            f.write(textwrap.dedent((__TSCC_HEADER__.format(f"{host}-{guest}"))))
             f.write(textwrap.dedent((__TSCC_BODY__.format("/home/davids4/.bashrc",
                                                           f"{host}-{guest}",
                                                           f"{host}-{guest}.py"))))
