@@ -73,7 +73,9 @@ __BODY__ = """
         host_guest_protocol.number_of_equilibration_steps = 5000
         host_guest_protocol.equilibration_output_frequency = 500
 
-        host_guest_protocol.number_of_production_steps = 500000
+        # 50,000 × 2 fs = 0.1 ns
+        # 500,000 × 2 fs = 1 ns
+        host_guest_protocol.number_of_production_steps = 50000
         host_guest_protocol.production_output_frequency = 5000
         
         host_guest_protocol.number_of_solvent_molecules = 2000
