@@ -17,10 +17,31 @@ how major the changes may be.
 
 This release...
 
+New Features
+""""""""""""
+
+* PR #98: ``Substance`` objects may now have components with multiple amount types
+
 Bugfixes
 """"""""
 
 * PR #94: Fixes exception when testing equality of ``ProtocolPath`` objects
+
+Breaking Changes
+""""""""""""""""
+
+* PR #98: ``Substance.get_amount`` renamed to ``Substance.get_amounts`` and now returns an
+  immutable ``frozenset`` of ``Amount`` objects, rather than a single ``Amount``.
+
+Migration Guide
+"""""""""""""""
+
+This release contained several public API breaking changes. For the most part, these can be
+remedied by the follow steps:
+
+* Change all instances of ``Substance.get_amount`` to ``Substance.get_amounts`` and handle
+  the newly returned list of amounts, rather than the previously returned single amount.
+
 
 
 0.0.2 - Replicator Quick Fixes
