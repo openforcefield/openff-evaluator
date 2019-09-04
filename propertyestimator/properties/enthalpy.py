@@ -71,12 +71,21 @@ class BaseWeightByMoleFraction(BaseProtocol):
         assert len(self._component.components) == 1
 
         main_component = self._component.components[0]
-        amount = self._full_substance.get_amount(main_component)
+        amounts = self._full_substance.get_amounts(main_component)
+
+        if len(amounts) != 1:
+
+            return PropertyEstimatorException(directory=directory,
+                                              message=f'More than one type of amount was defined for component '
+                                                      f'{main_component}. Only a single mole fraction must be '
+                                                      f'defined.')
+
+        amount = amounts[0]
 
         if not isinstance(amount, Substance.MoleFraction):
 
             return PropertyEstimatorException(directory=directory,
-                                              message=f'The component {main_component} was given in an '
+                                              message=f'The component {main_component} was given as an '
                                                       f'exact amount, and not a mole fraction')
 
         self._weighted_value = self._weight_values(amount.value)

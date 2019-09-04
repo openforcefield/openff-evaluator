@@ -216,12 +216,14 @@ class FilterSubstanceByRole(BaseProtocol):
 
             filtered_components.append(component)
 
-            amount = self._input_substance.get_amount(component)
+            amounts = self._input_substance.get_amounts(component)
 
-            if not isinstance(amount, Substance.MoleFraction):
-                continue
+            for amount in amounts:
 
-            total_mole_fraction += amount.value
+                if not isinstance(amount, Substance.MoleFraction):
+                    continue
+
+                total_mole_fraction += amount.value
 
         if 0 <= self._expected_components != len(filtered_components):
 
@@ -236,11 +238,13 @@ class FilterSubstanceByRole(BaseProtocol):
 
         for component in filtered_components:
 
-            amount = self._input_substance.get_amount(component)
+            amounts = self._input_substance.get_amounts(component)
 
-            if isinstance(amount, Substance.MoleFraction):
-                amount = Substance.MoleFraction(amount.value * inverse_mole_fraction)
+            for amount in amounts:
 
-            self._filtered_substance.add_component(component, amount)
+                if isinstance(amount, Substance.MoleFraction):
+                    amount = Substance.MoleFraction(amount.value * inverse_mole_fraction)
+
+                self._filtered_substance.add_component(component, amount)
 
         return self._get_output_dictionary()
