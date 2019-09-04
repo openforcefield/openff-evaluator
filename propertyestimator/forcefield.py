@@ -111,18 +111,25 @@ class SmirnoffForceFieldSource(ForceFieldSource):
         self._inner_xml = state['inner_xml']
 
 
-class AmberForceFieldSource(ForceFieldSource):
+class TLeapForceFieldSource(ForceFieldSource):
     """A wrapper around Amber force fields which may be
-    applied via the `leap` software package.
+    applied via the `tleap` software package.
 
     Notes
     -----
     Currently this only supports force fields which are installed
-    alongside `leap`.
+    alongside `tleap`.
     """
 
+    @property
+    def leap_sources(self):
+        """list of str: A list of the files which should be sourced by `leap`
+        when applying the force field.
+        """
+        return self._leap_sources
+
     def __init__(self, leap_sources):
-        """Constructs a new AmberForceFieldSource object
+        """Constructs a new TLeapForceFieldSource object
 
         Parameters
         ----------
@@ -134,14 +141,14 @@ class AmberForceFieldSource(ForceFieldSource):
         --------
         To create a source for the GAFF force field with tip3p water:
 
-        >>> amber_gaff_source = AmberForceFieldSource([
+        >>> amber_gaff_source = TLeapForceFieldSource([
         >>>     'leaprc.gaff',
         >>>     'leaprc.water.tip3p'
         >>> ])
 
         To create a source for the GAFF 2 force field with tip3p water:
 
-        >>> amber_gaff_2_source = AmberForceFieldSource([
+        >>> amber_gaff_2_source = TLeapForceFieldSource([
         >>>     'leaprc.gaff2',
         >>>     'leaprc.water.tip3p'
         >>> ])

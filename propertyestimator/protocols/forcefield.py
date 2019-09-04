@@ -5,6 +5,7 @@ import copy
 import io
 import logging
 import re
+import subprocess
 from enum import Enum
 from os import path
 
@@ -13,9 +14,11 @@ import requests
 from simtk import openmm
 from simtk.openmm import app
 
-from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource, LigParGenForceFieldSource
+from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource, LigParGenForceFieldSource, \
+    TLeapForceFieldSource
 from propertyestimator.substances import Substance
 from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.utils import temporarily_change_directory
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
@@ -62,6 +65,97 @@ class BaseBuildSystemProtocol(BaseProtocol):
 
         # Outputs
         self._system_path = None
+
+    @staticmethod
+    def _append_system(existing_system, system_to_append):
+        """Appends a system object onto the end of an existing system.
+
+        Parameters
+        ----------
+        existing_system: simtk.openmm.System
+            The base system to extend.
+        system_to_append: simtk.openmm.System
+            The system to append.
+        """
+        supported_force_types = [
+            openmm.HarmonicBondForce,
+            openmm.HarmonicAngleForce,
+            openmm.PeriodicTorsionForce,
+            openmm.NonbondedForce,
+        ]
+
+        number_of_appended_forces = 0
+        index_offset = existing_system.getNumParticles()
+
+        # Append the particles.
+        for index in range(system_to_append.getNumParticles()):
+            existing_system.addParticle(system_to_append.getParticleMass(index))
+
+        # Append the constraints
+        for index in range(system_to_append.getNumConstraints()):
+
+            index_a, index_b, distance = system_to_append.getConstraintParameters(index)
+            existing_system.addConstraint(index_a + index_offset,
+                                          index_b + index_offset, distance)
+
+        # Append the forces.
+        for existing_force in existing_system.getForces():
+
+            if type(existing_force) not in supported_force_types:
+                raise ValueError('The system contains an unsupported type of force.')
+
+            for force_to_append in system_to_append.getForces():
+
+                if type(force_to_append) != type(existing_force):
+                    continue
+
+                if isinstance(force_to_append, openmm.HarmonicBondForce):
+
+                    # Add the bonds.
+                    for index in range(force_to_append.getNumBonds()):
+
+                        index_a, index_b, *parameters = force_to_append.getBondParameters(index)
+                        existing_force.addBond(index_a + index_offset,
+                                               index_b + index_offset, *parameters)
+
+                elif isinstance(force_to_append, openmm.HarmonicAngleForce):
+
+                    # Add the angles.
+                    for index in range(force_to_append.getNumAngles()):
+
+                        index_a, index_b, index_c, *parameters = force_to_append.getAngleParameters(index)
+                        existing_force.addAngle(index_a + index_offset,
+                                                index_b + index_offset,
+                                                index_c + index_offset, *parameters)
+
+                elif isinstance(force_to_append, openmm.PeriodicTorsionForce):
+
+                    # Add the torsions.
+                    for index in range(force_to_append.getNumTorsions()):
+
+                        index_a, index_b, index_c, index_d, *parameters = force_to_append.getTorsionParameters(index)
+                        existing_force.addTorsion(index_a + index_offset,
+                                                  index_b + index_offset,
+                                                  index_c + index_offset,
+                                                  index_d + index_offset, *parameters)
+
+                elif isinstance(force_to_append, openmm.NonbondedForce):
+
+                    # Add the vdW parameters
+                    for index in range(force_to_append.getNumParticles()):
+                        existing_force.addParticle(*force_to_append.getParticleParameters(index))
+
+                    # Add the 1-2, 1-3 and 1-4 exceptions.
+                    for index in range(force_to_append.getNumExceptions()):
+
+                        index_a, index_b, *parameters = force_to_append.getExceptionParameters(index)
+                        existing_force.addException(index_a + index_offset,
+                                                    index_b + index_offset, *parameters)
+
+                number_of_appended_forces += 1
+
+        if number_of_appended_forces != system_to_append.getNumForces():
+            raise ValueError('Not all forces were appended.')
 
     def execute(self, directory, available_resources):
         raise NotImplementedError()
@@ -440,97 +534,6 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
                     original_force.setExceptionParameters(exception_index, index_a, index_b,
                                                           charge, sigma_14, epsilon_14)
 
-    @staticmethod
-    def _append_system(existing_system, system_to_append):
-        """Appends a system object onto the end of an existing system.
-
-        Parameters
-        ----------
-        existing_system: simtk.openmm.System
-            The base system to extend.
-        system_to_append: simtk.openmm.System
-            The system to append.
-        """
-        supported_force_types = [
-            openmm.HarmonicBondForce,
-            openmm.HarmonicAngleForce,
-            openmm.PeriodicTorsionForce,
-            openmm.NonbondedForce,
-        ]
-
-        number_of_appended_forces = 0
-        index_offset = existing_system.getNumParticles()
-
-        # Append the particles.
-        for index in range(system_to_append.getNumParticles()):
-            existing_system.addParticle(system_to_append.getParticleMass(index))
-
-        # Append the constraints
-        for index in range(system_to_append.getNumConstraints()):
-
-            index_a, index_b, distance = system_to_append.getConstraintParameters(index)
-            existing_system.addConstraint(index_a + index_offset,
-                                          index_b + index_offset, distance)
-
-        # Append the forces.
-        for existing_force in existing_system.getForces():
-
-            if type(existing_force) not in supported_force_types:
-                raise ValueError('The system contains an unsupported type of force.')
-
-            for force_to_append in system_to_append.getForces():
-
-                if type(force_to_append) != type(existing_force):
-                    continue
-
-                if isinstance(force_to_append, openmm.HarmonicBondForce):
-
-                    # Add the bonds.
-                    for index in range(force_to_append.getNumBonds()):
-
-                        index_a, index_b, *parameters = force_to_append.getBondParameters(index)
-                        existing_force.addBond(index_a + index_offset,
-                                               index_b + index_offset, *parameters)
-
-                elif isinstance(force_to_append, openmm.HarmonicAngleForce):
-
-                    # Add the angles.
-                    for index in range(force_to_append.getNumAngles()):
-
-                        index_a, index_b, index_c, *parameters = force_to_append.getAngleParameters(index)
-                        existing_force.addAngle(index_a + index_offset,
-                                                index_b + index_offset,
-                                                index_c + index_offset, *parameters)
-
-                elif isinstance(force_to_append, openmm.PeriodicTorsionForce):
-
-                    # Add the torsions.
-                    for index in range(force_to_append.getNumTorsions()):
-
-                        index_a, index_b, index_c, index_d, *parameters = force_to_append.getTorsionParameters(index)
-                        existing_force.addTorsion(index_a + index_offset,
-                                                  index_b + index_offset,
-                                                  index_c + index_offset,
-                                                  index_d + index_offset, *parameters)
-
-                elif isinstance(force_to_append, openmm.NonbondedForce):
-
-                    # Add the vdW parameters
-                    for index in range(force_to_append.getNumParticles()):
-                        existing_force.addParticle(*force_to_append.getParticleParameters(index))
-
-                    # Add the 1-2, 1-3 and 1-4 exceptions.
-                    for index in range(force_to_append.getNumExceptions()):
-
-                        index_a, index_b, *parameters = force_to_append.getExceptionParameters(index)
-                        existing_force.addException(index_a + index_offset,
-                                                    index_b + index_offset, *parameters)
-
-                number_of_appended_forces += 1
-
-        if number_of_appended_forces != system_to_append.getNumForces():
-            raise ValueError('Not all forces were appended.')
-
     def execute(self, directory, available_resources):
 
         import mdtraj
@@ -604,6 +607,239 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
                                                                  removeCMMotion=False)
 
             system_templates[unique_molecules[index].to_smiles()] = component_system
+
+        # Create the full system object from the component templates.
+        system = None
+
+        for topology_molecule in topology.topology_molecules:
+
+            system_template = system_templates[topology_molecule.reference_molecule.to_smiles()]
+
+            if system is None:
+
+                # If no system has been set up yet, just use the first template.
+                system = copy.deepcopy(system_template)
+                continue
+
+            # Append the component template to the full system.
+            self._append_system(system, system_template)
+
+        # Apply the OPLS mixing rules.
+        self._apply_opls_mixing_rules(system)
+
+        # Serialize the system object.
+        system_xml = openmm.XmlSerializer.serialize(system)
+
+        self._system_path = path.join(directory, 'system.xml')
+
+        with open(self._system_path, 'wb') as file:
+            file.write(system_xml.encode('utf-8'))
+
+        logging.info(f'System generated: {self.id}')
+
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class BuildTLeapSystem(BaseBuildSystemProtocol):
+    """Parametrise a set of molecules with an Amber based force field.
+    using the `tleap package <http://ambermd.org/AmberTools.php>`_.
+
+    Notes
+    -----
+    This protocol is currently a work in progress and as such has limited
+    functionality compared to the more established `BuildSmirnoffSystem` protocol.
+    """
+
+    @protocol_input(str)
+    def force_field_path(self, value):
+        """The file path to the force field parameters to assign to the system.
+        This path **must** point to a json serialized `TLeapForceFieldSource` object."""
+        pass
+
+    def __init__(self, protocol_id):
+        """Constructs a new `BuildTLeapSystem` object.
+        """
+        super().__init__(protocol_id)
+
+    def _run_tleap(self, force_field_source, initial_mol2_file_path, directory):
+        """Uses tleap to apply parameters to a particular molecule,
+        generating a `.prmtop` and a `.rst7` file with the applied parameters.
+
+        Parameters
+        ----------
+        force_field_source: TLeapForceFieldSource
+            The tleap source which describes which parameters to apply.
+        smiles: str
+            The MOL2 representation of the molecule to parameterise.
+        directory: str
+            The directory to store and temporary files / the final
+            parameters in.
+
+        Returns
+        -------
+        str
+            The file path to the `prmtop` file.
+        str
+            The file path to the `rst7` file.
+        PropertyEstimatorException, optional
+            Any errors which were raised.
+        """
+
+        # Change into the working directory.
+        with temporarily_change_directory(directory):
+
+            amber_type = 'amber'
+
+            if 'leaprc.gaff2' in force_field_source.leap_sources:
+                amber_type = 'gaff2'
+            elif 'leaprc.gaff' in force_field_source.leap_sources:
+                amber_type = 'gaff'
+
+            # Run antechamber to find the correct atom types.
+            processed_mol2_path = 'antechamber.mol2'
+
+            antechamber_result = subprocess.check_output(['antechamber',
+                                                          '-i', initial_mol2_file_path, '-fi', 'mol2',
+                                                          '-o', processed_mol2_path, '-fo', 'mol2',
+                                                          '-at', amber_type,
+                                                          '-rn', 'MOL',
+                                                          '-an', 'no',
+                                                          '-pf', 'yes'])
+
+            with open('antechamber_output.log', 'w') as file:
+                file.write(antechamber_result)
+
+            if not path.isfile(processed_mol2_path):
+
+                return None, None, PropertyEstimatorException(directory, f'antechamber failed to assign atom types to '
+                                                                         f'the input mol2 file '
+                                                                         f'({initial_mol2_file_path})')
+
+            frcmod_path = None
+
+            if amber_type == 'gaff' or amber_type == 'gaff2':
+
+                # Optionally run parmchk to find any missing parameters.
+                frcmod_path = 'parmck2.frcmod'
+
+                prmchk2_result = subprocess.check_output(['parmchk2',
+                                                          '-i', processed_mol2_path, '-f', 'mol2',
+                                                          '-o', frcmod_path,
+                                                          '-s', amber_type
+                                                          ], cwd=directory)
+
+                with open('parmchk2_output.log', 'w') as file:
+                    file.write(prmchk2_result)
+
+                if not path.isfile(frcmod_path):
+
+                    return None, None, PropertyEstimatorException(directory,
+                                                                  f'parmchk2 failed to assign missing {amber_type} '
+                                                                  f'parameters to the antechamber created mol2 file '
+                                                                  f'({processed_mol2_path})')
+
+            # Build the tleap input file.
+            template_lines = [f'source {source}' for source in force_field_source.leap_sources]
+
+            if frcmod_path is not None:
+                template_lines.append(f'loadamberparams {frcmod_path}', )
+
+            prmtop_file_name = 'structure.prmtop'
+            rst7_file_name = 'structure.rst7'
+
+            template_lines.extend([
+                f'MOL = loadmol2 {processed_mol2_path}',
+                'check MOL',
+                f'saveamberparm MOL {prmtop_file_name} {rst7_file_name}'
+            ])
+
+            input_file_path = 'tleap.in'
+
+            with open(input_file_path, 'w') as file:
+                file.write('\n'.join(template_lines))
+
+            # Run tleap.
+            tleap_result = subprocess.call(['tleap', '-s ', '-f ', input_file_path],
+                                           stdout=subprocess.PIPE,
+                                           stderr=subprocess.PIPE,
+                                           cwd=directory)
+
+            with open('tleap_output.log', 'w') as file:
+                file.write(tleap_result)
+
+            if not path.isfile(prmtop_file_name) or not path.isfile(rst7_file_name):
+                return None, None, PropertyEstimatorException(directory, f'tleap failed to execute.')
+
+            with open('leap.log', 'r') as file:
+
+                if not re.search('ERROR|WARNING|Warning|duplicate|FATAL|Could|Fatal|Error', file.read()):
+                    return path.join(directory, prmtop_file_name), path.join(directory, rst7_file_name), None
+
+            return None, None, PropertyEstimatorException(directory, f'tleap failed to execute.')
+
+    def execute(self, directory, available_resources):
+
+        import mdtraj
+        from openforcefield.topology import Molecule, Topology
+
+        logging.info(f'Generating a system with tleap for {self._substance.identifier}: {self._id}')
+
+        try:
+
+            with open(self._force_field_path) as file:
+                force_field_source = ForceFieldSource.parse_json(file.read())
+
+        except Exception as e:
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='{} could not load the ForceFieldSource: {}'.format(self.id, e))
+
+        if not isinstance(force_field_source, LigParGenForceFieldSource):
+
+            return PropertyEstimatorException(directory=directory,
+                                              message='Only SMIRNOFF force fields are supported by this '
+                                                      'protocol.')
+
+        # Load in the systems coordinates / topology
+        openmm_pdb_file = app.PDBFile(self._coordinate_file_path)
+
+        # Create an OFF topology for better insight into the layout of the system topology.
+        unique_molecules = [Molecule.from_smiles(component.smiles) for
+                            component in self._substance.components]
+
+        topology = Topology.from_openmm(openmm_pdb_file.topology, unique_molecules)
+
+        # Find a unique instance of each topology molecule to get the correct
+        # atom orderings.
+        topology_molecules = {}
+
+        for topology_molecule in topology.topology_molecules:
+            topology_molecules[topology_molecule.reference_molecule.to_smiles()] = topology_molecule
+
+        for smiles, topology_molecule in topology_molecules.items():
+
+
+            # if reference_topology_molecule is None:
+            #     return PropertyEstimatorException('A topology molecule could not be matched to its reference.')
+            #
+            # start_index = reference_topology_molecule.atom_start_topology_index
+            # end_index = start_index + reference_topology_molecule.n_atoms
+            # index_range = list(range(start_index, end_index))
+            #
+            # component_pdb_file = mdtraj.load_pdb(self._coordinate_file_path, atom_indices=index_range)
+            # component_topology = component_pdb_file.topology.to_openmm()
+            # component_topology.setUnitCellDimensions(openmm_pdb_file.topology.getUnitCellDimensions())
+            #
+            # # Create the system object.
+            # force_field_template = app.ForceField(force_field_path)
+            #
+            # component_system = force_field_template.createSystem(topology=component_topology,
+            #                                                      nonbondedMethod=app.PME,
+            #                                                      constraints=app.HBonds,
+            #                                                      removeCMMotion=False)
+
+            # system_templates[unique_molecules[index].to_smiles()] = component_system
 
         # Create the full system object from the component templates.
         system = None
