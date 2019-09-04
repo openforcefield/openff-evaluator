@@ -175,10 +175,10 @@ class Substance(TypedBaseModel):
             total_substance_molecules: int
                 The total number of molecules in the whole substance. This amount
                 will contribute to a portion of this total number.
-            tolerance: float
+            tolerance: float, optional
                 The tolerance with which this amount should be in. As an example,
                 when converting a mole fraction into a number of molecules, the
-                total number of molecules may not be sufficently large enough to
+                total number of molecules may not be sufficiently large enough to
                 reproduce this amount.
 
             Returns
@@ -231,7 +231,7 @@ class Substance(TypedBaseModel):
             if math.floor(value * 1e6) < 1:
 
                 raise ValueError('Mole fractions are only precise to the sixth '
-                                 'decimal place.')
+                                 'decimal place within this class representation.')
 
             super().__init__(value)
 
@@ -305,9 +305,10 @@ class Substance(TypedBaseModel):
 
         for component_identifier in sorted_component_identifiers:
 
-            component_amount = self._amounts[component_identifier]
+            component_amounts = sorted(self._amounts[component_identifier], key=lambda x: type(x).__name__)
+            amount_identifier = ''.join([component_amount.identifier for component_amount in component_amounts])
 
-            identifier = f'{component_identifier}{component_amount.identifier}'
+            identifier = f'{component_identifier}{amount_identifier}'
             identifier_split.append(identifier)
 
         return '|'.join(identifier_split)
@@ -346,49 +347,61 @@ class Substance(TypedBaseModel):
 
         if isinstance(amount, Substance.MoleFraction):
 
-            total_mole_fraction = amount.value + sum([amount.value for amount in self._amounts if
-                                                      isinstance(amount, Substance.MoleFraction)])
+            total_mole_fraction = amount.value
+
+            for component_identifier in self._amounts:
+
+                total_mole_fraction += sum([amount.value for amount in self._amounts[component_identifier] if
+                                            isinstance(amount, Substance.MoleFraction)])
 
             if total_mole_fraction > 1.0:
                 raise ValueError(f'The total mole fraction of this substance {total_mole_fraction} exceeds 1.0')
 
         if component.identifier not in self._amounts:
-
-            self._amounts[component.identifier] = amount
             self._components.append(component)
 
-            return
+        existing_amount_of_type = None
+        remaining_amounts = []
 
-        existing_amount = self._amounts[component.identifier]
+        # Check to see if an amount of the same type already exists in
+        # the substance, such that this amount should be appended to it.
+        for existing_amount in self._amounts[component.identifier]:
 
-        if not type(existing_amount) is type(amount):
+            if not type(existing_amount) is type(amount):
 
-            raise ValueError(f'This component already exists in the substance, but in a '
-                             f'different amount type ({type(existing_amount)}) than that '
-                             f'specified ({type(amount)})')
+                remaining_amounts.append(existing_amount)
+                continue
 
-        new_amount = type(amount)(existing_amount.value + amount.value)
-        self._amounts[component.identifier] = new_amount
+            existing_amount_of_type = existing_amount
+            break
 
-    def get_amount(self, component):
-        """Returns the amount of the component in this substance.
+        if existing_amount_of_type is not None:
+
+            # Append any existing amounts to the new amount.
+            amount = type(amount)(existing_amount_of_type.value + amount.value)
+
+        remaining_amounts.append(amount)
+        self._amounts[component.identifier] = frozenset(remaining_amounts)
+
+    def get_amounts(self, component):
+        """Returns the amounts of the component in this substance.
 
         Parameters
         ----------
         component: str or Substance.Component
-            The component (or it's identifier) to retrieve the mole fraction of.
+            The component (or it's identifier) to retrieve the amount of.
 
         Returns
         -------
-        Substance.Amount
-            The amount of the component in this substance.
+        list of Substance.Amount
+            The amounts of the component in this substance.
         """
         assert isinstance(component, str) or isinstance(component, Substance.Component)
         identifier = component if isinstance(component, str) else component.identifier
 
         return self._amounts[identifier]
 
-    def get_molecules_per_component(self, maximum_molecules):
+    def get_molecules_per_component(self, maximum_molecules, tolerance=None):
         """Returns the number of molecules for each component in this substance,
         given a maximum total number of molecules.
 
@@ -396,6 +409,11 @@ class Substance(TypedBaseModel):
         ----------
         maximum_molecules: int
             The maximum number of molecules.
+        tolerance: float, optional
+            The tolerance within which this amount should be represented. As
+            an example, when converting a mole fraction into a number of molecules,
+            the total number of molecules may not be sufficiently large enough to
+            reproduce this amount.
 
         Returns
         -------
@@ -421,10 +439,14 @@ class Substance(TypedBaseModel):
             raise ValueError(f'The required number of molecules {maximum_molecules - remaining_molecule_slots} '
                              f'exceeds the provided maximum number ({maximum_molecules}).')
 
-        for index, component in enumerate(self._components):
+        for component in self._components:
 
-            amount = self._amounts[component.identifier]
-            number_of_molecules[component.identifier] = amount.to_number_of_molecules(remaining_molecule_slots)
+            number_of_molecules[component.identifier] = 0
+
+            for amount in self._amounts[component.identifier]:
+
+                number_of_molecules[component.identifier] += amount.to_number_of_molecules(remaining_molecule_slots,
+                                                                                           tolerance)
 
         return number_of_molecules
 
