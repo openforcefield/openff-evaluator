@@ -18,9 +18,11 @@ def test_add_mole_fractions():
     amounts = substance.get_amounts('C')
 
     assert len(amounts) == 1
-    assert isinstance(amounts[0], Substance.MoleFraction)
 
-    assert np.isclose(amounts[0].value, 1.0)
+    amount = next(iter(amounts))
+
+    assert isinstance(amount, Substance.MoleFraction)
+    assert np.isclose(amount.value, 1.0)
 
 
 def test_multiple_amounts():
