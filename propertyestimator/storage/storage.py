@@ -11,8 +11,8 @@ from propertyestimator.storage.dataclasses import BaseStoredData
 
 
 class PropertyEstimatorStorage:
-    """An abstract base representation of how the property estimator will interact
-    with and store simulation data.
+    """An abstract base representation of how the property estimator will
+    interact with and store simulation data.
 
     Notes
     -----

@@ -16,7 +16,6 @@ from os import path, makedirs
 from propertyestimator import unit
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.workflow import plugins
 from propertyestimator.workflow.decorators import MergeBehaviour, protocol_input
 from propertyestimator.workflow.plugins import register_calculation_protocol, available_protocols
 from propertyestimator.workflow.protocols import BaseProtocol, ProtocolPath
@@ -69,7 +68,19 @@ class ProtocolGroup(BaseProtocol):
     def __init__(self, protocol_id):
         """Constructs a new ProtocolGroup.
         """
+        self._dependants_graph = {}
+
+        self._root_protocols = []
+        self._execution_order = []
+
+        self._protocols = {}
+
         super().__init__(protocol_id)
+
+    def _initialize(self):
+        """Initialize the protocol."""
+
+        super(ProtocolGroup, self)._initialize()
 
         self._dependants_graph = {}
 
@@ -592,60 +603,25 @@ class ProtocolGroup(BaseProtocol):
 
         return self._protocols[target_protocol_id].set_value(reference_path_clone, value)
 
-    def apply_replicator(self, replicator, template_values):
-        """Applies a `ProtocolReplicator` to this groups protocols.
+    def apply_replicator(self, replicator, template_values, template_index=-1, template_value=None,
+                         update_input_references=False):
 
-        Parameters
-        ----------
-        replicator: :obj:`ProtocolReplicator`
-            The replicator to apply.
-        template_values
-            The values to pass to each of the replicated protocols.
-        """
-        replacement_string = '$({})'.format(replicator.id)
+        protocols, replication_map = replicator.apply(self.protocols, template_values,
+                                                      template_index, template_value)
 
-        for protocol_path in replicator.protocols_to_replicate:
+        if (template_index >= 0 or template_value is not None) and update_input_references is True:
 
-            if protocol_path.full_path.find(self.id) < 0:
-                continue
+            raise ValueError('Specific template indices and values cannot be passed '
+                             'when `update_input_references` is True')
 
-            # Start by coping the path, and removing the leading protocol ids
-            # until the path starts at this group.
-            protocol_path_copied = ProtocolPath.from_string(protocol_path.full_path)
-            path_starting_protocol = None
+        if update_input_references:
+            replicator.update_references(protocols, replication_map, template_values)
 
-            while path_starting_protocol != self.id:
-                path_starting_protocol = protocol_path_copied.pop_next_in_path()
+        # Re-initialize the group using the replicated protocols.
+        self._initialize()
+        self.add_protocols(*protocols.values())
 
-            # If the protocol to replicate is not in this group,
-            # pass the call down the protocol chain.
-            if protocol_path_copied.start_protocol != protocol_path_copied.last_protocol:
-
-                self.protocols[protocol_path_copied.start_protocol].apply_replicator(replicator,
-                                                                                     template_values)
-                continue
-
-            # Handle the case where the protocol to be replicated is within this group.
-            for index, template_value in enumerate(template_values):
-
-                protocol_schema = self.protocols[protocol_path_copied.start_protocol].schema
-                protocol_schema.id = protocol_schema.id.replace(replacement_string, str(index))
-
-                protocol = plugins.available_protocols[protocol_schema.type](protocol_schema.id)
-                protocol.schema = protocol_schema
-
-                for other_path in replicator.protocols_to_replicate:
-
-                    _, other_path_components = ProtocolPath.to_components(other_path.full_path)
-
-                    for protocol_id_to_rename in other_path_components:
-
-                        protocol.replace_protocol(protocol_id_to_rename,
-                                                  protocol_id_to_rename.replace(replacement_string, str(index)))
-
-                self.protocols[protocol.id] = protocol
-
-            self.protocols.pop(protocol_path_copied.start_protocol)
+        return replication_map
 
 
 @register_calculation_protocol()
@@ -724,11 +700,15 @@ class ConditionalGroup(ProtocolGroup):
     def __init__(self, protocol_id):
         """Constructs a new ConditionalGroup
         """
-        super().__init__(protocol_id)
-
         self._max_iterations = 10
         self._conditions = []
 
+        super().__init__(protocol_id)
+
+    def _initialize(self):
+        """Initialize the protocol."""
+
+        super(ConditionalGroup, self)._initialize()
         self.required_inputs.append(ProtocolPath('conditions'))
 
     def _set_schema(self, schema_value):

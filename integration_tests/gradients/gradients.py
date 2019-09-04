@@ -181,13 +181,7 @@ def estimate_gradients(physical_property, metadata, use_subset, compute_backend)
     gradient_workflow_schema = WorkflowSchema('Density')
     gradient_workflow_schema.protocols[gradient_group_schema.id] = gradient_group_schema
 
-    protocols_to_replicate = [ProtocolPath('', gradient_group_schema.id)]
-
-    protocols_to_replicate.extend([ProtocolPath('', gradient_group_schema.id, protocol_schema.id) for
-                                   protocol_schema in gradient_group_schema.grouped_protocol_schemas])
-
     parameter_replicator = ProtocolReplicator(replicator_id='repl')
-    parameter_replicator.protocols_to_replicate = protocols_to_replicate
     parameter_replicator.template_values = ProtocolPath('parameter_gradient_keys', 'global')
 
     gradient_workflow_schema.replicators = [parameter_replicator]

@@ -33,8 +33,17 @@ class ThermodynamicState(TypedBaseModel):
     >>> state = ThermodynamicState(temperature=298.0*unit.kelvin, pressure=1.0*unit.atmospheres)
 
     Note that the pressure is only relevant for periodic systems.
-
     """
+
+    @property
+    def inverse_beta(self):
+        """Returns the temperature multiplied by the molar gas constant"""
+        return (self.temperature * unit.molar_gas_constant).to(unit.kilojoule / unit.mole)
+
+    @property
+    def beta(self):
+        """Returns one divided by the temperature multiplied by the molar gas constant"""
+        return 1.0 / self.inverse_beta
 
     def __init__(self, temperature=None, pressure=None):
         """Constructs a new ThermodynamicState object.

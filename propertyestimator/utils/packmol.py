@@ -447,6 +447,8 @@ def _create_pdb_and_topology(molecule, file_path):
         The topology of the created PDB file.
     """
     import mdtraj
+    from mdtraj.core import residue_names
+
     from openeye import oechem
 
     # Create a temporary mol2 file using OE, change its
@@ -473,12 +475,12 @@ def _create_pdb_and_topology(molecule, file_path):
 
         for residue in oe_mol2.topology.residues:
 
-            if smiles == 'O':
-                residue.name = 'HOH'
-
             residue_map[residue.name] = None
 
-            if smiles == '[Cl-]':
+            if smiles == 'O':
+                residue_map[residue.name] = 'HOH'
+
+            elif smiles == '[Cl-]':
 
                 residue_map[residue.name] = 'Cl-'
 
@@ -492,18 +494,25 @@ def _create_pdb_and_topology(molecule, file_path):
                 for atom in residue.atoms:
                     atom.name = 'Na+'
 
-        water_residue_names = frozenset(['H2O', 'HHO', 'OHH', 'HOH', 'OH2', 'SOL', 'WAT',
-                                         'TIP', 'TIP2', 'TIP3', 'TIP4'])
-
         for original_residue_name in residue_map:
 
             if residue_map[original_residue_name] is not None:
                 continue
 
+            # Make sure the residue is not already reserved, as this can occasionally
+            # result in bonds being automatically added in the wrong places when
+            # loading the pdb file either through mdtraj or openmm
+            forbidden_residue_names = [*residue_names._AMINO_ACID_CODES,
+                                       *residue_names._SOLVENT_TYPES,
+                                       *residue_names._WATER_RESIDUES,
+                                       'ADE', 'CYT', 'CYX', 'DAD', 'DGU', 'FOR', 'GUA', 'HID',
+                                       'HIE', 'HIH', 'HSD', 'HSH', 'HSP', 'NMA', 'THY', 'URA']
+
             new_residue_name = ''.join([random.choice(string.ascii_uppercase) for _ in range(3)])
 
-            if original_residue_name in water_residue_names:
-                new_residue_name = 'HOH'
+            while new_residue_name in forbidden_residue_names:
+                # Re-choose the residue name until we find a safe one.
+                new_residue_name = ''.join([random.choice(string.ascii_uppercase) for _ in range(3)])
 
             residue_map[original_residue_name] = new_residue_name
 

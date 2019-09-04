@@ -1,5 +1,5 @@
 from .properties import PropertyPhase, PhysicalProperty, MeasurementSource, CalculationSource, \
-    ParameterGradientKey, ParameterGradient
+    Source, ParameterGradientKey, ParameterGradient
 from .binding import HostGuestBindingAffinity
 from .density import Density
 from .dielectric import DielectricConstant
