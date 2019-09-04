@@ -201,6 +201,12 @@ class Substance(TypedBaseModel):
         def __eq__(self, other):
             return np.isclose(self._value, other.value)
 
+        def __ne__(self, other):
+            return not (self == other)
+
+        def __hash__(self):
+            return hash(self.identifier)
+
     class MoleFraction(Amount):
         """Represents the amount of a component in a substance as a
         mole fraction."""
@@ -361,11 +367,13 @@ class Substance(TypedBaseModel):
             self._components.append(component)
 
         existing_amount_of_type = None
+
+        all_amounts = [] if component.identifier not in self._amounts else self._amounts[component.identifier]
         remaining_amounts = []
 
         # Check to see if an amount of the same type already exists in
         # the substance, such that this amount should be appended to it.
-        for existing_amount in self._amounts[component.identifier]:
+        for existing_amount in all_amounts:
 
             if not type(existing_amount) is type(amount):
 
@@ -498,9 +506,11 @@ class Substance(TypedBaseModel):
         for identifier in sorted_component_identifiers:
 
             component_role = component_by_id[identifier].role
-            component_amount = self._amounts[identifier].identifier
 
-            string_hash_split.append(f'{identifier}_{component_role}_{component_amount}')
+            component_amounts = sorted(self._amounts[identifier], key=lambda x: type(x).__name__)
+            amount_identifier = ''.join([component_amount.identifier for component_amount in component_amounts])
+
+            string_hash_split.append(f'{identifier}_{component_role}_{amount_identifier}')
 
         string_hash = '|'.join(string_hash_split)
 

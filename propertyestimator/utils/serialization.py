@@ -270,6 +270,31 @@ def deserialize_set(set_dictionary):
     return set(set_value)
 
 
+def serialize_frozen_set(set_object):
+
+    if not isinstance(set_object, frozenset):
+        raise ValueError('{} is not a frozenset'.format(type(frozenset)))
+
+    return {
+        'value': list(set_object)
+    }
+
+
+def deserialize_frozen_set(set_dictionary):
+
+    if 'value' not in set_dictionary:
+
+        raise ValueError('The serialized frozenset dictionary must include'
+                         'the value of the set.')
+
+    set_value = set_dictionary['value']
+
+    if not isinstance(set_value, list):
+        raise ValueError('The value of the serialized set must be a list.')
+
+    return frozenset(set_value)
+
+
 class TypedJSONEncoder(json.JSONEncoder):
 
     _natively_supported_types = [
@@ -281,6 +306,7 @@ class TypedJSONEncoder(json.JSONEncoder):
         unit.Quantity: serialize_quantity,
         'ForceField': serialize_force_field,
         set: serialize_set,
+        frozenset: serialize_frozen_set,
         np.float16: lambda x: {'value': float(x)},
         np.float32: lambda x: {'value': float(x)},
         np.float64: lambda x: {'value': float(x)},
@@ -371,6 +397,7 @@ class TypedJSONDecoder(json.JSONDecoder):
         EstimatedQuantity: deserialize_estimated_quantity,
         'ForceField': deserialize_force_field,
         set: deserialize_set,
+        frozenset: deserialize_frozen_set,
         np.float16: lambda x: np.float16(x['value']),
         np.float32: lambda x: np.float32(x['value']),
         np.float64: lambda x: np.float64(x['value']),
