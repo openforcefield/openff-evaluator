@@ -435,12 +435,14 @@ class Substance(TypedBaseModel):
 
         for index, component in enumerate(self._components):
 
-            amount = self._amounts[component.identifier]
+            amounts = self._amounts[component.identifier]
 
-            if not isinstance(amount, Substance.ExactAmount):
-                continue
+            for amount in amounts:
 
-            remaining_molecule_slots -= amount.value
+                if not isinstance(amount, Substance.ExactAmount):
+                    continue
+
+                remaining_molecule_slots -= amount.value
 
         if remaining_molecule_slots < 0:
 
