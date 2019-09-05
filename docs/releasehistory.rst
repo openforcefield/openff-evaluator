@@ -26,6 +26,7 @@ Bugfixes
 """"""""
 
 * PR #94: Fixes exception when testing equality of ``ProtocolPath`` objects
+* PR #100: Fixes precision issues when ensuring mole fractions are `<= 1.0`
 
 Breaking Changes
 """"""""""""""""
