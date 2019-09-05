@@ -662,6 +662,116 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
         """
         super().__init__(protocol_id)
 
+    def topology_molecule_to_mol2(self, topology_molecule, file_name, toolkit='OE'):
+        """Turn an openforcefield.topology.TopologyMolecule into a mol2 file, generating a conformer
+           and charges in the process.
+
+        .. warning :: This function uses non-public methods from the Open Force Field toolkit
+                     and should be refactored when public methods become available
+
+        .. note :: This function requires the OpenEye toolkit with a valid license to write mol2 format files
+
+        Parameters
+        ----------
+        topology_molecule : openforcefield.topology.TopologyMolecule
+            The TopologyMolecule to write out as a mol2 file. The atom ordering in this mol2 will
+            be consistent with the topology ordering.
+        file_name : string
+            The filename to write to.
+        toolkit : string. Allowed values are ['OE', 'RDKit', None]
+            The cheminformatics toolkit to use for conformer generation and partial charge calculation.
+            If None, geometries and partial charges from the underlying openforcefield.topology.Molecule will be used.
+        """
+        from simtk import unit
+        import numpy as np
+        from openforcefield.topology import Molecule
+        from copy import deepcopy
+
+        ALLOWED_TOOLKITS = ['openeye', 'rdkit', None]
+
+        # Make a copy of the reference molecule so we can run conf gen / charge calc without modifying the original
+        ref_mol = deepcopy(topology_molecule.reference_molecule)
+
+        if toolkit is None:
+            pass
+        elif toolkit.lower() == 'openeye':
+            from openforcefield.utils.toolkits import OpenEyeToolkitWrapper
+            oetkw = OpenEyeToolkitWrapper()
+            ref_mol.generate_conformers(toolkit_registry=oetkw)
+            ref_mol.compute_partial_charges_am1bcc(toolkit_registry=oetkw)
+        elif toolkit.lower() == 'rdkit':
+            from openforcefield.utils.toolkits import RDKitToolkitWrapper, AmberToolsToolkitWrapper, ToolkitRegistry
+            tkr = ToolkitRegistry(toolkit_precedence=[RDKitToolkitWrapper, AmberToolsToolkitWrapper])
+            ref_mol.generate_conformers(toolkit_registry=tkr)
+            ref_mol.compute_partial_charges_am1bcc(toolkit_registry=tkr)
+        else:
+            raise ValueError(f'Received invalid toolkit specification: {toolkit}. '
+                             f'Allowed values are {ALLOWED_TOOLKITS}')
+
+
+        # Get access to the parent topology, so we look up the topology atom indices later.
+        topology = topology_molecule.topology
+
+        # Make and populate a new openforcefield.topology.Molecule
+        new_mol = Molecule()
+        new_mol.name = ref_mol.name
+
+        # Add atoms to the new molecule
+        for top_atom in topology_molecule.atoms:
+
+            # Force the topology to cache the topology molecule start indices
+            topology.atom(top_atom.topology_atom_index)
+
+            new_at_idx = new_mol.add_atom(top_atom.atom.atomic_number,
+                                          top_atom.atom.formal_charge,
+                                          top_atom.atom.is_aromatic,
+                                          top_atom.atom.stereochemistry,
+                                          top_atom.atom.name
+                                          )
+
+        # Add bonds to the new molecule
+        for top_bond in topology_molecule.bonds:
+            # This is a cheap hack to figure out what the "local" atom index of these atoms is.
+            # In other words it is the offset we need to apply to get the index if this were
+            # the only molecule in the whole Topology. We need to apply this offset because
+            # new_mol begins its atom indexing at 0, not the real topology atom index (which we do know).
+            idx_offset = topology_molecule._atom_start_topology_index
+
+            # Convert the `.atoms` generator into a list so we can access it by index
+            top_atoms = list(top_bond.atoms)
+
+            new_bd_idx = new_mol.add_bond(top_atoms[0].topology_atom_index - idx_offset,
+                                          top_atoms[1].topology_atom_index - idx_offset,
+                                          top_bond.bond.bond_order,
+                                          top_bond.bond.is_aromatic,
+                                          top_bond.bond.stereochemistry,
+                                          )
+
+        # Transfer over existing conformers and partial charges, accounting for the
+        # reference/topology indexing differences
+
+        # We populate unitless arrays of the proper size and shape
+        new_conf = np.zeros((ref_mol.n_atoms, 3))
+        new_pcs = np.zeros(ref_mol.n_atoms)
+
+        # Then iterate over the reference atoms, mapping their indices to the topology molecule's indexing system
+        for ref_atom_idx in range(ref_mol.n_atoms):
+            # We don't need to apply the offset here, since _ref_to_top_index is
+            # already "locally" indexed for this topology molecule
+            local_top_index = topology_molecule._ref_to_top_index[ref_atom_idx]
+
+            # Strip the units becuase I'm lazy. We attach them below.
+            new_conf[local_top_index, :] = ref_mol.conformers[0][ref_atom_idx] / unit.angstrom
+            new_pcs[local_top_index] = ref_mol.partial_charges[ref_atom_idx] / unit.elementary_charge
+
+        # Reattach the units
+        new_mol.add_conformer(new_conf * unit.angstrom)
+        new_mol.partial_charges = new_pcs * unit.elementary_charge
+
+        # Write the molecule
+        new_mol.to_file(file_name, file_format='mol2')
+
+
     def _run_tleap(self, force_field_source, initial_mol2_file_path, directory):
         """Uses tleap to apply parameters to a particular molecule,
         generating a `.prmtop` and a `.rst7` file with the applied parameters.
@@ -817,7 +927,7 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
         for topology_molecule in topology.topology_molecules:
             topology_molecules[topology_molecule.reference_molecule.to_smiles()] = topology_molecule
 
-        for smiles, topology_molecule in topology_molecules.items():
+        #for smiles, topology_molecule in topology_molecules.items():
 
 
             # if reference_topology_molecule is None:
