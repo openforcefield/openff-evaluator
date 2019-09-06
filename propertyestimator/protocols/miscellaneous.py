@@ -3,7 +3,6 @@ A collection of protocols for running analysing the results of molecular simulat
 """
 import numpy as np
 
-from propertyestimator import unit
 from propertyestimator.substances import Substance
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
@@ -102,7 +101,7 @@ class MultiplyValue(BaseProtocol):
         """The value to multiply."""
         pass
 
-    @protocol_input(unit.Quantity)
+    @protocol_input(object)
     def multiplier(self):
         """The scalar to multiply by."""
         pass
@@ -140,7 +139,7 @@ class DivideValue(BaseProtocol):
         """The value to divide."""
         pass
 
-    @protocol_input(int)
+    @protocol_input(object)
     def divisor(self):
         """The scalar to divide by."""
         pass
@@ -161,7 +160,7 @@ class DivideValue(BaseProtocol):
 
     def execute(self, directory, available_resources):
 
-        self._result = self._value / float(self._divisor)
+        self._result = self._value / self._divisor
         return self._get_output_dictionary()
 
 
@@ -218,7 +217,7 @@ class BaseWeightByMoleFraction(BaseProtocol):
                                                       f'{main_component}. Only a single mole fraction must be '
                                                       f'defined.')
 
-        amount = amounts[0]
+        amount = next(iter(amounts))
 
         if not isinstance(amount, Substance.MoleFraction):
 

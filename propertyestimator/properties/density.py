@@ -1,7 +1,7 @@
 """
 A collection of density physical property definitions.
 """
-
+from propertyestimator import unit
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties import PhysicalProperty, PropertyPhase
 from propertyestimator.properties.plugins import register_estimable_property
@@ -9,6 +9,7 @@ from propertyestimator.protocols import analysis, reweighting, miscellaneous, gr
 from propertyestimator.protocols.utils import generate_base_simulation_protocols, generate_base_reweighting_protocols, \
     generate_gradient_protocol_group
 from propertyestimator.storage import StoredSimulationData
+from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow import WorkflowOptions
 from propertyestimator.workflow.schemas import WorkflowSchema, ProtocolReplicator
@@ -260,10 +261,11 @@ class ExcessMolarVolume(PhysicalProperty):
                                                                                                  options,
                                                                                                  id_suffix)
 
-        number_of_molecules = ProtocolPath('final_number_of_molecules', simulation_protocols.build_coordinates.id)
-
         # Divide the volume by the number of molecules in the system
-        extract_volume.divisor = number_of_molecules
+        number_of_molar_molecules = (simulation_protocols.build_coordinates.max_molecules /
+                                     unit.avogadro_number).to(unit.mole)
+
+        extract_volume.divisor = number_of_molar_molecules
 
         # Use the correct substance.
         simulation_protocols.build_coordinates.substance = substance_reference
@@ -330,7 +332,7 @@ class ExcessMolarVolume(PhysicalProperty):
 
         scale_gradient = gradients.DivideGradientByScalar(f'scale_gradient{id_suffix}')
         scale_gradient.value = gradient_source
-        scale_gradient.divisor = number_of_molecules
+        scale_gradient.divisor = number_of_molar_molecules
 
         gradient_group.add_protocols(scale_gradient)
         gradient_source = ProtocolPath('result', gradient_group.id, scale_gradient.id)
@@ -427,9 +429,14 @@ class ExcessMolarVolume(PhysicalProperty):
         number_of_molecules = ProtocolPath('total_number_of_molecules', protocols.
                                            unpack_stored_data.id.replace(f'$({data_replicator_id})', '0'))
 
+        number_of_molar_molecules = miscellaneous.MultiplyValue(f'number_of_molar_molecules{id_suffix}')
+        number_of_molar_molecules.value = EstimatedQuantity((1.0 / unit.avogadro_number).to(unit.mole),
+                                                            (0.0 / unit.avogadro_number).to(unit.mole), '')
+        number_of_molar_molecules.multiplier = number_of_molecules
+
         divide_by_molecules = miscellaneous.DivideValue(f'divide_by_molecules{id_suffix}')
         divide_by_molecules.value = value_source
-        divide_by_molecules.divisor = number_of_molecules
+        divide_by_molecules.divisor = ProtocolPath('result.value', number_of_molar_molecules.id)
 
         value_source = ProtocolPath('result', divide_by_molecules.id)
 
@@ -471,12 +478,12 @@ class ExcessMolarVolume(PhysicalProperty):
 
         scale_gradient = gradients.DivideGradientByScalar(f'scale_gradient{id_suffix}')
         scale_gradient.value = gradient_source
-        scale_gradient.divisor = number_of_molecules
+        scale_gradient.divisor = ProtocolPath('result.value', number_of_molar_molecules.id)
 
         gradient_group.add_protocols(scale_gradient)
         gradient_source = ProtocolPath('result', gradient_group.id, scale_gradient.id)
 
-        all_protocols = (*protocols, divide_by_molecules)
+        all_protocols = (*protocols, number_of_molar_molecules, divide_by_molecules)
 
         if weight_volume is not None:
             all_protocols = (*all_protocols, weight_volume)

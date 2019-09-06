@@ -499,7 +499,7 @@ class DivideGradientByScalar(BaseProtocol):
         """The value to divide."""
         pass
 
-    @protocol_input(int)
+    @protocol_input(object)
     def divisor(self):
         """The scalar to divide by."""
         pass
@@ -521,7 +521,7 @@ class DivideGradientByScalar(BaseProtocol):
     def execute(self, directory, available_resources):
 
         self._result = ParameterGradient(self._value.key,
-                                         self._value.value / float(self._divisor))
+                                         self._value.value / self._divisor)
 
         return self._get_output_dictionary()
 
