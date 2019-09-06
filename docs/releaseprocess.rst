@@ -60,7 +60,7 @@ To cut a new release on GitHub:
     A richer version of these release notes with live links to API documentation is available
     on [our ReadTheDocs page](https://property-estimator.readthedocs.io/en/latest/releasehistory.html)
 
-    See our [installation instructions](https://property-estimator.readthedocs.io/en/latest/installation.html).
+    See our [installation instructions](https://property-estimator.readthedocs.io/en/latest/install.html).
 
     Please report bugs, request features, or ask questions through our
     [issue tracker](https://github.com/openforcefield/propertyestimator/issues).
