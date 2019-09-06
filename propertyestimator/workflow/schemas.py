@@ -188,6 +188,18 @@ class ProtocolReplicator(TypedBaseModel):
             if not should_replicate:
 
                 replicated_protocols[protocol_id] = protocol
+                
+                if template_index is not None and template_index >= 0:
+                    # Make sure to include children of replicated protocols in the
+                    # map to ensure correct behaviour when updating children of replicated
+                    # protocols which have the replicator id in their name, and take input
+                    # from another child protocol which doesn't have the replicator id in
+                    # its name.
+                    if ProtocolPath('', protocol_id) not in replicated_protocol_map:
+                        replicated_protocol_map[ProtocolPath('', protocol_id)] = []
+
+                    replicated_protocol_map[ProtocolPath('', protocol_id)].append(
+                        (ProtocolPath('', protocol_id), template_index))
 
                 self._apply_to_protocol_children(protocol, replicated_protocol_map,
                                                  template_values, template_index, template_value)
