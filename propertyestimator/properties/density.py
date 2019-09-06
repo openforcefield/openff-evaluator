@@ -468,7 +468,8 @@ class ExcessMolarVolume(PhysicalProperty):
         if weight_by_mole_fraction is True:
             # The component workflows need an extra step to multiply their gradients by their
             # relative mole fraction.
-            weight_gradient = gradients.WeightGradientByMoleFraction(f'weight_gradient_by_mole_fraction{id_suffix}')
+            weight_gradient = gradients.WeightGradientByMoleFraction(f'weight_gradient_$({gradient_replicator_id})_'
+                                                                     f'by_mole_fraction{id_suffix}')
             weight_gradient.value = gradient_source
             weight_gradient.full_substance = ProtocolPath('substance', 'global')
             weight_gradient.component = substance_reference
@@ -476,7 +477,7 @@ class ExcessMolarVolume(PhysicalProperty):
             gradient_group.add_protocols(weight_gradient)
             gradient_source = ProtocolPath('weighted_value', weight_gradient.id)
 
-        scale_gradient = gradients.DivideGradientByScalar(f'scale_gradient{id_suffix}')
+        scale_gradient = gradients.DivideGradientByScalar(f'scale_gradient_$({gradient_replicator_id}){id_suffix}')
         scale_gradient.value = gradient_source
         scale_gradient.divisor = ProtocolPath('result.value', number_of_molar_molecules.id)
 
