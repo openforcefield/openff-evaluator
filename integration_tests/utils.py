@@ -102,11 +102,11 @@ def build_substance(ligand_smiles, receptor_smiles, ionic_strength=None):
 
     if ionic_strength is not None:
 
-        salt_mole_fraction = Substance.calculate_aqueous_ionic_mole_fraction(ionic_strength) / 2.0
+        salt_mole_fraction = Substance.calculate_aqueous_ionic_mole_fraction(ionic_strength)
         water_mole_fraction = 1.0 - salt_mole_fraction
 
-        substance.add_component(component=sodium, amount=Substance.MoleFraction(salt_mole_fraction))
-        substance.add_component(component=chlorine, amount=Substance.MoleFraction(salt_mole_fraction))
+        substance.add_component(component=sodium, amount=Substance.MoleFraction(salt_mole_fraction / 2.0))
+        substance.add_component(component=chlorine, amount=Substance.MoleFraction(salt_mole_fraction / 2.0))
 
     substance.add_component(component=water, amount=Substance.MoleFraction(water_mole_fraction))
 
