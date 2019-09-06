@@ -14,37 +14,33 @@ Ensure that the release history file is up to date, and conforms to the below te
 
 ::
 
-    # X.Y.Z
+    X.Y.Z - Descriptive Title
+    ------------------------------
 
-    This release ...
+    This release...
 
-    A richer version of these release notes with live links to API documentation is available
-    on [our ReadTheDocs page](https://property-estimator.readthedocs.io/en/latest/releasehistory.html)
+    New Features
+    """"""""""""
 
-    See our [installation instructions](https://property-estimator.readthedocs.io/en/latest/installation.html).
+    * PR #X: Feature summary
 
-    Please report bugs, request features, or ask questions through our
-    [issue tracker](https://github.com/openforcefield/propertyestimator/issues).
+    Bugfixes
+    """"""""
 
-    **Please note that this is a pre-alpha release and there will still be major changes to the API
-    prior to a stable 1.0.0 release.**
+    * PR #Y: Fix Summary
 
-    ### Bugfixes
+    Breaking Changes
+    """"""""""""""""
 
-    * PR #1: Summary of PR #1
-    * PR #2: Summary of PR #2
+    * PR #Z: Descriptive summary of the breaking change
 
-    ### Breaking Change
+    Migration Guide
+    """""""""""""""
 
-    * A list of those changes which break either the API, or the fundamental science performed by the
-      framework.
-
-    ### Migration Guide
-
-    This release contained several major public API breaking changes. For the most part, these can be
+    This release contained several public API breaking changes. For the most part, these can be
     remedied by the follow steps:
 
-    * `method_x` is now exposed as `method_y`
+    * A somewhat verbose guide on how users should upgrade their code given the new breaking changes.
 
 2: Cut the Release on GitHub
 ----------------------------
@@ -55,9 +51,24 @@ To cut a new release on GitHub:
 2) Set the release tag using the form: ``X.Y.Z``
 3) Added a descriptive title using the form: ``X.Y.Z [Descriptive Title]``
 4) Ensure the ``This is a pre-release`` checkbox is ticked.
-5) Copy the release notes from part one into the description box.
+5) Reformat the release notes from part 1) into markdown and paste into the description box.
 
-*Note - You do not need to upload any files. The source code will automatically be added as a tar.gz.*
+  a) Append the following extra message above the `New Features` title:
+
+::
+
+    A richer version of these release notes with live links to API documentation is available
+    on [our ReadTheDocs page](https://property-estimator.readthedocs.io/en/latest/releasehistory.html)
+
+    See our [installation instructions](https://property-estimator.readthedocs.io/en/latest/install.html).
+
+    Please report bugs, request features, or ask questions through our
+    [issue tracker](https://github.com/openforcefield/propertyestimator/issues).
+
+    **Please note that this is a pre-alpha release and there will still be major changes to the API
+    prior to a stable 1.0.0 release.**
+
+*Note - You do not need to upload any files. The source code will automatically be added as a `.tar.gz` file.*
 
 3: Trigger a New Build on Omnia
 -------------------------------
@@ -65,7 +76,7 @@ To cut a new release on GitHub:
 To trigger the build in ``omnia``:
 
 1) Create branch or fork of omnia-md/conda-recipes with the following changes to propertyestimator in
-`meta.yaml<https://github.com/omnia-md/conda-recipes/blob/master/propertyestimator/meta.yaml>`_:
+`meta.yaml <https://github.com/omnia-md/conda-recipes/blob/master/propertyestimator/meta.yaml>`_:
 
   a) Set ``git_tag`` to match the git release tag
   b) Update the ``version`` to match the release (this will go into the conda package name)
