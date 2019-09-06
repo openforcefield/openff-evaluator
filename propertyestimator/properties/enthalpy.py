@@ -117,7 +117,7 @@ class EnthalpyOfMixing(PhysicalProperty):
                                                                                                  options,
                                                                                                  id_suffix)
 
-        number_of_molecules = ProtocolPath('final_number_of_molecules', simulation_protocols.build_coordinates.id)
+        number_of_molecules = simulation_protocols.build_coordinates.max_molecules
 
         # Divide the enthalpy by the number of molecules in the system
         extract_enthalpy.divisor = number_of_molecules
