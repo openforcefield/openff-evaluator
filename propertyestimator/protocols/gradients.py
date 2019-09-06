@@ -12,6 +12,7 @@ from simtk.openmm import app
 
 from propertyestimator import unit
 from propertyestimator.properties.properties import ParameterGradientKey, ParameterGradient
+from propertyestimator.protocols.miscellaneous import BaseWeightByMoleFraction
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
@@ -672,3 +673,30 @@ class SubtractGradients(BaseProtocol):
                                          value=self._value_b.value - self._value_a.value)
 
         return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class WeightGradientByMoleFraction(BaseWeightByMoleFraction):
+    """Multiplies a gradient by the mole fraction of a component
+    in a mixture substance.
+    """
+    @protocol_input(ParameterGradient)
+    def value(self):
+        """The value to be weighted."""
+        pass
+
+    @protocol_output(ParameterGradient)
+    def weighted_value(self, value):
+        """The value weighted by the `component`s mole fraction as determined from
+        the `full_substance`."""
+        pass
+
+    def _weight_values(self, mole_fraction):
+        """
+        Returns
+        -------
+        ParameterGradient
+            The weighted value.
+        """
+        return ParameterGradient(self._value.key,
+                                 self._value.value * mole_fraction)
