@@ -30,6 +30,15 @@ __CUSTOM_HOST_GUEST_BLOB__ = """
             guest = '{1}'
 """
 
+__CUSTOM_HOST_BLOB__ = """
+        def main():
+            setup_timestamp_logging()
+
+            host = '{0}'
+            guest = None
+"""
+
+
 __RESOURCES__ = """
     # Set up the object which describes how many compute resources available
     # on the machine on which the calculations will run.
@@ -48,12 +57,7 @@ __BODY__ = """
     thermodynamic_state = ThermodynamicState(temperature=298.15 * unit.kelvin,
                                              pressure=1.0 * unit.atmosphere)
 
-    # host_guest_substances, host_guest_orientations = get_paprika_host_guest_substance(host, guest, ionic_strength=150 * unit.millimolar)
-    # host_substance, _ = get_paprika_host_guest_substance(host, None, ionic_strength=150 * unit.millimolar)[0]
-
-    host_guest_substances, host_guest_orientations = get_paprika_host_guest_substance(host, guest)
-    # host_substance, _ = get_paprika_host_guest_substance(host, None)[0]
-
+    host_guest_substances, host_guest_orientations = get_paprika_host_guest_substance(host, guest, ionic_strength=150 * unit.millimolar)
 
     substance_results = []
     for substance, orientation in zip(host_guest_substances, host_guest_orientations):
@@ -75,7 +79,7 @@ __BODY__ = """
 
         # 50,000 × 2 fs = 0.1 ns
         # 500,000 × 2 fs = 1 ns
-        host_guest_protocol.number_of_production_steps = 50000
+        host_guest_protocol.number_of_production_steps = 500000
         host_guest_protocol.production_output_frequency = 5000
         
         host_guest_protocol.number_of_solvent_molecules = 2000
@@ -117,37 +121,53 @@ __BODY__ = """
     host_directory = f'{host}'
     os.makedirs(host_directory, exist_ok=True)
 
-    # Create the protocol which will run the release calculations
-    # host_protocol = OpenMMPaprikaProtocol('host')
-    # 
-    # host_protocol.substance = host_substance
-    # host_protocol.thermodynamic_state = thermodynamic_state
-    # 
-    # host_protocol.taproom_host_name = host
-    # host_protocol.taproom_name = None
-    # 
-    # host_protocol.number_of_equilibration_steps = 5000
-    # host_protocol.equilibration_output_frequency = 500
-    # 
-    # host_protocol.number_of_production_steps = 500000   
-    # host_protocol.production_output_frequency = 5000
-    # 
-    # host_protocol.number_of_solvent_molecules = 2000
-    # 
-    # host_protocol.force_field = OpenMMPaprikaProtocol.ForceField.SMIRNOFF
-    # host_protocol.force_field_path = force_field_path
-    # 
-    # result = host_protocol.execute(host_directory, resources)
-    # 
-    # if isinstance(result, PropertyEstimatorException):
-    #     logging.info(f'The release calculations failed with error: {result.message}')
-    #     return
-
     logging.info(f"Attach and Pull={sum_protocol.result} "
-                 # f"Release={host_protocol.release_free_energy} "
                  f'Reference={host_guest_protocol.reference_free_energy}')
                          
 """
+
+__HOST_ONLY_BODY__ = """
+    # Set up the state at which we want the calculations to be performed.
+    thermodynamic_state = ThermodynamicState(temperature=298.15 * unit.kelvin,
+                                             pressure=1.0 * unit.atmosphere)
+
+    host_substance, _ = get_paprika_host_guest_substance(host, None, ionic_strength=150 * unit.millimolar)[0]
+
+    host_directory = f'{host}'
+    os.makedirs(host_directory, exist_ok=True)
+
+    # Create the protocol which will run the release calculations
+    host_protocol = OpenMMPaprikaProtocol('host')
+
+    host_protocol.substance = host_substance
+    host_protocol.thermodynamic_state = thermodynamic_state
+
+    host_protocol.taproom_host_name = host
+    host_protocol.taproom_name = None
+
+    host_protocol.number_of_equilibration_steps = 5000
+    host_protocol.equilibration_output_frequency = 500
+
+    # 500,000 × 2 fs = 1 ns
+    host_protocol.number_of_production_steps = 500000   
+    host_protocol.production_output_frequency = 5000
+
+    host_protocol.number_of_solvent_molecules = 2000
+
+    host_protocol.force_field = OpenMMPaprikaProtocol.ForceField.SMIRNOFF
+    host_protocol.force_field_path = force_field_path
+
+    result = host_protocol.execute(host_directory, resources)
+
+    if isinstance(result, PropertyEstimatorException):
+        logging.info(f'The release calculations failed with error: {result.message}')
+        return
+        
+    logging.info(f"Release={host_protocol.release_free_energy} ")
+
+        
+"""
+
 
 __RESULTS__ = """
 
@@ -156,9 +176,9 @@ __RESULTS__ = """
 
     results = dict()
     results['attach_pull'] = {sum_protocol.result}
-    # results['release'] = {host_protocol.release_free_energy}
+    results['release'] = {host_protocol.release_free_energy}
     results['reference'] = {host_guest_protocol.reference_free_energy}
-    # results['total'] = -1 * ( {sum_protocol.result} - {host_protocol.release_free_energy} - {host_guest_protocol.reference_free_energy} )
+    results['total'] = -1 * ( {sum_protocol.result} - {host_protocol.release_free_energy} - {host_guest_protocol.reference_free_energy} )
     
     with open(f'{host}-{guest}.json', "w") as f:
         json.dump(results, f)
@@ -173,9 +193,13 @@ __CLOSING__ = f"""
 
 __TSCC_HEADER__ = """
 #!/bin/bash
-#PBS -l walltime=8:00:00,nodes=1:ppn=4 -q home-gibbs
+#PBS -l walltime=16:00:00,nodes=1:ppn=4 -q home-gibbs
 #PBS -j oe -r n
 #PBS -N {0}
+#PBS -j oe
+#PBS -m abe 
+#PBS -M slochower@gmail.com
+#PBS -M simon.boothroyd@choderalab.org
 """
 
 __TSCC_BODY__ = """
@@ -226,7 +250,6 @@ def main():
             f.write((__RESOURCES__))
             f.write((__FORCEFIELD__))
             f.write((__BODY__))
-            f.write((__RESULTS__))
             f.write(textwrap.dedent(__CLOSING__))
 
         with open(os.path.join(host, guest, f"{host}-{guest}.sh"), "w") as f:
@@ -234,6 +257,26 @@ def main():
             f.write(textwrap.dedent((__TSCC_BODY__.format("/home/davids4/.bashrc",
                                                           f"{host}-{guest}",
                                                           f"{host}-{guest}.py"))))
+
+    for host in set([pair[0] for pair in host_guest_pairs]):
+        if not os.path.exists(host):
+            os.makedirs(host)
+
+        with open(os.path.join(host, f"{host}.py"), "w") as f:
+            f.write(textwrap.dedent(__HEADER__))
+            f.write(textwrap.dedent(__CUSTOM_HOST_BLOB__).format(host))
+            f.write((__RESOURCES__))
+            f.write((__FORCEFIELD__))
+            f.write((__HOST_ONLY_BODY__))
+            f.write(textwrap.dedent(__CLOSING__))
+
+        with open(os.path.join(host, f"{host}.sh"), "w") as f:
+            f.write(textwrap.dedent((__TSCC_HEADER__.format(f"{host}-only"))))
+            f.write(textwrap.dedent((__TSCC_BODY__.format("/home/davids4/.bashrc",
+                                                          f"{host}",
+                                                          f"{host}.py"))))
+
+
 
 if __name__ == "__main__":
     main()
