@@ -360,6 +360,9 @@ class Substance(TypedBaseModel):
                 total_mole_fraction += sum([amount.value for amount in self._amounts[component_identifier] if
                                             isinstance(amount, Substance.MoleFraction)])
 
+            if np.isclose(total_mole_fraction, 1.0):
+                total_mole_fraction = 1.0
+
             if total_mole_fraction > 1.0:
                 raise ValueError(f'The total mole fraction of this substance {total_mole_fraction} exceeds 1.0')
 
