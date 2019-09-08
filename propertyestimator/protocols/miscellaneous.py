@@ -2,7 +2,9 @@
 A collection of protocols for running analysing the results of molecular simulations.
 """
 import numpy as np
+import typing
 
+from propertyestimator import unit
 from propertyestimator.substances import Substance
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
@@ -61,17 +63,17 @@ class SubtractValues(BaseProtocol):
     `result = value_b - value_a`
     """
 
-    @protocol_input(EstimatedQuantity)
+    @protocol_input(typing.Union[int, float, unit.Quantity, EstimatedQuantity])
     def value_a(self):
         """`value_a` in the formula `result = value_b - value_a`"""
         pass
 
-    @protocol_input(EstimatedQuantity)
+    @protocol_input(typing.Union[int, float, unit.Quantity, EstimatedQuantity])
     def value_b(self):
         """`value_b` in the formula  `result = value_b - value_a`"""
         pass
 
-    @protocol_output(EstimatedQuantity)
+    @protocol_output(typing.Union[int, float, unit.Quantity, EstimatedQuantity])
     def result(self):
         """The sum of the values."""
         pass
@@ -96,17 +98,17 @@ class MultiplyValue(BaseProtocol):
     """A protocol which multiplies a value by a specified scalar
     """
 
-    @protocol_input(EstimatedQuantity)
+    @protocol_input(typing.Union[int, float, unit.Quantity, EstimatedQuantity])
     def value(self):
         """The value to multiply."""
         pass
 
-    @protocol_input(object)
+    @protocol_input(typing.Union[int, float, unit.Quantity])
     def multiplier(self):
         """The scalar to multiply by."""
         pass
 
-    @protocol_output(EstimatedQuantity)
+    @protocol_output(typing.Union[int, float, unit.Quantity, EstimatedQuantity])
     def result(self):
         """The result of the multiplication."""
         pass
@@ -134,17 +136,17 @@ class DivideValue(BaseProtocol):
     """A protocol which divides a value by a specified scalar
     """
 
-    @protocol_input(EstimatedQuantity)
+    @protocol_input(typing.Union[int, float, unit.Quantity, EstimatedQuantity])
     def value(self):
         """The value to divide."""
         pass
 
-    @protocol_input(object)
+    @protocol_input(typing.Union[int, float, unit.Quantity])
     def divisor(self):
         """The scalar to divide by."""
         pass
 
-    @protocol_output(EstimatedQuantity)
+    @protocol_output(typing.Union[int, float, unit.Quantity, EstimatedQuantity])
     def result(self):
         """The result of the division."""
         pass
