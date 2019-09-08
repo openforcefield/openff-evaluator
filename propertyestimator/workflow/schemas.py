@@ -835,7 +835,7 @@ class WorkflowSchema(TypedBaseModel):
                     expected_output_type = other_protocol_object.get_attribute_type(value_reference)
 
                     if (expected_input_type is not None and expected_output_type is not None and
-                        is_type_subclass_of_type(expected_output_type, expected_input_type)):
+                        not is_type_subclass_of_type(expected_output_type, expected_input_type)):
 
                         raise Exception('The output type ({}) of {} does not match the requested '
                                         'input type ({}) of {}'.format(expected_output_type, value_reference,
