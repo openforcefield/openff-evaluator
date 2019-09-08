@@ -230,6 +230,9 @@ class ExcessMolarVolume(PhysicalProperty):
         -------
         BaseSimulationProtocols
             The protocols used to estimate the molar volume of a substance.
+        DivideValue
+            The protocol used to calculate the number of molar molecules in
+            the system.
         ProtocolPath
             A reference to the estimated molar volume.
         WorkflowSimulationDataToStore
@@ -262,15 +265,19 @@ class ExcessMolarVolume(PhysicalProperty):
                                                                                                  id_suffix)
 
         # Divide the volume by the number of molecules in the system
-        number_of_molar_molecules = (simulation_protocols.build_coordinates.max_molecules /
-                                     unit.avogadro_number).to(unit.mole)
+        number_of_molecules = ProtocolPath('output_number_of_molecules', simulation_protocols.build_coordinates.id)
+        built_substance = ProtocolPath('output_substance', simulation_protocols.build_coordinates.id)
 
-        extract_volume.divisor = number_of_molar_molecules
+        number_of_molar_molecules = miscellaneous.DivideValue('number_of_molar_molecules')
+        number_of_molar_molecules.value = number_of_molecules
+        number_of_molar_molecules.divisor = (1.0 * unit.avogadro_number).to(unit.mole)
+
+        extract_volume.divisor = ProtocolPath('result', number_of_molar_molecules.id)
 
         # Use the correct substance.
         simulation_protocols.build_coordinates.substance = substance_reference
-        simulation_protocols.assign_parameters.substance = substance_reference
-        output_to_store.substance = substance_reference
+        simulation_protocols.assign_parameters.substance = built_substance
+        output_to_store.substance = built_substance
 
         conditional_group = simulation_protocols.converge_uncertainty
 
@@ -279,7 +286,7 @@ class ExcessMolarVolume(PhysicalProperty):
             # relative mole fraction.
             weight_by_mole_fraction = miscellaneous.WeightQuantityByMoleFraction(f'weight_by_mole_fraction{id_suffix}')
             weight_by_mole_fraction.value = ProtocolPath('value', extract_volume.id)
-            weight_by_mole_fraction.full_substance = ProtocolPath('substance', 'global')
+            weight_by_mole_fraction.full_substance = built_substance
             weight_by_mole_fraction.component = ReplicatorValue(replicator_id)
 
             conditional_group.add_protocols(weight_by_mole_fraction)
@@ -313,7 +320,7 @@ class ExcessMolarVolume(PhysicalProperty):
                                              trajectory_source,
                                              statistics_source,
                                              replicator_id=gradient_replicator_id,
-                                             substance_source=substance_reference,
+                                             substance_source=built_substance,
                                              id_suffix=id_suffix)
 
         # Remove the group id from the path.
@@ -324,7 +331,7 @@ class ExcessMolarVolume(PhysicalProperty):
             # relative mole fraction.
             weight_gradient = gradients.WeightGradientByMoleFraction(f'weight_gradient_by_mole_fraction{id_suffix}')
             weight_gradient.value = gradient_source
-            weight_gradient.full_substance = ProtocolPath('substance', 'global')
+            weight_gradient.full_substance = built_substance
             weight_gradient.component = substance_reference
 
             gradient_group.add_protocols(weight_gradient)
@@ -332,12 +339,12 @@ class ExcessMolarVolume(PhysicalProperty):
 
         scale_gradient = gradients.DivideGradientByScalar(f'scale_gradient{id_suffix}')
         scale_gradient.value = gradient_source
-        scale_gradient.divisor = number_of_molar_molecules
+        scale_gradient.divisor = ProtocolPath('result', number_of_molar_molecules.id)
 
         gradient_group.add_protocols(scale_gradient)
         gradient_source = ProtocolPath('result', gradient_group.id, scale_gradient.id)
 
-        return (simulation_protocols, value_source, output_to_store,
+        return (simulation_protocols, number_of_molar_molecules, value_source, output_to_store,
                 gradient_group, gradient_replicator, gradient_source)
 
     @staticmethod
@@ -519,6 +526,7 @@ class ExcessMolarVolume(PhysicalProperty):
         component_substance = ReplicatorValue(component_replicator_id)
 
         (component_protocols,
+         component_molar_molecules,
          component_volumes,
          component_output,
          component_gradient_group,
@@ -532,6 +540,7 @@ class ExcessMolarVolume(PhysicalProperty):
 
         # Set up a workflow to calculate the molar volume of the full, mixed system.
         (full_system_protocols,
+         full_system_molar_molecules,
          full_system_volume,
          full_output,
          full_system_gradient_group,
@@ -577,12 +586,14 @@ class ExcessMolarVolume(PhysicalProperty):
             component_protocols.energy_minimisation.id: component_protocols.energy_minimisation.schema,
             component_protocols.equilibration_simulation.id: component_protocols.equilibration_simulation.schema,
             component_protocols.converge_uncertainty.id: component_protocols.converge_uncertainty.schema,
+            component_molar_molecules.id: component_molar_molecules.schema,
 
             full_system_protocols.build_coordinates.id: full_system_protocols.build_coordinates.schema,
             full_system_protocols.assign_parameters.id: full_system_protocols.assign_parameters.schema,
             full_system_protocols.energy_minimisation.id: full_system_protocols.energy_minimisation.schema,
             full_system_protocols.equilibration_simulation.id: full_system_protocols.equilibration_simulation.schema,
             full_system_protocols.converge_uncertainty.id: full_system_protocols.converge_uncertainty.schema,
+            full_system_molar_molecules.id: full_system_molar_molecules.schema,
 
             component_protocols.extract_uncorrelated_trajectory.id:
                 component_protocols.extract_uncorrelated_trajectory.schema,

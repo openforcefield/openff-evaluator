@@ -117,15 +117,16 @@ class EnthalpyOfMixing(PhysicalProperty):
                                                                                                  options,
                                                                                                  id_suffix)
 
-        number_of_molecules = simulation_protocols.build_coordinates.max_molecules
+        number_of_molecules = ProtocolPath('output_number_of_molecules', simulation_protocols.build_coordinates.id)
+        built_substance = ProtocolPath('output_substance', simulation_protocols.build_coordinates.id)
 
         # Divide the enthalpy by the number of molecules in the system
         extract_enthalpy.divisor = number_of_molecules
 
         # Use the correct substance.
         simulation_protocols.build_coordinates.substance = substance_reference
-        simulation_protocols.assign_parameters.substance = substance_reference
-        output_to_store.substance = substance_reference
+        simulation_protocols.assign_parameters.substance = built_substance
+        output_to_store.substance = built_substance
 
         conditional_group = simulation_protocols.converge_uncertainty
 
@@ -135,7 +136,7 @@ class EnthalpyOfMixing(PhysicalProperty):
             # relative mole fraction.
             weight_by_mole_fraction = miscellaneous.WeightQuantityByMoleFraction(f'weight_by_mole_fraction{id_suffix}')
             weight_by_mole_fraction.value = ProtocolPath('value', extract_enthalpy.id)
-            weight_by_mole_fraction.full_substance = ProtocolPath('substance', 'global')
+            weight_by_mole_fraction.full_substance = built_substance
             weight_by_mole_fraction.component = ReplicatorValue(replicator_id)
 
             conditional_group.add_protocols(weight_by_mole_fraction)
@@ -170,7 +171,7 @@ class EnthalpyOfMixing(PhysicalProperty):
                                              trajectory_source,
                                              statistics_source,
                                              replicator_id=gradient_replicator_id,
-                                             substance_source=substance_reference,
+                                             substance_source=built_substance,
                                              id_suffix=id_suffix)
 
         # Remove the group id from the path.
@@ -182,7 +183,7 @@ class EnthalpyOfMixing(PhysicalProperty):
             # relative mole fraction.
             weight_gradient = gradients.WeightGradientByMoleFraction(f'weight_gradient_by_mole_fraction{id_suffix}')
             weight_gradient.value = gradient_source
-            weight_gradient.full_substance = ProtocolPath('substance', 'global')
+            weight_gradient.full_substance = built_substance
             weight_gradient.component = substance_reference
 
             gradient_group.add_protocols(weight_gradient)

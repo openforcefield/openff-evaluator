@@ -335,6 +335,41 @@ class Substance(TypedBaseModel):
         self._amounts = {}
         self._components = []
 
+    @classmethod
+    def from_components(cls, *components):
+        """Creates a new `Substance` object from a list of components.
+        This method assumes that all components should be present with
+        equal mole fractions.
+
+        Parameters
+        ----------
+        components: Substance.Component or str
+            The components to add to the substance. These may either be full
+            `Substance.Component` objects or just the smiles representation
+            of the component.
+
+        Returns
+        -------
+        Substance
+            The substance containing the requested components in equal amounts.
+        """
+
+        if len(components) == 0:
+            raise ValueError('At least one component must be specified')
+
+        mole_fraction = 1.0 / len(components)
+
+        return_substance = cls()
+
+        for component in components:
+
+            if isinstance(component, str):
+                component = Substance.Component(smiles=component)
+
+            return_substance.add_component(component, Substance.MoleFraction(mole_fraction))
+
+        return return_substance
+
     def add_component(self, component, amount):
         """Add a component to the Substance. If the component is already present in
         the substance, then the mole fraction will be added to the current mole
@@ -522,7 +557,6 @@ class Substance(TypedBaseModel):
         return hash(string_hash)
 
     def __eq__(self, other):
-
         return hash(self) == hash(other)
 
     def __ne__(self, other):

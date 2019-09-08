@@ -134,7 +134,7 @@ class DivideValue(BaseProtocol):
     """A protocol which divides a value by a specified scalar
     """
 
-    @protocol_input(EstimatedQuantity)
+    @protocol_input(object)
     def value(self):
         """The value to divide."""
         pass
@@ -144,7 +144,7 @@ class DivideValue(BaseProtocol):
         """The scalar to divide by."""
         pass
 
-    @protocol_output(EstimatedQuantity)
+    @protocol_output(object)
     def result(self):
         """The result of the division."""
         pass
