@@ -1,10 +1,12 @@
 """
-A collection of protocols for running analysing the results of molecular simulations.
+A collection of miscellaneous protocols, mostly aimed at performing simple
+math operations.
 """
 import numpy as np
 import typing
 
 from propertyestimator import unit
+from propertyestimator.properties import ParameterGradient
 from propertyestimator.substances import Substance
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
@@ -28,7 +30,7 @@ class AddValues(BaseProtocol):
         """The values to add together."""
         pass
 
-    @protocol_output(typing.Union[int, float, EstimatedQuantity, unit.Quantity])
+    @protocol_output(typing.Union[int, float, EstimatedQuantity, unit.Quantity, ParameterGradient])
     def result(self):
         """The sum of the values."""
         pass
@@ -42,15 +44,17 @@ class AddValues(BaseProtocol):
 
     def execute(self, directory, available_resources):
 
-        self._result = None
+        if len(self._values) < 1:
+            return PropertyEstimatorException(directory, 'There were no gradients to add together')
 
-        for value in self._values:
+        if not all(isinstance(x, type(self._values[0])) for x in self._values):
 
-            if self._result is None:
+            return PropertyEstimatorException(directory, f'All values to add together must be '
+                                                         f'the same type ({" ".join(map(str, self._values))}).')
 
-                self._result = value
-                continue
+        self._result = self._values[0]
 
+        for value in self._values[1:]:
             self._result += value
 
         return self._get_output_dictionary()
@@ -63,17 +67,17 @@ class SubtractValues(BaseProtocol):
     `result = value_b - value_a`
     """
 
-    @protocol_input(typing.Union[int, float, unit.Quantity, EstimatedQuantity])
+    @protocol_input(typing.Union[int, float, unit.Quantity, EstimatedQuantity, ParameterGradient])
     def value_a(self):
         """`value_a` in the formula `result = value_b - value_a`"""
         pass
 
-    @protocol_input(typing.Union[int, float, unit.Quantity, EstimatedQuantity])
+    @protocol_input(typing.Union[int, float, unit.Quantity, EstimatedQuantity, ParameterGradient])
     def value_b(self):
         """`value_b` in the formula  `result = value_b - value_a`"""
         pass
 
-    @protocol_output(typing.Union[int, float, unit.Quantity, EstimatedQuantity])
+    @protocol_output(typing.Union[int, float, unit.Quantity, EstimatedQuantity, ParameterGradient])
     def result(self):
         """The sum of the values."""
         pass
@@ -98,7 +102,7 @@ class MultiplyValue(BaseProtocol):
     """A protocol which multiplies a value by a specified scalar
     """
 
-    @protocol_input(typing.Union[int, float, unit.Quantity, EstimatedQuantity])
+    @protocol_input(typing.Union[int, float, unit.Quantity, EstimatedQuantity, ParameterGradient])
     def value(self):
         """The value to multiply."""
         pass
@@ -108,7 +112,7 @@ class MultiplyValue(BaseProtocol):
         """The scalar to multiply by."""
         pass
 
-    @protocol_output(typing.Union[int, float, unit.Quantity, EstimatedQuantity])
+    @protocol_output(typing.Union[int, float, unit.Quantity, EstimatedQuantity, ParameterGradient])
     def result(self):
         """The result of the multiplication."""
         pass
@@ -124,9 +128,15 @@ class MultiplyValue(BaseProtocol):
 
     def execute(self, directory, available_resources):
 
-        self._result = EstimatedQuantity(self._value.value * self._multiplier,
-                                         self._value.uncertainty * self._multiplier,
-                                         *self._value.sources)
+        if isinstance(self._value, EstimatedQuantity):
+
+            self._result = EstimatedQuantity(self._value.value * self._multiplier,
+                                             self._value.uncertainty * self._multiplier,
+                                             *self._value.sources)
+
+        else:
+
+            self._result = self._value * self._multiplier
 
         return self._get_output_dictionary()
 
@@ -136,7 +146,7 @@ class DivideValue(BaseProtocol):
     """A protocol which divides a value by a specified scalar
     """
 
-    @protocol_input(typing.Union[int, float, unit.Quantity, EstimatedQuantity])
+    @protocol_input(typing.Union[int, float, unit.Quantity, EstimatedQuantity, ParameterGradient])
     def value(self):
         """The value to divide."""
         pass
@@ -146,7 +156,7 @@ class DivideValue(BaseProtocol):
         """The scalar to divide by."""
         pass
 
-    @protocol_output(typing.Union[int, float, unit.Quantity, EstimatedQuantity])
+    @protocol_output(typing.Union[int, float, unit.Quantity, EstimatedQuantity, ParameterGradient])
     def result(self):
         """The result of the division."""
         pass
@@ -232,16 +242,16 @@ class BaseWeightByMoleFraction(BaseProtocol):
 
 
 @register_calculation_protocol()
-class WeightQuantityByMoleFraction(BaseWeightByMoleFraction):
-    """Multiplies a quantity by the mole fraction of a component
-    in a mixture substance.
+class WeightByMoleFraction(BaseWeightByMoleFraction):
+    """Multiplies a value by the mole fraction of a component
+    in a `Substance`.
     """
-    @protocol_input(typing.Union[EstimatedQuantity, unit.Quantity])
+    @protocol_input(typing.Union[float, int, EstimatedQuantity, unit.Quantity, ParameterGradient])
     def value(self):
         """The value to be weighted."""
         pass
 
-    @protocol_output(typing.Union[EstimatedQuantity, unit.Quantity])
+    @protocol_output(typing.Union[float, int, EstimatedQuantity, unit.Quantity, ParameterGradient])
     def weighted_value(self, value):
         """The value weighted by the `component`s mole fraction as determined from
         the `full_substance`."""
@@ -251,7 +261,7 @@ class WeightQuantityByMoleFraction(BaseWeightByMoleFraction):
         """
         Returns
         -------
-        EstimatedQuantity
+        float, int, EstimatedQuantity, unit.Quantity, ParameterGradient
             The weighted value.
         """
         return self._value * mole_fraction
