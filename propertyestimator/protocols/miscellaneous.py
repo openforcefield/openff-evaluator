@@ -28,7 +28,7 @@ class AddValues(BaseProtocol):
         """The values to add together."""
         pass
 
-    @protocol_output(EstimatedQuantity)
+    @protocol_output(typing.Union[int, float, EstimatedQuantity, unit.Quantity])
     def result(self):
         """The sum of the values."""
         pass
@@ -236,12 +236,12 @@ class WeightQuantityByMoleFraction(BaseWeightByMoleFraction):
     """Multiplies a quantity by the mole fraction of a component
     in a mixture substance.
     """
-    @protocol_input(EstimatedQuantity)
+    @protocol_input(typing.Union[EstimatedQuantity, unit.Quantity])
     def value(self):
         """The value to be weighted."""
         pass
 
-    @protocol_output(EstimatedQuantity)
+    @protocol_output(typing.Union[EstimatedQuantity, unit.Quantity])
     def weighted_value(self, value):
         """The value weighted by the `component`s mole fraction as determined from
         the `full_substance`."""
