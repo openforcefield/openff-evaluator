@@ -3,7 +3,6 @@ A collection of protocols for running analysing the results of molecular simulat
 """
 import numpy as np
 
-from propertyestimator import unit
 from propertyestimator.substances import Substance
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
@@ -102,7 +101,7 @@ class MultiplyValue(BaseProtocol):
         """The value to multiply."""
         pass
 
-    @protocol_input(unit.Quantity)
+    @protocol_input(object)
     def multiplier(self):
         """The scalar to multiply by."""
         pass
@@ -140,7 +139,7 @@ class DivideValue(BaseProtocol):
         """The value to divide."""
         pass
 
-    @protocol_input(int)
+    @protocol_input(object)
     def divisor(self):
         """The scalar to divide by."""
         pass
@@ -161,8 +160,99 @@ class DivideValue(BaseProtocol):
 
     def execute(self, directory, available_resources):
 
-        self._result = self._value / float(self._divisor)
+        self._result = self._value / self._divisor
         return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class BaseWeightByMoleFraction(BaseProtocol):
+    """Multiplies a value by the mole fraction of a component
+    in a mixture substance.
+    """
+    @protocol_input(Substance)
+    def component(self, value):
+        """The component (e.g water) to which this value belongs."""
+        pass
+
+    @protocol_input(Substance)
+    def full_substance(self, value):
+        """The full substance of which the component of interest is a part."""
+        pass
+
+    def __init__(self, protocol_id):
+        super().__init__(protocol_id)
+
+        self._value = None
+        self._component = None
+        self._full_substance = None
+
+        self._weighted_value = None
+
+    def _weight_values(self, mole_fraction):
+        """Weights a value by a components mole fraction.
+
+        Parameters
+        ----------
+        mole_fraction: float
+            The mole fraction to weight by.
+
+        Returns
+        -------
+        Any
+            The weighted value.
+        """
+        raise NotImplementedError()
+
+    def execute(self, directory, available_resources):
+
+        assert len(self._component.components) == 1
+
+        main_component = self._component.components[0]
+        amounts = self._full_substance.get_amounts(main_component)
+
+        if len(amounts) != 1:
+
+            return PropertyEstimatorException(directory=directory,
+                                              message=f'More than one type of amount was defined for component '
+                                                      f'{main_component}. Only a single mole fraction must be '
+                                                      f'defined.')
+
+        amount = next(iter(amounts))
+
+        if not isinstance(amount, Substance.MoleFraction):
+
+            return PropertyEstimatorException(directory=directory,
+                                              message=f'The component {main_component} was given as an '
+                                                      f'exact amount, and not a mole fraction')
+
+        self._weighted_value = self._weight_values(amount.value)
+        return self._get_output_dictionary()
+
+
+@register_calculation_protocol()
+class WeightQuantityByMoleFraction(BaseWeightByMoleFraction):
+    """Multiplies a quantity by the mole fraction of a component
+    in a mixture substance.
+    """
+    @protocol_input(EstimatedQuantity)
+    def value(self):
+        """The value to be weighted."""
+        pass
+
+    @protocol_output(EstimatedQuantity)
+    def weighted_value(self, value):
+        """The value weighted by the `component`s mole fraction as determined from
+        the `full_substance`."""
+        pass
+
+    def _weight_values(self, mole_fraction):
+        """
+        Returns
+        -------
+        EstimatedQuantity
+            The weighted value.
+        """
+        return self._value * mole_fraction
 
 
 @register_calculation_protocol()

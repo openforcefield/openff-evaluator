@@ -7,142 +7,20 @@ from collections import namedtuple
 from propertyestimator import unit
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.properties.properties import PhysicalProperty, PropertyPhase, ParameterGradient
+from propertyestimator.properties.properties import PhysicalProperty, PropertyPhase
 from propertyestimator.protocols import analysis, groups, miscellaneous, reweighting, gradients, storage
 from propertyestimator.protocols.groups import ProtocolGroup
 from propertyestimator.protocols.utils import generate_base_reweighting_protocols, generate_base_simulation_protocols, \
     generate_gradient_protocol_group
 from propertyestimator.storage import StoredSimulationData
 from propertyestimator.storage.dataclasses import StoredDataCollection
-from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import Ensemble
-from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
-from propertyestimator.workflow import plugins, WorkflowOptions
-from propertyestimator.workflow.decorators import protocol_input, protocol_output
-from propertyestimator.workflow.protocols import BaseProtocol
+from propertyestimator.workflow import WorkflowOptions
 from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSchema, \
     WorkflowDataCollectionToStore
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
-
-
-@plugins.register_calculation_protocol()
-class BaseWeightByMoleFraction(BaseProtocol):
-    """Multiplies a value by the mole fraction of a component
-    in a mixture substance.
-    """
-    @protocol_input(Substance)
-    def component(self, value):
-        """The component (e.g water) to which this value belongs."""
-        pass
-
-    @protocol_input(Substance)
-    def full_substance(self, value):
-        """The full substance of which the component of interest is a part."""
-        pass
-
-    def __init__(self, protocol_id):
-        super().__init__(protocol_id)
-
-        self._value = None
-        self._component = None
-        self._full_substance = None
-
-        self._weighted_value = None
-
-    def _weight_values(self, mole_fraction):
-        """Weights a value by a components mole fraction.
-
-        Parameters
-        ----------
-        mole_fraction: float
-            The mole fraction to weight by.
-
-        Returns
-        -------
-        Any
-            The weighted value.
-        """
-        raise NotImplementedError()
-
-    def execute(self, directory, available_resources):
-
-        assert len(self._component.components) == 1
-
-        main_component = self._component.components[0]
-        amounts = self._full_substance.get_amounts(main_component)
-
-        if len(amounts) != 1:
-
-            return PropertyEstimatorException(directory=directory,
-                                              message=f'More than one type of amount was defined for component '
-                                                      f'{main_component}. Only a single mole fraction must be '
-                                                      f'defined.')
-
-        amount = amounts[0]
-
-        if not isinstance(amount, Substance.MoleFraction):
-
-            return PropertyEstimatorException(directory=directory,
-                                              message=f'The component {main_component} was given as an '
-                                                      f'exact amount, and not a mole fraction')
-
-        self._weighted_value = self._weight_values(amount.value)
-        return self._get_output_dictionary()
-
-
-@plugins.register_calculation_protocol()
-class WeightQuantityByMoleFraction(BaseWeightByMoleFraction):
-    """Multiplies a quantity by the mole fraction of a component
-    in a mixture substance.
-    """
-    @protocol_input(EstimatedQuantity)
-    def value(self):
-        """The value to be weighted."""
-        pass
-
-    @protocol_output(EstimatedQuantity)
-    def weighted_value(self, value):
-        """The value weighted by the `component`s mole fraction as determined from
-        the `full_substance`."""
-        pass
-
-    def _weight_values(self, mole_fraction):
-        """
-        Returns
-        -------
-        EstimatedQuantity
-            The weighted value.
-        """
-        return self._value * mole_fraction
-
-
-@plugins.register_calculation_protocol()
-class WeightGradientByMoleFraction(BaseWeightByMoleFraction):
-    """Multiplies a gradient by the mole fraction of a component
-    in a mixture substance.
-    """
-    @protocol_input(ParameterGradient)
-    def value(self):
-        """The value to be weighted."""
-        pass
-
-    @protocol_output(ParameterGradient)
-    def weighted_value(self, value):
-        """The value weighted by the `component`s mole fraction as determined from
-        the `full_substance`."""
-        pass
-
-    def _weight_values(self, mole_fraction):
-        """
-        Returns
-        -------
-        ParameterGradient
-            The weighted value.
-        """
-        return ParameterGradient(self._value.key,
-                                 self._value.value * mole_fraction)
 
 
 @register_estimable_property()
@@ -239,7 +117,7 @@ class EnthalpyOfMixing(PhysicalProperty):
                                                                                                  options,
                                                                                                  id_suffix)
 
-        number_of_molecules = ProtocolPath('final_number_of_molecules', simulation_protocols.build_coordinates.id)
+        number_of_molecules = simulation_protocols.build_coordinates.max_molecules
 
         # Divide the enthalpy by the number of molecules in the system
         extract_enthalpy.divisor = number_of_molecules
@@ -255,7 +133,7 @@ class EnthalpyOfMixing(PhysicalProperty):
 
             # The component workflows need an extra step to multiply their enthalpies by their
             # relative mole fraction.
-            weight_by_mole_fraction = WeightQuantityByMoleFraction(f'weight_by_mole_fraction{id_suffix}')
+            weight_by_mole_fraction = miscellaneous.WeightQuantityByMoleFraction(f'weight_by_mole_fraction{id_suffix}')
             weight_by_mole_fraction.value = ProtocolPath('value', extract_enthalpy.id)
             weight_by_mole_fraction.full_substance = ProtocolPath('substance', 'global')
             weight_by_mole_fraction.component = ReplicatorValue(replicator_id)
@@ -302,7 +180,7 @@ class EnthalpyOfMixing(PhysicalProperty):
 
             # The component workflows need an extra step to multiply their gradients by their
             # relative mole fraction.
-            weight_gradient = WeightGradientByMoleFraction(f'weight_gradient_by_mole_fraction{id_suffix}')
+            weight_gradient = gradients.WeightGradientByMoleFraction(f'weight_gradient_by_mole_fraction{id_suffix}')
             weight_gradient.value = gradient_source
             weight_gradient.full_substance = ProtocolPath('substance', 'global')
             weight_gradient.component = substance_reference
@@ -403,7 +281,7 @@ class EnthalpyOfMixing(PhysicalProperty):
 
         if weight_by_mole_fraction is True:
 
-            weight_enthalpy = WeightQuantityByMoleFraction(f'weight_enthalpy{id_suffix}')
+            weight_enthalpy = miscellaneous.WeightQuantityByMoleFraction(f'weight_enthalpy{id_suffix}')
             weight_enthalpy.value = ProtocolPath('value', protocols.mbar_protocol.id)
             weight_enthalpy.full_substance = ProtocolPath('substance', 'global')
             weight_enthalpy.component = substance_reference
@@ -447,7 +325,8 @@ class EnthalpyOfMixing(PhysicalProperty):
 
             # The component workflows need an extra step to multiply their gradients by their
             # relative mole fraction.
-            weight_gradient = WeightGradientByMoleFraction(f'weight_gradient_by_mole_fraction{id_suffix}')
+            weight_gradient = gradients.WeightGradientByMoleFraction(f'weight_gradient_$({gradient_replicator_id})_'
+                                                                     f'by_mole_fraction{id_suffix}')
             weight_gradient.value = gradient_source
             weight_gradient.full_substance = ProtocolPath('substance', 'global')
             weight_gradient.component = substance_reference
@@ -455,7 +334,7 @@ class EnthalpyOfMixing(PhysicalProperty):
             gradient_group.add_protocols(weight_gradient)
             gradient_source = ProtocolPath('weighted_value', weight_gradient.id)
 
-        scale_gradient = gradients.DivideGradientByScalar(f'scale_gradient{id_suffix}')
+        scale_gradient = gradients.DivideGradientByScalar(f'scale_gradient_$({gradient_replicator_id}){id_suffix}')
         scale_gradient.value = gradient_source
         scale_gradient.divisor = number_of_molecules
 

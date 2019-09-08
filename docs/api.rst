@@ -49,6 +49,7 @@ Physical Property API
     :toctree: api/generated/
 
     Density
+    ExcessMolarVolume
     DielectricConstant
     EnthalpyOfMixing
     EnthalpyOfVaporization
