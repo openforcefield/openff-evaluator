@@ -270,7 +270,7 @@ class ExcessMolarVolume(PhysicalProperty):
 
         number_of_molar_molecules = miscellaneous.DivideValue('number_of_molar_molecules')
         number_of_molar_molecules.value = number_of_molecules
-        number_of_molar_molecules.divisor = (1.0 * unit.avogadro_number).to(unit.mole)
+        number_of_molar_molecules.divisor = (1.0 * unit.avogadro_number).to('mole**-1')
 
         extract_volume.divisor = ProtocolPath('result', number_of_molar_molecules.id)
 
