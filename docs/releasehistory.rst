@@ -21,6 +21,7 @@ New Features
 """"""""""""
 
 * PR #98: ``Substance`` objects may now have components with multiple amount types
+* PR #101: Added support for estimating ``ExcessMolarVolume`` measurements from simulations.
 
 Bugfixes
 """"""""
@@ -42,7 +43,7 @@ This release contained several public API breaking changes. For the most part, t
 remedied by the follow steps:
 
 * Change all instances of ``Substance.get_amount`` to ``Substance.get_amounts`` and handle
-  the newly returned list of amounts, rather than the previously returned single amount.
+  the newly returned frozenset of amounts, rather than the previously returned single amount.
 
 
 
