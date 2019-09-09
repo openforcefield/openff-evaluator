@@ -312,10 +312,6 @@ Built-in Workflow Protocols
 
     GradientReducedPotentials
     CentralDifferenceGradient
-    DivideGradientByScalar
-    MultiplyGradientByScalar
-    AddGradients
-    SubtractGradients
 
 **Groups**
 
