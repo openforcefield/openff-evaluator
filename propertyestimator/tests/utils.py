@@ -24,7 +24,7 @@ class BackendType(Enum):
 
 
 def setup_server(backend_type=BackendType.LocalCPU, max_number_of_workers=1,
-                 conda_environment='propertyestimator', worker_memory=8 * unit.gigabyte):
+                 conda_environment='propertyestimator', worker_memory=8 * unit.gigabyte, port=8000):
 
     working_directory = 'working_directory'
     storage_directory = 'storage_directory'
@@ -95,6 +95,7 @@ def setup_server(backend_type=BackendType.LocalCPU, max_number_of_workers=1,
 
     server.PropertyEstimatorServer(calculation_backend=calculation_backend,
                                    storage_backend=storage_backend,
+                                   port=port,
                                    working_directory=working_directory)
 
 

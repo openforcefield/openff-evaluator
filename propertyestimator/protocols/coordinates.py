@@ -1,8 +1,8 @@
 """
 A collection of protocols for building coordinates for molecular systems.
 """
-
 import logging
+from collections import defaultdict
 from enum import Enum
 from os import path
 
@@ -60,10 +60,19 @@ class BuildCoordinatesPackmol(BaseProtocol):
         pass
 
     @protocol_output(int)
-    def final_number_of_molecules(self):
-        """The file path to the created PDB coordinate file.
+    def output_number_of_molecules(self):
+        """The number of molecules in the created system. This may be less than
+        maximum requested due to rounding of mole fractions.
         """
-        # TODO: This is a temporary addition until inputs are made available as outputs by default.
+        pass
+
+    @protocol_output(Substance)
+    def output_substance(self):
+        """The substance which was built by packmol. This may differ from the input
+        substance for system containing two or more components due to rounding of
+        mole fractions. The mole fractions provided by this output should always be
+        used when weighting values by a mole fraction.
+        """
         pass
 
     @protocol_output(str)
@@ -90,7 +99,8 @@ class BuildCoordinatesPackmol(BaseProtocol):
 
         self._box_aspect_ratio = [1.0, 1.0, 1.0]
 
-        self._final_number_of_molecules = None
+        self._output_number_of_molecules = None
+        self._output_substance = None
 
     def _build_molecule_arrays(self, directory):
         """Converts the input substance into a list of openeye OEMol's and a list of
@@ -108,7 +118,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
         list of int
             The number of each molecule which should be added to the system.
         PropertyEstimatorException, optional
-            None if no exceptions occured, otherwise the exception.
+            None if no exceptions occurred, otherwise the exception.
         """
 
         molecules = []
@@ -132,7 +142,73 @@ class BuildCoordinatesPackmol(BaseProtocol):
         for index, component in enumerate(self._substance.components):
             number_of_molecules[index] = molecules_per_component[component.identifier]
 
+        if sum(number_of_molecules) > self._max_molecules:
+
+            return None, None, PropertyEstimatorException(directory=directory,
+                                                          message=f'The number of molecules to create '
+                                                                  f'({sum(number_of_molecules)}) is greater '
+                                                                  f'than the maximum number requested '
+                                                                  f'({self._max_molecules}).')
+
         return molecules, number_of_molecules, None
+
+    def _rebuild_substance(self, number_of_molecules):
+        """Rebuilds the `Substance` object which the protocol will create coordinates.
+
+        This may not be the same as the input system due to the finite number of molecules
+        to be added causing rounding of mole fractions.
+
+        Parameters
+        ----------
+        number_of_molecules: list of int
+            The number of each component which should be added to the system.
+
+        Returns
+        -------
+        Substance
+            The substance which contains the corrected component amounts.
+        """
+
+        new_amounts = defaultdict(list)
+
+        total_number_of_molecules = sum(number_of_molecules)
+
+        # Handle any exact amounts.
+        for component in self._substance.components:
+
+            exact_amounts = [amount for amount in self._substance.get_amounts(component) if
+                             isinstance(amount, Substance.ExactAmount)]
+
+            if len(exact_amounts) == 0:
+                continue
+
+            total_number_of_molecules -= exact_amounts[0].value
+            new_amounts[component].append(exact_amounts[0])
+
+        # Recompute the mole fractions.
+        for index, component in enumerate(self._substance.components):
+
+            mole_fractions = [amount for amount in self._substance.get_amounts(component) if
+                              isinstance(amount, Substance.MoleFraction)]
+
+            if len(mole_fractions) == 0:
+                continue
+
+            molecule_count = number_of_molecules[index]
+
+            if component in new_amounts:
+                molecule_count -= new_amounts[component][0].value
+
+            new_amounts[component].append(Substance.MoleFraction(molecule_count / total_number_of_molecules))
+
+        output_substance = Substance()
+
+        for component, amounts in new_amounts.items():
+
+            for amount in amounts:
+                output_substance.add_component(component, amount)
+
+        return output_substance
 
     def _save_results(self, directory, topology, positions):
         """Save the results of running PACKMOL in the working directory
@@ -168,9 +244,10 @@ class BuildCoordinatesPackmol(BaseProtocol):
             return PropertyEstimatorException(directory=directory,
                                               message='The substance input is non-optional')
 
-        self._final_number_of_molecules = self._max_molecules
-
         molecules, number_of_molecules, exception = self._build_molecule_arrays(directory)
+
+        self._output_number_of_molecules = sum(number_of_molecules)
+        self._output_substance = self._rebuild_substance(number_of_molecules)
 
         if exception is not None:
             return exception

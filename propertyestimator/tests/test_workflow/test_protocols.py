@@ -287,6 +287,62 @@ def test_substance_filtering_protocol(filter_role):
     assert filter_protocol.filtered_substance.components[0].role == filter_role
 
 
+def _build_input_output_substances():
+    """Builds sets if input and expected substances for the
+    `test_build_coordinate_composition` test.
+
+    Returns
+    -------
+    list of tuple of Substance and Substance
+        A list of input and expected substances.
+    """
+
+    # Start with some easy cases
+    substances = [
+        (Substance.from_components('O'), Substance.from_components('O')),
+        (Substance.from_components('O', 'C'), Substance.from_components('O', 'C')),
+        (Substance.from_components('O', 'C', 'CO'), Substance.from_components('O', 'C', 'CO'))
+    ]
+
+    # Handle some cases where rounding will need to occur.
+    input_substance = Substance()
+    input_substance.add_component(Substance.Component('O'), Substance.MoleFraction(0.41))
+    input_substance.add_component(Substance.Component('C'), Substance.MoleFraction(0.59))
+
+    expected_substance = Substance()
+    expected_substance.add_component(Substance.Component('O'), Substance.MoleFraction(0.4))
+    expected_substance.add_component(Substance.Component('C'), Substance.MoleFraction(0.6))
+
+    substances.append((input_substance, expected_substance))
+
+    input_substance = Substance()
+    input_substance.add_component(Substance.Component('O'), Substance.MoleFraction(0.59))
+    input_substance.add_component(Substance.Component('C'), Substance.MoleFraction(0.41))
+
+    expected_substance = Substance()
+    expected_substance.add_component(Substance.Component('O'), Substance.MoleFraction(0.6))
+    expected_substance.add_component(Substance.Component('C'), Substance.MoleFraction(0.4))
+
+    substances.append((input_substance, expected_substance))
+
+    return substances
+
+
+@pytest.mark.parametrize("input_substance, expected", _build_input_output_substances())
+def test_build_coordinate_composition(input_substance, expected):
+    """Tests that the build coordinate protocols correctly report
+    the composition of the built system."""
+
+    build_coordinates = BuildCoordinatesPackmol('build_coordinates')
+    build_coordinates.max_molecules = 10
+    build_coordinates.substance = input_substance
+
+    with tempfile.TemporaryDirectory() as directory:
+        assert not isinstance(build_coordinates.execute(directory, None), PropertyEstimatorException)
+
+    assert build_coordinates.output_substance == expected
+
+
 def test_solvation_protocol():
     """Tests solvating a single methanol molecule in water."""
 
