@@ -268,7 +268,7 @@ class ExcessMolarVolume(PhysicalProperty):
         number_of_molecules = ProtocolPath('output_number_of_molecules', simulation_protocols.build_coordinates.id)
         built_substance = ProtocolPath('output_substance', simulation_protocols.build_coordinates.id)
 
-        number_of_molar_molecules = miscellaneous.DivideValue('number_of_molar_molecules')
+        number_of_molar_molecules = miscellaneous.DivideValue('number_of_molar_molecules{id_suffix}')
         number_of_molar_molecules.value = number_of_molecules
         number_of_molar_molecules.divisor = (1.0 * unit.avogadro_number).to('mole**-1')
 
