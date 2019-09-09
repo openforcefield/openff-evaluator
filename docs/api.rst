@@ -349,6 +349,8 @@ Built-in Workflow Protocols
     MultiplyValue
     DivideValue
     FilterSubstanceByRole
+    BaseWeightByMoleFraction
+    WeightByMoleFraction
 
 Workflow Construction Utilities
 -------------------------------
