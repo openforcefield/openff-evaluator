@@ -200,8 +200,8 @@ class ExcessMolarVolume(PhysicalProperty):
         return None
 
     @staticmethod
-    def _get_simulation_protocols(id_suffix, gradient_replicator_id, replicator_id=None,
-                                  weight_by_mole_fraction=False, substance_reference=None, options=None):
+    def _get_simulation_protocols(id_suffix, gradient_replicator_id, replicator_id=None, weight_by_mole_fraction=False,
+                                  component_substance_reference=None, full_substance_reference=None, options=None):
 
         """Returns the set of protocols which when combined in a workflow
         will yield the molar volume of a substance.
@@ -220,9 +220,13 @@ class ExcessMolarVolume(PhysicalProperty):
         weight_by_mole_fraction: bool
             If true, an extra protocol will be added to weight the calculated
             molar volume by the mole fraction of the component.
-        substance_reference: ProtocolPath or PlaceholderInput, optional
-            An optional protocol path (or replicator reference) to the substance
-            whose molar volume is being estimated.
+        component_substance_reference: ProtocolPath or PlaceholderInput, optional
+            An optional protocol path (or replicator reference) to the component substance
+            whose enthalpy is being estimated.
+        full_substance_reference: ProtocolPath or PlaceholderInput, optional
+            An optional protocol path (or replicator reference) to the full substance
+            whose enthalpy of mixing is being estimated. This cannot be `None` if
+            `weight_by_mole_fraction` is `True`.
         options: WorkflowOptions
             The options to use when setting up the workflows.
 
@@ -251,8 +255,13 @@ class ExcessMolarVolume(PhysicalProperty):
         if replicator_id is not None:
             id_suffix = f'{id_suffix}_$({replicator_id})'
 
-        if substance_reference is None:
-            substance_reference = ProtocolPath('substance', 'global')
+        if component_substance_reference is None:
+            component_substance_reference = ProtocolPath('substance', 'global')
+
+        if weight_by_mole_fraction is True and full_substance_reference is None:
+
+            raise ValueError('The full substance reference must be set when weighting by'
+                             'the mole fraction')
 
         # Define the protocol which will extract the average molar volume from
         # the results of a simulation.
@@ -268,14 +277,14 @@ class ExcessMolarVolume(PhysicalProperty):
         number_of_molecules = ProtocolPath('output_number_of_molecules', simulation_protocols.build_coordinates.id)
         built_substance = ProtocolPath('output_substance', simulation_protocols.build_coordinates.id)
 
-        number_of_molar_molecules = miscellaneous.DivideValue('number_of_molar_molecules{id_suffix}')
+        number_of_molar_molecules = miscellaneous.DivideValue(f'number_of_molar_molecules{id_suffix}')
         number_of_molar_molecules.value = number_of_molecules
         number_of_molar_molecules.divisor = (1.0 * unit.avogadro_number).to('mole**-1')
 
         extract_volume.divisor = ProtocolPath('result', number_of_molar_molecules.id)
 
         # Use the correct substance.
-        simulation_protocols.build_coordinates.substance = substance_reference
+        simulation_protocols.build_coordinates.substance = component_substance_reference
         simulation_protocols.assign_parameters.substance = built_substance
         output_to_store.substance = built_substance
 
@@ -286,8 +295,8 @@ class ExcessMolarVolume(PhysicalProperty):
             # relative mole fraction.
             weight_by_mole_fraction = miscellaneous.WeightByMoleFraction(f'weight_by_mole_fraction{id_suffix}')
             weight_by_mole_fraction.value = ProtocolPath('value', extract_volume.id)
-            weight_by_mole_fraction.full_substance = built_substance
-            weight_by_mole_fraction.component = ReplicatorValue(replicator_id)
+            weight_by_mole_fraction.full_substance = full_substance_reference
+            weight_by_mole_fraction.component = component_substance_reference
 
             conditional_group.add_protocols(weight_by_mole_fraction)
 
@@ -331,8 +340,8 @@ class ExcessMolarVolume(PhysicalProperty):
             # relative mole fraction.
             weight_gradient = miscellaneous.WeightByMoleFraction(f'weight_gradient_by_mole_fraction{id_suffix}')
             weight_gradient.value = gradient_source
-            weight_gradient.full_substance = built_substance
-            weight_gradient.component = substance_reference
+            weight_gradient.full_substance = full_substance_reference
+            weight_gradient.component = component_substance_reference
 
             gradient_group.add_protocols(weight_gradient)
             gradient_source = ProtocolPath('weighted_value', weight_gradient.id)
@@ -518,12 +527,24 @@ class ExcessMolarVolume(PhysicalProperty):
         # for each gradient key to be estimated.
         gradient_replicator_id = 'gradient_replicator'
 
+        # Set up a workflow to calculate the molar volume of the full, mixed system.
+        (full_system_protocols,
+         full_system_molar_molecules,
+         full_system_volume,
+         full_output,
+         full_system_gradient_group,
+         full_system_gradient_replicator,
+         full_system_gradient) = ExcessMolarVolume._get_simulation_protocols('_full',
+                                                                             gradient_replicator_id,
+                                                                             options=options)
+
         # Set up a general workflow for calculating the molar volume of one of the system components.
-        # Here we affix a prefix which contains the special string $(comp_index). Protocols which are
-        # replicated by a replicator will have the $(comp_index) tag in their id replaced by the index
-        # of the replication.
         component_replicator_id = 'component_replicator'
         component_substance = ReplicatorValue(component_replicator_id)
+
+        # Make sure to weight by the mole fractions of the actual full system as these may be slightly
+        # different to the mole fractions of the measure property due to rounding.
+        full_substance = ProtocolPath('output_substance', full_system_protocols.build_coordinates.id)
 
         (component_protocols,
          component_molar_molecules,
@@ -535,19 +556,10 @@ class ExcessMolarVolume(PhysicalProperty):
                                                                            gradient_replicator_id,
                                                                            replicator_id=component_replicator_id,
                                                                            weight_by_mole_fraction=True,
-                                                                           substance_reference=component_substance,
+                                                                           component_substance_reference=
+                                                                                   component_substance,
+                                                                           full_substance_reference=full_substance,
                                                                            options=options)
-
-        # Set up a workflow to calculate the molar volume of the full, mixed system.
-        (full_system_protocols,
-         full_system_molar_molecules,
-         full_system_volume,
-         full_output,
-         full_system_gradient_group,
-         full_system_gradient_replicator,
-         full_system_gradient) = ExcessMolarVolume._get_simulation_protocols('_full',
-                                                                             gradient_replicator_id,
-                                                                             options=options)
 
         # Finally, set up the protocols which will be responsible for adding together
         # the component molar volumes, and subtracting these from the mixed system molar volume.
