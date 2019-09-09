@@ -22,6 +22,7 @@ New Features
 
 * PR #98: ``Substance`` objects may now have components with multiple amount types
 * PR #101: Added support for estimating ``ExcessMolarVolume`` measurements from simulations.
+* PR #104: The ``typing.Union`` type is now a valid ``protocol_output`` and ``protocol_input`` type.
 
 Bugfixes
 """"""""
@@ -35,6 +36,9 @@ Breaking Changes
 
 * PR #98: ``Substance.get_amount`` renamed to ``Substance.get_amounts`` and now returns an
   immutable ``frozenset`` of ``Amount`` objects, rather than a single ``Amount``.
+* PR #104: The ``DivideGradientByScalar``, ``MultiplyGradientByScalar``, ``AddGradients`` and ``SubtractGradients`` 
+  ``WeightGradientByMoleFraction`` protocols have been removed. The ``WeightQuantityByMoleFraction`` has been renamed
+  to ``WeightByMoleFraction``.
 
 Migration Guide
 """""""""""""""
@@ -44,7 +48,13 @@ remedied by the follow steps:
 
 * Change all instances of ``Substance.get_amount`` to ``Substance.get_amounts`` and handle
   the newly returned frozenset of amounts, rather than the previously returned single amount.
-
+* Replace the now removed protocols as follows:
+    - ``DivideGradientByScalar`` -> ``DivideValue``
+    - ``MultiplyGradientByScalar`` -> ``MultiplyValue``
+    - ``AddGradients`` -> ``AddValues``
+    - ``SubtractGradients`` -> ``SubtractValues``
+    - ``WeightGradientByMoleFraction`` -> ``WeightByMoleFraction``
+    - ``WeightQuantityByMoleFraction`` -> ``WeightByMoleFraction``
 
 
 0.0.2 - Replicator Quick Fixes
