@@ -12,24 +12,27 @@ All early releases however will simply recieve a ``micro`` version bump regardle
 how major the changes may be.
 
 
-0.0.3 -
-------------------------------
+0.0.3 - ExcessMolarVolume and Typing Improvements 
+-------------------------------------------------
 
-This release...
+This release implements a number of bug fixes and adds two key new features, namely built in support
+for estimating excess molar volume measurements, and improved type checking for protocol inputs 
+and outputs.
 
 New Features
 """"""""""""
 
-* PR #98: ``Substance`` objects may now have components with multiple amount types
+* PR #98: ``Substance`` objects may now have components with multiple amount types.
 * PR #101: Added support for estimating ``ExcessMolarVolume`` measurements from simulations.
-* PR #104: The ``typing.Union`` type is now a valid ``protocol_output`` and ``protocol_input`` type.
+* PR #104: ``typing.Union`` is now a valid type arguemt to ``protocol_output`` and ``protocol_input``.
 
 Bugfixes
 """"""""
 
-* PR #94: Fixes exception when testing equality of ``ProtocolPath`` objects
-* PR #100: Fixes precision issues when ensuring mole fractions are `<= 1.0`
-* PR #102: Fixes replicated input for children of replicated protocols
+* PR #94: Fixes exception when testing equality of ``ProtocolPath`` objects.
+* PR #100: Fixes precision issues when ensuring mole fractions are `<= 1.0`.
+* PR #102: Fixes replicated input for children of replicated protocols.
+* PR #105: Fixes excess properties weighting by the wrong mole fractions.
 
 Breaking Changes
 """"""""""""""""
@@ -46,7 +49,7 @@ Migration Guide
 This release contained several public API breaking changes. For the most part, these can be
 remedied by the follow steps:
 
-* Change all instances of ``Substance.get_amount`` to ``Substance.get_amounts`` and handle
+* Change all instances of ``Substance.get_amount`` to ``Substance.get_amounts`` and handle.
   the newly returned frozenset of amounts, rather than the previously returned single amount.
 * Replace the now removed protocols as follows:
     - ``DivideGradientByScalar`` -> ``DivideValue``
