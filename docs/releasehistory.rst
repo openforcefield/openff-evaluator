@@ -27,11 +27,3 @@ Bugfixes
 -----------------------
 
 The initial pre-alpha release of the framework.
-
-* Replace the now removed protocols as follows
-    - ``DivideGradientByScalar`` -> ``DivideValue``
-    - ``MultiplyGradientByScalar`` -> ``MultiplyValue``
-    - ``AddGradients`` -> ``AddValues``
-    - ``SubtractGradients`` -> ``SubtractValues``
-    - ``WeightGradientByMoleFraction`` -> ``WeightByMoleFraction``
-    - ``WeightQuantityByMoleFraction`` -> ``WeightByMoleFraction``
