@@ -5,7 +5,7 @@ from propertyestimator import unit
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties import PhysicalProperty, PropertyPhase
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.protocols import analysis, reweighting, miscellaneous, gradients
+from propertyestimator.protocols import analysis, reweighting, miscellaneous
 from propertyestimator.protocols.utils import generate_base_simulation_protocols, generate_base_reweighting_protocols, \
     generate_gradient_protocol_group
 from propertyestimator.storage import StoredSimulationData
@@ -277,7 +277,7 @@ class ExcessMolarVolume(PhysicalProperty):
         if weight_by_mole_fraction:
             # The component workflows need an extra step to multiply their molar volumes by their
             # relative mole fraction.
-            weight_by_mole_fraction = miscellaneous.WeightQuantityByMoleFraction(f'weight_by_mole_fraction{id_suffix}')
+            weight_by_mole_fraction = miscellaneous.WeightByMoleFraction(f'weight_by_mole_fraction{id_suffix}')
             weight_by_mole_fraction.value = ProtocolPath('value', extract_volume.id)
             weight_by_mole_fraction.full_substance = ProtocolPath('substance', 'global')
             weight_by_mole_fraction.component = ReplicatorValue(replicator_id)
@@ -322,7 +322,7 @@ class ExcessMolarVolume(PhysicalProperty):
         if weight_by_mole_fraction:
             # The component workflows need an extra step to multiply their gradients by their
             # relative mole fraction.
-            weight_gradient = gradients.WeightGradientByMoleFraction(f'weight_gradient_by_mole_fraction{id_suffix}')
+            weight_gradient = miscellaneous.WeightByMoleFraction(f'weight_gradient_by_mole_fraction{id_suffix}')
             weight_gradient.value = gradient_source
             weight_gradient.full_substance = ProtocolPath('substance', 'global')
             weight_gradient.component = substance_reference
@@ -330,7 +330,7 @@ class ExcessMolarVolume(PhysicalProperty):
             gradient_group.add_protocols(weight_gradient)
             gradient_source = ProtocolPath('weighted_value', weight_gradient.id)
 
-        scale_gradient = gradients.DivideGradientByScalar(f'scale_gradient{id_suffix}')
+        scale_gradient = miscellaneous.DivideValue(f'scale_gradient{id_suffix}')
         scale_gradient.value = gradient_source
         scale_gradient.divisor = number_of_molar_molecules
 
@@ -418,7 +418,7 @@ class ExcessMolarVolume(PhysicalProperty):
         weight_volume = None
 
         if weight_by_mole_fraction is True:
-            weight_volume = miscellaneous.WeightQuantityByMoleFraction(f'weight_volume{id_suffix}')
+            weight_volume = miscellaneous.WeightByMoleFraction(f'weight_volume{id_suffix}')
             weight_volume.value = ProtocolPath('value', protocols.mbar_protocol.id)
             weight_volume.full_substance = ProtocolPath('substance', 'global')
             weight_volume.component = substance_reference
@@ -468,8 +468,8 @@ class ExcessMolarVolume(PhysicalProperty):
         if weight_by_mole_fraction is True:
             # The component workflows need an extra step to multiply their gradients by their
             # relative mole fraction.
-            weight_gradient = gradients.WeightGradientByMoleFraction(f'weight_gradient_$({gradient_replicator_id})_'
-                                                                     f'by_mole_fraction{id_suffix}')
+            weight_gradient = miscellaneous.WeightByMoleFraction(f'weight_gradient_$({gradient_replicator_id})_'
+                                                                 f'by_mole_fraction{id_suffix}')
             weight_gradient.value = gradient_source
             weight_gradient.full_substance = ProtocolPath('substance', 'global')
             weight_gradient.component = substance_reference
@@ -477,7 +477,7 @@ class ExcessMolarVolume(PhysicalProperty):
             gradient_group.add_protocols(weight_gradient)
             gradient_source = ProtocolPath('weighted_value', weight_gradient.id)
 
-        scale_gradient = gradients.DivideGradientByScalar(f'scale_gradient_$({gradient_replicator_id}){id_suffix}')
+        scale_gradient = miscellaneous.DivideValue(f'scale_gradient_$({gradient_replicator_id}){id_suffix}')
         scale_gradient.value = gradient_source
         scale_gradient.divisor = ProtocolPath('result.value', number_of_molar_molecules.id)
 
@@ -555,11 +555,11 @@ class ExcessMolarVolume(PhysicalProperty):
         component_replicator.template_values = ProtocolPath('components', 'global')
 
         # Combine the gradients.
-        add_component_gradients = gradients.AddGradients(f'add_component_gradients'
-                                                         f'_$({gradient_replicator_id})')
+        add_component_gradients = miscellaneous.AddValues(f'add_component_gradients'
+                                                          f'_$({gradient_replicator_id})')
         add_component_gradients.values = component_gradient
 
-        combine_gradients = gradients.SubtractGradients(f'combine_gradients_$({gradient_replicator_id})')
+        combine_gradients = miscellaneous.SubtractValues(f'combine_gradients_$({gradient_replicator_id})')
         combine_gradients.value_b = full_system_gradient
         combine_gradients.value_a = ProtocolPath('result', add_component_gradients.id)
 
@@ -680,11 +680,11 @@ class ExcessMolarVolume(PhysicalProperty):
         calculate_excess_volume.value_a = ProtocolPath('result', add_component_molar_volumes.id)
 
         # Combine the gradients.
-        add_component_gradients = gradients.AddGradients(f'add_component_gradients'
-                                                         f'_{gradient_replicator.placeholder_id}')
+        add_component_gradients = miscellaneous.AddValues(f'add_component_gradients'
+                                                          f'_{gradient_replicator.placeholder_id}')
         add_component_gradients.values = component_gradient_source
 
-        combine_gradients = gradients.SubtractGradients(f'combine_gradients_{gradient_replicator.placeholder_id}')
+        combine_gradients = miscellaneous.SubtractValues(f'combine_gradients_{gradient_replicator.placeholder_id}')
         combine_gradients.value_b = full_gradient_source
         combine_gradients.value_a = ProtocolPath('result', add_component_gradients.id)
 
