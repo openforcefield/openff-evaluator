@@ -22,25 +22,25 @@ and outputs.
 New Features
 """"""""""""
 
-* PR #98: ``Substance`` objects may now have components with multiple amount types.
-* PR #101: Added support for estimating ``ExcessMolarVolume`` measurements from simulations.
-* PR #104: ``typing.Union`` is now a valid type arguemt to ``protocol_output`` and ``protocol_input``.
+* PR `#98 <https://github.com/openforcefield/propertyestimator/pull/98>`_: ``Substance`` objects may now have components with multiple amount types.
+* PR `#101 <https://github.com/openforcefield/propertyestimator/pull/101>`_: Added support for estimating ``ExcessMolarVolume`` measurements from simulations.
+* PR `#104 <https://github.com/openforcefield/propertyestimator/pull/104>`_: ``typing.Union`` is now a valid type arguemt to ``protocol_output`` and ``protocol_input``.
 
 Bugfixes
 """"""""
 
-* PR #94: Fixes exception when testing equality of ``ProtocolPath`` objects.
-* PR #100: Fixes precision issues when ensuring mole fractions are `<= 1.0`.
-* PR #102: Fixes replicated input for children of replicated protocols.
-* PR #105: Fixes excess properties weighting by the wrong mole fractions.
-* PR #107: Fixes excess properties being converged to the wrong uncertainty.
+* PR `#94 <https://github.com/openforcefield/propertyestimator/pull/94>`_: Fixes exception when testing equality of ``ProtocolPath`` objects.
+* PR `#100 <https://github.com/openforcefield/propertyestimator/pull/100>`_: Fixes precision issues when ensuring mole fractions are `<= 1.0`.
+* PR `#102 <https://github.com/openforcefield/propertyestimator/pull/102>`_: Fixes replicated input for children of replicated protocols.
+* PR `#105 <https://github.com/openforcefield/propertyestimator/pull/105>`_: Fixes excess properties weighting by the wrong mole fractions.
+* PR `#107 <https://github.com/openforcefield/propertyestimator/pull/107>`_: Fixes excess properties being converged to the wrong uncertainty.
 
 Breaking Changes
 """"""""""""""""
 
-* PR #98: ``Substance.get_amount`` renamed to ``Substance.get_amounts`` and now returns an
+* PR `#98 <https://github.com/openforcefield/propertyestimator/pull/98>`_: ``Substance.get_amount`` renamed to ``Substance.get_amounts`` and now returns an
   immutable ``frozenset`` of ``Amount`` objects, rather than a single ``Amount``.
-* PR #104: The ``DivideGradientByScalar``, ``MultiplyGradientByScalar``, ``AddGradients`` and ``SubtractGradients`` 
+* PR `#104 <https://github.com/openforcefield/propertyestimator/pull/104>`_: The ``DivideGradientByScalar``, ``MultiplyGradientByScalar``, ``AddGradients`` and ``SubtractGradients``
   ``WeightGradientByMoleFraction`` protocols have been removed. The ``WeightQuantityByMoleFraction`` has been renamed
   to ``WeightByMoleFraction``.
 
@@ -70,9 +70,12 @@ A minor release to fix a number of minor bugs related to replicating protocols.
 Bugfixes
 """"""""
 
-* PR #90: Fixes merging gradient protocols with the same id.
-* PR #92: Fixes replicating protocols for more than 10 template values.
-* PR #93: Fixes ``ConditionalGroup`` objects losing their conditions input.
+* PR `#90 <https://github.com/openforcefield/propertyestimator/pull/90>`_: Fixes merging gradient protocols with
+  the same id.
+* PR `#92 <https://github.com/openforcefield/propertyestimator/pull/92>`_: Fixes replicating protocols for more
+  than 10 template values.
+* PR `#93 <https://github.com/openforcefield/propertyestimator/pull/93>`_: Fixes ``ConditionalGroup`` objects losing
+  their conditions input.
 
 0.0.1 - Initial Release
 -----------------------
