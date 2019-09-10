@@ -302,11 +302,17 @@ class ExcessMolarVolume(PhysicalProperty):
 
             value_source = ProtocolPath('weighted_value', conditional_group.id, weight_by_mole_fraction.id)
 
-        # Make sure the weighted value is being used in the conditional comparison.
-        if options.convergence_mode != WorkflowOptions.ConvergenceMode.NoChecks and weight_by_mole_fraction:
-            conditional_group.conditions[0].left_hand_value = ProtocolPath('weighted_value.uncertainty',
-                                                                           conditional_group.id,
-                                                                           weight_by_mole_fraction.id)
+        if options.convergence_mode != WorkflowOptions.ConvergenceMode.NoChecks:
+
+            # Make sure the convergence criteria is set to use the per component
+            # uncertainty target.
+            conditional_group.conditions[0].right_hand_value = ProtocolPath('per_component_uncertainty', 'global')
+
+            if weight_by_mole_fraction:
+                # Make sure the weighted uncertainty is being used in the conditional comparison.
+                conditional_group.conditions[0].left_hand_value = ProtocolPath('weighted_value.uncertainty',
+                                                                               conditional_group.id,
+                                                                               weight_by_mole_fraction.id)
 
         # Set up the gradient calculations
         reweight_molar_volume_template = reweighting.ReweightStatistics('')
