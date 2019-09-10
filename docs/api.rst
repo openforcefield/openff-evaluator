@@ -72,6 +72,7 @@ Physical Property API
     :toctree: api/generated/
 
     Density
+    ExcessMolarVolume
     DielectricConstant
     EnthalpyOfMixing
     EnthalpyOfVaporization
@@ -332,10 +333,6 @@ Built-in Workflow Protocols
 
     GradientReducedPotentials
     CentralDifferenceGradient
-    DivideGradientByScalar
-    MultiplyGradientByScalar
-    AddGradients
-    SubtractGradients
 
 **Groups**
 
@@ -373,6 +370,8 @@ Built-in Workflow Protocols
     MultiplyValue
     DivideValue
     FilterSubstanceByRole
+    BaseWeightByMoleFraction
+    WeightByMoleFraction
 
 Workflow Construction Utilities
 -------------------------------

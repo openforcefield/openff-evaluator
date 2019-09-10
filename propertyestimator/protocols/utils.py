@@ -252,7 +252,7 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
     assign_parameters = forcefield.BuildSmirnoffSystem(f'assign_parameters{id_suffix}')
     assign_parameters.force_field_path = ProtocolPath('force_field_path', 'global')
     assign_parameters.coordinate_file_path = ProtocolPath('coordinate_file_path', build_coordinates.id)
-    assign_parameters.substance = ProtocolPath('substance', 'global')
+    assign_parameters.substance = ProtocolPath('output_substance', build_coordinates.id)
 
     # Equilibration
     energy_minimisation = simulation.RunEnergyMinimisation(f'energy_minimisation{id_suffix}')
@@ -334,7 +334,8 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
     # Build the object which defines which pieces of simulation data to store.
     output_to_store = WorkflowSimulationDataToStore()
 
-    output_to_store.total_number_of_molecules = ProtocolPath('final_number_of_molecules', build_coordinates.id)
+    output_to_store.total_number_of_molecules = ProtocolPath('output_number_of_molecules', build_coordinates.id)
+    output_to_store.substance = ProtocolPath('output_substance', build_coordinates.id)
     output_to_store.statistical_inefficiency = statistical_inefficiency
     output_to_store.statistics_file_path = ProtocolPath('output_statistics_path', extract_uncorrelated_statistics.id)
     output_to_store.trajectory_file_path = ProtocolPath('output_trajectory_path', extract_uncorrelated_trajectory.id)

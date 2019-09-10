@@ -1389,9 +1389,14 @@ class WorkflowGraph:
 
             for output_to_store in outputs_to_store.values():
 
-                substance_id = (property_to_return.substance.identifier if
-                                output_to_store.substance is None else
-                                output_to_store.substance.identifier)
+                if isinstance(output_to_store.substance, ProtocolPath):
+                    substance_id = results_by_id[output_to_store.substance].identifier
+
+                else:
+
+                    substance_id = (property_to_return.substance.identifier if
+                                    output_to_store.substance is None else
+                                    output_to_store.substance.identifier)
 
                 data_object_path = path.join(directory, f'results_{property_to_return.id}_{substance_id}.json')
                 data_directory = path.join(directory, f'results_{property_to_return.id}_{substance_id}')

@@ -5,6 +5,7 @@ Properties base API.
 import uuid
 from enum import IntFlag, unique
 
+from propertyestimator import unit
 from propertyestimator.utils.serialization import TypedBaseModel
 
 
@@ -220,6 +221,69 @@ class ParameterGradient:
 
     def __repr__(self):
         return f'<ParameterGradient key={self._key} value={self._value}>'
+
+    def __add__(self, other):
+        """
+        Parameters
+        ----------
+        other: ParameterGradient
+        """
+        if not isinstance(other, ParameterGradient):
+            raise ValueError('Only ParameterGradient objects can be added together.')
+
+        elif other.key != self.key:
+            raise ValueError('Only ParameterGradient objects with the same key can be added together.')
+
+        return ParameterGradient(self.key, self.value + other.value)
+
+    def __sub__(self, other):
+        """
+        Parameters
+        ----------
+        other: ParameterGradient
+        """
+        if not isinstance(other, ParameterGradient):
+            raise ValueError('Only ParameterGradient objects can be subtracted.')
+
+        elif other.key != self.key:
+            raise ValueError('Only ParameterGradient objects with the same key can be subtracted.')
+
+        return ParameterGradient(self.key, self.value - other.value)
+
+    def __mul__(self, other):
+        """
+        Parameters
+        ----------
+        other: float, int, Quantity
+        """
+
+        if (not isinstance(other, float) and
+            not isinstance(other, int) and
+            not isinstance(other, unit.Quantity)):
+
+            raise ValueError('ParameterGradient objects can only be multiplied by int\'s, '
+                             'float\'s or Quantity objects.')
+
+        return ParameterGradient(self.key, self.value * other)
+
+    def __rmul__(self, other):
+        return self.__mul__(other)
+
+    def __truediv__(self, other):
+        """
+        Parameters
+        ----------
+        other: float, int, Quantity
+        """
+
+        if (not isinstance(other, float) and
+            not isinstance(other, int) and
+            not isinstance(other, unit.Quantity)):
+
+            raise ValueError('ParameterGradient objects can only be divided by int\'s, '
+                             'float\'s or Quantity objects.')
+
+        return ParameterGradient(self.key, self.value / other)
 
 
 class PhysicalProperty(TypedBaseModel):

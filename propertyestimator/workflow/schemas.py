@@ -6,6 +6,7 @@ import re
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedBaseModel
 from propertyestimator.workflow.plugins import available_protocols
+from propertyestimator.workflow.typing import is_type_subclass_of_type
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
@@ -188,6 +189,18 @@ class ProtocolReplicator(TypedBaseModel):
             if not should_replicate:
 
                 replicated_protocols[protocol_id] = protocol
+                
+                if template_index is not None and template_index >= 0:
+                    # Make sure to include children of replicated protocols in the
+                    # map to ensure correct behaviour when updating children of replicated
+                    # protocols which have the replicator id in their name, and take input
+                    # from another child protocol which doesn't have the replicator id in
+                    # its name.
+                    if ProtocolPath('', protocol_id) not in replicated_protocol_map:
+                        replicated_protocol_map[ProtocolPath('', protocol_id)] = []
+
+                    replicated_protocol_map[ProtocolPath('', protocol_id)].append(
+                        (ProtocolPath('', protocol_id), template_index))
 
                 self._apply_to_protocol_children(protocol, replicated_protocol_map,
                                                  template_values, template_index, template_value)
@@ -649,7 +662,7 @@ class WorkflowSchema(TypedBaseModel):
         protocol_object.get_value(self.final_value_source)
 
         attribute_type = protocol_object.get_attribute_type(self.final_value_source)
-        assert issubclass(attribute_type, EstimatedQuantity)
+        assert is_type_subclass_of_type(attribute_type, EstimatedQuantity)
 
     def _validate_gradients(self):
 
@@ -668,7 +681,7 @@ class WorkflowSchema(TypedBaseModel):
             protocol_object.get_value(gradient_source)
 
             attribute_type = protocol_object.get_attribute_type(gradient_source)
-            assert issubclass(attribute_type, ParameterGradient)
+            assert is_type_subclass_of_type(attribute_type, ParameterGradient)
 
     def _validate_output_to_store(self, output_to_store):
         """Validates that the references of a particular output to store
@@ -822,7 +835,7 @@ class WorkflowSchema(TypedBaseModel):
                     expected_output_type = other_protocol_object.get_attribute_type(value_reference)
 
                     if (expected_input_type is not None and expected_output_type is not None and
-                        expected_input_type != expected_output_type):
+                        not is_type_subclass_of_type(expected_output_type, expected_input_type)):
 
                         raise Exception('The output type ({}) of {} does not match the requested '
                                         'input type ({}) of {}'.format(expected_output_type, value_reference,
