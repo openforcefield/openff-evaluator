@@ -381,8 +381,9 @@ def test_solvation_protocol():
         assert solvated_pdb.topology.getNumResidues() == 10
 
 
-@pytest.mark.parametrize('toolkit_name', ['OpenEye', 'RDKit'])
-def test_topology_mol_to_mol2(toolkit_name):
+@pytest.mark.parametrize('charge_backend', [BuildTLeapSystem.ChargeBackend.OpenEye,
+                                            BuildTLeapSystem.ChargeBackend.AmberTools])
+def test_topology_mol_to_mol2(charge_backend):
     """Tests taking an openforcefield topology molecule, generating a conformer,
     calculating partial charges, and writing it to mol2."""
 
@@ -429,32 +430,18 @@ def test_topology_mol_to_mol2(toolkit_name):
 
         with NamedTemporaryFile(suffix='.mol2') as output_file:
 
-            if toolkit_name is None:
+            BuildTLeapSystem._topology_molecule_to_mol2(topology_molecule,
+                                                        output_file.name,
+                                                        charge_backend=charge_backend)
 
-                # Because the molecules come from SMILES, they don't come with any
-                # coords or charges
-                with pytest.raises(TypeError):
+            mol2_contents = open(output_file.name).read()
 
-                    BuildTLeapSystem._topology_molecule_to_mol2(topology_molecule,
-                                                                output_file.name,
-                                                                toolkit=toolkit_name)
+            # Ensure we find the correct connectivity info
+            assert expected_contents[topology_molecule_index] in mol2_contents
 
-                continue
-
-            else:
-
-                BuildTLeapSystem._topology_molecule_to_mol2(topology_molecule,
-                                                            output_file.name,
-                                                            toolkit=toolkit_name)
-
-                mol2_contents = open(output_file.name).read()
-
-                # Ensure we find the correct connectivity info
-                assert expected_contents[topology_molecule_index] in mol2_contents
-
-                # Ensure that the first atom has nonzero coords and charge
-                first_atom_line = mol2_contents.split('\n')[7].split()
-                assert float(first_atom_line[2]) != 0.
-                assert float(first_atom_line[3]) != 0.
-                assert float(first_atom_line[4]) != 0.
-                assert float(first_atom_line[8]) != 0.
+            # Ensure that the first atom has nonzero coords and charge
+            first_atom_line = mol2_contents.split('\n')[7].split()
+            assert float(first_atom_line[2]) != 0.
+            assert float(first_atom_line[3]) != 0.
+            assert float(first_atom_line[4]) != 0.
+            assert float(first_atom_line[8]) != 0.
