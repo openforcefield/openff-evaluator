@@ -3,8 +3,10 @@ Units tests for propertyestimator.workflow
 """
 import tempfile
 from os import path
+from tempfile import NamedTemporaryFile
 
 import pytest
+from openforcefield.topology import Molecule, Topology
 from simtk.openmm.app import PDBFile
 
 from propertyestimator import unit
@@ -14,6 +16,7 @@ from propertyestimator.protocols.analysis import ExtractAverageStatistic, Extrac
     ExtractUncorrelatedStatisticsData
 from propertyestimator.protocols.coordinates import BuildCoordinatesPackmol, SolvateExistingStructure
 from propertyestimator.protocols.forcefield import BuildSmirnoffSystem
+from propertyestimator.protocols.forcefield import BuildTLeapSystem
 from propertyestimator.protocols.miscellaneous import AddValues, FilterSubstanceByRole, SubtractValues
 from propertyestimator.protocols.simulation import RunEnergyMinimisation, RunOpenMMSimulation
 from propertyestimator.substances import Substance
@@ -23,6 +26,7 @@ from propertyestimator.thermodynamics import Ensemble, ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
+from propertyestimator.utils.utils import get_data_filename
 from propertyestimator.workflow.plugins import available_protocols
 from propertyestimator.workflow.utils import ProtocolPath
 
@@ -321,19 +325,13 @@ def test_solvation_protocol():
         assert solvated_pdb.topology.getNumResidues() == 10
 
 
-# TODO: Add pytest checks for simtk and OE/RDKit/AmberTools
-@pytest.mark.parametrize('toolkit_name', ['OpenEye', 'RDKit', None])
+@pytest.mark.parametrize('toolkit_name', ['OpenEye', 'RDKit'])
 def test_topology_mol_to_mol2(toolkit_name):
     """Tests taking an openforcefield topology molecule, generating a conformer,
     calculating partial charges, and writing it to mol2."""
 
-    from openforcefield.topology import Molecule, Topology
-    from propertyestimator.utils.utils import get_data_filename
-    from propertyestimator.protocols.forcefield import BuildTLeapSystem
-    from simtk.openmm.app import PDBFile
-    from tempfile import NamedTemporaryFile
-
-    # Testing to find the correct connectivity information should indicate that the mol2 converstion was successful
+    # Testing to find the correct connectivity information should indicate 
+    # that the mol2 conversion was successful
     expected_contents = ['''
 @<TRIPOS>BOND
      1    1    3 1
@@ -364,38 +362,43 @@ def test_topology_mol_to_mol2(toolkit_name):
     # (generated here) and topology molecule (generated below from PDB) have a different atom order
     ethanol_smiles = 'C(O)C'
     toluene_smiles = 'c1ccccc1C'
+    
     ethanol = Molecule.from_smiles(ethanol_smiles)
     toluene = Molecule.from_smiles(toluene_smiles)
 
+    pdb_file = PDBFile(get_data_filename('test/molecules/ethanol_toluene.pdb'))
+    topology = Topology.from_openmm(pdb_file.topology, unique_molecules=[ethanol, toluene])
 
-    pdbfile = PDBFile(get_data_filename('test/molecules/ethanol_toluene.pdb'))
+    for topology_molecule_index, topology_molecule in enumerate(topology.topology_molecules):
 
-    off_top = Topology.from_openmm(pdbfile.topology, unique_molecules=[ethanol, toluene])
+        with NamedTemporaryFile(suffix='.mol2') as output_file:
 
-    BTLS = BuildTLeapSystem(None)
-
-    for top_mol_idx, top_mol in enumerate(off_top.topology_molecules):
-
-        with NamedTemporaryFile(suffix='.mol2') as outfile:
             if toolkit_name is None:
-                # Because the molecules from from SMILES, they don't come with any coords or charges
-                with pytest.raises(TypeError) as excinfo:
-                    BTLS.topology_molecule_to_mol2(top_mol, outfile.name, toolkit=toolkit_name)
-                # TODO: Could add example coords and charges here to ensure they pass through
+
+                # Because the molecules come from SMILES, they don't come with any
+                # coords or charges
+                with pytest.raises(TypeError):
+
+                    BuildTLeapSystem._topology_molecule_to_mol2(topology_molecule,
+                                                                output_file.name,
+                                                                toolkit=toolkit_name)
+
                 continue
+
             else:
-                BTLS.topology_molecule_to_mol2(top_mol, outfile.name, toolkit=toolkit_name)
-                mol2_contents = open(outfile.name).read()
+
+                BuildTLeapSystem._topology_molecule_to_mol2(topology_molecule,
+                                                            output_file.name,
+                                                            toolkit=toolkit_name)
+
+                mol2_contents = open(output_file.name).read()
+
                 # Ensure we find the correct connectivity info
-                assert expected_contents[top_mol_idx] in mol2_contents
+                assert expected_contents[topology_molecule_index] in mol2_contents
+
                 # Ensure that the first atom has nonzero coords and charge
                 first_atom_line = mol2_contents.split('\n')[7].split()
                 assert float(first_atom_line[2]) != 0.
                 assert float(first_atom_line[3]) != 0.
                 assert float(first_atom_line[4]) != 0.
                 assert float(first_atom_line[8]) != 0.
-
-
-
-
-

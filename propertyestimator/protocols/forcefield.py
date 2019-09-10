@@ -4,10 +4,11 @@ A collection of protocols for assigning force field parameters to molecular syst
 import copy
 import io
 import logging
+import os
 import re
+import shutil
 import subprocess
 from enum import Enum
-from os import path
 
 import numpy as np
 import requests
@@ -18,6 +19,7 @@ from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSou
     TLeapForceFieldSource
 from propertyestimator.substances import Substance
 from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.openmm import pint_quantity_to_openmm
 from propertyestimator.utils.utils import temporarily_change_directory
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
 from propertyestimator.workflow.plugins import register_calculation_protocol
@@ -328,7 +330,7 @@ class BuildSmirnoffSystem(BaseBuildSystemProtocol):
         from simtk.openmm import XmlSerializer
         system_xml = XmlSerializer.serialize(system)
 
-        self._system_path = path.join(directory, 'system.xml')
+        self._system_path = os.path.join(directory, 'system.xml')
 
         with open(self._system_path, 'wb') as file:
             file.write(system_xml.encode('utf-8'))
@@ -458,7 +460,7 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
             return f'The request to download the system xml file failed with return code {request.status_code}.'
 
         force_field_response = request.content
-        force_field_path = path.join(directory, f'{smiles_pattern}.xml')
+        force_field_path = os.path.join(directory, f'{smiles_pattern}.xml')
 
         with open(force_field_path, 'wb') as file:
             file.write(force_field_response)
@@ -541,20 +543,13 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
 
         logging.info(f'Generating a system with LigParGen for {self._substance.identifier}: {self._id}')
 
-        try:
-
-            with open(self._force_field_path) as file:
-                force_field_source = ForceFieldSource.parse_json(file.read())
-
-        except Exception as e:
-
-            return PropertyEstimatorException(directory=directory,
-                                              message='{} could not load the ForceFieldSource: {}'.format(self.id, e))
+        with open(self._force_field_path) as file:
+            force_field_source = ForceFieldSource.parse_json(file.read())
 
         if not isinstance(force_field_source, LigParGenForceFieldSource):
 
             return PropertyEstimatorException(directory=directory,
-                                              message='Only SMIRNOFF force fields are supported by this '
+                                              message='Only LigParGen force field sources are supported by this '
                                                       'protocol.')
 
         # Load in the systems coordinates / topology
@@ -604,6 +599,7 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
             component_system = force_field_template.createSystem(topology=component_topology,
                                                                  nonbondedMethod=app.PME,
                                                                  constraints=app.HBonds,
+                                                                 rigidWater=True,
                                                                  removeCMMotion=False)
 
             system_templates[unique_molecules[index].to_smiles()] = component_system
@@ -630,7 +626,7 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
         # Serialize the system object.
         system_xml = openmm.XmlSerializer.serialize(system)
 
-        self._system_path = path.join(directory, 'system.xml')
+        self._system_path = os.path.join(directory, 'system.xml')
 
         with open(self._system_path, 'wb') as file:
             file.write(system_xml.encode('utf-8'))
@@ -647,12 +643,24 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
 
     Notes
     -----
-    This protocol is currently a work in progress and as such has limited
-    functionality compared to the more established `BuildSmirnoffSystem` protocol.
+    * This protocol is currently a work in progress and as such has limited
+      functionality compared to the more established `BuildSmirnoffSystem` protocol.
+    * This protocol requires the optional `ambertools ==19.0` dependency to be installed.
     """
 
+    class ChargeBackend(Enum):
+        """The framework to use to assign partial charges.
+        """
+        OpenEye = 'OpenEye'
+        AmberTools = 'AmberTools'
+
     @protocol_input(str)
-    def force_field_path(self, value):
+    def charge_backend(self):
+        """The backend framework to use to assign partial charges."""
+        pass
+
+    @protocol_input(str)
+    def force_field_path(self):
         """The file path to the force field parameters to assign to the system.
         This path **must** point to a json serialized `TLeapForceFieldSource` object."""
         pass
@@ -662,117 +670,116 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
         """
         super().__init__(protocol_id)
 
-    def topology_molecule_to_mol2(self, topology_molecule, file_name, toolkit='OE'):
-        """Turn an openforcefield.topology.TopologyMolecule into a mol2 file, generating a conformer
-           and charges in the process.
+        self._charge_backend = BuildTLeapSystem.ChargeBackend.OpenEye
 
-        .. warning :: This function uses non-public methods from the Open Force Field toolkit
-                     and should be refactored when public methods become available
+    @staticmethod
+    def _topology_molecule_to_mol2(topology_molecule, file_name, charge_backend):
+        """Converts an `openforcefield.topology.TopologyMolecule` into a mol2 file,
+        generating a conformer and AM1BCC charges in the process.
 
-        .. note :: This function requires the OpenEye toolkit with a valid license to write mol2 format files
+        .. todo :: This function uses non-public methods from the Open Force Field toolkit
+                   and should be refactored when public methods become available
 
         Parameters
         ----------
-        topology_molecule : openforcefield.topology.TopologyMolecule
-            The TopologyMolecule to write out as a mol2 file. The atom ordering in this mol2 will
-            be consistent with the topology ordering.
-        file_name : string
+        topology_molecule: openforcefield.topology.TopologyMolecule
+            The `TopologyMolecule` to write out as a mol2 file. The atom ordering in
+            this mol2 will be consistent with the topology ordering.
+        file_name: str
             The filename to write to.
-        toolkit : string. Allowed values are ['OE', 'RDKit', None]
-            The cheminformatics toolkit to use for conformer generation and partial charge calculation.
-            If None, geometries and partial charges from the underlying openforcefield.topology.Molecule will be used.
+        charge_backend: BuildTLeapSystem.ChargeBackend
+            The backend to use for conformer generation and partial charge
+            calculation.
         """
-        from simtk import unit
-        import numpy as np
         from openforcefield.topology import Molecule
-        from copy import deepcopy
-
-        ALLOWED_TOOLKITS = ['openeye', 'rdkit', None]
+        from simtk import unit as simtk_unit
 
         # Make a copy of the reference molecule so we can run conf gen / charge calc without modifying the original
-        ref_mol = deepcopy(topology_molecule.reference_molecule)
+        reference_molecule = copy.deepcopy(topology_molecule.reference_molecule)
 
-        if toolkit is None:
-            pass
-        elif toolkit.lower() == 'openeye':
+        if charge_backend == BuildTLeapSystem.ChargeBackend.OpenEye:
+
             from openforcefield.utils.toolkits import OpenEyeToolkitWrapper
-            oetkw = OpenEyeToolkitWrapper()
-            ref_mol.generate_conformers(toolkit_registry=oetkw)
-            ref_mol.compute_partial_charges_am1bcc(toolkit_registry=oetkw)
-        elif toolkit.lower() == 'rdkit':
+
+            toolkit_wrapper = OpenEyeToolkitWrapper()
+            reference_molecule.generate_conformers(toolkit_registry=toolkit_wrapper)
+            reference_molecule.compute_partial_charges_am1bcc(toolkit_registry=toolkit_wrapper)
+
+        elif charge_backend == BuildTLeapSystem.ChargeBackend.AmberTools:
+
             from openforcefield.utils.toolkits import RDKitToolkitWrapper, AmberToolsToolkitWrapper, ToolkitRegistry
-            tkr = ToolkitRegistry(toolkit_precedence=[RDKitToolkitWrapper, AmberToolsToolkitWrapper])
-            ref_mol.generate_conformers(toolkit_registry=tkr)
-            ref_mol.compute_partial_charges_am1bcc(toolkit_registry=tkr)
+
+            toolkit_wrapper = ToolkitRegistry(toolkit_precedence=[RDKitToolkitWrapper, AmberToolsToolkitWrapper])
+            reference_molecule.generate_conformers(toolkit_registry=toolkit_wrapper)
+            reference_molecule.compute_partial_charges_am1bcc(toolkit_registry=toolkit_wrapper)
+
         else:
-            raise ValueError(f'Received invalid toolkit specification: {toolkit}. '
-                             f'Allowed values are {ALLOWED_TOOLKITS}')
+            raise ValueError(f'Invalid toolkit specification.')
 
-
-        # Get access to the parent topology, so we look up the topology atom indices later.
+        # Get access to the parent topology, so we can look up the topology atom indices later.
         topology = topology_molecule.topology
 
         # Make and populate a new openforcefield.topology.Molecule
-        new_mol = Molecule()
-        new_mol.name = ref_mol.name
+        new_molecule = Molecule()
+        new_molecule.name = reference_molecule.name
 
-        # Add atoms to the new molecule
-        for top_atom in topology_molecule.atoms:
+        # Add atoms to the new molecule in the correct order
+        for topology_atom in topology_molecule.atoms:
 
             # Force the topology to cache the topology molecule start indices
-            topology.atom(top_atom.topology_atom_index)
+            topology.atom(topology_atom.topology_atom_index)
 
-            new_at_idx = new_mol.add_atom(top_atom.atom.atomic_number,
-                                          top_atom.atom.formal_charge,
-                                          top_atom.atom.is_aromatic,
-                                          top_atom.atom.stereochemistry,
-                                          top_atom.atom.name
-                                          )
+            new_molecule.add_atom(topology_atom.atom.atomic_number,
+                                  topology_atom.atom.formal_charge,
+                                  topology_atom.atom.is_aromatic,
+                                  topology_atom.atom.stereochemistry,
+                                  topology_atom.atom.name)
 
         # Add bonds to the new molecule
-        for top_bond in topology_molecule.bonds:
-            # This is a cheap hack to figure out what the "local" atom index of these atoms is.
-            # In other words it is the offset we need to apply to get the index if this were
-            # the only molecule in the whole Topology. We need to apply this offset because
-            # new_mol begins its atom indexing at 0, not the real topology atom index (which we do know).
-            idx_offset = topology_molecule._atom_start_topology_index
+        for topology_bond in topology_molecule.bonds:
+
+            # This is a temporary workaround to figure out what the "local" atom index of
+            # these atoms is. In other words it is the offset we need to apply to get the
+            # index if this were the only molecule in the whole Topology. We need to apply
+            # this offset because `new_molecule` begins its atom indexing at 0, not the
+            # real topology atom index (which we do know).
+            index_offset = topology_molecule._atom_start_topology_index
 
             # Convert the `.atoms` generator into a list so we can access it by index
-            top_atoms = list(top_bond.atoms)
+            topology_atoms = list(topology_bond.atoms)
 
-            new_bd_idx = new_mol.add_bond(top_atoms[0].topology_atom_index - idx_offset,
-                                          top_atoms[1].topology_atom_index - idx_offset,
-                                          top_bond.bond.bond_order,
-                                          top_bond.bond.is_aromatic,
-                                          top_bond.bond.stereochemistry,
-                                          )
+            new_molecule.add_bond(topology_atoms[0].topology_atom_index - index_offset,
+                                  topology_atoms[1].topology_atom_index - index_offset,
+                                  topology_bond.bond.bond_order,
+                                  topology_bond.bond.is_aromatic,
+                                  topology_bond.bond.stereochemistry,)
 
         # Transfer over existing conformers and partial charges, accounting for the
         # reference/topology indexing differences
+        new_conformers = np.zeros((reference_molecule.n_atoms, 3))
+        new_charges = np.zeros(reference_molecule.n_atoms)
 
-        # We populate unitless arrays of the proper size and shape
-        new_conf = np.zeros((ref_mol.n_atoms, 3))
-        new_pcs = np.zeros(ref_mol.n_atoms)
-
-        # Then iterate over the reference atoms, mapping their indices to the topology molecule's indexing system
-        for ref_atom_idx in range(ref_mol.n_atoms):
+        # Then iterate over the reference atoms, mapping their indices to the topology
+        # molecule's indexing system
+        for reference_atom_index in range(reference_molecule.n_atoms):
             # We don't need to apply the offset here, since _ref_to_top_index is
             # already "locally" indexed for this topology molecule
-            local_top_index = topology_molecule._ref_to_top_index[ref_atom_idx]
+            local_top_index = topology_molecule._ref_to_top_index[reference_atom_index]
 
-            # Strip the units becuase I'm lazy. We attach them below.
-            new_conf[local_top_index, :] = ref_mol.conformers[0][ref_atom_idx] / unit.angstrom
-            new_pcs[local_top_index] = ref_mol.partial_charges[ref_atom_idx] / unit.elementary_charge
+            new_conformers[local_top_index, :] = reference_molecule.conformers[0][
+                reference_atom_index].value_in_unit(simtk_unit.angstrom)
+            new_charges[local_top_index] = reference_molecule.partial_charges[
+                reference_atom_index].value_in_unit(simtk_unit.elementary_charge)
 
         # Reattach the units
-        new_mol.add_conformer(new_conf * unit.angstrom)
-        new_mol.partial_charges = new_pcs * unit.elementary_charge
+        new_molecule.add_conformer(new_conformers * simtk_unit.angstrom)
+        new_molecule.partial_charges = new_charges * simtk_unit.elementary_charge
 
         # Write the molecule
-        new_mol.to_file(file_name, file_format='mol2')
+        new_molecule.to_file(file_name, file_format='mol2')
 
-
-    def _run_tleap(self, force_field_source, initial_mol2_file_path, directory):
+    @staticmethod
+    def _run_tleap(force_field_source, initial_mol2_file_path, directory):
         """Uses tleap to apply parameters to a particular molecule,
         generating a `.prmtop` and a `.rst7` file with the applied parameters.
 
@@ -780,8 +787,8 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
         ----------
         force_field_source: TLeapForceFieldSource
             The tleap source which describes which parameters to apply.
-        smiles: str
-            The MOL2 representation of the molecule to parameterise.
+        initial_mol2_file_path: str
+            The path to the MOL2 representation of the molecule to parameterize.
         directory: str
             The directory to store and temporary files / the final
             parameters in.
@@ -809,18 +816,27 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
             # Run antechamber to find the correct atom types.
             processed_mol2_path = 'antechamber.mol2'
 
-            antechamber_result = subprocess.check_output(['antechamber',
-                                                          '-i', initial_mol2_file_path, '-fi', 'mol2',
-                                                          '-o', processed_mol2_path, '-fo', 'mol2',
-                                                          '-at', amber_type,
-                                                          '-rn', 'MOL',
-                                                          '-an', 'no',
-                                                          '-pf', 'yes'])
+            antechamber_process = subprocess.Popen(['antechamber',
+                                                    '-i', initial_mol2_file_path, '-fi', 'mol2',
+                                                    '-o', processed_mol2_path, '-fo', 'mol2',
+                                                    '-at', amber_type,
+                                                    '-rn', 'MOL',
+                                                    '-an', 'no',
+                                                    '-pf', 'yes'],
+                                                   stdout=subprocess.PIPE,
+                                                   stderr=subprocess.PIPE)
+
+            antechamber_output, antechamber_error = antechamber_process.communicate()
+            antechamber_exit_code = antechamber_process.returncode
 
             with open('antechamber_output.log', 'w') as file:
-                file.write(antechamber_result)
+                file.write(f'error code: {antechamber_exit_code}\nstdout:\n\n')
+                file.write('stdout:\n\n')
+                file.write(antechamber_output.decode())
+                file.write('\nstderr:\n\n')
+                file.write(antechamber_error.decode())
 
-            if not path.isfile(processed_mol2_path):
+            if not os.path.isfile(processed_mol2_path):
 
                 return None, None, PropertyEstimatorException(directory, f'antechamber failed to assign atom types to '
                                                                          f'the input mol2 file '
@@ -833,16 +849,23 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
                 # Optionally run parmchk to find any missing parameters.
                 frcmod_path = 'parmck2.frcmod'
 
-                prmchk2_result = subprocess.check_output(['parmchk2',
-                                                          '-i', processed_mol2_path, '-f', 'mol2',
-                                                          '-o', frcmod_path,
-                                                          '-s', amber_type
-                                                          ], cwd=directory)
+                prmchk2_process = subprocess.Popen(['parmchk2',
+                                                    '-i', processed_mol2_path, '-f', 'mol2',
+                                                    '-o', frcmod_path,
+                                                    '-s', amber_type],
+                                                   stdout=subprocess.PIPE,
+                                                   stderr=subprocess.PIPE)
 
-                with open('parmchk2_output.log', 'w') as file:
-                    file.write(prmchk2_result)
+                prmchk2_output, prmchk2_error = prmchk2_process.communicate()
+                prmchk2_exit_code = prmchk2_process.returncode
 
-                if not path.isfile(frcmod_path):
+                with open('prmchk2_output.log', 'w') as file:
+                    file.write(f'error code: {prmchk2_exit_code}\nstdout:\n\n')
+                    file.write(prmchk2_output.decode())
+                    file.write('\nstderr:\n\n')
+                    file.write(prmchk2_error.decode())
+
+                if not os.path.isfile(frcmod_path):
 
                     return None, None, PropertyEstimatorException(directory,
                                                                   f'parmchk2 failed to assign missing {amber_type} '
@@ -860,6 +883,7 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
 
             template_lines.extend([
                 f'MOL = loadmol2 {processed_mol2_path}',
+                f'setBox MOL \"centers\"',
                 'check MOL',
                 f'saveamberparm MOL {prmtop_file_name} {rst7_file_name}'
             ])
@@ -870,45 +894,39 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
                 file.write('\n'.join(template_lines))
 
             # Run tleap.
-            tleap_result = subprocess.call(['tleap', '-s ', '-f ', input_file_path],
-                                           stdout=subprocess.PIPE,
-                                           stderr=subprocess.PIPE,
-                                           cwd=directory)
+            tleap_process = subprocess.Popen(['tleap', '-s ', '-f ', input_file_path],
+                                             stdout=subprocess.PIPE)
+
+            tleap_output, _ = tleap_process.communicate()
+            tleap_exit_code = tleap_process.returncode
 
             with open('tleap_output.log', 'w') as file:
-                file.write(tleap_result)
+                file.write(f'error code: {tleap_exit_code}\nstdout:\n\n')
+                file.write(tleap_output.decode())
 
-            if not path.isfile(prmtop_file_name) or not path.isfile(rst7_file_name):
+            if not os.path.isfile(prmtop_file_name) or not os.path.isfile(rst7_file_name):
                 return None, None, PropertyEstimatorException(directory, f'tleap failed to execute.')
 
             with open('leap.log', 'r') as file:
 
                 if not re.search('ERROR|WARNING|Warning|duplicate|FATAL|Could|Fatal|Error', file.read()):
-                    return path.join(directory, prmtop_file_name), path.join(directory, rst7_file_name), None
+                    return os.path.join(directory, prmtop_file_name), os.path.join(directory, rst7_file_name), None
 
             return None, None, PropertyEstimatorException(directory, f'tleap failed to execute.')
 
     def execute(self, directory, available_resources):
 
-        import mdtraj
         from openforcefield.topology import Molecule, Topology
 
         logging.info(f'Generating a system with tleap for {self._substance.identifier}: {self._id}')
 
-        try:
+        with open(self._force_field_path) as file:
+            force_field_source = ForceFieldSource.parse_json(file.read())
 
-            with open(self._force_field_path) as file:
-                force_field_source = ForceFieldSource.parse_json(file.read())
-
-        except Exception as e:
+        if not isinstance(force_field_source, TLeapForceFieldSource):
 
             return PropertyEstimatorException(directory=directory,
-                                              message='{} could not load the ForceFieldSource: {}'.format(self.id, e))
-
-        if not isinstance(force_field_source, LigParGenForceFieldSource):
-
-            return PropertyEstimatorException(directory=directory,
-                                              message='Only SMIRNOFF force fields are supported by this '
+                                              message='Only TLeap force field sources are supported by this '
                                                       'protocol.')
 
         # Load in the systems coordinates / topology
@@ -922,34 +940,48 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
 
         # Find a unique instance of each topology molecule to get the correct
         # atom orderings.
-        topology_molecules = {}
+        topology_molecules = dict()
 
         for topology_molecule in topology.topology_molecules:
             topology_molecules[topology_molecule.reference_molecule.to_smiles()] = topology_molecule
 
-        #for smiles, topology_molecule in topology_molecules.items():
+        system_templates = {}
 
+        for index, (smiles, topology_molecule) in enumerate(topology_molecules.items()):
 
-            # if reference_topology_molecule is None:
-            #     return PropertyEstimatorException('A topology molecule could not be matched to its reference.')
-            #
-            # start_index = reference_topology_molecule.atom_start_topology_index
-            # end_index = start_index + reference_topology_molecule.n_atoms
-            # index_range = list(range(start_index, end_index))
-            #
-            # component_pdb_file = mdtraj.load_pdb(self._coordinate_file_path, atom_indices=index_range)
-            # component_topology = component_pdb_file.topology.to_openmm()
-            # component_topology.setUnitCellDimensions(openmm_pdb_file.topology.getUnitCellDimensions())
-            #
-            # # Create the system object.
-            # force_field_template = app.ForceField(force_field_path)
-            #
-            # component_system = force_field_template.createSystem(topology=component_topology,
-            #                                                      nonbondedMethod=app.PME,
-            #                                                      constraints=app.HBonds,
-            #                                                      removeCMMotion=False)
+            smiles_directory = os.path.join(directory, str(index))
 
-            # system_templates[unique_molecules[index].to_smiles()] = component_system
+            if os.path.isdir(smiles_directory):
+                shutil.rmtree(smiles_directory)
+
+            os.makedirs(smiles_directory, exist_ok=True)
+
+            initial_mol2_name = 'initial.mol2'
+            initial_mol2_path = os.path.join(smiles_directory, initial_mol2_name)
+
+            self._topology_molecule_to_mol2(topology_molecule, initial_mol2_path, self._charge_backend)
+            prmtop_path, _, error = self._run_tleap(force_field_source, initial_mol2_name, smiles_directory)
+
+            if error is not None:
+                return error
+
+            cutoff = pint_quantity_to_openmm(force_field_source.cutoff)
+
+            prmtop_file = openmm.app.AmberPrmtopFile(prmtop_path)
+
+            component_system = prmtop_file.createSystem(nonbondedMethod=app.PME,
+                                                        nonbondedCutoff=cutoff,
+                                                        constraints=app.HBonds,
+                                                        rigidWater=True,
+                                                        removeCMMotion=False)
+
+            if openmm_pdb_file.topology.getPeriodicBoxVectors() is not None:
+                component_system.setDefaultPeriodicBoxVectors(*openmm_pdb_file.topology.getPeriodicBoxVectors())
+
+            system_templates[unique_molecules[index].to_smiles()] = component_system
+
+            with open(os.path.join(smiles_directory, f'component.xml'), 'w') as file:
+                file.write(openmm.XmlSerializer.serialize(component_system))
 
         # Create the full system object from the component templates.
         system = None
@@ -967,16 +999,13 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
             # Append the component template to the full system.
             self._append_system(system, system_template)
 
-        # Apply the OPLS mixing rules.
-        self._apply_opls_mixing_rules(system)
-
         # Serialize the system object.
         system_xml = openmm.XmlSerializer.serialize(system)
 
-        self._system_path = path.join(directory, 'system.xml')
+        self._system_path = os.path.join(directory, 'system.xml')
 
-        with open(self._system_path, 'wb') as file:
-            file.write(system_xml.encode('utf-8'))
+        with open(self._system_path, 'w') as file:
+            file.write(system_xml)
 
         logging.info(f'System generated: {self.id}')
 

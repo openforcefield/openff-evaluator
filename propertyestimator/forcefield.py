@@ -4,6 +4,7 @@ A collection of wrappers around commonly employed force fields.
 import abc
 from enum import Enum
 
+from propertyestimator import unit
 from propertyestimator.utils.serialization import TypedBaseModel
 
 
@@ -128,7 +129,13 @@ class TLeapForceFieldSource(ForceFieldSource):
         """
         return self._leap_sources
 
-    def __init__(self, leap_sources):
+    @property
+    def cutoff(self):
+        """unit.Quantity: The non-bonded interaction cutoff.
+        """
+        return self._cutoff
+
+    def __init__(self, leap_sources=None, cutoff=9.0*unit.angstrom):
         """Constructs a new TLeapForceFieldSource object
 
         Parameters
@@ -155,12 +162,17 @@ class TLeapForceFieldSource(ForceFieldSource):
         """
 
         self._leap_sources = leap_sources
+        self._cutoff = cutoff
 
     def __getstate__(self):
-        return {'leap_sources': self._leap_sources}
+        return {
+            'leap_sources': self._leap_sources,
+            'cutoff': self._cutoff
+        }
 
     def __setstate__(self, state):
         self._leap_sources = state['leap_sources']
+        self._cutoff = state['cutoff']
 
 
 class LigParGenForceFieldSource(ForceFieldSource):
