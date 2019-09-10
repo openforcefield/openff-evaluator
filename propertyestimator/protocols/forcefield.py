@@ -714,7 +714,7 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
         OpenEye = 'OpenEye'
         AmberTools = 'AmberTools'
 
-    @protocol_input(str)
+    @protocol_input(ChargeBackend)
     def charge_backend(self):
         """The backend framework to use to assign partial charges."""
         pass
