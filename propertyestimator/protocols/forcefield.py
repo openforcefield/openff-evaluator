@@ -20,7 +20,7 @@ from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSou
 from propertyestimator.substances import Substance
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.openmm import pint_quantity_to_openmm
-from propertyestimator.utils.utils import temporarily_change_directory
+from propertyestimator.utils.utils import temporarily_change_directory, get_data_filename
 from propertyestimator.workflow.decorators import protocol_input, protocol_output
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
@@ -31,6 +31,17 @@ class BaseBuildSystemProtocol(BaseProtocol):
     """The base for any protocol whose role is to apply a set of
     force field parameters to a given system.
     """
+
+    class WaterModel(Enum):
+        """An enum which describes which water model is being
+        used, so that correct charges can be applied.
+
+        Warnings
+        --------
+        This is only a temporary addition until full water model support
+        is introduced.
+        """
+        TIP3P = 'TIP3P'
 
     @protocol_input(str)
     def force_field_path(self, value):
@@ -55,6 +66,18 @@ class BaseBuildSystemProtocol(BaseProtocol):
         applied parameters."""
         pass
 
+    @protocol_input(WaterModel)
+    def water_model(self):
+        """The water model to apply, if any water molecules
+        are present.
+
+        Warnings
+        --------
+        This is only a temporary addition until full water model support
+        is introduced.
+        """
+        pass
+
     def __init__(self, protocol_id):
         """Constructs a new BaseBuildSystemProtocol object.
         """
@@ -64,9 +87,58 @@ class BaseBuildSystemProtocol(BaseProtocol):
         self._force_field_path = None
         self._coordinate_file_path = None
         self._substance = None
+        self._water_model = BaseBuildSystemProtocol.WaterModel.TIP3P
 
         # Outputs
         self._system_path = None
+
+    @staticmethod
+    def _build_tip3p_system(topology_molecule, cutoff, cell_vectors):
+        """Builds a `simtk.openmm.System` object containing a single water model
+
+        Parameters
+        ----------
+        topology_molecule: openforcefield.topology.TopologyMolecule
+            The topology molecule which represents the water molecule
+            in the full system.
+        cutoff: simtk.unit.Quantity
+            The non-bonded cutoff.
+        cell_vectors: simtk.unit.Quantity
+            The full system's cell vectors.
+
+        Returns
+        -------
+        simtk.openmm.System
+            The created system.
+        """
+
+        topology_atoms = list(topology_molecule.atoms)
+
+        # Make sure the topology molecule is in the order we expect.
+        assert len(topology_atoms) == 3
+
+        assert topology_atoms[0].atom.element.symbol == 'O'
+        assert topology_atoms[1].atom.element.symbol == 'H'
+        assert topology_atoms[2].atom.element.symbol == 'H'
+
+        force_field_path = get_data_filename('forcefield/tip3p.xml')
+        water_pdb_path = get_data_filename('forcefield/tip3p.pdb')
+
+        component_pdb_file = app.PDBFile(water_pdb_path)
+        component_topology = component_pdb_file.topology
+        component_topology.setUnitCellDimensions(cell_vectors)
+
+        # Create the system object.
+        force_field_template = app.ForceField(force_field_path)
+
+        component_system = force_field_template.createSystem(topology=component_topology,
+                                                             nonbondedMethod=app.PME,
+                                                             nonbondedCutoff=cutoff,
+                                                             constraints=app.HBonds,
+                                                             rigidWater=True,
+                                                             removeCMMotion=False)
+
+        return component_system
 
     @staticmethod
     def _append_system(existing_system, system_to_append):
@@ -168,16 +240,6 @@ class BuildSmirnoffSystem(BaseBuildSystemProtocol):
     """Parametrise a set of molecules with a given smirnoff force field
     using the `OpenFF toolkit <https://github.com/openforcefield/openforcefield>`_.
     """
-    class WaterModel(Enum):
-        """An enum which describes which water model is being
-        used, so that correct charges can be applied.
-
-        Warnings
-        --------
-        This is only a temporary addition until library charges
-        are introduced into the openforcefield toolkit.
-        """
-        TIP3P = 'TIP3P'
 
     @protocol_input(str)
     def force_field_path(self, value):
@@ -193,18 +255,6 @@ class BuildSmirnoffSystem(BaseBuildSystemProtocol):
         in multiple places, and hence should only be calculated once."""
         pass
 
-    @protocol_input(WaterModel)
-    def water_model(self):
-        """The water model to apply, if any water molecules
-        are present.
-
-        Warnings
-        --------
-        This is only a temporary addition until library charges
-        are introduced into the openforcefield toolkit.
-        """
-        pass
-
     @protocol_input(bool)
     def apply_known_charges(self):
         """If true, formal the formal charges of ions, and
@@ -218,8 +268,6 @@ class BuildSmirnoffSystem(BaseBuildSystemProtocol):
         """
 
         super().__init__(protocol_id)
-
-        self._water_model = BuildSmirnoffSystem.WaterModel.TIP3P
 
         self._apply_known_charges = True
         self._charged_molecule_paths = []
@@ -364,7 +412,7 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
     """
 
     @protocol_input(str)
-    def force_field_path(self, value):
+    def force_field_path(self):
         """The file path to the force field parameters to assign to the system.
         This path **must** point to a json serialized `LigParGenForceFieldSource` object."""
         pass
@@ -565,15 +613,16 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
         # Create the template system objects for each component in the system.
         system_templates = {}
 
-        for index, component in enumerate(self._substance.components):
+        cutoff = pint_quantity_to_openmm(force_field_source.cutoff)
 
-            # Create the force field template using the LigParGen server.
-            force_field_path = self._parameterize_smiles(component.smiles, force_field_source, directory)
+        for index, component in enumerate(self._substance.components):
 
             reference_topology_molecule = None
 
             # Create temporary pdb files for each molecule type in the system, with their constituent
             # atoms ordered in the same way that they would be in the full system.
+            topology_molecule = None
+
             for topology_molecule in topology.topology_molecules:
 
                 if topology_molecule.reference_molecule.to_smiles() != unique_molecules[index].to_smiles():
@@ -582,25 +631,36 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
                 reference_topology_molecule = topology_molecule
                 break
 
-            if reference_topology_molecule is None:
+            if reference_topology_molecule is None or topology_molecule is None:
                 return PropertyEstimatorException('A topology molecule could not be matched to its reference.')
 
-            start_index = reference_topology_molecule.atom_start_topology_index
-            end_index = start_index + reference_topology_molecule.n_atoms
-            index_range = list(range(start_index, end_index))
+            # Create the force field template using the LigParGen server.
+            if component.smiles != 'O' and component.smiles != '[H]O[H]':
 
-            component_pdb_file = mdtraj.load_pdb(self._coordinate_file_path, atom_indices=index_range)
-            component_topology = component_pdb_file.topology.to_openmm()
-            component_topology.setUnitCellDimensions(openmm_pdb_file.topology.getUnitCellDimensions())
+                force_field_path = self._parameterize_smiles(component.smiles, force_field_source, directory)
 
-            # Create the system object.
-            force_field_template = app.ForceField(force_field_path)
+                start_index = reference_topology_molecule.atom_start_topology_index
+                end_index = start_index + reference_topology_molecule.n_atoms
+                index_range = list(range(start_index, end_index))
 
-            component_system = force_field_template.createSystem(topology=component_topology,
-                                                                 nonbondedMethod=app.PME,
-                                                                 constraints=app.HBonds,
-                                                                 rigidWater=True,
-                                                                 removeCMMotion=False)
+                component_pdb_file = mdtraj.load_pdb(self._coordinate_file_path, atom_indices=index_range)
+                component_topology = component_pdb_file.topology.to_openmm()
+                component_topology.setUnitCellDimensions(openmm_pdb_file.topology.getUnitCellDimensions())
+
+                # Create the system object.
+                force_field_template = app.ForceField(force_field_path)
+
+                component_system = force_field_template.createSystem(topology=component_topology,
+                                                                     nonbondedMethod=app.PME,
+                                                                     nonbondedCutoff=cutoff,
+                                                                     constraints=app.HBonds,
+                                                                     rigidWater=True,
+                                                                     removeCMMotion=False)
+            else:
+
+                component_system = self._build_tip3p_system(topology_molecule,
+                                                            cutoff,
+                                                            openmm_pdb_file.topology.getUnitCellDimensions())
 
             system_templates[unique_molecules[index].to_smiles()] = component_system
 
@@ -806,12 +866,15 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
         # Change into the working directory.
         with temporarily_change_directory(directory):
 
-            amber_type = 'amber'
-
-            if 'leaprc.gaff2' in force_field_source.leap_sources:
+            if force_field_source.leap_source == 'leaprc.gaff2':
                 amber_type = 'gaff2'
-            elif 'leaprc.gaff' in force_field_source.leap_sources:
+            elif force_field_source.leap_source == 'leaprc.gaff':
                 amber_type = 'gaff'
+            else:
+                return None, None, PropertyEstimatorException(directory, f'The {force_field_source.leap_source} source '
+                                                                         f'is currently unsupported. Only the '
+                                                                         f'\'leaprc.gaff2\' and \'leaprc.gaff\' '
+                                                                         f' sources are supported.')
 
             # Run antechamber to find the correct atom types.
             processed_mol2_path = 'antechamber.mol2'
@@ -873,7 +936,7 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
                                                                   f'({processed_mol2_path})')
 
             # Build the tleap input file.
-            template_lines = [f'source {source}' for source in force_field_source.leap_sources]
+            template_lines = [f'source {force_field_source.leap_source}']
 
             if frcmod_path is not None:
                 template_lines.append(f'loadamberparams {frcmod_path}', )
@@ -947,40 +1010,47 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
 
         system_templates = {}
 
+        cutoff = pint_quantity_to_openmm(force_field_source.cutoff)
+
         for index, (smiles, topology_molecule) in enumerate(topology_molecules.items()):
 
-            smiles_directory = os.path.join(directory, str(index))
+            component_directory = os.path.join(directory, str(index))
 
-            if os.path.isdir(smiles_directory):
-                shutil.rmtree(smiles_directory)
+            if os.path.isdir(component_directory):
+                shutil.rmtree(component_directory)
 
-            os.makedirs(smiles_directory, exist_ok=True)
+            os.makedirs(component_directory, exist_ok=True)
 
-            initial_mol2_name = 'initial.mol2'
-            initial_mol2_path = os.path.join(smiles_directory, initial_mol2_name)
+            if smiles != 'O' and smiles != '[H]O[H]':
 
-            self._topology_molecule_to_mol2(topology_molecule, initial_mol2_path, self._charge_backend)
-            prmtop_path, _, error = self._run_tleap(force_field_source, initial_mol2_name, smiles_directory)
+                initial_mol2_name = 'initial.mol2'
+                initial_mol2_path = os.path.join(component_directory, initial_mol2_name)
 
-            if error is not None:
-                return error
+                self._topology_molecule_to_mol2(topology_molecule, initial_mol2_path, self._charge_backend)
+                prmtop_path, _, error = self._run_tleap(force_field_source, initial_mol2_name, component_directory)
 
-            cutoff = pint_quantity_to_openmm(force_field_source.cutoff)
+                if error is not None:
+                    return error
 
-            prmtop_file = openmm.app.AmberPrmtopFile(prmtop_path)
+                prmtop_file = openmm.app.AmberPrmtopFile(prmtop_path)
 
-            component_system = prmtop_file.createSystem(nonbondedMethod=app.PME,
-                                                        nonbondedCutoff=cutoff,
-                                                        constraints=app.HBonds,
-                                                        rigidWater=True,
-                                                        removeCMMotion=False)
+                component_system = prmtop_file.createSystem(nonbondedMethod=app.PME,
+                                                            nonbondedCutoff=cutoff,
+                                                            constraints=app.HBonds,
+                                                            rigidWater=True,
+                                                            removeCMMotion=False)
 
-            if openmm_pdb_file.topology.getPeriodicBoxVectors() is not None:
-                component_system.setDefaultPeriodicBoxVectors(*openmm_pdb_file.topology.getPeriodicBoxVectors())
+                if openmm_pdb_file.topology.getPeriodicBoxVectors() is not None:
+                    component_system.setDefaultPeriodicBoxVectors(*openmm_pdb_file.topology.getPeriodicBoxVectors())
+            else:
+
+                component_system = self._build_tip3p_system(topology_molecule,
+                                                            cutoff,
+                                                            openmm_pdb_file.topology.getUnitCellDimensions())
 
             system_templates[unique_molecules[index].to_smiles()] = component_system
 
-            with open(os.path.join(smiles_directory, f'component.xml'), 'w') as file:
+            with open(os.path.join(component_directory, f'component.xml'), 'w') as file:
                 file.write(openmm.XmlSerializer.serialize(component_system))
 
         # Create the full system object from the component templates.
