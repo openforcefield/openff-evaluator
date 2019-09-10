@@ -285,7 +285,7 @@ class ProtocolPath(PlaceholderInput):
 
     def __eq__(self, other):
         """Returns true if the two inputs are equal."""
-        return self._full_path == other.full_path
+        return type(self) == type(other) and self._full_path == other.full_path
 
     def __ne__(self, other):
         """Returns true if the two inputs are not equal."""

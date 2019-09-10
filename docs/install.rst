@@ -14,7 +14,7 @@ Installation from Conda
 
 To install the ``propertyestimator`` from the ``omnia`` channel, simply run::
 
-    conda install -c omnia/label/rc propertyestimator
+    conda install -c openeye -c omnia/label/rc propertyestimator
 
 Installation from Source
 ------------------------
