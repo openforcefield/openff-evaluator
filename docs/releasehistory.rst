@@ -33,6 +33,7 @@ Bugfixes
 * PR #100: Fixes precision issues when ensuring mole fractions are `<= 1.0`.
 * PR #102: Fixes replicated input for children of replicated protocols.
 * PR #105: Fixes excess properties weighting by the wrong mole fractions.
+* PR #107: Fixes excess properties being converged to the wrong uncertainty.
 
 Breaking Changes
 """"""""""""""""
