@@ -53,12 +53,13 @@ remedied by the follow steps:
 * Change all instances of ``Substance.get_amount`` to ``Substance.get_amounts`` and handle.
   the newly returned frozenset of amounts, rather than the previously returned single amount.
 * Replace the now removed protocols as follows:
-    - ``DivideGradientByScalar`` -> ``DivideValue``
-    - ``MultiplyGradientByScalar`` -> ``MultiplyValue``
-    - ``AddGradients`` -> ``AddValues``
-    - ``SubtractGradients`` -> ``SubtractValues``
-    - ``WeightGradientByMoleFraction`` -> ``WeightByMoleFraction``
-    - ``WeightQuantityByMoleFraction`` -> ``WeightByMoleFraction``
+
+  - ``DivideGradientByScalar`` -> ``DivideValue``
+  - ``MultiplyGradientByScalar`` -> ``MultiplyValue``
+  - ``AddGradients`` -> ``AddValues``
+  - ``SubtractGradients`` -> ``SubtractValues``
+  - ``WeightGradientByMoleFraction`` -> ``WeightByMoleFraction``
+  - ``WeightQuantityByMoleFraction`` -> ``WeightByMoleFraction``
 
 
 0.0.2 - Replicator Quick Fixes
