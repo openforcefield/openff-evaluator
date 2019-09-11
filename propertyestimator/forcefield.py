@@ -4,6 +4,7 @@ A collection of wrappers around commonly employed force fields.
 import abc
 from enum import Enum
 
+from propertyestimator import unit
 from propertyestimator.utils.serialization import TypedBaseModel
 
 
@@ -111,49 +112,67 @@ class SmirnoffForceFieldSource(ForceFieldSource):
         self._inner_xml = state['inner_xml']
 
 
-class AmberForceFieldSource(ForceFieldSource):
+class TLeapForceFieldSource(ForceFieldSource):
     """A wrapper around Amber force fields which may be
-    applied via the `leap` software package.
+    applied via the `tleap` software package.
 
     Notes
     -----
     Currently this only supports force fields which are installed
-    alongside `leap`.
+    alongside `tleap`.
     """
 
-    def __init__(self, leap_sources):
-        """Constructs a new AmberForceFieldSource object
+    @property
+    def leap_source(self):
+        """list of str: The parameter file which should be sourced by `leap`
+            when applying the force field.
+        """
+        return self._leap_source
+
+    @property
+    def cutoff(self):
+        """unit.Quantity: The non-bonded interaction cutoff.
+        """
+        return self._cutoff
+
+    def __init__(self, leap_source='leaprc.gaff2', cutoff=9.0*unit.angstrom):
+        """Constructs a new TLeapForceFieldSource object
 
         Parameters
         ----------
-        leap_sources: list of str
-            A list of the files which should be sourced by `leap`
-            when applying the force field.
+        leap_source: str
+            The parameter file which should be sourced by `leap`
+            when applying the force field. Currently only
+            `'leaprc.gaff'` and `'leaprc.gaff2'` are supported.
+        cutoff: unit.Quantity
+            The non-bonded interaction cutoff.
 
         Examples
         --------
         To create a source for the GAFF force field with tip3p water:
 
-        >>> amber_gaff_source = AmberForceFieldSource([
-        >>>     'leaprc.gaff',
-        >>>     'leaprc.water.tip3p'
-        >>> ])
+        >>> amber_gaff_source = TLeapForceFieldSource('leaprc.gaff')
 
         To create a source for the GAFF 2 force field with tip3p water:
 
-        >>> amber_gaff_2_source = AmberForceFieldSource([
-        >>>     'leaprc.gaff2',
-        >>>     'leaprc.water.tip3p'
-        >>> ])
+        >>> amber_gaff_2_source = TLeapForceFieldSource('leaprc.gaff2')
         """
 
-        self._leap_sources = leap_sources
+        if leap_source is not None:
+            assert leap_source == 'leaprc.gaff2' or leap_source == 'leaprc.gaff'
+
+        self._leap_source = leap_source
+        self._cutoff = cutoff
 
     def __getstate__(self):
-        return {'leap_sources': self._leap_sources}
+        return {
+            'leap_source': self._leap_source,
+            'cutoff': self._cutoff
+        }
 
     def __setstate__(self, state):
-        self._leap_sources = state['leap_sources']
+        self._leap_source = state['leap_source']
+        self._cutoff = state['cutoff']
 
 
 class LigParGenForceFieldSource(ForceFieldSource):
@@ -187,7 +206,13 @@ class LigParGenForceFieldSource(ForceFieldSource):
         """
         return self._preferred_charge_model
 
-    def __init__(self, preferred_charge_model=ChargeModel.CM1A_1_14_LBCC):
+    @property
+    def cutoff(self):
+        """unit.Quantity: The non-bonded interaction cutoff.
+        """
+        return self._cutoff
+
+    def __init__(self, preferred_charge_model=ChargeModel.CM1A_1_14_LBCC, cutoff=9.0*unit.angstrom):
         """Constructs a new LigParGenForceFieldSource object
 
         Parameters
@@ -198,11 +223,18 @@ class LigParGenForceFieldSource(ForceFieldSource):
             (e.g. 1.14*CM1A-LBCC may only be applied to neutral
             molecules) and so another model may be applied in its
             place.
+        cutoff: unit.Quantity
+            The non-bonded interaction cutoff.
         """
         self._preferred_charge_model = preferred_charge_model
+        self._cutoff = cutoff
 
     def __getstate__(self):
-        return {'preferred_charge_model': self._preferred_charge_model}
+        return {
+            'preferred_charge_model': self._preferred_charge_model,
+            'cutoff': self._cutoff
+        }
 
     def __setstate__(self, state):
         self._preferred_charge_model = state['preferred_charge_model']
+        self._cutoff = state['cutoff']

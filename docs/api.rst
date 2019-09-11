@@ -26,7 +26,7 @@ Client Side API
 
     ForceFieldSource
     SmirnoffForceFieldSource
-    AmberForceFieldSource
+    TLeapForceFieldSource
     LigParGenForceFieldSource
 
 **Gradient Estimation**
