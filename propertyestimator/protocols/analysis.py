@@ -300,7 +300,7 @@ class ExtractUncorrelatedTrajectoryData(ExtractUncorrelatedData):
         self._output_trajectory_path = path.join(directory, 'uncorrelated_trajectory.dcd')
         uncorrelated_trajectory.save_dcd(self._output_trajectory_path)
 
-        self._number_of_uncorrelated_samples = len(trajectory)
+        self._number_of_uncorrelated_samples = len(uncorrelated_trajectory)
 
         logging.info('Trajectory subsampled: {}'.format(self.id))
 

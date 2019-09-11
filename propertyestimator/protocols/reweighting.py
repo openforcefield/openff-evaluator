@@ -766,7 +766,7 @@ class ReweightStatistics(BaseMBARProtocol):
                 if frame_count <= 0:
                     return PropertyEstimatorException(directory, 'The frame counts must be > 0.')
 
-                observables = statistics_array[self._statistics_type][current_index:frame_count]
+                observables = statistics_array[self._statistics_type][current_index:current_index + frame_count]
                 self._reference_observables.append(observables)
 
                 current_index += frame_count
