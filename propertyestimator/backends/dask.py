@@ -13,7 +13,6 @@ from dask import distributed
 from dask_jobqueue import LSFCluster
 from distributed import get_worker
 from distributed.deploy.adaptive import Adaptive
-from distributed.metrics import time
 from distributed.utils import ignoring
 
 from propertyestimator import unit
