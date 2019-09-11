@@ -6,6 +6,7 @@ from os import path
 
 import numpy as np
 import pymbar
+from scipy.special import logsumexp
 
 from propertyestimator import unit
 from propertyestimator.thermodynamics import ThermodynamicState
@@ -453,12 +454,10 @@ class BaseMBARProtocol(BaseProtocol):
         frame_counts = np.array([len(observable) for observable in self._reference_observables])
 
         # Construct a dummy mbar object to get out the number of effective samples.
-        mbar = self._construct_mbar_object(reference_reduced_potentials,
-                                           target_reduced_potentials)
+        mbar = self._construct_mbar_object(reference_reduced_potentials)
 
-        self._find_effective_samples(mbar)
-
-        self._effective_samples = mbar.computeEffectiveSampleNumber()[len(reference_reduced_potentials):].max()
+        (self._effective_samples,
+         self._effective_sample_indices) = self._compute_effective_samples(mbar, target_reduced_potentials)
 
         # Transpose the observables ready for bootstrapping.
         reference_reduced_potentials = np.transpose(reference_reduced_potentials)
@@ -594,7 +593,7 @@ class BaseMBARProtocol(BaseProtocol):
 
         return next(iter(values.values()))
 
-    def _construct_mbar_object(self, reference_reduced_potentials, target_reduced_potentials):
+    def _construct_mbar_object(self, reference_reduced_potentials):
         """Constructs a new `pymbar.MBAR` object for a given set of reference
         and target reduced potentials
 
@@ -602,8 +601,6 @@ class BaseMBARProtocol(BaseProtocol):
         -------
         reference_reduced_potentials: numpy.ndarray
             The reference reduced potentials.
-        target_reduced_potentials: numpy.ndarray
-            The target reduced potentials.
 
         Returns
         -------
@@ -611,38 +608,53 @@ class BaseMBARProtocol(BaseProtocol):
             The constructed `MBAR` object.
         """
 
-        frame_counts = [len(observables) for observables in self._reference_observables]
-        frame_counts.extend([0] * len(target_reduced_potentials))
-        frame_counts = np.array(frame_counts)
-
-        all_reduced_potentials = []
-        all_reduced_potentials.extend(reference_reduced_potentials)
-        all_reduced_potentials.extend(target_reduced_potentials)
+        frame_counts = np.array([len(observables) for observables in self._reference_observables])
 
         # Construct the mbar object.
-        mbar = pymbar.MBAR(all_reduced_potentials,
+        mbar = pymbar.MBAR(reference_reduced_potentials,
                            frame_counts, verbose=False, relative_tolerance=1e-12)
 
         return mbar
 
-    def _find_effective_samples(self, mbar):
-        """Finds the indices of those samples which have a non-zero weight.
+    @staticmethod
+    def _compute_effective_samples(mbar, target_reduced_potentials):
+        """Compute the effective number of samples which contribute to the final
+        reweighted estimate.
 
         Parameters
         ----------
         mbar: pymbar.MBAR
             The MBAR object which contains the sample weights.
+        target_reduced_potentials: numpy.ndarray
+            The target reduced potentials.
+
+        Returns
+        -------
+        int
+            The effective number of samples.
+        list of int
+            The indices of samples which have non-zero weights.
         """
 
-        target_state_weights = mbar.W_nk[:, -1]
-        self._effective_sample_indices = []
+        states_with_samples = (mbar.N_k > 0)
 
-        for index, weight in enumerate(target_state_weights):
+        log_ref_q_k = mbar.f_k[states_with_samples] - mbar.u_kn[states_with_samples].T
+        log_denominator_n = logsumexp(log_ref_q_k, b=mbar.N_k[states_with_samples], axis=1)
 
-            if np.isclose(weight, 0.0):
-                continue
+        target_f_hat = -logsumexp(-target_reduced_potentials[:len(target_reduced_potentials)] -
+                                  log_denominator_n, axis=1)
 
-            self._effective_sample_indices.append(index)
+        log_tar_q_k = target_f_hat - target_reduced_potentials
+
+        # Calculate the weights
+        weights = np.exp(log_tar_q_k - log_denominator_n)
+
+        effective_samples = 1.0 / np.sum(weights**2)
+
+        effective_sample_indices = [index for index in range(weights.shape[1])
+                                    if not np.isclose(weights[0][index], 0.0)]
+
+        return effective_samples, effective_sample_indices
 
     def _reweight_observables(self, reference_reduced_potentials, target_reduced_potentials, **reference_observables):
         """Reweights a set of reference observables to
@@ -659,11 +671,12 @@ class BaseMBARProtocol(BaseProtocol):
         """
 
         # Construct the mbar object.
-        mbar = self._construct_mbar_object(reference_reduced_potentials, target_reduced_potentials)
-        self._find_effective_samples(mbar)
+        mbar = self._construct_mbar_object(reference_reduced_potentials)
 
         total_number_of_states = len(self._reference_observables) + len(target_reduced_potentials)
-        effective_samples = mbar.computeEffectiveSampleNumber()[len(reference_reduced_potentials):].max()
+
+        (effective_samples,
+         self._effective_sample_indices) = self._compute_effective_samples(mbar, target_reduced_potentials)
 
         values = {}
         uncertainties = {}
