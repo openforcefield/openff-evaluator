@@ -34,6 +34,7 @@ Bugfixes
 * PR `#102 <https://github.com/openforcefield/propertyestimator/pull/102>`_: Fixes replicated input for children of replicated protocols.
 * PR `#105 <https://github.com/openforcefield/propertyestimator/pull/105>`_: Fixes excess properties weighting by the wrong mole fractions.
 * PR `#107 <https://github.com/openforcefield/propertyestimator/pull/107>`_: Fixes excess properties being converged to the wrong uncertainty.
+* PR `#108 <https://github.com/openforcefield/propertyestimator/pull/108>`_: Fixes calculating MBAR gradients of reweighted properties.
 
 Breaking Changes
 """"""""""""""""
