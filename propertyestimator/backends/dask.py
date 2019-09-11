@@ -26,27 +26,8 @@ class _JobQueueAdaptive(Adaptive):
     clusters in adaptive mode. This class aims to band aid
     the problem until a better fix may be found.
     """
-    async def _adapt(self):
-        if self._adapting:  # Semaphore to avoid overlapping adapt calls
-            return
-
-        self._adapting = True
-        try:
-            recommendations = await self.recommendations()
-            if not recommendations:
-                return
-            status = recommendations.pop("status")
-            if status == "up":
-                f = self.cluster.scale_up(**recommendations)
-                self.log.append((time(), "up", recommendations))
-                if hasattr(f, "__await__"):
-                    await f
-
-            elif status == "down":
-                self.log.append((time(), "down", recommendations["workers"]))
-                workers = await self._retire_workers(workers=recommendations["workers"])
-        finally:
-            self._adapting = False
+    async def scale_up(self, n):
+        self.cluster.scale_up(n)
 
 
 class _AdaptiveLSFCluster(LSFCluster):
@@ -81,10 +62,7 @@ class _AdaptiveLSFCluster(LSFCluster):
             elif maximum_memory is not None:
                 kwargs["maximum"] = self._get_nb_workers_from_memory(maximum_memory)
         self._adaptive_options.update(kwargs)
-        try:
-            self._adaptive = _JobQueueAdaptive(self.scheduler, self, **self._adaptive_options)
-        except Exception:
-            self._adaptive = _JobQueueAdaptive(self, **self._adaptive_options)
+        self._adaptive = _JobQueueAdaptive(self.scheduler, self, **self._adaptive_options)
         return self._adaptive
 
 
