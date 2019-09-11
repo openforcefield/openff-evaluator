@@ -457,7 +457,13 @@ class BaseMBARProtocol(BaseProtocol):
         mbar = self._construct_mbar_object(reference_reduced_potentials)
 
         (self._effective_samples,
-         self._effective_sample_indices) = self._compute_effective_samples(mbar, target_reduced_potentials)
+         effective_sample_indices) = self._compute_effective_samples(mbar, target_reduced_potentials)
+
+        if self._effective_samples < self._required_effective_samples:
+
+            return PropertyEstimatorException(message=f'{self.id}: There was not enough effective samples '
+                                                      f'to reweight - {self._effective_samples} < '
+                                                      f'{self._required_effective_samples}')
 
         # Transpose the observables ready for bootstrapping.
         reference_reduced_potentials = np.transpose(reference_reduced_potentials)
@@ -476,11 +482,7 @@ class BaseMBARProtocol(BaseProtocol):
                                        target_reduced_potentials=target_reduced_potentials,
                                        **transposed_observables)
 
-        if self._effective_samples < self._required_effective_samples:
-
-            return PropertyEstimatorException(message=f'{self.id}: There was not enough effective samples '
-                                                      f'to reweight - {self._effective_samples} < '
-                                                      f'{self._required_effective_samples}')
+        self._effective_sample_indices = effective_sample_indices
 
         self._value = EstimatedQuantity(value * observable_unit,
                                         uncertainty * observable_unit,
@@ -673,8 +675,6 @@ class BaseMBARProtocol(BaseProtocol):
         # Construct the mbar object.
         mbar = self._construct_mbar_object(reference_reduced_potentials)
 
-        total_number_of_states = len(self._reference_observables) + len(target_reduced_potentials)
-
         (effective_samples,
          self._effective_sample_indices) = self._compute_effective_samples(mbar, target_reduced_potentials)
 
@@ -686,43 +686,21 @@ class BaseMBARProtocol(BaseProtocol):
             reference_observable = reference_observables[observable_key]
             observable_dimensions = reference_observable.shape[0]
 
-            if observable_dimensions == 1:
+            values[observable_key] = np.zeros((observable_dimensions, 1))
+            uncertainties[observable_key] = np.zeros((observable_dimensions, 1))
 
-                observables_list = reference_observable.tolist()[0]
-                observables_by_state = np.zeros((total_number_of_states, len(observables_list)))
+            for dimension in range(observable_dimensions):
 
-                for index in range(len(observables_list)):
-                    observables_by_state[-1][index] = observables_list[index]
-
-                results = mbar.computeExpectations(observables_by_state,
+                results = mbar.computeExpectations(reference_observable[dimension],
+                                                   target_reduced_potentials,
                                                    state_dependent=True)
 
-                values[observable_key] = results[0][-1]
-                uncertainties[observable_key] = results[1][-1]
+                values[observable_key][dimension] = results[0][-1]
+                uncertainties[observable_key][dimension] = results[1][-1]
 
-            else:
-
-                value = []
-                uncertainty = []
-
-                observables_lists = reference_observable.tolist()
-
-                for dimension in range(observable_dimensions):
-
-                    observables_list = observables_lists[dimension]
-                    observables_by_state = np.zeros((total_number_of_states, len(observables_list)))
-
-                    for index in range(len(observables_list)):
-                        observables_by_state[-1][index] = observables_list[index]
-
-                    results = mbar.computeExpectations(observables_by_state,
-                                                       state_dependent=True)
-
-                    value.append(results[0][-1])
-                    uncertainty.append(results[1][-1])
-
-                values[observable_key] = np.array(value)
-                uncertainties[observable_key] = np.array(uncertainty)
+            if observable_dimensions == 1:
+                values[observable_key] = values[observable_key][0][0].item()
+                uncertainties[observable_key] = uncertainties[observable_key][0][0].item()
 
         return values, uncertainties, effective_samples
 
