@@ -41,8 +41,8 @@ Breaking Changes
 
 * PR `#98 <https://github.com/openforcefield/propertyestimator/pull/98>`_: ``Substance.get_amount`` renamed to ``Substance.get_amounts`` and now returns an
   immutable ``frozenset`` of ``Amount`` objects, rather than a single ``Amount``.
-* PR `#104 <https://github.com/openforcefield/propertyestimator/pull/104>`_: The ``DivideGradientByScalar``, ``MultiplyGradientByScalar``, ``AddGradients`` and ``SubtractGradients``
-  ``WeightGradientByMoleFraction`` protocols have been removed. The ``WeightQuantityByMoleFraction`` has been renamed
+* PR `#104 <https://github.com/openforcefield/propertyestimator/pull/104>`_: The ``DivideGradientByScalar``, ``MultiplyGradientByScalar``, ``AddGradients``, ``SubtractGradients`` and
+  ``WeightGradientByMoleFraction`` protocols have been removed. The ``WeightQuantityByMoleFraction`` protocol has been renamed
   to ``WeightByMoleFraction``.
 
 Migration Guide
@@ -51,7 +51,7 @@ Migration Guide
 This release contained several public API breaking changes. For the most part, these can be
 remedied by the follow steps:
 
-* Change all instances of ``Substance.get_amount`` to ``Substance.get_amounts`` and handle.
+* Change all instances of ``Substance.get_amount`` to ``Substance.get_amounts`` and handle
   the newly returned frozenset of amounts, rather than the previously returned single amount.
 * Replace the now removed protocols as follows:
 
