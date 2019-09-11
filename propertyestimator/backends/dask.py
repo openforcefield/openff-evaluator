@@ -394,8 +394,12 @@ class DaskLSFBackend(BaseDaskBackend):
                                             extra=extra,
                                             local_directory='dask-worker-space')
 
+        # The very small target duration is an attempt to force dask to scale
+        # based on the number of processing tasks per worker.
         self._cluster.adapt(minimum=self._minimum_number_of_workers,
-                            maximum=self._maximum_number_of_workers, interval=self._adaptive_interval)
+                            maximum=self._maximum_number_of_workers,
+                            interval=self._adaptive_interval,
+                            target_duration='0.00000000001s')
 
         super(DaskLSFBackend, self).start()
 
