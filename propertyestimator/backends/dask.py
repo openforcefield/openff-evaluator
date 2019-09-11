@@ -62,7 +62,7 @@ class _AdaptiveLSFCluster(LSFCluster):
             elif maximum_memory is not None:
                 kwargs["maximum"] = self._get_nb_workers_from_memory(maximum_memory)
         self._adaptive_options.update(kwargs)
-        self._adaptive = _JobQueueAdaptive(self.scheduler, self, **self._adaptive_options)
+        self._adaptive = _JobQueueAdaptive(self, **self._adaptive_options)
         return self._adaptive
 
 
