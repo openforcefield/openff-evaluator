@@ -316,6 +316,8 @@ class EnthalpyOfMixing(PhysicalProperty):
         # Set up the gradient calculations.
         reweight_potential_template = reweighting.ReweightStatistics('')
         reweight_potential_template.statistics_type = ObservableType.PotentialEnergy
+        reweight_potential_template.frame_counts = ProtocolPath('number_of_uncorrelated_samples',
+                                                                protocols.decorrelate_statistics.id)
 
         coordinate_path = ProtocolPath('output_coordinate_path', protocols.concatenate_trajectories.id)
         trajectory_path = ProtocolPath('output_trajectory_path', protocols.concatenate_trajectories.id)

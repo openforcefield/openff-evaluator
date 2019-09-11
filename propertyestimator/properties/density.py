@@ -146,8 +146,8 @@ class Density(PhysicalProperty):
 
         reweight_density_template = reweighting.ReweightStatistics('')
         reweight_density_template.statistics_type = ObservableType.Density
-        reweight_density_template.statistics_paths = ProtocolPath('statistics_file_path',
-                                                                  reweighting_protocols.unpack_stored_data.id)
+        reweight_density_template.statistics_paths = ProtocolPath('output_statistics_path',
+                                                                  reweighting_protocols.decorrelate_statistics.id)
 
         gradient_group, gradient_replicator, gradient_source = \
             generate_gradient_protocol_group(reweight_density_template,
@@ -465,8 +465,8 @@ class ExcessMolarVolume(PhysicalProperty):
         # Set up the gradient calculations.
         reweight_volume_template = reweighting.ReweightStatistics('')
         reweight_volume_template.statistics_type = ObservableType.Volume
-        reweight_volume_template.statistics_paths = ProtocolPath('statistics_file_path',
-                                                                 protocols.unpack_stored_data.id)
+        reweight_volume_template.statistics_paths = ProtocolPath('output_statistics_path',
+                                                                 protocols.decorrelate_statistics.id)
 
         coordinate_path = ProtocolPath('output_coordinate_path', protocols.concatenate_trajectories.id)
         trajectory_path = ProtocolPath('output_trajectory_path', protocols.concatenate_trajectories.id)
