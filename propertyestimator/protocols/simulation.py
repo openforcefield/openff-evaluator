@@ -22,7 +22,7 @@ from propertyestimator.utils.openmm import setup_platform_with_resources, openmm
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import StatisticsArray, ObservableType
 from propertyestimator.utils.utils import temporarily_change_directory, safe_unlink
-from propertyestimator.workflow.decorators import protocol_input, protocol_output, MergeBehaviour
+from propertyestimator.workflow.decorators import protocol_input, protocol_output, InequalityMergeBehaviour
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
@@ -32,37 +32,31 @@ class RunEnergyMinimisation(BaseProtocol):
     """A protocol to minimise the potential energy of a system.
     """
 
-    @protocol_input(str)
-    def input_coordinate_file(self):
-        """The coordinates to minimise."""
-        pass
+    input_coordinate_file = protocol_input(docstring='The coordinates to minimise.',
+                                           type_hint=str,
+                                           default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(unit.Quantity)
-    def tolerance(self):
-        """The energy tolerance to which the system should be minimized."""
-        pass
+    tolerance = protocol_input(docstring='The energy tolerance to which the system should be minimized.',
+                               type_hint=unit.Quantity,
+                               default_value=10*unit.kilojoules / unit.mole)
 
-    @protocol_input(int)
-    def max_iterations(self):
-        """The maximum number of iterations to perform.  If this is 0,
-        minimization is continued until the results converge without regard
-        to how many iterations it takes."""
-        pass
+    max_iterations = protocol_input(docstring='The maximum number of iterations to perform.  If this is 0, '
+                                              'minimization is continued until the results converge without regard to '
+                                              'how many iterations it takes.',
+                                    type_hint=int,
+                                    default_value=10)
 
-    @protocol_input(str)
-    def system_path(self):
-        """The path to the XML system object which defines the forces present in the system."""
-        pass
+    system_path = protocol_input(docstring='The path to the XML system object which defines the forces present '
+                                           'in the system.',
+                                 type_hint=str,
+                                 default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(bool)
-    def enable_pbc(self):
-        """If true, periodic boundary conditions will be enabled."""
-        pass
+    enable_pbc = protocol_input(docstring='If true, periodic boundary conditions will be enabled.',
+                                type_hint=bool,
+                                default_value=protocol_input.UNDEFINED)
 
-    @protocol_output(str)
-    def output_coordinate_file(self):
-        """The file path to the minimised coordinates."""
-        pass
+    output_coordinate_file = protocol_output(docstring='The file path to the minimised coordinates.',
+                                             type_hint=str)
 
     def __init__(self, protocol_id):
 
@@ -134,105 +128,81 @@ class RunOpenMMSimulation(BaseProtocol):
     an OpenMM backend.
     """
 
-    @protocol_input(int, merge_behavior=MergeBehaviour.GreatestValue)
-    def steps(self):
-        """The number of timesteps to evolve the system by."""
-        pass
+    steps = protocol_input(docstring='The number of timesteps to evolve the system by.',
+                           type_hint=int, merge_behavior=InequalityMergeBehaviour.LargestValue,
+                           default_value=1000000)
 
-    @protocol_input(unit.Quantity, merge_behavior=MergeBehaviour.SmallestValue)
-    def thermostat_friction(self):
-        """The thermostat friction coefficient."""
-        pass
+    thermostat_friction = protocol_input(docstring='The thermostat friction coefficient.',
+                                         type_hint=unit.Quantity, merge_behavior=InequalityMergeBehaviour.SmallestValue,
+                                         default_value=1.0 / unit.picoseconds)
 
-    @protocol_input(unit.Quantity, merge_behavior=MergeBehaviour.SmallestValue)
-    def timestep(self):
-        """The timestep to evolve the system by at each step."""
-        pass
+    timestep = protocol_input(docstring='The timestep to evolve the system by at each step.',
+                              type_hint=unit.Quantity, merge_behavior=InequalityMergeBehaviour.SmallestValue,
+                              default_value=2.0*unit.femtosecond)
 
-    @protocol_input(int, merge_behavior=MergeBehaviour.SmallestValue)
-    def output_frequency(self):
-        """The frequency with which to write to the output statistics and trajectory files."""
-        pass
+    output_frequency = protocol_input(docstring='The frequency with which to write to the output statistics and '
+                                                'trajectory files.',
+                                      type_hint=int, merge_behavior=InequalityMergeBehaviour.SmallestValue,
+                                      default_value=3000)
 
-    @protocol_input(Ensemble)
-    def ensemble(self):
-        """The thermodynamic ensemble to simulate in."""
-        pass
+    ensemble = protocol_input(docstring='The thermodynamic ensemble to simulate in.',
+                              type_hint=Ensemble,
+                              default_value=Ensemble.NPT)
 
-    @protocol_input(ThermodynamicState)
-    def thermodynamic_state(self):
-        """The thermodynamic conditions to simulate under"""
-        pass
+    thermodynamic_state = protocol_input(docstring='The thermodynamic conditions to simulate under',
+                                         type_hint=ThermodynamicState,
+                                         default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(str)
-    def input_coordinate_file(self):
-        """The file path to the starting coordinates."""
-        pass
+    input_coordinate_file = protocol_input(docstring='The file path to the starting coordinates.',
+                                           type_hint=str,
+                                           default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(str)
-    def system_path(self):
-        """A path to the XML system object which defines the forces present in the system."""
-        pass
+    system_path = protocol_input(docstring='A path to the XML system object which defines the forces present '
+                                           'in the system.',
+                                 type_hint=str,
+                                 default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(bool)
-    def enable_pbc(self):
-        """If true, periodic boundary conditions will be enabled."""
-        pass
+    enable_pbc = protocol_input(docstring='If true, periodic boundary conditions will be enabled.',
+                                type_hint=bool,
+                                default_value=True)
 
-    @protocol_input(bool)
-    def save_rolling_statistics(self):
-        """If True, the statisitics file will be written to every
-        `output_frequency` number of steps, rather than just once
-        at the end of the simulation.
+    save_rolling_statistics = protocol_input(docstring='If True, the statistics file will be written to every '
+                                                       '`output_frequency` number of steps, rather than just once at '
+                                                       'the end of the simulation.',
+                                             type_hint=bool,
+                                             default_value=True)
 
-        Notes
-        -----
-        In future when either saving the statistics to file has been
-        optimised, or an option for the frequency to save to the file
-        has been added, this option will be removed.
-        """
-        pass
+    allow_gpu_platforms = protocol_input(docstring='If true, OpenMM will be allowed to run using a GPU if available, '
+                                                   'otherwise it will be constrained to only using CPUs.',
+                                         type_hint=bool,
+                                         default_value=True)
 
-    @protocol_input(bool)
-    def allow_gpu_platforms(self):
-        """If true, OpenMM will be allowed to run using
-        a GPU if available, otherwise it will be constrained
-        to only using CPUs."""
-        pass
+    high_precision = protocol_input(docstring='If true, OpenMM will be run using a platform with high precision '
+                                              'settings. This will be the Reference platform when only a CPU is '
+                                              'available, or double precision mode when a GPU is available.',
+                                    type_hint=bool,
+                                    default_value=False)
 
-    @protocol_input(bool)
-    def high_precision(self):
-        """If true, OpenMM will be run using a platform with
-        high precision settings. This will be the Reference
-        platform when only a CPU is available, or double
-        precision mode when a GPU is available."""
-        pass
+    output_coordinate_file = protocol_output(docstring='The file path to the coordinates of the final system '
+                                                       'configuration.',
+                                             type_hint=str)
 
-    @protocol_output(str)
-    def output_coordinate_file(self):
-        """The file path to the coordinates of the final system configuration."""
-        pass
+    trajectory_file_path = protocol_output(docstring='The file path to the trajectory sampled during the simulation.',
+                                           type_hint=str)
 
-    @protocol_output(str)
-    def trajectory_file_path(self):
-        """The file path to the trajectory sampled during the simulation."""
-        pass
-
-    @protocol_output(str)
-    def statistics_file_path(self):
-        """The file path to the statistics sampled during the simulation."""
-        pass
+    statistics_file_path = protocol_output(docstring='The file path to the statistics sampled during the simulation.',
+                                           type_hint=str)
 
     def __init__(self, protocol_id):
 
         super().__init__(protocol_id)
 
-        self._steps = 1000
+        self._steps = 1000000
 
         self._thermostat_friction = 1.0 / unit.picoseconds
         self._timestep = 0.002 * unit.picoseconds
 
-        self._output_frequency = 500000
+        self._output_frequency = 3000
 
         self._ensemble = Ensemble.NPT
 
@@ -673,46 +643,37 @@ class BaseYankProtocol(BaseProtocol):
     methods.
     """
 
-    @protocol_input(ThermodynamicState)
-    def thermodynamic_state(self):
-        """The state at which to run the calculations."""
-        pass
+    thermodynamic_state = protocol_input(docstring='The state at which to run the calculations.',
+                                         type_hint=ThermodynamicState,
+                                         default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(int, merge_behavior=MergeBehaviour.GreatestValue)
-    def number_of_iterations(self):
-        """The number of YANK iterations to perform."""
-        pass
+    number_of_iterations = protocol_input(docstring='The number of YANK iterations to perform.',
+                                          type_hint=int, merge_behavior=InequalityMergeBehaviour.LargestValue,
+                                          default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(int, merge_behavior=MergeBehaviour.GreatestValue)
-    def steps_per_iteration(self):
-        """The number of steps per YANK iteration to perform."""
-        pass
+    steps_per_iteration = protocol_input(docstring='The number of steps per YANK iteration to perform.',
+                                         type_hint=int, merge_behavior=InequalityMergeBehaviour.LargestValue,
+                                         default_value=500)
 
-    @protocol_input(int, merge_behavior=MergeBehaviour.SmallestValue)
-    def checkpoint_interval(self):
-        """The number of iterations between saving YANK checkpoint files."""
-        pass
+    checkpoint_interval = protocol_input(docstring='The number of iterations between saving YANK checkpoint files.',
+                                         type_hint=int, merge_behavior=InequalityMergeBehaviour.SmallestValue,
+                                         default_value=50)
 
-    @protocol_input(unit.Quantity, merge_behavior=MergeBehaviour.SmallestValue)
-    def timestep(self):
-        """The length of the timestep to take."""
-        pass
+    timestep = protocol_input(docstring='The length of the timestep to take.',
+                              type_hint=unit.Quantity, merge_behavior=InequalityMergeBehaviour.SmallestValue,
+                              default_value=2*unit.femtosecond)
 
-    @protocol_input(str)
-    def force_field_path(self):
-        """The path to the force field to use for the calculations"""
-        pass
+    force_field_path = protocol_input(docstring='The path to the force field to use for the calculations',
+                                      type_hint=str,
+                                      default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(bool)
-    def verbose(self):
-        """Controls whether or not to run YANK at high verbosity."""
-        pass
+    verbose = protocol_input(docstring='Controls whether or not to run YANK at high verbosity.',
+                             type_hint=bool,
+                             default_value=False)
 
-    @protocol_output(EstimatedQuantity)
-    def estimated_free_energy(self):
-        """The estimated free energy value and its uncertainty returned
-        by YANK."""
-        pass
+    estimated_free_energy = protocol_output(docstring='The estimated free energy value and its uncertainty '
+                                                      'returned by YANK.',
+                                            type_hint=EstimatedQuantity)
 
     def __init__(self, protocol_id):
         """Constructs a new BaseYankProtocol object."""
@@ -1027,58 +988,45 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         Harmonic = 'Harmonic'
         FlatBottom = 'FlatBottom'
 
-    @protocol_input(str)
-    def ligand_residue_name(self):
-        """The residue name of the ligand."""
-        pass
+    ligand_residue_name = protocol_input(docstring='The residue name of the ligand.',
+                                         type_hint=str,
+                                         default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(str)
-    def receptor_residue_name(self):
-        """The residue name of the receptor."""
-        pass
+    receptor_residue_name = protocol_input(docstring='The residue name of the receptor.',
+                                           type_hint=str,
+                                           default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(str)
-    def solvated_ligand_coordinates(self):
-        """The file path to the solvated ligand coordinates."""
-        pass
+    solvated_ligand_coordinates = protocol_input(docstring='The file path to the solvated ligand coordinates.',
+                                                 type_hint=str,
+                                                 default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(str)
-    def solvated_ligand_system(self):
-        """The file path to the solvated ligand system object."""
-        pass
+    solvated_ligand_system = protocol_input(docstring='The file path to the solvated ligand system object.',
+                                            type_hint=str,
+                                            default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(str)
-    def solvated_complex_coordinates(self):
-        """The file path to the solvated complex coordinates."""
-        pass
+    solvated_complex_coordinates = protocol_input(docstring='The file path to the solvated complex coordinates.',
+                                                  type_hint=str,
+                                                  default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(str)
-    def solvated_complex_system(self):
-        """The file path to the solvated complex system object."""
-        pass
+    solvated_complex_system = protocol_input(docstring='The file path to the solvated complex system object.',
+                                             type_hint=str,
+                                             default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(bool)
-    def apply_restraints(self):
-        """Determines whether the ligand should be explicitly restrained to
-        the receptor in order to stop the ligand from temporarily unbinding.
-        """
-        pass
+    apply_restraints = protocol_input(docstring='Determines whether the ligand should be explicitly restrained to the '
+                                                'receptor in order to stop the ligand from temporarily unbinding.',
+                                      type_hint=bool,
+                                      default_value=True)
 
-    @protocol_input(RestraintType)
-    def restraint_type(self):
-        """The type of ligand restraint applied, provided that `apply_restraints`
-        is `True`"""
-        pass
+    restraint_type = protocol_input(docstring='The type of ligand restraint applied, provided that `apply_restraints` '
+                                              'is `True`',
+                                    type_hint=RestraintType,
+                                    default_value=RestraintType.Harmonic)
 
-    @protocol_output(str)
-    def solvated_ligand_trajectory_path(self):
-        """The file path to the generated ligand trajectory."""
-        pass
+    solvated_ligand_trajectory_path = protocol_output(docstring='The file path to the generated ligand trajectory.',
+                                                      type_hint=str)
 
-    @protocol_output(str)
-    def solvated_complex_trajectory_path(self):
-        """The file path to the generated ligand trajectory."""
-        pass
+    solvated_complex_trajectory_path = protocol_output(docstring='The file path to the generated ligand trajectory.',
+                                                       type_hint=str)
 
     def __init__(self, protocol_id):
         """Constructs a new LigandReceptorYankProtocol object."""

@@ -19,66 +19,49 @@ from propertyestimator.workflow.protocols import BaseProtocol
 
 @register_calculation_protocol()
 class BuildCoordinatesPackmol(BaseProtocol):
-    """Creates a set of 3D coordinates with a specified composition.
-
-    Notes
-    -----
-    The coordinates are created using packmol.
+    """Creates a set of 3D coordinates with a specified composition
+    using the PACKMOL package.
     """
 
-    @protocol_input(int)
-    def max_molecules(self):
-        """The maximum number of molecules to be added to the system."""
-        pass
+    max_molecules = protocol_input(docstring='The maximum number of molecules to be added to the system.',
+                                   type_hint=int,
+                                   default_value=1000)
 
-    @protocol_input(unit.Quantity)
-    def mass_density(self):
-        """The target density of the created system."""
-        pass
+    mass_density = protocol_input(docstring='The target density of the created system.',
+                                  type_hint=unit.Quantity,
+                                  default_value=0.95 * unit.grams / unit.milliliters)
 
-    @protocol_input(list)
-    def box_aspect_ratio(self):
-        """The aspect ratio of the simulation box. The default is [1.0, 1.0, 1.0],
-        i.e a cubic box."""
-        return self._box_aspect_ratio
+    box_aspect_ratio = protocol_input(docstring='The aspect ratio of the simulation box.',
+                                      type_hint=list,
+                                      default_value=[1.0, 1.0, 1.0])
 
-    @protocol_input(Substance)
-    def substance(self):
-        """The composition of the system to build."""
-        pass
+    substance = protocol_input(docstring='The composition of the system to build.',
+                               type_hint=Substance,
+                               default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(bool)
-    def verbose_packmol(self):
-        """If True, packmol will be allowed to log verbose information to the logger,
-        and any working packmol files will be retained."""
-        pass
+    verbose_packmol = protocol_input(docstring='If True, packmol will print verbose information to the logger',
+                                     type_hint=bool,
+                                     default_value=False)
 
-    @protocol_input(bool)
-    def retain_packmol_files(self):
-        """If True, packmol will not delete all of the temporary files it creates
-        while building the coordinates."""
-        pass
+    retain_packmol_files = protocol_input(docstring='If True, packmol will not delete all of the temporary files '
+                                                    'it creates while building the coordinates.',
+                                          type_hint=bool,
+                                          default_value=False)
 
-    @protocol_output(int)
-    def output_number_of_molecules(self):
-        """The number of molecules in the created system. This may be less than
-        maximum requested due to rounding of mole fractions.
-        """
-        pass
+    output_number_of_molecules = protocol_output(docstring='The number of molecules in the created system. This '
+                                                           'may be less than maximum requested due to rounding of '
+                                                           'mole fractions',
+                                                 type_hint=int)
 
-    @protocol_output(Substance)
-    def output_substance(self):
-        """The substance which was built by packmol. This may differ from the input
-        substance for system containing two or more components due to rounding of
-        mole fractions. The mole fractions provided by this output should always be
-        used when weighting values by a mole fraction.
-        """
-        pass
+    output_substance = protocol_output(docstring='The substance which was built by packmol. This may differ '
+                                                  'from the input substance for system containing two or '
+                                                  'more components due to rounding of mole fractions. The '
+                                                  'mole fractions provided by this output should always be '
+                                                  'used when weighting values by a mole fraction.',
+                                       type_hint=Substance)
 
-    @protocol_output(str)
-    def coordinate_file_path(self):
-        """The file path to the created PDB coordinate file."""
-        pass
+    coordinate_file_path = protocol_output(docstring='The file path to the created PDB coordinate file.',
+                                           type_hint=str)
 
     def __init__(self, protocol_id):
         """Constructs a new BuildCoordinatesPackmol object.
@@ -282,10 +265,9 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
     The coordinates are created using packmol.
     """
 
-    @protocol_input(str)
-    def solute_coordinate_file(self):
-        """A file path to the solute to solvate."""
-        pass
+    solute_coordinate_file = protocol_input(docstring='A file path to the solute to solvate.',
+                                            type_hint=str,
+                                            default_value=protocol_input.UNDEFINED)
 
     def __init__(self, protocol_id):
 
@@ -344,47 +326,36 @@ class BuildDockedCoordinates(BaseProtocol):
         activate site(s) is located."""
         ReceptorCenterOfMass = 'ReceptorCenterOfMass'
 
-    @protocol_input(Substance)
-    def ligand_substance(self):
-        """A substance containing only the ligand to dock."""
-        pass
+    ligand_substance = protocol_input(docstring='A substance containing only the ligand to dock.',
+                                      type_hint=Substance,
+                                      default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(int)
-    def number_of_ligand_conformers(self):
-        """The number of conformers to try and dock into the receptor structure."""
-        pass
+    number_of_ligand_conformers = protocol_input(docstring='The number of conformers to try and dock into the '
+                                                           'receptor structure.',
+                                                 type_hint=int,
+                                                 default_value=100)
 
-    @protocol_input(str)
-    def receptor_coordinate_file(self):
-        """The file path to the coordinates of the receptor molecule."""
-        pass
+    receptor_coordinate_file = protocol_input(docstring='The file path to the coordinates of the receptor molecule.',
+                                              type_hint=str,
+                                              default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(ActivateSiteLocation)
-    def activate_site_location(self):
-        """Defines the method by which the activate site is identified. Currently the only available
-        option is `ActivateSiteLocation.ReceptorCenterOfMass`"""
-        pass
+    activate_site_location = protocol_input(docstring='Defines the method by which the activate site is identified.',
+                                            type_hint=ActivateSiteLocation,
+                                            default_value=ActivateSiteLocation.ReceptorCenterOfMass)
 
-    @protocol_output(str)
-    def docked_ligand_coordinate_path(self):
-        """The file path to the coordinates of the ligand in it's docked
-        pose, aligned with the initial `receptor_coordinate_file`."""
-        pass
+    docked_ligand_coordinate_path = protocol_output(docstring='The file path to the coordinates of the ligand in '
+                                                              'it\'s docked pose, aligned with the initial '
+                                                              '`receptor_coordinate_file`.',
+                                                    type_hint=str)
 
-    @protocol_output(str)
-    def docked_complex_coordinate_path(self):
-        """The file path to the docked ligand-receptor complex."""
-        pass
+    docked_complex_coordinate_path = protocol_output(docstring='The file path to the docked ligand-receptor complex.',
+                                                     type_hint=str)
 
-    @protocol_output(str)
-    def ligand_residue_name(self):
-        """The residue name assigned to the docked ligand."""
-        return self._ligand_residue_name
+    ligand_residue_name = protocol_output(docstring='The residue name assigned to the docked ligand.',
+                                          type_hint=str)
 
-    @protocol_output(str)
-    def receptor_residue_name(self):
-        """The residue name assigned to the receptor."""
-        return self._receptor_residue_name
+    receptor_residue_name = protocol_output(docstring='The residue name assigned to the receptor.',
+                                            type_hint=str)
 
     def __init__(self, protocol_id):
 

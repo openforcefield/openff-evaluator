@@ -6,13 +6,14 @@ import logging
 from os import path
 
 import numpy as np
+import typing
 
 from propertyestimator import unit
 from propertyestimator.utils import statistics, timeseries
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import StatisticsArray, bootstrap
-from propertyestimator.workflow.decorators import protocol_input, protocol_output, MergeBehaviour
+from propertyestimator.workflow.decorators import protocol_input, protocol_output, InequalityMergeBehaviour
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
@@ -23,35 +24,27 @@ class AveragePropertyProtocol(BaseProtocol):
     average of a property and its uncertainty via bootstrapping.
     """
 
-    @protocol_input(int, merge_behavior=MergeBehaviour.GreatestValue)
-    def bootstrap_iterations(self):
-        """The number of bootstrap iterations to perform."""
-        pass
+    bootstrap_iterations = protocol_input(docstring='The number of bootstrap iterations to perform.',
+                                          type_hint=int,
+                                          default_value=250,
+                                          merge_behavior=InequalityMergeBehaviour.LargestValue)
 
-    @protocol_input(float, merge_behavior=MergeBehaviour.GreatestValue)
-    def bootstrap_sample_size(self):
-        """The relative sample size to use for bootstrapping."""
-        pass
+    bootstrap_sample_size = protocol_input(docstring='The relative sample size to use for bootstrapping.',
+                                           type_hint=float,
+                                           default_value=1.0,
+                                           merge_behavior=InequalityMergeBehaviour.LargestValue)
 
-    @protocol_output(EstimatedQuantity)
-    def value(self):
-        """The averaged value."""
-        pass
+    value = protocol_output(docstring='The average value and its uncertainty.',
+                            type_hint=EstimatedQuantity)
 
-    @protocol_output(int)
-    def equilibration_index(self):
-        """The index in the data set after which the data is stationary."""
-        pass
+    equilibration_index = protocol_output(docstring='The index in the data set after which the data is stationary.',
+                                          type_hint=int)
 
-    @protocol_output(float)
-    def statistical_inefficiency(self):
-        """The statistical inefficiency in the data set."""
-        pass
+    statistical_inefficiency = protocol_output(docstring='The statistical inefficiency in the data set.',
+                                               type_hint=float)
 
-    @protocol_output(unit.Quantity)
-    def uncorrelated_values(self):
-        """The uncorrelated values which the average was calculated from."""
-        pass
+    uncorrelated_values = protocol_output(docstring='The uncorrelated values which the average was calculated from.',
+                                          type_hint=unit.Quantity)
 
     def __init__(self, protocol_id):
 
@@ -99,15 +92,13 @@ class AverageTrajectoryProperty(AveragePropertyProtocol):
     average of a property from a simulation trajectory.
     """
 
-    @protocol_input(str)
-    def input_coordinate_file(self):
-        """The file path to the starting coordinates of a trajectory."""
-        pass
+    input_coordinate_file = protocol_input(docstring='The file path to the starting coordinates of a trajectory.',
+                                           type_hint=str,
+                                           default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(str)
-    def trajectory_path(self):
-        """The file path to the trajectory to average over."""
-        pass
+    trajectory_path = protocol_input(docstring='The file path to the trajectory to average over.',
+                                     type_hint=str,
+                                     default_value=protocol_input.UNDEFINED)
 
     def __init__(self, protocol_id):
 
@@ -139,22 +130,18 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
     during a simulation.
     """
 
-    @protocol_input(str)
-    def statistics_path(self):
-        """The file path to the trajectory to average over."""
-        pass
+    statistics_path = protocol_input(docstring='The file path to the statistics to average over.',
+                                     type_hint=str,
+                                     default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(statistics.ObservableType)
-    def statistics_type(self):
-        """The file path to the trajectory to average over."""
-        pass
+    statistics_type = protocol_input(docstring='The type of statistic to average over.',
+                                     type_hint=statistics.ObservableType,
+                                     default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(object)
-    def divisor(self):
-        """A divisor to divide the statistic by. This is useful
-        if a statistic (such as enthalpy) needs to be normalised
-        by the number of molecules."""
-        pass
+    divisor = protocol_input(docstring='A value to divide the statistic by. This is useful if a statistic (such '
+                                       'as enthalpy) needs to be normalised by the number of molecules.',
+                             type_hint=typing.Union[int, float, unit.Quantity],
+                             default_value=1.0)
 
     def __init__(self, protocol_id):
 
@@ -222,20 +209,18 @@ class ExtractUncorrelatedData(BaseProtocol):
     a data set, yielding only equilibrated, uncorrelated data.
     """
 
-    @protocol_input(int)
-    def equilibration_index(self):
-        """The index in the data set after which the data is stationary."""
-        pass
+    equilibration_index = protocol_input(docstring='The index in the data set after which the data is stationary.',
+                                         type_hint=int,
+                                         default_value=protocol_input.UNDEFINED,
+                                         merge_behavior=InequalityMergeBehaviour.LargestValue)
 
-    @protocol_input(float)
-    def statistical_inefficiency(self):
-        """The statistical inefficiency in the data set."""
-        pass
+    statistical_inefficiency = protocol_input(docstring='The statistical inefficiency in the data set.',
+                                              type_hint=float,
+                                              default_value=protocol_input.UNDEFINED,
+                                              merge_behavior=InequalityMergeBehaviour.LargestValue)
 
-    @protocol_output(int)
-    def number_of_uncorrelated_samples(self):
-        """The number of uncorrelated samples."""
-        pass
+    number_of_uncorrelated_samples = protocol_output(docstring='The number of uncorrelated samples.',
+                                                     type_hint=int)
 
     def __init__(self, protocol_id):
         super().__init__(protocol_id)
@@ -255,20 +240,16 @@ class ExtractUncorrelatedTrajectoryData(ExtractUncorrelatedData):
     frames as determined from a provided statistical inefficiency and equilibration time.
     """
 
-    @protocol_input(str)
-    def input_coordinate_file(self):
-        """The file path to the starting coordinates of a trajectory."""
-        pass
+    input_coordinate_file = protocol_input(docstring='The file path to the starting coordinates of a trajectory.',
+                                           type_hint=str,
+                                           default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(str)
-    def input_trajectory_path(self):
-        """The file path to the trajectory to subsample."""
-        pass
+    input_trajectory_path = protocol_input(docstring='The file path to the trajectory to subsample.',
+                                           type_hint=str,
+                                           default_value=protocol_input.UNDEFINED)
 
-    @protocol_output(str)
-    def output_trajectory_path(self):
-        """The file path to the subsampled trajectory."""
-        pass
+    output_trajectory_path = protocol_output(docstring='The file path to the subsampled trajectory.',
+                                             type_hint=str)
 
     def __init__(self, protocol_id):
 
@@ -313,15 +294,12 @@ class ExtractUncorrelatedStatisticsData(ExtractUncorrelatedData):
     entries as determined from a provided statistical inefficiency and equilibration time.
     """
 
-    @protocol_input(str)
-    def input_statistics_path(self):
-        """The file path to the statistics to subsample."""
-        pass
+    input_statistics_path = protocol_input(docstring='The file path to the statistics to subsample.',
+                                           type_hint=str,
+                                           default_value=protocol_input.UNDEFINED)
 
-    @protocol_output(str)
-    def output_statistics_path(self):
-        """The file path to the subsampled statistics."""
-        pass
+    output_statistics_path = protocol_output(docstring='The file path to the subsampled statistics.',
+                                             type_hint=str)
 
     def __init__(self, protocol_id):
 

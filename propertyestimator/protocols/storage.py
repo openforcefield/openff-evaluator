@@ -21,18 +21,16 @@ class UnpackStoredDataCollection(BaseProtocol):
     and makes its inner data objects easily accessible to other protocols.
     """
 
-    @protocol_input(tuple)
-    def input_data_path(self):
-        """A tuple which contains both the path to the simulation data object,
-        it's ancillary data directory, and the force field which was used to
-        generate the stored data."""
-        pass
+    input_data_path = protocol_input(docstring='A tuple which contains both the path to the simulation data object, '
+                                               'it\'s ancillary data directory, and the force field which was used '
+                                               'to generate the stored data.',
+                                     type_hint=tuple,
+                                     default_value=protocol_input.UNDEFINED)
 
-    @protocol_output(dict)
-    def collection_data_paths(self):
-        """A dictionary of data object path, data directory path and force field
-        path tuples partitioned by the unique collection keys."""
-        pass
+    collection_data_paths = protocol_output(docstring='A dictionary of data object path, data directory path and '
+                                                      'force field path tuples partitioned by the unique collection '
+                                                      'keys.',
+                                            type_hint=dict)
 
     def __init__(self, protocol_id):
         """Constructs a new UnpackStoredDataCollection object."""
@@ -104,53 +102,36 @@ class UnpackStoredSimulationData(BaseProtocol):
     and makes its attributes easily accessible to other protocols.
     """
 
-    @protocol_input(tuple)
-    def simulation_data_path(self):
-        """A tuple which contains both the path to the simulation data object,
-        it's ancillary data directory, and the force field which was used to
-        generate the stored data."""
-        pass
+    simulation_data_path = protocol_input(docstring='A tuple which contains both the path to the simulation data '
+                                                    'object, it\'s ancillary data directory, and the force field which ' 
+                                                    'was used to generate the stored data.',
+                                          type_hint=tuple,
+                                          default_value=protocol_input.UNDEFINED)
 
-    @protocol_output(Substance)
-    def substance(self):
-        """The substance which was stored."""
-        pass
+    substance = protocol_output(docstring='The substance which was stored.',
+                                type_hint=Substance)
 
-    @protocol_output(int)
-    def total_number_of_molecules(self):
-        """The total number of molecules in the stored system."""
-        pass
+    total_number_of_molecules = protocol_output(docstring='The total number of molecules in the stored system.',
+                                                type_hint=int)
 
-    @protocol_output(ThermodynamicState)
-    def thermodynamic_state(self):
-        """The thermodynamic state which was stored."""
-        pass
+    thermodynamic_state = protocol_output(docstring='The thermodynamic state which was stored.',
+                                          type_hint=ThermodynamicState)
 
-    @protocol_output(float)
-    def statistical_inefficiency(self):
-        """The statistical inefficiency of the stored data."""
-        pass
+    statistical_inefficiency = protocol_output(docstring='The statistical inefficiency of the stored data.',
+                                               type_hint=float)
 
-    @protocol_output(str)
-    def coordinate_file_path(self):
-        """A path to the stored simulation trajectory."""
-        pass
+    coordinate_file_path = protocol_output(docstring='A path to the stored simulation output coordinates.',
+                                           type_hint=str)
 
-    @protocol_output(str)
-    def trajectory_file_path(self):
-        """A path to the stored simulation trajectory."""
-        pass
+    trajectory_file_path = protocol_output(docstring='A path to the stored simulation trajectory.',
+                                           type_hint=str)
 
-    @protocol_output(str)
-    def statistics_file_path(self):
-        """A path to the stored simulation statistics array."""
-        pass
+    statistics_file_path = protocol_output(docstring='A path to the stored simulation statistics array.',
+                                           type_hint=str)
 
-    @protocol_output(str)
-    def force_field_path(self):
-        """A path to the force field parameters used to generate
-        the stored data."""
-        pass
+    force_field_path = protocol_output(docstring='A path to the force field parameters used to generate the '
+                                                 'stored data.',
+                                       type_hint=str)
 
     def __init__(self, protocol_id):
         """Constructs a new UnpackStoredSimulationData object."""

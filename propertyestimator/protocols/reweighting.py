@@ -25,26 +25,21 @@ class ConcatenateTrajectories(BaseProtocol):
     a single one.
     """
 
-    @protocol_input(list)
-    def input_coordinate_paths(self):
-        """A list of paths to the starting coordinates for each of the trajectories."""
-        pass
+    input_coordinate_paths = protocol_input(docstring='A list of paths to the starting PDB coordinates for each of '
+                                                      'the trajectories.',
+                                            type_hint=list,
+                                            default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(list)
-    def input_trajectory_paths(self):
-        """A list of paths to the trajectories to concatenate."""
-        pass
+    input_trajectory_paths = protocol_input(docstring='A list of paths to the trajectories to concatenate.',
+                                            type_hint=list,
+                                            default_value=protocol_input.UNDEFINED)
 
-    @protocol_output(str)
-    def output_coordinate_path(self):
-        """The path the coordinate file which contains the topology of
-        the concatenated trajectory."""
-        pass
+    output_coordinate_path = protocol_output(docstring='The path the PDB coordinate file which contains the topology '
+                                                       'of the concatenated trajectory.',
+                                             type_hint=str)
 
-    @protocol_output(str)
-    def output_trajectory_path(self):
-        """The path to the concatenated trajectory."""
-        pass
+    output_trajectory_path = protocol_output(docstring='The path to the concatenated trajectory.',
+                                             type_hint=str)
 
     def __init__(self, protocol_id):
         """Constructs a new ConcatenateTrajectories object."""
@@ -92,15 +87,13 @@ class ConcatenateStatistics(BaseProtocol):
     a single one.
     """
 
-    @protocol_input(list)
-    def input_statistics_paths(self):
-        """A list of paths to the different statistics arrays."""
-        pass
+    input_statistics_paths = protocol_input(docstring='A list of paths to statistics arrays to concatenate.',
+                                            type_hint=list,
+                                            default_value=protocol_input.UNDEFINED)
 
-    @protocol_output(str)
-    def output_statistics_path(self):
-        """The path the csv file which contains the concatenated statistics."""
-        pass
+    output_statistics_path = protocol_output(docstring='The path the csv file which contains the concatenated '
+                                                       'statistics.',
+                                             type_hint=str)
 
     def __init__(self, protocol_id):
         """Constructs a new ConcatenateStatistics object."""
@@ -136,59 +129,50 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
     set of configurations.
     """
 
-    @protocol_input(ThermodynamicState)
-    def thermodynamic_state(self):
-        """The state to calculate the reduced potential at."""
-        pass
+    thermodynamic_state = protocol_input(docstring='The state to calculate the reduced potential at.',
+                                         type_hint=ThermodynamicState,
+                                         default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(str)
-    def system_path(self):
-        """The path to the system object which describes the systems
-        potential energy function."""
-        pass
+    system_path = protocol_input(docstring='The path to the system object which describes the systems potential '
+                                           'energy function.',
+                                 type_hint=str,
+                                 default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(bool)
-    def enable_pbc(self):
-        """If true, periodic boundary conditions will be enabled."""
-        pass
+    enable_pbc = protocol_input(docstring='If true, periodic boundary conditions will be enabled.',
+                                type_hint=bool,
+                                default_value=True)
 
-    @protocol_input(str)
-    def coordinate_file_path(self):
-        """The path to the coordinate file which contains topology
-        information about the system."""
-        pass
+    coordinate_file_path = protocol_input(docstring='The path to the coordinate file which contains topology '
+                                                    'information about the system.',
+                                          type_hint=str,
+                                          default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(str)
-    def trajectory_file_path(self):
-        """The path to the trajectory file which contains the
-        configurations to calculate the energies of."""
-        pass
+    trajectory_file_path = protocol_input(docstring='The path to the trajectory file which contains the '
+                                                    'configurations to calculate the energies of.',
+                                          type_hint=str,
+                                          default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(str)
-    def kinetic_energies_path(self):
-        """The file path to a statistics array which contain the kinetic energies
-        of each frame in the trajectory."""
-        pass
+    kinetic_energies_path = protocol_input(docstring='The file path to a statistics array which contain the kinetic '
+                                                     'energies of each frame in the trajectory.',
+                                           type_hint=str,
+                                           default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(bool)
-    def high_precision(self):
-        """If true, OpenMM will be run in double precision mode."""
-        pass
+    high_precision = protocol_input(docstring='If true, OpenMM will be run in double precision mode.',
+                                    type_hint=bool,
+                                    default_value=False)
 
-    @protocol_input(bool)
-    def use_internal_energy(self):
-        """If true the internal energy, rather than the potential energy
-        will be used when calculating the reduced potential. This is required
-        when reweighting properties which depend on the total energy, such as
-        enthalpy."""
-        pass
+    use_internal_energy = protocol_input(docstring='If true the internal energy, rather than the potential energy will '
+                                                   'be used when calculating the reduced potential. This is required '
+                                                   'when reweighting properties which depend on the total energy, such '
+                                                   'as enthalpy.',
+                                         type_hint=bool,
+                                         default_value=False)
 
-    @protocol_output(str)
-    def statistics_file_path(self):
-        """A file path to the StatisticsArray file which contains the reduced potentials,
-        and the potential, kinetic and total energies and enthalpies evaluated at the specified
-        state and using the specified system object."""
-        pass
+    statistics_file_path = protocol_output(docstring='A file path to the statistics file which contains the reduced '
+                                                     'potentials, and the potential, kinetic and total energies and '
+                                                     'enthalpies evaluated at the specified state and using the '
+                                                     'specified system object.',
+                                           type_hint=str)
 
     def __init__(self, protocol_id):
         """Constructs a new CalculateReducedPotentialOpenMM object."""
@@ -292,54 +276,45 @@ class BaseMBARProtocol(BaseProtocol):
     than they were originally measured.
     """
 
-    @protocol_input(list)
-    def reference_reduced_potentials(self):
-        """A list of paths to the reduced potentials of each reference state."""
-        pass
+    reference_reduced_potentials = protocol_input(docstring='A list of paths to the reduced potentials of each '
+                                                            'reference state.',
+                                                  type_hint=list,
+                                                  default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(list)
-    def target_reduced_potentials(self):
-        """A list of paths to the reduced potentials of the target state."""
-        pass
+    target_reduced_potentials = protocol_input(docstring='A list of paths to the reduced potentials of the target '
+                                                         'state.',
+                                               type_hint=list,
+                                               default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(bool)
-    def bootstrap_uncertainties(self):
-        """If true, bootstrapping will be used to estimated the total uncertainty"""
-        pass
+    bootstrap_uncertainties = protocol_input(docstring='If true, bootstrapping will be used to estimated the total '
+                                                       'uncertainty',
+                                             type_hint=bool,
+                                             default_value=False)
 
-    @protocol_input(int)
-    def bootstrap_iterations(self):
-        """The number of bootstrap iterations to perform if bootstraped
-        uncertainties have been requested"""
-        pass
+    bootstrap_iterations = protocol_input(docstring='The number of bootstrap iterations to perform if bootstraped '
+                                                    'uncertainties have been requested',
+                                          type_hint=int,
+                                          default_value=1)
 
-    @protocol_input(float)
-    def bootstrap_sample_size(self):
-        """The relative bootstrap sample size to use if bootstraped
-        uncertainties have been requested"""
-        pass
+    bootstrap_sample_size = protocol_input(docstring='The relative bootstrap sample size to use if bootstraped '
+                                                     'uncertainties have been requested',
+                                           type_hint=float,
+                                           default_value=1.0)
 
-    @protocol_input(int)
-    def required_effective_samples(self):
-        """The minimum number of MBAR effective samples for the reweighted
-        value to be trusted. If this minimum is not met then the uncertainty
-        will be set to sys.float_info.max"""
-        pass
+    required_effective_samples = protocol_input(docstring='The minimum number of MBAR effective samples for the '
+                                                          'reweighted value to be trusted. If this minimum is not met '
+                                                          'then the uncertainty will be set to sys.float_info.max',
+                                                type_hint=int,
+                                                default_value=50)
 
-    @protocol_output(EstimatedQuantity)
-    def value(self):
-        """The reweighted average value of the observable at the target state."""
-        pass
+    value = protocol_output(docstring='The reweighted average value of the observable at the target state.',
+                            type_hint=EstimatedQuantity)
 
-    @protocol_output(int)
-    def effective_samples(self):
-        """The number of effective samples which were reweighted."""
-        pass
+    effective_samples = protocol_output(docstring='The number of effective samples which were reweighted.',
+                                        type_hint=int)
 
-    @protocol_output(list)
-    def effective_sample_indices(self):
-        """The indices of those samples which have a non-zero weight."""
-        pass
+    effective_sample_indices = protocol_output(docstring='The indices of those samples which have a non-zero weight.',
+                                               type_hint=list)
 
     def __init__(self, protocol_id):
         """Constructs a new BaseMBARProtocol object."""
@@ -710,25 +685,23 @@ class ReweightStatistics(BaseMBARProtocol):
     """Reweights a set of observables from a `StatisticsArray` using MBAR.
     """
 
-    @protocol_input(list)
-    def statistics_paths(self):
-        """The file paths to the statistics array which contains the observables
-        of interest from each state. If the observable of interest is dependant
-        on the changing variable (e.g. the potential energy) then this must be a
-        path to the observable re-evaluated at the new state."""
-        pass
+    statistics_paths = protocol_input(docstring='The file paths to the statistics array which contains the observables '
+                                                'of interest from each state. If the observable of interest is '
+                                                'dependant on the changing variable (e.g. the potential energy) then '
+                                                'this must be a path to the observable re-evaluated at the new state.',
+                                      type_hint=list,
+                                      default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(ObservableType)
-    def statistics_type(self):
-        """The type of observable to reweight."""
-        pass
+    statistics_type = protocol_input(docstring='The type of observable to reweight.',
+                                     type_hint=ObservableType,
+                                     default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(list)
-    def frame_counts(self):
-        """An optional list which describes how many of the statistics in the
-        array belong to each reference state. If this input is used, only a
-        single file path should be passed to the `statistics_paths` input."""
-        pass
+    frame_counts = protocol_input(docstring='A list which describes how many of the statistics in the array '
+                                            'belong to each reference state. If this input is used, only a single file '
+                                            'path should be passed to the `statistics_paths` input.',
+                                  type_hint=list,
+                                  default_value=protocol_input.UNDEFINED,
+                                  optional=True)
 
     def __init__(self, protocol_id):
         """Constructs a new ReweightWithMBARProtocol object."""

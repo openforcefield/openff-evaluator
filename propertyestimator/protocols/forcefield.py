@@ -31,54 +31,40 @@ class BuildSmirnoffSystem(BaseProtocol):
         """
         TIP3P = 'TIP3P'
 
-    @protocol_input(str)
-    def force_field_path(self, value):
-        """The file path to the force field parameters to assign to the system."""
-        pass
+    force_field_path = protocol_input(docstring='The file path to the force field parameters to assign to the system.',
+                                      type_hint=str,
+                                      default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(str)
-    def coordinate_file_path(self, value):
-        """The file path to the coordinate file which defines the system to which the
-        force field parameters will be assigned."""
-        pass
+    coordinate_file_path = protocol_input(docstring='The file path to the PDB coordinate file which defines the '
+                                                    'topology of the system to which the force field parameters '
+                                                    'will be assigned.',
+                                          type_hint=str,
+                                          default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(list)
-    def charged_molecule_paths(self):
-        """File paths to mol2 files which contain the charges assigned to molecules
-        in the system. This input is helpful when dealing with large molecules (such
-        as hosts in host-guest binding calculations) whose charges may by needed
-        in multiple places, and hence should only be calculated once."""
-        pass
+    charged_molecule_paths = protocol_input(docstring='File paths to mol2 files which contain the charges assigned to '
+                                                      'molecules in the system. This input is helpful when dealing '
+                                                      'with large molecules (such as hosts in host-guest binding '
+                                                      'calculations) whose charges may by needed in multiple places,'
+                                                      ' and hence should only be calculated once.',
+                                            type_hint=list,
+                                            default_value=[])
 
-    @protocol_input(Substance)
-    def substance(self):
-        """The composition of the system."""
-        pass
+    substance = protocol_input(docstring='The composition of the system.',
+                               type_hint=Substance,
+                               default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(WaterModel)
-    def water_model(self):
-        """The water model to apply, if any water molecules
-        are present.
+    water_model = protocol_input(docstring='The water model to apply, if any water molecules are present.',
+                                 type_hint=WaterModel,
+                                 default_value=WaterModel.TIP3P)
 
-        Warnings
-        --------
-        This is only a temporary addition until library charges
-        are introduced into the openforcefield toolkit.
-        """
-        pass
+    apply_known_charges = protocol_input(docstring='If true, the formal charges of ions and the partial charges of '
+                                                   'the selected water model will be automatically applied to any '
+                                                   'matching molecules in the system.',
+                                         type_hint=bool,
+                                         default_value=True)
 
-    @protocol_input(bool)
-    def apply_known_charges(self):
-        """If true, formal the formal charges of ions, and
-        the charges of the selected water model will be
-        automatically applied to any matching molecules in the
-        system."""
-        pass
-
-    @protocol_output(str)
-    def system_path(self):
-        """The assigned system."""
-        pass
+    system_path = protocol_output(docstring='The path to the assigned system object.',
+                                  type_hint=str)
 
     def __init__(self, protocol_id):
 

@@ -7,7 +7,7 @@ import copy
 
 from propertyestimator.utils import graph, utils
 from propertyestimator.utils.utils import get_nested_attribute, set_nested_attribute
-from propertyestimator.workflow.decorators import protocol_input, MergeBehaviour
+from propertyestimator.workflow.decorators import protocol_input, MergeBehaviour, InequalityMergeBehaviour
 from propertyestimator.workflow.schemas import ProtocolSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
@@ -89,10 +89,10 @@ class BaseProtocol:
 
         return return_dependencies
 
-    @protocol_input(value_type=bool)
-    def allow_merging(self):
-        """bool: If true, this protocol is allowed to merge with other identical protocols."""
-        pass
+    allow_merging = protocol_input(docstring='Defines whether this protocols is allowed '
+                                             'to merge with other protocols.',
+                                   type_hint=bool,
+                                   default_value=True)
 
     def __init__(self, protocol_id):
 
@@ -377,9 +377,9 @@ class BaseProtocol:
 
             value = None
 
-            if merge_behavior == MergeBehaviour.SmallestValue:
+            if merge_behavior == InequalityMergeBehaviour.SmallestValue:
                 value = min(self.get_value(input_path), other.get_value(input_path))
-            elif merge_behavior == MergeBehaviour.GreatestValue:
+            elif merge_behavior == InequalityMergeBehaviour.LargestValue:
                 value = max(self.get_value(input_path), other.get_value(input_path))
 
             self.set_value(input_path, value)

@@ -25,15 +25,12 @@ class AddValues(BaseProtocol):
     of unit.Quantity, or a list of ProtocolPath which each point to a unit.Quantity.
     """
 
-    @protocol_input(list)
-    def values(self):
-        """The values to add together."""
-        pass
+    values = protocol_input(docstring='The values to add together.',
+                            type_hint=list,
+                            default_value=protocol_input.UNDEFINED)
 
-    @protocol_output(typing.Union[int, float, EstimatedQuantity, unit.Quantity, ParameterGradient])
-    def result(self):
-        """The sum of the values."""
-        pass
+    result = protocol_output(docstring='The sum of the values.',
+                               type_hint=typing.Union[int, float, EstimatedQuantity, unit.Quantity, ParameterGradient])
 
     def __init__(self, protocol_id):
         """Constructs a new AddValues object."""
@@ -67,20 +64,16 @@ class SubtractValues(BaseProtocol):
     `result = value_b - value_a`
     """
 
-    @protocol_input(typing.Union[int, float, unit.Quantity, EstimatedQuantity, ParameterGradient])
-    def value_a(self):
-        """`value_a` in the formula `result = value_b - value_a`"""
-        pass
+    value_a = protocol_input(docstring='`value_a` in the formula `result` = `value_b` - `value_a`.',
+                             type_hint=typing.Union[int, float, unit.Quantity, EstimatedQuantity, ParameterGradient],
+                             default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(typing.Union[int, float, unit.Quantity, EstimatedQuantity, ParameterGradient])
-    def value_b(self):
-        """`value_b` in the formula  `result = value_b - value_a`"""
-        pass
+    value_b = protocol_input(docstring='`value_b` in the formula `result` = `value_b` - `value_a`.',
+                             type_hint=typing.Union[int, float, unit.Quantity, EstimatedQuantity, ParameterGradient],
+                             default_value=protocol_input.UNDEFINED)
 
-    @protocol_output(typing.Union[int, float, unit.Quantity, EstimatedQuantity, ParameterGradient])
-    def result(self):
-        """The sum of the values."""
-        pass
+    result = protocol_output(docstring='The results of `value_b` - `value_a`.',
+                             type_hint=typing.Union[int, float, EstimatedQuantity, unit.Quantity, ParameterGradient])
 
     def __init__(self, protocol_id):
         """Constructs a new AddValues object."""
@@ -102,20 +95,16 @@ class MultiplyValue(BaseProtocol):
     """A protocol which multiplies a value by a specified scalar
     """
 
-    @protocol_input(typing.Union[int, float, unit.Quantity, EstimatedQuantity, ParameterGradient])
-    def value(self):
-        """The value to multiply."""
-        pass
+    value = protocol_input(docstring='The value to multiply.',
+                           type_hint=typing.Union[int, float, unit.Quantity, EstimatedQuantity, ParameterGradient],
+                           default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(typing.Union[int, float, unit.Quantity])
-    def multiplier(self):
-        """The scalar to multiply by."""
-        pass
+    multiplier = protocol_input(docstring='The scalar to multiply by.',
+                                type_hint=typing.Union[int, float, unit.Quantity],
+                                default_value=protocol_input.UNDEFINED)
 
-    @protocol_output(typing.Union[int, float, unit.Quantity, EstimatedQuantity, ParameterGradient])
-    def result(self):
-        """The result of the multiplication."""
-        pass
+    result = protocol_output(docstring='The result of the multiplication.',
+                             type_hint=typing.Union[int, float, EstimatedQuantity, unit.Quantity, ParameterGradient])
 
     def __init__(self, protocol_id):
         """Constructs a new MultiplyValue object."""
@@ -146,20 +135,16 @@ class DivideValue(BaseProtocol):
     """A protocol which divides a value by a specified scalar
     """
 
-    @protocol_input(typing.Union[int, float, unit.Quantity, EstimatedQuantity, ParameterGradient])
-    def value(self):
-        """The value to divide."""
-        pass
+    value = protocol_input(docstring='The value to divide.',
+                           type_hint=typing.Union[int, float, unit.Quantity, EstimatedQuantity, ParameterGradient],
+                           default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(typing.Union[int, float, unit.Quantity])
-    def divisor(self):
-        """The scalar to divide by."""
-        pass
+    divisor = protocol_input(docstring='The scalar to divide by.',
+                             type_hint=typing.Union[int, float, unit.Quantity],
+                             default_value=protocol_input.UNDEFINED)
 
-    @protocol_output(typing.Union[int, float, unit.Quantity, EstimatedQuantity, ParameterGradient])
-    def result(self):
-        """The result of the division."""
-        pass
+    result = protocol_output(docstring='The result of the division.',
+                             type_hint=typing.Union[int, float, EstimatedQuantity, unit.Quantity, ParameterGradient])
 
     def __init__(self, protocol_id):
         """Constructs a new DivideValue object."""
@@ -181,15 +166,14 @@ class BaseWeightByMoleFraction(BaseProtocol):
     """Multiplies a value by the mole fraction of a component
     in a mixture substance.
     """
-    @protocol_input(Substance)
-    def component(self, value):
-        """The component (e.g water) to which this value belongs."""
-        pass
 
-    @protocol_input(Substance)
-    def full_substance(self, value):
-        """The full substance of which the component of interest is a part."""
-        pass
+    component = protocol_input(docstring='The component (e.g water) whose mole fraction to weight by.',
+                               type_hint=Substance,
+                               default_value=protocol_input.UNDEFINED)
+
+    full_substance = protocol_input(docstring='The full substance which describes the mole fraction of the component.',
+                                    type_hint=Substance,
+                                    default_value=protocol_input.UNDEFINED)
 
     def __init__(self, protocol_id):
         super().__init__(protocol_id)
@@ -246,16 +230,15 @@ class WeightByMoleFraction(BaseWeightByMoleFraction):
     """Multiplies a value by the mole fraction of a component
     in a `Substance`.
     """
-    @protocol_input(typing.Union[float, int, EstimatedQuantity, unit.Quantity, ParameterGradient])
-    def value(self):
-        """The value to be weighted."""
-        pass
 
-    @protocol_output(typing.Union[float, int, EstimatedQuantity, unit.Quantity, ParameterGradient])
-    def weighted_value(self, value):
-        """The value weighted by the `component`s mole fraction as determined from
-        the `full_substance`."""
-        pass
+    value = protocol_input(docstring='The value to be weighted.',
+                           type_hint=typing.Union[float, int, EstimatedQuantity, unit.Quantity, ParameterGradient],
+                           default_value=protocol_input.UNDEFINED)
+
+    weighted_value = protocol_output('The value weighted by the `component`s mole fraction as determined from the '
+                                     '`full_substance`.',
+                                     type_hint=typing.Union[float, int, EstimatedQuantity, unit.Quantity,
+                                                            ParameterGradient])
 
     def _weight_values(self, mole_fraction):
         """
@@ -273,27 +256,22 @@ class FilterSubstanceByRole(BaseProtocol):
     contains components whose role match a given criteria.
     """
 
-    @protocol_input(Substance)
-    def input_substance(self):
-        """The substance to filter."""
-        pass
+    input_substance = protocol_input(docstring='The substance to filter.',
+                                     type_hint=Substance,
+                                     default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(Substance.ComponentRole)
-    def component_role(self):
-        """The role to filter substance components against."""
-        pass
+    component_role = protocol_input(docstring='The role to filter substance components against.',
+                                    type_hint=Substance.ComponentRole,
+                                    default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(int)
-    def expected_components(self):
-        """The number of components expected to remain after filtering. An
-        exception is raised if this number is not matched. Setting this value
-        to -1 will disable this check."""
-        pass
+    expected_components = protocol_input(docstring='The number of components expected to remain after filtering. '
+                                                   'An exception is raised if this number is not matched.',
+                                         type_hint=int,
+                                         default_value=protocol_input.UNDEFINED,
+                                         optional=True)
 
-    @protocol_output(Substance)
-    def filtered_substance(self):
-        """The filtered substance."""
-        pass
+    filtered_substance = protocol_output(docstring='The filtered substance.',
+                                         type_hint=Substance)
 
     def __init__(self, protocol_id):
         """Constructs a new AddValues object."""

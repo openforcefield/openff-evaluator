@@ -7,6 +7,7 @@ import re
 from os import path
 
 import numpy as np
+import typing
 from simtk import openmm
 from simtk.openmm import app
 
@@ -26,104 +27,92 @@ from propertyestimator.workflow.protocols import BaseProtocol
 
 @register_calculation_protocol()
 class GradientReducedPotentials(BaseProtocol):
-    """A protocol to estimates the gradient of an observable with
-    respect to a number of specified force field parameters.
+    """A protocol to estimates the the reduced potential of the configurations
+    of a trajectory using reverse and forward perturbed simulation parameters for
+    use with estimating reweighted gradients using the central difference method.
     """
 
-    @protocol_input(list)
-    def reference_force_field_paths(self):
-        """A list of path to the force field file which were originally used
-        to estimate the observable of interest."""
-        pass
+    reference_force_field_paths = protocol_input(docstring='A list of paths to the force field files which were '
+                                                           'originally used to generate the configurations.',
+                                                 type_hint=list,
+                                                 default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(str)
-    def reference_statistics_path(self):
-        """An optional path to the statistics array which was generated
-        alongside the observable of interest, which will be used to
-        correct the potential energies at the reverse and forward states.
+    force_field_path = protocol_input(docstring='The path to the force field which contains the parameters to '
+                                                'differentiate the observable with respect to.',
+                                                 type_hint=str,
+                                                 default_value=protocol_input.UNDEFINED)
 
-        This is only really needed when the observable of interest is an
-        energy.
-        """
-        pass
+    reference_statistics_path = protocol_input(docstring='An optional path to the statistics array which was '
+                                                         'generated alongside the observable of interest, which will '
+                                                         'be used to correct the potential energies at the reverse '
+                                                         'and forward states. This is only really needed when the '
+                                                         'observable of interest is an energy.',
+                                               type_hint=str,
+                                               default_value=protocol_input.UNDEFINED,
+                                               optional=True)
 
-    @protocol_input(str)
-    def force_field_path(self):
-        """A path to the force field which contains the parameters
-        to differentiate the observable with respect to."""
-        pass
+    enable_pbc = protocol_input(docstring='If true, periodic boundary conditions will be enabled when '
+                                          're-evaluating the reduced potentials.',
+                                type_hint=bool,
+                                default_value=True)
 
-    @protocol_input(bool)
-    def enable_pbc(self):
-        """If true, periodic boundary conditions will be enabled when
-        re-evaluating the reduced potentials."""
-        pass
+    substance = protocol_input(docstring='The substance which describes the composition of the system.',
+                               type_hint=Substance,
+                               default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(Substance)
-    def substance(self):
-        """The substance which describes the composition
-        of the system."""
-        pass
+    thermodynamic_state = protocol_input(docstring='The thermodynamic state to estimate the gradients at.',
+                                         type_hint=ThermodynamicState,
+                                         default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(ThermodynamicState)
-    def thermodynamic_state(self):
-        """The thermodynamic state to estimate the gradients at."""
-        pass
+    coordinate_file_path = protocol_input(docstring='A path to a PDB coordinate file which describes the topology of '
+                                                    'the system.',
+                                          type_hint=str,
+                                          default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(str)
-    def coordinate_file_path(self):
-        """A path to the initial coordinates of the simulation trajectory which
-        was used to estimate the observable of interest."""
-        pass
+    trajectory_file_path = protocol_input(docstring='A path to the trajectory of configurations',
+                                          type_hint=str,
+                                          default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(str)
-    def trajectory_file_path(self):
-        """A path to the simulation trajectory which was used
-        to estimate the observable of interest."""
-        pass
+    parameter_key = protocol_input(docstring='The key of the parameter to differentiate with respect to.',
+                                   type_hint=ParameterGradientKey,
+                                   default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(ParameterGradientKey)
-    def parameter_key(self):
-        """A list of the parameters to differentiate with respect to."""
-        pass
+    perturbation_scale = protocol_input(docstring='The amount to perturb the parameter by, such that '
+                                                  'p_new = p_old * (1 +/- `perturbation_scale`)',
+                                        type_hint=float,
+                                        default_value=1.0e-4)
 
-    @protocol_input(float)
-    def perturbation_scale(self):
-        """The amount to perturb the parameter by, such that
-        p_new = p_old * (1 +/- perturbation_scale)"""
-        pass
+    use_subset_of_force_field = protocol_input(docstring='If true, the reduced potential will be estimated using '
+                                                         'an OpenMM system which only contains the parameter of '
+                                                         'interest',
+                                               type_hint=bool,
+                                               default_value=True)
 
-    @protocol_input(bool)
-    def use_subset_of_force_field(self):
-        """If true, the reduced potential will be estimated using an OpenMM
-        system which only contains the parameter of interest.
-        """
+    effective_sample_indices = protocol_input(docstring='NOTE - this is currently a placeholder input ONLY, and '
+                                                        'currently is not used for anything',
+                                              type_hint=list,
+                                              default_value=protocol_input.UNDEFINED,
+                                              optional=True)
 
-    @protocol_input(list)
-    def effective_sample_indices(self):
-        """NOTE - this is currently a placeholder input ONLY, and
-        currently is not used for anything.
-        """
+    reference_potential_paths = protocol_output(docstring='File paths to the reduced potentials evaluated using each '
+                                                          'of the reference force fields.',
+                                                type_hint=list)
 
-    @protocol_output(list)
-    def reference_potential_paths(self):
-        pass
+    reverse_potentials_path = protocol_output(docstring='A file path to the energies evaluated using the parameters'
+                                                        'perturbed in the reverse direction.',
+                                              type_hint=str)
 
-    @protocol_output(str)
-    def reverse_potentials_path(self):
-        pass
+    forward_potentials_path = protocol_output(docstring='A file path to the energies evaluated using the parameters'
+                                                        'perturbed in the forward direction.',
+                                              type_hint=str)
 
-    @protocol_output(str)
-    def forward_potentials_path(self):
-        pass
+    reverse_parameter_value = protocol_output(docstring='The value of the parameter perturbed in the reverse '
+                                                        'direction.',
+                                              type_hint=unit.Quantity)
 
-    @protocol_output(unit.Quantity)
-    def reverse_parameter_value(self):
-        pass
-
-    @protocol_output(unit.Quantity)
-    def forward_parameter_value(self):
-        pass
+    forward_parameter_value = protocol_output(docstring='The value of the parameter perturbed in the forward '
+                                                        'direction.',
+                                              type_hint=unit.Quantity)
 
     def __init__(self, protocol_id):
         """Constructs a new EstimateParameterGradients object."""
@@ -423,36 +412,32 @@ class CentralDifferenceGradient(BaseProtocol):
     of unit.Quantity, or a list of ProtocolPath which each point to a unit.Quantity.
     """
 
-    @protocol_input(ParameterGradientKey)
-    def parameter_key(self):
-        """The key that describes which parameters this
-        gradient was estimated for."""
-        pass
+    parameter_key = protocol_input(docstring='The key of the parameter to differentiate with respect to.',
+                                   type_hint=ParameterGradientKey,
+                                   default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(EstimatedQuantity)
-    def reverse_observable_value(self):
-        """The value of A(x-h)."""
-        pass
+    reverse_observable_value = protocol_input(docstring='The value of the observable evaluated using the parameters'
+                                                        'perturbed in the reverse direction.',
+                                              type_hint=typing.Union[unit.Quantity, EstimatedQuantity],
+                                              default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(EstimatedQuantity)
-    def forward_observable_value(self):
-        """The value of A(x+h)."""
-        pass
+    forward_observable_value = protocol_input(docstring='The value of the observable evaluated using the parameters'
+                                                        'perturbed in the forward direction.',
+                                              type_hint=typing.Union[unit.Quantity, EstimatedQuantity],
+                                              default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(unit.Quantity)
-    def reverse_parameter_value(self):
-        """The value of x-h."""
-        pass
+    reverse_parameter_value = protocol_input(docstring='The value of the parameter perturbed in the reverse '
+                                                       'direction.',
+                                              type_hint=unit.Quantity,
+                                              default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(unit.Quantity)
-    def forward_parameter_value(self):
-        """The value of x+h."""
-        pass
+    forward_parameter_value = protocol_input(docstring='The value of the parameter perturbed in the forward '
+                                                       'direction.',
+                                              type_hint=unit.Quantity,
+                                              default_value=protocol_input.UNDEFINED)
 
-    @protocol_output(ParameterGradient)
-    def gradient(self):
-        """The estimated gradient."""
-        pass
+    gradient = protocol_output(docstring='The estimated gradient',
+                               type_hint=ParameterGradient)
 
     def __init__(self, protocol_id):
         """Constructs a new CentralDifferenceGradient object."""
@@ -475,7 +460,16 @@ class CentralDifferenceGradient(BaseProtocol):
             return PropertyEstimatorException(f'The forward parameter value ({self._forward_parameter_value}) must '
                                               f'be larger than the reverse value ({self._reverse_parameter_value}).')
 
-        gradient = ((self._forward_observable_value.value - self._reverse_observable_value.value) /
+        reverse_value = self._reverse_observable_value
+        forward_value = self._forward_observable_value
+
+        if isinstance(reverse_value, EstimatedQuantity):
+            reverse_value = reverse_value.value
+
+        if isinstance(forward_value, EstimatedQuantity):
+            forward_value = forward_value.value
+
+        gradient = ((forward_value - reverse_value) /
                     (self._forward_parameter_value - self._reverse_parameter_value))
 
         self._gradient = ParameterGradient(self._parameter_key, gradient)
