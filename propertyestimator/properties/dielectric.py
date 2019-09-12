@@ -31,32 +31,25 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
     """Extracts the average dielectric constant from a simulation trajectory.
     """
 
-    @protocol_input(str)
-    def system_path(self):
-        """The path to the XML system object which defines the forces present in the system."""
-        pass
+    system_path = protocol_input(docstring='The path to the XML system object which defines the forces present in '
+                                           'the system.',
+                                 type_hint=str,
+                                 default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(ThermodynamicState)
-    def thermodynamic_state(self):
-        """The thermodynamic state at which the trajectory was generated."""
-        pass
+    thermodynamic_state = protocol_input(docstring='The thermodynamic state at which the trajectory was generated.',
+                                         type_hint=ThermodynamicState,
+                                         default_value=protocol_input.UNDEFINED)
 
-    @protocol_output(unit.Quantity)
-    def dipole_moments(self):
-        """The raw (possibly correlated) dipole moments which were used in
-        the dielectric calculation."""
-        pass
+    dipole_moments = protocol_output(docstring='The raw (possibly correlated) dipole moments which were used in '
+                                               'the dielectric calculation.',
+                                     type_hint=unit.Quantity)
 
-    @protocol_output(unit.Quantity)
-    def volumes(self):
-        """The volumes which were used in the dielectric calculation."""
-        pass
+    volumes = protocol_output(docstring='The volumes which were used in the dielectric calculation.',
+                              type_hint=unit.Quantity)
 
-    @protocol_output(unit.Quantity)
-    def uncorrelated_volumes(self):
-        """The uncorrelated volumes which were used in the dielectric
-        calculation."""
-        pass
+    uncorrelated_volumes = protocol_output(docstring='The uncorrelated volumes which were used in the dielectric '
+                                                     'calculation.',
+                                           type_hint=unit.Quantity)
 
     def __init__(self, protocol_id):
         super().__init__(protocol_id)
@@ -191,22 +184,19 @@ class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
     by bootstrapping.
     """
 
-    @protocol_input(unit.Quantity)
-    def reference_dipole_moments(self):
-        """A Quantity wrapped np.ndarray of the dipole moments of each
-        of the reference states."""
-        pass
+    reference_dipole_moments = protocol_input(docstring='A Quantity wrapped np.ndarray of the dipole moments of each '
+                                                        'of the reference states.',
+                                              type_hint=unit.Quantity,
+                                              default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(unit.Quantity)
-    def reference_volumes(self):
-        """A Quantity wrapped np.ndarray of the volumes of each of the
-        reference states."""
-        pass
+    reference_volumes = protocol_input(docstring='A Quantity wrapped np.ndarray of the volumes of each of the '
+                                                 'reference states.',
+                                       type_hint=unit.Quantity,
+                                       default_value=protocol_input.UNDEFINED)
 
-    @protocol_input(ThermodynamicState)
-    def thermodynamic_state(self):
-        """The thermodynamic state at which the trajectory was generated."""
-        pass
+    thermodynamic_state = protocol_input(docstring='The thermodynamic state at which the trajectory was generated.',
+                                         type_hint=ThermodynamicState,
+                                         default_value=protocol_input.UNDEFINED)
 
     def __init__(self, protocol_id):
         """Constructs a new ReweightFluctuationWithMBARProtocol object."""

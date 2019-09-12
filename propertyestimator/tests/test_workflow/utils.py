@@ -31,17 +31,9 @@ def create_dummy_metadata(dummy_property, calculation_layer):
 @register_calculation_protocol()
 class DummyReplicableProtocol(BaseProtocol):
 
-    @protocol_input(value_type=list)
-    def replicated_value_a(self):
-        pass
-
-    @protocol_input(value_type=list)
-    def replicated_value_b(self):
-        pass
-
-    @protocol_output(value_type=EstimatedQuantity)
-    def final_value(self):
-        pass
+    replicated_value_a = protocol_input(docstring='', type_hint=list, default_value = protocol_input.UNDEFINED)
+    replicated_value_b = protocol_input(docstring='', type_hint=list, default_value = protocol_input.UNDEFINED)
+    final_value = protocol_output(docstring='', type_hint=EstimatedQuantity)
 
     def __init__(self, protocol_id):
         super().__init__(protocol_id)
@@ -55,13 +47,8 @@ class DummyReplicableProtocol(BaseProtocol):
 @register_calculation_protocol()
 class DummyQuantityProtocol(BaseProtocol):
 
-    @protocol_input(unit.Quantity)
-    def input_value(self):
-        pass
-
-    @protocol_output(unit.Quantity)
-    def output_value(self):
-        pass
+    input_value = protocol_input(docstring='', type_hint=unit.Quantity, default_value=protocol_input.UNDEFINED)
+    output_value = protocol_output(docstring='', type_hint=unit.Quantity)
 
     def __init__(self, protocol_id):
 
@@ -78,13 +65,8 @@ class DummyQuantityProtocol(BaseProtocol):
 @register_calculation_protocol()
 class DummyEstimatedQuantityProtocol(BaseProtocol):
 
-    @protocol_input(EstimatedQuantity)
-    def input_value(self):
-        pass
-
-    @protocol_output(EstimatedQuantity)
-    def output_value(self):
-        pass
+    input_value = protocol_input(docstring='', type_hint=EstimatedQuantity, default_value=protocol_input.UNDEFINED)
+    output_value = protocol_output(docstring='', type_hint=EstimatedQuantity)
 
     def __init__(self, protocol_id):
 
@@ -101,13 +83,8 @@ class DummyEstimatedQuantityProtocol(BaseProtocol):
 @register_calculation_protocol()
 class DummyProtocolWithDictInput(BaseProtocol):
 
-    @protocol_input(dict)
-    def input_value(self):
-        pass
-
-    @protocol_output(dict)
-    def output_value(self):
-        pass
+    input_value = protocol_input(docstring='', type_hint=dict, default_value=protocol_input.UNDEFINED)
+    output_value = protocol_output(docstring='', type_hint=dict)
 
     def __init__(self, protocol_id):
 

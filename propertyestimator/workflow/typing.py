@@ -83,7 +83,7 @@ def is_supported_type(type_object):
         True if the type can be compared using the utilities in this.
     """
     return (not _is_typing_object(type_object) or
-            (_is_typing_object(type_object) and not _is_supported_generic(type_object)))
+            (_is_typing_object(type_object) and _is_supported_generic(type_object)))
 
 
 def is_type_subclass_of_type(type_a, type_b):

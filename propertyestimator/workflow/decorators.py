@@ -12,21 +12,27 @@ from propertyestimator.workflow.typing import is_instance_of_type, is_supported_
 from propertyestimator.workflow.utils import PlaceholderInput
 
 
-class MergeBehaviour(Enum):
+class _BaseMergeBehaviour(Enum):
+    """A base clase for enums which will describes how attributes should
+    be handled when attempting to merge similar protocols.
+    """
+    pass
+
+
+class MergeBehaviour(_BaseMergeBehaviour):
     """A enum which describes how attributes should be handled when
     attempting to merge similar protocols.
 
     Attributes
     ----------
-    ExactlyEqual: str
+    ExactlyEqual
         This attribute must be exactly equal between two protocols for
         them to be able to merge.
     """
-
     ExactlyEqual = 'ExactlyEqual'
 
 
-class InequalityMergeBehaviour(MergeBehaviour):
+class InequalityMergeBehaviour(_BaseMergeBehaviour):
     """A enum which describes how attributes which can be compared
     with inequalities should be merged.
 
@@ -39,7 +45,6 @@ class InequalityMergeBehaviour(MergeBehaviour):
         When two protocols are merged, the largest value of this
         attribute from either protocol is retained.
     """
-
     SmallestValue = 'SmallestValue'
     LargestValue = 'LargestValue'
 
@@ -80,7 +85,20 @@ class BaseProtocolAttribute(abc.ABC):
             raise ValueError(f'The {type_hint} type is not supported by the '
                              f'workflow type hinting system.')
 
-        typed_docstring = f'{type_hint}: {docstring}'
+        if hasattr(type_hint, '__qualname__'):
+
+            if type_hint.__qualname__ == 'build_quantity_class.<locals>.Quantity':
+                typed_docstring = f'Quantity: {docstring}'
+            elif type_hint.__qualname__ == 'build_quantity_class.<locals>.Unit':
+                typed_docstring = f'Unit: {docstring}'
+            else:
+                typed_docstring = f'{type_hint.__qualname__}: {docstring}'
+
+        elif hasattr(type_hint, '__name__'):
+            typed_docstring = f'{type_hint.__name__}: {docstring}'
+        else:
+            typed_docstring = f'{str(type_hint)}: {docstring}'
+
         self.__doc__ = typed_docstring
         self._type_hint = type_hint
 
@@ -120,7 +138,7 @@ class BaseProtocolAttribute(abc.ABC):
         setattr(instance, self._private_attribute_name, value)
 
 
-class _InputAttribute(BaseProtocolAttribute):
+class ProtocolInputAttribute(BaseProtocolAttribute):
     """A descriptor used to mark an attribute of a protocol as
     an input to that protocol.
 
@@ -162,26 +180,42 @@ class _InputAttribute(BaseProtocolAttribute):
             whether to, and actually merging two different protocols.
         """
 
+        docstring = f'**Protocol Input** - {docstring}'
+
+        if not isinstance(merge_behavior, _BaseMergeBehaviour):
+            raise ValueError('The merge behaviour must inherit from `_BaseMergeBehaviour`')
+
         # Automatically extend the docstrings.
         if (isinstance(default_value, (int, float, str, unit.Quantity, EstimatedQuantity, Enum)) or
             (isinstance(default_value, (list, tuple, set, frozenset)) and len(default_value) <= 4)):
 
             docstring = f'{docstring} The default value of this attribute ' \
-                        f'is {str(default_value)}.'
+                        f'is ``{str(default_value)}``.'
 
         elif default_value == self.UNDEFINED:
 
             optional_string = '' if optional else ' and must be set by the user.'
 
             docstring = f'{docstring} The default value of this attribute ' \
-                         f'is undefined{optional_string}.'
+                         f'is not set{optional_string}.'
+
+        if (merge_behavior == InequalityMergeBehaviour.SmallestValue or
+            merge_behavior == InequalityMergeBehaviour.LargestValue):
+
+            merge_docstring = ''
+
+            if merge_behavior == InequalityMergeBehaviour.SmallestValue:
+                merge_docstring = 'When two protocols are merged, the smallest value of ' \
+                                        'this attribute from either protocol is retained.'
+
+            if merge_behavior == InequalityMergeBehaviour.SmallestValue:
+                merge_docstring = 'When two protocols are merged, the largest value of ' \
+                                  'this attribute from either protocol is retained.'
+
+            docstring = f'{docstring} {merge_docstring}'
 
         if optional is True:
-
             docstring = f'{docstring} This input is optional.'
-
-        if type(merge_behavior) in [MergeBehaviour, InequalityMergeBehaviour]:
-            docstring = f'{docstring} {merge_behavior.__doc__}'
 
         super().__init__(docstring, type_hint)
 
@@ -189,7 +223,7 @@ class _InputAttribute(BaseProtocolAttribute):
         self._merge_behavior = merge_behavior
 
 
-class _OutputAttribute(BaseProtocolAttribute):
+class ProtocolOutputAttribute(BaseProtocolAttribute):
     """A descriptor used to mark an attribute of a protocol as
     an output of that protocol.
 
@@ -212,8 +246,10 @@ class _OutputAttribute(BaseProtocolAttribute):
     def __init__(self, docstring, type_hint):
         """Initializes a new protocol_output object.
         """
+        docstring = f'**Protocol Output** - {docstring}'
+
         super().__init__(docstring, type_hint)
 
 
-protocol_input = _InputAttribute
-protocol_output = _OutputAttribute
+protocol_input = ProtocolInputAttribute
+protocol_output = ProtocolOutputAttribute
