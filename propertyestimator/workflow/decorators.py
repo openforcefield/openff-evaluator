@@ -215,7 +215,7 @@ class ProtocolInputAttribute(BaseProtocolAttribute):
             docstring = f'{docstring} {merge_docstring}'
 
         if optional is True:
-            docstring = f'{docstring} This input is optional.'
+            docstring = f'{docstring} This input is *optional*.'
 
         super().__init__(docstring, type_hint)
 
