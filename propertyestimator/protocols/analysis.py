@@ -116,19 +116,13 @@ class AverageTrajectoryProperty(AveragePropertyProtocol):
         self._input_coordinate_file = None
         self._trajectory_path = None
 
-        self.trajectory = None
-
     def execute(self, directory, available_resources):
-
-        import mdtraj
 
         if self._trajectory_path is None:
 
             return PropertyEstimatorException(directory=directory,
                                               message='The AverageTrajectoryProperty protocol '
                                                        'requires a previously calculated trajectory')
-
-        self.trajectory = mdtraj.load_dcd(filename=self._trajectory_path, top=self._input_coordinate_file)
 
         return self._get_output_dictionary()
 
@@ -279,9 +273,39 @@ class ExtractUncorrelatedTrajectoryData(ExtractUncorrelatedData):
 
         self._output_trajectory_path = None
 
+    @staticmethod
+    def _yield_frame(file, topology, stride):
+        """A generator which yields frames of a DCD trajectory.
+
+        Parameters
+        ----------
+        file: mdtraj.DCDTrajectoryFile
+            The file object being used to read the trajectory.
+        topology: mdtraj.Topology
+            The object which describes the topology of the trajectory.
+        stride
+            Only read every stride-th frame.
+
+        Returns
+        -------
+        mdtraj.Trajectory
+            A trajectory containing only a single frame.
+        """
+
+        while True:
+
+            frame = file.read_as_traj(topology, n_frames=1, stride=stride)
+
+            if len(frame) == 0:
+                return
+
+            yield frame
+
     def execute(self, directory, available_resources):
 
         import mdtraj
+        from mdtraj.formats.dcd import DCDTrajectoryFile
+        from mdtraj.utils import in_units_of
 
         logging.info('Subsampling trajectory: {}'.format(self.id))
 
@@ -291,16 +315,39 @@ class ExtractUncorrelatedTrajectoryData(ExtractUncorrelatedData):
                                               message='The ExtractUncorrelatedTrajectoryData protocol '
                                                        'requires a previously calculated trajectory')
 
-        trajectory = mdtraj.load_dcd(filename=self._input_trajectory_path, top=self._input_coordinate_file)
-        trajectory = trajectory[self._equilibration_index:]
-
-        uncorrelated_indices = timeseries.get_uncorrelated_indices(trajectory.n_frames, self._statistical_inefficiency)
-        uncorrelated_trajectory = trajectory[uncorrelated_indices]
-
+        # Set the output path.
         self._output_trajectory_path = path.join(directory, 'uncorrelated_trajectory.dcd')
-        uncorrelated_trajectory.save_dcd(self._output_trajectory_path)
 
-        self._number_of_uncorrelated_samples = len(uncorrelated_trajectory)
+        # Load in the trajectories topology.
+        topology = mdtraj.load_frame(self._input_coordinate_file, 0).topology
+        # Parse the internal mdtraj distance unit. While private access is undesirable,
+        # this is never publicly defined and I believe this route to be preferable
+        # over hard coding this unit.
+        base_distance_unit = mdtraj.Trajectory._distance_unit
+
+        # Determine the stride that needs to be taken to yield uncorrelated frames.
+        stride = timeseries.get_uncorrelated_stride(self._statistical_inefficiency)
+        frame_count = 0
+
+        with DCDTrajectoryFile(self._input_trajectory_path, 'r') as input_file:
+
+            # Skip the equilibration configurations.
+            if self._equilibration_index > 0:
+                input_file.seek(self._equilibration_index)
+
+            with DCDTrajectoryFile(self._output_trajectory_path, 'w') as output_file:
+
+                for frame in self._yield_frame(input_file, topology, stride):
+
+                    output_file.write(
+                        xyz=in_units_of(frame.xyz, base_distance_unit, output_file.distance_unit),
+                        cell_lengths=in_units_of(frame.unitcell_lengths, base_distance_unit, output_file.distance_unit),
+                        cell_angles=frame.unitcell_angles[0]
+                    )
+
+                    frame_count += 1
+
+        self._number_of_uncorrelated_samples = frame_count
 
         logging.info('Trajectory subsampled: {}'.format(self.id))
 
