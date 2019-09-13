@@ -11,6 +11,7 @@ from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
 from tornado.tcpclient import TCPClient
 
+from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.layers import ReweightingLayer, SimulationLayer
 from propertyestimator.properties.plugins import registered_properties
 from propertyestimator.utils.serialization import TypedBaseModel
@@ -24,9 +25,6 @@ class PropertyEstimatorOptions(TypedBaseModel):
 
     Warnings
     --------
-    * The `gradient_properties` property is not implemented yet, and is meant only
-      as a placeholder for future api development.
-
     * This class is still heavily under development and is subject to rapid changes.
 
     Attributes
@@ -125,10 +123,10 @@ class PropertyEstimatorSubmission(TypedBaseModel):
         The list of physical properties to estimate.
     options: PropertyEstimatorOptions
         The options which control how the `properties` are estimated.
-    force_field: openforcefield.typing.engines.smirnoff.ForceField
-        The force field parameters used during the calculations.
+    force_field_source: ForceFieldSource
+        The source of the force field parameters used during the calculations.
     """
-    def __init__(self, properties=None, force_field=None, options=None, parameter_gradient_keys=None):
+    def __init__(self, properties=None, force_field_source=None, options=None, parameter_gradient_keys=None):
         """Constructs a new PropertyEstimatorSubmission object.
 
         Parameters
@@ -137,8 +135,8 @@ class PropertyEstimatorSubmission(TypedBaseModel):
             The list of physical properties to estimate.
         options: PropertyEstimatorOptions
             The options which control how the `properties` are estimated.
-        force_field: openforcefield.typing.engines.smirnoff.ForceField
-            The force field parameters used during the calculations.
+        force_field_source: ForceFieldSource
+            The source of the force field parameters used during the calculations.
         parameter_gradient_keys: list of ParameterGradientKey
             A list of references to all of the parameters which all observables
             should be differentiated with respect to.
@@ -146,7 +144,7 @@ class PropertyEstimatorSubmission(TypedBaseModel):
         self.properties = properties or []
         self.options = options
 
-        self.force_field = force_field
+        self.force_field_source = force_field_source
 
         self.parameter_gradient_keys = [] if parameter_gradient_keys is None else parameter_gradient_keys
 
@@ -156,7 +154,7 @@ class PropertyEstimatorSubmission(TypedBaseModel):
             'properties': self.properties,
             'options': self.options,
 
-            'force_field': self.force_field,
+            'force_field_source': self.force_field_source,
 
             'parameter_gradient_keys': self.parameter_gradient_keys
         }
@@ -166,7 +164,7 @@ class PropertyEstimatorSubmission(TypedBaseModel):
         self.properties = state['properties']
         self.options = state['options']
 
-        self.force_field = state['force_field']
+        self.force_field_source = state['force_field_source']
         self.parameter_gradient_keys = state['parameter_gradient_keys']
 
 
@@ -330,11 +328,13 @@ class PropertyEstimatorClient:
     >>> data_set.filter_by_property_types(Density)
     >>> data_set.filter_by_temperature(min_temperature=130*unit.kelvin, max_temperature=260*unit.kelvin)
     >>>
-    >>> # Load initial parameters
-    >>> from openforcefield.typing.engines.smirnoff import ForceField
-    >>> parameters = ForceField('smirnoff99Frosst.offxml')
+    >>> # Load in the force field parameters
+    >>> from openforcefield.typing.engines import smirnoff
+    >>> from propertyestimator.forcefield import SmirnoffForceFieldSource
+    >>> smirnoff_force_field = smirnoff.ForceField('smirnoff99Frosst-1.1.0.offxml')
+    >>> force_field_source = SmirnoffForceFieldSource.from_object(smirnoff_force_field)
     >>>
-    >>> request = property_estimator.request_estimate(data_set, parameters)
+    >>> request = property_estimator.request_estimate(data_set, force_field_source)
 
     The status of the request can be asynchronously queried by calling
 
@@ -356,7 +356,7 @@ class PropertyEstimatorClient:
     >>> options = PropertyEstimatorOptions(allowed_calculation_layers = [ReweightingLayer,
     >>>                                                                  SimulationLayer])
     >>>
-    >>> request = property_estimator.request_estimate(data_set, parameters, options)
+    >>> request = property_estimator.request_estimate(data_set, force_field_source, options)
 
     Options for how properties should be estimated can be set on a per property, and per layer
     basis. For example, the relative uncertainty that properties should estimated to within by
@@ -396,7 +396,7 @@ class PropertyEstimatorClient:
     >>>     ParameterGradientKey('Angles', '[*:1]-[#8:2]-[*:3]', 'angle')
     >>> ]
     >>>
-    >>> request = property_estimator.request_estimate(data_set, parameters, options, parameter_gradient_keys)
+    >>> request = property_estimator.request_estimate(data_set, force_field_source, options, parameter_gradient_keys)
     >>>
     """
 
@@ -544,7 +544,7 @@ class PropertyEstimatorClient:
 
         self._tcp_client = TCPClient()
 
-    def request_estimate(self, property_set, force_field, options=None, parameter_gradient_keys=None):
+    def request_estimate(self, property_set, force_field_source, options=None, parameter_gradient_keys=None):
         """Requests that a PropertyEstimatorServer attempt to estimate the
         provided property set using the supplied force field and estimator options.
 
@@ -552,8 +552,8 @@ class PropertyEstimatorClient:
         ----------
         property_set : PhysicalPropertyDataSet
             The set of properties to attempt to estimate.
-        force_field : ForceField
-            The OpenFF force field to use for the calculations.
+        force_field_source : ForceFieldSource or openforcefield.typing.engines.smirnoff.ForceField
+            The source of the force field parameters to use for the calculations.
         options : PropertyEstimatorOptions, optional
             A set of estimator options. If None, default options
             will be used.
@@ -566,13 +566,18 @@ class PropertyEstimatorClient:
         PropertyEstimatorClient.Request
             An object which will provide access the the results of the request.
         """
-        if property_set is None or force_field is None:
+        from openforcefield.typing.engines import smirnoff
 
-            raise ValueError('Both a data set and parameter set must be '
+        if property_set is None or force_field_source is None:
+
+            raise ValueError('Both a data set and force field source must be '
                              'present to compute physical properties.')
 
         if options is None:
             options = PropertyEstimatorOptions()
+
+        if isinstance(force_field_source, smirnoff.ForceField):
+            force_field_source = SmirnoffForceFieldSource.from_object(force_field_source)
 
         if len(options.allowed_calculation_layers) == 0:
             raise ValueError('A submission contains no allowed calculation layers.')
@@ -647,7 +652,7 @@ class PropertyEstimatorClient:
                         protocol_schema.inputs['.allow_merging'] = False
 
         submission = PropertyEstimatorSubmission(properties=properties_list,
-                                                 force_field=force_field,
+                                                 force_field_source=force_field_source,
                                                  options=options,
                                                  parameter_gradient_keys=parameter_gradient_keys)
 

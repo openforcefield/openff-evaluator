@@ -48,11 +48,11 @@ class ReweightingLayer(PropertyCalculationLayer):
                              data_model, callback, synchronous=False):
 
         # Make a local copy of the target force field.
-        target_force_field = storage_backend.retrieve_force_field(data_model.force_field_id)
+        target_force_field_source = storage_backend.retrieve_force_field(data_model.force_field_id)
         target_force_field_path = os.path.join(layer_directory, data_model.force_field_id)
 
-        target_force_field.to_file(target_force_field_path, io_format='XML',
-                                   discard_cosmetic_attributes=False)
+        with open(target_force_field_path, 'w') as file:
+            file.write(target_force_field_source.json())
 
         stored_data_paths = ReweightingLayer._retrieve_stored_data(data_model.queued_properties,
                                                                    storage_backend, layer_directory)
@@ -143,8 +143,8 @@ class ReweightingLayer(PropertyCalculationLayer):
 
                         existing_force_field = storage_backend.retrieve_force_field(data_object.force_field_id)
 
-                        existing_force_field.to_file(force_field_path, io_format='XML',
-                                                     discard_cosmetic_attributes=False)
+                        with open(force_field_path, 'w') as file:
+                            file.write(existing_force_field.json())
 
                     data_paths[substance_id][type(data_object)].append(path_tuple)
 
