@@ -329,7 +329,7 @@ class ExtractUncorrelatedTrajectoryData(ExtractUncorrelatedData):
         stride = timeseries.get_uncorrelated_stride(self._statistical_inefficiency)
         frame_count = 0
 
-        with DCDTrajectoryFile('trajectory.dcd', 'r') as input_file:
+        with DCDTrajectoryFile(self._input_trajectory_path, 'r') as input_file:
 
             # Skip the equilibration configurations.
             if self._equilibration_index > 0:
