@@ -11,6 +11,7 @@ from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
 from tornado.tcpclient import TCPClient
 
+from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.layers import ReweightingLayer, SimulationLayer
 from propertyestimator.properties.plugins import registered_properties
 from propertyestimator.utils.serialization import TypedBaseModel
@@ -551,7 +552,7 @@ class PropertyEstimatorClient:
         ----------
         property_set : PhysicalPropertyDataSet
             The set of properties to attempt to estimate.
-        force_field_source : ForceFieldSource
+        force_field_source : ForceFieldSource or openforcefield.typing.engines.smirnoff.ForceField
             The source of the force field parameters to use for the calculations.
         options : PropertyEstimatorOptions, optional
             A set of estimator options. If None, default options
@@ -565,6 +566,8 @@ class PropertyEstimatorClient:
         PropertyEstimatorClient.Request
             An object which will provide access the the results of the request.
         """
+        from openforcefield.typing.engines import smirnoff
+
         if property_set is None or force_field_source is None:
 
             raise ValueError('Both a data set and force field source must be '
@@ -572,6 +575,9 @@ class PropertyEstimatorClient:
 
         if options is None:
             options = PropertyEstimatorOptions()
+
+        if isinstance(force_field_source, smirnoff.ForceField):
+            force_field_source = SmirnoffForceFieldSource.from_object(force_field_source)
 
         if len(options.allowed_calculation_layers) == 0:
             raise ValueError('A submission contains no allowed calculation layers.')
