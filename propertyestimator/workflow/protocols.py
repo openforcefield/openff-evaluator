@@ -7,7 +7,8 @@ import copy
 
 from propertyestimator.utils import graph, utils
 from propertyestimator.utils.utils import get_nested_attribute, set_nested_attribute
-from propertyestimator.workflow.decorators import protocol_input, MergeBehaviour, InequalityMergeBehaviour
+from propertyestimator.workflow.decorators import protocol_input, MergeBehaviour, InequalityMergeBehaviour, \
+    protocol_output
 from propertyestimator.workflow.schemas import ProtocolSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
@@ -135,8 +136,8 @@ class BaseProtocol:
         self.provided_outputs = []
         self.required_inputs = []
 
-        output_attributes = utils.find_types_with_decorator(type(self), 'ProtocolOutputObject')
-        input_attributes = utils.find_types_with_decorator(type(self), 'ProtocolInputObject')
+        output_attributes = utils.find_types_with_decorator(type(self), protocol_output)
+        input_attributes = utils.find_types_with_decorator(type(self), protocol_input)
 
         for output_attribute in output_attributes:
             self.provided_outputs.append(ProtocolPath(output_attribute))
@@ -467,7 +468,7 @@ class BaseProtocol:
             # raise ValueError('The expected type cannot be found for '
             #                  'nested property names: {}'.format(reference_path.property_name))
 
-        return getattr(type(self), reference_path.property_name).value_type
+        return getattr(type(self), reference_path.property_name).type_hint
 
     def get_value(self, reference_path):
         """Returns the value of one of this protocols inputs / outputs.

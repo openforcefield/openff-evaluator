@@ -100,7 +100,7 @@ class BaseProtocolAttribute(abc.ABC):
             typed_docstring = f'{str(type_hint)}: {docstring}'
 
         self.__doc__ = typed_docstring
-        self._type_hint = type_hint
+        self.type_hint = type_hint
 
     def __set_name__(self, owner, name):
         self._private_attribute_name = '_' + name
@@ -129,11 +129,11 @@ class BaseProtocolAttribute(abc.ABC):
                 private_attribute_name=self._private_attribute_name, attribute_name=self._private_attribute_name[1:]
             ))
 
-        if (not is_instance_of_type(value, self._type_hint) and
+        if (not is_instance_of_type(value, self.type_hint) and
             not isinstance(value, PlaceholderInput)):
 
             raise ValueError(f'The {self._private_attribute_name[1:]} attribute can only accept '
-                             f'values of type {self._type_hint}')
+                             f'values of type {self.type_hint}')
 
         setattr(instance, self._private_attribute_name, value)
 
@@ -219,8 +219,8 @@ class ProtocolInputAttribute(BaseProtocolAttribute):
 
         super().__init__(docstring, type_hint)
 
-        self._optional = optional
-        self._merge_behavior = merge_behavior
+        self.optional = optional
+        self.merge_behavior = merge_behavior
 
 
 class ProtocolOutputAttribute(BaseProtocolAttribute):
