@@ -6,6 +6,7 @@ import logging
 
 import numpy as np
 from simtk import openmm
+from simtk.openmm import XmlSerializer
 
 from propertyestimator import unit
 from propertyestimator.datasets.plugins import register_thermoml_property
@@ -120,23 +121,19 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
 
         return dielectric_constant
 
-    def execute(self, directory, available_resources):
+    def _extract_charges(self):
+        """Extracts all of the charges from a system object.
 
-        import mdtraj
+        Returns
+        -------
+        list of float
+        """
         from simtk import unit as simtk_unit
-        from simtk.openmm import XmlSerializer
-
-        logging.info('Extracting dielectrics: ' + self.id)
-
-        base_exception = super(ExtractAverageDielectric, self).execute(directory, available_resources)
-
-        if isinstance(base_exception, ExtractAverageDielectric):
-            return base_exception
 
         charge_list = []
 
-        with open(self._system_path, 'rb') as file:
-            self._system = XmlSerializer.deserialize(file.read().decode())
+        with open(self._system_path, 'r') as file:
+            self._system = XmlSerializer.deserialize(file.read())
 
         for force_index in range(self._system.getNumForces()):
 
@@ -146,25 +143,60 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
                 continue
 
             for atom_index in range(force.getNumParticles()):
-
                 charge = force.getParticleParameters(atom_index)[0]
                 charge = charge.value_in_unit(simtk_unit.elementary_charge)
 
                 charge_list.append(charge)
 
-        dipole_moments = mdtraj.geometry.dipole_moments(self.trajectory, charge_list)
+        return charge_list
+
+    def _extract_dipoles_and_volumes(self):
+        """Extract the systems dipole moments and volumes.
+
+        Returns
+        -------
+        numpy.ndarray
+            The dipole moments of the trajectory (shape=(n_frames, 3), dtype=float)
+        numpy.ndarray
+            The volumes of the trajectory (shape=(n_frames, 1), dtype=float)
+        """
+        import mdtraj
+
+        dipole_moments = []
+        volumes = []
+        charge_list = self._extract_charges()
+
+        for chunk in mdtraj.iterload(self._trajectory_path, top=self._input_coordinate_file, chunk=50):
+
+            dipole_moments.extend(mdtraj.geometry.dipole_moments(chunk, charge_list))
+            volumes.extend(chunk.unitcell_volumes)
+
+        dipole_moments = np.array(dipole_moments)
+        volumes = np.array(volumes)
+
+        return dipole_moments, volumes
+
+    def execute(self, directory, available_resources):
+
+        logging.info('Extracting dielectrics: ' + self.id)
+
+        base_exception = super(ExtractAverageDielectric, self).execute(directory, available_resources)
+
+        if isinstance(base_exception, ExtractAverageDielectric):
+            return base_exception
+
+        # Extract the dipoles
+        dipole_moments, volumes = self._extract_dipoles_and_volumes()
         self._dipole_moments = dipole_moments * unit.dimensionless
 
         dipole_moments, self._equilibration_index, self._statistical_inefficiency = \
             timeseries.decorrelate_time_series(dipole_moments)
 
-        sample_indices = timeseries.get_uncorrelated_indices(len(self.trajectory[self._equilibration_index:]),
-                                                             self._statistical_inefficiency)
-
+        sample_indices = timeseries.get_uncorrelated_indices(len(volumes), self._statistical_inefficiency)
         sample_indices = [index + self._equilibration_index for index in sample_indices]
 
-        volumes = self.trajectory[sample_indices].unitcell_volumes
-        self._volumes = self.trajectory.unitcell_volumes * unit.nanometer ** 3
+        volumes = volumes[sample_indices]
+        self._volumes = volumes * unit.nanometer ** 3
 
         self._uncorrelated_values = dipole_moments * unit.dimensionless
         self._uncorrelated_volumes = volumes * unit.nanometer ** 3
