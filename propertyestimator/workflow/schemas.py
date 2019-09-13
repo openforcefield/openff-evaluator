@@ -609,6 +609,36 @@ class WorkflowSchema(TypedBaseModel):
 
         return ProtocolPath.from_string(full_unreplicated_path)
 
+    def replace_protocol_types(self, protocol_replacements):
+        """Replaces protocols with given types with other protocols
+        of specified replacements. This is useful when replacing
+        the default protocols with custom ones, or swapping out base
+        protocols with actual implementations
+
+        Warnings
+        --------
+        This method is NOT fully implemented and is likely to fail in
+        all but a few specific cases. This method should be used with
+        extreme caution.
+
+        Parameters
+        ----------
+        protocol_replacements: dict of str and str, None
+            A dictionary with keys of the types of protocols which should be replaced
+            with those protocols named by the values.
+        """
+
+        if protocol_replacements is None:
+            return
+
+        self_json = self.json()
+
+        for key, value in protocol_replacements.items():
+            self_json.replace(key, value)
+
+        modified_schema = self.parse_json(self_json)
+        self.__setstate__(modified_schema.__getstate__())
+
     def _validate_replicators(self):
 
         for replicator in self.replicators:

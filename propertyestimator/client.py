@@ -636,6 +636,12 @@ class PropertyEstimatorClient:
 
                 workflow = options.workflow_schemas[type_name][calculation_layer]
 
+                # Handle the cases where some protocol types should be replaced with
+                # others.
+                workflow.replace_protocol_types(
+                    options.workflow_options[type_name][calculation_layer].protocol_replacements
+                )
+
                 if workflow is None:
                     # Not all properties may support every calculation layer.
                     continue
