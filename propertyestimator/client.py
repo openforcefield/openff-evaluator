@@ -636,15 +636,15 @@ class PropertyEstimatorClient:
 
                 workflow = options.workflow_schemas[type_name][calculation_layer]
 
+                if workflow is None:
+                    # Not all properties may support every calculation layer.
+                    continue
+
                 # Handle the cases where some protocol types should be replaced with
                 # others.
                 workflow.replace_protocol_types(
                     options.workflow_options[type_name][calculation_layer].protocol_replacements
                 )
-
-                if workflow is None:
-                    # Not all properties may support every calculation layer.
-                    continue
 
                 # Will raise the correct exception for non-valid interfaces.
                 workflow.validate_interfaces()
