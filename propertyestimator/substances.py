@@ -3,6 +3,7 @@ An API for defining and creating substances.
 """
 
 import abc
+import logging
 import math
 from enum import Enum
 
@@ -244,7 +245,9 @@ class Substance(TypedBaseModel):
         def to_number_of_molecules(self, total_substance_molecules, tolerance=None):
 
             # Determine how many molecules of each type will be present in the system.
+            logging.info(f'{self._value} {total_substance_molecules} {round(self._value * total_substance_molecules)}')
             number_of_molecules = int(round(self._value * total_substance_molecules))
+            logging.info(f'{number_of_molecules}')
 
             if number_of_molecules == 0:
                 raise ValueError('The total number of substance molecules was not large enough, '
