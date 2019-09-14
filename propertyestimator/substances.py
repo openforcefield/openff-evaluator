@@ -246,7 +246,16 @@ class Substance(TypedBaseModel):
 
             # Determine how many molecules of each type will be present in the system.
             logging.info(f'{self._value} {total_substance_molecules} {round(self._value * total_substance_molecules)}')
-            number_of_molecules = int(round(self._value * total_substance_molecules))
+
+            number_of_molecules = self._value * total_substance_molecules
+            fractional_number_of_molecules = number_of_molecules % 1
+
+            if np.isclose(fractional_number_of_molecules, 0.5):
+                fractional_number_of_molecules = 0
+            else:
+                fractional_number_of_molecules = int(round(fractional_number_of_molecules))
+
+            number_of_molecules += fractional_number_of_molecules
             logging.info(f'{number_of_molecules}')
 
             if number_of_molecules == 0:
