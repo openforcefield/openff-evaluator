@@ -188,6 +188,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
 
         # Recompute the mole fractions.
         total_mole_fraction = 0.0
+        number_of_new_mole_fractions = 0
 
         for index, component in enumerate(self._substance.components):
 
@@ -206,8 +207,9 @@ class BuildCoordinatesPackmol(BaseProtocol):
             new_amounts[component].append(Substance.MoleFraction(new_mole_fraction))
 
             total_mole_fraction += new_mole_fraction
+            number_of_new_mole_fractions += 1
 
-        if not np.isclose(total_mole_fraction, 1.0):
+        if not np.isclose(total_mole_fraction, 1.0) and number_of_new_mole_fractions > 0:
             raise ValueError('The new mole fraction does not equal 1.0')
 
         output_substance = Substance()
