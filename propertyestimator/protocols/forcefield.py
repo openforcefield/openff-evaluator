@@ -172,61 +172,82 @@ class BaseBuildSystemProtocol(BaseProtocol):
             existing_system.addConstraint(index_a + index_offset,
                                           index_b + index_offset, distance)
 
+        # Validate the forces to append.
+        for force_to_append in system_to_append.getForces():
+
+            if type(force_to_append) in supported_force_types:
+                continue
+
+            raise ValueError(f'The system contains an unsupported type of '
+                             f'force: {type(force_to_append)}.')
+
         # Append the forces.
-        for existing_force in existing_system.getForces():
+        for force_to_append in system_to_append.getForces():
 
-            if type(existing_force) not in supported_force_types:
-                raise ValueError('The system contains an unsupported type of force.')
+            existing_force = None
 
-            for force_to_append in system_to_append.getForces():
+            for force in existing_system.getForces():
 
-                if type(force_to_append) != type(existing_force):
+                if type(force) not in supported_force_types:
+
+                    raise ValueError(f'The existing system contains an unsupported type '
+                                     f'of force: {type(force)}.')
+
+                if type(force_to_append) != type(force):
                     continue
 
-                if isinstance(force_to_append, openmm.HarmonicBondForce):
+                existing_force = force
+                break
 
-                    # Add the bonds.
-                    for index in range(force_to_append.getNumBonds()):
+            if existing_force is None:
 
-                        index_a, index_b, *parameters = force_to_append.getBondParameters(index)
-                        existing_force.addBond(index_a + index_offset,
-                                               index_b + index_offset, *parameters)
+                existing_force = type(force_to_append)()
+                existing_system.addForce(existing_force)
 
-                elif isinstance(force_to_append, openmm.HarmonicAngleForce):
+            if isinstance(force_to_append, openmm.HarmonicBondForce):
 
-                    # Add the angles.
-                    for index in range(force_to_append.getNumAngles()):
+                # Add the bonds.
+                for index in range(force_to_append.getNumBonds()):
 
-                        index_a, index_b, index_c, *parameters = force_to_append.getAngleParameters(index)
-                        existing_force.addAngle(index_a + index_offset,
-                                                index_b + index_offset,
-                                                index_c + index_offset, *parameters)
+                    index_a, index_b, *parameters = force_to_append.getBondParameters(index)
+                    existing_force.addBond(index_a + index_offset,
+                                           index_b + index_offset, *parameters)
 
-                elif isinstance(force_to_append, openmm.PeriodicTorsionForce):
+            elif isinstance(force_to_append, openmm.HarmonicAngleForce):
 
-                    # Add the torsions.
-                    for index in range(force_to_append.getNumTorsions()):
+                # Add the angles.
+                for index in range(force_to_append.getNumAngles()):
 
-                        index_a, index_b, index_c, index_d, *parameters = force_to_append.getTorsionParameters(index)
-                        existing_force.addTorsion(index_a + index_offset,
-                                                  index_b + index_offset,
-                                                  index_c + index_offset,
-                                                  index_d + index_offset, *parameters)
+                    index_a, index_b, index_c, *parameters = force_to_append.getAngleParameters(index)
+                    existing_force.addAngle(index_a + index_offset,
+                                            index_b + index_offset,
+                                            index_c + index_offset, *parameters)
 
-                elif isinstance(force_to_append, openmm.NonbondedForce):
+            elif isinstance(force_to_append, openmm.PeriodicTorsionForce):
 
-                    # Add the vdW parameters
-                    for index in range(force_to_append.getNumParticles()):
-                        existing_force.addParticle(*force_to_append.getParticleParameters(index))
+                # Add the torsions.
+                for index in range(force_to_append.getNumTorsions()):
 
-                    # Add the 1-2, 1-3 and 1-4 exceptions.
-                    for index in range(force_to_append.getNumExceptions()):
+                    index_a, index_b, index_c, index_d, *parameters = force_to_append.getTorsionParameters(index)
+                    existing_force.addTorsion(index_a + index_offset,
+                                              index_b + index_offset,
+                                              index_c + index_offset,
+                                              index_d + index_offset, *parameters)
 
-                        index_a, index_b, *parameters = force_to_append.getExceptionParameters(index)
-                        existing_force.addException(index_a + index_offset,
-                                                    index_b + index_offset, *parameters)
+            elif isinstance(force_to_append, openmm.NonbondedForce):
 
-                number_of_appended_forces += 1
+                # Add the vdW parameters
+                for index in range(force_to_append.getNumParticles()):
+                    existing_force.addParticle(*force_to_append.getParticleParameters(index))
+
+                # Add the 1-2, 1-3 and 1-4 exceptions.
+                for index in range(force_to_append.getNumExceptions()):
+
+                    index_a, index_b, *parameters = force_to_append.getExceptionParameters(index)
+                    existing_force.addException(index_a + index_offset,
+                                                index_b + index_offset, *parameters)
+
+            number_of_appended_forces += 1
 
         if number_of_appended_forces != system_to_append.getNumForces():
             raise ValueError('Not all forces were appended.')
