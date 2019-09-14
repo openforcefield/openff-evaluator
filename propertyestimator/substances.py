@@ -245,8 +245,6 @@ class Substance(TypedBaseModel):
         def to_number_of_molecules(self, total_substance_molecules, tolerance=None):
 
             # Determine how many molecules of each type will be present in the system.
-            logging.info(f'{self._value} {total_substance_molecules} {round(self._value * total_substance_molecules)}')
-
             number_of_molecules = self._value * total_substance_molecules
             fractional_number_of_molecules = number_of_molecules % 1
 
@@ -254,8 +252,6 @@ class Substance(TypedBaseModel):
                 number_of_molecules = int(number_of_molecules)
             else:
                 number_of_molecules = int(round(number_of_molecules))
-
-            logging.info(f'{number_of_molecules}')
 
             if number_of_molecules == 0:
                 raise ValueError('The total number of substance molecules was not large enough, '
