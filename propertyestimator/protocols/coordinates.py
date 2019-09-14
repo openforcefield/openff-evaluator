@@ -6,6 +6,7 @@ from collections import defaultdict
 from enum import Enum
 from os import path
 
+import numpy as np
 from simtk.openmm import app
 
 from propertyestimator import unit
@@ -186,6 +187,9 @@ class BuildCoordinatesPackmol(BaseProtocol):
             new_amounts[component].append(exact_amounts[0])
 
         # Recompute the mole fractions.
+        total_mole_fraction = 0.0
+        number_of_new_mole_fractions = 0
+
         for index, component in enumerate(self._substance.components):
 
             mole_fractions = [amount for amount in self._substance.get_amounts(component) if
@@ -199,7 +203,14 @@ class BuildCoordinatesPackmol(BaseProtocol):
             if component in new_amounts:
                 molecule_count -= new_amounts[component][0].value
 
-            new_amounts[component].append(Substance.MoleFraction(molecule_count / total_number_of_molecules))
+            new_mole_fraction = molecule_count / total_number_of_molecules
+            new_amounts[component].append(Substance.MoleFraction(new_mole_fraction))
+
+            total_mole_fraction += new_mole_fraction
+            number_of_new_mole_fractions += 1
+
+        if not np.isclose(total_mole_fraction, 1.0) and number_of_new_mole_fractions > 0:
+            raise ValueError('The new mole fraction does not equal 1.0')
 
         output_substance = Substance()
 
@@ -246,11 +257,11 @@ class BuildCoordinatesPackmol(BaseProtocol):
 
         molecules, number_of_molecules, exception = self._build_molecule_arrays(directory)
 
-        self._output_number_of_molecules = sum(number_of_molecules)
-        self._output_substance = self._rebuild_substance(number_of_molecules)
-
         if exception is not None:
             return exception
+
+        self._output_number_of_molecules = sum(number_of_molecules)
+        self._output_substance = self._rebuild_substance(number_of_molecules)
 
         packmol_directory = path.join(directory, 'packmol_files')
 
