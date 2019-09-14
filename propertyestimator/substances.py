@@ -3,7 +3,6 @@ An API for defining and creating substances.
 """
 
 import abc
-import logging
 import math
 from enum import Enum
 
