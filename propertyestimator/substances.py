@@ -251,11 +251,10 @@ class Substance(TypedBaseModel):
             fractional_number_of_molecules = number_of_molecules % 1
 
             if np.isclose(fractional_number_of_molecules, 0.5):
-                fractional_number_of_molecules = 0
+                number_of_molecules = int(number_of_molecules)
             else:
-                fractional_number_of_molecules = int(round(fractional_number_of_molecules))
+                number_of_molecules = int(round(number_of_molecules))
 
-            number_of_molecules += fractional_number_of_molecules
             logging.info(f'{number_of_molecules}')
 
             if number_of_molecules == 0:
