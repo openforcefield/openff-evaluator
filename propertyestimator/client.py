@@ -640,6 +640,12 @@ class PropertyEstimatorClient:
                     # Not all properties may support every calculation layer.
                     continue
 
+                # Handle the cases where some protocol types should be replaced with
+                # others.
+                workflow.replace_protocol_types(
+                    options.workflow_options[type_name][calculation_layer].protocol_replacements
+                )
+
                 # Will raise the correct exception for non-valid interfaces.
                 workflow.validate_interfaces()
 

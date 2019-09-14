@@ -55,7 +55,8 @@ class WorkflowOptions:
 
     def __init__(self,
                  convergence_mode=ConvergenceMode.RelativeUncertainty,
-                 relative_uncertainty_fraction=1.0, absolute_uncertainty=None):
+                 relative_uncertainty_fraction=1.0, absolute_uncertainty=None,
+                 protocol_replacements=None):
         """Constructs a new WorkflowOptions object.
 
         Parameters
@@ -73,6 +74,9 @@ class WorkflowOptions:
             If the convergence mode is set to `AbsoluteUncertainty`, then workflows
             will by default run simulations until the estimated uncertainty is less
             than the `absolute_uncertainty`
+        protocol_replacements: dict of str and str, optional
+            A dictionary with keys of the types of protocols which should be replaced
+            with those protocols named by the values.
         """
 
         self.convergence_mode = convergence_mode
@@ -92,13 +96,17 @@ class WorkflowOptions:
             raise ValueError('The absolute uncertainty must be set when the convergence '
                              'mode is set to AbsoluteUncertainty.')
 
+        self.protocol_replacements = protocol_replacements if protocol_replacements is not None else {}
+
     def __getstate__(self):
 
         return {
             'convergence_mode': self.convergence_mode,
 
             'absolute_uncertainty': self.absolute_uncertainty,
-            'relative_uncertainty_fraction': self.relative_uncertainty_fraction
+            'relative_uncertainty_fraction': self.relative_uncertainty_fraction,
+
+            'protocol_replacements': self.protocol_replacements
         }
 
     def __setstate__(self, state):
@@ -107,6 +115,8 @@ class WorkflowOptions:
 
         self.absolute_uncertainty = state['absolute_uncertainty']
         self.relative_uncertainty_fraction = state['relative_uncertainty_fraction']
+
+        self.protocol_replacements = state['protocol_replacements']
 
 
 class Workflow:
