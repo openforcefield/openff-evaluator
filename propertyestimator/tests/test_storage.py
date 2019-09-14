@@ -53,9 +53,7 @@ def test_local_simulation_storage():
     """A simple test to that force fields can be stored and
     retrieved using the local storage backend."""
 
-    substance = Substance()
-    substance.add_component(Substance.Component(smiles='C'),
-                            Substance.MoleFraction())
+    substance = Substance.from_components(r'C', r'C/C=C/C=C/COC(=O)', r'CCOC(=O)/C=C(/C)\O')
 
     dummy_simulation_data = StoredSimulationData()
 
