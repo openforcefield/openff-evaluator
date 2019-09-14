@@ -1,44 +1,25 @@
-<?xml version="1.0" ?>
-<System openmmVersion="7.3.1" type="System" version="1">
-	<PeriodicBoxVectors>
-		<A x=".5474" y="0" z="0"/>
-		<B x="0" y=".5474" z="0"/>
-		<C x="0" y="0" z=".5474"/>
-	</PeriodicBoxVectors>
-	<Particles>
-		<Particle mass="15.99943"/>
-		<Particle mass="1.007947"/>
-		<Particle mass="1.007947"/>
-	</Particles>
-	<Constraints>
-		<Constraint d=".09572000000000001" p1="0" p2="1"/>
-		<Constraint d=".09572000000000001" p1="0" p2="2"/>
-		<Constraint d=".15139006545247014" p1="1" p2="2"/>
-	</Constraints>
-	<Forces>
-		<Force alpha="0" cutoff=".9" dispersionCorrection="1" ewaldTolerance=".0001" forceGroup="0" ljAlpha="0" ljnx="0" ljny="0" ljnz="0" method="4" nx="0" ny="0" nz="0" recipForceGroup="-1" rfDielectric="78.3" switchingDistance="-1" type="NonbondedForce" useSwitchingFunction="0" version="3">
-			<GlobalParameters/>
-			<ParticleOffsets/>
-			<ExceptionOffsets/>
-			<Particles>
-				<Particle eps=".6363864000000001" q="-.834" sig=".31507"/>
-				<Particle eps="0" q=".417" sig=".1"/>
-				<Particle eps="0" q=".417" sig=".1"/>
-			</Particles>
-			<Exceptions>
-				<Exception eps="0" p1="0" p2="1" q="0" sig="1"/>
-				<Exception eps="0" p1="0" p2="2" q="0" sig="1"/>
-				<Exception eps="0" p1="1" p2="2" q="0" sig="1"/>
-			</Exceptions>
-		</Force>
-		<Force forceGroup="0" type="PeriodicTorsionForce" usesPeriodic="0" version="2">
-			<Torsions/>
-		</Force>
-		<Force forceGroup="0" type="HarmonicAngleForce" usesPeriodic="0" version="2">
-			<Angles/>
-		</Force>
-		<Force forceGroup="0" type="HarmonicBondForce" usesPeriodic="0" version="2">
-			<Bonds/>
-		</Force>
-	</Forces>
-</System>
+<ForceField>
+ <AtomTypes>
+  <Type name="tip3p-O" class="OW" element="O" mass="15.99943"/>
+  <Type name="tip3p-H" class="HW" element="H" mass="1.007947"/>
+ </AtomTypes>
+ <Residues>
+  <Residue name="HOH">
+   <Atom name="O" type="tip3p-O"/>
+   <Atom name="H1" type="tip3p-H"/>
+   <Atom name="H2" type="tip3p-H"/>
+   <Bond atomName1="O" atomName2="H1"/>
+   <Bond atomName1="O" atomName2="H2"/>
+  </Residue>
+ </Residues>
+ <HarmonicBondForce>
+  <Bond class1="OW" class2="HW" length="0.09572" k="462750.4"/>
+ </HarmonicBondForce>
+ <HarmonicAngleForce>
+  <Angle class1="HW" class2="OW" class3="HW" angle="1.82421813418" k="836.8"/>
+ </HarmonicAngleForce>
+ <NonbondedForce coulomb14scale="0.833333" lj14scale="0.5">
+  <Atom type="tip3p-O" charge="-0.834" sigma="0.31507" epsilon="0.6363864"/>
+  <Atom type="tip3p-H" charge="0.417" sigma="0.1" epsilon="0"/>
+ </NonbondedForce>
+</ForceField>

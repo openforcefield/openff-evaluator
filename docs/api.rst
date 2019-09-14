@@ -284,6 +284,7 @@ Built-in Workflow Protocols
     :toctree: api/generated/
 
     BuildSmirnoffSystem
+    BuildTLeapSystem
 
 **Simulation**
 
