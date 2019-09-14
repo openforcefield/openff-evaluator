@@ -54,3 +54,20 @@ def extract_variable_index_and_name(string):
     property_name = string[0: start_bracket_index]
 
     return property_name, array_index
+
+
+def sanitize_smiles_file_name(file_name):
+    """Sanitizes a file name which contains smiles patterns.
+    Currently this method simply replaces any `/` characters
+    with a `_` character.
+
+    Parameters
+    ----------
+    file_name: str
+        The file name to sanitize
+
+    Returns
+    -------
+    The sanitized file name.
+    """
+    return file_name.replace('/', '_')

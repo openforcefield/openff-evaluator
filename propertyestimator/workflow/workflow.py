@@ -19,7 +19,7 @@ from propertyestimator.storage.dataclasses import BaseStoredData, StoredSimulati
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedJSONEncoder, TypedJSONDecoder
-from propertyestimator.utils.string import extract_variable_index_and_name
+from propertyestimator.utils.string import extract_variable_index_and_name, sanitize_smiles_file_name
 from propertyestimator.utils.utils import SubhookedABCMeta, get_nested_attribute
 from propertyestimator.workflow.protocols import BaseProtocol
 from propertyestimator.workflow.schemas import WorkflowSchema, ProtocolReplicator, WorkflowSimulationDataToStore, \
@@ -1408,8 +1408,10 @@ class WorkflowGraph:
                                     output_to_store.substance is None else
                                     output_to_store.substance.identifier)
 
-                data_object_path = path.join(directory, f'results_{property_to_return.id}_{substance_id}.json')
-                data_directory = path.join(directory, f'results_{property_to_return.id}_{substance_id}')
+                sanitized_id = sanitize_smiles_file_name(substance_id)
+
+                data_object_path = path.join(directory, f'results_{property_to_return.id}_{sanitized_id}.json')
+                data_directory = path.join(directory, f'results_{property_to_return.id}_{sanitized_id}')
 
                 WorkflowGraph._store_output_data(data_object_path,
                                                  data_directory,

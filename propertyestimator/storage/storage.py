@@ -9,6 +9,7 @@ from os import path
 from propertyestimator.forcefield import ForceFieldSource
 from propertyestimator.storage import StoredSimulationData
 from propertyestimator.storage.dataclasses import BaseStoredData
+from propertyestimator.utils.string import sanitize_smiles_file_name
 
 
 class PropertyEstimatorStorage:
@@ -395,7 +396,8 @@ class PropertyEstimatorStorage:
 
         if existing_data_key is None:
 
-            existing_data_key = "{}_{}".format(substance_id, uuid.uuid4())
+            sanitized_id = sanitize_smiles_file_name(substance_id)
+            existing_data_key = "{}_{}".format(sanitized_id, uuid.uuid4())
             data_to_store = data_object
 
         self._store_object(existing_data_key, data_to_store)
