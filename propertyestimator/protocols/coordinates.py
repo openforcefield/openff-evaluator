@@ -246,11 +246,11 @@ class BuildCoordinatesPackmol(BaseProtocol):
 
         molecules, number_of_molecules, exception = self._build_molecule_arrays(directory)
 
-        self._output_number_of_molecules = sum(number_of_molecules)
-        self._output_substance = self._rebuild_substance(number_of_molecules)
-
         if exception is not None:
             return exception
+
+        self._output_number_of_molecules = sum(number_of_molecules)
+        self._output_substance = self._rebuild_substance(number_of_molecules)
 
         packmol_directory = path.join(directory, 'packmol_files')
 
