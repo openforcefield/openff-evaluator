@@ -65,6 +65,8 @@ __BODY__ = """
         # Create the protocol which will run the attach pull calculations
         host_guest_protocol = OpenMMPaprikaProtocol(f'host_guest-{orientation}')
 
+        host_guest_protocol.setup = False
+
         host_guest_protocol.substance = substance
         host_guest_protocol.taproom_guest_orientation = orientation
 
@@ -104,13 +106,13 @@ __BODY__ = """
 
         sum_protocol = AddBindingFreeEnergies("add_binding_free_energies")
 
-        free_energies = [result.attach_free_energy + result.pull_free_energy for result in substance_results]
         for result in substance_results:
             logging.info(f"Attach = {result.attach_free_energy.value.to(unit.kilocalorie / unit.mole)} ± {result.attach_free_energy.uncertainty.to(unit.kilocalorie / unit.mole)}",
-                         f"Pull={result.pull_free_energy.value.to(unit.kilocalorie / unit.mole)} ± {result.pull_free_energy.uncertainty.to(unit.kilocalorie / unit.mole)}")
+                         f"Pull = {result.pull_free_energy.value.to(unit.kilocalorie / unit.mole)} ± {result.pull_free_energy.uncertainty.to(unit.kilocalorie / unit.mole)}")
 
-        logging.info(f"Combined Attach = {free_energies[0].value.to(unit.kilocalorie / unit.mole)} ± {free_energies[0].uncertainty.to(unit.kilocalorie / unit.mole)}")
-        logging.info(f"Combined Pull = {free_energies[1].value.to(unit.kilocalorie / unit.mole)} ± {free_energies[1].uncertainty.to(unit.kilocalorie / unit.mole)}")
+        free_energies = [result.attach_free_energy + result.pull_free_energy for result in substance_results]
+        logging.info(f"Attach + Pull (0) = {free_energies[0].value.to(unit.kilocalorie / unit.mole)} ± {free_energies[0].uncertainty.to(unit.kilocalorie / unit.mole)}")
+        logging.info(f"Attach + Pull (1) = {free_energies[1].value.to(unit.kilocalorie / unit.mole)} ± {free_energies[1].uncertainty.to(unit.kilocalorie / unit.mole)}")
 
         sum_protocol.values = free_energies
         sum_protocol.thermodynamic_state = thermodynamic_state
@@ -121,9 +123,10 @@ __BODY__ = """
     host_directory = f'{host}'
     os.makedirs(host_directory, exist_ok=True)
 
-    logging.info(f"Attach and Pull={sum_protocol.result} "
-                 f'Reference={host_guest_protocol.reference_free_energy}')
-                         
+    logging.info(f"Attach + Pull (Combined) = {sum_protocol.result} "
+    logging.info(f'Reference = {host_guest_protocol.reference_free_energy}')
+    logging.info(f'ΔG° (without conformational release) = {sum_protocol.results - host_guest_protocol.reference_free_energy}')
+    logging.info(f'Ballpark ΔG° = {sum_protocol.results - host_guest_protocol.reference_free_energy - 8}')                      
 """
 
 __HOST_ONLY_BODY__ = """
@@ -138,6 +141,8 @@ __HOST_ONLY_BODY__ = """
 
     # Create the protocol which will run the release calculations
     host_protocol = OpenMMPaprikaProtocol('host')
+    
+    host_protocol.setup = False
 
     host_protocol.substance = host_substance
     host_protocol.thermodynamic_state = thermodynamic_state
@@ -193,13 +198,12 @@ __CLOSING__ = f"""
 
 __TSCC_HEADER__ = """
 #!/bin/bash
-#PBS -l walltime=16:00:00,nodes=1:ppn=4 -q home-gibbs
+#PBS -l walltime=24:00:00,nodes=1:ppn=4 -q home-gibbs
 #PBS -j oe -r n
 #PBS -N {0}
 #PBS -j oe
 #PBS -m abe 
 #PBS -M slochower@gmail.com
-#PBS -M simon.boothroyd@choderalab.org
 """
 
 __TSCC_BODY__ = """
