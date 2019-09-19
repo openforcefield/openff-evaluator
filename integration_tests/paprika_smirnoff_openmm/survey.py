@@ -123,7 +123,7 @@ __BODY__ = """
     host_directory = f'{host}'
     os.makedirs(host_directory, exist_ok=True)
 
-    logging.info(f"Attach + Pull (Combined) = {sum_protocol.result} "
+    logging.info(f"Attach + Pull (Combined) = {sum_protocol.result} ")
     logging.info(f'Reference = {host_guest_protocol.reference_free_energy}')
     logging.info(f'ΔG° (without conformational release) = {sum_protocol.results - host_guest_protocol.reference_free_energy}')
     logging.info(f'Ballpark ΔG° = {sum_protocol.results - host_guest_protocol.reference_free_energy - 8}')                      
