@@ -7,7 +7,8 @@ from paprika.setup import read_yaml
 __HEADER__ = f"""
         #!/usr/bin/env python
         import logging
-        import os as os
+        import os
+        import sys
         import json
 
         from propertyestimator import unit
@@ -95,7 +96,7 @@ __BODY__ = """
         host_guest_protocol.analyze = True
 
         if os.path.exists("results.csv"):
-            break
+            sys.exit()
 
         result = host_guest_protocol.execute(host_guest_directory, resources)
         
@@ -131,13 +132,13 @@ __BODY__ = """
 
     logging.info(f"Attach + Pull (Combined) = {sum_protocol.result} ")
     logging.info(f'Reference = {host_guest_protocol.reference_free_energy}')
-    logging.info(f'ΔG° (without conformational release) = {sum_protocol.result - host_guest_protocol.reference_free_energy}')
+    logging.info(f'ΔG° (without conformational release) = {sum_protocol.result.value.to(unit.kilocalorie / unit.mole)  - host_guest_protocol.reference_free_energy.value.to(unit.kilocalorie / unit.mole)}')
 
     with open("results.dat", "w") as f:
         for result in substance_results:
-            f.write(f"{result.host}-{result.guest}-{result.orientation} {result.attach_free_energy} {result.pull_free_energy}")
-        f.write(sum_protocol.result)
-        f.write(host_guest_protocol.reference_free_energy)
+            f.write(f"{result.attach_free_energy.value.to(unit.kilocalorie / unit.mole)} {result.pull_free_energy.value.to(unit.kilocalorie / unit.mole)}")
+        f.write(sum_protocol.result.value.to(unit.kilocalorie / unit.mole))
+        f.write(host_guest_protocol.reference_free_energy.value.to(unit.kilocalorie / unit.mole))
 """
 
 __HOST_ONLY_BODY__ = """
@@ -176,7 +177,7 @@ __HOST_ONLY_BODY__ = """
     host_protocol.analyze = True
 
     if os.path.exists("results.csv"):
-        break
+        sys.exit()
 
     result = host_protocol.execute(host_directory, resources)
 
@@ -215,11 +216,10 @@ __CLOSING__ = f"""
 
 __TSCC_HEADER__ = """
 #!/bin/bash
-#PBS -l walltime=24:00:00,nodes=1:ppn=4 -q home-gibbs
+#PBS -l walltime=1:00:00,nodes=1:ppn=4 -q home-gibbs
 #PBS -j oe -r n
 #PBS -N {0}
 #PBS -j oe
-#PBS -m abe 
 #PBS -M slochower@gmail.com
 """
 
