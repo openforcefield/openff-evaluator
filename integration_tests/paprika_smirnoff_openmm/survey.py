@@ -137,8 +137,8 @@ __BODY__ = """
     with open("results.dat", "w") as f:
         for result in substance_results:
             f.write(f"{result.attach_free_energy.value.to(unit.kilocalorie / unit.mole)} {result.pull_free_energy.value.to(unit.kilocalorie / unit.mole)}")
-        f.write(sum_protocol.result.value.to(unit.kilocalorie / unit.mole))
-        f.write(host_guest_protocol.reference_free_energy.value.to(unit.kilocalorie / unit.mole))
+        f.write(f"sum_protocol.result.value.to(unit.kilocalorie / unit.mole)")
+        f.write(f"host_guest_protocol.reference_free_energy.value.to(unit.kilocalorie / unit.mole)")
 """
 
 __HOST_ONLY_BODY__ = """
@@ -187,7 +187,7 @@ __HOST_ONLY_BODY__ = """
         
     logging.info(f"Release={host_protocol.release_free_energy} ")
     with open("results.dat", "w") as f:
-        f.write(host_protocol.release_free_energy)
+        f.write(f"{host_protocol.release_free_energy}")
 
 """
 
