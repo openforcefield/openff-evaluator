@@ -131,12 +131,11 @@ __BODY__ = """
 
     logging.info(f"Attach + Pull (Combined) = {sum_protocol.result} ")
     logging.info(f'Reference = {host_guest_protocol.reference_free_energy}')
-    logging.info(f'ΔG° (without conformational release) = {sum_protocol.result.value - host_guest_protocol.reference_free_energy}')
-    logging.info(f'Ballpark ΔG° = {sum_protocol.result.value - host_guest_protocol.reference_free_energy - 8}')                      
+    logging.info(f'ΔG° (without conformational release) = {sum_protocol.result - host_guest_protocol.reference_free_energy}')
 
     with open("results.dat", "w") as f:
         for result in substance_results:
-            f.write(f"{result.host}-{result.guest}-{result.orientation} {result.attach_free_energy} {result.pull_free_energy}"
+            f.write(f"{result.host}-{result.guest}-{result.orientation} {result.attach_free_energy} {result.pull_free_energy}")
         f.write(sum_protocol.result)
         f.write(host_guest_protocol.reference_free_energy)
 """
