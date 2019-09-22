@@ -95,7 +95,7 @@ __BODY__ = """
         host_guest_protocol.simulate = False
         host_guest_protocol.analyze = True
 
-        if os.path.exists("results.csv"):
+        if os.path.exists("results.json"):
             sys.exit()
 
         result = host_guest_protocol.execute(host_guest_directory, resources)
@@ -134,11 +134,18 @@ __BODY__ = """
     logging.info(f'Reference = {host_guest_protocol.reference_free_energy}')
     logging.info(f'ΔG° (without conformational release) = {sum_protocol.result.value.to(unit.kilocalorie / unit.mole)  - host_guest_protocol.reference_free_energy.value.to(unit.kilocalorie / unit.mole)}')
 
-    with open("results.dat", "w") as f:
-        for result in substance_results:
-            f.write(f"{result.attach_free_energy.value.to(unit.kilocalorie / unit.mole)} {result.pull_free_energy.value.to(unit.kilocalorie / unit.mole)}")
-        f.write(f"sum_protocol.result.value.to(unit.kilocalorie / unit.mole)")
-        f.write(f"host_guest_protocol.reference_free_energy.value.to(unit.kilocalorie / unit.mole)")
+    results = dict()
+    results["attach"] = {}
+    results["attach"]["0"] = substance_results[0].attach_free_energy.value.to(unit.kilocalorie / unit.mole)
+    results["attach"]["1"] = substance_results[1].attach_free_energy.value.to(unit.kilocalorie / unit.mole)
+    results["pull"] = {}
+    results["pull"]["0"] = substance_results[0].pull_free_energy.value.to(unit.kilocalorie / unit.mole)
+    results["pull"]["1"] = substance_results[1].pull_free_energy.value.to(unit.kilocalorie / unit.mole)
+    results["sum"] = sum_protocol.result.value.to(unit.kilocalorie / unit.mole)
+    results["reference"] = host_guest_protocol.reference_free_energy.value.to(unit.kilocalorie / unit.mole)
+
+    with open("results.json", "w") as f:
+        json.dump(results, f, indent=4)
 """
 
 __HOST_ONLY_BODY__ = """
@@ -176,7 +183,7 @@ __HOST_ONLY_BODY__ = """
     host_protocol.simulate = False
     host_protocol.analyze = True
 
-    if os.path.exists("results.csv"):
+    if os.path.exists("results.json"):
         sys.exit()
 
     result = host_protocol.execute(host_directory, resources)
@@ -186,9 +193,11 @@ __HOST_ONLY_BODY__ = """
         return
         
     logging.info(f"Release={host_protocol.release_free_energy} ")
-    with open("results.dat", "w") as f:
-        f.write(f"{host_protocol.release_free_energy}")
+    results = dict()
+    results["release"] = host_protocol.release_free_energy.value.to(unit.kilocalorie / unit.mole)
 
+    with open("results.json", "w") as f:
+        json.dump(results, f, indent=4)
 """
 
 
