@@ -136,13 +136,13 @@ __BODY__ = """
 
     results = dict()
     results["attach"] = {}
-    results["attach"]["0"] = substance_results[0].attach_free_energy.value.to(unit.kilocalorie / unit.mole)
-    results["attach"]["1"] = substance_results[1].attach_free_energy.value.to(unit.kilocalorie / unit.mole)
+    results["attach"]["0"] = substance_results[0].attach_free_energy.value.to(unit.kilocalorie / unit.mole).magnitude
+    results["attach"]["1"] = substance_results[1].attach_free_energy.value.to(unit.kilocalorie / unit.mole).magnitude
     results["pull"] = {}
-    results["pull"]["0"] = substance_results[0].pull_free_energy.value.to(unit.kilocalorie / unit.mole)
-    results["pull"]["1"] = substance_results[1].pull_free_energy.value.to(unit.kilocalorie / unit.mole)
-    results["sum"] = sum_protocol.result.value.to(unit.kilocalorie / unit.mole)
-    results["reference"] = host_guest_protocol.reference_free_energy.value.to(unit.kilocalorie / unit.mole)
+    results["pull"]["0"] = substance_results[0].pull_free_energy.value.to(unit.kilocalorie / unit.mole).magnitude
+    results["pull"]["1"] = substance_results[1].pull_free_energy.value.to(unit.kilocalorie / unit.mole).magnitude
+    results["sum"] = sum_protocol.result.value.to(unit.kilocalorie / unit.mole).magnitude
+    results["reference"] = host_guest_protocol.reference_free_energy.value.to(unit.kilocalorie / unit.mole).magnitude
 
     with open("results.json", "w") as f:
         json.dump(results, f, indent=4)
@@ -194,7 +194,7 @@ __HOST_ONLY_BODY__ = """
         
     logging.info(f"Release={host_protocol.release_free_energy} ")
     results = dict()
-    results["release"] = host_protocol.release_free_energy.value.to(unit.kilocalorie / unit.mole)
+    results["release"] = host_protocol.release_free_energy.value.to(unit.kilocalorie / unit.mole).magnitude
 
     with open("results.json", "w") as f:
         json.dump(results, f, indent=4)
