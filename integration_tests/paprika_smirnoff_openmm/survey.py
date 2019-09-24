@@ -92,7 +92,7 @@ __BODY__ = """
         host_guest_protocol.force_field_path = force_field_path
 
         host_guest_protocol.setup = False
-        host_guest_protocol.simulate = False
+        host_guest_protocol.simulate = True
         host_guest_protocol.analyze = True
 
         if os.path.exists("results.json"):
@@ -180,7 +180,7 @@ __HOST_ONLY_BODY__ = """
     host_protocol.force_field_path = force_field_path
 
     host_protocol.setup = False
-    host_protocol.simulate = False
+    host_protocol.simulate = True
     host_protocol.analyze = True
 
     if os.path.exists("results.json"):
@@ -225,7 +225,7 @@ __CLOSING__ = f"""
 
 __TSCC_HEADER__ = """
 #!/bin/bash
-#PBS -l walltime=1:00:00,nodes=1:ppn=4 -q home-gibbs
+#PBS -l walltime=24:00:00,nodes=1:ppn=4 -q home-gibbs
 #PBS -j oe -r n
 #PBS -N {0}
 #PBS -j oe
