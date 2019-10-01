@@ -99,6 +99,13 @@ class ThermodynamicState(TypedBaseModel):
 
         return return_value
 
+    def __hash__(self):
+
+        temperature = self.temperature.to(unit.kelvin).magnitude
+        pressure = None if self.pressure is None else self.pressure.to(unit.kilopascal).magnitude
+
+        return hash((f'{temperature:.6f}', None if pressure is None else f'{pressure:.6f}'))
+
     def __eq__(self, other):
 
         if not isinstance(other, ThermodynamicState):
@@ -106,8 +113,8 @@ class ThermodynamicState(TypedBaseModel):
 
         return (math.isclose(self.temperature.to(unit.kelvin).magnitude,
                              other.temperature.to(unit.kelvin).magnitude) and
-                math.isclose(self.pressure.to(unit.atmosphere).magnitude,
-                             other.pressure.to(unit.atmosphere).magnitude))
+                math.isclose(self.pressure.to(unit.kilopascal).magnitude,
+                             other.pressure.to(unit.kilopascal).magnitude))
 
     def __ne__(self, other):
         return not (self == other)

@@ -8,9 +8,11 @@ from propertyestimator import unit
 from propertyestimator.datasets import ThermoMLDataSet, PhysicalPropertyDataSet
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.datasets.thermoml import unit_from_thermoml_string
-from propertyestimator.properties import PhysicalProperty, PropertyPhase, Density
+from propertyestimator.properties import PhysicalProperty, PropertyPhase, Density, CalculationSource, \
+    DielectricConstant, EnthalpyOfMixing, ExcessMolarVolume
 from propertyestimator.substances import Substance
 from propertyestimator.tests.utils import create_filterable_data_set, create_dummy_property
+from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import get_data_filename
 
 
@@ -191,6 +193,67 @@ def test_serialization():
 
     parsed_data_set_json = parsed_data_set.json()
     assert parsed_data_set_json == data_set_json
+
+
+def test_to_pandas():
+    """A test to ensure that data sets are convertable to pandas objects."""
+
+    source = CalculationSource('Dummy', {})
+
+    pure_substance = Substance.from_components('C')
+    binary_substance = Substance.from_components('C', 'O')
+
+    data_set = PhysicalPropertyDataSet()
+
+    data_set.properties[pure_substance.identifier] = []
+    data_set.properties[binary_substance.identifier] = []
+
+    for temperature in [298 * unit.kelvin, 300 * unit.kelvin, 302 * unit.kelvin]:
+
+        thermodynamic_state = ThermodynamicState(temperature=temperature, pressure=1.0 * unit.atmosphere)
+
+        density_property = Density(thermodynamic_state=thermodynamic_state,
+                                   phase=PropertyPhase.Liquid,
+                                   substance=pure_substance,
+                                   value=1 * unit.gram / unit.milliliter,
+                                   uncertainty=0.11 * unit.gram / unit.milliliter,
+                                   source=source)
+
+        dielectric_property = DielectricConstant(thermodynamic_state=thermodynamic_state,
+                                                 phase=PropertyPhase.Liquid,
+                                                 substance=pure_substance,
+                                                 value=1 * unit.dimensionless,
+                                                 uncertainty=0.11 * unit.dimensionless,
+                                                 source=source)
+
+        data_set.properties[pure_substance.identifier].append(density_property)
+        data_set.properties[pure_substance.identifier].append(dielectric_property)
+
+    for temperature in [298 * unit.kelvin, 300 * unit.kelvin, 302 * unit.kelvin]:
+
+        thermodynamic_state = ThermodynamicState(temperature=temperature, pressure=1.0 * unit.atmosphere)
+
+        enthalpy_property = EnthalpyOfMixing(thermodynamic_state=thermodynamic_state,
+                                             phase=PropertyPhase.Liquid,
+                                             substance=binary_substance,
+                                             value=1 * unit.kilojoules / unit.mole,
+                                             uncertainty=0.11 * unit.kilojoules / unit.mole,
+                                             source=source)
+
+        excess_property = ExcessMolarVolume(thermodynamic_state=thermodynamic_state,
+                                            phase=PropertyPhase.Liquid,
+                                            substance=binary_substance,
+                                            value=1 * unit.meter**3 / unit.mole,
+                                            uncertainty=0.11 * unit.meter**3 / unit.mole,
+                                            source=source)
+
+        data_set.properties[binary_substance.identifier].append(enthalpy_property)
+        data_set.properties[binary_substance.identifier].append(excess_property)
+
+    data_set_pandas = data_set.to_pandas()
+
+    assert data_set_pandas is not None
+    assert len(data_set_pandas) == 6
 
 
 def test_filter_by_property_types():
