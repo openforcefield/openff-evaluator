@@ -11,6 +11,41 @@ Releases will eventually follow the ``major.minor.micro`` scheme recommended by
 All early releases however will simply recieve a ``micro`` version bump regardless of
 how major the changes may be.
 
+0.0.4 - Initial Support for Non-SMIRNOFF FFs
+--------------------------------------------
+
+This release adds initial support for estimating property data sets using force fields
+not based on the ``SMIRNOFF`` specification. In particular, initial AMBER force field support
+has been added, along with a protocol which applies said force fields using ``tleap``.
+
+New Features
+""""""""""""
+
+* PR `#96 <https://github.com/openforcefield/propertyestimator/pull/96>`_: Adds a mechanism for specifying force fields not in the ``SMIRNOFF`` spec.
+* PR `#99 <https://github.com/openforcefield/propertyestimator/pull/99>`_: Adds support for applying ``AMBER`` force field parameters through ``tleap``
+* PR `#111 <https://github.com/openforcefield/propertyestimator/pull/111>`_: Protocols now stream trajectories from disk, rather than pre-load the whole thing.
+* PR `#112 <https://github.com/openforcefield/propertyestimator/pull/112>`_: Specific types of protocols can now be easily be replaced using ``WorkflowOptions``.
+* PR `#117 <https://github.com/openforcefield/propertyestimator/pull/117>`_: Adds support for converting ``PhysicalPropertyDataSet`` objects to ``pandas.DataFrame``.
+
+Bugfixes
+""""""""
+
+* PR `#115 <https://github.com/openforcefield/propertyestimator/pull/115>`_: Fixes caching data for substances whose smiles contain forward slashes.
+* PR `#116 <https://github.com/openforcefield/propertyestimator/pull/116>`_: Fixes inconsistent mole fraction rounding.
+
+Breaking Changes
+""""""""""""""""
+
+* PR `#96 <https://github.com/openforcefield/propertyestimator/pull/96>`_: The ``PropertyEstimatorClient.request_estimate(force_field=...`` argument has been renamed to ``force_field_source``.
+
+Migration Guide
+"""""""""""""""
+
+This release contained several public API breaking changes. For the most part, these can be
+remedied by the follow steps:
+
+* Change all instances of ``PropertyEstimatorClient.request_estimate(force_field=...)`` to ``PropertyEstimatorClient.request_estimate(force_field_source=...)``
+
 
 0.0.3 - ExcessMolarVolume and Typing Improvements 
 -------------------------------------------------
