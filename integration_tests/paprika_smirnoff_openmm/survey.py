@@ -91,7 +91,7 @@ __BODY__ = """
         host_guest_protocol.force_field = OpenMMPaprikaProtocol.ForceField.SMIRNOFF
         host_guest_protocol.force_field_path = force_field_path
 
-        host_guest_protocol.setup = False
+        host_guest_protocol.setup = True
         host_guest_protocol.simulate = True
         host_guest_protocol.analyze = True
 
