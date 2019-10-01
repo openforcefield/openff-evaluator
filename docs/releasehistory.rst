@@ -36,7 +36,7 @@ Bugfixes
 Breaking Changes
 """"""""""""""""
 
-* PR `#96 <https://github.com/openforcefield/propertyestimator/pull/96>`_: The ``PropertyEstimatorClient.request_estimate`` ``force_field`` argument has been changed to ``force_field_source``.
+* PR `#96 <https://github.com/openforcefield/propertyestimator/pull/96>`_: The ``PropertyEstimatorClient.request_estimate(force_field=...`` argument has been renamed to ``force_field_source``.
 
 Migration Guide
 """""""""""""""
