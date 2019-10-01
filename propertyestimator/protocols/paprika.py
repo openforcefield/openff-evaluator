@@ -14,6 +14,7 @@ from subprocess import Popen
 from threading import Thread
 
 import numpy as np
+import parmed as pmd
 import paprika
 from paprika.amber import Simulation
 from paprika.io import save_restraints
@@ -22,6 +23,7 @@ from paprika.tleap import System
 from paprika.utils import index_from_mask
 from simtk.openmm import XmlSerializer
 from simtk.openmm.app import AmberPrmtopFile, HBonds, PME, PDBFile
+from simtk.unit import angstrom
 
 from propertyestimator import unit
 from propertyestimator.backends import ComputeResources
@@ -762,7 +764,28 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                                                                self._solvated_system_xml_paths[index])
 
     @staticmethod
-    def _run_window(queue):
+    def _wrap(file, mask=":DM3"):
+        logging.info("Re-wrapping {file} to avoid pulling near periodic boundaries.")
+        structure = pmd.load_file(file, structure=True)
+
+        anchor = structure[mask]
+        offset = structure.box_vectors[2][2]
+        anchor_z = anchor.atoms[0].xz
+
+        for residue in structure.residues:
+            translate = False
+            for atom in residue.atoms:
+                if atom.xz < anchor_z:
+                    translate = True
+
+            if translate:
+                for atom in residue.atoms:
+                    atom.xz += offset / angstrom
+
+        structure.save(file, overwrite=True)
+
+    @staticmethod
+    def _run_window(self, queue):
 
         while True:
 
@@ -782,6 +805,8 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
                 energy_minimisation.input_coordinate_file = window_coordinate_path
                 energy_minimisation.system_path = window_system_path
+
+                self._wrap(window_coordinate_path)
 
                 npt_equilibration = simulation.RunOpenMMSimulation('npt_equilibration')
 
