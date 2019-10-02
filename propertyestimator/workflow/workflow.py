@@ -1118,8 +1118,7 @@ class WorkflowGraph:
                                                      workflow.gradients_sources,
                                                      workflow.outputs_to_store,
                                                      target_uncertainty,
-                                                     *final_futures,
-                                                     key=f'gather_{workflow.physical_property.id}'))
+                                                     *final_futures))
 
         return value_futures
 
