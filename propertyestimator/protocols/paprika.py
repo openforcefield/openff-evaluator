@@ -765,7 +765,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
     @staticmethod
     def _wrap(file, mask=":DM3"):
-        logging.info("Re-wrapping {file} to avoid pulling near periodic boundaries.")
+        logging.info(f"Re-wrapping {file} to avoid pulling near periodic boundaries.")
         structure = pmd.load_file(file, structure=True)
 
         anchor = structure[mask]
