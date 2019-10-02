@@ -801,12 +801,12 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                 os.makedirs(simulation_directory, exist_ok=True)
 
                 # Equilibration
+                self._wrap(window_coordinate_path)
+
                 energy_minimisation = simulation.RunEnergyMinimisation('energy_minimisation')
 
                 energy_minimisation.input_coordinate_file = window_coordinate_path
                 energy_minimisation.system_path = window_system_path
-
-                self._wrap(window_coordinate_path)
 
                 npt_equilibration = simulation.RunOpenMMSimulation('npt_equilibration')
 
