@@ -11,6 +11,18 @@ Releases will eventually follow the ``major.minor.micro`` scheme recommended by
 All early releases however will simply recieve a ``micro`` version bump regardless of
 how major the changes may be.
 
+0.0.5 - Quick Fix For Task Merging
+----------------------------------
+
+This release is a quick fix for a bug which in certain cases caused tasks to be incorrectly merged
+when gathering the results of multiple properties with the same id.
+
+Bugfixes
+""""""""
+
+* PR `#119 <https://github.com/openforcefield/propertyestimator/pull/119>`_: Fixes gather task merging.
+
+
 0.0.4 - Initial Support for Non-SMIRNOFF FFs
 --------------------------------------------
 
