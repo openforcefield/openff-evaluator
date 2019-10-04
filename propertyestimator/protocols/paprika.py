@@ -605,7 +605,19 @@ class BasePaprikaProtocol(BaseProtocol):
                 self._paprika_setup = paprika.setup(host=self._taproom_host_name,
                                                     guest=self._taproom_guest_name,
                                                     guest_orientation=self._taproom_guest_orientation,
-                                                    build=False)
+                                                    build=False,
+                                                    directory_path=directory)
+
+                self._paprika_setup.desolvated_window_paths = [os.path.join(directory, self._paprika_setup.host,
+                                                                            f"{self._paprika_setup.guest}-{self._taproom_guest_orientation}" if self._paprika_setup.guest else "",
+                                                                            'windows', window,
+                                                                            f"{self._paprika_setup.host}-{self._paprika_setup.guest}.pdb"
+                                                                            if self._paprika_setup.guest else f"{self._paprika_setup.host}.pdb")
+                                                               for window in self._paprika_setup.window_list]
+                for index, window_file_path in enumerate(self._paprika_setup.desolvated_window_paths):
+                    window_directory = os.path.dirname(window_file_path)
+                    self._solvated_coordinate_paths[index] = os.path.join(window_directory, 'restrained.pdb')
+                    self._solvated_system_xml_paths[index] = os.path.join(window_directory, 'restrained.xml')
 
             # Run the simulations
             result = self._run_windows(available_resources)
@@ -620,7 +632,8 @@ class BasePaprikaProtocol(BaseProtocol):
                 self._paprika_setup = paprika.setup(host=self._taproom_host_name,
                                                     guest=self._taproom_guest_name,
                                                     guest_orientation=self._taproom_guest_orientation,
-                                                    build=False)
+                                                    build=False,
+                                                    directory_path=directory)
 
             # Finally, do the analysis to extract the free energy of binding.
             result = self._perform_analysis(directory)
@@ -762,27 +775,6 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
             self._paprika_setup.initialize_calculation(window, self._solvated_coordinate_paths[index],
                                                                self._solvated_system_xml_paths[index],
                                                                self._solvated_system_xml_paths[index])
-
-    @staticmethod
-    def _wrap(file, mask=":DM3"):
-        logging.info(f"Re-wrapping {file} to avoid pulling near periodic boundaries.")
-        structure = pmd.load_file(file, structure=True)
-
-        anchor = structure[mask]
-        offset = structure.box_vectors[2][2]
-        anchor_z = anchor.atoms[0].xz
-
-        for residue in structure.residues:
-            translate = False
-            for atom in residue.atoms:
-                if atom.xz < anchor_z:
-                    translate = True
-
-            if translate:
-                for atom in residue.atoms:
-                    atom.xz += offset / angstrom
-
-        structure.save(file, overwrite=True)
 
     @staticmethod
     def _run_window(queue):
