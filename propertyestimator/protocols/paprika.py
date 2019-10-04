@@ -793,7 +793,6 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                 os.makedirs(simulation_directory, exist_ok=True)
 
                 # Equilibration
-                OpenMMPaprikaProtocol._wrap(window_coordinate_path)
 
                 energy_minimisation = simulation.RunEnergyMinimisation('energy_minimisation')
 
