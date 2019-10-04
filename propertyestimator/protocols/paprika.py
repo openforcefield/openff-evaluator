@@ -785,7 +785,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
         structure.save(file, overwrite=True)
 
     @staticmethod
-    def _run_window(self, queue):
+    def _run_window(queue):
 
         while True:
 
@@ -801,7 +801,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                 os.makedirs(simulation_directory, exist_ok=True)
 
                 # Equilibration
-                self._wrap(window_coordinate_path)
+                OpenMMPaprikaProtocol._wrap(window_coordinate_path)
 
                 energy_minimisation = simulation.RunEnergyMinimisation('energy_minimisation')
 
