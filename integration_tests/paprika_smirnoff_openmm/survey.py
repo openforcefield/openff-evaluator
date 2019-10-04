@@ -179,7 +179,7 @@ __HOST_ONLY_BODY__ = """
     host_protocol.force_field = OpenMMPaprikaProtocol.ForceField.SMIRNOFF
     host_protocol.force_field_path = force_field_path
 
-    host_protocol.setup = False
+    host_protocol.setup = True
     host_protocol.simulate = True
     host_protocol.analyze = True
 

@@ -55,10 +55,15 @@ def main():
         host_guest_protocol.number_of_production_steps = 50
         host_guest_protocol.equilibration_output_frequency = 1
         host_guest_protocol.production_output_frequency = 1
-        host_guest_protocol.number_of_solvent_molecules = 2
+        host_guest_protocol.number_of_solvent_molecules = 500
 
         host_guest_protocol.taproom_host_name = host
         host_guest_protocol.taproom_guest_name = guest
+
+        host_guest_protocol.setup = True
+        host_guest_protocol.simulate = True
+
+
 
         host_guest_protocol.force_field = OpenMMPaprikaProtocol.ForceField.SMIRNOFF
         host_guest_protocol.force_field_path = force_field_path
