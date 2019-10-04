@@ -21,6 +21,7 @@ Bugfixes
 """"""""
 
 * PR `#119 <https://github.com/openforcefield/propertyestimator/pull/119>`_: Fixes gather task merging.
+* PR `#121 <https://github.com/openforcefield/propertyestimator/pull/121>`_: Update to distributed 2.5.1.
 
 
 0.0.4 - Initial Support for Non-SMIRNOFF FFs
