@@ -12,57 +12,9 @@ import dask
 from dask import distributed
 from dask_jobqueue import LSFCluster
 from distributed import get_worker
-from distributed.deploy.adaptive import Adaptive
-from distributed.utils import ignoring
-
 from propertyestimator import unit
+
 from .backends import PropertyEstimatorBackend, ComputeResources, QueueWorkerResources
-
-
-class _JobQueueAdaptive(Adaptive):
-    """Recent changes to the `distributed` package has
-    lead to breaking changes in dask-jobqueue when running
-    clusters in adaptive mode. This class aims to band aid
-    the problem until a better fix may be found.
-    """
-    async def scale_up(self, n):
-        self.cluster.scale_up(n)
-
-
-class _AdaptiveLSFCluster(LSFCluster):
-    """A version of the `dask-jobqueue` cluster which
-    uses the `_JobQueueAdaptive` adaptor in place of the
-    default `Adaptive`.
-    """
-    def adapt(
-        self,
-        minimum_cores=None,
-        maximum_cores=None,
-        minimum_memory=None,
-        maximum_memory=None,
-        **kwargs
-    ):
-        """The method is identical to the base method, except
-        that the `_JobQueueAdaptive` class is used in place of
-        `distributed.Adaptive`.
-        """
-        with ignoring(AttributeError):
-            self._adaptive.stop()
-        if not hasattr(self, "_adaptive_options"):
-            self._adaptive_options = {}
-        if "minimum" not in kwargs:
-            if minimum_cores is not None:
-                kwargs["minimum"] = self._get_nb_workers_from_cores(minimum_cores)
-            elif minimum_memory is not None:
-                kwargs["minimum"] = self._get_nb_workers_from_memory(minimum_memory)
-        if "maximum" not in kwargs:
-            if maximum_cores is not None:
-                kwargs["maximum"] = self._get_nb_workers_from_cores(maximum_cores)
-            elif maximum_memory is not None:
-                kwargs["maximum"] = self._get_nb_workers_from_memory(maximum_memory)
-        self._adaptive_options.update(kwargs)
-        self._adaptive = _JobQueueAdaptive(self, **self._adaptive_options)
-        return self._adaptive
 
 
 class _Multiprocessor:
@@ -383,15 +335,15 @@ class DaskLSFBackend(BaseDaskBackend):
 
         extra = None if not self._disable_nanny_process else ['--no-nanny']
 
-        self._cluster = _AdaptiveLSFCluster(queue=self._queue_name,
-                                            cores=self._resources_per_worker.number_of_threads,
-                                            walltime=self._resources_per_worker.wallclock_time_limit,
-                                            memory=memory_string,
-                                            mem=memory_bytes,
-                                            job_extra=job_extra,
-                                            env_extra=self._setup_script_commands,
-                                            extra=extra,
-                                            local_directory='dask-worker-space')
+        self._cluster = LSFCluster(queue=self._queue_name,
+                                   cores=self._resources_per_worker.number_of_threads,
+                                   walltime=self._resources_per_worker.wallclock_time_limit,
+                                   memory=memory_string,
+                                   mem=memory_bytes,
+                                   job_extra=job_extra,
+                                   env_extra=self._setup_script_commands,
+                                   extra=extra,
+                                   local_directory='dask-worker-space')
 
         # The very small target duration is an attempt to force dask to scale
         # based on the number of processing tasks per worker.
