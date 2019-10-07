@@ -11,11 +11,12 @@ Releases will eventually follow the ``major.minor.micro`` scheme recommended by
 All early releases however will simply recieve a ``micro`` version bump regardless of
 how major the changes may be.
 
-0.0.5 - Quick Fix For Task Merging
-----------------------------------
+0.0.5 - Fix For Merging of Estimation Requests
+----------------------------------------------
 
-This release is a quick fix for a bug which in certain cases caused tasks to be incorrectly merged
-when gathering the results of multiple properties with the same id.
+This release implements a fix for a major bug which caused incorrect results to be returned when issuing multiple estimation requestions at the same time - namely, the returned results became jumbled between the different requests. As an example, if a request was made to estimate a data set using the `smirnoff99frosst` force field, and then straight after with the `gaff 1.81` force field, the results of the `smirnoff99frosst` request may contain some properties estimated with `gaff 1.81` and vice versa.
+
+This issue does not affect cases where only a single request was made and completed at a time (i.e the results of the previous request completed before the next estimate request was made).
 
 Bugfixes
 """"""""
