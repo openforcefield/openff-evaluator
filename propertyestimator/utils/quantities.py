@@ -192,6 +192,10 @@ class EstimatedQuantity:
         result_value = result_ufloat.nominal_value * self_unit
         result_uncertainty = result_ufloat.std_dev * self_unit
 
+        if isinstance(result_ufloat, unit.Quantity):
+            result_value *= result_ufloat.units
+            result_uncertainty *= result_ufloat.units
+
         result_sources = []
         result_sources.extend(self.sources)
 

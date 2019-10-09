@@ -190,22 +190,41 @@ def decorrelate_time_series(time_series):
     return uncorrelated_time_series, equilibration_index, inefficiency
 
 
+def get_uncorrelated_stride(statistical_inefficiency):
+    """Returns the integer index stride between uncorrelated samples
+    in a time series.
+
+    Parameters
+    ----------
+    statistical_inefficiency: float
+        The statistical inefficiency of the time series.
+
+    Returns
+    -------
+    int
+        The integer index stride between uncorrelated samples
+        in a time series.
+    """
+    return int(math.ceil(statistical_inefficiency))
+
+
 def get_uncorrelated_indices(time_series_length, statistical_inefficiency):
-    """Returns the indices of the uncorrelated frames of a time series.
+    """Returns the indices of the uncorrelated frames of a time series,
+    taking strides according to `get_uncorrelated_stride`.
 
-        Parameters
-        ----------
-        time_series_length : int
-            The length of the time series to extract frames from.
-        statistical_inefficiency: float
-            The statistical inefficiency of the time series.
+    Parameters
+    ----------
+    time_series_length : int
+        The length of the time series to extract frames from.
+    statistical_inefficiency: float
+        The statistical inefficiency of the time series.
 
-        Returns
-        -------
-        list of int
-            The indices of the uncorrelated frames.
-        """
+    Returns
+    -------
+    list of int
+        The indices of the uncorrelated frames.
+    """
 
     # Extract a set of uncorrelated data points.
-    stride = int(math.ceil(statistical_inefficiency))
+    stride = get_uncorrelated_stride(statistical_inefficiency)
     return [index for index in range(0, time_series_length, stride)]

@@ -244,7 +244,13 @@ class Substance(TypedBaseModel):
         def to_number_of_molecules(self, total_substance_molecules, tolerance=None):
 
             # Determine how many molecules of each type will be present in the system.
-            number_of_molecules = int(round(self._value * total_substance_molecules))
+            number_of_molecules = self._value * total_substance_molecules
+            fractional_number_of_molecules = number_of_molecules % 1
+
+            if np.isclose(fractional_number_of_molecules, 0.5):
+                number_of_molecules = int(number_of_molecules)
+            else:
+                number_of_molecules = int(round(number_of_molecules))
 
             if number_of_molecules == 0:
                 raise ValueError('The total number of substance molecules was not large enough, '
@@ -335,6 +341,41 @@ class Substance(TypedBaseModel):
         self._amounts = {}
         self._components = []
 
+    @classmethod
+    def from_components(cls, *components):
+        """Creates a new `Substance` object from a list of components.
+        This method assumes that all components should be present with
+        equal mole fractions.
+
+        Parameters
+        ----------
+        components: Substance.Component or str
+            The components to add to the substance. These may either be full
+            `Substance.Component` objects or just the smiles representation
+            of the component.
+
+        Returns
+        -------
+        Substance
+            The substance containing the requested components in equal amounts.
+        """
+
+        if len(components) == 0:
+            raise ValueError('At least one component must be specified')
+
+        mole_fraction = 1.0 / len(components)
+
+        return_substance = cls()
+
+        for component in components:
+
+            if isinstance(component, str):
+                component = Substance.Component(smiles=component)
+
+            return_substance.add_component(component, Substance.MoleFraction(mole_fraction))
+
+        return return_substance
+
     def add_component(self, component, amount):
         """Add a component to the Substance. If the component is already present in
         the substance, then the mole fraction will be added to the current mole
@@ -359,6 +400,9 @@ class Substance(TypedBaseModel):
 
                 total_mole_fraction += sum([amount.value for amount in self._amounts[component_identifier] if
                                             isinstance(amount, Substance.MoleFraction)])
+
+            if np.isclose(total_mole_fraction, 1.0):
+                total_mole_fraction = 1.0
 
             if total_mole_fraction > 1.0:
                 raise ValueError(f'The total mole fraction of this substance {total_mole_fraction} exceeds 1.0')
@@ -519,7 +563,6 @@ class Substance(TypedBaseModel):
         return hash(string_hash)
 
     def __eq__(self, other):
-
         return hash(self) == hash(other)
 
     def __ne__(self, other):

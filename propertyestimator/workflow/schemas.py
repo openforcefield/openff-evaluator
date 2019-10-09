@@ -6,6 +6,7 @@ import re
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedBaseModel
 from propertyestimator.workflow.plugins import available_protocols
+from propertyestimator.workflow.typing import is_type_subclass_of_type
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
@@ -188,6 +189,18 @@ class ProtocolReplicator(TypedBaseModel):
             if not should_replicate:
 
                 replicated_protocols[protocol_id] = protocol
+                
+                if template_index is not None and template_index >= 0:
+                    # Make sure to include children of replicated protocols in the
+                    # map to ensure correct behaviour when updating children of replicated
+                    # protocols which have the replicator id in their name, and take input
+                    # from another child protocol which doesn't have the replicator id in
+                    # its name.
+                    if ProtocolPath('', protocol_id) not in replicated_protocol_map:
+                        replicated_protocol_map[ProtocolPath('', protocol_id)] = []
+
+                    replicated_protocol_map[ProtocolPath('', protocol_id)].append(
+                        (ProtocolPath('', protocol_id), template_index))
 
                 self._apply_to_protocol_children(protocol, replicated_protocol_map,
                                                  template_values, template_index, template_value)
@@ -596,6 +609,61 @@ class WorkflowSchema(TypedBaseModel):
 
         return ProtocolPath.from_string(full_unreplicated_path)
 
+    def replace_protocol_types(self, protocol_replacements, protocol_group_schema=None):
+        """Replaces protocols with given types with other protocols
+        of specified replacements. This is useful when replacing
+        the default protocols with custom ones, or swapping out base
+        protocols with actual implementations
+
+        Warnings
+        --------
+        This method is NOT fully implemented and is likely to fail in
+        all but a few specific cases. This method should be used with
+        extreme caution.
+
+        Parameters
+        ----------
+        protocol_replacements: dict of str and str, None
+            A dictionary with keys of the types of protocols which should be replaced
+            with those protocols named by the values.
+        protocol_group_schema: ProtocolGroupSchema
+            The protocol group to apply the replacements to. This
+            is mainly used when applying this method recursively.
+        """
+
+        if protocol_replacements is None:
+            return
+
+        if protocol_group_schema is None:
+            protocol_schemas = self.protocols
+        else:
+            protocol_schemas = protocol_group_schema.grouped_protocol_schemas
+
+        for protocol_schema_key in protocol_schemas:
+
+            protocol_schema = protocol_schemas[protocol_schema_key]
+
+            if protocol_schema.type not in protocol_replacements:
+                continue
+
+            protocol = available_protocols[protocol_schema.type](protocol_schema.id)
+            protocol.schema = protocol_schema
+
+            new_protocol = available_protocols[protocol_replacements[protocol_schema.type]](protocol_schema.id)
+
+            for input_path in new_protocol.required_inputs:
+
+                if input_path not in protocol.required_inputs:
+                    continue
+
+                value = protocol.get_value(input_path)
+                new_protocol.set_value(input_path, value)
+
+            protocol_schemas[protocol_schema_key] = new_protocol.schema
+
+            if isinstance(protocol_schemas[protocol_schema_key], ProtocolGroupSchema):
+                self.replace_protocol_types(protocol_replacements, protocol_schemas[protocol_schema_key])
+
     def _validate_replicators(self):
 
         for replicator in self.replicators:
@@ -649,7 +717,7 @@ class WorkflowSchema(TypedBaseModel):
         protocol_object.get_value(self.final_value_source)
 
         attribute_type = protocol_object.get_attribute_type(self.final_value_source)
-        assert issubclass(attribute_type, EstimatedQuantity)
+        assert is_type_subclass_of_type(attribute_type, EstimatedQuantity)
 
     def _validate_gradients(self):
 
@@ -668,7 +736,7 @@ class WorkflowSchema(TypedBaseModel):
             protocol_object.get_value(gradient_source)
 
             attribute_type = protocol_object.get_attribute_type(gradient_source)
-            assert issubclass(attribute_type, ParameterGradient)
+            assert is_type_subclass_of_type(attribute_type, ParameterGradient)
 
     def _validate_output_to_store(self, output_to_store):
         """Validates that the references of a particular output to store
@@ -822,7 +890,7 @@ class WorkflowSchema(TypedBaseModel):
                     expected_output_type = other_protocol_object.get_attribute_type(value_reference)
 
                     if (expected_input_type is not None and expected_output_type is not None and
-                        expected_input_type != expected_output_type):
+                        not is_type_subclass_of_type(expected_output_type, expected_input_type)):
 
                         raise Exception('The output type ({}) of {} does not match the requested '
                                         'input type ({}) of {}'.format(expected_output_type, value_reference,

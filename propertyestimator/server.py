@@ -379,11 +379,11 @@ class PropertyEstimatorServer(TCPServer):
             the server.
         """
 
-        force_field = client_data_model.force_field
-        force_field_id = self._storage_backend.has_force_field(force_field)
+        force_field_source = client_data_model.force_field_source
+        force_field_id = self._storage_backend.has_force_field(force_field_source)
 
         if force_field_id is None:
-            force_field_id = self._storage_backend.store_force_field(force_field)
+            force_field_id = self._storage_backend.store_force_field(force_field_source)
 
         server_requests = {}
 
