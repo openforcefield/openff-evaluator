@@ -20,6 +20,7 @@ __HEADER__ = f"""
         from propertyestimator.thermodynamics import ThermodynamicState
         from propertyestimator.utils import setup_timestamp_logging
         from propertyestimator.utils.exceptions import PropertyEstimatorException
+        from propertyestimator.utils.serialization import TypedJSONEncoder
 
 """
 
@@ -78,10 +79,10 @@ __BODY__ = """
         host_guest_protocol.number_of_equilibration_steps = 5000
         host_guest_protocol.equilibration_output_frequency = 500
 
-        # 50,000 × 2 fs = 0.1 ns
-        # 500,000 × 2 fs = 1 ns
-        host_guest_protocol.number_of_production_steps = 500000
-        host_guest_protocol.production_output_frequency = 5000
+        # 2,500,000 × 2 fs = 5 ns
+        host_guest_protocol.number_of_production_steps = 2500000
+        # 2500 × 2 fs = 5 ps per frame
+        host_guest_protocol.production_output_frequency = 2500
         
         host_guest_protocol.number_of_solvent_molecules = 2000
 
@@ -104,6 +105,9 @@ __BODY__ = """
         if isinstance(result, PropertyEstimatorException):
             logging.info(f'The attach / pull calculations failed with error: {result.message}')
             return
+
+        with open(f"{host}-{guest}-{orientation}.json", "w") as f:
+            json.dump(host_guest_protocol._results_dictionary, f, indent=4, cls=TypedJSONEncoder)
 
         substance_results.append(host_guest_protocol)
 
@@ -170,9 +174,10 @@ __HOST_ONLY_BODY__ = """
     host_protocol.number_of_equilibration_steps = 5000
     host_protocol.equilibration_output_frequency = 500
 
-    # 500,000 × 2 fs = 1 ns
-    host_protocol.number_of_production_steps = 500000   
-    host_protocol.production_output_frequency = 5000
+    # 2,500,000 × 2 fs = 5 ns
+    host_protocol.number_of_production_steps = 2500000  
+    # 2500 × 2 fs = 5 ps per frame  
+    host_protocol.production_output_frequency = 2500
 
     host_protocol.number_of_solvent_molecules = 2000
 
@@ -235,7 +240,7 @@ __TSCC_HEADER__ = """
 __TSCC_BODY__ = """
 source {0}
 
-SCRDIR=/oasis/tscc/scratch/davids4/propertyestimator-survey/{1}
+SCRDIR=$TMPDIR/{1}
 mkdir -p $SCRDIR
 
 # Need the `-L` to resolve any links.
@@ -244,6 +249,7 @@ rsync -avL $PBS_O_WORKDIR/ $SCRDIR/
 cd $SCRDIR
 conda activate propertyestimator
 python {2}
+rsync -avL $SCRDIR /projects/gilson-kirkwood/davids4/projects/propertyestimator-survey
 """
 
 def get_host_guest_pairs(benchmarks):
