@@ -5,10 +5,12 @@ A collection of density physical property definitions.
 from propertyestimator.properties import PhysicalProperty
 from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.protocols import coordinates, forcefield, miscellaneous, yank
-from propertyestimator.storage.dataclasses import StoredSimulationData
+from propertyestimator.protocols.binding import AddBindingFreeEnergies
+from propertyestimator.protocols.miscellaneous import SubtractValues
+from propertyestimator.protocols.paprika import OpenMMPaprikaProtocol
 from propertyestimator.substances import Substance
-from propertyestimator.workflow.schemas import WorkflowSchema
-from propertyestimator.workflow.utils import ProtocolPath
+from propertyestimator.workflow.schemas import WorkflowSchema, ProtocolReplicator
+from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
 @register_estimable_property()
@@ -27,18 +29,18 @@ class HostGuestBindingAffinity(PhysicalProperty):
     def required_data_class(self):
         """Returns which type of stored data class is required by
         this property."""
-        return StoredSimulationData
+        return None
 
     @staticmethod
     def get_default_workflow_schema(calculation_layer, options=None):
 
         if calculation_layer == 'SimulationLayer':
-            return HostGuestBindingAffinity.get_default_simulation_workflow_schema(options)
+            return HostGuestBindingAffinity.get_default_paprika_simulation_workflow_schema(options)
 
         return None
 
     @staticmethod
-    def get_default_simulation_workflow_schema(options=None):
+    def get_default_yank_simulation_workflow_schema(options=None):
         """Returns the default workflow to use when estimating this property
         from direct simulations.
 
@@ -172,5 +174,105 @@ class HostGuestBindingAffinity(PhysicalProperty):
         #                                                                                     extract_density.id)
         #
         # schema.outputs_to_store = {'full_system': output_to_store}
+
+        return schema
+
+    @staticmethod
+    def get_default_paprika_simulation_workflow_schema(options=None):
+        """Returns the default workflow to use when estimating this property
+        from direct simulations.
+
+        Parameters
+        ----------
+        options: WorkflowOptions
+            The default options to use when setting up the estimation workflow.
+
+        Returns
+        -------
+        WorkflowSchema
+            The schema to follow when estimating this property.
+        """
+
+        schema = WorkflowSchema(property_type=HostGuestBindingAffinity.__name__)
+        schema.id = '{}{}'.format(HostGuestBindingAffinity.__name__, 'Schema')
+
+        # Set up a replicator which will perform the attach-pull calculation for
+        # each of the guest orientations
+        orientation_replicator = ProtocolReplicator('orientation_replicator')
+        orientation_replicator.template_values = ProtocolPath('guest_orientations', 'global')
+
+        # Create the protocol which will run the attach pull calculations
+        host_guest_protocol = OpenMMPaprikaProtocol(f'host_guest_free_energy_{orientation_replicator.placeholder_id}')
+
+        host_guest_protocol.substance = ProtocolPath('substance', 'global')
+        host_guest_protocol.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
+        host_guest_protocol.force_field_path = ProtocolPath('force_field_path', 'global')
+
+        host_guest_protocol.taproom_host_name = ProtocolPath('host_identifier', 'global')
+        host_guest_protocol.taproom_guest_name = ProtocolPath('guest_identifier', 'global')
+        host_guest_protocol.taproom_guest_orientation = ReplicatorValue(orientation_replicator.id)
+
+        host_guest_protocol.number_of_equilibration_steps = 200000
+        host_guest_protocol.number_of_production_steps = 1000000
+        host_guest_protocol.equilibration_output_frequency = 5000
+        host_guest_protocol.production_output_frequency = 5000
+        host_guest_protocol.number_of_solvent_molecules = 2000
+
+        # Sum together the free energies of the individual orientations
+        sum_protocol = AddBindingFreeEnergies("add_guest_free_energies")
+
+        sum_protocol.values = [ProtocolPath('attach_free_energy', host_guest_protocol.id),
+                               ProtocolPath('pull_free_energy', host_guest_protocol.id)]
+        sum_protocol.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
+
+        # Retrieve a subset of the full substance which only contains the
+        # host and the solvent.
+        filter_host = miscellaneous.FilterSubstanceByRole('filter_host')
+        filter_host.input_substance = ProtocolPath('substance', 'global')
+
+        filter_host.component_roles = [
+            Substance.ComponentRole.Solute,
+            Substance.ComponentRole.Solvent,
+            Substance.ComponentRole.Receptor
+        ]
+
+        # Create the protocols which will run the release calculations
+        host_protocol = OpenMMPaprikaProtocol('host')
+
+        host_protocol.substance = ProtocolPath('filtered_substance', filter_host.id)
+        host_protocol.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
+        host_protocol.force_field_path = ProtocolPath('force_field_path', 'global')
+
+        host_protocol.taproom_host_name = ProtocolPath('host_identifier', 'global')
+        host_protocol.taproom_guest_name = None
+
+        host_protocol.number_of_equilibration_steps = 200000
+        host_protocol.number_of_production_steps = 1000000
+        host_protocol.equilibration_output_frequency = 5000
+        host_protocol.production_output_frequency = 5000
+        host_protocol.number_of_solvent_molecules = 2000
+
+        # Finally, combine all of the values together
+        subtract_reference_free_energy = SubtractValues('subtract_reference_free_energy')
+        subtract_reference_free_energy.value_b = ProtocolPath('release_free_energy', host_protocol.id)
+        subtract_reference_free_energy.value_a = ProtocolPath('reference_free_energy', host_guest_protocol.id)
+
+        subtract_host_guest_free_energy = SubtractValues('subtract_host_guest_free_energy')
+        subtract_host_guest_free_energy.value_b = ProtocolPath('result', subtract_reference_free_energy.id)
+        subtract_host_guest_free_energy.value_a = ProtocolPath('result', sum_protocol.id)
+
+        schema.protocols = {
+            host_guest_protocol.id: host_guest_protocol.schema,
+            sum_protocol.id: sum_protocol.schema,
+
+            filter_host.id: filter_host.schema,
+            host_protocol.id: host_protocol.schema,
+
+            subtract_reference_free_energy.id: subtract_reference_free_energy.schema,
+            subtract_host_guest_free_energy.id: subtract_host_guest_free_energy.schema
+        }
+
+        # Define where the final values come from.
+        schema.final_value_source = ProtocolPath('result', subtract_host_guest_free_energy.id)
 
         return schema

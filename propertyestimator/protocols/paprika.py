@@ -46,11 +46,6 @@ class BasePaprikaProtocol(BaseProtocol):
     class WaterModel(Enum):
         TIP3P = 'TIP3P'
 
-    class ForceField(Enum):
-        SMIRNOFF = 'SMIRNOFF'
-        GAFF = 'GAFF'
-        GAFF2 = 'GAFF2'
-
     @protocol_input(Substance)
     def substance(self):
         """The substance which defines the host, guest and solvent."""
@@ -59,10 +54,6 @@ class BasePaprikaProtocol(BaseProtocol):
     @protocol_input(ThermodynamicState)
     def thermodynamic_state(self):
         """The state at which to run the calculations."""
-        pass
-
-    @protocol_input(ForceField)
-    def force_field(self):
         pass
 
     @protocol_input(str)
@@ -85,11 +76,7 @@ class BasePaprikaProtocol(BaseProtocol):
     def taproom_guest_orientation(self):
         pass
 
-    @protocol_input(unit.Quantity)
-    def gaff_cutoff(self):
-        pass
-
-    @protocol_input(unit.Quantity)
+    @protocol_input(unit.Quantity, merge_behavior=MergeBehaviour.SmallestValue)
     def timestep(self):
         pass
 
@@ -115,26 +102,6 @@ class BasePaprikaProtocol(BaseProtocol):
 
     @protocol_input(list)
     def simulation_box_aspect_ratio(self):
-        pass
-
-    @protocol_input(bool)
-    def setup(self):
-        """Whether to run prepare the structures, apply the restraints, and solvate the windows."""
-        pass
-
-    @protocol_input(bool)
-    def simulate(self):
-        """Whether to simulate the windows."""
-        pass
-
-    @protocol_input(bool)
-    def analyze(self):
-        """Whether to analyze the results of the simulation."""
-        pass
-
-    @protocol_input(bool)
-    def debug(self):
-        """ Whether to run in debug mode."""
         pass
 
     @protocol_output(EstimatedQuantity)
