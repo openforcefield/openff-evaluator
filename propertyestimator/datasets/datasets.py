@@ -1,9 +1,14 @@
 """
 An API for defining, storing, and loading collections of physical property data.
 """
+from collections import defaultdict
 
+import pandas
 from simtk.openmm.app import element
 
+from propertyestimator import unit
+from propertyestimator.properties import MeasurementSource, CalculationSource
+from propertyestimator.substances import Substance
 from propertyestimator.utils import create_molecule_from_smiles
 from propertyestimator.utils.serialization import TypedBaseModel
 
@@ -300,6 +305,149 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             return True
 
         self.filter_by_function(filter_function)
+
+    def to_pandas(self):
+        """Converts a `PhysicalPropertyDataSet` to a `pandas.DataFrame` object
+        with columns of
+
+            - 'Temperature'
+            - 'Pressure'
+            - 'Phase'
+            - 'Number Of Components'
+            - 'Component 1'
+            - 'Mole Fraction 1'
+            - ...
+            - 'Component N'
+            - 'Mole Fraction N'
+            - '<Property 1> Value'
+            - '<Property 1> Uncertainty'
+            - ...
+            - '<Property N> Value'
+            - '<Property N> Uncertainty'
+            - `'Source'`
+
+        where 'Component X' is a column containing the smiles representation of component X.
+
+        Returns
+        -------
+        pandas.DataFrame
+            The create data frame.
+        """
+        # Determine the maximum number of components for any
+        # given measurements.
+        maximum_number_of_components = 0
+        all_property_types = set()
+
+        for substance_id in self._properties:
+
+            if len(self._properties[substance_id]) == 0:
+                continue
+
+            substance = self._properties[substance_id][0].substance
+            maximum_number_of_components = max(maximum_number_of_components, substance.number_of_components)
+
+            for physical_property in self._properties[substance_id]:
+                all_property_types.add(type(physical_property))
+
+        # Make sure the maximum number of components is not zero.
+        if maximum_number_of_components <= 0 and len(self._properties) > 0:
+
+            raise ValueError('The data set did not contain any substances with '
+                             'one or more components.')
+
+        data_rows = []
+
+        # Extract the data from the data set.
+        for substance_id in self._properties:
+
+            data_points_by_state = defaultdict(dict)
+
+            for physical_property in self._properties[substance_id]:
+
+                all_property_types.add(type(physical_property))
+
+                # Extract the measured state.
+                temperature = physical_property.thermodynamic_state.temperature.to(unit.kelvin)
+                pressure = None
+
+                if physical_property.thermodynamic_state.pressure is not None:
+                    pressure = physical_property.thermodynamic_state.pressure.to(unit.kilopascal)
+
+                phase = physical_property.phase
+
+                # Extract the component data.
+                number_of_components = physical_property.substance.number_of_components
+
+                components = [] * maximum_number_of_components
+
+                for index, component in enumerate(physical_property.substance.components):
+
+                    amount = next(iter(physical_property.substance.get_amounts(component)))
+                    assert isinstance(amount, Substance.MoleFraction)
+
+                    components.append((component.smiles, amount.value))
+
+                # Extract the value data as a string.
+                value = None if physical_property.value is None else str(physical_property.value)
+                uncertainty = None if physical_property.uncertainty is None else str(physical_property.uncertainty)
+
+                # Extract the data source.
+                source = None
+
+                if isinstance(physical_property.source, MeasurementSource):
+
+                    source = physical_property.source.reference
+
+                    if source is None:
+                        source = physical_property.source.doi
+
+                elif isinstance(physical_property.source, CalculationSource):
+                    source = physical_property.source.fidelity
+
+                # Create the data row.
+                data_row = {
+                    'Temperature': str(temperature),
+                    'Pressure': str(pressure),
+                    'Phase': phase,
+                    'Number Of Components': number_of_components
+                }
+
+                for index in range(len(components)):
+
+                    data_row[f'Component {index + 1}'] = components[index][0]
+                    data_row[f'Mole Fraction {index + 1}'] = components[index][1]
+
+                data_row[f'{type(physical_property).__name__} Value'] = value
+                data_row[f'{type(physical_property).__name__} Uncertainty'] = uncertainty
+
+                data_row['Source'] = source
+
+                data_points_by_state[physical_property.thermodynamic_state].update(data_row)
+
+            for state in data_points_by_state:
+                data_rows.append(data_points_by_state[state])
+
+        # Set up the column headers.
+        if len(data_rows) == 0:
+            return None
+
+        data_columns = [
+            'Temperature',
+            'Pressure',
+            'Phase',
+            'Number Of Components',
+        ]
+
+        for index in range(maximum_number_of_components):
+            data_columns.append(f'Component {index + 1}')
+            data_columns.append(f'Mole Fraction {index + 1}')
+
+        for property_type in all_property_types:
+            data_columns.append(f'{property_type.__name__} Value')
+            data_columns.append(f'{property_type.__name__} Uncertainty')
+
+        data_frame = pandas.DataFrame(data_rows, columns=data_columns)
+        return data_frame
 
     def __getstate__(self):
 

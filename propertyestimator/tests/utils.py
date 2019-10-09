@@ -6,6 +6,7 @@ from propertyestimator import server
 from propertyestimator import unit
 from propertyestimator.backends import DaskLocalCluster, ComputeResources, QueueWorkerResources, DaskLSFBackend
 from propertyestimator.datasets import PhysicalPropertyDataSet
+from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.properties import Density
 from propertyestimator.properties import PropertyPhase, CalculationSource, DielectricConstant, EnthalpyOfMixing
 from propertyestimator.protocols import coordinates, groups, simulation
@@ -24,7 +25,7 @@ class BackendType(Enum):
 
 
 def setup_server(backend_type=BackendType.LocalCPU, max_number_of_workers=1,
-                 conda_environment='propertyestimator', worker_memory=8 * unit.gigabyte):
+                 conda_environment='propertyestimator', worker_memory=8 * unit.gigabyte, port=8000):
 
     working_directory = 'working_directory'
     storage_directory = 'storage_directory'
@@ -95,6 +96,7 @@ def setup_server(backend_type=BackendType.LocalCPU, max_number_of_workers=1,
 
     server.PropertyEstimatorServer(calculation_backend=calculation_backend,
                                    storage_backend=storage_backend,
+                                   port=port,
                                    working_directory=working_directory)
 
 
@@ -298,20 +300,16 @@ def create_filterable_data_set():
     return data_set
 
 
-def build_tip3p_smirnoff_force_field(file_path=None):
+def build_tip3p_smirnoff_force_field():
     """Combines the smirnoff99Frosst and tip3p offxml files
     into a single one which can be consumed by the property
     estimator.
 
-    Parameters
-    ----------
-    file_path: str, optional
-        The path to save the force field to.
-
     Returns
     -------
-    str
-        The file path to the combined force field file.
+    SmirnoffForceFieldSource
+        The force field containing both smirnoff99Frosst-1.1.0
+        and TIP3P parameters
     """
     from openforcefield.typing.engines.smirnoff import ForceField
     
@@ -321,7 +319,4 @@ def build_tip3p_smirnoff_force_field(file_path=None):
     smirnoff_force_field_with_tip3p = ForceField(smirnoff_force_field_path,
                                                  tip3p_force_field_path)
 
-    force_field_path = 'smirnoff99Frosst_tip3p.offxml' if file_path is None else file_path
-    smirnoff_force_field_with_tip3p.to_file(force_field_path)
-
-    return force_field_path
+    return SmirnoffForceFieldSource.from_object(smirnoff_force_field_with_tip3p)

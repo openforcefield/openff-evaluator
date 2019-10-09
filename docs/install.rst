@@ -14,7 +14,14 @@ Installation from Conda
 
 To install the ``propertyestimator`` from the ``omnia`` channel, simply run::
 
-    conda install -c omnia/label/rc propertyestimator
+    conda install -c openeye -c omnia/label/rc propertyestimator
+
+Optional Dependencies
+---------------------
+
+To parameterize systems with the Amber ``tleap`` tool using a ``TLeapForceFieldSource`` the ``ambertools19`` package must be installed::
+
+    conda install -c ambermd 'ambertools ==19.0'
 
 Installation from Source
 ------------------------

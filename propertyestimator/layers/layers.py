@@ -140,6 +140,47 @@ class PropertyCalculationLayer:
             callback_future.add_done_callback(callback_wrapper)
 
     @staticmethod
+    def _store_cached_output(server_request, returned_output, storage_backend):
+        """Stores any cached pieces of simulation data using a storage backend.
+
+        Parameters
+        ----------
+        server_request: PropertyEstimatorServer.ServerEstimationRequest
+            The request which generated the cached data.
+        returned_output: CalculationLayerResult
+            The layer result which contains the cached data.
+        storage_backend: PropertyEstimatorStorage
+            The backend to use to store the cached data.
+        """
+
+        for data_tuple in returned_output.data_to_store:
+
+            data_object_path, data_directory_path = data_tuple
+
+            # Make sure the data directory / file to store actually exists
+            if not path.isdir(data_directory_path) or not path.isfile(data_object_path):
+                logging.info(f'Invalid data directory ({data_directory_path}) / '
+                             f'file ({data_object_path})')
+                continue
+
+            # Attach any extra metadata which is missing.
+            with open(data_object_path, 'r') as file:
+
+                data_object = json.load(file, cls=TypedJSONDecoder)
+
+                if data_object.force_field_id is None:
+                    data_object.force_field_id = server_request.force_field_id
+
+                if isinstance(data_object, StoredDataCollection):
+
+                    for inner_data_object in data_object.data.values():
+
+                        if inner_data_object.force_field_id is None:
+                            inner_data_object.force_field_id = server_request.force_field_id
+
+            storage_backend.store_simulation_data(data_object, data_directory_path)
+
+    @staticmethod
     def _process_results(results_future, server_request, storage_backend, callback):
         """Processes the results of a calculation layer, updates the server request,
         then passes it back to the callback ready for propagation to the next layer
@@ -192,33 +233,7 @@ class PropertyCalculationLayer:
                     if (returned_output.data_to_store is not None and
                         returned_output.calculated_property is not None):
 
-                        for data_tuple in returned_output.data_to_store:
-
-                            data_object_path, data_directory_path = data_tuple
-
-                            # Make sure the data directory / file to store actually exists
-                            if not path.isdir(data_directory_path) or not path.isfile(data_object_path):
-
-                                logging.info(f'Invalid data directory ({data_directory_path}) / '
-                                             f'file ({data_object_path})')
-                                continue
-
-                            # Attach any extra metadata which is missing.
-                            with open(data_object_path, 'r') as file:
-
-                                data_object = json.load(file, cls=TypedJSONDecoder)
-
-                                if data_object.force_field_id is None:
-                                    data_object.force_field_id = server_request.force_field_id
-
-                                if isinstance(data_object, StoredDataCollection):
-
-                                    for inner_data_object in data_object.data.values():
-
-                                        if inner_data_object.force_field_id is None:
-                                            inner_data_object.force_field_id = server_request.force_field_id
-
-                            storage_backend.store_simulation_data(data_object, data_directory_path)
+                        PropertyCalculationLayer._store_cached_output(server_request, returned_output, storage_backend)
 
                 matches = [x for x in server_request.queued_properties if x.id == returned_output.property_id]
 

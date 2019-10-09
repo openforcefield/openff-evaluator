@@ -433,14 +433,12 @@ def _correct_packmol_output(file_path, molecule_topologies,
 def _create_pdb_and_topology(molecule, file_path):
     """Creates a uniform PDB file and `mdtraj.Topology` from an
     openeye molecule.
-
     Parameters
     ----------
     molecule: openeye.oechem.OEChem
         The component to create the PDB and topology for.
     file_path: str
         The path pointing to where the PDB file should be created.
-
     Returns
     -------
     mdtraj.Topology

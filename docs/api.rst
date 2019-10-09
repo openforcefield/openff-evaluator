@@ -17,6 +17,29 @@ Client Side API
     PropertyEstimatorResult
     ConnectionOptions
 
+**Force Field Sources**
+
+.. currentmodule:: propertyestimator.forcefield
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    ForceFieldSource
+    SmirnoffForceFieldSource
+    TLeapForceFieldSource
+    LigParGenForceFieldSource
+
+**Gradient Estimation**
+
+.. currentmodule:: propertyestimator.properties
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    ParameterGradientKey
+    ParameterGradient
+
+
 Server Side API
 ---------------
 
@@ -49,6 +72,7 @@ Physical Property API
     :toctree: api/generated/
 
     Density
+    ExcessMolarVolume
     DielectricConstant
     EnthalpyOfMixing
     EnthalpyOfVaporization
@@ -83,8 +107,6 @@ Physical Property API
     Source
     MeasurementSource
     CalculationSource
-    ParameterGradientKey
-    ParameterGradient
 
 Data Set API
 ------------
@@ -262,6 +284,7 @@ Built-in Workflow Protocols
     :toctree: api/generated/
 
     BuildSmirnoffSystem
+    BuildTLeapSystem
 
 **Simulation**
 
@@ -311,10 +334,6 @@ Built-in Workflow Protocols
 
     GradientReducedPotentials
     CentralDifferenceGradient
-    DivideGradientByScalar
-    MultiplyGradientByScalar
-    AddGradients
-    SubtractGradients
 
 **Groups**
 
@@ -352,6 +371,8 @@ Built-in Workflow Protocols
     MultiplyValue
     DivideValue
     FilterSubstanceByRole
+    BaseWeightByMoleFraction
+    WeightByMoleFraction
 
 Workflow Construction Utilities
 -------------------------------

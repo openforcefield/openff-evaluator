@@ -14,11 +14,12 @@ from math import sqrt
 from os import path, makedirs
 
 from propertyestimator import unit
+from propertyestimator.forcefield import SmirnoffForceFieldSource, ForceFieldSource
 from propertyestimator.storage.dataclasses import BaseStoredData, StoredSimulationData, StoredDataCollection
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedJSONEncoder, TypedJSONDecoder
-from propertyestimator.utils.string import extract_variable_index_and_name
+from propertyestimator.utils.string import extract_variable_index_and_name, sanitize_smiles_file_name
 from propertyestimator.utils.utils import SubhookedABCMeta, get_nested_attribute
 from propertyestimator.workflow.protocols import BaseProtocol
 from propertyestimator.workflow.schemas import WorkflowSchema, ProtocolReplicator, WorkflowSimulationDataToStore, \
@@ -54,7 +55,8 @@ class WorkflowOptions:
 
     def __init__(self,
                  convergence_mode=ConvergenceMode.RelativeUncertainty,
-                 relative_uncertainty_fraction=1.0, absolute_uncertainty=None):
+                 relative_uncertainty_fraction=1.0, absolute_uncertainty=None,
+                 protocol_replacements=None):
         """Constructs a new WorkflowOptions object.
 
         Parameters
@@ -72,6 +74,9 @@ class WorkflowOptions:
             If the convergence mode is set to `AbsoluteUncertainty`, then workflows
             will by default run simulations until the estimated uncertainty is less
             than the `absolute_uncertainty`
+        protocol_replacements: dict of str and str, optional
+            A dictionary with keys of the types of protocols which should be replaced
+            with those protocols named by the values.
         """
 
         self.convergence_mode = convergence_mode
@@ -91,13 +96,17 @@ class WorkflowOptions:
             raise ValueError('The absolute uncertainty must be set when the convergence '
                              'mode is set to AbsoluteUncertainty.')
 
+        self.protocol_replacements = protocol_replacements if protocol_replacements is not None else {}
+
     def __getstate__(self):
 
         return {
             'convergence_mode': self.convergence_mode,
 
             'absolute_uncertainty': self.absolute_uncertainty,
-            'relative_uncertainty_fraction': self.relative_uncertainty_fraction
+            'relative_uncertainty_fraction': self.relative_uncertainty_fraction,
+
+            'protocol_replacements': self.protocol_replacements
         }
 
     def __setstate__(self, state):
@@ -106,6 +115,8 @@ class WorkflowOptions:
 
         self.absolute_uncertainty = state['absolute_uncertainty']
         self.relative_uncertainty_fraction = state['relative_uncertainty_fraction']
+
+        self.protocol_replacements = state['protocol_replacements']
 
 
 class Workflow:
@@ -709,13 +720,18 @@ class Workflow:
             The filtered list of parameter gradient keys.
         """
         from openforcefield.topology import Molecule, Topology
-        from openforcefield.typing.engines.smirnoff import ForceField
 
         # noinspection PyTypeChecker
         if parameter_gradient_keys is None or len(parameter_gradient_keys) == 0:
             return []
 
-        force_field = ForceField(force_field_path, allow_cosmetic_attributes=True)
+        with open(force_field_path) as file:
+            force_field_source = ForceFieldSource.parse_json(file.read())
+
+        if not isinstance(force_field_source, SmirnoffForceFieldSource):
+            return []
+
+        force_field = force_field_source.to_force_field()
 
         all_molecules = []
 
@@ -1102,8 +1118,7 @@ class WorkflowGraph:
                                                      workflow.gradients_sources,
                                                      workflow.outputs_to_store,
                                                      target_uncertainty,
-                                                     *final_futures,
-                                                     key=f'gather_{workflow.physical_property.id}'))
+                                                     *final_futures))
 
         return value_futures
 
@@ -1383,12 +1398,19 @@ class WorkflowGraph:
 
             for output_to_store in outputs_to_store.values():
 
-                substance_id = (property_to_return.substance.identifier if
-                                output_to_store.substance is None else
-                                output_to_store.substance.identifier)
+                if isinstance(output_to_store.substance, ProtocolPath):
+                    substance_id = results_by_id[output_to_store.substance].identifier
 
-                data_object_path = path.join(directory, f'results_{property_to_return.id}_{substance_id}.json')
-                data_directory = path.join(directory, f'results_{property_to_return.id}_{substance_id}')
+                else:
+
+                    substance_id = (property_to_return.substance.identifier if
+                                    output_to_store.substance is None else
+                                    output_to_store.substance.identifier)
+
+                sanitized_id = sanitize_smiles_file_name(substance_id)
+
+                data_object_path = path.join(directory, f'results_{property_to_return.id}_{sanitized_id}.json')
+                data_directory = path.join(directory, f'results_{property_to_return.id}_{sanitized_id}')
 
                 WorkflowGraph._store_output_data(data_object_path,
                                                  data_directory,

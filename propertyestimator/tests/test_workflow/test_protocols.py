@@ -3,8 +3,10 @@ Units tests for propertyestimator.workflow
 """
 import tempfile
 from os import path
+from tempfile import NamedTemporaryFile
 
 import pytest
+from openforcefield.topology import Molecule, Topology
 from simtk.openmm.app import PDBFile
 
 from propertyestimator import unit
@@ -15,6 +17,7 @@ from propertyestimator.protocols.analysis import ExtractAverageStatistic, Extrac
 from propertyestimator.protocols.binding import AddBindingFreeEnergies, AddBindingEnthalpies
 from propertyestimator.protocols.coordinates import BuildCoordinatesPackmol, SolvateExistingStructure
 from propertyestimator.protocols.forcefield import BuildSmirnoffSystem
+from propertyestimator.protocols.forcefield import BuildTLeapSystem
 from propertyestimator.protocols.miscellaneous import AddValues, FilterSubstanceByRole, SubtractValues
 from propertyestimator.protocols.simulation import RunEnergyMinimisation, RunOpenMMSimulation
 from propertyestimator.substances import Substance
@@ -24,6 +27,7 @@ from propertyestimator.thermodynamics import Ensemble, ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
+from propertyestimator.utils.utils import get_data_filename
 from propertyestimator.workflow.plugins import available_protocols
 from propertyestimator.workflow.utils import ProtocolPath
 
@@ -131,8 +135,12 @@ def test_base_simulation_protocols():
     thermodynamic_state = ThermodynamicState(298 * unit.kelvin, 1 * unit.atmosphere)
 
     with tempfile.TemporaryDirectory() as temporary_directory:
+
+        force_field_source = build_tip3p_smirnoff_force_field()
         force_field_path = path.join(temporary_directory, 'ff.offxml')
-        build_tip3p_smirnoff_force_field(force_field_path)
+
+        with open(force_field_path, 'w') as file:
+            file.write(force_field_source.json())
 
         build_coordinates = BuildCoordinatesPackmol('')
 
@@ -281,6 +289,62 @@ def test_substance_filtering_protocol(filter_role):
     assert filter_protocol.filtered_substance.components[0].role == filter_role
 
 
+def _build_input_output_substances():
+    """Builds sets if input and expected substances for the
+    `test_build_coordinate_composition` test.
+
+    Returns
+    -------
+    list of tuple of Substance and Substance
+        A list of input and expected substances.
+    """
+
+    # Start with some easy cases
+    substances = [
+        (Substance.from_components('O'), Substance.from_components('O')),
+        (Substance.from_components('O', 'C'), Substance.from_components('O', 'C')),
+        (Substance.from_components('O', 'C', 'CO'), Substance.from_components('O', 'C', 'CO'))
+    ]
+
+    # Handle some cases where rounding will need to occur.
+    input_substance = Substance()
+    input_substance.add_component(Substance.Component('O'), Substance.MoleFraction(0.41))
+    input_substance.add_component(Substance.Component('C'), Substance.MoleFraction(0.59))
+
+    expected_substance = Substance()
+    expected_substance.add_component(Substance.Component('O'), Substance.MoleFraction(0.4))
+    expected_substance.add_component(Substance.Component('C'), Substance.MoleFraction(0.6))
+
+    substances.append((input_substance, expected_substance))
+
+    input_substance = Substance()
+    input_substance.add_component(Substance.Component('O'), Substance.MoleFraction(0.59))
+    input_substance.add_component(Substance.Component('C'), Substance.MoleFraction(0.41))
+
+    expected_substance = Substance()
+    expected_substance.add_component(Substance.Component('O'), Substance.MoleFraction(0.6))
+    expected_substance.add_component(Substance.Component('C'), Substance.MoleFraction(0.4))
+
+    substances.append((input_substance, expected_substance))
+
+    return substances
+
+
+@pytest.mark.parametrize("input_substance, expected", _build_input_output_substances())
+def test_build_coordinate_composition(input_substance, expected):
+    """Tests that the build coordinate protocols correctly report
+    the composition of the built system."""
+
+    build_coordinates = BuildCoordinatesPackmol('build_coordinates')
+    build_coordinates.max_molecules = 10
+    build_coordinates.substance = input_substance
+
+    with tempfile.TemporaryDirectory() as directory:
+        assert not isinstance(build_coordinates.execute(directory, None), PropertyEstimatorException)
+
+    assert build_coordinates.output_substance == expected
+
+
 def test_solvation_protocol():
     """Tests solvating a single methanol molecule in water."""
 
@@ -425,3 +489,69 @@ def test_add_binding_enthalpies_protocol():
     assert sum_protocol.result.value.magnitude == pytest.approx(-4.0, abs=0.1)
     assert sum_protocol.result.uncertainty.magnitude == pytest.approx(2.0, abs=0.1)
     assert sum_protocol.result.value.units == unit.kilocalorie / unit.mole
+
+
+@pytest.mark.parametrize('charge_backend', [BuildTLeapSystem.ChargeBackend.OpenEye,
+                                            BuildTLeapSystem.ChargeBackend.AmberTools])
+def test_topology_mol_to_mol2(charge_backend):
+    """Tests taking an openforcefield topology molecule, generating a conformer,
+    calculating partial charges, and writing it to mol2."""
+
+    # Testing to find the correct connectivity information should indicate 
+    # that the mol2 conversion was successful
+    expected_contents = ['''
+@<TRIPOS>BOND
+     1    1    3 1
+     2    2    3 1
+     3    3    9 1
+     4    3    8 1
+     5    1    4 1
+     6    2    5 1
+     7    2    6 1
+     8    2    7 1''', '''@<TRIPOS>BOND
+     1    4    6 ar
+     2    2    4 ar
+     3    1    2 ar
+     4    1    3 ar
+     5    3    5 ar
+     6    5    6 ar
+     7    6    7 1
+     8    4   11 1
+     9    2    9 1
+    10    1    8 1
+    11    3   10 1
+    12    5   12 1
+    13    7   13 1
+    14    7   14 1
+    15    7   15 1''']
+
+    # Constructing the molecule using this SMILES will ensure that the reference molecule
+    # (generated here) and topology molecule (generated below from PDB) have a different atom order
+    ethanol_smiles = 'C(O)C'
+    toluene_smiles = 'c1ccccc1C'
+    
+    ethanol = Molecule.from_smiles(ethanol_smiles)
+    toluene = Molecule.from_smiles(toluene_smiles)
+
+    pdb_file = PDBFile(get_data_filename('test/molecules/ethanol_toluene.pdb'))
+    topology = Topology.from_openmm(pdb_file.topology, unique_molecules=[ethanol, toluene])
+
+    for topology_molecule_index, topology_molecule in enumerate(topology.topology_molecules):
+
+        with NamedTemporaryFile(suffix='.mol2') as output_file:
+
+            BuildTLeapSystem._topology_molecule_to_mol2(topology_molecule,
+                                                        output_file.name,
+                                                        charge_backend=charge_backend)
+
+            mol2_contents = open(output_file.name).read()
+
+            # Ensure we find the correct connectivity info
+            assert expected_contents[topology_molecule_index] in mol2_contents
+
+            # Ensure that the first atom has nonzero coords and charge
+            first_atom_line = mol2_contents.split('\n')[7].split()
+            assert float(first_atom_line[2]) != 0.
+            assert float(first_atom_line[3]) != 0.
+            assert float(first_atom_line[4]) != 0.
+            assert float(first_atom_line[8]) != 0.

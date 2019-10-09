@@ -70,14 +70,14 @@ use in the calculations::
     data_set = ThermoMLDataSet.from_file(get_data_filename('properties/single_density.xml'))
 
     # Load in the force field to use.
-    force_field = smirnoff.ForceField('smirnoff99Frosst-1.1.0.offxml')
+    force_field_source = SmirnoffForceFieldSource.from_path('smirnoff99Frosst-1.1.0.offxml')
 
 Create the client object and use it to send the estimation request to the server::
 
     # Create the client object.
     property_estimator = client.PropertyEstimatorClient()
     # Submit the request to a running server.
-    result = property_estimator.request_estimate(data_set, force_field)
+    result = property_estimator.request_estimate(data_set, force_field_source)
 
 Query the result until all of the properties have either been estimated or have errored::
 
