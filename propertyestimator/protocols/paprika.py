@@ -14,7 +14,6 @@ from subprocess import Popen
 from threading import Thread
 
 import numpy as np
-import parmed as pmd
 import paprika
 from paprika.amber import Simulation
 from paprika.io import save_restraints
@@ -23,7 +22,6 @@ from paprika.tleap import System
 from paprika.utils import index_from_mask
 from simtk.openmm import XmlSerializer
 from simtk.openmm.app import AmberPrmtopFile, HBonds, PME, PDBFile
-from simtk.unit import angstrom
 
 from propertyestimator import unit
 from propertyestimator.backends import ComputeResources
@@ -788,12 +786,31 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
             try:
 
                 window_directory = os.path.dirname(window_system_path)
-                simulation_directory = os.path.join(window_directory, 'simulations')
 
+                final_trajectory_path = os.path.join(window_directory, 'trajectory.dcd')
+                final_topology_path = os.path.join(window_directory, 'input.pdb')
+
+                if os.path.isfile(final_trajectory_path) and os.path.isfile(final_topology_path):
+
+                    queue.task_done()
+                    continue
+
+                if ((os.path.isfile(final_trajectory_path) and not os.path.isfile(final_topology_path)) or
+                    (not os.path.isfile(final_trajectory_path) and os.path.isfile(final_topology_path))):
+
+                    exceptions.append(PropertyEstimatorException(directory=os.path.dirname(window_coordinate_path),
+                                                                 message=f'This window either has a trajectory but '
+                                                                         f'not topology pdb file, or does not have a '
+                                                                         f'trajectory but does have a topology pdb '
+                                                                         f'file. This should not happen'))
+
+                    queue.task_done()
+                    continue
+
+                simulation_directory = os.path.join(window_directory, 'simulations')
                 os.makedirs(simulation_directory, exist_ok=True)
 
                 # Equilibration
-
                 energy_minimisation = simulation.RunEnergyMinimisation('energy_minimisation')
 
                 energy_minimisation.input_coordinate_file = window_coordinate_path
@@ -845,8 +862,8 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                 coordinate_path = simulation_protocol.get_value(ProtocolPath('output_coordinate_file',
                                                                              'npt_equilibration'))
 
-                shutil.move(trajectory_path, os.path.join(window_directory, 'trajectory.dcd'))
-                shutil.move(coordinate_path, os.path.join(window_directory, 'input.pdb'))
+                shutil.move(trajectory_path, final_trajectory_path)
+                shutil.move(coordinate_path, final_topology_path)
 
                 # shutil.rmtree(simulation_directory)
 
