@@ -278,8 +278,8 @@ class FilterSubstanceByRole(BaseProtocol):
         """The substance to filter."""
         pass
 
-    @protocol_input(Substance.ComponentRole)
-    def component_role(self):
+    @protocol_input(list)
+    def component_roles(self):
         """The role to filter substance components against."""
         pass
 
@@ -300,7 +300,7 @@ class FilterSubstanceByRole(BaseProtocol):
         super().__init__(protocol_id)
 
         self._input_substance = None
-        self._component_role = None
+        self._component_roles = None
 
         self._expected_components = -1
 
@@ -313,7 +313,7 @@ class FilterSubstanceByRole(BaseProtocol):
 
         for component in self._input_substance.components:
 
-            if component.role != self._component_role:
+            if component.role not in self._component_roles:
                 continue
 
             filtered_components.append(component)

@@ -9,6 +9,7 @@ from propertyestimator.protocols.binding import AddBindingFreeEnergies
 from propertyestimator.protocols.miscellaneous import SubtractValues
 from propertyestimator.protocols.paprika import OpenMMPaprikaProtocol
 from propertyestimator.substances import Substance
+from propertyestimator.workflow import WorkflowOptions
 from propertyestimator.workflow.schemas import WorkflowSchema, ProtocolReplicator
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
@@ -62,7 +63,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         filter_ligand = miscellaneous.FilterSubstanceByRole('filter_ligand')
         filter_ligand.input_substance = ProtocolPath('substance', 'global')
 
-        filter_ligand.component_role = Substance.ComponentRole.Ligand
+        filter_ligand.component_roles = [Substance.ComponentRole.Ligand]
         # We only support substances with a single guest ligand.
         filter_ligand.expected_components = 1
 
@@ -73,7 +74,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         filter_receptor = miscellaneous.FilterSubstanceByRole('filter_receptor')
         filter_receptor.input_substance = ProtocolPath('substance', 'global')
 
-        filter_receptor.component_role = Substance.ComponentRole.Receptor
+        filter_receptor.component_roles = [Substance.ComponentRole.Receptor]
         # We only support substances with a single host receptor.
         filter_receptor.expected_components = 1
 
@@ -90,7 +91,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         # Solvate the docked structure using packmol
         filter_solvent = miscellaneous.FilterSubstanceByRole('filter_solvent')
         filter_solvent.input_substance = ProtocolPath('substance', 'global')
-        filter_solvent.component_role = Substance.ComponentRole.Solvent
+        filter_solvent.component_roles = [Substance.ComponentRole.Solvent]
 
         schema.protocols[filter_solvent.id] = filter_solvent.schema
 
@@ -192,6 +193,11 @@ class HostGuestBindingAffinity(PhysicalProperty):
         WorkflowSchema
             The schema to follow when estimating this property.
         """
+
+        if options.convergence_mode != WorkflowOptions.ConvergenceMode.NoChecks:
+
+            raise ValueError('Binding affinities cannot currently be estimated to within '
+                             'a target uncertainty.')
 
         schema = WorkflowSchema(property_type=HostGuestBindingAffinity.__name__)
         schema.id = '{}{}'.format(HostGuestBindingAffinity.__name__, 'Schema')
