@@ -786,9 +786,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
         super(OpenMMPaprikaProtocol, self)._setup_restraints()
 
-        if (self._force_field == self.ForceField.GAFF or
-            self._force_field == self.ForceField.GAFF2):
-
+        if isinstance(self._force_field_source, TLeapForceFieldSource):
             self._apply_restraint_masks(use_amber_indices=False)
 
         # Apply the restraint forces to the solvated system xml files.
@@ -930,15 +928,11 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
     def __init__(self, protocol_id):
         super().__init__(protocol_id)
 
-        # Protocol inputs / outputs
-        self._force_field = self.ForceField.GAFF2
-
     def _setup_restraints(self):
 
         super(AmberPaprikaProtocol, self)._setup_restraints()
 
-        if (self._force_field == self.ForceField.GAFF or
-            self._force_field == self.ForceField.GAFF2):
+        if isinstance(self._force_field_source, TLeapForceFieldSource):
             # Apply the restraint masks which will re-map the restraint indices
             # to the correct atoms (tleap re-orders the packmol file). All indices
             # Get set to index+1 here ready for creating the disang files.
@@ -962,8 +956,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
 
                 file.write(value)
 
-        if (self._force_field == self.ForceField.GAFF or
-            self._force_field == self.ForceField.GAFF2):
+        if isinstance(self._force_field_source, TLeapForceFieldSource):
             # Undo the amber index ready for saving the restraints
             # JSON file.
             self._apply_restraint_masks(use_amber_indices=False)
