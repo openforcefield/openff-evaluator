@@ -6,7 +6,7 @@ import pkg_resources
 import yaml
 
 from propertyestimator import unit
-from propertyestimator.properties import PropertyPhase, Source, PhysicalProperty
+from propertyestimator.properties import PropertyPhase, Source, HostGuestBindingAffinity
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from .datasets import PhysicalPropertyDataSet
@@ -232,13 +232,13 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 substance = self._build_substance(guest_smiles, host_smiles,
                                                   ionic_strength=ionic_strength)
 
-                measured_property = PhysicalProperty(thermodynamic_state=ThermodynamicState(temperature,
-                                                                                            pressure),
-                                                     phase=PropertyPhase.Liquid,
-                                                     substance=substance,
-                                                     value=value,
-                                                     uncertainty=uncertainty,
-                                                     source=source)
+                measured_property = HostGuestBindingAffinity(thermodynamic_state=ThermodynamicState(temperature,
+                                                                                                    pressure),
+                                                             phase=PropertyPhase.Liquid,
+                                                             substance=substance,
+                                                             value=value,
+                                                             uncertainty=uncertainty,
+                                                             source=source)
 
                 measured_property.metadata = {
                     'guest_orientations': orientations,

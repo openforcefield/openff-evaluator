@@ -158,17 +158,17 @@ def test_uuid_utils():
 
     appended_id = graph.append_uuid(dummy_protocol_id, dummy_uuid)
 
-    assert appended_id == '99ca09d3-3ddb-475e-b82c-22b0c12c0e25|protocol_id'
+    assert appended_id == '99ca09d3-3ddb-475e-b82c-22b0c12c0e25:protocol_id'
     assert graph.retrieve_uuid(appended_id) == dummy_uuid
 
-    dummy_protocol_id_2 = 'd2209b46-cd33-4122-a88d-764862c71a6e|protocol_id'
+    dummy_protocol_id_2 = 'd2209b46-cd33-4122-a88d-764862c71a6e:protocol_id'
 
     appended_id_2 = graph.append_uuid(dummy_protocol_id_2, dummy_uuid)
 
-    assert appended_id_2 == '99ca09d3-3ddb-475e-b82c-22b0c12c0e25|protocol_id'
+    assert appended_id_2 == '99ca09d3-3ddb-475e-b82c-22b0c12c0e25:protocol_id'
     assert graph.retrieve_uuid(appended_id_2) == dummy_uuid
 
-    invalid_protocol_id = '|'.join(['a', 'b', 'c'])
+    invalid_protocol_id = ':'.join(['a', 'b', 'c'])
 
     with pytest.raises(ValueError):
         graph.append_uuid(invalid_protocol_id, dummy_uuid)

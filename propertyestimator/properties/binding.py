@@ -6,7 +6,7 @@ from propertyestimator.properties import PhysicalProperty
 from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.protocols import coordinates, forcefield, miscellaneous, yank
 from propertyestimator.protocols.binding import AddBindingFreeEnergies
-from propertyestimator.protocols.miscellaneous import SubtractValues
+from propertyestimator.protocols.miscellaneous import AddValues
 from propertyestimator.protocols.paprika import OpenMMPaprikaProtocol
 from propertyestimator.substances import Substance
 from propertyestimator.workflow import WorkflowOptions
@@ -224,13 +224,6 @@ class HostGuestBindingAffinity(PhysicalProperty):
         host_guest_protocol.production_output_frequency = 5000
         host_guest_protocol.number_of_solvent_molecules = 2000
 
-        # Sum together the free energies of the individual orientations
-        sum_protocol = AddBindingFreeEnergies("add_guest_free_energies")
-
-        sum_protocol.values = [ProtocolPath('attach_free_energy', host_guest_protocol.id),
-                               ProtocolPath('pull_free_energy', host_guest_protocol.id)]
-        sum_protocol.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
-
         # Retrieve a subset of the full substance which only contains the
         # host and the solvent.
         filter_host = miscellaneous.FilterSubstanceByRole('filter_host')
@@ -250,7 +243,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         host_protocol.force_field_path = ProtocolPath('force_field_path', 'global')
 
         host_protocol.taproom_host_name = ProtocolPath('host_identifier', 'global')
-        host_protocol.taproom_guest_name = None
+        host_protocol.taproom_guest_name = ''
 
         host_protocol.number_of_equilibration_steps = 200000
         host_protocol.number_of_production_steps = 1000000
@@ -258,27 +251,32 @@ class HostGuestBindingAffinity(PhysicalProperty):
         host_protocol.production_output_frequency = 5000
         host_protocol.number_of_solvent_molecules = 2000
 
-        # Finally, combine all of the values together
-        subtract_reference_free_energy = SubtractValues('subtract_reference_free_energy')
-        subtract_reference_free_energy.value_b = ProtocolPath('release_free_energy', host_protocol.id)
-        subtract_reference_free_energy.value_a = ProtocolPath('reference_free_energy', host_guest_protocol.id)
+        # Sum together the free energies of the individual orientations
+        sum_protocol = AddValues(f'add_per_orientation_free_energies_{orientation_replicator.placeholder_id}')
+        sum_protocol.values = [
+            ProtocolPath('attach_free_energy', host_guest_protocol.id),
+            ProtocolPath('pull_free_energy', host_guest_protocol.id),
+            ProtocolPath('reference_free_energy', host_guest_protocol.id),
+            ProtocolPath('release_free_energy', host_protocol.id)
+        ]
 
-        subtract_host_guest_free_energy = SubtractValues('subtract_host_guest_free_energy')
-        subtract_host_guest_free_energy.value_b = ProtocolPath('result', subtract_reference_free_energy.id)
-        subtract_host_guest_free_energy.value_a = ProtocolPath('result', sum_protocol.id)
+        # Finally, combine all of the values together
+        combine_values = AddBindingFreeEnergies('combine_values')
+        combine_values.values = ProtocolPath('result', sum_protocol.id)
+        combine_values.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 
         schema.protocols = {
             host_guest_protocol.id: host_guest_protocol.schema,
-            sum_protocol.id: sum_protocol.schema,
 
             filter_host.id: filter_host.schema,
             host_protocol.id: host_protocol.schema,
 
-            subtract_reference_free_energy.id: subtract_reference_free_energy.schema,
-            subtract_host_guest_free_energy.id: subtract_host_guest_free_energy.schema
+            sum_protocol.id: sum_protocol.schema,
+            combine_values.id: combine_values.schema
         }
 
         # Define where the final values come from.
-        schema.final_value_source = ProtocolPath('result', subtract_host_guest_free_energy.id)
+        schema.final_value_source = ProtocolPath('result', combine_values.id)
+        schema.replicators = [orientation_replicator]
 
         return schema

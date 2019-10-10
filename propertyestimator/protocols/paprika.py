@@ -6,6 +6,7 @@ TODO: Add checkpointing.
 """
 import logging
 import os
+import os.path
 import shutil
 import traceback
 from queue import Queue
@@ -19,6 +20,7 @@ from paprika.io import save_restraints
 from paprika.restraints import amber
 from paprika.tleap import System
 from paprika.utils import index_from_mask
+from propertyestimator.utils.utils import temporarily_change_directory
 from simtk.openmm import XmlSerializer
 from simtk.openmm.app import AmberPrmtopFile, HBonds, PME, PDBFile
 
@@ -156,9 +158,9 @@ class BasePaprikaProtocol(BaseProtocol):
 
         self._taproom_host_name = None
         self._taproom_guest_name = None
-        self._taproom_guest_orientation = None
+        self._taproom_guest_orientation = ''
 
-        self._timestep = 1.0 * unit.femtosecond
+        self._timestep = 2.0 * unit.femtosecond
 
         self._number_of_equilibration_steps = 200000
         self._equilibration_output_frequency = 5000
@@ -240,7 +242,7 @@ class BasePaprikaProtocol(BaseProtocol):
             solvate_complex.box_aspect_ratio = self._simulation_box_aspect_ratio
             solvate_complex.center_solute_in_box = False
 
-            if self._number_of_solvent_molecules < 10:
+            if self._number_of_solvent_molecules < 20:
                 solvate_complex.mass_density = 0.005 * unit.grams / unit.milliliters
 
             solvate_complex.substance = filter_solvent.filtered_substance
@@ -646,7 +648,6 @@ class BasePaprikaProtocol(BaseProtocol):
 
         # Make sure the available resources are commensurate with the
         # implemented parallelisation scheme.
-
         if (available_resources.number_of_gpus > 0 and
             available_resources.number_of_gpus != available_resources.number_of_threads):
 
@@ -664,26 +665,39 @@ class BasePaprikaProtocol(BaseProtocol):
             return PropertyEstimatorException(directory, 'Only SMIRNOFF and TLeap based force fields may '
                                                          'be used with this protocol.')
 
-        if self.setup:
+        # Work around for the lack of support for non-optional arguments.
+        if len(self._taproom_guest_name) == 0:
+            self._taproom_guest_name = None
+        if len(self._taproom_guest_orientation) == 0:
+            self._taproom_guest_orientation = None
 
-            error = self._setup(directory, available_resources)
+        with temporarily_change_directory(directory):
 
-            if error is not None:
-                return error
+            original_force_field_path = self._force_field_path
+            self._force_field_path = os.path.relpath(original_force_field_path, directory)
 
-        if self.simulate:
+            if self.setup:
 
-            error = self._simulate(directory, available_resources)
+                error = self._setup('', available_resources)
 
-            if error is not None:
-                return error
+                if error is not None:
+                    return error
 
-        if self.analyze:
+            if self.simulate:
 
-            error = self._analyse(directory)
+                error = self._simulate('', available_resources)
 
-            if error is not None:
-                return error
+                if error is not None:
+                    return error
+
+            if self.analyze:
+
+                error = self._analyse('')
+
+                if error is not None:
+                    return error
+
+            self._force_field_path = original_force_field_path
 
         return self._get_output_dictionary()
 
