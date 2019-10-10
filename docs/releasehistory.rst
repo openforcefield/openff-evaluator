@@ -19,7 +19,7 @@ This release adds...
 New Features
 """"""""""""
 
-* PR `#X <https://github.com/openforcefield/propertyestimator/pull/X>`_: Adds ...
+* PR `#123 <https://github.com/openforcefield/propertyestimator/pull/123>`_: Adds better support for dask-jobqueue config files.
 
 Bugfixes
 """"""""
