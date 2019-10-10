@@ -15,10 +15,10 @@ def test_add_binding_free_energies_protocol():
 
     compute_resources = ComputeResources(number_of_threads=1)
 
-    delta_g_one = EstimatedQuantity(10.0 * unit.kilocalorie / unit.mole,
+    delta_g_one = EstimatedQuantity(-10.0 * unit.kilocalorie / unit.mole,
                                     1.0 * unit.kilocalorie / unit.mole, 'test_source_1')
 
-    delta_g_two = EstimatedQuantity(20.0 * unit.kilocalorie / unit.mole,
+    delta_g_two = EstimatedQuantity(-20.0 * unit.kilocalorie / unit.mole,
                                     2.0 * unit.kilocalorie / unit.mole, 'test_source_2')
 
     thermodynamic_state = ThermodynamicState(298 * unit.kelvin, 1 * unit.atmosphere)
@@ -44,11 +44,11 @@ def test_add_binding_free_energy_protocol_cycle_convergence(cycle_exponent):
 
     compute_resources = ComputeResources(number_of_threads=1)
 
-    delta_g_one = EstimatedQuantity((10.0 * unit.kilocalorie / unit.mole).to(unit.kilojoule / unit.mole),
+    delta_g_one = EstimatedQuantity((-10.0 * unit.kilocalorie / unit.mole).to(unit.kilojoule / unit.mole),
                                     (1.0 * unit.kilocalorie / unit.mole).to(unit.kilojoule / unit.mole),
                                     'test_source_1')
 
-    delta_g_two = EstimatedQuantity((20.0 * unit.kilocalorie / unit.mole).to(unit.kilojoule / unit.mole),
+    delta_g_two = EstimatedQuantity((-20.0 * unit.kilocalorie / unit.mole).to(unit.kilojoule / unit.mole),
                                     (2.0 * unit.kilocalorie / unit.mole).to(unit.kilojoule / unit.mole),
                                     'test_source_2')
 
@@ -75,13 +75,13 @@ def test_add_binding_enthalpies_protocol():
 
     compute_resources = ComputeResources(number_of_threads=1)
 
-    delta_g_one = EstimatedQuantity(10.0 * unit.kilocalorie / unit.mole,
+    delta_g_one = EstimatedQuantity(-10.0 * unit.kilocalorie / unit.mole,
                                     1.0 * unit.kilocalorie / unit.mole, 'test_source_1')
 
     delta_h_one = EstimatedQuantity(-2.0 * unit.kilocalorie / unit.mole,
                                     1.0 * unit.kilocalorie / unit.mole, 'test_source_1')
 
-    delta_g_two = EstimatedQuantity(20.0 * unit.kilocalorie / unit.mole,
+    delta_g_two = EstimatedQuantity(-20.0 * unit.kilocalorie / unit.mole,
                                     2.0 * unit.kilocalorie / unit.mole, 'test_source_2')
 
     delta_h_two = EstimatedQuantity(-4.0 * unit.kilocalorie / unit.mole,
