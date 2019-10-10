@@ -217,7 +217,6 @@ class BasePaprikaProtocol(BaseProtocol):
 
         reference_structure_path = None
 
-        # TODO: Parallelize using thread pools.
         for index, window_file_path in enumerate(self._paprika_setup.desolvated_window_paths):
 
             window_directory = os.path.dirname(window_file_path)
@@ -303,9 +302,11 @@ class BasePaprikaProtocol(BaseProtocol):
 
     def _setup_restraints(self):
 
-        self._paprika_setup.static_restraints, self._paprika_setup.conformational_restraints, \
-        self._paprika_setup.symmetry_restraints, self._paprika_setup.wall_restraints, \
-        self._paprika_setup.guest_restraints = \
+        (self._paprika_setup.static_restraints,
+         self._paprika_setup.conformational_restraints,
+         self._paprika_setup.symmetry_restraints,
+         self._paprika_setup.wall_restraints,
+         self._paprika_setup.guest_restraints) = \
             self._paprika_setup.initialize_restraints(self._solvated_coordinate_paths[0])
 
     def _apply_parameters(self):
