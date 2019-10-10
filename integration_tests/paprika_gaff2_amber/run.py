@@ -1,84 +1,63 @@
 #!/usr/bin/env python
-import logging
-import os as os
+import json
 
+from integration_tests.utils import setup_server, BackendType
 from propertyestimator import unit
-
-from integration_tests.utils import get_paprika_host_guest_substance
-from propertyestimator.backends import ComputeResources
-from propertyestimator.protocols.paprika import AmberPaprikaProtocol
-from propertyestimator.thermodynamics import ThermodynamicState
+from propertyestimator.client import PropertyEstimatorClient, PropertyEstimatorOptions
+from propertyestimator.datasets.taproom import TaproomDataSet
+from propertyestimator.forcefield import TLeapForceFieldSource
 from propertyestimator.utils import setup_timestamp_logging
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.serialization import TypedJSONEncoder
+from propertyestimator.workflow import WorkflowOptions
 
 
 def main():
-    """An integrated test of calculating the gradients of observables with
-    respect to force field parameters using the property estimator"""
+
     setup_timestamp_logging()
 
-    host = 'cb6'
-    guest = 'but'
+    # Load in the force field
+    force_field = TLeapForceFieldSource(leap_source='leaprc.gaff2',
+                                        cutoff=9.0 * unit.angstrom)
 
-    # Set up the object which describes how many compute resources available
-    # on the machine on which the calculations will run.
-    resources = ComputeResources(number_of_threads=4, number_of_gpus=4,
-                                 preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA)
+    # Load in the data set, retaining only a specific host / guest pair.
+    host = 'acd'
+    guest = 'bam'
 
-    # Set up the state at which we want the calculations to be performed.
-    thermodynamic_state = ThermodynamicState(temperature=298.15 * unit.kelvin,
-                                             pressure=1.0 * unit.atmosphere)
+    data_set = TaproomDataSet()
 
-    # Set up the substance definitions.
-    host_guest_substance = get_paprika_host_guest_substance(host, guest)
-    host_substance = get_paprika_host_guest_substance(host, None)
+    data_set.filter_by_host_identifiers(host)
+    data_set.filter_by_guest_identifiers(guest)
 
-    # Set up the required directories.
-    host_guest_directory = 'paprika_attach_pull'
-    os.makedirs(host_guest_directory, exist_ok=True)
+    # Set up the server object which run the calculations.
+    setup_server(backend_type=BackendType.LocalGPU, max_number_of_workers=1)
 
-    host_directory = 'paprika_release'
-    os.makedirs(host_directory, exist_ok=True)
+    # Set any calculation options, making sure to swap the default OpenMM backend
+    # with the amber one.
+    options = PropertyEstimatorOptions()
+    options.allowed_calculation_layers = ['SimulationLayer']
 
-    # Create the protocol which will run the attach pull calculations
-    host_guest_protocol = AmberPaprikaProtocol('host_guest')
+    workflow_options = WorkflowOptions(convergence_mode=WorkflowOptions.ConvergenceMode.NoChecks,
+                                       protocol_replacements={'OpenMMPaprikaProtocol': 'AmberPaprikaProtocol'})
 
-    host_guest_protocol.substance = host_guest_substance
-    host_guest_protocol.thermodynamic_state = thermodynamic_state
+    options.workflow_options = {'HostGuestBindingAffinity': {'SimulationLayer': workflow_options}}
 
-    host_guest_protocol.taproom_host_name = host
-    host_guest_protocol.taproom_guest_name = guest
+    # Request the estimate of the host-guest binding affinity.
+    estimator_client = PropertyEstimatorClient()
 
-    host_guest_protocol.force_field = AmberPaprikaProtocol.ForceField.GAFF2
+    request = estimator_client.request_estimate(property_set=data_set,
+                                                force_field_source=force_field,
+                                                options=options)
 
-    result = host_guest_protocol.execute(host_guest_directory, resources)
-    
-    if isinstance(result, PropertyEstimatorException):
-        
-        logging.info(f'The attach / pull calculations failed with error: {result.message}')
-        return
+    # Wait for the results.
+    results = request.results(True, 30)
 
-    # Create the protocol which will run the release calculations
-    host_protocol = AmberPaprikaProtocol('host')
+    # Save the result to file.
+    with open('results.json', 'wb') as file:
 
-    host_protocol.substance = host_substance
-    host_protocol.thermodynamic_state = thermodynamic_state
+        json_results = json.dumps(results, sort_keys=True, indent=2,
+                                  separators=(',', ': '), cls=TypedJSONEncoder)
 
-    host_protocol.taproom_host_name = host
-    host_protocol.taproom_name = None
-
-    host_protocol.force_field = AmberPaprikaProtocol.ForceField.GAFF2
-
-    result = host_protocol.execute(host_directory, resources)
-
-    if isinstance(result, PropertyEstimatorException):
-        logging.info(f'The release calculations failed with error: {result.message}')
-        return
-
-    logging.info(f'Attach={host_guest_protocol.attach_free_energy} '
-                 f'Pull={host_guest_protocol.pull_free_energy} '
-                 f'Release={host_protocol.release_free_energy} '
-                 f'Reference={host_guest_protocol.reference_free_energy}')
+        file.write(json_results.encode('utf-8'))
 
 
 if __name__ == "__main__":

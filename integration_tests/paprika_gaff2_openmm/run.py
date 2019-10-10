@@ -1,131 +1,62 @@
 #!/usr/bin/env python
-import logging
-import os as os
+import json
 
+from integration_tests.utils import setup_server, BackendType
 from propertyestimator import unit
-
-from integration_tests.utils import get_paprika_host_guest_substance
-from propertyestimator.backends import ComputeResources
-from propertyestimator.protocols.paprika import OpenMMPaprikaProtocol
-from propertyestimator.thermodynamics import ThermodynamicState
+from propertyestimator.client import PropertyEstimatorClient, PropertyEstimatorOptions
+from propertyestimator.datasets.taproom import TaproomDataSet
+from propertyestimator.forcefield import TLeapForceFieldSource
 from propertyestimator.utils import setup_timestamp_logging
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.serialization import TypedJSONEncoder
+from propertyestimator.workflow import WorkflowOptions
 
 
 def main():
-    """An integrated test of calculating the gradients of observables with
-    respect to force field parameters using the property estimator"""
+
     setup_timestamp_logging()
 
+    # Load in the force field
+    force_field = TLeapForceFieldSource(leap_source='leaprc.gaff2',
+                                        cutoff=9.0 * unit.angstrom)
+
+    # Load in the data set, retaining only a specific host / guest pair.
     host = 'acd'
     guest = 'bam'
 
-    # Set up the object which describes how many compute resources available
-    # on the machine on which the calculations will run.
-    resources = ComputeResources(number_of_threads=1, number_of_gpus=0,
-                                 preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA)
+    data_set = TaproomDataSet()
 
+    data_set.filter_by_host_identifiers(host)
+    data_set.filter_by_guest_identifiers(guest)
 
-    # Set up the state at which we want the calculations to be performed.
-    thermodynamic_state = ThermodynamicState(temperature=298.15 * unit.kelvin,
-                                             pressure=1.0 * unit.atmosphere)
+    # Set up the server object which run the calculations.
+    setup_server(backend_type=BackendType.LocalGPU, max_number_of_workers=1)
 
-    host_guest_substances, host_guest_orientations = get_paprika_host_guest_substance(host, guest)
-    host_substance, _ = get_paprika_host_guest_substance(host, None)[0]
+    # Request the estimate of the host-guest binding affinity.
+    options = PropertyEstimatorOptions()
+    options.allowed_calculation_layers = ['SimulationLayer']
 
-    substance_results = []
-    for substance, orientation in zip(host_guest_substances, host_guest_orientations):
+    options.workflow_options = {
+        'HostGuestBindingAffinity': {
+            'SimulationLayer': WorkflowOptions(convergence_mode=WorkflowOptions.ConvergenceMode.NoChecks),
+        }
+    }
 
-        # Create the protocol which will run the attach pull calculations
-        host_guest_protocol = OpenMMPaprikaProtocol(f'host_guest-{orientation}')
+    estimator_client = PropertyEstimatorClient()
 
-        host_guest_protocol.substance = substance
-        host_guest_protocol.taproom_guest_orientation = orientation
+    request = estimator_client.request_estimate(property_set=data_set,
+                                                force_field_source=force_field,
+                                                options=options)
 
-        # Set up the required directories.
-        host_guest_directory = f'{host}-{guest}-{orientation}'
-        os.makedirs(host_guest_directory, exist_ok=True)
+    # Wait for the results.
+    results = request.results(True, 30)
 
-        host_guest_protocol.thermodynamic_state = thermodynamic_state
+    # Save the result to file.
+    with open('results.json', 'wb') as file:
 
-        host_guest_protocol.number_of_equilibration_steps = 50
-        host_guest_protocol.number_of_production_steps = 50
-        host_guest_protocol.equilibration_output_frequency = 1
-        host_guest_protocol.production_output_frequency = 1
-        host_guest_protocol.number_of_solvent_molecules = 2
+        json_results = json.dumps(results, sort_keys=True, indent=2,
+                                  separators=(',', ': '), cls=TypedJSONEncoder)
 
-        host_guest_protocol.taproom_host_name = host
-        host_guest_protocol.taproom_guest_name = guest
-
-        host_guest_protocol.force_field = OpenMMPaprikaProtocol.ForceField.GAFF2
-
-
-
-        host_guest_protocol.setup = False
-        host_guest_protocol.simulate = False
-        host_guest_protocol.analyze = True
-
-        result = host_guest_protocol.execute(host_guest_directory, resources)
-
-        if isinstance(result, PropertyEstimatorException):
-            logging.info(f'The attach / pull calculations failed with error: {result.message}')
-            return
-
-        substance_results.append(host_guest_protocol)
-
-    if len(host_guest_substances) > 1:
-
-        from propertyestimator.protocols.binding import AddBindingFreeEnergies
-
-        sum_protocol = AddBindingFreeEnergies("add_binding_free_energies")
-
-        free_energies = [result.attach_free_energy + result.pull_free_energy for result in substance_results]
-        for result in substance_results:
-            string = [f"Attach = {result.attach_free_energy.value.to(unit.kilocalorie / unit.mole):0.2f~P} ± {result.attach_free_energy.uncertainty.to(unit.kilocalorie / unit.mole):0.2f~P}",
-                     f"Pull = {result.pull_free_energy.value.to(unit.kilocalorie / unit.mole):0.2f~P} ± {result.pull_free_energy.uncertainty.to(unit.kilocalorie / unit.mole):0.2f~P}"]
-            [logging.info(i) for i in string]
-        string = [f"Attach + Pull 1 = {free_energies[0].value.to(unit.kilocalorie / unit.mole):0.2f~P} ± {free_energies[0].uncertainty.to(unit.kilocalorie / unit.mole):0.2f~P}",
-                 f"Attach + Pull 2 = {free_energies[1].value.to(unit.kilocalorie / unit.mole):0.2f~P} ± {free_energies[1].uncertainty.to(unit.kilocalorie / unit.mole):0.2f~P}"]
-        [logging.info(i) for i in string]
-
-        sum_protocol.values = free_energies
-        sum_protocol.thermodynamic_state = thermodynamic_state
-
-        sum_protocol.execute('', resources)
-
-    host_directory = f'{host}'
-    os.makedirs(host_directory, exist_ok=True)
-
-    # Create the protocol which will run the release calculations
-    host_protocol = OpenMMPaprikaProtocol('host')
-
-    host_protocol.substance = host_substance
-    host_protocol.thermodynamic_state = thermodynamic_state
-
-    host_protocol.taproom_host_name = host
-    host_protocol.taproom_name = None
-
-    host_protocol.number_of_equilibration_steps = 50
-    host_protocol.number_of_production_steps = 50
-    host_protocol.equilibration_output_frequency = 25
-    host_protocol.production_output_frequency = 1
-    host_protocol.number_of_solvent_molecules = 2
-
-    host_protocol.setup = False
-    host_protocol.simulate = False
-    host_protocol.analyze = True
-
-    host_protocol.force_field = OpenMMPaprikaProtocol.ForceField.GAFF2
-
-    result = host_protocol.execute(host_directory, resources)
-
-    if isinstance(result, PropertyEstimatorException):
-        logging.info(f'The release calculations failed with error: {result.message}')
-        return
-
-    logging.info(f"Attach and Pull={sum_protocol.result} "
-                 f"Release={host_protocol.release_free_energy} "
-                 f'Reference={host_guest_protocol.reference_free_energy}')
+        file.write(json_results.encode('utf-8'))
 
 
 if __name__ == "__main__":

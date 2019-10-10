@@ -29,6 +29,7 @@ def test_dask_lsf_creation():
                                  setup_script_commands=gpu_commands)
 
     gpu_backend.start()
+    assert 'module load cuda/9.2' in gpu_backend._cluster.job_script()
     gpu_backend.stop()
 
 
