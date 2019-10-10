@@ -4,6 +4,7 @@ A collection of protocols for running molecular simulations.
 import logging
 import math
 import os
+import shutil
 import traceback
 
 import numpy as np
