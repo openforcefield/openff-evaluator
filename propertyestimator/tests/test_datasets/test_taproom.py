@@ -1,10 +1,18 @@
 """
 Units tests for propertyestimator.datasets
 """
-
+import pytest
 from propertyestimator.datasets.taproom import TaproomDataSet
 
+has_taproom = True
 
+try:
+    import taproom
+except ImportError:
+    has_taproom = False
+
+
+@pytest.mark.skipif(not has_taproom, reason='The optional `taproom` package is not installed.')
 def test_initialization():
     """Test the initialization of a TaproomDataSet."""
 
@@ -14,6 +22,7 @@ def test_initialization():
     assert len(data_set.properties) > 0
 
 
+@pytest.mark.skipif(not has_taproom, reason='The optional `taproom` package is not installed.')
 def test_filtering():
     """Test filtering the data set"""
 
