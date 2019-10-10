@@ -11,6 +11,35 @@ Releases will eventually follow the ``major.minor.micro`` scheme recommended by
 All early releases however will simply recieve a ``micro`` version bump regardless of
 how major the changes may be.
 
+0.0.6 - 
+--------------------------------------------
+
+This release adds...
+
+New Features
+""""""""""""
+
+* PR `#X <https://github.com/openforcefield/propertyestimator/pull/X>`_: Adds ...
+
+Bugfixes
+""""""""
+
+* PR `#X <https://github.com/openforcefield/propertyestimator/pull/X>`_: Fixes ...
+
+Breaking Changes
+""""""""""""""""
+
+* PR `#X <https://github.com/openforcefield/propertyestimator/pull/X>`_: Changes ...
+
+Migration Guide
+"""""""""""""""
+
+This release contained several public API breaking changes. For the most part, these can be
+remedied by the follow steps:
+
+* ...
+
+
 0.0.5 - Fix For Merging of Estimation Requests
 ----------------------------------------------
 
