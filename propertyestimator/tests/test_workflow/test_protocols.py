@@ -14,7 +14,7 @@ from propertyestimator.backends import ComputeResources
 from propertyestimator.properties.dielectric import ExtractAverageDielectric
 from propertyestimator.protocols.analysis import ExtractAverageStatistic, ExtractUncorrelatedTrajectoryData, \
     ExtractUncorrelatedStatisticsData
-from propertyestimator.protocols.binding import AddBindingFreeEnergies, AddBindingEnthalpies
+from propertyestimator.protocols.miscellaneous import AddBindingFreeEnergies, AddBindingEnthalpies
 from propertyestimator.protocols.coordinates import BuildCoordinatesPackmol, SolvateExistingStructure
 from propertyestimator.protocols.forcefield import BuildSmirnoffSystem
 from propertyestimator.protocols.forcefield import BuildTLeapSystem

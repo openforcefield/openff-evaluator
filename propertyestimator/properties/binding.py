@@ -5,8 +5,6 @@ A collection of density physical property definitions.
 from propertyestimator.properties import PhysicalProperty
 from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.protocols import coordinates, forcefield, miscellaneous, yank
-from propertyestimator.protocols.binding import AddBindingFreeEnergies
-from propertyestimator.protocols.miscellaneous import AddValues
 from propertyestimator.protocols.paprika import OpenMMPaprikaProtocol
 from propertyestimator.substances import Substance
 from propertyestimator.workflow import WorkflowOptions
@@ -252,7 +250,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
         host_protocol.number_of_solvent_molecules = 2000
 
         # Sum together the free energies of the individual orientations
-        sum_protocol = AddValues(f'add_per_orientation_free_energies_{orientation_replicator.placeholder_id}')
+        sum_protocol = miscellaneous.AddValues(f'add_per_orientation_free_energies_'
+                                               f'{orientation_replicator.placeholder_id}')
         sum_protocol.values = [
             ProtocolPath('attach_free_energy', host_guest_protocol.id),
             ProtocolPath('pull_free_energy', host_guest_protocol.id),
@@ -261,7 +260,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         ]
 
         # Finally, combine all of the values together
-        combine_values = AddBindingFreeEnergies('combine_values')
+        combine_values = miscellaneous.AddBindingFreeEnergies('combine_values')
         combine_values.values = ProtocolPath('result', sum_protocol.id)
         combine_values.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 
