@@ -322,16 +322,21 @@ class DaskLSFBackend(BaseDaskBackend):
         lsf_units = lsf_detect_units()
         memory_string = f'{lsf_format_bytes_ceil(memory_bytes, lsf_units=lsf_units)}{lsf_units.upper()}'
 
-        job_extra = []
+        job_extra = dask.config.get('jobqueue.lsf.job-extra', default=[])
 
         if self._resources_per_worker.number_of_gpus > 0:
 
-            job_extra = [
+            job_extra.append(
                 '-gpu num={}:j_exclusive=yes:mode=shared:mps=no:'.format(self._resources_per_worker.number_of_gpus)
-            ]
+            )
 
         if self._extra_script_options is not None:
             job_extra.extend(self._extra_script_options)
+
+        env_extra = dask.config.get('jobqueue.lsf.env-extra', default=[])
+
+        if self._setup_script_commands is not None:
+            env_extra.extend(self._setup_script_commands)
 
         extra = None if not self._disable_nanny_process else ['--no-nanny']
 
@@ -341,7 +346,7 @@ class DaskLSFBackend(BaseDaskBackend):
                                    memory=memory_string,
                                    mem=memory_bytes,
                                    job_extra=job_extra,
-                                   env_extra=self._setup_script_commands,
+                                   env_extra=env_extra,
                                    extra=extra,
                                    local_directory='dask-worker-space')
 
