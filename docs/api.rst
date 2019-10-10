@@ -295,8 +295,30 @@ Built-in Workflow Protocols
 
     RunEnergyMinimisation
     RunOpenMMSimulation
+
+
+**pAPRika**
+
+.. currentmodule:: propertyestimator.protocols.paprika
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    BasePaprikaProtocol
+    OpenMMPaprikaProtocol
+    AmberPaprikaProtocol
+
+
+**Yank**
+
+.. currentmodule:: propertyestimator.protocols.yank
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
     BaseYankProtocol
     LigandReceptorYankProtocol
+
 
 **Simulation Analysis**
 
@@ -373,6 +395,9 @@ Built-in Workflow Protocols
     FilterSubstanceByRole
     BaseWeightByMoleFraction
     WeightByMoleFraction
+    AddBindingFreeEnergies
+    AddBindingEnthalpies
+
 
 Workflow Construction Utilities
 -------------------------------

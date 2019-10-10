@@ -3,6 +3,7 @@ channels:
   - conda-forge
   - omnia
   - openeye
+  - ambermd
 dependencies:
     # Base depends
   - python >=3.6
@@ -17,6 +18,7 @@ dependencies:
   - openeye-toolkits
 
     # Standard dependencies
+  - ambertools ==19.0
   - openforcefield ==0.4.0
   - smirnoff99frosst
   - numpy

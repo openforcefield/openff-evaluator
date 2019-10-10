@@ -14,12 +14,6 @@ from subprocess import Popen
 from threading import Thread
 
 import numpy as np
-import paprika
-from paprika.amber import Simulation
-from paprika.io import save_restraints
-from paprika.restraints import amber
-from paprika.tleap import System
-from paprika.utils import index_from_mask
 from propertyestimator.utils.utils import temporarily_change_directory
 from simtk.openmm import XmlSerializer
 from simtk.openmm.app import AmberPrmtopFile, HBonds, PME, PDBFile
@@ -192,6 +186,8 @@ class BasePaprikaProtocol(BaseProtocol):
 
     def _setup_paprika(self, directory):
 
+        import paprika
+
         generate_gaff_files = isinstance(self._force_field_source, TLeapForceFieldSource)
 
         gaff_version = 'gaff2'
@@ -283,6 +279,7 @@ class BasePaprikaProtocol(BaseProtocol):
     def _apply_restraint_masks(self, use_amber_indices):
 
         import parmed as pmd
+        from paprika.utils import index_from_mask
 
         for index, window in enumerate(self._paprika_setup.window_list):
 
@@ -365,6 +362,8 @@ class BasePaprikaProtocol(BaseProtocol):
                 file.write(dummy_mol2_template.format(dummy_name))
 
     def _build_amber_parameters(self, index, window_directory):
+
+        from paprika.tleap import System
 
         window_directory_to_base = os.path.relpath(
             os.path.abspath(self._paprika_setup.directory), window_directory)
@@ -539,6 +538,8 @@ class BasePaprikaProtocol(BaseProtocol):
 
     def _setup(self, directory, available_resources):
 
+        from paprika.io import save_restraints
+
         # Create a new setup object which will load in a pAPRika host
         # and guest yaml file, setup a directory structure for the
         # paprika calculations, and create a set of coordinates for
@@ -584,6 +585,8 @@ class BasePaprikaProtocol(BaseProtocol):
 
     def _simulate(self, directory, available_resources):
 
+        import paprika
+
         if not self._paprika_setup:
             self._paprika_setup = paprika.setup(host=self._taproom_host_name,
                                                 guest=self._taproom_guest_name,
@@ -626,6 +629,8 @@ class BasePaprikaProtocol(BaseProtocol):
             return result
 
     def _analyse(self, directory):
+
+        import paprika
 
         if not self._paprika_setup:
 
@@ -920,6 +925,8 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
     def _perform_analysis(self, directory):
 
+        import paprika
+
         self._results_dictionary = paprika.analyze(host=self._paprika_setup.host,
                                                    guest=self._paprika_setup.guest,
                                                    guest_orientation=self._taproom_guest_orientation,
@@ -943,6 +950,8 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
         super().__init__(protocol_id)
 
     def _setup_restraints(self):
+
+        from paprika.restraints import amber
 
         super(AmberPaprikaProtocol, self)._setup_restraints()
 
@@ -992,6 +1001,8 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
 
     @staticmethod
     def _run_window(queue):
+
+        from paprika.amber import Simulation
 
         while True:
 
@@ -1166,6 +1177,8 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             queue.task_done()
 
     def _perform_analysis(self, directory):
+
+        import paprika
 
         self._results_dictionary = paprika.analyze(host=self._paprika_setup.host,
                                                    guest=self._paprika_setup.guest,
