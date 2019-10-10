@@ -10,6 +10,7 @@ from propertyestimator import unit
 from propertyestimator.backends import ComputeResources, DaskLocalCluster
 from propertyestimator.client import PropertyEstimatorClient, PropertyEstimatorOptions, ConnectionOptions
 from propertyestimator.datasets import PhysicalPropertyDataSet
+from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.properties import CalculationSource, PropertyPhase, ParameterGradientKey, \
     Density
 from propertyestimator.protocols import coordinates, simulation, groups
@@ -96,7 +97,7 @@ def test_full_gradient_workflow():
 
     with tempfile.TemporaryDirectory() as temporary_directory:
 
-        force_field = smirnoff.ForceField('smirnoff99Frosst-1.1.0.offxml')
+        force_field = SmirnoffForceFieldSource.from_path('smirnoff99Frosst-1.1.0.offxml')
 
         storage_directory = path.join(temporary_directory, 'storage')
         working_directory = path.join(temporary_directory, 'working')

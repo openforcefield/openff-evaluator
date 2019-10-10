@@ -26,12 +26,13 @@ dependencies:
   - packmol
   - pymbar
   - mdtraj
-  - dask ==2.3.0
-  - distributed ==2.3.2
-  - dask-jobqueue ==0.6.3
+  - dask >=2.5.0
+  - distributed >=2.5.1
+  - dask-jobqueue >=0.6.3
   - tornado
   - coverage >=4.4
   - uncertainties
   - openmmtools
   - yank
   - pyyaml
+  - requests

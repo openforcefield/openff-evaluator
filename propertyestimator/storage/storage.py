@@ -6,8 +6,10 @@ import hashlib
 import uuid
 from os import path
 
+from propertyestimator.forcefield import ForceFieldSource
 from propertyestimator.storage import StoredSimulationData
 from propertyestimator.storage.dataclasses import BaseStoredData
+from propertyestimator.utils.string import sanitize_smiles_file_name
 
 
 class PropertyEstimatorStorage:
@@ -147,12 +149,12 @@ class PropertyEstimatorStorage:
 
     @staticmethod
     def _force_field_to_hash(force_field):
-        """Converts a ForceField object to a hash
+        """Converts a ForceFieldSource object to a hash
         string.
 
         Parameters
         ----------
-        force_field: ForceField
+        force_field: ForceFieldSource
             The force field to hash.
 
         Returns
@@ -160,7 +162,7 @@ class PropertyEstimatorStorage:
         str
             The hash key of the force field.
         """
-        force_field_string = force_field.to_string(discard_cosmetic_attributes=True)
+        force_field_string = force_field.json()
         return hashlib.sha256(force_field_string.encode()).hexdigest()
 
     def has_force_field(self, force_field):
@@ -169,7 +171,7 @@ class PropertyEstimatorStorage:
 
         Parameters
         ----------
-        force_field: ForceField
+        force_field: ForceFieldSource
             The force field to check for.
 
         Returns
@@ -208,20 +210,21 @@ class PropertyEstimatorStorage:
 
         Returns
         -------
-        openforcefield.typing.engines.smirnoff.ForceField, optional
+        ForceFieldSource, optional
             The force field if present in the storage system with the given key, otherwise None.
         """
-        from openforcefield.typing.engines.smirnoff import ForceField
-
         force_field_key = 'force_field_{}'.format(unique_id)
-        serialized_force_field = self._retrieve_object(force_field_key)
+        force_field_source = self._retrieve_object(force_field_key)
 
-        if serialized_force_field is None:
+        if force_field_source is None:
 
             raise KeyError(f'The force field with id {unique_id} does not exist '
                            f'in the storage system.')
 
-        return ForceField(serialized_force_field)
+        if not isinstance(force_field_source, ForceFieldSource):
+            raise ValueError(f'The stored force field is invalid.')
+
+        return force_field_source
 
     def store_force_field(self, force_field):
         """Store the force field in the cached force field
@@ -229,7 +232,7 @@ class PropertyEstimatorStorage:
 
         Parameters
         ----------
-        force_field: openforcefield.typing.engines.smirnoff.ForceField
+        force_field: ForceFieldSource
             The force field to store.
 
         Returns
@@ -250,7 +253,7 @@ class PropertyEstimatorStorage:
 
         # We make sure to strip the cosmetic attributes from the stored FF as these should
         # not affect the science of the FF, and aren't currently consumed by the estimator.
-        self._store_object(force_field_key, force_field.to_string(discard_cosmetic_attributes=True))
+        self._store_object(force_field_key, force_field)
 
         # Make sure to hash the force field for easy access.
         if (unique_id not in self._force_field_id_map or
@@ -284,8 +287,8 @@ class PropertyEstimatorStorage:
 
                 self._simulation_data_by_substance[substance_id].append(unique_id)
 
-        # Store a fresh copy of the hashes so that only force fields that
-        # exist are actually referenced.
+        # Store a fresh copy of the hashes so that only data that
+        # exists is actually referenced.
         self._save_simulation_data_map()
 
     def _save_simulation_data_map(self):
@@ -393,7 +396,8 @@ class PropertyEstimatorStorage:
 
         if existing_data_key is None:
 
-            existing_data_key = "{}_{}".format(substance_id, uuid.uuid4())
+            sanitized_id = sanitize_smiles_file_name(substance_id)
+            existing_data_key = "{}_{}".format(sanitized_id, uuid.uuid4())
             data_to_store = data_object
 
         self._store_object(existing_data_key, data_to_store)

@@ -609,6 +609,61 @@ class WorkflowSchema(TypedBaseModel):
 
         return ProtocolPath.from_string(full_unreplicated_path)
 
+    def replace_protocol_types(self, protocol_replacements, protocol_group_schema=None):
+        """Replaces protocols with given types with other protocols
+        of specified replacements. This is useful when replacing
+        the default protocols with custom ones, or swapping out base
+        protocols with actual implementations
+
+        Warnings
+        --------
+        This method is NOT fully implemented and is likely to fail in
+        all but a few specific cases. This method should be used with
+        extreme caution.
+
+        Parameters
+        ----------
+        protocol_replacements: dict of str and str, None
+            A dictionary with keys of the types of protocols which should be replaced
+            with those protocols named by the values.
+        protocol_group_schema: ProtocolGroupSchema
+            The protocol group to apply the replacements to. This
+            is mainly used when applying this method recursively.
+        """
+
+        if protocol_replacements is None:
+            return
+
+        if protocol_group_schema is None:
+            protocol_schemas = self.protocols
+        else:
+            protocol_schemas = protocol_group_schema.grouped_protocol_schemas
+
+        for protocol_schema_key in protocol_schemas:
+
+            protocol_schema = protocol_schemas[protocol_schema_key]
+
+            if protocol_schema.type not in protocol_replacements:
+                continue
+
+            protocol = available_protocols[protocol_schema.type](protocol_schema.id)
+            protocol.schema = protocol_schema
+
+            new_protocol = available_protocols[protocol_replacements[protocol_schema.type]](protocol_schema.id)
+
+            for input_path in new_protocol.required_inputs:
+
+                if input_path not in protocol.required_inputs:
+                    continue
+
+                value = protocol.get_value(input_path)
+                new_protocol.set_value(input_path, value)
+
+            protocol_schemas[protocol_schema_key] = new_protocol.schema
+
+            if isinstance(protocol_schemas[protocol_schema_key], ProtocolGroupSchema):
+                self.replace_protocol_types(protocol_replacements, protocol_schemas[protocol_schema_key])
+
     def _validate_replicators(self):
 
         for replicator in self.replicators:

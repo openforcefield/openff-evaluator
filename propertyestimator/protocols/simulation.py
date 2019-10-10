@@ -474,7 +474,6 @@ class RunOpenMMSimulation(BaseProtocol):
         integrator: simtk.openmm.Integrator
             The integrator to evolve the simulation with.
         """
-        import mdtraj
 
         # Build the reporters which we will use to report the state
         # of the simulation.
@@ -484,13 +483,28 @@ class RunOpenMMSimulation(BaseProtocol):
         with open(os.path.join(directory, 'input.pdb'), 'w+') as configuration_file:
             app.PDBFile.writeFile(input_pdb_file.topology, input_pdb_file.positions, configuration_file)
 
-        trajectory_file_object = open(self._temporary_trajectory_path, 'wb')
+        # Make a copy of the existing trajectory to append to if one already exists.
+        append_trajectory = False
+
+        if os.path.isfile(self._trajectory_file_path):
+
+            shutil.copyfile(self._trajectory_file_path, self._temporary_trajectory_path)
+            append_trajectory = True
+
+        elif os.path.isfile(self._temporary_trajectory_path):
+            os.unlink(self._temporary_trajectory_path)
+
+        if append_trajectory:
+            trajectory_file_object = open(self._temporary_trajectory_path, 'r+b')
+        else:
+            trajectory_file_object = open(self._temporary_trajectory_path, 'w+b')
+
         trajectory_dcd_object = app.DCDFile(trajectory_file_object,
                                             topology,
                                             integrator.getStepSize(),
                                             0,
                                             self._output_frequency,
-                                            False)
+                                            append_trajectory)
 
         expected_number_of_statistics = math.ceil(self.steps / self.output_frequency)
 
@@ -593,20 +607,7 @@ class RunOpenMMSimulation(BaseProtocol):
 
         # Move the trajectory and statistics files to their
         # final location.
-        if not os.path.isfile(self._trajectory_file_path):
-            os.replace(self._temporary_trajectory_path, self._trajectory_file_path)
-        else:
-            mdtraj_topology = mdtraj.Topology.from_openmm(topology)
-
-            existing_trajectory = mdtraj.load_dcd(self._trajectory_file_path, mdtraj_topology)
-            current_trajectory = mdtraj.load_dcd(self._temporary_trajectory_path, mdtraj_topology)
-
-            concatenated_trajectory = mdtraj.join([existing_trajectory,
-                                                   current_trajectory],
-                                                   check_topology=False,
-                                                   discard_overlapping_frames=False)
-
-            concatenated_trajectory.save_dcd(self._trajectory_file_path)
+        os.replace(self._temporary_trajectory_path, self._trajectory_file_path)
 
         if not os.path.isfile(self._statistics_file_path):
             os.replace(self._temporary_statistics_path, self._statistics_file_path)

@@ -428,20 +428,20 @@ def _correct_packmol_output(file_path, molecule_topologies,
 def _create_pdb_and_topology(molecule, file_path):
     """Creates a uniform PDB file and `mdtraj.Topology` from an
     openeye molecule.
-
     Parameters
     ----------
     molecule: openeye.oechem.OEChem
         The component to create the PDB and topology for.
     file_path: str
         The path pointing to where the PDB file should be created.
-
     Returns
     -------
     mdtraj.Topology
         The topology of the created PDB file.
     """
     import mdtraj
+    from mdtraj.core import residue_names
+
     from openeye import oechem
 
     # Create a temporary mol2 file using OE, change its
@@ -461,27 +461,56 @@ def _create_pdb_and_topology(molecule, file_path):
 
         # Load in the OE created mol2 file.
         oe_mol2 = mdtraj.load_mol2(mol2_file.name)
+        smiles = oechem.OEMolToSmiles(molecule)
 
         # Choose a random residue name.
-        from mdtraj.core import residue_names
-
-        residue_name = ''.join([random.choice(string.ascii_uppercase) for _ in range(3)])
-
-        # Make sure the residue is not already reserved, as this can occasionally
-        # result in bonds being automatically added in the wrong places when
-        # loading the pdb file either through mdtraj or openmm
-        forbidden_residue_names = [*residue_names._AMINO_ACID_CODES,
-                                   *residue_names._SOLVENT_TYPES,
-                                   *residue_names._WATER_RESIDUES,
-                                   'ADE', 'CYT', 'CYX', 'DAD', 'DGU', 'FOR', 'GUA', 'HID',
-                                   'HIE', 'HIH', 'HSD', 'HSH', 'HSP', 'NMA', 'THY', 'URA']
-
-        while residue_name in forbidden_residue_names:
-            # Re-choose the residue name until we find a safe one.
-            residue_name = ''.join([random.choice(string.ascii_uppercase) for _ in range(3)])
+        residue_map = {}
 
         for residue in oe_mol2.topology.residues:
-            residue.name = residue_name
+
+            residue_map[residue.name] = None
+
+            if smiles == 'O':
+                residue_map[residue.name] = 'HOH'
+
+            elif smiles == '[Cl-]':
+
+                residue_map[residue.name] = 'Cl-'
+
+                for atom in residue.atoms:
+                    atom.name = 'Cl-'
+
+            elif smiles == '[Na+]':
+
+                residue_map[residue.name] = 'Na+'
+
+                for atom in residue.atoms:
+                    atom.name = 'Na+'
+
+        for original_residue_name in residue_map:
+
+            if residue_map[original_residue_name] is not None:
+                continue
+
+            # Make sure the residue is not already reserved, as this can occasionally
+            # result in bonds being automatically added in the wrong places when
+            # loading the pdb file either through mdtraj or openmm
+            forbidden_residue_names = [*residue_names._AMINO_ACID_CODES,
+                                       *residue_names._SOLVENT_TYPES,
+                                       *residue_names._WATER_RESIDUES,
+                                       'ADE', 'CYT', 'CYX', 'DAD', 'DGU', 'FOR', 'GUA', 'HID',
+                                       'HIE', 'HIH', 'HSD', 'HSH', 'HSP', 'NMA', 'THY', 'URA']
+
+            new_residue_name = ''.join([random.choice(string.ascii_uppercase) for _ in range(3)])
+
+            while new_residue_name in forbidden_residue_names:
+                # Re-choose the residue name until we find a safe one.
+                new_residue_name = ''.join([random.choice(string.ascii_uppercase) for _ in range(3)])
+
+            residue_map[original_residue_name] = new_residue_name
+
+        for residue in oe_mol2.topology.residues:
+            residue.name = residue_map[residue.name]
 
         # Create the final pdb file.
         oe_mol2.save_pdb(file_path)

@@ -5,6 +5,7 @@ import os
 import tempfile
 
 from propertyestimator import unit
+from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.storage import LocalFileStorage, StoredSimulationData
 from propertyestimator.storage.dataclasses import BaseStoredData, StoredDataCollection
 from propertyestimator.substances import Substance
@@ -30,32 +31,29 @@ def test_local_force_field_storage():
     """A simple test to that force fields can be stored and
     retrieved using the local storage backend."""
 
-    from openforcefield.typing.engines import smirnoff
-    force_field = smirnoff.ForceField('smirnoff99Frosst-1.1.0.offxml')
+    force_field_source = SmirnoffForceFieldSource.from_path('smirnoff99Frosst-1.1.0.offxml')
 
     with tempfile.TemporaryDirectory() as temporary_directory:
 
         local_storage = LocalFileStorage(temporary_directory)
 
-        force_field_id = local_storage.store_force_field(force_field)
+        force_field_id = local_storage.store_force_field(force_field_source)
         retrieved_force_field = local_storage.retrieve_force_field(force_field_id)
 
-        force_field_string = force_field.to_string()
-        retrieved_force_field_string = retrieved_force_field.to_string()
+        force_field_string = force_field_source.json()
+        retrieved_force_field_string = retrieved_force_field.json()
 
         assert force_field_string == retrieved_force_field_string
 
         local_storage_new = LocalFileStorage(temporary_directory)
-        assert local_storage_new.has_force_field(force_field)
+        assert local_storage_new.has_force_field(force_field_source)
 
 
 def test_local_simulation_storage():
     """A simple test to that force fields can be stored and
     retrieved using the local storage backend."""
 
-    substance = Substance()
-    substance.add_component(Substance.Component(smiles='C'),
-                            Substance.MoleFraction())
+    substance = Substance.from_components(r'C', r'C/C=C/C=C/COC(=O)', r'CCOC(=O)/C=C(/C)\O')
 
     dummy_simulation_data = StoredSimulationData()
 

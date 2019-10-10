@@ -7,6 +7,7 @@ from os import path
 from propertyestimator.backends import DaskLocalCluster, ComputeResources
 from propertyestimator.client import PropertyEstimatorClient, PropertyEstimatorOptions
 from propertyestimator.datasets import PhysicalPropertyDataSet
+from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.layers import register_calculation_layer, PropertyCalculationLayer
 from propertyestimator.properties import Density
 from propertyestimator.server import PropertyEstimatorServer
@@ -53,7 +54,7 @@ def test_estimate_request():
         dummy_data_set = PhysicalPropertyDataSet()
         dummy_data_set.properties[dummy_property.substance.identifier] = [dummy_property]
 
-        force_field = smirnoff.ForceField('smirnoff99Frosst-1.1.0.offxml')
+        force_field_source = SmirnoffForceFieldSource.from_path('smirnoff99Frosst-1.1.0.offxml')
 
         calculation_backend = DaskLocalCluster(1, ComputeResources())
         storage_backend = LocalFileStorage(storage_directory)
@@ -63,7 +64,7 @@ def test_estimate_request():
         property_estimator = PropertyEstimatorClient()
         options = PropertyEstimatorOptions(allowed_calculation_layers=[TestCalculationLayer])
 
-        request = property_estimator.request_estimate(dummy_data_set, force_field, options)
+        request = property_estimator.request_estimate(dummy_data_set, force_field_source, options)
         result = request.results(synchronous=True, polling_interval=0)
 
         assert not isinstance(result, PropertyEstimatorException)
