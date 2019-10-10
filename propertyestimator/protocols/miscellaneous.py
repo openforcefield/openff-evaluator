@@ -395,7 +395,7 @@ class AddBindingFreeEnergies(AddValues):
 
         self._values = None
         self._thermodynamic_state = None
-        self._bootstrap_cycles = 1000
+        self._bootstrap_cycles = 2000
 
         self._result = None
         self._confidence_intervals = None
@@ -513,7 +513,7 @@ class AddBindingEnthalpies(AddValues):
 
         self._values = None
         self._thermodynamic_state = None
-        self._bootstrap_cycles = 1000
+        self._bootstrap_cycles = 2000
 
         self._result = None
         self._confidence_intervals = None
