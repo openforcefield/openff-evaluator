@@ -197,7 +197,10 @@ def create_dummy_property(property_class):
     # Make sure the property has the meta data required for more
     # involved properties.
     dummy_property.metadata = {
-        'receptor_mol2': 'unknown_path.mol2'
+        'receptor_mol2': 'unknown_path.mol2',
+        'host_identifier': 'test',
+        'guest_identifier': 'test',
+        'guest_orientations': ['p'],
     }
 
     return dummy_property

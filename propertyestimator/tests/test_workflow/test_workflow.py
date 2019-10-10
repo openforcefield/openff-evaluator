@@ -28,14 +28,34 @@ from propertyestimator.workflow.schemas import ProtocolReplicator
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
+def _get_workflow_options():
+
+    return [
+        WorkflowOptions(convergence_mode=WorkflowOptions.ConvergenceMode.RelativeUncertainty),
+        WorkflowOptions(convergence_mode=WorkflowOptions.ConvergenceMode.NoChecks)
+    ]
+
+
 @pytest.mark.parametrize("registered_property_name", registered_properties)
 @pytest.mark.parametrize("available_layer", available_layers)
-def test_workflow_schema_simulation(registered_property_name, available_layer):
+@pytest.mark.parametrize("workflow_options", _get_workflow_options())
+def test_workflow_schema_simulation(registered_property_name, available_layer, workflow_options):
     """Tests serialisation and deserialization of a calculation schema."""
 
     registered_property = registered_properties[registered_property_name]
 
-    schema = registered_property.get_default_workflow_schema(available_layer, WorkflowOptions())
+    if (registered_property_name == 'HostGuestBindingAffinity' and
+        available_layer == 'SimulationLayer' and
+        workflow_options.convergence_mode != WorkflowOptions.ConvergenceMode.NoChecks):
+
+        # Currently host-guest binding affinities cannot be ran to
+        # within a given tolerance.
+        with pytest.raises(ValueError):
+            registered_property.get_default_workflow_schema(available_layer, workflow_options)
+
+        return
+
+    schema = registered_property.get_default_workflow_schema(available_layer, workflow_options)
 
     if schema is None:
         return
@@ -54,7 +74,8 @@ def test_workflow_schema_simulation(registered_property_name, available_layer):
 
 @pytest.mark.parametrize("registered_property_name", registered_properties)
 @pytest.mark.parametrize("available_layer", available_layers)
-def test_cloned_schema_merging_simulation(registered_property_name, available_layer):
+@pytest.mark.parametrize("workflow_options", _get_workflow_options())
+def test_cloned_schema_merging_simulation(registered_property_name, available_layer, workflow_options):
     """Tests that two, the exact the same, calculations get merged into one
     by the `WorkflowGraph`."""
 
@@ -62,7 +83,18 @@ def test_cloned_schema_merging_simulation(registered_property_name, available_la
 
     dummy_property = create_dummy_property(registered_property)
 
-    workflow_schema = dummy_property.get_default_workflow_schema(available_layer, WorkflowOptions())
+    if (registered_property_name == 'HostGuestBindingAffinity' and
+        available_layer == 'SimulationLayer' and
+        workflow_options.convergence_mode != WorkflowOptions.ConvergenceMode.NoChecks):
+
+        # Currently host-guest binding affinities cannot be ran to
+        # within a given tolerance.
+        with pytest.raises(ValueError):
+            registered_property.get_default_workflow_schema(available_layer, workflow_options)
+
+        return
+
+    workflow_schema = dummy_property.get_default_workflow_schema(available_layer, workflow_options)
 
     if workflow_schema is None:
         return

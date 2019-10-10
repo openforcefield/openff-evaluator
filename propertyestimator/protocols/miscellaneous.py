@@ -521,6 +521,8 @@ class AddBindingEnthalpies(AddValues):
         self._result = None
         self._confidence_intervals = None
 
+        self._enthalpy_free_energy_tuple = None
+
     def execute(self, directory, available_resources):
 
         mean, uncertainty, confidence_intervals = self.bootstrap()
