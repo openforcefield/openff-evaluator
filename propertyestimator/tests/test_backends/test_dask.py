@@ -1,6 +1,6 @@
 import pytest
 
-from propertyestimator.backends import DaskLSFBackend, QueueWorkerResources
+from propertyestimator.backends import DaskLSFBackend, DaskPBSBackend, QueueWorkerResources
 from propertyestimator.backends.dask import _Multiprocessor
 from propertyestimator.workflow.plugins import available_protocols
 
@@ -11,10 +11,20 @@ def dummy_function(*args, **kwargs):
     return args[0]
 
 
-def test_dask_lsf_creation():
+def test_dask_job_script_creation():
     """Test creating and starting a new dask LSF backend."""
 
     cpu_backend = DaskLSFBackend()
+    cpu_backend.start()
+    assert cpu_backend.job_script() is not None
+    cpu_backend.stop()
+
+
+@pytest.mark.parametrize("cluster_class", [DaskLSFBackend, DaskPBSBackend])
+def test_dask_jobqueue_backend_creation(cluster_class):
+    """Test creating and starting a new dask jobqueue backend."""
+
+    cpu_backend = cluster_class()
     cpu_backend.start()
     cpu_backend.stop()
 
@@ -24,12 +34,12 @@ def test_dask_lsf_creation():
         'module load cuda/9.2',
     ]
 
-    gpu_backend = DaskLSFBackend(resources_per_worker=gpu_resources,
-                                 queue_name='gpuqueue',
-                                 setup_script_commands=gpu_commands)
+    gpu_backend = cluster_class(resources_per_worker=gpu_resources,
+                                queue_name='gpuqueue',
+                                setup_script_commands=gpu_commands)
 
     gpu_backend.start()
-    assert 'module load cuda/9.2' in gpu_backend._cluster.job_script()
+    assert 'module load cuda/9.2' in gpu_backend.job_script()
     gpu_backend.stop()
 
 
