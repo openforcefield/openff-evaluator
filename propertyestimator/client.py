@@ -839,6 +839,7 @@ class PropertyEstimatorClient:
             encoded_request_id = request_id.encode()
             length = pack_int(len(encoded_request_id))
 
+            logging.info(f'Sending {message_type} {length} {encoded_request_id}')
             await stream.write(message_type + length + encoded_request_id)
 
             # Wait for the server response.

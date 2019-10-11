@@ -288,7 +288,7 @@ class PropertyEstimatorServer(TCPServer):
                 packed_message_length = await stream.read_bytes(4)
                 message_length = unpack_int(packed_message_length)[0]
 
-                # logging.info('Introductory packet recieved: {} {}'.format(message_type_int, message_length))
+                logging.info('Introductory packet recieved: {} {}'.format(message_type_int, message_length))
 
                 message_type = None
 
