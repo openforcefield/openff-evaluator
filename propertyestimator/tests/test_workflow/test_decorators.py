@@ -13,7 +13,6 @@ def test_undefined_singleton():
     value_a = UndefinedAttribute()
     value_b = UndefinedAttribute()
 
-    assert value_a is value_b
     assert value_a == value_b
 
 
@@ -22,8 +21,6 @@ def test_undefined_serialization():
 
     value_a = UNDEFINED
     value_a_json = json.dumps(value_a, cls=TypedJSONEncoder)
-
     value_a_recreated = json.loads(value_a_json, cls=TypedJSONDecoder)
 
-    assert value_a is value_a_recreated
     assert value_a == value_a_recreated

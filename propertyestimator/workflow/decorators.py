@@ -13,24 +13,15 @@ from propertyestimator.workflow.typing import is_instance_of_type, is_supported_
 from propertyestimator.workflow.utils import PlaceholderInput
 
 
-class UndefinedAttributeMetaClass(type):
-    """A metaclass which allows the UndefinedAttribute to
-    behave as a singleton.
-    """
-
-    _instance = None
-
-    def __call__(cls, *args, **kwargs):
-
-        if cls._instance is None:
-            cls._instance = super(UndefinedAttributeMetaClass, cls).__call__(*args, **kwargs)
-
-        return cls._instance
-
-
-class UndefinedAttribute(metaclass=UndefinedAttributeMetaClass):
+class UndefinedAttribute:
     """A custom type used to differentiate between ``None`` values,
     and an undeclared optional value."""
+
+    def __eq__(self, other):
+        return type(other) == UndefinedAttribute
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def __getstate__(self):
         return {}
