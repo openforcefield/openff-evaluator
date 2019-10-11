@@ -3,6 +3,7 @@ A collection of descriptors used to mark-up elements in a workflow, such
 as the inputs or outputs of workflow protocols.
 """
 import abc
+import copy
 
 from enum import Enum
 
@@ -12,38 +13,35 @@ from propertyestimator.workflow.typing import is_instance_of_type, is_supported_
 from propertyestimator.workflow.utils import PlaceholderInput
 
 
-class _BaseMergeBehaviour(Enum):
+class BaseMergeBehaviour(Enum):
     """A base clase for enums which will describes how attributes should
     be handled when attempting to merge similar protocols.
     """
     pass
 
 
-class MergeBehaviour(_BaseMergeBehaviour):
+class MergeBehaviour(BaseMergeBehaviour):
     """A enum which describes how attributes should be handled when
     attempting to merge similar protocols.
 
-    Attributes
-    ----------
-    ExactlyEqual
-        This attribute must be exactly equal between two protocols for
-        them to be able to merge.
+    This enum may take values of
+
+    * ExactlyEqual: This attribute must be exactly equal between two protocols for
+      them to be able to merge.
     """
     ExactlyEqual = 'ExactlyEqual'
 
 
-class InequalityMergeBehaviour(_BaseMergeBehaviour):
+class InequalityMergeBehaviour(BaseMergeBehaviour):
     """A enum which describes how attributes which can be compared
     with inequalities should be merged.
 
-    Attributes
-    ----------
-    SmallestValue: str
-        When two protocols are merged, the smallest value of this
-        attribute from either protocol is retained.
-    LargestValue: str
-        When two protocols are merged, the largest value of this
-        attribute from either protocol is retained.
+    This enum may take values of
+
+    * SmallestValue: When two protocols are merged, the smallest value of this
+      attribute from either protocol is retained.
+    * LargestValue: When two protocols are merged, the largest value of this
+      attribute from either protocol is retained.
     """
     SmallestValue = 'SmallestValue'
     LargestValue = 'LargestValue'
@@ -61,9 +59,25 @@ class BaseProtocolAttribute(abc.ABC):
     `_substance` field.
     """
 
-    _attribute_missing_string = 'The protocol does not have a {private_attribute_name} ' \
-                                'attribute to match the {attribute_name} descriptor. ' \
-                                'This should be defined in the `__init__` method.'
+    class UndefinedMeta(type):
+        def __str__(self):
+            return 'UNDEFINED'
+
+        def __repr__(self):
+            return str(self)
+
+        @staticmethod
+        def __getstate__():
+            return {}
+
+        @staticmethod
+        def __setstate__(state):
+            return
+
+    class UNDEFINED(metaclass=UndefinedMeta):
+        """A custom type used to differentiate between ``None`` values,
+        and an undeclared optional value."""
+        ...
 
     def __init__(self, docstring, type_hint):
         """Initializes a new BaseProtocolAttribute object.
@@ -114,23 +128,14 @@ class BaseProtocolAttribute(abc.ABC):
 
         try:
             return getattr(instance, self._private_attribute_name)
-
         except AttributeError:
-
-            raise AttributeError(BaseProtocolAttribute._attribute_missing_string.format(
-                private_attribute_name=self._private_attribute_name, attribute_name=self._private_attribute_name[1:]
-            ))
+            return BaseProtocolAttribute.UNDEFINED
 
     def __set__(self, instance, value):
 
-        if not hasattr(instance, self._private_attribute_name):
-
-            raise AttributeError(BaseProtocolAttribute._attribute_missing_string.format(
-                private_attribute_name=self._private_attribute_name, attribute_name=self._private_attribute_name[1:]
-            ))
-
         if (not is_instance_of_type(value, self.type_hint) and
-            not isinstance(value, PlaceholderInput)):
+            not isinstance(value, PlaceholderInput) and
+            not value == BaseProtocolAttribute.UNDEFINED):
 
             raise ValueError(f'The {self._private_attribute_name[1:]} attribute can only accept '
                              f'values of type {self.type_hint}')
@@ -151,17 +156,12 @@ class ProtocolInputAttribute(BaseProtocolAttribute):
     >>>
     >>> class MyProtocol(BaseProtocol):
     >>>
-    >>>     my_input = protocol_input(docstring='An input will be used.', type_hint=float, default_value=0.1)
-    >>>
-    >>>     def __init__(self, protocol_id):
-    >>>         super().__init__(protocol_input)
-    >>>         self._my_input = 0.1
+    >>>     my_input = protocol_input(
+    >>>         docstring='An input will be used.',
+    >>>         type_hint=float,
+    >>>         default_value=0.1
+    >>>     )
     """
-
-    class UNDEFINED:
-        """A custom type used to differentiate between ``None`` values,
-        and an undeclared optional value."""
-        pass
 
     def __init__(self, docstring, type_hint, default_value, optional=False,
                  merge_behavior=MergeBehaviour.ExactlyEqual):
@@ -175,15 +175,15 @@ class ProtocolInputAttribute(BaseProtocolAttribute):
         optional: bool
             Defines whether this is an optional input of a class. If true,
             the `default_value` must be set to `UNDEFINED`.
-        merge_behavior: MergeBehaviour
+        merge_behavior: BaseMergeBehaviour
             An enum describing how this input should be handled when considering
             whether to, and actually merging two different protocols.
         """
 
         docstring = f'**Protocol Input** - {docstring}'
 
-        if not isinstance(merge_behavior, _BaseMergeBehaviour):
-            raise ValueError('The merge behaviour must inherit from `_BaseMergeBehaviour`')
+        if not isinstance(merge_behavior, BaseMergeBehaviour):
+            raise ValueError('The merge behaviour must inherit from `BaseMergeBehaviour`')
 
         # Automatically extend the docstrings.
         if (isinstance(default_value, (int, float, str, unit.Quantity, EstimatedQuantity, Enum)) or
@@ -222,6 +222,20 @@ class ProtocolInputAttribute(BaseProtocolAttribute):
         self.optional = optional
         self.merge_behavior = merge_behavior
 
+        self._default_value = default_value
+
+    def __get__(self, instance, owner=None):
+
+        if instance is None:
+            # Handle the case where this is called on the class directly,
+            # rather than an instance.
+            return self
+
+        if not hasattr(instance, self._private_attribute_name):
+            setattr(instance, self._private_attribute_name, copy.deepcopy(self._default_value))
+
+        return getattr(instance, self._private_attribute_name)
+
 
 class ProtocolOutputAttribute(BaseProtocolAttribute):
     """A descriptor used to mark an attribute of a protocol as
@@ -232,22 +246,20 @@ class ProtocolOutputAttribute(BaseProtocolAttribute):
     To mark an attribute as an output:
 
     >>> from propertyestimator.workflow.protocols import BaseProtocol
-    >>> from propertyestimator.workflow.decorators import protocol_output
+    >>> from propertyestimator.workflow.decorators import protocol_output,
     >>>
     >>> class MyProtocol(BaseProtocol):
     >>>
-    >>>     my_output = protocol_output(docstring='An output that will be filled.', type_hint=float)
-    >>>
-    >>>     def __init__(self, protocol_id):
-    >>>         super().__init__(protocol_input)
-    >>>         self._my_output = 0.1
+    >>>     my_output = protocol_output(
+    >>>         docstring='An output that will be filled.',
+    >>>         type_hint=float
+    >>>     )
     """
 
     def __init__(self, docstring, type_hint):
         """Initializes a new protocol_output object.
         """
         docstring = f'**Protocol Output** - {docstring}'
-
         super().__init__(docstring, type_hint)
 
 

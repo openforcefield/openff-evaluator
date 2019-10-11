@@ -43,40 +43,34 @@ class BaseBuildSystemProtocol(BaseProtocol):
         """
         TIP3P = 'TIP3P'
 
-    force_field_path = protocol_input(docstring='The file path to the force field parameters to assign to the system.',
-                                      type_hint=str,
-                                      default_value=protocol_input.UNDEFINED)
+    force_field_path = protocol_input(
+        docstring='The file path to the force field parameters to assign to the system.',
+        type_hint=str,
+        default_value=protocol_input.UNDEFINED
+    )
+    coordinate_file_path = protocol_input(
+        docstring='The file path to the PDB coordinate file which defines the '
+                  'topology of the system to which the force field parameters '
+                  'will be assigned.',
+        type_hint=str,
+        default_value=protocol_input.UNDEFINED
+    )
 
-    coordinate_file_path = protocol_input(docstring='The file path to the PDB coordinate file which defines the '
-                                                    'topology of the system to which the force field parameters '
-                                                    'will be assigned.',
-                                          type_hint=str,
-                                          default_value=protocol_input.UNDEFINED)
+    substance = protocol_input(
+        docstring='The composition of the system.',
+        type_hint=Substance,
+        default_value=protocol_input.UNDEFINED
+    )
+    water_model = protocol_input(
+        docstring='The water model to apply, if any water molecules are present.',
+        type_hint=WaterModel,
+        default_value=WaterModel.TIP3P
+    )
 
-    substance = protocol_input(docstring='The composition of the system.',
-                               type_hint=Substance,
-                               default_value=protocol_input.UNDEFINED)
-
-    water_model = protocol_input(docstring='The water model to apply, if any water molecules are present.',
-                                 type_hint=WaterModel,
-                                 default_value=WaterModel.TIP3P)
-
-    system_path = protocol_output(docstring='The path to the assigned system object.',
-                                  type_hint=str)
-
-    def __init__(self, protocol_id):
-        """Constructs a new BaseBuildSystemProtocol object.
-        """
-        super().__init__(protocol_id)
-
-        # Inputs
-        self._force_field_path = None
-        self._coordinate_file_path = None
-        self._substance = None
-        self._water_model = BaseBuildSystemProtocol.WaterModel.TIP3P
-
-        # Outputs
-        self._system_path = None
+    system_path = protocol_output(
+        docstring='The path to the assigned system object.',
+        type_hint=str
+    )
 
     @staticmethod
     def _build_tip3p_system(topology_molecule, cutoff, cell_vectors):
@@ -248,28 +242,22 @@ class BuildSmirnoffSystem(BaseBuildSystemProtocol):
     using the `OpenFF toolkit <https://github.com/openforcefield/openforcefield>`_.
     """
 
-    charged_molecule_paths = protocol_input(docstring='File paths to mol2 files which contain the charges assigned to '
-                                                      'molecules in the system. This input is helpful when dealing '
-                                                      'with large molecules (such as hosts in host-guest binding '
-                                                      'calculations) whose charges may by needed in multiple places,'
-                                                      ' and hence should only be calculated once.',
-                                            type_hint=list,
-                                            default_value=[])
-
-    apply_known_charges = protocol_input(docstring='If true, the formal charges of ions and the partial charges of '
-                                                   'the selected water model will be automatically applied to any '
-                                                   'matching molecules in the system.',
-                                         type_hint=bool,
-                                         default_value=True)
-
-    def __init__(self, protocol_id):
-        """Constructs a new `BuildSmirnoffSystem` object.
-        """
-
-        super().__init__(protocol_id)
-
-        self._apply_known_charges = True
-        self._charged_molecule_paths = []
+    charged_molecule_paths = protocol_input(
+        docstring='File paths to mol2 files which contain the charges assigned to '
+                  'molecules in the system. This input is helpful when dealing '
+                  'with large molecules (such as hosts in host-guest binding '
+                  'calculations) whose charges may by needed in multiple places,'
+                  ' and hence should only be calculated once.',
+        type_hint=list,
+        default_value=[]
+    )
+    apply_known_charges = protocol_input(
+        docstring='If true, the formal charges of ions and the partial charges of '
+                  'the selected water model will be automatically applied to any '
+                  'matching molecules in the system.',
+        type_hint=bool,
+        default_value=True
+    )
 
     @staticmethod
     def _generate_known_charged_molecules():
@@ -317,11 +305,11 @@ class BuildSmirnoffSystem(BaseBuildSystemProtocol):
 
         logging.info('Generating topology: ' + self.id)
 
-        pdb_file = app.PDBFile(self._coordinate_file_path)
+        pdb_file = app.PDBFile(self.coordinate_file_path)
 
         try:
 
-            with open(self._force_field_path) as file:
+            with open(self.force_field_path) as file:
                 force_field_source = ForceFieldSource.parse_json(file.read())
 
         except Exception as e:
@@ -340,16 +328,16 @@ class BuildSmirnoffSystem(BaseBuildSystemProtocol):
         unique_molecules = []
         charged_molecules = []
 
-        if self._apply_known_charges:
+        if self.apply_known_charges:
             charged_molecules = self._generate_known_charged_molecules()
 
         # Load in any additional, user specified charged molecules.
-        for charged_molecule_path in self._charged_molecule_paths:
+        for charged_molecule_path in self.charged_molecule_paths:
 
             charged_molecule = Molecule.from_file(charged_molecule_path, 'MOL2')
             charged_molecules.append(charged_molecule)
 
-        for component in self._substance.components:
+        for component in self.substance.components:
 
             molecule = Molecule.from_smiles(smiles=component.smiles)
 
@@ -377,9 +365,9 @@ class BuildSmirnoffSystem(BaseBuildSystemProtocol):
         from simtk.openmm import XmlSerializer
         system_xml = XmlSerializer.serialize(system)
 
-        self._system_path = os.path.join(directory, 'system.xml')
+        self.system_path = os.path.join(directory, 'system.xml')
 
-        with open(self._system_path, 'wb') as file:
+        with open(self.system_path, 'wb') as file:
             file.write(system_xml.encode('utf-8'))
 
         logging.info('Topology generated: ' + self.id)
@@ -409,11 +397,6 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
         Dodda, L. S.;Cabeza de Vaca, I.; Tirado-Rives, J.; Jorgensen, W. L.
         Nucleic Acids Research, Volume 45, Issue W1, 3 July 2017, Pages W331-W336
     """
-
-    def __init__(self, protocol_id):
-        """Constructs a new `BuildLigParGenSystem` object.
-        """
-        super().__init__(protocol_id)
 
     @staticmethod
     def _parameterize_smiles(smiles_pattern, force_field_source, directory):
@@ -582,9 +565,9 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
         import mdtraj
         from openforcefield.topology import Molecule, Topology
 
-        logging.info(f'Generating a system with LigParGen for {self._substance.identifier}: {self._id}')
+        logging.info(f'Generating a system with LigParGen for {self.substance.identifier}: {self._id}')
 
-        with open(self._force_field_path) as file:
+        with open(self.force_field_path) as file:
             force_field_source = ForceFieldSource.parse_json(file.read())
 
         if not isinstance(force_field_source, LigParGenForceFieldSource):
@@ -594,11 +577,11 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
                                                       'protocol.')
 
         # Load in the systems coordinates / topology
-        openmm_pdb_file = app.PDBFile(self._coordinate_file_path)
+        openmm_pdb_file = app.PDBFile(self.coordinate_file_path)
 
         # Create an OFF topology for better insight into the layout of the system topology.
         unique_molecules = [Molecule.from_smiles(component.smiles) for
-                            component in self._substance.components]
+                            component in self.substance.components]
 
         # Create a dictionary of representative topology molecules for each component.
         topology = Topology.from_openmm(openmm_pdb_file.topology, unique_molecules)
@@ -608,7 +591,7 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
 
         cutoff = pint_quantity_to_openmm(force_field_source.cutoff)
 
-        for index, component in enumerate(self._substance.components):
+        for index, component in enumerate(self.substance.components):
 
             reference_topology_molecule = None
 
@@ -636,11 +619,12 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
                 end_index = start_index + reference_topology_molecule.n_atoms
                 index_range = list(range(start_index, end_index))
 
-                component_pdb_file = mdtraj.load_pdb(self._coordinate_file_path, atom_indices=index_range)
+                component_pdb_file = mdtraj.load_pdb(self.coordinate_file_path, atom_indices=index_range)
                 component_topology = component_pdb_file.topology.to_openmm()
                 component_topology.setUnitCellDimensions(openmm_pdb_file.topology.getUnitCellDimensions())
 
                 # Create the system object.
+                # noinspection PyTypeChecker
                 force_field_template = app.ForceField(force_field_path)
 
                 component_system = force_field_template.createSystem(topology=component_topology,
@@ -679,9 +663,9 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
         # Serialize the system object.
         system_xml = openmm.XmlSerializer.serialize(system)
 
-        self._system_path = os.path.join(directory, 'system.xml')
+        self.system_path = os.path.join(directory, 'system.xml')
 
-        with open(self._system_path, 'wb') as file:
+        with open(self.system_path, 'wb') as file:
             file.write(system_xml.encode('utf-8'))
 
         logging.info(f'System generated: {self.id}')
@@ -707,16 +691,11 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
         OpenEye = 'OpenEye'
         AmberTools = 'AmberTools'
 
-    charge_backend = protocol_input(docstring='The backend framework to use to assign partial charges.',
-                                    type_hint=ChargeBackend,
-                                    default_value=ChargeBackend.OpenEye)
-
-    def __init__(self, protocol_id):
-        """Constructs a new `BuildTLeapSystem` object.
-        """
-        super().__init__(protocol_id)
-
-        self._charge_backend = BuildTLeapSystem.ChargeBackend.OpenEye
+    charge_backend = protocol_input(
+        docstring='The backend framework to use to assign partial charges.',
+        type_hint=ChargeBackend,
+        default_value=ChargeBackend.OpenEye
+    )
 
     @staticmethod
     def _topology_molecule_to_mol2(topology_molecule, file_name, charge_backend):
@@ -967,9 +946,9 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
 
         from openforcefield.topology import Molecule, Topology
 
-        logging.info(f'Generating a system with tleap for {self._substance.identifier}: {self._id}')
+        logging.info(f'Generating a system with tleap for {self.substance.identifier}: {self._id}')
 
-        with open(self._force_field_path) as file:
+        with open(self.force_field_path) as file:
             force_field_source = ForceFieldSource.parse_json(file.read())
 
         if not isinstance(force_field_source, TLeapForceFieldSource):
@@ -979,11 +958,11 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
                                                       'protocol.')
 
         # Load in the systems coordinates / topology
-        openmm_pdb_file = app.PDBFile(self._coordinate_file_path)
+        openmm_pdb_file = app.PDBFile(self.coordinate_file_path)
 
         # Create an OFF topology for better insight into the layout of the system topology.
         unique_molecules = [Molecule.from_smiles(component.smiles) for
-                            component in self._substance.components]
+                            component in self.substance.components]
 
         topology = Topology.from_openmm(openmm_pdb_file.topology, unique_molecules)
 
@@ -1012,7 +991,7 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
                 initial_mol2_name = 'initial.mol2'
                 initial_mol2_path = os.path.join(component_directory, initial_mol2_name)
 
-                self._topology_molecule_to_mol2(topology_molecule, initial_mol2_path, self._charge_backend)
+                self._topology_molecule_to_mol2(topology_molecule, initial_mol2_path, self.charge_backend)
                 prmtop_path, _, error = self._run_tleap(force_field_source, initial_mol2_name, component_directory)
 
                 if error is not None:
@@ -1058,9 +1037,9 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
         # Serialize the system object.
         system_xml = openmm.XmlSerializer.serialize(system)
 
-        self._system_path = os.path.join(directory, 'system.xml')
+        self.system_path = os.path.join(directory, 'system.xml')
 
-        with open(self._system_path, 'w') as file:
+        with open(self.system_path, 'w') as file:
             file.write(system_xml)
 
         logging.info(f'System generated: {self.id}')

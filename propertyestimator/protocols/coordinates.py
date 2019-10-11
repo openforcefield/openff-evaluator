@@ -24,67 +24,64 @@ class BuildCoordinatesPackmol(BaseProtocol):
     using the PACKMOL package.
     """
 
-    max_molecules = protocol_input(docstring='The maximum number of molecules to be added to the system.',
-                                   type_hint=int,
-                                   default_value=1000)
+    max_molecules = protocol_input(
+        docstring='The maximum number of molecules to be added to the system.',
+        type_hint=int,
+        default_value=1000
+    )
+    mass_density = protocol_input(
+        docstring='The target density of the created system.',
+        type_hint=unit.Quantity,
+        default_value=0.95 * unit.grams / unit.milliliters
+    )
 
-    mass_density = protocol_input(docstring='The target density of the created system.',
-                                  type_hint=unit.Quantity,
-                                  default_value=0.95 * unit.grams / unit.milliliters)
+    box_aspect_ratio = protocol_input(
+        docstring='The aspect ratio of the simulation box.',
+        type_hint=list,
+        default_value=[1.0, 1.0, 1.0]
+    )
 
-    box_aspect_ratio = protocol_input(docstring='The aspect ratio of the simulation box.',
-                                      type_hint=list,
-                                      default_value=[1.0, 1.0, 1.0])
+    substance = protocol_input(
+        docstring='The composition of the system to build.',
+        type_hint=Substance,
+        default_value=protocol_input.UNDEFINED
+    )
 
-    substance = protocol_input(docstring='The composition of the system to build.',
-                               type_hint=Substance,
-                               default_value=protocol_input.UNDEFINED)
+    verbose_packmol = protocol_input(
+        docstring='If True, packmol will print verbose information to the logger',
+        type_hint=bool,
+        default_value=False
+    )
+    retain_packmol_files = protocol_input(
+        docstring='If True, packmol will not delete all of the temporary files '
+                  'it creates while building the coordinates.',
+        type_hint=bool,
+        default_value=False
+    )
 
-    verbose_packmol = protocol_input(docstring='If True, packmol will print verbose information to the logger',
-                                     type_hint=bool,
-                                     default_value=False)
+    output_number_of_molecules = protocol_output(
+        docstring='The number of molecules in the created system. This '
+                  'may be less than maximum requested due to rounding of '
+                  'mole fractions',
+        type_hint=int
+    )
+    output_substance = protocol_output(
+        docstring='The substance which was built by packmol. This may differ '
+                  'from the input substance for system containing two or '
+                  'more components due to rounding of mole fractions. The '
+                  'mole fractions provided by this output should always be '
+                  'used when weighting values by a mole fraction.',
+        type_hint=Substance
+    )
 
-    retain_packmol_files = protocol_input(docstring='If True, packmol will not delete all of the temporary files '
-                                                    'it creates while building the coordinates.',
-                                          type_hint=bool,
-                                          default_value=False)
-
-    output_number_of_molecules = protocol_output(docstring='The number of molecules in the created system. This '
-                                                           'may be less than maximum requested due to rounding of '
-                                                           'mole fractions',
-                                                 type_hint=int)
-
-    output_substance = protocol_output(docstring='The substance which was built by packmol. This may differ '
-                                                  'from the input substance for system containing two or '
-                                                  'more components due to rounding of mole fractions. The '
-                                                  'mole fractions provided by this output should always be '
-                                                  'used when weighting values by a mole fraction.',
-                                       type_hint=Substance)
-
-    coordinate_file_path = protocol_output(docstring='The file path to the created PDB coordinate file.',
-                                           type_hint=str)
+    coordinate_file_path = protocol_output(
+        docstring='The file path to the created PDB coordinate file.',
+        type_hint=str
+    )
 
     def __init__(self, protocol_id):
-        """Constructs a new BuildCoordinatesPackmol object.
-        """
-
+        """Constructs a new BuildCoordinatesPackmol object."""
         super().__init__(protocol_id)
-
-        self._substance = None
-
-        self._coordinate_file_path = None
-        self._positions = None
-
-        self._max_molecules = 1000
-        self._mass_density = 0.95 * unit.grams / unit.milliliters
-
-        self._verbose_packmol = False
-        self._retain_packmol_files = False
-
-        self._box_aspect_ratio = [1.0, 1.0, 1.0]
-
-        self._output_number_of_molecules = None
-        self._output_substance = None
 
     def _build_molecule_arrays(self, directory):
         """Converts the input substance into a list of openeye OEMol's and a list of
@@ -107,7 +104,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
 
         molecules = []
 
-        for component in self._substance.components:
+        for component in self.substance.components:
 
             molecule = create_molecule_from_smiles(component.smiles)
 
@@ -120,19 +117,19 @@ class BuildCoordinatesPackmol(BaseProtocol):
             molecules.append(molecule)
 
         # Determine how many molecules of each type will be present in the system.
-        molecules_per_component = self._substance.get_molecules_per_component(self._max_molecules)
-        number_of_molecules = [0] * self._substance.number_of_components
+        molecules_per_component = self.substance.get_molecules_per_component(self.max_molecules)
+        number_of_molecules = [0] * self.substance.number_of_components
 
-        for index, component in enumerate(self._substance.components):
+        for index, component in enumerate(self.substance.components):
             number_of_molecules[index] = molecules_per_component[component.identifier]
 
-        if sum(number_of_molecules) > self._max_molecules:
+        if sum(number_of_molecules) > self.max_molecules:
 
             return None, None, PropertyEstimatorException(directory=directory,
                                                           message=f'The number of molecules to create '
                                                                   f'({sum(number_of_molecules)}) is greater '
                                                                   f'than the maximum number requested '
-                                                                  f'({self._max_molecules}).')
+                                                                  f'({self.max_molecules}).')
 
         return molecules, number_of_molecules, None
 
@@ -158,9 +155,9 @@ class BuildCoordinatesPackmol(BaseProtocol):
         total_number_of_molecules = sum(number_of_molecules)
 
         # Handle any exact amounts.
-        for component in self._substance.components:
+        for component in self.substance.components:
 
-            exact_amounts = [amount for amount in self._substance.get_amounts(component) if
+            exact_amounts = [amount for amount in self.substance.get_amounts(component) if
                              isinstance(amount, Substance.ExactAmount)]
 
             if len(exact_amounts) == 0:
@@ -173,9 +170,9 @@ class BuildCoordinatesPackmol(BaseProtocol):
         total_mole_fraction = 0.0
         number_of_new_mole_fractions = 0
 
-        for index, component in enumerate(self._substance.components):
+        for index, component in enumerate(self.substance.components):
 
-            mole_fractions = [amount for amount in self._substance.get_amounts(component) if
+            mole_fractions = [amount for amount in self.substance.get_amounts(component) if
                               isinstance(amount, Substance.MoleFraction)]
 
             if len(mole_fractions) == 0:
@@ -221,41 +218,41 @@ class BuildCoordinatesPackmol(BaseProtocol):
         from simtk import unit as simtk_unit
         simtk_positions = positions.to(unit.angstrom).magnitude * simtk_unit.angstrom
 
-        self._coordinate_file_path = path.join(directory, 'output.pdb')
+        self.coordinate_file_path = path.join(directory, 'output.pdb')
 
-        with open(self._coordinate_file_path, 'w+') as minimised_file:
+        with open(self.coordinate_file_path, 'w+') as minimised_file:
             # noinspection PyTypeChecker
             app.PDBFile.writeFile(topology, simtk_positions, minimised_file)
 
-        logging.info('Coordinates generated: ' + self._substance.identifier)
+        logging.info('Coordinates generated: ' + self.substance.identifier)
 
     def execute(self, directory, available_resources):
 
-        logging.info(f'Generating coordinates for {self._substance.identifier}: {self.id}')
+        logging.info(f'Generating coordinates for {self.substance.identifier}: {self.id}')
 
-        if self._substance is None:
+        if self.substance is None:
 
             return PropertyEstimatorException(directory=directory,
                                               message='The substance input is non-optional')
 
-        molecules, number_of_molecules, exception = self._build_molecule_arrays(directory)
+        molecules, number_of_molecules, exception = self.build_molecule_arrays(directory)
 
         if exception is not None:
             return exception
 
-        self._output_number_of_molecules = sum(number_of_molecules)
-        self._output_substance = self._rebuild_substance(number_of_molecules)
+        self.output_number_of_molecules = sum(number_of_molecules)
+        self.output_substance = self.rebuild_substance(number_of_molecules)
 
         packmol_directory = path.join(directory, 'packmol_files')
 
         # Create packed box
         topology, positions = packmol.pack_box(molecules=molecules,
                                                number_of_copies=number_of_molecules,
-                                               mass_density=self._mass_density,
-                                               box_aspect_ratio=self._box_aspect_ratio,
-                                               verbose=self._verbose_packmol,
+                                               mass_density=self.mass_density,
+                                               box_aspect_ratio=self.box_aspect_ratio,
+                                               verbose=self.verbose_packmol,
                                                working_directory=packmol_directory,
-                                               retain_working_files=self._retain_packmol_files)
+                                               retain_working_files=self.retain_packmol_files)
 
         if topology is None or positions is None:
 
@@ -269,32 +266,29 @@ class BuildCoordinatesPackmol(BaseProtocol):
 
 @register_calculation_protocol()
 class SolvateExistingStructure(BuildCoordinatesPackmol):
-    """Creates a set of 3D coordinates with a specified composition.
-
-    Notes
-    -----
-    The coordinates are created using packmol.
+    """Solvates a set of 3D coordinates with a specified solvent
+    using the PACKMOL package.
     """
 
-    solute_coordinate_file = protocol_input(docstring='A file path to the solute to solvate.',
-                                            type_hint=str,
-                                            default_value=protocol_input.UNDEFINED)
+    solute_coordinate_file = protocol_input(
+        docstring='A file path to the solute to solvate.',
+        type_hint=str,
+        default_value=protocol_input.UNDEFINED
+    )
 
     def __init__(self, protocol_id):
-
+        """Constructs a new SolvateExistingStructure object."""
         super().__init__(protocol_id)
-
-        self._solute_coordinate_file = None
 
     def execute(self, directory, available_resources):
 
-        logging.info(f'Generating coordinates for {self._substance.identifier}: {self.id}')
+        logging.info(f'Generating coordinates for {self.substance.identifier}: {self.id}')
 
-        if self._substance is None:
+        if self.substance is None:
             return PropertyEstimatorException(directory=directory,
                                               message='The substance input is non-optional')
 
-        if self._solute_coordinate_file is None:
+        if self.solute_coordinate_file is None:
             return PropertyEstimatorException(directory=directory,
                                               message='The solute coordinate file input is non-optional')
 
@@ -308,11 +302,11 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
         # Create packed box
         topology, positions = packmol.pack_box(molecules=molecules,
                                                number_of_copies=number_of_molecules,
-                                               structure_to_solvate=self._solute_coordinate_file,
-                                               mass_density=self._mass_density,
-                                               verbose=self._verbose_packmol,
+                                               structure_to_solvate=self.solute_coordinate_file,
+                                               mass_density=self.mass_density,
+                                               verbose=self.verbose_packmol,
                                                working_directory=packmol_directory,
-                                               retain_working_files=self._retain_packmol_files)
+                                               retain_working_files=self.retain_packmol_files)
 
         if topology is None or positions is None:
             return PropertyEstimatorException(directory=directory,
@@ -332,57 +326,62 @@ class BuildDockedCoordinates(BaseProtocol):
     This protocol currently only supports docking with the OpenEye OEDocking
     framework.
     """
+
     class ActivateSiteLocation(Enum):
         """An enum which describes the methods by which a receptors
         activate site(s) is located."""
         ReceptorCenterOfMass = 'ReceptorCenterOfMass'
 
-    ligand_substance = protocol_input(docstring='A substance containing only the ligand to dock.',
-                                      type_hint=Substance,
-                                      default_value=protocol_input.UNDEFINED)
+    ligand_substance = protocol_input(
+        docstring='A substance containing only the ligand to dock.',
+        type_hint=Substance,
+        default_value=protocol_input.UNDEFINED
+    )
+    number_of_ligand_conformers = protocol_input(
+        docstring='The number of conformers to try and dock into the '
+                  'receptor structure.',
+        type_hint=int,
+        default_value=100
+    )
 
-    number_of_ligand_conformers = protocol_input(docstring='The number of conformers to try and dock into the '
-                                                           'receptor structure.',
-                                                 type_hint=int,
-                                                 default_value=100)
+    receptor_coordinate_file = protocol_input(
+        docstring='The file path to the coordinates of the receptor molecule.',
+        type_hint=str,
+        default_value=protocol_input.UNDEFINED
+    )
+    activate_site_location = protocol_input(
+        docstring='Defines the method by which the activate site is identified.',
+        type_hint=ActivateSiteLocation,
+        default_value=ActivateSiteLocation.ReceptorCenterOfMass
+    )
 
-    receptor_coordinate_file = protocol_input(docstring='The file path to the coordinates of the receptor molecule.',
-                                              type_hint=str,
-                                              default_value=protocol_input.UNDEFINED)
+    docked_ligand_coordinate_path = protocol_output(
+        docstring='The file path to the coordinates of the ligand in '
+                  'it\'s docked pose, aligned with the initial '
+                  '`receptor_coordinate_file`.',
+        type_hint=str
+    )
+    docked_complex_coordinate_path = protocol_output(
+        docstring='The file path to the docked ligand-receptor complex.',
+        type_hint=str
+    )
 
-    activate_site_location = protocol_input(docstring='Defines the method by which the activate site is identified.',
-                                            type_hint=ActivateSiteLocation,
-                                            default_value=ActivateSiteLocation.ReceptorCenterOfMass)
-
-    docked_ligand_coordinate_path = protocol_output(docstring='The file path to the coordinates of the ligand in '
-                                                              'it\'s docked pose, aligned with the initial '
-                                                              '`receptor_coordinate_file`.',
-                                                    type_hint=str)
-
-    docked_complex_coordinate_path = protocol_output(docstring='The file path to the docked ligand-receptor complex.',
-                                                     type_hint=str)
-
-    ligand_residue_name = protocol_output(docstring='The residue name assigned to the docked ligand.',
-                                          type_hint=str)
-
-    receptor_residue_name = protocol_output(docstring='The residue name assigned to the receptor.',
-                                            type_hint=str)
+    ligand_residue_name = protocol_output(
+        docstring='The residue name assigned to the docked ligand.',
+        type_hint=str
+    )
+    receptor_residue_name = protocol_output(
+        docstring='The residue name assigned to the receptor.',
+        type_hint=str
+    )
 
     def __init__(self, protocol_id):
+        """Constructs a new SolvateExistingStructure object."""
 
         super().__init__(protocol_id)
 
-        self._ligand_substance = None
-        self._number_of_ligand_conformers = 100
-
-        self._receptor_coordinate_file = None
-        self._activate_site_location = self.ActivateSiteLocation.ReceptorCenterOfMass
-
-        self._docked_ligand_coordinate_path = None
-        self._docked_complex_coordinate_path = None
-
-        self._ligand_residue_name = 'LIG'
-        self._receptor_residue_name = 'REC'
+        self.ligand_residue_name = 'LIG'
+        self.receptor_residue_name = 'REC'
 
     def _create_receptor(self):
         """Create an OpenEye receptor from a mol2 file.
@@ -394,7 +393,7 @@ class BuildDockedCoordinates(BaseProtocol):
         """
         from openeye import oechem, oedocking
 
-        input_stream = oechem.oemolistream(self._receptor_coordinate_file)
+        input_stream = oechem.oemolistream(self.receptor_coordinate_file)
 
         original_receptor_molecule = oechem.OEGraphMol()
         oechem.OEReadMolecule(input_stream, original_receptor_molecule)
@@ -418,8 +417,8 @@ class BuildDockedCoordinates(BaseProtocol):
         """
         from openforcefield.topology import Molecule
 
-        ligand = Molecule.from_smiles(self._ligand_substance.components[0].smiles)
-        ligand.generate_conformers(n_conformers=self._number_of_ligand_conformers)
+        ligand = Molecule.from_smiles(self.ligand_substance.components[0].smiles)
+        ligand.generate_conformers(n_conformers=self.number_of_ligand_conformers)
 
         # Assign AM1-BCC charges to the ligand just as an initial guess
         # for docking. In future, we may want to get the charge model
@@ -430,8 +429,8 @@ class BuildDockedCoordinates(BaseProtocol):
 
     def execute(self, directory, available_resources):
 
-        if (len(self._ligand_substance.components) != 1 or
-            self._ligand_substance.components[0].role != Substance.ComponentRole.Ligand):
+        if (len(self.ligand_substance.components) != 1 or
+            self.ligand_substance.components[0].role != Substance.ComponentRole.Ligand):
 
             return PropertyEstimatorException(directory=directory,
                                               message='The ligand substance must contain a single ligand component.')
@@ -468,9 +467,9 @@ class BuildDockedCoordinates(BaseProtocol):
 
         dock.AnnotatePose(docked_ligand)
 
-        self._docked_ligand_coordinate_path = path.join(directory, 'ligand.pdb')
+        self.docked_ligand_coordinate_path = path.join(directory, 'ligand.pdb')
 
-        output_stream = oechem.oemolostream(self._docked_ligand_coordinate_path)
+        output_stream = oechem.oemolostream(self.docked_ligand_coordinate_path)
         oechem.OEWriteMolecule(output_stream, docked_ligand)
         output_stream.close()
 
@@ -480,18 +479,18 @@ class BuildDockedCoordinates(BaseProtocol):
         oechem.OEWriteMolecule(output_stream, receptor_molecule)
         output_stream.close()
 
-        ligand_trajectory = mdtraj.load(self._docked_ligand_coordinate_path)
+        ligand_trajectory = mdtraj.load(self.docked_ligand_coordinate_path)
 
         ligand_residue = ligand_trajectory.topology.residue(0)
-        ligand_residue.name = self._ligand_residue_name
+        ligand_residue.name = self.ligand_residue_name
 
         # Save the ligand file with the correct residue name.
-        ligand_trajectory.save(self._docked_ligand_coordinate_path)
-        
+        ligand_trajectory.save(self.docked_ligand_coordinate_path)
+
         receptor_trajectory = mdtraj.load(receptor_pdb_path)
 
         receptor_residue = receptor_trajectory.topology.residue(0)
-        receptor_residue.name = self._receptor_residue_name
+        receptor_residue.name = self.receptor_residue_name
 
         # Create a merged ligand-receptor topology.
         complex_topology = ligand_trajectory.topology.copy()
@@ -519,9 +518,9 @@ class BuildDockedCoordinates(BaseProtocol):
 
         complex_positions *= simtk_unit.angstrom
 
-        self._docked_complex_coordinate_path = path.join(directory, 'complex.pdb')
+        self.docked_complex_coordinate_path = path.join(directory, 'complex.pdb')
 
-        with open(self._docked_complex_coordinate_path, 'w+') as file:
+        with open(self.docked_complex_coordinate_path, 'w+') as file:
 
             app.PDBFile.writeFile(complex_topology.to_openmm(),
                                   complex_positions, file)

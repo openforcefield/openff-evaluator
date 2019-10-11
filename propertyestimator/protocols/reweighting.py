@@ -25,58 +25,54 @@ class ConcatenateTrajectories(BaseProtocol):
     a single one.
     """
 
-    input_coordinate_paths = protocol_input(docstring='A list of paths to the starting PDB coordinates for each of '
-                                                      'the trajectories.',
-                                            type_hint=list,
-                                            default_value=protocol_input.UNDEFINED)
+    input_coordinate_paths = protocol_input(
+        docstring='A list of paths to the starting PDB coordinates for each of the trajectories.',
+        type_hint=list,
+        default_value=protocol_input.UNDEFINED
+    )
+    input_trajectory_paths = protocol_input(
+        docstring='A list of paths to the trajectories to concatenate.',
+        type_hint=list,
+        default_value=protocol_input.UNDEFINED
+    )
 
-    input_trajectory_paths = protocol_input(docstring='A list of paths to the trajectories to concatenate.',
-                                            type_hint=list,
-                                            default_value=protocol_input.UNDEFINED)
+    output_coordinate_path = protocol_output(
+        docstring='The path the PDB coordinate file which contains the topology '
+                  'of the concatenated trajectory.',
+        type_hint=str
+    )
 
-    output_coordinate_path = protocol_output(docstring='The path the PDB coordinate file which contains the topology '
-                                                       'of the concatenated trajectory.',
-                                             type_hint=str)
-
-    output_trajectory_path = protocol_output(docstring='The path to the concatenated trajectory.',
-                                             type_hint=str)
-
-    def __init__(self, protocol_id):
-        """Constructs a new ConcatenateTrajectories object."""
-        super().__init__(protocol_id)
-
-        self._input_coordinate_paths = None
-        self._input_trajectory_paths = None
-
-        self._output_coordinate_path = None
-        self._output_trajectory_path = None
+    output_trajectory_path = protocol_output(
+        docstring='The path to the concatenated trajectory.',
+        type_hint=str
+    )
 
     def execute(self, directory, available_resources):
 
         import mdtraj
 
-        if len(self._input_coordinate_paths) != len(self._input_trajectory_paths):
+        if len(self.input_coordinate_paths) != len(self.input_trajectory_paths):
 
             return PropertyEstimatorException(directory=directory, message='There should be the same number of '
                                                                            'coordinate and trajectory paths.')
 
-        if len(self._input_trajectory_paths) == 0:
+        if len(self.input_trajectory_paths) == 0:
 
             return PropertyEstimatorException(directory=directory, message='No trajectories were '
                                                                            'given to concatenate.')
 
         trajectories = []
 
-        for coordinate_path, trajectory_path in zip(self._input_coordinate_paths,
-                                                    self._input_trajectory_paths):
+        for coordinate_path, trajectory_path in zip(self.input_coordinate_paths,
+                                                    self.input_trajectory_paths):
 
-            self._output_coordinate_path = self._output_coordinate_path or coordinate_path
+            self.output_coordinate_path = self.output_coordinate_path or coordinate_path
             trajectories.append(mdtraj.load_dcd(trajectory_path, coordinate_path))
 
         output_trajectory = trajectories[0] if len(trajectories) == 1 else mdtraj.join(trajectories, False, False)
 
-        self._output_trajectory_path = path.join(directory, 'output_trajectory.dcd')
-        output_trajectory.save_dcd(self._output_trajectory_path)
+        self.output_trajectory_path = path.join(directory, 'output_trajectory.dcd')
+        output_trajectory.save_dcd(self.output_trajectory_path)
 
         return self._get_output_dictionary()
 
@@ -87,38 +83,33 @@ class ConcatenateStatistics(BaseProtocol):
     a single one.
     """
 
-    input_statistics_paths = protocol_input(docstring='A list of paths to statistics arrays to concatenate.',
-                                            type_hint=list,
-                                            default_value=protocol_input.UNDEFINED)
-
-    output_statistics_path = protocol_output(docstring='The path the csv file which contains the concatenated '
-                                                       'statistics.',
-                                             type_hint=str)
-
-    def __init__(self, protocol_id):
-        """Constructs a new ConcatenateStatistics object."""
-        super().__init__(protocol_id)
-
-        self._input_statistics_paths = None
-        self._output_statistics_path = None
+    input_statistics_paths = protocol_input(
+        docstring='A list of paths to statistics arrays to concatenate.',
+        type_hint=list,
+        default_value=protocol_input.UNDEFINED
+    )
+    output_statistics_path = protocol_output(
+        docstring='The path the csv file which contains the concatenated statistics.',
+        type_hint=str
+    )
 
     def execute(self, directory, available_resources):
 
-        if len(self._input_statistics_paths) == 0:
+        if len(self.input_statistics_paths) == 0:
 
             return PropertyEstimatorException(directory=directory, message='No statistics arrays were '
                                                                            'given to concatenate.')
 
         arrays = [StatisticsArray.from_pandas_csv(file_path) for
-                  file_path in self._input_statistics_paths]
+                  file_path in self.input_statistics_paths]
 
         if len(arrays) > 1:
             output_array = StatisticsArray.join(*arrays)
         else:
             output_array = arrays[0]
 
-        self._output_statistics_path = path.join(directory, 'output_statistics.csv')
-        output_array.to_pandas_csv(self._output_statistics_path)
+        self.output_statistics_path = path.join(directory, 'output_statistics.csv')
+        output_array.to_pandas_csv(self.output_statistics_path)
 
         return self._get_output_dictionary()
 
@@ -129,70 +120,65 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
     set of configurations.
     """
 
-    thermodynamic_state = protocol_input(docstring='The state to calculate the reduced potential at.',
-                                         type_hint=ThermodynamicState,
-                                         default_value=protocol_input.UNDEFINED)
+    thermodynamic_state = protocol_input(
+        docstring='The state to calculate the reduced potential at.',
+        type_hint=ThermodynamicState,
+        default_value=protocol_input.UNDEFINED
+    )
 
-    system_path = protocol_input(docstring='The path to the system object which describes the systems potential '
-                                           'energy function.',
-                                 type_hint=str,
-                                 default_value=protocol_input.UNDEFINED)
+    system_path = protocol_input(
+        docstring='The path to the system object which describes the systems potential '
+                  'energy function.',
+        type_hint=str,
+        default_value=protocol_input.UNDEFINED
+    )
+    enable_pbc = protocol_input(
+        docstring='If true, periodic boundary conditions will be enabled.',
+        type_hint=bool,
+        default_value=True
+    )
 
-    enable_pbc = protocol_input(docstring='If true, periodic boundary conditions will be enabled.',
-                                type_hint=bool,
-                                default_value=True)
+    coordinate_file_path = protocol_input(
+        docstring='The path to the coordinate file which contains topology '
+                  'information about the system.',
+        type_hint=str,
+        default_value=protocol_input.UNDEFINED
+    )
+    trajectory_file_path = protocol_input(
+        docstring='The path to the trajectory file which contains the '
+                  'configurations to calculate the energies of.',
+        type_hint=str,
+        default_value=protocol_input.UNDEFINED
+    )
+    kinetic_energies_path = protocol_input(
+        docstring='The file path to a statistics array which contain the kinetic '
+                  'energies of each frame in the trajectory.',
+        type_hint=str,
+        default_value=protocol_input.UNDEFINED
+    )
 
-    coordinate_file_path = protocol_input(docstring='The path to the coordinate file which contains topology '
-                                                    'information about the system.',
-                                          type_hint=str,
-                                          default_value=protocol_input.UNDEFINED)
+    high_precision = protocol_input(
+        docstring='If true, OpenMM will be run in double precision mode.',
+        type_hint=bool,
+        default_value=False
+    )
 
-    trajectory_file_path = protocol_input(docstring='The path to the trajectory file which contains the '
-                                                    'configurations to calculate the energies of.',
-                                          type_hint=str,
-                                          default_value=protocol_input.UNDEFINED)
+    use_internal_energy = protocol_input(
+        docstring='If true the internal energy, rather than the potential energy will '
+                  'be used when calculating the reduced potential. This is required '
+                  'when reweighting properties which depend on the total energy, such '
+                  'as enthalpy.',
+        type_hint=bool,
+        default_value=False
+    )
 
-    kinetic_energies_path = protocol_input(docstring='The file path to a statistics array which contain the kinetic '
-                                                     'energies of each frame in the trajectory.',
-                                           type_hint=str,
-                                           default_value=protocol_input.UNDEFINED)
-
-    high_precision = protocol_input(docstring='If true, OpenMM will be run in double precision mode.',
-                                    type_hint=bool,
-                                    default_value=False)
-
-    use_internal_energy = protocol_input(docstring='If true the internal energy, rather than the potential energy will '
-                                                   'be used when calculating the reduced potential. This is required '
-                                                   'when reweighting properties which depend on the total energy, such '
-                                                   'as enthalpy.',
-                                         type_hint=bool,
-                                         default_value=False)
-
-    statistics_file_path = protocol_output(docstring='A file path to the statistics file which contains the reduced '
-                                                     'potentials, and the potential, kinetic and total energies and '
-                                                     'enthalpies evaluated at the specified state and using the '
-                                                     'specified system object.',
-                                           type_hint=str)
-
-    def __init__(self, protocol_id):
-        """Constructs a new CalculateReducedPotentialOpenMM object."""
-        super().__init__(protocol_id)
-
-        self._thermodynamic_state = None
-
-        self._system_path = None
-        self._system = None
-        self._enable_pbc = True
-
-        self._coordinate_file_path = None
-        self._trajectory_file_path = None
-
-        self._kinetic_energies_path = None
-        self._use_internal_energy = False
-
-        self._statistics_file_path = None
-
-        self._high_precision = False
+    statistics_file_path = protocol_output(
+        docstring='A file path to the statistics file which contains the reduced '
+                  'potentials, and the potential, kinetic and total energies and '
+                  'enthalpies evaluated at the specified state and using the '
+                  'specified system object.',
+        type_hint=str
+    )
 
     def execute(self, directory, available_resources):
 
@@ -202,30 +188,30 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         from simtk import openmm, unit as simtk_unit
         from simtk.openmm import XmlSerializer
 
-        trajectory = mdtraj.load_dcd(self._trajectory_file_path, self._coordinate_file_path)
+        trajectory = mdtraj.load_dcd(self.trajectory_file_path, self.coordinate_file_path)
 
-        with open(self._system_path, 'rb') as file:
-            self._system = XmlSerializer.deserialize(file.read().decode())
+        with open(self.system_path, 'rb') as file:
+            system = XmlSerializer.deserialize(file.read().decode())
 
-        temperature = pint_quantity_to_openmm(self._thermodynamic_state.temperature)
-        pressure = pint_quantity_to_openmm(self._thermodynamic_state.pressure)
+        temperature = pint_quantity_to_openmm(self.thermodynamic_state.temperature)
+        pressure = pint_quantity_to_openmm(self.thermodynamic_state.pressure)
 
-        if self._enable_pbc:
-            self._system.setDefaultPeriodicBoxVectors(*trajectory.openmm_boxes(0))
+        if self.enable_pbc:
+            system.setDefaultPeriodicBoxVectors(*trajectory.openmm_boxes(0))
         else:
             pressure = None
 
-        openmm_state = openmmtools.states.ThermodynamicState(system=self._system,
+        openmm_state = openmmtools.states.ThermodynamicState(system=system,
                                                              temperature=temperature,
                                                              pressure=pressure)
 
         integrator = openmmtools.integrators.VelocityVerletIntegrator(0.01*simtk_unit.femtoseconds)
 
         # Setup the requested platform:
-        platform = setup_platform_with_resources(available_resources, self._high_precision)
+        platform = setup_platform_with_resources(available_resources, self.high_precision)
         openmm_system = openmm_state.get_system(True, True)
 
-        if not self._enable_pbc:
+        if not self.enable_pbc:
             disable_pbc(openmm_system)
 
         openmm_context = openmm.Context(openmm_system, integrator, platform)
@@ -235,7 +221,7 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
 
         for frame_index in range(trajectory.n_frames):
 
-            if self._enable_pbc:
+            if self.enable_pbc:
                 box_vectors = trajectory.openmm_boxes(frame_index)
                 openmm_context.setPeriodicBoxVectors(*box_vectors)
 
@@ -247,7 +233,7 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
             potential_energies[frame_index] = potential_energy.value_in_unit(simtk_unit.kilojoule_per_mole)
             reduced_potentials[frame_index] = openmm_state.reduced_potential(openmm_context)
 
-        kinetic_energies = StatisticsArray.from_pandas_csv(self._kinetic_energies_path)[ObservableType.KineticEnergy]
+        kinetic_energies = StatisticsArray.from_pandas_csv(self.kinetic_energies_path)[ObservableType.KineticEnergy]
 
         statistics_array = StatisticsArray()
         statistics_array[ObservableType.PotentialEnergy] = potential_energies * unit.kilojoule / unit.mole
@@ -258,13 +244,13 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
                                                         statistics_array[ObservableType.KineticEnergy])
 
         statistics_array[ObservableType.Enthalpy] = (statistics_array[ObservableType.ReducedPotential] *
-                                                     self._thermodynamic_state.inverse_beta + kinetic_energies)
+                                                     self.thermodynamic_state.inverse_beta + kinetic_energies)
 
-        if self._use_internal_energy:
-            statistics_array[ObservableType.ReducedPotential] += kinetic_energies * self._thermodynamic_state.beta
+        if self.use_internal_energy:
+            statistics_array[ObservableType.ReducedPotential] += kinetic_energies * self.thermodynamic_state.beta
 
-        self._statistics_file_path = path.join(directory, 'statistics.csv')
-        statistics_array.to_pandas_csv(self._statistics_file_path)
+        self.statistics_file_path = path.join(directory, 'statistics.csv')
+        statistics_array.to_pandas_csv(self.statistics_file_path)
 
         return self._get_output_dictionary()
 
@@ -276,65 +262,61 @@ class BaseMBARProtocol(BaseProtocol):
     than they were originally measured.
     """
 
-    reference_reduced_potentials = protocol_input(docstring='A list of paths to the reduced potentials of each '
-                                                            'reference state.',
-                                                  type_hint=list,
-                                                  default_value=protocol_input.UNDEFINED)
+    reference_reduced_potentials = protocol_input(
+        docstring='A list of paths to the reduced potentials of each '
+                  'reference state.',
+        type_hint=list,
+        default_value=protocol_input.UNDEFINED
+    )
+    target_reduced_potentials = protocol_input(
+        docstring='A list of paths to the reduced potentials of the target state.',
+        type_hint=list,
+        default_value=protocol_input.UNDEFINED
+    )
 
-    target_reduced_potentials = protocol_input(docstring='A list of paths to the reduced potentials of the target '
-                                                         'state.',
-                                               type_hint=list,
-                                               default_value=protocol_input.UNDEFINED)
+    bootstrap_uncertainties = protocol_input(
+        docstring='If true, bootstrapping will be used to estimated the total uncertainty',
+        type_hint=bool,
+        default_value=False
+    )
+    bootstrap_iterations = protocol_input(
+        docstring='The number of bootstrap iterations to perform if bootstraped '
+                  'uncertainties have been requested',
+        type_hint=int,
+        default_value=1
+    )
+    bootstrap_sample_size = protocol_input(
+        docstring='The relative bootstrap sample size to use if bootstraped '
+                  'uncertainties have been requested',
+        type_hint=float,
+        default_value=1.0
+    )
 
-    bootstrap_uncertainties = protocol_input(docstring='If true, bootstrapping will be used to estimated the total '
-                                                       'uncertainty',
-                                             type_hint=bool,
-                                             default_value=False)
+    required_effective_samples = protocol_input(
+        docstring='The minimum number of MBAR effective samples for the '
+                  'reweighted value to be trusted. If this minimum is not met '
+                  'then the uncertainty will be set to sys.float_info.max',
+        type_hint=int,
+        default_value=50
+    )
 
-    bootstrap_iterations = protocol_input(docstring='The number of bootstrap iterations to perform if bootstraped '
-                                                    'uncertainties have been requested',
-                                          type_hint=int,
-                                          default_value=1)
+    value = protocol_output(
+        docstring='The reweighted average value of the observable at the target state.',
+        type_hint=EstimatedQuantity
+    )
 
-    bootstrap_sample_size = protocol_input(docstring='The relative bootstrap sample size to use if bootstraped '
-                                                     'uncertainties have been requested',
-                                           type_hint=float,
-                                           default_value=1.0)
-
-    required_effective_samples = protocol_input(docstring='The minimum number of MBAR effective samples for the '
-                                                          'reweighted value to be trusted. If this minimum is not met '
-                                                          'then the uncertainty will be set to sys.float_info.max',
-                                                type_hint=int,
-                                                default_value=50)
-
-    value = protocol_output(docstring='The reweighted average value of the observable at the target state.',
-                            type_hint=EstimatedQuantity)
-
-    effective_samples = protocol_output(docstring='The number of effective samples which were reweighted.',
-                                        type_hint=int)
-
-    effective_sample_indices = protocol_output(docstring='The indices of those samples which have a non-zero weight.',
-                                               type_hint=list)
+    effective_samples = protocol_output(
+        docstring='The number of effective samples which were reweighted.',
+        type_hint=int
+    )
+    effective_sample_indices = protocol_output(
+        docstring='The indices of those samples which have a non-zero weight.',
+        type_hint=list
+    )
 
     def __init__(self, protocol_id):
-        """Constructs a new BaseMBARProtocol object."""
         super().__init__(protocol_id)
-
-        self._reference_reduced_potentials = None
-        self._reference_observables = None
-
-        self._target_reduced_potentials = None
-
-        self._bootstrap_uncertainties = False
-        self._bootstrap_iterations = 1
-        self._bootstrap_sample_size = 1.0
-
-        self._required_effective_samples = 50
-
-        self._value = None
-
-        self._effective_samples = 0
-        self._effective_sample_indices = None
+        self._reference_observables = []
 
     def execute(self, directory, available_resources):
 
@@ -352,7 +334,7 @@ class BaseMBARProtocol(BaseProtocol):
         observables = self._prepare_observables_array(self._reference_observables)
         observable_unit = self._reference_observables[0].units
 
-        if self._bootstrap_uncertainties:
+        if self.bootstrap_uncertainties:
             error = self._execute_with_bootstrapping(observable_unit, observables=observables)
         else:
             error = self._execute_without_bootstrapping(observable_unit, observables=observables)
@@ -382,7 +364,7 @@ class BaseMBARProtocol(BaseProtocol):
         target_reduced_potentials = []
 
         # Load in the reference reduced potentials.
-        for file_path in self._reference_reduced_potentials:
+        for file_path in self.reference_reduced_potentials:
 
             statistics_array = StatisticsArray.from_pandas_csv(file_path)
             reduced_potentials = statistics_array[ObservableType.ReducedPotential]
@@ -395,7 +377,7 @@ class BaseMBARProtocol(BaseProtocol):
             raise ValueError('This protocol currently only supports reweighting to '
                              'a single target state.')
 
-        for file_path in self._target_reduced_potentials:
+        for file_path in self.target_reduced_potentials:
 
             statistics_array = StatisticsArray.from_pandas_csv(file_path)
             reduced_potentials = statistics_array[ObservableType.ReducedPotential]
@@ -431,14 +413,14 @@ class BaseMBARProtocol(BaseProtocol):
         # Construct a dummy mbar object to get out the number of effective samples.
         mbar = self._construct_mbar_object(reference_reduced_potentials)
 
-        (self._effective_samples,
+        (self.effective_samples,
          effective_sample_indices) = self._compute_effective_samples(mbar, target_reduced_potentials)
 
-        if self._effective_samples < self._required_effective_samples:
+        if self.effective_samples < self.required_effective_samples:
 
             return PropertyEstimatorException(message=f'{self.id}: There was not enough effective samples '
-                                                      f'to reweight - {self._effective_samples} < '
-                                                      f'{self._required_effective_samples}')
+                                                      f'to reweight - {self.effective_samples} < '
+                                                      f'{self.required_effective_samples}')
 
         # Transpose the observables ready for bootstrapping.
         reference_reduced_potentials = np.transpose(reference_reduced_potentials)
@@ -450,18 +432,18 @@ class BaseMBARProtocol(BaseProtocol):
             transposed_observables[observable_key] = np.transpose(observables[observable_key])
 
         value, uncertainty = bootstrap(self._bootstrap_function,
-                                       self._bootstrap_iterations,
-                                       self._bootstrap_sample_size,
+                                       self.bootstrap_iterations,
+                                       self.bootstrap_sample_size,
                                        frame_counts,
                                        reference_reduced_potentials=reference_reduced_potentials,
                                        target_reduced_potentials=target_reduced_potentials,
                                        **transposed_observables)
 
-        self._effective_sample_indices = effective_sample_indices
+        self.effective_sample_indices = effective_sample_indices
 
-        self._value = EstimatedQuantity(value * observable_unit,
-                                        uncertainty * observable_unit,
-                                        self.id)
+        self.value = EstimatedQuantity(value * observable_unit,
+                                       uncertainty * observable_unit,
+                                       self.id)
 
     def _execute_without_bootstrapping(self, observable_unit, **observables):
         """Calculates the average reweighted observables at the target state,
@@ -480,22 +462,22 @@ class BaseMBARProtocol(BaseProtocol):
 
         reference_reduced_potentials, target_reduced_potentials = self._load_reduced_potentials()
 
-        values, uncertainties, self._effective_samples = self._reweight_observables(reference_reduced_potentials,
-                                                                                    target_reduced_potentials,
-                                                                                    **observables)
+        values, uncertainties, self.effective_samples = self._reweight_observables(reference_reduced_potentials,
+                                                                                   target_reduced_potentials,
+                                                                                   **observables)
 
         observable_key = next(iter(observables))
         uncertainty = uncertainties[observable_key]
 
-        if self._effective_samples < self._required_effective_samples:
+        if self.effective_samples < self.required_effective_samples:
 
             return PropertyEstimatorException(message=f'{self.id}: There was not enough effective samples '
-                                                      f'to reweight - {self._effective_samples} < '
-                                                      f'{self._required_effective_samples}')
+                                                      f'to reweight - {self.effective_samples} < '
+                                                      f'{self.required_effective_samples}')
 
-        self._value = EstimatedQuantity(values[observable_key] * observable_unit,
-                                        uncertainty * observable_unit,
-                                        self.id)
+        self.value = EstimatedQuantity(values[observable_key] * observable_unit,
+                                       uncertainty * observable_unit,
+                                       self.id)
 
     @staticmethod
     def _prepare_observables_array(reference_observables):
@@ -651,7 +633,7 @@ class BaseMBARProtocol(BaseProtocol):
         mbar = self._construct_mbar_object(reference_reduced_potentials)
 
         (effective_samples,
-         self._effective_sample_indices) = self._compute_effective_samples(mbar, target_reduced_potentials)
+         self.effective_sample_indices) = self._compute_effective_samples(mbar, target_reduced_potentials)
 
         values = {}
         uncertainties = {}
@@ -685,61 +667,57 @@ class ReweightStatistics(BaseMBARProtocol):
     """Reweights a set of observables from a `StatisticsArray` using MBAR.
     """
 
-    statistics_paths = protocol_input(docstring='The file paths to the statistics array which contains the observables '
-                                                'of interest from each state. If the observable of interest is '
-                                                'dependant on the changing variable (e.g. the potential energy) then '
-                                                'this must be a path to the observable re-evaluated at the new state.',
-                                      type_hint=list,
-                                      default_value=protocol_input.UNDEFINED)
+    statistics_paths = protocol_input(
+        docstring='The file paths to the statistics array which contains the observables '
+                  'of interest from each state. If the observable of interest is '
+                  'dependant on the changing variable (e.g. the potential energy) then '
+                  'this must be a path to the observable re-evaluated at the new state.',
+        type_hint=list,
+        default_value=protocol_input.UNDEFINED
+    )
+    statistics_type = protocol_input(
+        docstring='The type of observable to reweight.',
+        type_hint=ObservableType,
+        default_value=protocol_input.UNDEFINED
+    )
 
-    statistics_type = protocol_input(docstring='The type of observable to reweight.',
-                                     type_hint=ObservableType,
-                                     default_value=protocol_input.UNDEFINED)
-
-    frame_counts = protocol_input(docstring='A list which describes how many of the statistics in the array '
-                                            'belong to each reference state. If this input is used, only a single file '
-                                            'path should be passed to the `statistics_paths` input.',
-                                  type_hint=list,
-                                  default_value=protocol_input.UNDEFINED,
-                                  optional=True)
-
-    def __init__(self, protocol_id):
-        """Constructs a new ReweightWithMBARProtocol object."""
-        super().__init__(protocol_id)
-
-        self._statistics_paths = None
-        self._statistics_type = None
-
-        self._frame_counts = []
+    frame_counts = protocol_input(
+        docstring='A list which describes how many of the statistics in the array '
+                  'belong to each reference state. If this input is used, only a single file '
+                  'path should be passed to the `statistics_paths` input.',
+        type_hint=list,
+        default_value=protocol_input.UNDEFINED,
+        optional=True
+    )
 
     def execute(self, directory, available_resources):
 
-        if self._statistics_paths is None or len(self._statistics_paths) == 0:
+        if self.statistics_paths is None or len(self.statistics_paths) == 0:
             return PropertyEstimatorException(directory, 'No statistics paths were provided.')
 
-        if len(self._frame_counts) > 0 and len(self._statistics_paths) != 1:
+        if len(self.frame_counts) > 0 and len(self.statistics_paths) != 1:
             return PropertyEstimatorException(directory, 'The frame counts input can only be used when only'
                                                          'a single path is passed to the `statistics_paths`'
                                                          'input.')
 
-        if self._statistics_type == ObservableType.KineticEnergy:
+        if self.statistics_type == ObservableType.KineticEnergy:
             return PropertyEstimatorException(directory, f'Kinetic energies cannot be reweighted.')
 
-        statistics_arrays = [StatisticsArray.from_pandas_csv(file_path) for file_path in self._statistics_paths]
+        statistics_arrays = [StatisticsArray.from_pandas_csv(file_path) for file_path in self.statistics_paths]
 
         self._reference_observables = []
 
-        if len(self._frame_counts) > 0:
+        if len(self.frame_counts) > 0:
 
             statistics_array = statistics_arrays[0]
             current_index = 0
 
-            for frame_count in self._frame_counts:
+            for frame_count in self.frame_counts:
 
                 if frame_count <= 0:
                     return PropertyEstimatorException(directory, 'The frame counts must be > 0.')
 
-                observables = statistics_array[self._statistics_type][current_index:current_index + frame_count]
+                observables = statistics_array[self.statistics_type][current_index:current_index + frame_count]
                 self._reference_observables.append(observables)
 
                 current_index += frame_count
@@ -748,7 +726,7 @@ class ReweightStatistics(BaseMBARProtocol):
 
             for statistics_array in statistics_arrays:
 
-                observables = statistics_array[self._statistics_type]
+                observables = statistics_array[self.statistics_type]
                 self._reference_observables.append(observables)
 
         return super(ReweightStatistics, self).execute(directory, available_resources)
