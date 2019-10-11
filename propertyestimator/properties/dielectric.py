@@ -216,13 +216,13 @@ class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
     reference_dipole_moments = protocol_input(
         docstring='A Quantity wrapped np.ndarray of the dipole moments of each '
                   'of the reference states.',
-        type_hint=unit.Quantity,
+        type_hint=list,
         default_value=UNDEFINED
     )
     reference_volumes = protocol_input(
         docstring='A Quantity wrapped np.ndarray of the volumes of each of the '
                   'reference states.',
-        type_hint=unit.Quantity,
+        type_hint=list,
         default_value=UNDEFINED
     )
 
