@@ -123,7 +123,7 @@ class _Multiprocessor:
             formatted_exception = traceback.format_exception(None, return_value[0], return_value[1])
             logging.info(f'{formatted_exception} {return_value[0]} {return_value[1]}')
 
-            raise return_value
+            raise return_value[0]
 
         return return_value
 
