@@ -10,7 +10,7 @@ from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
-from propertyestimator.workflow.decorators import protocol_input, protocol_output
+from propertyestimator.workflow.decorators import protocol_input, protocol_output, UNDEFINED
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
@@ -26,7 +26,7 @@ class UnpackStoredDataCollection(BaseProtocol):
                   'it\'s ancillary data directory, and the force field which was used '
                   'to generate the stored data.',
         type_hint=tuple,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     collection_data_paths = protocol_output(
@@ -104,7 +104,7 @@ class UnpackStoredSimulationData(BaseProtocol):
                   'object, it\'s ancillary data directory, and the force field which '
                   'was used to generate the stored data.',
         type_hint=tuple,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     substance = protocol_output(

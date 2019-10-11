@@ -21,7 +21,7 @@ from propertyestimator.utils.openmm import pint_quantity_to_openmm, setup_platfo
     openmm_quantity_to_pint, disable_pbc
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import StatisticsArray, ObservableType
-from propertyestimator.workflow.decorators import protocol_input, protocol_output
+from propertyestimator.workflow.decorators import protocol_input, protocol_output, UNDEFINED
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
@@ -37,13 +37,13 @@ class GradientReducedPotentials(BaseProtocol):
         docstring='A list of paths to the force field files which were '
                   'originally used to generate the configurations.',
         type_hint=list,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     force_field_path = protocol_input(
         docstring='The path to the force field which contains the parameters to '
                   'differentiate the observable with respect to.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     reference_statistics_path = protocol_input(
@@ -53,7 +53,7 @@ class GradientReducedPotentials(BaseProtocol):
                   'and forward states. This is only really needed when the '
                   'observable of interest is an energy.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED,
+        default_value=UNDEFINED,
         optional=True
     )
 
@@ -67,30 +67,30 @@ class GradientReducedPotentials(BaseProtocol):
     substance = protocol_input(
         docstring='The substance which describes the composition of the system.',
         type_hint=Substance,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     thermodynamic_state = protocol_input(
         docstring='The thermodynamic state to estimate the gradients at.',
         type_hint=ThermodynamicState,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     coordinate_file_path = protocol_input(
         docstring='A path to a PDB coordinate file which describes the topology of '
                   'the system.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     trajectory_file_path = protocol_input(
         docstring='A path to the trajectory of configurations',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     parameter_key = protocol_input(
         docstring='The key of the parameter to differentiate with respect to.',
         type_hint=ParameterGradientKey,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     perturbation_scale = protocol_input(
@@ -111,7 +111,7 @@ class GradientReducedPotentials(BaseProtocol):
     effective_sample_indices = protocol_input(
         docstring='This a placeholder input which is not currently implemented.',
         type_hint=list,
-        default_value=protocol_input.UNDEFINED,
+        default_value=UNDEFINED,
         optional=True
     )
 
@@ -423,33 +423,33 @@ class CentralDifferenceGradient(BaseProtocol):
     parameter_key = protocol_input(
         docstring='The key of the parameter to differentiate with respect to.',
         type_hint=ParameterGradientKey,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     reverse_observable_value = protocol_input(
         docstring='The value of the observable evaluated using the parameters'
                   'perturbed in the reverse direction.',
         type_hint=typing.Union[unit.Quantity, EstimatedQuantity],
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     forward_observable_value = protocol_input(
         docstring='The value of the observable evaluated using the parameters'
                   'perturbed in the forward direction.',
         type_hint=typing.Union[unit.Quantity, EstimatedQuantity],
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     reverse_parameter_value = protocol_input(
         docstring='The value of the parameter perturbed in the reverse '
                   'direction.',
         type_hint=unit.Quantity,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     forward_parameter_value = protocol_input(
         docstring='The value of the parameter perturbed in the forward '
                   'direction.',
         type_hint=unit.Quantity,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     gradient = protocol_output(

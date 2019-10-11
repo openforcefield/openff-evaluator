@@ -609,6 +609,40 @@ class WorkflowSchema(TypedBaseModel):
 
         return ProtocolPath.from_string(full_unreplicated_path)
 
+    @staticmethod
+    def _get_unnested_protocol_path(protocol_path):
+        """Returns a protocol path whose nested property name
+        has been truncated to only include the top level name,
+        e.g:
+
+        `some_protocol_id.value.uncertainty` would be truncated to `some_protocol_id.value`
+
+        and
+
+        `some_protocol_id.value[1]]` would be truncated to `some_protocol_id.value`
+
+        Parameters
+        ----------
+        protocol_path: ProtocolPath
+            The path to truncate.
+
+        Returns
+        -------
+        ProtocolPath
+            The truncated path.
+        """
+        property_name, protocol_ids = ProtocolPath.to_components(protocol_path.full_path)
+
+        # Remove any nested property names from the path
+        if protocol_path.property_name.find('.') >= 0:
+            property_name = property_name.split('.')[0]
+
+        # Remove any array indices from the path
+        if protocol_path.property_name.find('[') >= 0:
+            property_name = property_name.split('[')[0]
+
+        return ProtocolPath(property_name, *protocol_ids)
+
     def replace_protocol_types(self, protocol_replacements, protocol_group_schema=None):
         """Replaces protocols with given types with other protocols
         of specified replacements. This is useful when replacing
@@ -847,7 +881,17 @@ class WorkflowSchema(TypedBaseModel):
                         # We handle global input validation separately
                         continue
 
-                    value_reference = self._get_unreplicated_path(value_reference)
+                    value_reference = self._get_unnested_protocol_path(self._get_unreplicated_path(value_reference))
+                    source_path = self._get_unnested_protocol_path(source_path)
+
+                    # Remove any nested property names from the value reference path
+                    if value_reference.property_name.find('.') >= 0:
+
+                        (value_reference_property_name,
+                         value_reference_ids) = ProtocolPath.to_components(value_reference.full_path)
+
+                        value_reference_property_name = value_reference_property_name.split('.')[0]
+                        value_reference = ProtocolPath(value_reference_property_name, *value_reference_ids)
 
                     # Make sure the other protocol whose output we are interested
                     # in actually exists.
@@ -866,7 +910,8 @@ class WorkflowSchema(TypedBaseModel):
                     if value_reference.property_name.find('[') >= 0 or value_reference.property_name.find(']') >= 0:
                         continue
 
-                    # Will throw the correct exception if missing.
+                    # Make sure the other protocol has the output referenced
+                    # by this input.
                     other_protocol_object.get_value(value_reference)
 
                     is_replicated_reference = False
@@ -889,9 +934,10 @@ class WorkflowSchema(TypedBaseModel):
                     expected_input_type = protocol_object.get_attribute_type(source_path)
                     expected_output_type = other_protocol_object.get_attribute_type(value_reference)
 
-                    if (expected_input_type is not None and expected_output_type is not None and
-                        not is_type_subclass_of_type(expected_output_type, expected_input_type)):
+                    if expected_input_type is None or expected_output_type is None:
+                        continue
 
-                        raise Exception('The output type ({}) of {} does not match the requested '
-                                        'input type ({}) of {}'.format(expected_output_type, value_reference,
-                                                                       expected_input_type, source_path))
+                    if not is_type_subclass_of_type(expected_output_type, expected_input_type):
+
+                        raise Exception(f'The output type ({expected_output_type}) of {value_reference} does not '
+                                        f'match the requested input type ({expected_input_type}) of {source_path}')

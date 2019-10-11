@@ -464,9 +464,8 @@ class BaseProtocol:
         if (reference_path.property_name.count(ProtocolPath.property_separator) >= 1 or
             reference_path.property_name.find('[') > 0):
 
-            return None
-            # raise ValueError('The expected type cannot be found for '
-            #                  'nested property names: {}'.format(reference_path.property_name))
+            raise ValueError('The expected type cannot be found for '
+                             'nested property names: {}'.format(reference_path.property_name))
 
         return getattr(type(self), reference_path.property_name).type_hint
 

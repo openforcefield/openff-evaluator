@@ -14,7 +14,7 @@ from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.openmm import pint_quantity_to_openmm, setup_platform_with_resources, disable_pbc
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import bootstrap, StatisticsArray, ObservableType
-from propertyestimator.workflow.decorators import protocol_input, protocol_output
+from propertyestimator.workflow.decorators import protocol_input, protocol_output, UNDEFINED
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
@@ -28,12 +28,12 @@ class ConcatenateTrajectories(BaseProtocol):
     input_coordinate_paths = protocol_input(
         docstring='A list of paths to the starting PDB coordinates for each of the trajectories.',
         type_hint=list,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     input_trajectory_paths = protocol_input(
         docstring='A list of paths to the trajectories to concatenate.',
         type_hint=list,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     output_coordinate_path = protocol_output(
@@ -86,7 +86,7 @@ class ConcatenateStatistics(BaseProtocol):
     input_statistics_paths = protocol_input(
         docstring='A list of paths to statistics arrays to concatenate.',
         type_hint=list,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     output_statistics_path = protocol_output(
         docstring='The path the csv file which contains the concatenated statistics.',
@@ -123,14 +123,14 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
     thermodynamic_state = protocol_input(
         docstring='The state to calculate the reduced potential at.',
         type_hint=ThermodynamicState,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     system_path = protocol_input(
         docstring='The path to the system object which describes the systems potential '
                   'energy function.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     enable_pbc = protocol_input(
         docstring='If true, periodic boundary conditions will be enabled.',
@@ -142,19 +142,19 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         docstring='The path to the coordinate file which contains topology '
                   'information about the system.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     trajectory_file_path = protocol_input(
         docstring='The path to the trajectory file which contains the '
                   'configurations to calculate the energies of.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     kinetic_energies_path = protocol_input(
         docstring='The file path to a statistics array which contain the kinetic '
                   'energies of each frame in the trajectory.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     high_precision = protocol_input(
@@ -266,12 +266,12 @@ class BaseMBARProtocol(BaseProtocol):
         docstring='A list of paths to the reduced potentials of each '
                   'reference state.',
         type_hint=list,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     target_reduced_potentials = protocol_input(
         docstring='A list of paths to the reduced potentials of the target state.',
         type_hint=list,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     bootstrap_uncertainties = protocol_input(
@@ -673,12 +673,12 @@ class ReweightStatistics(BaseMBARProtocol):
                   'dependant on the changing variable (e.g. the potential energy) then '
                   'this must be a path to the observable re-evaluated at the new state.',
         type_hint=list,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     statistics_type = protocol_input(
         docstring='The type of observable to reweight.',
         type_hint=ObservableType,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     frame_counts = protocol_input(
@@ -686,7 +686,7 @@ class ReweightStatistics(BaseMBARProtocol):
                   'belong to each reference state. If this input is used, only a single file '
                   'path should be passed to the `statistics_paths` input.',
         type_hint=list,
-        default_value=protocol_input.UNDEFINED,
+        default_value=UNDEFINED,
         optional=True
     )
 

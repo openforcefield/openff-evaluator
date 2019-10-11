@@ -13,8 +13,37 @@ from propertyestimator.workflow.typing import is_instance_of_type, is_supported_
 from propertyestimator.workflow.utils import PlaceholderInput
 
 
+class UndefinedAttributeMetaClass(type):
+    """A metaclass which allows the UndefinedAttribute to
+    behave as a singleton.
+    """
+
+    _instance = None
+
+    def __call__(cls, *args, **kwargs):
+
+        if cls._instance is None:
+            cls._instance = super(UndefinedAttributeMetaClass, cls).__call__(*args, **kwargs)
+
+        return cls._instance
+
+
+class UndefinedAttribute(metaclass=UndefinedAttributeMetaClass):
+    """A custom type used to differentiate between ``None`` values,
+    and an undeclared optional value."""
+
+    def __getstate__(self):
+        return {}
+
+    def __setstate__(self, state):
+        return
+
+
+UNDEFINED = UndefinedAttribute()
+
+
 class BaseMergeBehaviour(Enum):
-    """A base clase for enums which will describes how attributes should
+    """A base class for enums which will describes how attributes should
     be handled when attempting to merge similar protocols.
     """
     pass
@@ -58,26 +87,6 @@ class BaseProtocolAttribute(abc.ABC):
     an attribute `substance`, by default the protocol must also have a
     `_substance` field.
     """
-
-    class UndefinedMeta(type):
-        def __str__(self):
-            return 'UNDEFINED'
-
-        def __repr__(self):
-            return str(self)
-
-        @staticmethod
-        def __getstate__():
-            return {}
-
-        @staticmethod
-        def __setstate__(state):
-            return
-
-    class UNDEFINED(metaclass=UndefinedMeta):
-        """A custom type used to differentiate between ``None`` values,
-        and an undeclared optional value."""
-        ...
 
     def __init__(self, docstring, type_hint):
         """Initializes a new BaseProtocolAttribute object.
@@ -129,13 +138,13 @@ class BaseProtocolAttribute(abc.ABC):
         try:
             return getattr(instance, self._private_attribute_name)
         except AttributeError:
-            return BaseProtocolAttribute.UNDEFINED
+            return UNDEFINED
 
     def __set__(self, instance, value):
 
         if (not is_instance_of_type(value, self.type_hint) and
             not isinstance(value, PlaceholderInput) and
-            not value == BaseProtocolAttribute.UNDEFINED):
+            not value == UNDEFINED):
 
             raise ValueError(f'The {self._private_attribute_name[1:]} attribute can only accept '
                              f'values of type {self.type_hint}')
@@ -192,7 +201,7 @@ class ProtocolInputAttribute(BaseProtocolAttribute):
             docstring = f'{docstring} The default value of this attribute ' \
                         f'is ``{str(default_value)}``.'
 
-        elif default_value == self.UNDEFINED:
+        elif default_value == UNDEFINED:
 
             optional_string = '' if optional else ' and must be set by the user.'
 

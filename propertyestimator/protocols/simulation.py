@@ -15,7 +15,7 @@ from propertyestimator.utils.openmm import setup_platform_with_resources, openmm
     pint_quantity_to_openmm, disable_pbc
 from propertyestimator.utils.statistics import StatisticsArray, ObservableType
 from propertyestimator.utils.utils import safe_unlink
-from propertyestimator.workflow.decorators import protocol_input, protocol_output, InequalityMergeBehaviour
+from propertyestimator.workflow.decorators import protocol_input, protocol_output, InequalityMergeBehaviour, UNDEFINED
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 from simtk import openmm, unit as simtk_unit
@@ -30,13 +30,13 @@ class RunEnergyMinimisation(BaseProtocol):
     input_coordinate_file = protocol_input(
         docstring='The coordinates to minimise.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     system_path = protocol_input(
         docstring='The path to the XML system object which defines the forces present '
                   'in the system.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     tolerance = protocol_input(
@@ -55,7 +55,7 @@ class RunEnergyMinimisation(BaseProtocol):
     enable_pbc = protocol_input(
         docstring='If true, periodic boundary conditions will be enabled.',
         type_hint=bool,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     output_coordinate_file = protocol_output(
@@ -131,7 +131,7 @@ class RunOpenMMSimulation(BaseProtocol):
     thermodynamic_state = protocol_input(
         docstring='The thermodynamic conditions to simulate under',
         type_hint=ThermodynamicState,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     ensemble = protocol_input(
         docstring='The thermodynamic ensemble to simulate in.',
@@ -155,13 +155,13 @@ class RunOpenMMSimulation(BaseProtocol):
     input_coordinate_file = protocol_input(
         docstring='The file path to the starting coordinates.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     system_path = protocol_input(
         docstring='A path to the XML system object which defines the forces present '
                   'in the system.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     enable_pbc = protocol_input(

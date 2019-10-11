@@ -21,7 +21,7 @@ from propertyestimator.substances import Substance
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.openmm import pint_quantity_to_openmm
 from propertyestimator.utils.utils import temporarily_change_directory, get_data_filename
-from propertyestimator.workflow.decorators import protocol_input, protocol_output
+from propertyestimator.workflow.decorators import protocol_input, protocol_output, UNDEFINED
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
@@ -46,20 +46,20 @@ class BaseBuildSystemProtocol(BaseProtocol):
     force_field_path = protocol_input(
         docstring='The file path to the force field parameters to assign to the system.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     coordinate_file_path = protocol_input(
         docstring='The file path to the PDB coordinate file which defines the '
                   'topology of the system to which the force field parameters '
                   'will be assigned.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     substance = protocol_input(
         docstring='The composition of the system.',
         type_hint=Substance,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     water_model = protocol_input(
         docstring='The water model to apply, if any water molecules are present.',

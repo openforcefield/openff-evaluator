@@ -61,10 +61,10 @@ class DummyDecoratedClass:
 def test_find_decorator():
     """Test that decorated functions can be identified."""
 
-    types = utils.find_types_with_decorator(DummyDecoratedClass, 'DummyDescriptor1')
+    types = utils.find_types_with_decorator(DummyDecoratedClass, DummyDescriptor1)
     assert len(types) == 2 and set(types) == {'dummy_function_1', 'dummy_function_2'}
 
-    types = utils.find_types_with_decorator(DummyDecoratedClass, 'DummyDescriptor2')
+    types = utils.find_types_with_decorator(DummyDecoratedClass, DummyDescriptor2)
     assert len(types) == 1 and types[0] == 'dummy_function_3'
 
 

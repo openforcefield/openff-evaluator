@@ -22,7 +22,7 @@ from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import bootstrap
 from propertyestimator.workflow import plugins
-from propertyestimator.workflow.decorators import protocol_input, protocol_output
+from propertyestimator.workflow.decorators import protocol_input, protocol_output, UNDEFINED
 from propertyestimator.workflow.schemas import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
@@ -35,12 +35,12 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
     system_path = protocol_input(
         docstring='The path to the XML system object which defines the forces present in the system.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     thermodynamic_state = protocol_input(
         docstring='The thermodynamic state at which the trajectory was generated.',
         type_hint=ThermodynamicState,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     dipole_moments = protocol_output(
@@ -217,19 +217,19 @@ class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
         docstring='A Quantity wrapped np.ndarray of the dipole moments of each '
                   'of the reference states.',
         type_hint=unit.Quantity,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     reference_volumes = protocol_input(
         docstring='A Quantity wrapped np.ndarray of the volumes of each of the '
                   'reference states.',
         type_hint=unit.Quantity,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     thermodynamic_state = protocol_input(
         docstring='The thermodynamic state at which the trajectory was generated.',
         type_hint=ThermodynamicState,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     def __init__(self, protocol_id):

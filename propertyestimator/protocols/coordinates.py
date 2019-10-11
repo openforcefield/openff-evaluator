@@ -13,7 +13,7 @@ from propertyestimator import unit
 from propertyestimator.substances import Substance
 from propertyestimator.utils import packmol, create_molecule_from_smiles
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.workflow.decorators import protocol_input, protocol_output
+from propertyestimator.workflow.decorators import protocol_input, protocol_output, UNDEFINED
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
@@ -44,7 +44,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
     substance = protocol_input(
         docstring='The composition of the system to build.',
         type_hint=Substance,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     verbose_packmol = protocol_input(
@@ -235,13 +235,13 @@ class BuildCoordinatesPackmol(BaseProtocol):
             return PropertyEstimatorException(directory=directory,
                                               message='The substance input is non-optional')
 
-        molecules, number_of_molecules, exception = self.build_molecule_arrays(directory)
+        molecules, number_of_molecules, exception = self._build_molecule_arrays(directory)
 
         if exception is not None:
             return exception
 
         self.output_number_of_molecules = sum(number_of_molecules)
-        self.output_substance = self.rebuild_substance(number_of_molecules)
+        self.output_substance = self._rebuild_substance(number_of_molecules)
 
         packmol_directory = path.join(directory, 'packmol_files')
 
@@ -273,7 +273,7 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
     solute_coordinate_file = protocol_input(
         docstring='A file path to the solute to solvate.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     def __init__(self, protocol_id):
@@ -335,7 +335,7 @@ class BuildDockedCoordinates(BaseProtocol):
     ligand_substance = protocol_input(
         docstring='A substance containing only the ligand to dock.',
         type_hint=Substance,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     number_of_ligand_conformers = protocol_input(
         docstring='The number of conformers to try and dock into the '
@@ -347,7 +347,7 @@ class BuildDockedCoordinates(BaseProtocol):
     receptor_coordinate_file = protocol_input(
         docstring='The file path to the coordinates of the receptor molecule.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     activate_site_location = protocol_input(
         docstring='Defines the method by which the activate site is identified.',

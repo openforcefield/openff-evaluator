@@ -13,7 +13,7 @@ from propertyestimator.utils import statistics, timeseries
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import StatisticsArray, bootstrap
-from propertyestimator.workflow.decorators import protocol_input, protocol_output, InequalityMergeBehaviour
+from propertyestimator.workflow.decorators import protocol_input, protocol_output, InequalityMergeBehaviour, UNDEFINED
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
@@ -90,12 +90,12 @@ class AverageTrajectoryProperty(AveragePropertyProtocol):
     input_coordinate_file = protocol_input(
         docstring='The file path to the starting coordinates of a trajectory.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     trajectory_path = protocol_input(
         docstring='The file path to the trajectory to average over.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     def execute(self, directory, available_resources):
@@ -118,12 +118,12 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
     statistics_path = protocol_input(
         docstring='The file path to the statistics to average over.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     statistics_type = protocol_input(
         docstring='The type of statistic to average over.',
         type_hint=statistics.ObservableType,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     divisor = protocol_input(
@@ -172,7 +172,7 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
         unitless_values, self.equilibration_index, self.statistical_inefficiency = \
             timeseries.decorrelate_time_series(unitless_values)
 
-        final_value, final_uncertainty = bootstrap(self.bootstrap_function,
+        final_value, final_uncertainty = bootstrap(self._bootstrap_function,
                                                    self.bootstrap_iterations,
                                                    self.bootstrap_sample_size,
                                                    values=unitless_values)
@@ -196,13 +196,13 @@ class ExtractUncorrelatedData(BaseProtocol):
     equilibration_index = protocol_input(
         docstring='The index in the data set after which the data is stationary.',
         type_hint=int,
-        default_value=protocol_input.UNDEFINED,
+        default_value=UNDEFINED,
         merge_behavior=InequalityMergeBehaviour.LargestValue
     )
     statistical_inefficiency = protocol_input(
         docstring='The statistical inefficiency in the data set.',
         type_hint=float,
-        default_value=protocol_input.UNDEFINED,
+        default_value=UNDEFINED,
         merge_behavior=InequalityMergeBehaviour.LargestValue
     )
 
@@ -224,12 +224,12 @@ class ExtractUncorrelatedTrajectoryData(ExtractUncorrelatedData):
     input_coordinate_file = protocol_input(
         docstring='The file path to the starting coordinates of a trajectory.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     input_trajectory_path = protocol_input(
         docstring='The file path to the trajectory to subsample.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     output_trajectory_path = protocol_output(
@@ -327,7 +327,7 @@ class ExtractUncorrelatedStatisticsData(ExtractUncorrelatedData):
     input_statistics_path = protocol_input(
         docstring='The file path to the statistics to subsample.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     output_statistics_path = protocol_output(

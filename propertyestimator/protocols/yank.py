@@ -17,7 +17,7 @@ from propertyestimator.utils.openmm import setup_platform_with_resources, openmm
     pint_quantity_to_openmm
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.utils import temporarily_change_directory
-from propertyestimator.workflow.decorators import protocol_input, protocol_output, InequalityMergeBehaviour
+from propertyestimator.workflow.decorators import protocol_input, protocol_output, InequalityMergeBehaviour, UNDEFINED
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
@@ -34,13 +34,13 @@ class BaseYankProtocol(BaseProtocol):
     thermodynamic_state = protocol_input(
         docstring='The state at which to run the calculations.',
         type_hint=ThermodynamicState,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     number_of_iterations = protocol_input(
         docstring='The number of YANK iterations to perform.',
         type_hint=int, merge_behavior=InequalityMergeBehaviour.LargestValue,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     steps_per_iteration = protocol_input(
         docstring='The number of steps per YANK iteration to perform.',
@@ -62,7 +62,7 @@ class BaseYankProtocol(BaseProtocol):
     force_field_path = protocol_input(
         docstring='The path to the force field to use for the calculations',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     verbose = protocol_input(
@@ -374,34 +374,34 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
     ligand_residue_name = protocol_input(
         docstring='The residue name of the ligand.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     receptor_residue_name = protocol_input(
         docstring='The residue name of the receptor.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     solvated_ligand_coordinates = protocol_input(
         docstring='The file path to the solvated ligand coordinates.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     solvated_ligand_system = protocol_input(
         docstring='The file path to the solvated ligand system object.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     solvated_complex_coordinates = protocol_input(
         docstring='The file path to the solvated complex coordinates.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     solvated_complex_system = protocol_input(
         docstring='The file path to the solvated complex system object.',
         type_hint=str,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     apply_restraints = protocol_input(

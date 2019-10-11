@@ -10,7 +10,7 @@ from propertyestimator.properties import ParameterGradient
 from propertyestimator.substances import Substance
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.workflow.decorators import protocol_input, protocol_output
+from propertyestimator.workflow.decorators import protocol_input, protocol_output, UNDEFINED
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
@@ -28,7 +28,7 @@ class AddValues(BaseProtocol):
     values = protocol_input(
         docstring='The values to add together.',
         type_hint=list,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     result = protocol_output(
@@ -64,12 +64,12 @@ class SubtractValues(BaseProtocol):
     value_a = protocol_input(
         docstring='`value_a` in the formula `result` = `value_b` - `value_a`.',
         type_hint=typing.Union[int, float, unit.Quantity, EstimatedQuantity, ParameterGradient],
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     value_b = protocol_input(
         docstring='`value_b` in the formula `result` = `value_b` - `value_a`.',
         type_hint=typing.Union[int, float, unit.Quantity, EstimatedQuantity, ParameterGradient],
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     result = protocol_output(
@@ -91,12 +91,12 @@ class MultiplyValue(BaseProtocol):
     value = protocol_input(
         docstring='The value to multiply.',
         type_hint=typing.Union[int, float, unit.Quantity, EstimatedQuantity, ParameterGradient],
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     multiplier = protocol_input(
         docstring='The scalar to multiply by.',
         type_hint=typing.Union[int, float, unit.Quantity],
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     result = protocol_output(
@@ -127,12 +127,12 @@ class DivideValue(BaseProtocol):
     value = protocol_input(
         docstring='The value to divide.',
         type_hint=typing.Union[int, float, unit.Quantity, EstimatedQuantity, ParameterGradient],
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     divisor = protocol_input(
         docstring='The scalar to divide by.',
         type_hint=typing.Union[int, float, unit.Quantity],
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     result = protocol_output(
@@ -155,18 +155,18 @@ class WeightByMoleFraction(BaseProtocol):
     value = protocol_input(
         docstring='The value to be weighted.',
         type_hint=typing.Union[float, int, EstimatedQuantity, unit.Quantity, ParameterGradient],
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     component = protocol_input(
         docstring='The component whose mole fraction to weight by.',
         type_hint=Substance,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
     full_substance = protocol_input(
         docstring='The full substance which describes the mole fraction of the component.',
         type_hint=Substance,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     weighted_value = protocol_output(
@@ -225,20 +225,20 @@ class FilterSubstanceByRole(BaseProtocol):
     input_substance = protocol_input(
         docstring='The substance to filter.',
         type_hint=Substance,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     component_role = protocol_input(
         docstring='The role to filter substance components against.',
         type_hint=Substance.ComponentRole,
-        default_value=protocol_input.UNDEFINED
+        default_value=UNDEFINED
     )
 
     expected_components = protocol_input(
         docstring='The number of components expected to remain after filtering. '
                   'An exception is raised if this number is not matched.',
         type_hint=int,
-        default_value=protocol_input.UNDEFINED,
+        default_value=UNDEFINED,
         optional=True
     )
 
@@ -268,7 +268,7 @@ class FilterSubstanceByRole(BaseProtocol):
 
                 total_mole_fraction += amount.value
 
-        if (self.expected_components != protocol_input.UNDEFINED and
+        if (self.expected_components != UNDEFINED and
             self.expected_components != len(filtered_components)):
 
             return PropertyEstimatorException(directory=directory,
