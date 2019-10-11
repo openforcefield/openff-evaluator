@@ -220,7 +220,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         host_guest_protocol.number_of_production_steps = 1000000
         host_guest_protocol.equilibration_output_frequency = 5000
         host_guest_protocol.production_output_frequency = 5000
-        host_guest_protocol.number_of_solvent_molecules = 2000
+        host_guest_protocol.number_of_solvent_molecules = 3000
 
         # Retrieve a subset of the full substance which only contains the
         # host and the solvent.
@@ -247,7 +247,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         host_protocol.number_of_production_steps = 1000000
         host_protocol.equilibration_output_frequency = 5000
         host_protocol.production_output_frequency = 5000
-        host_protocol.number_of_solvent_molecules = 2000
+        host_protocol.number_of_solvent_molecules = 3000
 
         # Sum together the free energies of the individual orientations
         sum_protocol = miscellaneous.AddValues(f'add_per_orientation_free_energies_'

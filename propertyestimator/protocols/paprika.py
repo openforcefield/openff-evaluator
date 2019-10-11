@@ -161,7 +161,7 @@ class BasePaprikaProtocol(BaseProtocol):
         self._number_of_production_steps = 1000000
         self._production_output_frequency = 5000
 
-        self._number_of_solvent_molecules = 2000
+        self._number_of_solvent_molecules = 3000
 
         self._simulation_box_aspect_ratio = [1.0, 1.0, 2.0]
 
