@@ -537,9 +537,15 @@ class DaskPBSBackend(BaseDaskJobQueueBackend):
                  setup_script_commands=None,
                  extra_script_options=None,
                  adaptive_interval='10000ms',
-                 disable_nanny_process=False):
+                 disable_nanny_process=False,
+                 resource_line=None):
 
         """Constructs a new DaskLSFBackend object
+
+        Parameters
+        ----------
+        resource_line: str
+            The string to pass to the `#PBS -l` line.
 
         Examples
         --------
@@ -581,6 +587,15 @@ class DaskPBSBackend(BaseDaskJobQueueBackend):
                          adaptive_interval,
                          disable_nanny_process,
                          cluster_type='pbs')
+
+        self._resource_line = resource_line
+
+    def _get_extra_cluster_kwargs(self):
+
+        extra_kwargs = super(DaskPBSBackend, self)._get_extra_cluster_kwargs()
+        extra_kwargs.update({'resource_spec': self._resource_line})
+
+        return extra_kwargs
 
     def _get_cluster_class(self):
         return PBSCluster
