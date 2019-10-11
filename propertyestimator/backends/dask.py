@@ -10,7 +10,7 @@ import traceback
 
 import dask
 from dask import distributed
-from dask_jobqueue import LSFCluster
+from dask_jobqueue import LSFCluster, PBSCluster
 from distributed import get_worker
 from propertyestimator import unit
 
@@ -331,6 +331,21 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
         """
         return {}
 
+    def job_script(self):
+        """Returns the job script that dask will use to submit workers.
+        The backend must be started before calling this function.
+
+        Returns
+        -------
+        str
+        """
+        if self._cluster is None:
+
+            raise ValueError('The cluster is not initialized. This is usually'
+                             'caused by calling `job_script` before `start`.')
+
+        return self._cluster.job_script()
+
     def start(self):
 
         requested_memory = self._resources_per_worker.per_thread_memory_limit
@@ -502,6 +517,73 @@ class DaskLSFBackend(BaseDaskJobQueueBackend):
 
     def _get_cluster_class(self):
         return LSFCluster
+
+
+class DaskPBSBackend(BaseDaskJobQueueBackend):
+    """A property estimator backend which uses a `dask_jobqueue.PBSCluster`
+    object to run calculations within an existing PBS queue.
+
+    See Also
+    --------
+    dask_jobqueue.LSFCluster
+    DaskLSFBackend
+    """
+
+    def __init__(self,
+                 minimum_number_of_workers=1,
+                 maximum_number_of_workers=1,
+                 resources_per_worker=QueueWorkerResources(),
+                 queue_name='default',
+                 setup_script_commands=None,
+                 extra_script_options=None,
+                 adaptive_interval='10000ms',
+                 disable_nanny_process=False):
+
+        """Constructs a new DaskLSFBackend object
+
+        Examples
+        --------
+        To create a PBS queueing compute backend which will attempt to spin up
+        workers which have access to a single GPU.
+
+        >>> # Create a resource object which will request a worker with
+        >>> # one gpu which will stay alive for five hours.
+        >>> from propertyestimator.backends import QueueWorkerResources
+        >>>
+        >>> resources = QueueWorkerResources(number_of_threads=1,
+        >>>                                  number_of_gpus=1,
+        >>>                                  preferred_gpu_toolkit=QueueWorkerResources.GPUToolkit.CUDA,
+        >>>                                  wallclock_time_limit='05:00')
+        >>>
+        >>> # Define the set of commands which will set up the correct environment
+        >>> # for each of the workers.
+        >>> setup_script_commands = [
+        >>>     'module load cuda/9.2',
+        >>> ]
+        >>>
+        >>> # Create the backend which will adaptively try to spin up between one and
+        >>> # ten workers with the requested resources depending on the calculation load.
+        >>> from propertyestimator.backends import DaskPBSBackend
+        >>>
+        >>> pbs_backend = DaskPBSBackend(minimum_number_of_workers=1,
+        >>>                              maximum_number_of_workers=10,
+        >>>                              resources_per_worker=resources,
+        >>>                              queue_name='gpuqueue',
+        >>>                              setup_script_commands=setup_script_commands)
+        """
+
+        super().__init__(minimum_number_of_workers,
+                         maximum_number_of_workers,
+                         resources_per_worker,
+                         queue_name,
+                         setup_script_commands,
+                         extra_script_options,
+                         adaptive_interval,
+                         disable_nanny_process,
+                         cluster_type='pbs')
+
+    def _get_cluster_class(self):
+        return PBSCluster
 
 
 class DaskLocalCluster(BaseDaskBackend):
