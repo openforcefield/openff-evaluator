@@ -619,7 +619,7 @@ class WorkflowSchema(TypedBaseModel):
 
         and
 
-        `some_protocol_id.value[1]]` would be truncated to `some_protocol_id.value`
+        `some_protocol_id.value[1]` would be truncated to `some_protocol_id.value`
 
         Parameters
         ----------
@@ -881,38 +881,35 @@ class WorkflowSchema(TypedBaseModel):
                         # We handle global input validation separately
                         continue
 
-                    value_reference = self._get_unnested_protocol_path(self._get_unreplicated_path(value_reference))
-                    source_path = self._get_unnested_protocol_path(source_path)
-
-                    # Remove any nested property names from the value reference path
-                    if value_reference.property_name.find('.') >= 0:
-
-                        (value_reference_property_name,
-                         value_reference_ids) = ProtocolPath.to_components(value_reference.full_path)
-
-                        value_reference_property_name = value_reference_property_name.split('.')[0]
-                        value_reference = ProtocolPath(value_reference_property_name, *value_reference_ids)
+                    value_reference = self._get_unreplicated_path(value_reference)
 
                     # Make sure the other protocol whose output we are interested
                     # in actually exists.
                     if value_reference.start_protocol not in self.protocols:
 
-                        raise Exception('The {} protocol of the {} schema tries to take input from a non-existent '
-                                        'protocol: {}'.format(protocol_object.id, self.id,
-                                                              value_reference.start_protocol))
+                        raise Exception(f'The {protocol_object.id} protocol of the {self.id} schema '
+                                        f'tries to take input from a non-existent '
+                                        f'protocol: {value_reference.full_path}')
 
                     other_protocol_schema = self.protocols[value_reference.start_protocol]
 
                     other_protocol_object = available_protocols[other_protocol_schema.type](other_protocol_schema.id)
                     other_protocol_object.schema = other_protocol_schema
 
-                    # Make allowances for dictionaries and lists
-                    if value_reference.property_name.find('[') >= 0 or value_reference.property_name.find(']') >= 0:
-                        continue
+                    unnested_value_reference = self._get_unnested_protocol_path(value_reference)
+                    unnested_source_path = self._get_unnested_protocol_path(source_path)
 
                     # Make sure the other protocol has the output referenced
                     # by this input.
-                    other_protocol_object.get_value(value_reference)
+                    other_protocol_object.get_value(unnested_value_reference)
+
+                    # Do a very rudimentary type check between the input and
+                    # output types. This is not currently possible for nested
+                    # or indexed properties, or outputs of replicated protocols.
+                    if (value_reference.full_path != unnested_value_reference.full_path or
+                        source_path.full_path != unnested_source_path.full_path):
+
+                        continue
 
                     is_replicated_reference = False
 
@@ -931,8 +928,8 @@ class WorkflowSchema(TypedBaseModel):
                     if is_replicated_reference:
                         continue
 
-                    expected_input_type = protocol_object.get_attribute_type(source_path)
-                    expected_output_type = other_protocol_object.get_attribute_type(value_reference)
+                    expected_input_type = protocol_object.get_attribute_type(unnested_source_path)
+                    expected_output_type = other_protocol_object.get_attribute_type(unnested_value_reference)
 
                     if expected_input_type is None or expected_output_type is None:
                         continue
