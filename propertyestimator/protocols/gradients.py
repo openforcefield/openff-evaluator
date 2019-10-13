@@ -352,6 +352,8 @@ class GradientReducedPotentials(BaseProtocol):
 
         # Compute the reduced reference energy if any reference force field files
         # have been provided.
+        self.reference_potential_paths = []
+
         for index, reference_force_field_path in enumerate(self.reference_force_field_paths):
 
             with open(reference_force_field_path) as file:
@@ -382,16 +384,16 @@ class GradientReducedPotentials(BaseProtocol):
                 subset_energies.to_pandas_csv(reference_potentials_path)
 
         # Build the slightly perturbed system.
-        reverse_system, self.reverse_parameter_value = self._build_reduced_system(target_force_field,
-                                                                                  topology,
-                                                                                   -self.perturbation_scale)
+        reverse_system, reverse_parameter_value = self._build_reduced_system(target_force_field,
+                                                                             topology,
+                                                                             -self.perturbation_scale)
 
-        forward_system, self.forward_parameter_value = self._build_reduced_system(target_force_field,
-                                                                                  topology,
-                                                                                  self.perturbation_scale)
+        forward_system, forward_parameter_value = self._build_reduced_system(target_force_field,
+                                                                             topology,
+                                                                             self.perturbation_scale)
 
-        self.reverse_parameter_value = openmm_quantity_to_pint(self.reverse_parameter_value)
-        self.forward_parameter_value = openmm_quantity_to_pint(self.forward_parameter_value)
+        self.reverse_parameter_value = openmm_quantity_to_pint(reverse_parameter_value)
+        self.forward_parameter_value = openmm_quantity_to_pint(forward_parameter_value)
 
         # Calculate the reduced potentials.
         self.reverse_potentials_path = path.join(directory, 'reverse.csv')
