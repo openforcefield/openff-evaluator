@@ -423,7 +423,7 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
         """
         from openforcefield.topology import Molecule
 
-        initial_request_url = 'http://zarbi.chem.yale.edu/cgi-bin/results_lpg.py'
+        initial_request_url = force_field_source.request_url
         empty_stream = io.BytesIO(b'\r\n')
 
         molecule = Molecule.from_smiles(smiles_pattern)
@@ -471,7 +471,7 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
         force_field_file_name = force_field_file_name.group(1)
 
         # Download the force field xml file.
-        download_request_url = 'http://zarbi.chem.yale.edu/cgi-bin/download_lpg.py'
+        download_request_url = force_field_source.download_url
 
         download_force_field_body = {
             'go': (None, 'XML'),
