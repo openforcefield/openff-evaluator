@@ -18,7 +18,7 @@ from propertyestimator.properties.plugins import registered_properties
 from propertyestimator.protocols.groups import ConditionalGroup
 from propertyestimator.substances import Substance
 from propertyestimator.tests.test_workflow.utils import create_dummy_metadata, \
-    DummyEstimatedQuantityProtocol, DummyQuantityProtocol, DummyProtocolWithDictInput
+    DummyEstimatedQuantityProtocol, DummyQuantityProtocol, DummyProtocolWithDictInput, DummyReplicableProtocol
 from propertyestimator.tests.utils import create_dummy_property
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import graph
@@ -289,13 +289,13 @@ def test_index_replicated_protocol():
     dummy_replicator.template_values = ['a', 'b', 'c', 'd']
     dummy_schema.replicators = [dummy_replicator]
 
-    replicated_protocol = DummyEstimatedQuantityProtocol(f'protocol_{dummy_replicator.placeholder_id}')
+    replicated_protocol = DummyReplicableProtocol(f'protocol_{dummy_replicator.placeholder_id}')
     replicated_protocol.input_value = ReplicatorValue(dummy_replicator.id)
     dummy_schema.protocols[replicated_protocol.id] = replicated_protocol.schema
 
     for index in range(len(dummy_replicator.template_values)):
 
-        indexing_protocol = DummyEstimatedQuantityProtocol(f'indexing_protocol_{index}')
+        indexing_protocol = DummyReplicableProtocol(f'indexing_protocol_{index}')
         indexing_protocol.input_value = ProtocolPath('output_value', f'protocol_{index}')
         dummy_schema.protocols[indexing_protocol.id] = indexing_protocol.schema
 
