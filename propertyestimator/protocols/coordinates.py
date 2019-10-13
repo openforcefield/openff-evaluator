@@ -345,7 +345,7 @@ class BuildDockedCoordinates(BaseProtocol):
     )
 
     receptor_coordinate_file = protocol_input(
-        docstring='The file path to the coordinates of the receptor molecule.',
+        docstring='The file path to the MOL2 coordinates of the receptor molecule.',
         type_hint=str,
         default_value=UNDEFINED
     )
