@@ -1,14 +1,73 @@
 """
 Units tests for propertyestimator.protocols.forcefield
 """
+import tempfile
+from os import path
 from tempfile import NamedTemporaryFile
 
 import pytest
 from openforcefield.topology import Molecule, Topology
 from simtk.openmm.app import PDBFile
 
-from propertyestimator.protocols.forcefield import BuildTLeapSystem
+from propertyestimator.forcefield import TLeapForceFieldSource
+from propertyestimator.protocols.coordinates import BuildCoordinatesPackmol
+from propertyestimator.protocols.forcefield import BuildTLeapSystem, BuildSmirnoffSystem
+from propertyestimator.substances import Substance
+from propertyestimator.tests.utils import build_tip3p_smirnoff_force_field
+from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.utils import get_data_filename
+
+
+def test_build_smirnoff_system():
+
+    with tempfile.TemporaryDirectory() as directory:
+
+        force_field_path = path.join(directory, 'ff.json')
+
+        with open(force_field_path, 'w') as file:
+            file.write(build_tip3p_smirnoff_force_field().json())
+
+        substance = Substance.from_components('C', 'CO', 'C(=O)N')
+
+        build_coordinates = BuildCoordinatesPackmol('build_coordinates')
+        build_coordinates.max_molecules = 9
+        build_coordinates.substance = substance
+        build_coordinates.execute(directory, None)
+
+        assign_parameters = BuildSmirnoffSystem(f'assign_parameters')
+        assign_parameters.force_field_path = force_field_path
+        assign_parameters.coordinate_file_path = build_coordinates.coordinate_file_path
+        assign_parameters.substance = substance
+        result = assign_parameters.execute(directory, None)
+
+        assert not isinstance(result, PropertyEstimatorException)
+        assert path.isfile(assign_parameters.system_path)
+
+
+def test_build_tleap_system():
+
+    with tempfile.TemporaryDirectory() as directory:
+
+        force_field_path = path.join(directory, 'ff.json')
+
+        with open(force_field_path, 'w') as file:
+            file.write(TLeapForceFieldSource().json())
+
+        substance = Substance.from_components('C', 'CO', 'C(=O)N')
+
+        build_coordinates = BuildCoordinatesPackmol('build_coordinates')
+        build_coordinates.max_molecules = 9
+        build_coordinates.substance = substance
+        build_coordinates.execute(directory, None)
+
+        assign_parameters = BuildTLeapSystem(f'assign_parameters')
+        assign_parameters.force_field_path = force_field_path
+        assign_parameters.coordinate_file_path = build_coordinates.coordinate_file_path
+        assign_parameters.substance = substance
+        result = assign_parameters.execute(directory, None)
+
+        assert not isinstance(result, PropertyEstimatorException)
+        assert path.isfile(assign_parameters.system_path)
 
 
 @pytest.mark.parametrize('charge_backend', [BuildTLeapSystem.ChargeBackend.OpenEye,
