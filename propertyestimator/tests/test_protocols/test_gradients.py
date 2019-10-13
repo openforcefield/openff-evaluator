@@ -53,8 +53,7 @@ def test_gradient_reduced_potentials(use_subset):
             assert path.isfile(reference_path)
 
 
-@pytest.mark.parametrize("use_subset", [True, False])
-def test_central_difference_gradient(use_subset):
+def test_central_difference_gradient():
 
     with tempfile.TemporaryDirectory() as directory:
 
