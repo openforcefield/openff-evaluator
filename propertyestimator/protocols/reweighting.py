@@ -307,7 +307,7 @@ class BaseMBARProtocol(BaseProtocol):
 
     effective_samples = protocol_output(
         docstring='The number of effective samples which were reweighted.',
-        type_hint=int
+        type_hint=float
     )
     effective_sample_indices = protocol_output(
         docstring='The indices of those samples which have a non-zero weight.',
@@ -686,7 +686,7 @@ class ReweightStatistics(BaseMBARProtocol):
                   'belong to each reference state. If this input is used, only a single file '
                   'path should be passed to the `statistics_paths` input.',
         type_hint=list,
-        default_value=UNDEFINED,
+        default_value=[],
         optional=True
     )
 
