@@ -82,7 +82,7 @@ def test_unpack_stored_data_collection():
 
             dummy_data_collection.data[data_key] = inner_data
 
-        dummy_data_path = 'data_collection.json'
+        dummy_data_path = os.path.join(directory, 'data_collection.json')
 
         with open(dummy_data_path, 'w') as file:
             json.dump(dummy_data_collection, file, cls=TypedJSONEncoder)
