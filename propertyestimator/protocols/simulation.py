@@ -55,7 +55,7 @@ class RunEnergyMinimisation(BaseProtocol):
     enable_pbc = protocol_input(
         docstring='If true, periodic boundary conditions will be enabled.',
         type_hint=bool,
-        default_value=UNDEFINED
+        default_value=True
     )
 
     output_coordinate_file = protocol_output(

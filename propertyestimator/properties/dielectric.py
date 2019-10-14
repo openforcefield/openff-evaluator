@@ -49,7 +49,7 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
         type_hint=unit.Quantity
     )
     volumes = protocol_output(
-        docstring='The volumes which were used in the dielectric calculation.',
+        docstring='The raw (possibly correlated) which were used in the dielectric calculation.',
         type_hint=unit.Quantity
     )
 
@@ -185,17 +185,17 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
         sample_indices = timeseries.get_uncorrelated_indices(uncorrelated_length, self.statistical_inefficiency)
         sample_indices = [index + self.equilibration_index for index in sample_indices]
 
-        volumes = volumes[sample_indices]
         self.volumes = volumes * unit.nanometer ** 3
+        uncorrelated_volumes = volumes[sample_indices]
 
         self.uncorrelated_values = dipole_moments * unit.dimensionless
-        self.uncorrelated_volumes = volumes * unit.nanometer ** 3
+        self.uncorrelated_volumes = uncorrelated_volumes * unit.nanometer ** 3
 
         value, uncertainty = bootstrap(self._bootstrap_function,
                                        self.bootstrap_iterations,
                                        self.bootstrap_sample_size,
                                        dipoles=dipole_moments,
-                                       volumes=volumes)
+                                       volumes=uncorrelated_volumes)
 
         self.value = EstimatedQuantity(value * unit.dimensionless,
                                        uncertainty * unit.dimensionless, self.id)
