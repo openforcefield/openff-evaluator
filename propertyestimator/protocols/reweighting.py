@@ -63,12 +63,15 @@ class ConcatenateTrajectories(BaseProtocol):
 
         trajectories = []
 
+        output_coordinate_path = None
+
         for coordinate_path, trajectory_path in zip(self.input_coordinate_paths,
                                                     self.input_trajectory_paths):
 
-            self.output_coordinate_path = self.output_coordinate_path or coordinate_path
+            output_coordinate_path = output_coordinate_path or coordinate_path
             trajectories.append(mdtraj.load_dcd(trajectory_path, coordinate_path))
 
+        self.output_coordinate_path = output_coordinate_path
         output_trajectory = trajectories[0] if len(trajectories) == 1 else mdtraj.join(trajectories, False, False)
 
         self.output_trajectory_path = path.join(directory, 'output_trajectory.dcd')

@@ -4,6 +4,7 @@ A collection of protocols for loading cached data off of the disk.
 
 import json
 from os import path
+from typing import Union
 
 from propertyestimator.storage.dataclasses import StoredDataCollection
 from propertyestimator.substances import Substance
@@ -100,10 +101,10 @@ class UnpackStoredSimulationData(BaseProtocol):
     """
 
     simulation_data_path = protocol_input(
-        docstring='A tuple which contains both the path to the simulation data '
+        docstring='A list / tuple which contains both the path to the simulation data '
                   'object, it\'s ancillary data directory, and the force field which '
                   'was used to generate the stored data.',
-        type_hint=tuple,
+        type_hint=Union[list, tuple],
         default_value=UNDEFINED
     )
 
