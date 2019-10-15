@@ -18,7 +18,7 @@ from propertyestimator.properties.plugins import registered_properties
 from propertyestimator.protocols.groups import ConditionalGroup
 from propertyestimator.substances import Substance
 from propertyestimator.tests.test_workflow.utils import create_dummy_metadata, \
-    DummyEstimatedQuantityProtocol, DummyQuantityProtocol, DummyProtocolWithDictInput, DummyReplicableProtocol
+    DummyInputOutputProtocol
 from propertyestimator.tests.utils import create_dummy_property
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import graph
@@ -160,12 +160,12 @@ def test_density_dielectric_merging():
 def test_simple_workflow_graph():
     dummy_schema = WorkflowSchema()
 
-    dummy_protocol_a = DummyEstimatedQuantityProtocol('protocol_a')
+    dummy_protocol_a = DummyInputOutputProtocol('protocol_a')
     dummy_protocol_a.input_value = EstimatedQuantity(1 * unit.kelvin, 0.1 * unit.kelvin, 'dummy_source')
 
     dummy_schema.protocols[dummy_protocol_a.id] = dummy_protocol_a.schema
 
-    dummy_protocol_b = DummyEstimatedQuantityProtocol('protocol_b')
+    dummy_protocol_b = DummyInputOutputProtocol('protocol_b')
     dummy_protocol_b.input_value = ProtocolPath('output_value', dummy_protocol_a.id)
 
     dummy_schema.protocols[dummy_protocol_b.id] = dummy_protocol_b.schema
@@ -199,10 +199,10 @@ def test_simple_workflow_graph():
 def test_simple_workflow_graph_with_groups():
     dummy_schema = WorkflowSchema()
 
-    dummy_protocol_a = DummyEstimatedQuantityProtocol('protocol_a')
+    dummy_protocol_a = DummyInputOutputProtocol('protocol_a')
     dummy_protocol_a.input_value = EstimatedQuantity(1 * unit.kelvin, 0.1 * unit.kelvin, 'dummy_source')
 
-    dummy_protocol_b = DummyEstimatedQuantityProtocol('protocol_b')
+    dummy_protocol_b = DummyInputOutputProtocol('protocol_b')
     dummy_protocol_b.input_value = ProtocolPath('output_value', dummy_protocol_a.id)
 
     conditional_group = ConditionalGroup('conditional_group')
@@ -250,11 +250,11 @@ def test_nested_input():
 
     dummy_schema = WorkflowSchema()
 
-    dict_protocol = DummyProtocolWithDictInput('dict_protocol')
+    dict_protocol = DummyInputOutputProtocol('dict_protocol')
     dict_protocol.input_value = {'a': ThermodynamicState(temperature=1*unit.kelvin)}
     dummy_schema.protocols[dict_protocol.id] = dict_protocol.schema
 
-    quantity_protocol = DummyQuantityProtocol('quantity_protocol')
+    quantity_protocol = DummyInputOutputProtocol('quantity_protocol')
     quantity_protocol.input_value = ProtocolPath('output_value[a].temperature', dict_protocol.id)
     dummy_schema.protocols[quantity_protocol.id] = quantity_protocol.schema
 
@@ -289,13 +289,13 @@ def test_index_replicated_protocol():
     dummy_replicator.template_values = ['a', 'b', 'c', 'd']
     dummy_schema.replicators = [dummy_replicator]
 
-    replicated_protocol = DummyReplicableProtocol(f'protocol_{dummy_replicator.placeholder_id}')
+    replicated_protocol = DummyInputOutputProtocol(f'protocol_{dummy_replicator.placeholder_id}')
     replicated_protocol.input_value = ReplicatorValue(dummy_replicator.id)
     dummy_schema.protocols[replicated_protocol.id] = replicated_protocol.schema
 
     for index in range(len(dummy_replicator.template_values)):
 
-        indexing_protocol = DummyReplicableProtocol(f'indexing_protocol_{index}')
+        indexing_protocol = DummyInputOutputProtocol(f'indexing_protocol_{index}')
         indexing_protocol.input_value = ProtocolPath('output_value', f'protocol_{index}')
         dummy_schema.protocols[indexing_protocol.id] = indexing_protocol.schema
 

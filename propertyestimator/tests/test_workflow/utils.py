@@ -43,32 +43,17 @@ class DummyReplicableProtocol(BaseProtocol):
 
 
 @register_calculation_protocol()
-class DummyQuantityProtocol(BaseProtocol):
+class DummyInputOutputProtocol(BaseProtocol):
 
-    input_value = protocol_input(docstring='', type_hint=unit.Quantity, default_value=UNDEFINED)
-    output_value = protocol_output(docstring='', type_hint=unit.Quantity)
-
-    def execute(self, directory, available_resources):
-        self.output_value = self.input_value
-        return self._get_output_dictionary()
-
-
-@register_calculation_protocol()
-class DummyEstimatedQuantityProtocol(BaseProtocol):
-
-    input_value = protocol_input(docstring='', type_hint=EstimatedQuantity, default_value=UNDEFINED)
-    output_value = protocol_output(docstring='', type_hint=EstimatedQuantity)
-
-    def execute(self, directory, available_resources):
-        self.output_value = self.input_value
-        return self._get_output_dictionary()
-
-
-@register_calculation_protocol()
-class DummyProtocolWithDictInput(BaseProtocol):
-
-    input_value = protocol_input(docstring='', type_hint=dict, default_value=UNDEFINED)
-    output_value = protocol_output(docstring='', type_hint=dict)
+    input_value = protocol_input(
+        docstring='A dummy input.',
+        type_hint=Union[str, int, float, unit.Quantity, EstimatedQuantity, list, tuple, dict, set, frozenset],
+        default_value=UNDEFINED
+    )
+    output_value = protocol_output(
+        docstring='A dummy output.',
+        type_hint=Union[str, int, float, unit.Quantity, EstimatedQuantity, list, tuple, dict, set, frozenset]
+    )
 
     def execute(self, directory, available_resources):
         self.output_value = self.input_value

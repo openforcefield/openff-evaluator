@@ -5,6 +5,7 @@ import re
 
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedBaseModel
+from propertyestimator.workflow.decorators import UNDEFINED, protocol_input
 from propertyestimator.workflow.plugins import available_protocols
 from propertyestimator.workflow.typing import is_type_subclass_of_type
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
@@ -750,7 +751,7 @@ class WorkflowSchema(TypedBaseModel):
 
         protocol_object.get_value(self.final_value_source)
 
-        attribute_type = protocol_object.get_attribute_type(self.final_value_source)
+        attribute_type = protocol_object.get_class_attribute(self.final_value_source).type_hint
         assert is_type_subclass_of_type(attribute_type, EstimatedQuantity)
 
     def _validate_gradients(self):
@@ -769,7 +770,7 @@ class WorkflowSchema(TypedBaseModel):
 
             protocol_object.get_value(gradient_source)
 
-            attribute_type = protocol_object.get_attribute_type(gradient_source)
+            attribute_type = protocol_object.get_class_attribute(gradient_source).type_hint
             assert is_type_subclass_of_type(attribute_type, ParameterGradient)
 
     def _validate_output_to_store(self, output_to_store):
@@ -865,8 +866,14 @@ class WorkflowSchema(TypedBaseModel):
             for input_path in protocol_object.required_inputs:
 
                 input_value = protocol_object.get_value(input_path)
+                input_attribute = protocol_object.get_class_attribute(input_path)
 
-                if input_value is None:
+                if not isinstance(input_attribute, protocol_input):
+                    continue
+
+                is_optional = input_attribute.optional
+
+                if input_value == UNDEFINED and is_optional is False:
 
                     raise Exception('The {} required input of protocol {} in the {} schema was '
                                     'not set.'.format(input_path, protocol_id, self.id))
@@ -928,8 +935,8 @@ class WorkflowSchema(TypedBaseModel):
                     if is_replicated_reference:
                         continue
 
-                    expected_input_type = protocol_object.get_attribute_type(unnested_source_path)
-                    expected_output_type = other_protocol_object.get_attribute_type(unnested_value_reference)
+                    expected_input_type = protocol_object.get_class_attribute(unnested_source_path).type_hint
+                    expected_output_type = other_protocol_object.get_class_attribute(unnested_value_reference).type_hint
 
                     if expected_input_type is None or expected_output_type is None:
                         continue
