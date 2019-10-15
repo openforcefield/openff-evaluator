@@ -14,12 +14,15 @@ how major the changes may be.
 0.0.6 - 
 --------------------------------------------
 
-This release adds...
+This release centers around two key changes - 
+
+i) a general refactoring of the protocol classes to be much cleaner and extensible through the removal of the old stub functions, and the addition of cleaner descriptors.
+ii) the addition of workflows to estimate solvation free energies from simulations.
 
 New Features
 """"""""""""
 
-* PR `#123 <https://github.com/openforcefield/propertyestimator/pull/123>`_: Adds better support for dask-jobqueue config files.
+* PR `#110 <https://github.com/openforcefield/propertyestimator/pull/110>`_: Cleanup and refactor of protocol classes.
 
 Bugfixes
 """"""""
