@@ -212,7 +212,18 @@ class LigParGenForceFieldSource(ForceFieldSource):
         """
         return self._cutoff
 
-    def __init__(self, preferred_charge_model=ChargeModel.CM1A_1_14_LBCC, cutoff=9.0*unit.angstrom):
+    @property
+    def request_url(self):
+        """str: The URL of the LIGPARGEN server file to send the parametrization to request to."""
+        return self._request_url
+
+    @property
+    def download_url(self):
+        """str: The URL of the LIGPARGEN server file to download the results of a request from."""
+        return self._download_url
+
+    def __init__(self, preferred_charge_model=ChargeModel.CM1A_1_14_LBCC,
+                 cutoff=9.0*unit.angstrom, request_url='', download_url=''):
         """Constructs a new LigParGenForceFieldSource object
 
         Parameters
@@ -225,16 +236,27 @@ class LigParGenForceFieldSource(ForceFieldSource):
             place.
         cutoff: unit.Quantity
             The non-bonded interaction cutoff.
+        request_url: str
+            The URL of the LIGPARGEN server file to send the parametrization to request to.
+        download_url: str
+            The URL of the LIGPARGEN server file to download the results of a request from.
         """
         self._preferred_charge_model = preferred_charge_model
         self._cutoff = cutoff
 
+        self._request_url = request_url
+        self._download_url = download_url
+
     def __getstate__(self):
         return {
             'preferred_charge_model': self._preferred_charge_model,
-            'cutoff': self._cutoff
+            'cutoff': self._cutoff,
+            'request_url': self._request_url,
+            'download_url': self._download_url
         }
 
     def __setstate__(self, state):
         self._preferred_charge_model = state['preferred_charge_model']
         self._cutoff = state['cutoff']
+        self._request_url = state['request_url']
+        self._download_url = state['download_url']

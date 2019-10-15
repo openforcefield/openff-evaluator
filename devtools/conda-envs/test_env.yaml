@@ -36,3 +36,4 @@ dependencies:
   - yank
   - pyyaml
   - requests
+  - requests-mock # For testing http requests.

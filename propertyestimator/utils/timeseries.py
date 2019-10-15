@@ -187,7 +187,7 @@ def decorrelate_time_series(time_series):
     indices = get_uncorrelated_indices(equilibrated_data.shape[0], inefficiency)
     uncorrelated_time_series = equilibrated_data[indices]
 
-    return uncorrelated_time_series, equilibration_index, inefficiency
+    return uncorrelated_time_series, int(equilibration_index), float(inefficiency)
 
 
 def get_uncorrelated_stride(statistical_inefficiency):

@@ -5,6 +5,8 @@ Properties base API.
 import uuid
 from enum import IntFlag, unique
 
+import numpy as np
+
 from propertyestimator import unit
 from propertyestimator.utils.serialization import TypedBaseModel
 
@@ -284,6 +286,12 @@ class ParameterGradient:
                              'float\'s or Quantity objects.')
 
         return ParameterGradient(self.key, self.value / other)
+
+    def __eq__(self, other):
+
+        return (isinstance(other, ParameterGradient) and
+                self.key == other.key and
+                np.isclose(self.value, other.value))
 
 
 class PhysicalProperty(TypedBaseModel):

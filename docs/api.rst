@@ -259,8 +259,9 @@ Workflow API
 
     protocol_input
     protocol_output
-    BaseProtocolInputObject
+    BaseProtocolAttribute
     MergeBehaviour
+    InequalityMergeBehaviour
 
 Built-in Workflow Protocols
 ---------------------------

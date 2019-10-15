@@ -4,7 +4,7 @@ A collection of density physical property definitions.
 
 from propertyestimator.properties import PhysicalProperty
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.protocols import coordinates, forcefield, simulation, miscellaneous
+from propertyestimator.protocols import coordinates, forcefield, miscellaneous, yank
 from propertyestimator.substances import Substance
 from propertyestimator.workflow.schemas import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
@@ -125,7 +125,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         schema.protocols[build_solvated_ligand_system.id] = build_solvated_ligand_system.schema
 
         # Employ YANK to estimate the binding free energy.
-        yank_protocol = simulation.LigandReceptorYankProtocol('yank_protocol')
+        yank_protocol = yank.LigandReceptorYankProtocol('yank_protocol')
 
         yank_protocol.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
 

@@ -16,7 +16,7 @@ from os import path, makedirs
 from propertyestimator import unit
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.workflow.decorators import MergeBehaviour, protocol_input
+from propertyestimator.workflow.decorators import InequalityMergeBehaviour, protocol_input
 from propertyestimator.workflow.plugins import register_calculation_protocol, available_protocols
 from propertyestimator.workflow.protocols import BaseProtocol, ProtocolPath
 from propertyestimator.workflow.schemas import ProtocolGroupSchema
@@ -687,20 +687,21 @@ class ConditionalGroup(ProtocolGroup):
         def __str__(self):
             return f'{self.left_hand_value} {self.type} {self.right_hand_value}'
 
-    @protocol_input(int, merge_behavior=MergeBehaviour.GreatestValue)
-    def max_iterations(self):
-        """The maximum number of iterations to run for to try and satisfy the
-         groups conditions."""
-        pass
-
     @property
     def conditions(self):
         return self._conditions
 
+    max_iterations = protocol_input(
+        docstring='The maximum number of iterations to run for to try and satisfy the '
+                  'groups conditions.',
+        type_hint=int,
+        default_value=100,
+        merge_behavior=InequalityMergeBehaviour.LargestValue
+    )
+
     def __init__(self, protocol_id):
         """Constructs a new ConditionalGroup
         """
-        self._max_iterations = 10
         self._conditions = []
 
         super().__init__(protocol_id)
@@ -740,14 +741,10 @@ class ConditionalGroup(ProtocolGroup):
             True if the condition has been met.
         """
 
-        left_hand_value = None
-
         if not isinstance(condition.left_hand_value, ProtocolPath):
             left_hand_value = condition.left_hand_value
         else:
             left_hand_value = self.get_value(condition.left_hand_value)
-
-        right_hand_value = None
 
         if not isinstance(condition.right_hand_value, ProtocolPath):
             right_hand_value = condition.right_hand_value
@@ -869,7 +866,7 @@ class ConditionalGroup(ProtocolGroup):
                 logging.info(f'Conditional while loop finished after {current_iteration} iterations: {self.id}')
                 return return_value
 
-            if current_iteration >= self._max_iterations:
+            if current_iteration >= self.max_iterations:
 
                 return PropertyEstimatorException(directory=directory,
                                                   message=f'Conditional while loop failed to converge: {self.id}')

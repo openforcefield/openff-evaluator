@@ -22,7 +22,7 @@ from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import bootstrap
 from propertyestimator.workflow import plugins
-from propertyestimator.workflow.decorators import protocol_input, protocol_output
+from propertyestimator.workflow.decorators import protocol_input, protocol_output, UNDEFINED
 from propertyestimator.workflow.schemas import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
@@ -32,44 +32,32 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
     """Extracts the average dielectric constant from a simulation trajectory.
     """
 
-    @protocol_input(str)
-    def system_path(self):
-        """The path to the XML system object which defines the forces present in the system."""
-        pass
+    system_path = protocol_input(
+        docstring='The path to the XML system object which defines the forces present in the system.',
+        type_hint=str,
+        default_value=UNDEFINED
+    )
+    thermodynamic_state = protocol_input(
+        docstring='The thermodynamic state at which the trajectory was generated.',
+        type_hint=ThermodynamicState,
+        default_value=UNDEFINED
+    )
 
-    @protocol_input(ThermodynamicState)
-    def thermodynamic_state(self):
-        """The thermodynamic state at which the trajectory was generated."""
-        pass
+    dipole_moments = protocol_output(
+        docstring='The raw (possibly correlated) dipole moments which were used in '
+                  'the dielectric calculation.',
+        type_hint=unit.Quantity
+    )
+    volumes = protocol_output(
+        docstring='The raw (possibly correlated) which were used in the dielectric calculation.',
+        type_hint=unit.Quantity
+    )
 
-    @protocol_output(unit.Quantity)
-    def dipole_moments(self):
-        """The raw (possibly correlated) dipole moments which were used in
-        the dielectric calculation."""
-        pass
-
-    @protocol_output(unit.Quantity)
-    def volumes(self):
-        """The volumes which were used in the dielectric calculation."""
-        pass
-
-    @protocol_output(unit.Quantity)
-    def uncorrelated_volumes(self):
-        """The uncorrelated volumes which were used in the dielectric
-        calculation."""
-        pass
-
-    def __init__(self, protocol_id):
-        super().__init__(protocol_id)
-
-        self._system_path = None
-        self._system = None
-
-        self._thermodynamic_state = None
-
-        self._dipole_moments = None
-        self._volumes = None
-        self._uncorrelated_volumes = None
+    uncorrelated_volumes = protocol_output(
+        docstring='The uncorrelated volumes which were used in the dielectric '
+                  'calculation.',
+        type_hint=unit.Quantity
+    )
 
     def _bootstrap_function(self, **sample_kwargs):
         """Calculates the static dielectric constant from an
@@ -101,7 +89,7 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
         dipole_moments = sample_kwargs['dipoles']
         volumes = sample_kwargs['volumes']
 
-        temperature = self._thermodynamic_state.temperature
+        temperature = self.thermodynamic_state.temperature
 
         dipole_mu = dipole_moments.mean(0)
         shifted_dipoles = dipole_moments - dipole_mu
@@ -133,11 +121,11 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
         charge_list = []
 
         with open(self._system_path, 'r') as file:
-            self._system = XmlSerializer.deserialize(file.read())
+            system = XmlSerializer.deserialize(file.read())
 
-        for force_index in range(self._system.getNumForces()):
+        for force_index in range(system.getNumForces()):
 
-            force = self._system.getForce(force_index)
+            force = system.getForce(force_index)
 
             if not isinstance(force, openmm.NonbondedForce):
                 continue
@@ -166,7 +154,7 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
         volumes = []
         charge_list = self._extract_charges()
 
-        for chunk in mdtraj.iterload(self._trajectory_path, top=self._input_coordinate_file, chunk=50):
+        for chunk in mdtraj.iterload(self.trajectory_path, top=self.input_coordinate_file, chunk=50):
 
             dipole_moments.extend(mdtraj.geometry.dipole_moments(chunk, charge_list))
             volumes.extend(chunk.unitcell_volumes)
@@ -187,30 +175,30 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
 
         # Extract the dipoles
         dipole_moments, volumes = self._extract_dipoles_and_volumes()
-        self._dipole_moments = dipole_moments * unit.dimensionless
+        self.dipole_moments = dipole_moments * unit.dimensionless
 
-        dipole_moments, self._equilibration_index, self._statistical_inefficiency = \
+        dipole_moments, self.equilibration_index, self.statistical_inefficiency = \
             timeseries.decorrelate_time_series(dipole_moments)
 
-        uncorrelated_length = len(volumes) - self._equilibration_index
+        uncorrelated_length = len(volumes) - self.equilibration_index
 
-        sample_indices = timeseries.get_uncorrelated_indices(uncorrelated_length, self._statistical_inefficiency)
-        sample_indices = [index + self._equilibration_index for index in sample_indices]
+        sample_indices = timeseries.get_uncorrelated_indices(uncorrelated_length, self.statistical_inefficiency)
+        sample_indices = [index + self.equilibration_index for index in sample_indices]
 
-        volumes = volumes[sample_indices]
-        self._volumes = volumes * unit.nanometer ** 3
+        self.volumes = volumes * unit.nanometer ** 3
+        uncorrelated_volumes = volumes[sample_indices]
 
-        self._uncorrelated_values = dipole_moments * unit.dimensionless
-        self._uncorrelated_volumes = volumes * unit.nanometer ** 3
+        self.uncorrelated_values = dipole_moments * unit.dimensionless
+        self.uncorrelated_volumes = uncorrelated_volumes * unit.nanometer ** 3
 
         value, uncertainty = bootstrap(self._bootstrap_function,
-                                       self._bootstrap_iterations,
-                                       self._bootstrap_sample_size,
+                                       self.bootstrap_iterations,
+                                       self.bootstrap_sample_size,
                                        dipoles=dipole_moments,
-                                       volumes=volumes)
+                                       volumes=uncorrelated_volumes)
 
-        self._value = EstimatedQuantity(value * unit.dimensionless,
-                                        uncertainty * unit.dimensionless, self.id)
+        self.value = EstimatedQuantity(value * unit.dimensionless,
+                                       uncertainty * unit.dimensionless, self.id)
 
         logging.info('Extracted dielectrics: ' + self.id)
 
@@ -225,36 +213,31 @@ class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
     by bootstrapping.
     """
 
-    @protocol_input(unit.Quantity)
-    def reference_dipole_moments(self):
-        """A Quantity wrapped np.ndarray of the dipole moments of each
-        of the reference states."""
-        pass
+    reference_dipole_moments = protocol_input(
+        docstring='A Quantity wrapped np.ndarray of the dipole moments of each '
+                  'of the reference states.',
+        type_hint=list,
+        default_value=UNDEFINED
+    )
+    reference_volumes = protocol_input(
+        docstring='A Quantity wrapped np.ndarray of the volumes of each of the '
+                  'reference states.',
+        type_hint=list,
+        default_value=UNDEFINED
+    )
 
-    @protocol_input(unit.Quantity)
-    def reference_volumes(self):
-        """A Quantity wrapped np.ndarray of the volumes of each of the
-        reference states."""
-        pass
-
-    @protocol_input(ThermodynamicState)
-    def thermodynamic_state(self):
-        """The thermodynamic state at which the trajectory was generated."""
-        pass
+    thermodynamic_state = protocol_input(
+        docstring='The thermodynamic state at which the trajectory was generated.',
+        type_hint=ThermodynamicState,
+        default_value=UNDEFINED
+    )
 
     def __init__(self, protocol_id):
-        """Constructs a new ReweightFluctuationWithMBARProtocol object."""
-
         super().__init__(protocol_id)
+        self.bootstrap_uncertainties = True
 
-        self._thermodynamic_state = None
-
-        self._reference_dipole_moments = None
-        self._reference_volumes = None
-
-        self._bootstrap_uncertainties = True
-
-    def _bootstrap_function(self, reference_reduced_potentials, target_reduced_potentials, **reference_observables):
+    def _bootstrap_function(self, reference_reduced_potentials, target_reduced_potentials,
+                            **reference_observables):
 
         assert len(reference_observables) == 3
 
@@ -279,7 +262,7 @@ class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
 
         dielectric_constant = 1.0 + dipole_variance / (3 *
                                                        unit.boltzmann_constant *
-                                                       self._thermodynamic_state.temperature *
+                                                       self.thermodynamic_state.temperature *
                                                        volume *
                                                        e0)
 
@@ -289,24 +272,24 @@ class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
 
         logging.info('Reweighting dielectric: {}'.format(self.id))
 
-        if len(self._reference_dipole_moments) == 0:
+        if len(self.reference_dipole_moments) == 0:
             return PropertyEstimatorException(directory=directory, message='There were no dipole moments to reweight.')
 
-        if len(self._reference_volumes) == 0:
+        if len(self.reference_volumes) == 0:
             return PropertyEstimatorException(directory=directory, message='There were no volumes to reweight.')
 
-        if (not isinstance(self._reference_dipole_moments[0], unit.Quantity) or
-            not isinstance(self._reference_volumes[0], unit.Quantity)):
+        if (not isinstance(self.reference_dipole_moments[0], unit.Quantity) or
+            not isinstance(self.reference_volumes[0], unit.Quantity)):
 
             return PropertyEstimatorException(directory=directory,
                                               message='The reference observables should be '
                                                       'a list of unit.Quantity wrapped ndarray\'s.')
 
-        if len(self._reference_dipole_moments) != len(self._reference_volumes):
+        if len(self.reference_dipole_moments) != len(self.reference_volumes):
             return PropertyEstimatorException(directory=directory, message='The number of reference dipoles does '
                                                                            'not match the number of reference volumes.')
 
-        for reference_dipoles, reference_volumes in zip(self._reference_dipole_moments, self._reference_volumes):
+        for reference_dipoles, reference_volumes in zip(self.reference_dipole_moments, self.reference_volumes):
 
             if len(reference_dipoles) == len(reference_volumes):
                 continue
@@ -314,14 +297,14 @@ class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
             return PropertyEstimatorException(directory=directory, message='The number of reference dipoles does '
                                                                            'not match the number of reference volumes.')
 
-        self._reference_observables = self._reference_dipole_moments
+        self._reference_observables = self.reference_dipole_moments
 
-        dipole_moments = self._prepare_observables_array(self._reference_dipole_moments)
+        dipole_moments = self._prepare_observables_array(self.reference_dipole_moments)
         dipole_moments_sqr = np.array([[np.dot(dipole, dipole) for dipole in np.transpose(dipole_moments)]])
 
-        volumes = self._prepare_observables_array(self._reference_volumes)
+        volumes = self._prepare_observables_array(self.reference_volumes)
 
-        if self._bootstrap_uncertainties:
+        if self.bootstrap_uncertainties:
             error = self._execute_with_bootstrapping(unit.dimensionless,
                                                      dipoles=dipole_moments,
                                                      dipoles_sqr=dipole_moments_sqr,
