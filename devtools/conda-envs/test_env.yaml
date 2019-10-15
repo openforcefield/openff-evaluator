@@ -6,7 +6,7 @@ channels:
   - ambermd
 dependencies:
     # Base depends
-  - python >=3.6
+  - python
   - pip
 
     # Testing and development

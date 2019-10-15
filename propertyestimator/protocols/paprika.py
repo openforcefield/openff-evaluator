@@ -9,12 +9,12 @@ import os
 import os.path
 import shutil
 import traceback
+import typing
 from queue import Queue
 from subprocess import Popen
 from threading import Thread
 
 import numpy as np
-from propertyestimator.utils.utils import temporarily_change_directory
 from simtk.openmm import XmlSerializer
 from simtk.openmm.app import AmberPrmtopFile, HBonds, PME, PDBFile
 
@@ -26,7 +26,9 @@ from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.workflow.decorators import protocol_input, MergeBehaviour, protocol_output
+from propertyestimator.utils.utils import temporarily_change_directory
+from propertyestimator.workflow.decorators import protocol_input, protocol_output, UNDEFINED, \
+    InequalityMergeBehaviour
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 from propertyestimator.workflow.utils import ProtocolPath
@@ -39,137 +41,123 @@ class BasePaprikaProtocol(BaseProtocol):
     `taproom` style .yaml definition file.
     """
 
-    @protocol_input(Substance)
-    def substance(self):
-        """The substance which defines the host, guest and solvent."""
-        pass
+    substance = protocol_input(
+        docstring='The substance which defines the host, guest and solvent.',
+        type_hint=Substance,
+        default_value=UNDEFINED
+    )
+    thermodynamic_state = protocol_input(
+        docstring='The thermodynamic conditions to simulate under',
+        type_hint=ThermodynamicState,
+        default_value=UNDEFINED
+    )
+    
+    force_field_path = protocol_input(
+        docstring='A path to the force field to use in the calculation.',
+        type_hint=str,
+        default_value=UNDEFINED
+    )
 
-    @protocol_input(ThermodynamicState)
-    def thermodynamic_state(self):
-        """The state at which to run the calculations."""
-        pass
+    water_model = protocol_input(
+        docstring='The water model to use for the calculation. This is '
+                  'temporarily treated as separate from the force field '
+                  'until the two are better integrated.',
+        type_hint=forcefield.BaseBuildSystemProtocol.WaterModel,
+        default_value=forcefield.BaseBuildSystemProtocol.WaterModel.TIP3P
+    )
+    
+    taproom_host_name = protocol_input(
+        docstring='The taproom three letter identifier of the host. This '
+                  'is temporary until this protocol is decoupled from taproom.',
+        type_hint=str,
+        default_value=UNDEFINED
+    )
+    taproom_guest_name = protocol_input(
+        docstring='The taproom three letter identifier of the guest. This '
+                  'is temporary until this protocol is decoupled from taproom.',
+        type_hint=typing.Union[str, None],
+        default_value=None
+    )
+    taproom_guest_orientation = protocol_input(
+        docstring='The taproom one letter identifier of the orientation of '
+                  'the guest. This is temporary until this protocol is decoupled '
+                  'from taproom.',
+        type_hint=typing.Union[str, None],
+        default_value=None
+    )
+    
+    timestep = protocol_input(
+        docstring='The timestep to evolve the system by at each step.',
+        type_hint=unit.Quantity, merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        default_value=2.0 * unit.femtosecond
+    )
+    
+    number_of_equilibration_steps = protocol_input(
+        docstring='The number of NPT equilibration steps to take. Data from '
+                  'the equilibration simulations will be discarded.',
+        type_hint=int, merge_behavior=InequalityMergeBehaviour.LargestValue,
+        default_value=200000
+    )
+    equilibration_output_frequency = protocol_input(
+        docstring='The frequency with which to write statistics during '
+                  'equilibration. Data from the equilibration simulations '
+                  'will be discarded.',
+        type_hint=int, merge_behavior=InequalityMergeBehaviour.LargestValue,
+        default_value=5000
+    )
+    
+    number_of_production_steps = protocol_input(
+        docstring='The number of NPT production steps to take.',
+        type_hint=int, merge_behavior=InequalityMergeBehaviour.LargestValue,
+        default_value=1000000
+    )
+    production_output_frequency = protocol_input(
+        docstring='The frequency with which to write statistics during production.',
+        type_hint=int, merge_behavior=InequalityMergeBehaviour.LargestValue,
+        default_value=5000
+    )
 
-    @protocol_input(str)
-    def force_field_path(self):
-        """A path to the force field to use in the calculation."""
-        pass
+    number_of_solvent_molecules = protocol_input(
+        docstring='The number of solvent molecules to solvate the host and guest with.',
+        type_hint=int,
+        default_value=3000
+    )
 
-    @protocol_input(forcefield.BaseBuildSystemProtocol.WaterModel)
-    def water_model(self):
-        """The water model to use for the calculation. This is temporarily
-        treated as separate from the force field until the two are better
-        integrated."""
-        pass
+    simulation_box_aspect_ratio = protocol_input(
+        docstring='The aspect ratio of the box. This should be a list of three '
+                  'floats, corresponding to the relative length of each side of '
+                  'the box.',
+        type_hint=list,
+        default_value=[1.0, 1.0, 2.0]
+    )
 
-    @protocol_input(str)
-    def taproom_host_name(self):
-        """The taproom three letter identifier of the host. This is temporary until this
-        protocol is decoupled from taproom."""
-        pass
+    attach_free_energy = protocol_output(
+        docstring='The free energy of...',
+        type_hint=EstimatedQuantity
+    )
+    pull_free_energy = protocol_output(
+        docstring='The free energy of...',
+        type_hint=EstimatedQuantity
+    )
 
-    @protocol_input(str)
-    def taproom_guest_name(self):
-        """The taproom three letter identifier of the guest. This is temporary until this
-        protocol is decoupled from taproom."""
-        pass
-
-    @protocol_input(str)
-    def taproom_guest_orientation(self):
-        """The taproom one letter identifier of the orientation of the guest. This is temporary
-        until this protocol is decoupled from taproom."""
-        pass
-
-    @protocol_input(unit.Quantity, merge_behavior=MergeBehaviour.SmallestValue)
-    def timestep(self):
-        """The size of the timestep to propagate the system by."""
-        pass
-
-    @protocol_input(int, merge_behavior=MergeBehaviour.GreatestValue)
-    def number_of_equilibration_steps(self):
-        """The number of NPT equilibration steps to take. Data from
-        the equilibration simulations will be discarded."""
-        pass
-
-    @protocol_input(int, merge_behavior=MergeBehaviour.GreatestValue)
-    def equilibration_output_frequency(self):
-        """The frequency with which to write statistics during equilibration. Data from
-        the equilibration simulations will be discarded."""
-        pass
-
-    @protocol_input(int, merge_behavior=MergeBehaviour.GreatestValue)
-    def number_of_production_steps(self):
-        """The number of NPT production steps to take. """
-        pass
-
-    @protocol_input(int, merge_behavior=MergeBehaviour.GreatestValue)
-    def production_output_frequency(self):
-        """The frequency with which to write statistics during production."""
-        pass
-
-    @protocol_input(int)
-    def number_of_solvent_molecules(self):
-        """The number of solvent molecules to solvate the host and guest with."""
-        pass
-
-    @protocol_input(list)
-    def simulation_box_aspect_ratio(self):
-        """The aspect ratio of the box. This should be a list of three floats,
-        corresponding to the relative length of each side of the box."""
-        pass
-
-    @protocol_output(EstimatedQuantity)
-    def attach_free_energy(self):
-        pass
-
-    @protocol_output(EstimatedQuantity)
-    def pull_free_energy(self):
-        pass
-
-    @protocol_output(EstimatedQuantity)
-    def release_free_energy(self):
-        pass
-
-    @protocol_output(EstimatedQuantity)
-    def symmetry_correction(self):
-        pass
-
-    @protocol_output(EstimatedQuantity)
-    def reference_free_energy(self):
-        pass
+    release_free_energy = protocol_output(
+        docstring='The free energy of...',
+        type_hint=EstimatedQuantity
+    )
+    symmetry_correction = protocol_output(
+        docstring='The free energy of...',
+        type_hint=EstimatedQuantity
+    )
+    reference_free_energy = protocol_output(
+        docstring='The free energy of...',
+        type_hint=EstimatedQuantity
+    )
 
     def __init__(self, protocol_id):
         """Initializes a new BasePaprikaProtocol object.
         """
 
         super().__init__(protocol_id)
-
-        # Protocol inputs / outputs
-        self._substance = None
-        self._thermodynamic_state = None
-
-        self._force_field_path = ''
-        self._water_model = forcefield.BaseBuildSystemProtocol.WaterModel.TIP3P
-
-        self._taproom_host_name = None
-        self._taproom_guest_name = None
-        self._taproom_guest_orientation = ''
-
-        self._timestep = 2.0 * unit.femtosecond
-
-        self._number_of_equilibration_steps = 200000
-        self._equilibration_output_frequency = 5000
-        self._number_of_production_steps = 1000000
-        self._production_output_frequency = 5000
-
-        self._number_of_solvent_molecules = 3000
-
-        self._simulation_box_aspect_ratio = [1.0, 1.0, 2.0]
-
-        self._attach_free_energy = None
-        self._pull_free_energy = None
-        self._release_free_energy = None
-        self._reference_free_energy = None
-        self._symmetry_correction = None
 
         self._force_field_source = None
         self._paprika_setup = None
@@ -195,9 +183,9 @@ class BasePaprikaProtocol(BaseProtocol):
         if generate_gaff_files:
             gaff_version = self._force_field_source.leap_source.replace('leaprc.')
 
-        self._paprika_setup = paprika.Setup(host=self._taproom_host_name,
-                                            guest=self._taproom_guest_name,
-                                            guest_orientation=self._taproom_guest_orientation,
+        self._paprika_setup = paprika.Setup(host=self.taproom_host_name,
+                                            guest=self.taproom_guest_name,
+                                            guest_orientation=self.taproom_guest_orientation,
                                             directory_path=directory,
                                             generate_gaff_files=generate_gaff_files,
                                             gaff_version=gaff_version)
@@ -207,7 +195,7 @@ class BasePaprikaProtocol(BaseProtocol):
         # Extract out only the solvent components of the substance (e.g H2O,
         # Na+, Cl-...)
         filter_solvent = miscellaneous.FilterSubstanceByRole('filter_solvent')
-        filter_solvent.input_substance = self._substance
+        filter_solvent.input_substance = self.substance
         filter_solvent.component_roles = [Substance.ComponentRole.Solvent]
 
         protocol_result = filter_solvent.execute(directory, available_resources)
@@ -233,11 +221,11 @@ class BasePaprikaProtocol(BaseProtocol):
 
             # Solvate the window.
             solvate_complex = coordinates.SolvateExistingStructure('solvate_window')
-            solvate_complex.max_molecules = self._number_of_solvent_molecules
-            solvate_complex.box_aspect_ratio = self._simulation_box_aspect_ratio
+            solvate_complex.max_molecules = self.number_of_solvent_molecules
+            solvate_complex.box_aspect_ratio = self.simulation_box_aspect_ratio
             solvate_complex.center_solute_in_box = False
 
-            if self._number_of_solvent_molecules < 20:
+            if self.number_of_solvent_molecules < 20:
                 solvate_complex.mass_density = 0.005 * unit.grams / unit.milliliters
 
             solvate_complex.substance = filter_solvent.filtered_substance
@@ -391,7 +379,7 @@ class BasePaprikaProtocol(BaseProtocol):
         load_guest_frcmod = ''
         load_guest_mol2 = ''
 
-        if self._taproom_guest_name is not None:
+        if self.taproom_guest_name is not None:
 
             guest_frcmod = os.path.join(window_directory_to_base, f'{self._paprika_setup.guest}.{gaff_version}.frcmod')
             guest_mol2 = os.path.join(window_directory_to_base, f'{self._paprika_setup.guest}.{gaff_version}.mol2')
@@ -505,33 +493,33 @@ class BasePaprikaProtocol(BaseProtocol):
 
         if 'attach' in self._results_dictionary:
 
-            self._attach_free_energy = EstimatedQuantity(
+            self.attach_free_energy = EstimatedQuantity(
                 -self._results_dictionary['attach']['ti-block']['fe'] * unit.kilocalorie / unit.mole,
                 self._results_dictionary['attach']['ti-block']['sem'] * unit.kilocalorie / unit.mole,
                 self._id + "_attach")
 
         if 'pull' in self._results_dictionary:
 
-            self._pull_free_energy = EstimatedQuantity(
+            self.pull_free_energy = EstimatedQuantity(
                 -self._results_dictionary['pull']['ti-block']['fe'] * unit.kilocalorie / unit.mole,
                 self._results_dictionary['pull']['ti-block']['sem'] * unit.kilocalorie / unit.mole,
                 self._id + "_pull")
 
         if 'release' in self._results_dictionary:
 
-            self._release_free_energy = EstimatedQuantity(
+            self.release_free_energy = EstimatedQuantity(
                 self._results_dictionary['release']['ti-block']['fe'] * unit.kilocalorie / unit.mole,
                 self._results_dictionary['release']['ti-block']['sem'] * unit.kilocalorie / unit.mole,
                 self._id + "_release")
 
         if 'ref_state_work' in self._results_dictionary:
 
-            self._reference_free_energy = EstimatedQuantity(
+            self.reference_free_energy = EstimatedQuantity(
                 -self._results_dictionary['ref_state_work'] * unit.kilocalorie / unit.mole,
                 0 * unit.kilocalorie / unit.mole, self._id)
 
         if 'symmetry_correction' in self._results_dictionary:
-            self._symmetry_correction = EstimatedQuantity(
+            self.symmetry_correction = EstimatedQuantity(
                 self._results_dictionary['symmetry_correction'] * unit.kilocalorie / unit.mole,
                 0 * unit.kilocalorie / unit.mole, self._id)
 
@@ -589,15 +577,15 @@ class BasePaprikaProtocol(BaseProtocol):
         import paprika
 
         if not self._paprika_setup:
-            self._paprika_setup = paprika.setup(host=self._taproom_host_name,
-                                                guest=self._taproom_guest_name,
-                                                guest_orientation=self._taproom_guest_orientation,
+            self._paprika_setup = paprika.setup(host=self.taproom_host_name,
+                                                guest=self.taproom_guest_name,
+                                                guest_orientation=self.taproom_guest_orientation,
                                                 build=False,
                                                 directory_path=directory)
 
             base_path = os.path.join(directory,
                                      self._paprika_setup.host,
-                                     f"{self._paprika_setup.guest}-{self._taproom_guest_orientation}" if
+                                     f"{self._paprika_setup.guest}-{self.taproom_guest_orientation}" if
                                      self._paprika_setup.guest else "",
                                      'windows')
 
@@ -635,9 +623,9 @@ class BasePaprikaProtocol(BaseProtocol):
 
         if not self._paprika_setup:
 
-            self._paprika_setup = paprika.setup(host=self._taproom_host_name,
-                                                guest=self._taproom_guest_name,
-                                                guest_orientation=self._taproom_guest_orientation,
+            self._paprika_setup = paprika.setup(host=self.taproom_host_name,
+                                                guest=self.taproom_guest_name,
+                                                guest_orientation=self.taproom_guest_orientation,
                                                 build=False,
                                                 directory_path=directory)
 
@@ -662,7 +650,7 @@ class BasePaprikaProtocol(BaseProtocol):
                                                       'of available GPUs for this parallelisation scheme.')
 
         # Load in the force field to use.
-        with open(self._force_field_path) as file:
+        with open(self.force_field_path) as file:
             self._force_field_source = ForceFieldSource.parse_json(file.read())
 
         if (not isinstance(self._force_field_source, SmirnoffForceFieldSource) and
@@ -671,16 +659,10 @@ class BasePaprikaProtocol(BaseProtocol):
             return PropertyEstimatorException(directory, 'Only SMIRNOFF and TLeap based force fields may '
                                                          'be used with this protocol.')
 
-        # Work around for the lack of support for non-optional arguments.
-        if len(self._taproom_guest_name) == 0:
-            self._taproom_guest_name = None
-        if len(self._taproom_guest_orientation) == 0:
-            self._taproom_guest_orientation = None
-
         with temporarily_change_directory(directory):
 
-            original_force_field_path = self._force_field_path
-            self._force_field_path = os.path.relpath(original_force_field_path, directory)
+            original_force_field_path = self.force_field_path
+            self.force_field_path = os.path.relpath(original_force_field_path, directory)
 
             if self.setup:
 
@@ -703,7 +685,7 @@ class BasePaprikaProtocol(BaseProtocol):
                 if error is not None:
                     return error
 
-            self._force_field_path = original_force_field_path
+            self.force_field_path = original_force_field_path
 
         return self._get_output_dictionary()
 
@@ -737,9 +719,9 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
             # we have to assign the smirnoff parameters before adding the dummy atoms.
             # Hence this specialised method.
             build_solvated_complex_system = forcefield.BuildSmirnoffSystem('build_solvated_window_system')
-            build_solvated_complex_system.force_field_path = self._force_field_path
+            build_solvated_complex_system.force_field_path = self.force_field_path
             build_solvated_complex_system.coordinate_file_path = solvated_structure_path
-            build_solvated_complex_system.substance = self._substance
+            build_solvated_complex_system.substance = self.substance
             build_solvated_complex_system.charged_molecule_paths = [host_mol2_path]
 
             result = build_solvated_complex_system.execute(window_directory, None)
@@ -821,12 +803,12 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
         queue.put((index,
                    self._solvated_coordinate_paths[index],
                    self._solvated_system_xml_paths[index],
-                   self._thermodynamic_state,
-                   self._timestep,
-                   self._number_of_equilibration_steps,
-                   self._equilibration_output_frequency,
-                   self._number_of_production_steps,
-                   self._production_output_frequency,
+                   self.thermodynamic_state,
+                   self.timestep,
+                   self.number_of_equilibration_steps,
+                   self.equilibration_output_frequency,
+                   self.number_of_production_steps,
+                   self.production_output_frequency,
                    available_resources,
                    exceptions))
 
@@ -930,7 +912,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
         self._results_dictionary = paprika.analyze(host=self._paprika_setup.host,
                                                    guest=self._paprika_setup.guest,
-                                                   guest_orientation=self._taproom_guest_orientation,
+                                                   guest_orientation=self.taproom_guest_orientation,
                                                    topology_file='restrained.pdb',
                                                    trajectory_mask='trajectory.dcd',
                                                    directory_path=directory,
@@ -990,13 +972,13 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
         queue.put((index,
                    self._solvated_coordinate_paths[index],
                    None,
-                   self._thermodynamic_state,
-                   self._gaff_cutoff,
-                   self._timestep,
-                   self._number_of_equilibration_steps,
-                   self._equilibration_output_frequency,
-                   self._number_of_production_steps,
-                   self._production_output_frequency,
+                   self.thermodynamic_state,
+                   self.gaff_cutoff,
+                   self.timestep,
+                   self.number_of_equilibration_steps,
+                   self.equilibration_output_frequency,
+                   self.number_of_production_steps,
+                   self.production_output_frequency,
                    available_resources,
                    exceptions))
 
@@ -1183,7 +1165,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
 
         self._results_dictionary = paprika.analyze(host=self._paprika_setup.host,
                                                    guest=self._paprika_setup.guest,
-                                                   guest_orientation=self._taproom_guest_orientation,
+                                                   guest_orientation=self.taproom_guest_orientation,
                                                    topology_file='restrained.pdb',
                                                    trajectory_mask='production.nc',
                                                    directory_path=directory,
@@ -1194,7 +1176,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
 
     def execute(self, directory, available_resources):
 
-        with open(self._force_field_path) as file:
+        with open(self.force_field_path) as file:
             self._force_field_source = ForceFieldSource.parse_json(file.read())
 
         if (not isinstance(self._force_field_source, TLeapForceFieldSource) or
