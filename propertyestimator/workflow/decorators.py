@@ -1,34 +1,75 @@
 """
-A collection of decorators used to mark-up elements in a workflow, such
-as inputs or outputs of protocol building blocks.
+A collection of descriptors used to mark-up elements in a workflow, such
+as the inputs or outputs of workflow protocols.
 """
-
-import numpy as np
+import abc
+import copy
 
 from enum import Enum
 
-from propertyestimator.workflow.typing import is_instance_of_type
+from propertyestimator import unit
+from propertyestimator.utils.quantities import EstimatedQuantity
+from propertyestimator.workflow.typing import is_instance_of_type, is_supported_type
 from propertyestimator.workflow.utils import PlaceholderInput
 
 
-class MergeBehaviour(Enum):
+class UndefinedAttribute:
+    """A custom type used to differentiate between ``None`` values,
+    and an undeclared optional value."""
+
+    def __eq__(self, other):
+        return type(other) == UndefinedAttribute
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __getstate__(self):
+        return {}
+
+    def __setstate__(self, state):
+        return
+
+
+UNDEFINED = UndefinedAttribute()
+
+
+class BaseMergeBehaviour(Enum):
+    """A base class for enums which will describes how attributes should
+    be handled when attempting to merge similar protocols.
+    """
+    pass
+
+
+class MergeBehaviour(BaseMergeBehaviour):
     """A enum which describes how attributes should be handled when
     attempting to merge similar protocols.
 
-    Notes
-    -----
-    Any attributes marked with a merge behavior of `ExactlyEqual`
-    must be exactly for two protocols to merge.
+    This enum may take values of
+
+    * ExactlyEqual: This attribute must be exactly equal between two protocols for
+      them to be able to merge.
     """
-
-    ExactlyEqual = 0,
-    SmallestValue = 1,
-    GreatestValue = 2,
+    ExactlyEqual = 'ExactlyEqual'
 
 
-class BaseProtocolInputObject:
-    """A custom decorator used to mark class attributes as either
-    a required input, or output, of a protocol.
+class InequalityMergeBehaviour(BaseMergeBehaviour):
+    """A enum which describes how attributes which can be compared
+    with inequalities should be merged.
+
+    This enum may take values of
+
+    * SmallestValue: When two protocols are merged, the smallest value of this
+      attribute from either protocol is retained.
+    * LargestValue: When two protocols are merged, the largest value of this
+      attribute from either protocol is retained.
+    """
+    SmallestValue = 'SmallestValue'
+    LargestValue = 'LargestValue'
+
+
+class BaseProtocolAttribute(abc.ABC):
+    """A custom descriptor used to mark class attributes as being either
+    a required input, or provided output of a protocol.
 
     Notes
     -----
@@ -36,101 +77,193 @@ class BaseProtocolInputObject:
     in addition to the public attribute. For example if a protocol has
     an attribute `substance`, by default the protocol must also have a
     `_substance` field.
-   """
+    """
 
-    def __init__(self, class_attribute):
+    def __init__(self, docstring, type_hint):
+        """Initializes a new BaseProtocolAttribute object.
 
-        documentation = class_attribute.__doc__ or None
+        Parameters
+        ----------
+        docstring: str
+            A docstring describing the attributes purpose. This will automatically
+            be decorated with additional information such as type hints, default
+            values, etc.
+        type_hint: type, typing.Union
+            The expected type of this attribute. This will be used to help the
+            workflow engine ensure that expected input types match corresponding
+            output values.
+        """
 
-        self.__doc__ = documentation
+        if not is_supported_type(type_hint):
 
-        self.attribute = '_' + class_attribute.__name__
-        self.value_type = None
+            raise ValueError(f'The {type_hint} type is not supported by the '
+                             f'workflow type hinting system.')
+
+        if hasattr(type_hint, '__qualname__'):
+
+            if type_hint.__qualname__ == 'build_quantity_class.<locals>.Quantity':
+                typed_docstring = f'Quantity: {docstring}'
+            elif type_hint.__qualname__ == 'build_quantity_class.<locals>.Unit':
+                typed_docstring = f'Unit: {docstring}'
+            else:
+                typed_docstring = f'{type_hint.__qualname__}: {docstring}'
+
+        elif hasattr(type_hint, '__name__'):
+            typed_docstring = f'{type_hint.__name__}: {docstring}'
+        else:
+            typed_docstring = f'{str(type_hint)}: {docstring}'
+
+        self.__doc__ = typed_docstring
+        self.type_hint = type_hint
+
+    def __set_name__(self, owner, name):
+        self._private_attribute_name = '_' + name
 
     def __get__(self, instance, owner=None):
 
         if instance is None:
-            # Added in to fix an issue where RTD tries to call this
-            # on a class, rather than an instance.
+            # Handle the case where this is called on the class directly,
+            # rather than an instance.
             return self
 
-        if not hasattr(instance, self.attribute):
-            raise ValueError('Missing {} attribute.'.format(self.attribute))
-
-        return getattr(instance, self.attribute)
+        try:
+            return getattr(instance, self._private_attribute_name)
+        except AttributeError:
+            return UNDEFINED
 
     def __set__(self, instance, value):
 
-        if instance is None:
-            raise ValueError('Unexpected ProtocolArgumentDecorator set use case.')
-
-        if not hasattr(instance, self.attribute):
-            raise ValueError('Missing {} attribute.'.format(self.attribute))
-
-        if (not is_instance_of_type(value, self.value_type) and
+        if (not is_instance_of_type(value, self.type_hint) and
             not isinstance(value, PlaceholderInput) and
-            value is not None):
+            not value == UNDEFINED):
 
-            # Handle the special case where the decimal has been lost on float types...
-            if (not (self.value_type is float and isinstance(value, int)) and
-                not np.issubdtype(type(value), self.value_type)):
+            raise ValueError(f'The {self._private_attribute_name[1:]} attribute can only accept '
+                             f'values of type {self.type_hint}')
 
-                raise ValueError('The {} attribute can only accept values '
-                                 'of type {}'.format(self.attribute, self.value_type))
-
-        setattr(instance, self.attribute, value)
+        setattr(instance, self._private_attribute_name, value)
 
 
-def protocol_input(value_type, merge_behavior=MergeBehaviour.ExactlyEqual):
-    """A custom decorator used to mark a protocol attribute as a possible input.
+class ProtocolInputAttribute(BaseProtocolAttribute):
+    """A descriptor used to mark an attribute of a protocol as
+    an input to that protocol.
 
     Examples
     ----------
     To mark an attribute as an input:
 
-    >>> from propertyestimator.substances import Substance
+    >>> from propertyestimator.workflow.protocols import BaseProtocol
+    >>> from propertyestimator.workflow.decorators import protocol_input
     >>>
-    >>> @protocol_input(value_type=Substance)
-    >>> def substance(self, value):
-    >>>     pass
-
-    To control how this input should behave when protocols are being
-    / considered being merged, use the merge_behavior attribute:
-
-    >>> @protocol_input(value_type=int, merge_behavior=MergeBehaviour.GreatestValue)
-    >>> def simulation_steps(self, value):
-    >>>     pass
+    >>> class MyProtocol(BaseProtocol):
+    >>>
+    >>>     my_input = protocol_input(
+    >>>         docstring='An input will be used.',
+    >>>         type_hint=float,
+    >>>         default_value=0.1
+    >>>     )
     """
 
-    class ProtocolInputObject(BaseProtocolInputObject):
+    def __init__(self, docstring, type_hint, default_value, optional=False,
+                 merge_behavior=MergeBehaviour.ExactlyEqual):
 
-        def __init__(self, class_attribute):
-            super().__init__(class_attribute)
+        """Initializes a new protocol_input object.
 
-            self.value_type = value_type
-            self.merge_behavior = merge_behavior
+        Parameters
+        ----------
+        default_value: Any
+            The default value for this attribute.
+        optional: bool
+            Defines whether this is an optional input of a class. If true,
+            the `default_value` must be set to `UNDEFINED`.
+        merge_behavior: BaseMergeBehaviour
+            An enum describing how this input should be handled when considering
+            whether to, and actually merging two different protocols.
+        """
 
-    return ProtocolInputObject
+        docstring = f'**Protocol Input** - {docstring}'
+
+        if not isinstance(merge_behavior, BaseMergeBehaviour):
+            raise ValueError('The merge behaviour must inherit from `BaseMergeBehaviour`')
+
+        # Automatically extend the docstrings.
+        if (isinstance(default_value, (int, float, str, unit.Quantity, EstimatedQuantity, Enum)) or
+            (isinstance(default_value, (list, tuple, set, frozenset)) and len(default_value) <= 4)):
+
+            docstring = f'{docstring} The default value of this attribute ' \
+                        f'is ``{str(default_value)}``.'
+
+        elif default_value == UNDEFINED:
+
+            optional_string = '' if optional else ' and must be set by the user.'
+
+            docstring = f'{docstring} The default value of this attribute ' \
+                         f'is not set{optional_string}.'
+
+        if (merge_behavior == InequalityMergeBehaviour.SmallestValue or
+            merge_behavior == InequalityMergeBehaviour.LargestValue):
+
+            merge_docstring = ''
+
+            if merge_behavior == InequalityMergeBehaviour.SmallestValue:
+                merge_docstring = 'When two protocols are merged, the smallest value of ' \
+                                        'this attribute from either protocol is retained.'
+
+            if merge_behavior == InequalityMergeBehaviour.SmallestValue:
+                merge_docstring = 'When two protocols are merged, the largest value of ' \
+                                  'this attribute from either protocol is retained.'
+
+            docstring = f'{docstring} {merge_docstring}'
+
+        if optional is True:
+            docstring = f'{docstring} This input is *optional*.'
+
+        super().__init__(docstring, type_hint)
+
+        self.optional = optional
+        self.merge_behavior = merge_behavior
+
+        self._default_value = default_value
+
+    def __get__(self, instance, owner=None):
+
+        if instance is None:
+            # Handle the case where this is called on the class directly,
+            # rather than an instance.
+            return self
+
+        if not hasattr(instance, self._private_attribute_name):
+            # Make sure to only ever pass a copy of the default value to ensure
+            # mutable values such as lists don't get set by reference.
+            setattr(instance, self._private_attribute_name, copy.deepcopy(self._default_value))
+
+        return getattr(instance, self._private_attribute_name)
 
 
-def protocol_output(value_type):
-    """A custom decorator used to mark a protocol attribute as
-    an output of the protocol.
+class ProtocolOutputAttribute(BaseProtocolAttribute):
+    """A descriptor used to mark an attribute of a protocol as
+    an output of that protocol.
 
     Examples
     ----------
-    To mark a property as an output:
+    To mark an attribute as an output:
 
-    >>> @protocol_output(value_type=str)
-    >>> def coordinate_file_path(self):
-    >>>     pass
+    >>> from propertyestimator.workflow.protocols import BaseProtocol
+    >>> from propertyestimator.workflow.decorators import protocol_output,
+    >>>
+    >>> class MyProtocol(BaseProtocol):
+    >>>
+    >>>     my_output = protocol_output(
+    >>>         docstring='An output that will be filled.',
+    >>>         type_hint=float
+    >>>     )
     """
 
-    class ProtocolOutputObject(BaseProtocolInputObject):
+    def __init__(self, docstring, type_hint):
+        """Initializes a new protocol_output object.
+        """
+        docstring = f'**Protocol Output** - {docstring}'
+        super().__init__(docstring, type_hint)
 
-        def __init__(self, class_attribute):
-            super().__init__(class_attribute)
 
-            self.value_type = value_type
-
-    return ProtocolOutputObject
+protocol_input = ProtocolInputAttribute
+protocol_output = ProtocolOutputAttribute

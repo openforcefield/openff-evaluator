@@ -17,9 +17,9 @@ def find_types_with_decorator(class_type, decorator_type):
 
     Parameters
     ----------
-    class_type: class
+    class_type: type
         The class to pull attributes from.
-    decorator_type: str
+    decorator_type: type
         The type of decorator to search for.
 
     Returns
@@ -42,7 +42,7 @@ def find_types_with_decorator(class_type, decorator_type):
     for base in all_bases:
 
         inputs.extend([attribute_name for attribute_name in base.__dict__ if
-                       type(base.__dict__[attribute_name]).__name__ == decorator_type])
+                       isinstance(base.__dict__[attribute_name], decorator_type)])
 
     return inputs
 

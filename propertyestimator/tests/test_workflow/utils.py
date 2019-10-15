@@ -1,7 +1,9 @@
+from typing import Union
+
 from propertyestimator import unit
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import Workflow
-from propertyestimator.workflow.decorators import protocol_input, protocol_output
+from propertyestimator.workflow.decorators import protocol_input, protocol_output, UNDEFINED
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
@@ -31,90 +33,43 @@ def create_dummy_metadata(dummy_property, calculation_layer):
 @register_calculation_protocol()
 class DummyReplicableProtocol(BaseProtocol):
 
-    @protocol_input(value_type=list)
-    def replicated_value_a(self):
-        pass
-
-    @protocol_input(value_type=list)
-    def replicated_value_b(self):
-        pass
-
-    @protocol_output(value_type=EstimatedQuantity)
-    def final_value(self):
-        pass
-
-    def __init__(self, protocol_id):
-        super().__init__(protocol_id)
-
-        self._replicated_value_a = None
-        self._replicated_value_b = None
-
-        self._final_value = EstimatedQuantity(1 * unit.kelvin, 0.1 * unit.kelvin, 'dummy')
+    replicated_value_a = protocol_input(
+        docstring='', type_hint=Union[str, int, float], default_value=UNDEFINED
+    )
+    replicated_value_b = protocol_input(
+        docstring='', type_hint=Union[str, int, float], default_value=UNDEFINED
+    )
+    final_value = protocol_output(docstring='', type_hint=EstimatedQuantity)
 
 
 @register_calculation_protocol()
 class DummyQuantityProtocol(BaseProtocol):
 
-    @protocol_input(unit.Quantity)
-    def input_value(self):
-        pass
-
-    @protocol_output(unit.Quantity)
-    def output_value(self):
-        pass
-
-    def __init__(self, protocol_id):
-
-        super().__init__(protocol_id)
-
-        self._input_value = None
-        self._output_value = None
+    input_value = protocol_input(docstring='', type_hint=unit.Quantity, default_value=UNDEFINED)
+    output_value = protocol_output(docstring='', type_hint=unit.Quantity)
 
     def execute(self, directory, available_resources):
-        self._output_value = self._input_value
+        self.output_value = self.input_value
         return self._get_output_dictionary()
 
 
 @register_calculation_protocol()
 class DummyEstimatedQuantityProtocol(BaseProtocol):
 
-    @protocol_input(EstimatedQuantity)
-    def input_value(self):
-        pass
-
-    @protocol_output(EstimatedQuantity)
-    def output_value(self):
-        pass
-
-    def __init__(self, protocol_id):
-
-        super().__init__(protocol_id)
-
-        self._input_value = None
-        self._output_value = None
+    input_value = protocol_input(docstring='', type_hint=EstimatedQuantity, default_value=UNDEFINED)
+    output_value = protocol_output(docstring='', type_hint=EstimatedQuantity)
 
     def execute(self, directory, available_resources):
-        self._output_value = self._input_value
+        self.output_value = self.input_value
         return self._get_output_dictionary()
 
 
 @register_calculation_protocol()
 class DummyProtocolWithDictInput(BaseProtocol):
 
-    @protocol_input(dict)
-    def input_value(self):
-        pass
-
-    @protocol_output(dict)
-    def output_value(self):
-        pass
-
-    def __init__(self, protocol_id):
-
-        super().__init__(protocol_id)
-        self._input_value = None
-        self._output_value = None
+    input_value = protocol_input(docstring='', type_hint=dict, default_value=UNDEFINED)
+    output_value = protocol_output(docstring='', type_hint=dict)
 
     def execute(self, directory, available_resources):
-        self._output_value = self._input_value
+        self.output_value = self.input_value
         return self._get_output_dictionary()

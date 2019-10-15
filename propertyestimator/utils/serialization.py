@@ -247,7 +247,7 @@ class TypedJSONEncoder(json.JSONEncoder):
         np.float64: lambda x: {'value': float(x)},
         np.int32: lambda x: {'value': int(x)},
         np.int64: lambda x: {'value': int(x)},
-        np.ndarray: lambda x: {'value': x.tolist()},
+        np.ndarray: lambda x: {'value': x.tolist()}
     }
 
     def default(self, value_to_serialize):

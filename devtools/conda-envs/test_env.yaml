@@ -37,5 +37,6 @@ dependencies:
   - openmmtools >=0.18.2
   - yank
   - pyyaml
-  - paprika
   - requests
+  - requests-mock # For testing http requests.
+  - paprika

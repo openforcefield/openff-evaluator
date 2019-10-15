@@ -1,6 +1,6 @@
 """
-A collection of protocols for performing free energy calculations using
-the YANK software package.
+A collection of protocols for performing free energy calculations
+using the YANK package.
 """
 import logging
 import os
@@ -14,11 +14,11 @@ import yaml
 from propertyestimator import unit
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.openmm import setup_platform_with_resources, pint_quantity_to_openmm, \
-    openmm_quantity_to_pint
+from propertyestimator.utils.openmm import setup_platform_with_resources, openmm_quantity_to_pint, \
+    pint_quantity_to_openmm
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.utils import temporarily_change_directory
-from propertyestimator.workflow.decorators import protocol_input, protocol_output, MergeBehaviour
+from propertyestimator.workflow.decorators import protocol_input, protocol_output, InequalityMergeBehaviour, UNDEFINED
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
@@ -32,65 +32,51 @@ class BaseYankProtocol(BaseProtocol):
     methods.
     """
 
-    @protocol_input(ThermodynamicState)
-    def thermodynamic_state(self):
-        """The state at which to run the calculations."""
-        pass
+    thermodynamic_state = protocol_input(
+        docstring='The state at which to run the calculations.',
+        type_hint=ThermodynamicState,
+        default_value=UNDEFINED
+    )
 
-    @protocol_input(int, merge_behavior=MergeBehaviour.GreatestValue)
-    def number_of_iterations(self):
-        """The number of YANK iterations to perform."""
-        pass
+    number_of_iterations = protocol_input(
+        docstring='The number of YANK iterations to perform.',
+        type_hint=int, merge_behavior=InequalityMergeBehaviour.LargestValue,
+        default_value=UNDEFINED
+    )
+    steps_per_iteration = protocol_input(
+        docstring='The number of steps per YANK iteration to perform.',
+        type_hint=int, merge_behavior=InequalityMergeBehaviour.LargestValue,
+        default_value=500
+    )
+    checkpoint_interval = protocol_input(
+        docstring='The number of iterations between saving YANK checkpoint files.',
+        type_hint=int, merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        default_value=50
+    )
 
-    @protocol_input(int, merge_behavior=MergeBehaviour.GreatestValue)
-    def steps_per_iteration(self):
-        """The number of steps per YANK iteration to perform."""
-        pass
+    timestep = protocol_input(
+        docstring='The length of the timestep to take.',
+        type_hint=unit.Quantity, merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        default_value=2 * unit.femtosecond
+    )
 
-    @protocol_input(int, merge_behavior=MergeBehaviour.SmallestValue)
-    def checkpoint_interval(self):
-        """The number of iterations between saving YANK checkpoint files."""
-        pass
+    force_field_path = protocol_input(
+        docstring='The path to the force field to use for the calculations',
+        type_hint=str,
+        default_value=UNDEFINED
+    )
 
-    @protocol_input(unit.Quantity, merge_behavior=MergeBehaviour.SmallestValue)
-    def timestep(self):
-        """The length of the timestep to take."""
-        pass
+    verbose = protocol_input(
+        docstring='Controls whether or not to run YANK at high verbosity.',
+        type_hint=bool,
+        default_value=False
+    )
 
-    @protocol_input(str)
-    def force_field_path(self):
-        """The path to the force field to use for the calculations"""
-        pass
-
-    @protocol_input(bool)
-    def verbose(self):
-        """Controls whether or not to run YANK at high verbosity."""
-        pass
-
-    @protocol_output(EstimatedQuantity)
-    def estimated_free_energy(self):
-        """The estimated free energy value and its uncertainty returned
-        by YANK."""
-        pass
-
-    def __init__(self, protocol_id):
-        """Constructs a new BaseYankProtocol object."""
-
-        super().__init__(protocol_id)
-
-        self._thermodynamic_state = None
-        self._timestep = 2 * unit.femtosecond
-
-        self._number_of_iterations = 1
-
-        self._steps_per_iteration = 500
-        self._checkpoint_interval = 50
-
-        self._force_field_path = None
-
-        self._verbose = False
-
-        self._estimated_free_energy = None
+    estimated_free_energy = protocol_output(
+        docstring='The estimated free energy value and its uncertainty '
+                  'returned by YANK.',
+        type_hint=EstimatedQuantity
+    )
 
     def _get_options_dictionary(self, available_resources):
         """Returns a dictionary of options which will be serialized
@@ -122,19 +108,19 @@ class BaseYankProtocol(BaseProtocol):
                                                       ComputeResources.GPUToolkit.OpenCL
 
         return {
-            'verbose': self._verbose,
+            'verbose': self.verbose,
             'output_dir': '.',
 
-            'temperature': quantity_to_string(pint_quantity_to_openmm(self._thermodynamic_state.temperature)),
-            'pressure': quantity_to_string(pint_quantity_to_openmm(self._thermodynamic_state.pressure)),
+            'temperature': quantity_to_string(pint_quantity_to_openmm(self.thermodynamic_state.temperature)),
+            'pressure': quantity_to_string(pint_quantity_to_openmm(self.thermodynamic_state.pressure)),
 
             'minimize': True,
 
-            'default_number_of_iterations': self._number_of_iterations,
-            'default_nsteps_per_iteration': self._steps_per_iteration,
-            'checkpoint_interval': self._checkpoint_interval,
+            'default_number_of_iterations': self.number_of_iterations,
+            'default_nsteps_per_iteration': self.steps_per_iteration,
+            'checkpoint_interval': self.checkpoint_interval,
 
-            'default_timestep': quantity_to_string(pint_quantity_to_openmm(self._timestep)),
+            'default_timestep': quantity_to_string(pint_quantity_to_openmm(self.timestep)),
 
             'annihilate_electrostatics': True,
             'annihilate_sterics': False,
@@ -153,7 +139,7 @@ class BaseYankProtocol(BaseProtocol):
             A yaml compatible dictionary of YANK solvents.
         """
         from openforcefield.typing.engines.smirnoff.forcefield import ForceField
-        force_field = ForceField(self._force_field_path)
+        force_field = ForceField(self.force_field_path)
 
         charge_method = force_field.get_parameter_handler('Electrostatics').method
 
@@ -364,9 +350,9 @@ class BaseYankProtocol(BaseProtocol):
             if error is not None:
                 return PropertyEstimatorException(directory, error)
 
-        self._estimated_free_energy = EstimatedQuantity(openmm_quantity_to_pint(free_energy),
-                                                        openmm_quantity_to_pint(free_energy_uncertainty),
-                                                        self._id)
+        self.estimated_free_energy = EstimatedQuantity(openmm_quantity_to_pint(free_energy),
+                                                       openmm_quantity_to_pint(free_energy_uncertainty),
+                                                       self._id)
 
         return self._get_output_dictionary()
 
@@ -386,84 +372,71 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         Harmonic = 'Harmonic'
         FlatBottom = 'FlatBottom'
 
-    @protocol_input(str)
-    def ligand_residue_name(self):
-        """The residue name of the ligand."""
-        pass
+    ligand_residue_name = protocol_input(
+        docstring='The residue name of the ligand.',
+        type_hint=str,
+        default_value=UNDEFINED
+    )
+    receptor_residue_name = protocol_input(
+        docstring='The residue name of the receptor.',
+        type_hint=str,
+        default_value=UNDEFINED
+    )
 
-    @protocol_input(str)
-    def receptor_residue_name(self):
-        """The residue name of the receptor."""
-        pass
+    solvated_ligand_coordinates = protocol_input(
+        docstring='The file path to the solvated ligand coordinates.',
+        type_hint=str,
+        default_value=UNDEFINED
+    )
+    solvated_ligand_system = protocol_input(
+        docstring='The file path to the solvated ligand system object.',
+        type_hint=str,
+        default_value=UNDEFINED
+    )
 
-    @protocol_input(str)
-    def solvated_ligand_coordinates(self):
-        """The file path to the solvated ligand coordinates."""
-        pass
+    solvated_complex_coordinates = protocol_input(
+        docstring='The file path to the solvated complex coordinates.',
+        type_hint=str,
+        default_value=UNDEFINED
+    )
+    solvated_complex_system = protocol_input(
+        docstring='The file path to the solvated complex system object.',
+        type_hint=str,
+        default_value=UNDEFINED
+    )
 
-    @protocol_input(str)
-    def solvated_ligand_system(self):
-        """The file path to the solvated ligand system object."""
-        pass
+    apply_restraints = protocol_input(
+        docstring='Determines whether the ligand should be explicitly restrained to the '
+                  'receptor in order to stop the ligand from temporarily unbinding.',
+        type_hint=bool,
+        default_value=True
+    )
+    restraint_type = protocol_input(
+        docstring='The type of ligand restraint applied, provided that `apply_restraints` '
+                  'is `True`',
+        type_hint=RestraintType,
+        default_value=RestraintType.Harmonic
+    )
 
-    @protocol_input(str)
-    def solvated_complex_coordinates(self):
-        """The file path to the solvated complex coordinates."""
-        pass
-
-    @protocol_input(str)
-    def solvated_complex_system(self):
-        """The file path to the solvated complex system object."""
-        pass
-
-    @protocol_input(bool)
-    def apply_restraints(self):
-        """Determines whether the ligand should be explicitly restrained to
-        the receptor in order to stop the ligand from temporarily unbinding.
-        """
-        pass
-
-    @protocol_input(RestraintType)
-    def restraint_type(self):
-        """The type of ligand restraint applied, provided that `apply_restraints`
-        is `True`"""
-        pass
-
-    @protocol_output(str)
-    def solvated_ligand_trajectory_path(self):
-        """The file path to the generated ligand trajectory."""
-        pass
-
-    @protocol_output(str)
-    def solvated_complex_trajectory_path(self):
-        """The file path to the generated ligand trajectory."""
-        pass
+    solvated_ligand_trajectory_path = protocol_output(
+        docstring='The file path to the generated ligand trajectory.',
+        type_hint=str
+    )
+    solvated_complex_trajectory_path = protocol_output(
+        docstring='The file path to the generated ligand trajectory.',
+        type_hint=str
+    )
 
     def __init__(self, protocol_id):
         """Constructs a new LigandReceptorYankProtocol object."""
 
         super().__init__(protocol_id)
 
-        self._ligand_residue_name = None
-        self._receptor_residue_name = None
-
-        self._solvated_ligand_coordinates = None
-        self._solvated_ligand_system = None
-
-        self._solvated_complex_coordinates = None
-        self._solvated_complex_system = None
-
         self._local_ligand_coordinates = 'ligand.pdb'
         self._local_ligand_system = 'ligand.xml'
 
         self._local_complex_coordinates = 'complex.pdb'
         self._local_complex_system = 'complex.xml'
-
-        self._solvated_ligand_trajectory_path = None
-        self._solvated_complex_trajectory_path = None
-
-        self._apply_restraints = True
-        self._restraint_type = LigandReceptorYankProtocol.RestraintType.Harmonic
 
     def _get_system_dictionary(self):
 
@@ -474,7 +447,7 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
             'phase1_path': [self._local_complex_system, self._local_complex_coordinates],
             'phase2_path': [self._local_ligand_system, self._local_ligand_coordinates],
 
-            'ligand_dsl': f'resname {self._ligand_residue_name}',
+            'ligand_dsl': f'resname {self.ligand_residue_name}',
             'solvent': solvent_key
         }
 
@@ -493,13 +466,13 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
 
         experiments_dictionary = super(LigandReceptorYankProtocol, self)._get_experiments_dictionary()
 
-        if self._apply_restraints:
+        if self.apply_restraints:
 
             experiments_dictionary['restraint'] = {
-                'restrained_ligand_atoms': f'(resname {self._ligand_residue_name}) and (mass > 1.5)',
-                'restrained_receptor_atoms': f'(resname {self._receptor_residue_name}) and (mass > 1.5)',
+                'restrained_ligand_atoms': f'(resname {self.ligand_residue_name}) and (mass > 1.5)',
+                'restrained_receptor_atoms': f'(resname {self.receptor_residue_name}) and (mass > 1.5)',
 
-                'type': self._restraint_type.value
+                'type': self.restraint_type.value
             }
 
         return experiments_dictionary
@@ -509,11 +482,11 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         # Because of quirks in where Yank looks files while doing temporary
         # directory changes, we need to copy the coordinate files locally so
         # they are correctly found.
-        shutil.copyfile(self._solvated_ligand_coordinates, os.path.join(directory, self._local_ligand_coordinates))
-        shutil.copyfile(self._solvated_ligand_system, os.path.join(directory, self._local_ligand_system))
+        shutil.copyfile(self.solvated_ligand_coordinates, os.path.join(directory, self._local_ligand_coordinates))
+        shutil.copyfile(self.solvated_ligand_system, os.path.join(directory, self._local_ligand_system))
 
-        shutil.copyfile(self._solvated_complex_coordinates, os.path.join(directory, self._local_complex_coordinates))
-        shutil.copyfile(self._solvated_complex_system, os.path.join(directory, self._local_complex_system))
+        shutil.copyfile(self.solvated_complex_coordinates, os.path.join(directory, self._local_complex_coordinates))
+        shutil.copyfile(self.solvated_complex_system, os.path.join(directory, self._local_complex_system))
 
         result = super(LigandReceptorYankProtocol, self).execute(directory, available_resources)
 
@@ -523,10 +496,10 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         ligand_yank_path = os.path.join(directory, 'experiments', 'solvent.nc')
         complex_yank_path = os.path.join(directory, 'experiments', 'complex.nc')
 
-        self._solvated_ligand_trajectory_path = os.path.join(directory, 'ligand.dcd')
-        self._solvated_complex_trajectory_path = os.path.join(directory, 'complex.dcd')
+        self.solvated_ligand_trajectory_path = os.path.join(directory, 'ligand.dcd')
+        self.solvated_complex_trajectory_path = os.path.join(directory, 'complex.dcd')
 
-        self._extract_trajectory(ligand_yank_path, self._solvated_ligand_trajectory_path)
-        self._extract_trajectory(complex_yank_path, self._solvated_complex_trajectory_path)
+        self._extract_trajectory(ligand_yank_path, self.solvated_ligand_trajectory_path)
+        self._extract_trajectory(complex_yank_path, self.solvated_complex_trajectory_path)
 
         return self._get_output_dictionary()

@@ -8,8 +8,6 @@ import shutil
 import traceback
 
 import numpy as np
-from simtk import openmm, unit as simtk_unit
-from simtk.openmm import app
 
 from propertyestimator import unit
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
@@ -18,9 +16,11 @@ from propertyestimator.utils.openmm import setup_platform_with_resources, openmm
     pint_quantity_to_openmm, disable_pbc
 from propertyestimator.utils.statistics import StatisticsArray, ObservableType
 from propertyestimator.utils.utils import safe_unlink
-from propertyestimator.workflow.decorators import protocol_input, protocol_output, MergeBehaviour
+from propertyestimator.workflow.decorators import protocol_input, protocol_output, InequalityMergeBehaviour, UNDEFINED
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
+from simtk import openmm, unit as simtk_unit
+from simtk.openmm import app
 
 
 @register_calculation_protocol()
@@ -28,53 +28,41 @@ class RunEnergyMinimisation(BaseProtocol):
     """A protocol to minimise the potential energy of a system.
     """
 
-    @protocol_input(str)
-    def input_coordinate_file(self):
-        """The coordinates to minimise."""
-        pass
+    input_coordinate_file = protocol_input(
+        docstring='The coordinates to minimise.',
+        type_hint=str,
+        default_value=UNDEFINED
+    )
+    system_path = protocol_input(
+        docstring='The path to the XML system object which defines the forces present '
+                  'in the system.',
+        type_hint=str,
+        default_value=UNDEFINED
+    )
 
-    @protocol_input(unit.Quantity)
-    def tolerance(self):
-        """The energy tolerance to which the system should be minimized."""
-        pass
+    tolerance = protocol_input(
+        docstring='The energy tolerance to which the system should be minimized.',
+        type_hint=unit.Quantity,
+        default_value=10 * unit.kilojoules / unit.mole
+    )
+    max_iterations = protocol_input(
+        docstring='The maximum number of iterations to perform. If this is 0, '
+                  'minimization is continued until the results converge without regard to '
+                  'how many iterations it takes.',
+        type_hint=int,
+        default_value=10
+    )
 
-    @protocol_input(int)
-    def max_iterations(self):
-        """The maximum number of iterations to perform.  If this is 0,
-        minimization is continued until the results converge without regard
-        to how many iterations it takes."""
-        pass
+    enable_pbc = protocol_input(
+        docstring='If true, periodic boundary conditions will be enabled.',
+        type_hint=bool,
+        default_value=True
+    )
 
-    @protocol_input(str)
-    def system_path(self):
-        """The path to the XML system object which defines the forces present in the system."""
-        pass
-
-    @protocol_input(bool)
-    def enable_pbc(self):
-        """If true, periodic boundary conditions will be enabled."""
-        pass
-
-    @protocol_output(str)
-    def output_coordinate_file(self):
-        """The file path to the minimised coordinates."""
-        pass
-
-    def __init__(self, protocol_id):
-
-        super().__init__(protocol_id)
-
-        self._input_coordinate_file = None
-
-        self._system_path = None
-        self._system = None
-
-        self._enable_pbc = True
-
-        self._tolerance = 10*unit.kilojoules / unit.mole
-        self._max_iterations = 0
-
-        self._output_coordinate_file = None
+    output_coordinate_file = protocol_output(
+        docstring='The file path to the minimised coordinates.',
+        type_hint=str
+    )
 
     def execute(self, directory, available_resources):
 
@@ -82,16 +70,16 @@ class RunEnergyMinimisation(BaseProtocol):
 
         platform = setup_platform_with_resources(available_resources)
 
-        input_pdb_file = app.PDBFile(self._input_coordinate_file)
+        input_pdb_file = app.PDBFile(self.input_coordinate_file)
 
-        with open(self._system_path, 'rb') as file:
-            self._system = openmm.XmlSerializer.deserialize(file.read().decode())
+        with open(self.system_path, 'rb') as file:
+            system = openmm.XmlSerializer.deserialize(file.read().decode())
 
-        if not self._enable_pbc:
+        if not self.enable_pbc:
 
-            for force_index in range(self._system.getNumForces()):
+            for force_index in range(system.getNumForces()):
 
-                force = self._system.getForce(force_index)
+                force = system.getForce(force_index)
 
                 if not isinstance(force, openmm.NonbondedForce):
                     continue
@@ -100,7 +88,7 @@ class RunEnergyMinimisation(BaseProtocol):
 
         # TODO: Expose the constraint tolerance
         integrator = openmm.VerletIntegrator(0.002 * simtk_unit.picoseconds)
-        simulation = app.Simulation(input_pdb_file.topology, self._system, integrator, platform)
+        simulation = app.Simulation(input_pdb_file.topology, system, integrator, platform)
 
         box_vectors = input_pdb_file.topology.getPeriodicBoxVectors()
 
@@ -110,13 +98,13 @@ class RunEnergyMinimisation(BaseProtocol):
         simulation.context.setPeriodicBoxVectors(*box_vectors)
         simulation.context.setPositions(input_pdb_file.positions)
 
-        simulation.minimizeEnergy(pint_quantity_to_openmm(self._tolerance), self._max_iterations)
+        simulation.minimizeEnergy(pint_quantity_to_openmm(self.tolerance), self.max_iterations)
 
         positions = simulation.context.getState(getPositions=True).getPositions()
 
-        self._output_coordinate_file = os.path.join(directory, 'minimised.pdb')
+        self.output_coordinate_file = os.path.join(directory, 'minimised.pdb')
 
-        with open(self._output_coordinate_file, 'w+') as minimised_file:
+        with open(self.output_coordinate_file, 'w+') as minimised_file:
             app.PDBFile.writeFile(simulation.topology, positions, minimised_file)
 
         logging.info('Energy minimised: ' + self.id)
@@ -130,126 +118,98 @@ class RunOpenMMSimulation(BaseProtocol):
     an OpenMM backend.
     """
 
-    @protocol_input(int, merge_behavior=MergeBehaviour.GreatestValue)
-    def steps(self):
-        """The number of timesteps to evolve the system by."""
-        pass
+    steps = protocol_input(
+        docstring='The number of timesteps to evolve the system by.',
+        type_hint=int, merge_behavior=InequalityMergeBehaviour.LargestValue,
+        default_value=1000000
+    )
+    timestep = protocol_input(
+        docstring='The timestep to evolve the system by at each step.',
+        type_hint=unit.Quantity, merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        default_value=2.0 * unit.femtosecond
+    )
 
-    @protocol_input(unit.Quantity, merge_behavior=MergeBehaviour.SmallestValue)
-    def thermostat_friction(self):
-        """The thermostat friction coefficient."""
-        pass
+    thermodynamic_state = protocol_input(
+        docstring='The thermodynamic conditions to simulate under',
+        type_hint=ThermodynamicState,
+        default_value=UNDEFINED
+    )
+    ensemble = protocol_input(
+        docstring='The thermodynamic ensemble to simulate in.',
+        type_hint=Ensemble,
+        default_value=Ensemble.NPT
+    )
 
-    @protocol_input(unit.Quantity, merge_behavior=MergeBehaviour.SmallestValue)
-    def timestep(self):
-        """The timestep to evolve the system by at each step."""
-        pass
+    thermostat_friction = protocol_input(
+        docstring='The thermostat friction coefficient.',
+        type_hint=unit.Quantity, merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        default_value=1.0 / unit.picoseconds
+    )
 
-    @protocol_input(int, merge_behavior=MergeBehaviour.SmallestValue)
-    def output_frequency(self):
-        """The frequency with which to write to the output statistics and trajectory files."""
-        pass
+    output_frequency = protocol_input(
+        docstring='The frequency with which to write to the output statistics and '
+                  'trajectory files.',
+        type_hint=int, merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        default_value=3000
+    )
 
-    @protocol_input(Ensemble)
-    def ensemble(self):
-        """The thermodynamic ensemble to simulate in."""
-        pass
+    input_coordinate_file = protocol_input(
+        docstring='The file path to the starting coordinates.',
+        type_hint=str,
+        default_value=UNDEFINED
+    )
+    system_path = protocol_input(
+        docstring='A path to the XML system object which defines the forces present '
+                  'in the system.',
+        type_hint=str,
+        default_value=UNDEFINED
+    )
 
-    @protocol_input(ThermodynamicState)
-    def thermodynamic_state(self):
-        """The thermodynamic conditions to simulate under"""
-        pass
+    enable_pbc = protocol_input(
+        docstring='If true, periodic boundary conditions will be enabled.',
+        type_hint=bool,
+        default_value=True
+    )
 
-    @protocol_input(str)
-    def input_coordinate_file(self):
-        """The file path to the starting coordinates."""
-        pass
+    save_rolling_statistics = protocol_input(
+        docstring='If True, the statistics file will be written to every '
+                  '`output_frequency` number of steps, rather than just once at '
+                  'the end of the simulation.',
+        type_hint=bool,
+        default_value=True
+    )
 
-    @protocol_input(str)
-    def system_path(self):
-        """A path to the XML system object which defines the forces present in the system."""
-        pass
+    allow_gpu_platforms = protocol_input(
+        docstring='If true, OpenMM will be allowed to run using a GPU if available, '
+                  'otherwise it will be constrained to only using CPUs.',
+        type_hint=bool,
+        default_value=True
+    )
+    high_precision = protocol_input(
+        docstring='If true, OpenMM will be run using a platform with high precision '
+                  'settings. This will be the Reference platform when only a CPU is '
+                  'available, or double precision mode when a GPU is available.',
+        type_hint=bool,
+        default_value=False
+    )
 
-    @protocol_input(bool)
-    def enable_pbc(self):
-        """If true, periodic boundary conditions will be enabled."""
-        pass
-
-    @protocol_input(bool)
-    def save_rolling_statistics(self):
-        """If True, the statisitics file will be written to every
-        `output_frequency` number of steps, rather than just once
-        at the end of the simulation.
-
-        Notes
-        -----
-        In future when either saving the statistics to file has been
-        optimised, or an option for the frequency to save to the file
-        has been added, this option will be removed.
-        """
-        pass
-
-    @protocol_input(bool)
-    def allow_gpu_platforms(self):
-        """If true, OpenMM will be allowed to run using
-        a GPU if available, otherwise it will be constrained
-        to only using CPUs."""
-        pass
-
-    @protocol_input(bool)
-    def high_precision(self):
-        """If true, OpenMM will be run using a platform with
-        high precision settings. This will be the Reference
-        platform when only a CPU is available, or double
-        precision mode when a GPU is available."""
-        pass
-
-    @protocol_output(str)
-    def output_coordinate_file(self):
-        """The file path to the coordinates of the final system configuration."""
-        pass
-
-    @protocol_output(str)
-    def trajectory_file_path(self):
-        """The file path to the trajectory sampled during the simulation."""
-        pass
-
-    @protocol_output(str)
-    def statistics_file_path(self):
-        """The file path to the statistics sampled during the simulation."""
-        pass
+    output_coordinate_file = protocol_output(
+        docstring='The file path to the coordinates of the final system configuration.',
+        type_hint=str
+    )
+    trajectory_file_path = protocol_output(
+        docstring='The file path to the trajectory sampled during the simulation.',
+        type_hint=str
+    )
+    statistics_file_path = protocol_output(
+        docstring='The file path to the statistics sampled during the simulation.',
+        type_hint=str
+    )
 
     def __init__(self, protocol_id):
 
         super().__init__(protocol_id)
 
-        self._steps = 1000
-
-        self._thermostat_friction = 1.0 / unit.picoseconds
-        self._timestep = 0.002 * unit.picoseconds
-
-        self._output_frequency = 500000
-
-        self._ensemble = Ensemble.NPT
-
-        self._input_coordinate_file = None
-        self._thermodynamic_state = None
-
-        self._system_path = None
-
-        self._enable_pbc = True
-
-        self._save_rolling_statistics = True
-
-        self._allow_gpu_platforms = True
-        self._high_precision = False
-
-        self._output_coordinate_file = None
-
-        self._trajectory_file_path = None
-        self._statistics_file_path = None
-
-        # Keep a track of the file names used for temporary working files.
         self._temporary_statistics_path = None
         self._temporary_trajectory_path = None
 
@@ -261,9 +221,9 @@ class RunOpenMMSimulation(BaseProtocol):
     def execute(self, directory, available_resources):
 
         # We handle most things in OMM units here.
-        temperature = pint_quantity_to_openmm(self._thermodynamic_state.temperature)
-        pressure = pint_quantity_to_openmm(None if self._ensemble == Ensemble.NVT else
-                                           self._thermodynamic_state.pressure)
+        temperature = pint_quantity_to_openmm(self.thermodynamic_state.temperature)
+        pressure = pint_quantity_to_openmm(None if self.ensemble == Ensemble.NVT else
+                                           self.thermodynamic_state.pressure)
 
         if temperature is None:
 
@@ -271,17 +231,17 @@ class RunOpenMMSimulation(BaseProtocol):
                                               message='A temperature must be set to perform '
                                                       'a simulation in any ensemble')
 
-        if Ensemble(self._ensemble) == Ensemble.NPT and pressure is None:
+        if Ensemble(self.ensemble) == Ensemble.NPT and pressure is None:
 
             return PropertyEstimatorException(directory=directory,
                                               message='A pressure must be set to perform an NPT simulation')
 
-        if Ensemble(self._ensemble) == Ensemble.NPT and self._enable_pbc is False:
+        if Ensemble(self.ensemble) == Ensemble.NPT and self.enable_pbc is False:
 
             return PropertyEstimatorException(directory=directory,
                                               message='PBC must be enabled when running in the NPT ensemble.')
 
-        logging.info('Performing a simulation in the ' + str(self._ensemble) + ' ensemble: ' + self.id)
+        logging.info('Performing a simulation in the ' + str(self.ensemble) + ' ensemble: ' + self.id)
 
         # Clean up any temporary files from previous (possibly failed)
         # simulations.
@@ -294,8 +254,8 @@ class RunOpenMMSimulation(BaseProtocol):
         self._checkpoint_path = os.path.join(directory, 'checkpoint.xml')
 
         # Set up the output file paths
-        self._trajectory_file_path = os.path.join(directory, 'trajectory.dcd')
-        self._statistics_file_path = os.path.join(directory, 'statistics.csv')
+        self.trajectory_file_path = os.path.join(directory, 'trajectory.dcd')
+        self.statistics_file_path = os.path.join(directory, 'statistics.csv')
 
         # Set up the simulation objects.
         if self._context is None or self._integrator is None:
@@ -334,19 +294,19 @@ class RunOpenMMSimulation(BaseProtocol):
         from simtk.openmm import XmlSerializer
 
         # Create a platform with the correct resources.
-        if not self._allow_gpu_platforms:
+        if not self.allow_gpu_platforms:
 
             from propertyestimator.backends import ComputeResources
             available_resources = ComputeResources(available_resources.number_of_threads)
 
-        platform = setup_platform_with_resources(available_resources, self._high_precision)
+        platform = setup_platform_with_resources(available_resources, self.high_precision)
 
         # Load in the system object from the provided xml file.
-        with open(self._system_path, 'r') as file:
+        with open(self.system_path, 'r') as file:
             system = XmlSerializer.deserialize(file.read())
 
         # Disable the periodic boundary conditions if requested.
-        if not self._enable_pbc:
+        if not self.enable_pbc:
 
             disable_pbc(system)
             pressure = None
@@ -361,8 +321,8 @@ class RunOpenMMSimulation(BaseProtocol):
         system = openmm_state.get_system(remove_thermostat=True)
 
         # Set up the integrator.
-        thermostat_friction = pint_quantity_to_openmm(self._thermostat_friction)
-        timestep = pint_quantity_to_openmm(self._timestep)
+        thermostat_friction = pint_quantity_to_openmm(self.thermostat_friction)
+        timestep = pint_quantity_to_openmm(self.timestep)
 
         integrator = openmmtools.integrators.LangevinIntegrator(temperature=temperature,
                                                                 collision_rate=thermostat_friction,
@@ -387,9 +347,9 @@ class RunOpenMMSimulation(BaseProtocol):
             logging.info(f'No checkpoint file was found at {self._checkpoint_path}.')
 
             # Populate the simulation object from the starting input files.
-            input_pdb_file = app.PDBFile(self._input_coordinate_file)
+            input_pdb_file = app.PDBFile(self.input_coordinate_file)
 
-            if self._enable_pbc:
+            if self.enable_pbc:
 
                 # Optionally set up the box vectors.
                 box_vectors = input_pdb_file.topology.getPeriodicBoxVectors()
@@ -503,7 +463,7 @@ class RunOpenMMSimulation(BaseProtocol):
 
         # Build the reporters which we will use to report the state
         # of the simulation.
-        input_pdb_file = app.PDBFile(self._input_coordinate_file)
+        input_pdb_file = app.PDBFile(self.input_coordinate_file)
         topology = input_pdb_file.topology
 
         with open(os.path.join(directory, 'input.pdb'), 'w+') as configuration_file:
@@ -512,9 +472,9 @@ class RunOpenMMSimulation(BaseProtocol):
         # Make a copy of the existing trajectory to append to if one already exists.
         append_trajectory = False
 
-        if os.path.isfile(self._trajectory_file_path):
+        if os.path.isfile(self.trajectory_file_path):
 
-            shutil.copyfile(self._trajectory_file_path, self._temporary_trajectory_path)
+            shutil.copyfile(self.trajectory_file_path, self._temporary_trajectory_path)
             append_trajectory = True
 
         elif os.path.isfile(self._temporary_trajectory_path):
@@ -529,7 +489,7 @@ class RunOpenMMSimulation(BaseProtocol):
                                             topology,
                                             integrator.getStepSize(),
                                             0,
-                                            self._output_frequency,
+                                            self.output_frequency,
                                             append_trajectory)
 
         expected_number_of_statistics = math.ceil(self.steps / self.output_frequency)
@@ -570,7 +530,7 @@ class RunOpenMMSimulation(BaseProtocol):
 
             while current_step_count < self.steps:
 
-                steps_to_take = min(self._output_frequency, self.steps - current_step_count)
+                steps_to_take = min(self.output_frequency, self.steps - current_step_count)
                 integrator.step(steps_to_take)
 
                 state = context.getState(getPositions=True,
@@ -592,7 +552,7 @@ class RunOpenMMSimulation(BaseProtocol):
                 raw_statistics[ObservableType.Volume][current_step] = \
                     state.getPeriodicBoxVolume().value_in_unit(simtk_unit.angstrom ** 3)
 
-                if self._save_rolling_statistics:
+                if self.save_rolling_statistics:
 
                     self._write_statistics_array(raw_statistics, current_step, temperature,
                                                  pressure, degrees_of_freedom, total_mass)
@@ -646,29 +606,29 @@ class RunOpenMMSimulation(BaseProtocol):
 
         # Move the trajectory and statistics files to their
         # final location.
-        os.replace(self._temporary_trajectory_path, self._trajectory_file_path)
+        os.replace(self._temporary_trajectory_path, self.trajectory_file_path)
 
-        if not os.path.isfile(self._statistics_file_path):
-            os.replace(self._temporary_statistics_path, self._statistics_file_path)
+        if not os.path.isfile(self.statistics_file_path):
+            os.replace(self._temporary_statistics_path, self.statistics_file_path)
         else:
 
-            existing_statistics = StatisticsArray.from_pandas_csv(self._statistics_file_path)
+            existing_statistics = StatisticsArray.from_pandas_csv(self.statistics_file_path)
             current_statistics = StatisticsArray.from_pandas_csv(self._temporary_statistics_path)
 
             concatenated_statistics = StatisticsArray.join(existing_statistics,
                                                            current_statistics)
 
-            concatenated_statistics.to_pandas_csv(self._statistics_file_path)
+            concatenated_statistics.to_pandas_csv(self.statistics_file_path)
 
         # Save out the final positions.
         final_state = context.getState(getPositions=True)
         positions = final_state.getPositions()
         topology.setPeriodicBoxVectors(final_state.getPeriodicBoxVectors())
 
-        self._output_coordinate_file = os.path.join(directory, 'output.pdb')
+        self.output_coordinate_file = os.path.join(directory, 'output.pdb')
 
-        with open(self._output_coordinate_file, 'w+') as configuration_file:
+        with open(self.output_coordinate_file, 'w+') as configuration_file:
             app.PDBFile.writeFile(topology, positions, configuration_file)
 
-        logging.info(f'Simulation performed in the {str(self._ensemble)} ensemble: {self._id}')
+        logging.info(f'Simulation performed in the {str(self.ensemble)} ensemble: {self._id}')
         return self._get_output_dictionary()

@@ -4,13 +4,14 @@ A collection of protocols for loading cached data off of the disk.
 
 import json
 from os import path
+from typing import Union
 
 from propertyestimator.storage.dataclasses import StoredDataCollection
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
-from propertyestimator.workflow.decorators import protocol_input, protocol_output
+from propertyestimator.workflow.decorators import protocol_input, protocol_output, UNDEFINED
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
@@ -21,38 +22,33 @@ class UnpackStoredDataCollection(BaseProtocol):
     and makes its inner data objects easily accessible to other protocols.
     """
 
-    @protocol_input(tuple)
-    def input_data_path(self):
-        """A tuple which contains both the path to the simulation data object,
-        it's ancillary data directory, and the force field which was used to
-        generate the stored data."""
-        pass
+    input_data_path = protocol_input(
+        docstring='A tuple which contains both the path to the simulation data object, '
+                  'it\'s ancillary data directory, and the force field which was used '
+                  'to generate the stored data.',
+        type_hint=Union[list, tuple],
+        default_value=UNDEFINED
+    )
 
-    @protocol_output(dict)
-    def collection_data_paths(self):
-        """A dictionary of data object path, data directory path and force field
-        path tuples partitioned by the unique collection keys."""
-        pass
-
-    def __init__(self, protocol_id):
-        """Constructs a new UnpackStoredDataCollection object."""
-        super().__init__(protocol_id)
-
-        self._input_data_path = None
-        self._collection_data_paths = None
+    collection_data_paths = protocol_output(
+        docstring='A dictionary of data object path, data directory path and '
+                  'force field path tuples partitioned by the unique collection '
+                  'keys.',
+        type_hint=dict
+    )
 
     def execute(self, directory, available_resources):
 
-        if len(self._input_data_path) != 3:
+        if len(self.input_data_path) != 3:
 
             return PropertyEstimatorException(directory=directory,
                                               message='The input data path should be a tuple '
                                                       'of a path to the data object, directory, and a path '
                                                       'to the force field used to generate it.')
 
-        data_object_path = self._input_data_path[0]
-        data_directory = self._input_data_path[1]
-        force_field_path = self._input_data_path[2]
+        data_object_path = self.input_data_path[0]
+        data_directory = self.input_data_path[1]
+        force_field_path = self.input_data_path[2]
 
         if not path.isfile(data_object_path):
 
@@ -81,7 +77,7 @@ class UnpackStoredDataCollection(BaseProtocol):
                                               message=f'The data object must be a `StoredDataCollection` '
                                                       f'and not a {type(data_object)}')
 
-        self._collection_data_paths = {}
+        self.collection_data_paths = {}
 
         for data_key, inner_data_object in data_object.data.items():
 
@@ -91,9 +87,9 @@ class UnpackStoredDataCollection(BaseProtocol):
             with open(inner_object_path, 'w') as file:
                 json.dump(inner_data_object, file, cls=TypedJSONEncoder)
 
-            self._collection_data_paths[data_key] = (inner_object_path,
-                                                     inner_directory_path,
-                                                     force_field_path)
+            self.collection_data_paths[data_key] = (inner_object_path,
+                                                    inner_directory_path,
+                                                    force_field_path)
 
         return self._get_output_dictionary()
 
@@ -104,86 +100,64 @@ class UnpackStoredSimulationData(BaseProtocol):
     and makes its attributes easily accessible to other protocols.
     """
 
-    @protocol_input(tuple)
-    def simulation_data_path(self):
-        """A tuple which contains both the path to the simulation data object,
-        it's ancillary data directory, and the force field which was used to
-        generate the stored data."""
-        pass
+    simulation_data_path = protocol_input(
+        docstring='A list / tuple which contains both the path to the simulation data '
+                  'object, it\'s ancillary data directory, and the force field which '
+                  'was used to generate the stored data.',
+        type_hint=Union[list, tuple],
+        default_value=UNDEFINED
+    )
 
-    @protocol_output(Substance)
-    def substance(self):
-        """The substance which was stored."""
-        pass
+    substance = protocol_output(
+        docstring='The substance which was stored.',
+        type_hint=Substance
+    )
 
-    @protocol_output(int)
-    def total_number_of_molecules(self):
-        """The total number of molecules in the stored system."""
-        pass
+    total_number_of_molecules = protocol_output(
+        docstring='The total number of molecules in the stored system.',
+        type_hint=int
+    )
 
-    @protocol_output(ThermodynamicState)
-    def thermodynamic_state(self):
-        """The thermodynamic state which was stored."""
-        pass
+    thermodynamic_state = protocol_output(
+        docstring='The thermodynamic state which was stored.',
+        type_hint=ThermodynamicState
+    )
 
-    @protocol_output(float)
-    def statistical_inefficiency(self):
-        """The statistical inefficiency of the stored data."""
-        pass
+    statistical_inefficiency = protocol_output(
+        docstring='The statistical inefficiency of the stored data.',
+        type_hint=float
+    )
 
-    @protocol_output(str)
-    def coordinate_file_path(self):
-        """A path to the stored simulation trajectory."""
-        pass
+    coordinate_file_path = protocol_output(
+        docstring='A path to the stored simulation output coordinates.',
+        type_hint=str
+    )
+    trajectory_file_path = protocol_output(
+        docstring='A path to the stored simulation trajectory.',
+        type_hint=str
+    )
+    statistics_file_path = protocol_output(
+        docstring='A path to the stored simulation statistics array.',
+        type_hint=str
+    )
 
-    @protocol_output(str)
-    def trajectory_file_path(self):
-        """A path to the stored simulation trajectory."""
-        pass
-
-    @protocol_output(str)
-    def statistics_file_path(self):
-        """A path to the stored simulation statistics array."""
-        pass
-
-    @protocol_output(str)
-    def force_field_path(self):
-        """A path to the force field parameters used to generate
-        the stored data."""
-        pass
-
-    def __init__(self, protocol_id):
-        """Constructs a new UnpackStoredSimulationData object."""
-        super().__init__(protocol_id)
-
-        self._simulation_data_path = None
-
-        self._substance = None
-        self._total_number_of_molecules = None
-
-        self._thermodynamic_state = None
-
-        self._statistical_inefficiency = None
-
-        self._coordinate_file_path = None
-        self._trajectory_file_path = None
-
-        self._statistics_file_path = None
-
-        self._force_field_path = None
+    force_field_path = protocol_output(
+        docstring='A path to the force field parameters used to generate the stored data.',
+        type_hint=str
+    )
 
     def execute(self, directory, available_resources):
 
-        if len(self._simulation_data_path) != 3:
+        if len(self.simulation_data_path) != 3:
 
             return PropertyEstimatorException(directory=directory,
                                               message='The simulation data path should be a tuple '
                                                       'of a path to the data object, directory, and a path '
                                                       'to the force field used to generate it.')
 
-        data_object_path = self._simulation_data_path[0]
-        data_directory = self._simulation_data_path[1]
-        force_field_path = self._simulation_data_path[2]
+        data_object_path = self.simulation_data_path[0]
+        data_directory = self.simulation_data_path[1]
+        force_field_path = self.simulation_data_path[2]
 
         if not path.isdir(data_directory):
 
@@ -200,18 +174,18 @@ class UnpackStoredSimulationData(BaseProtocol):
         with open(data_object_path, 'r') as file:
             data_object = json.load(file, cls=TypedJSONDecoder)
 
-        self._substance = data_object.substance
-        self._total_number_of_molecules = data_object.total_number_of_molecules
+        self.substance = data_object.substance
+        self.total_number_of_molecules = data_object.total_number_of_molecules
 
-        self._thermodynamic_state = data_object.thermodynamic_state
+        self.thermodynamic_state = data_object.thermodynamic_state
 
-        self._statistical_inefficiency = data_object.statistical_inefficiency
+        self.statistical_inefficiency = data_object.statistical_inefficiency
 
-        self._coordinate_file_path = path.join(data_directory, data_object.coordinate_file_name)
-        self._trajectory_file_path = path.join(data_directory, data_object.trajectory_file_name)
+        self.coordinate_file_path = path.join(data_directory, data_object.coordinate_file_name)
+        self.trajectory_file_path = path.join(data_directory, data_object.trajectory_file_name)
 
-        self._statistics_file_path = path.join(data_directory, data_object.statistics_file_name)
+        self.statistics_file_path = path.join(data_directory, data_object.statistics_file_name)
 
-        self._force_field_path = force_field_path
+        self.force_field_path = force_field_path
 
         return self._get_output_dictionary()

@@ -7,9 +7,10 @@ import copy
 
 from propertyestimator.utils import graph, utils
 from propertyestimator.utils.utils import get_nested_attribute, set_nested_attribute
-from propertyestimator.workflow.decorators import protocol_input, MergeBehaviour
+from propertyestimator.workflow.decorators import protocol_input, MergeBehaviour, InequalityMergeBehaviour, \
+    protocol_output
 from propertyestimator.workflow.schemas import ProtocolSchema
-from propertyestimator.workflow.utils import ProtocolPath
+from propertyestimator.workflow.utils import ProtocolPath, PlaceholderInput
 
 
 class BaseProtocol:
@@ -89,10 +90,10 @@ class BaseProtocol:
 
         return return_dependencies
 
-    @protocol_input(value_type=bool)
-    def allow_merging(self):
-        """bool: If true, this protocol is allowed to merge with other identical protocols."""
-        pass
+    allow_merging = protocol_input(docstring='Defines whether this protocols is allowed '
+                                             'to merge with other protocols.',
+                                   type_hint=bool,
+                                   default_value=True)
 
     def __init__(self, protocol_id):
 
@@ -135,8 +136,8 @@ class BaseProtocol:
         self.provided_outputs = []
         self.required_inputs = []
 
-        output_attributes = utils.find_types_with_decorator(type(self), 'ProtocolOutputObject')
-        input_attributes = utils.find_types_with_decorator(type(self), 'ProtocolInputObject')
+        output_attributes = utils.find_types_with_decorator(type(self), protocol_output)
+        input_attributes = utils.find_types_with_decorator(type(self), protocol_input)
 
         for output_attribute in output_attributes:
             self.provided_outputs.append(ProtocolPath(output_attribute))
@@ -276,6 +277,43 @@ class BaseProtocol:
         if self._id == old_id:
             self._id = new_id
 
+    def _find_inputs_to_merge(self):
+        """Returns a list of those inputs which should
+        be considered when attempting to merge two different
+        protocols of the same type.
+
+        Returns
+        -------
+        set of ProtocolPath
+            References to those inputs which should be
+            considered.
+        """
+        inputs_to_consider = set()
+
+        for input_path in self.required_inputs:
+
+            # Do not consider paths that point to child (e.g grouped) protocols.
+            # These should be handled by the container classes themselves.
+            if (input_path.start_protocol is not None and
+                input_path.start_protocol != self.id):
+                continue
+
+            if not (input_path.start_protocol is None or (
+                    input_path.start_protocol == input_path.last_protocol and
+                    input_path.start_protocol == self.id)):
+
+                continue
+
+            # If no merge behaviour flag is present (for example in the case of
+            # ConditionalGroup conditions), simply assume this is handled explicitly
+            # elsewhere.
+            if not hasattr(getattr(type(self), input_path.property_name), 'merge_behavior'):
+                continue
+
+            inputs_to_consider.add(input_path)
+
+        return inputs_to_consider
+
     def can_merge(self, other):
         """Determines whether this protocol can be merged with another.
 
@@ -289,46 +327,48 @@ class BaseProtocol:
         bool
             True if the two protocols are safe to merge.
         """
-        if not self.allow_merging:
+
+        if not self.allow_merging or not isinstance(self, type(other)):
             return False
 
-        if not isinstance(self, type(other)):
-            return False
+        inputs_to_consider = self._find_inputs_to_merge()
 
-        for input_path in self.required_inputs:
+        for input_path in inputs_to_consider:
 
-            if input_path.start_protocol is not None and input_path.start_protocol != self.id:
-                continue
-
-            # Do not consider paths that point to child (e.g grouped) protocols.
-            # These should be handled by the container classes themselves.
-            if not (input_path.start_protocol is None or (
-                    input_path.start_protocol == input_path.last_protocol and
-                    input_path.start_protocol == self.id)):
-
-                continue
-
-            # If no merge behaviour flag is present (for example in the case of
-            # ConditionalGroup conditions), simply assume this is handled explicitly
-            # elsewhere.
-            if not hasattr(type(self), input_path.property_name):
-                continue
-
-            if not hasattr(getattr(type(self), input_path.property_name), 'merge_behavior'):
-                continue
-
-            merge_behavior = getattr(type(self), input_path.property_name).merge_behavior
-
-            if merge_behavior != MergeBehaviour.ExactlyEqual:
-                continue
-
+            # Do a quick sanity check that the other protocol
+            # does in fact also require this input.
             if input_path not in other.required_inputs:
                 return False
+
+            merge_behavior = getattr(type(self), input_path.property_name).merge_behavior
 
             self_value = self.get_value(input_path)
             other_value = other.get_value(input_path)
 
-            if self_value != other_value:
+            if ((isinstance(self_value, PlaceholderInput) and not isinstance(other_value, PlaceholderInput)) or
+                (isinstance(other_value, PlaceholderInput) and not isinstance(self_value, PlaceholderInput))):
+
+                # We cannot safely merge inputs when only one of the values
+                # is currently known.
+                return False
+
+            if merge_behavior == MergeBehaviour.ExactlyEqual:
+
+                if self_value != other_value:
+                    return False
+
+            elif (isinstance(self_value, ProtocolPath) or
+                  isinstance(other_value, ProtocolPath)):
+
+                # We cannot safely choose which value to take when the
+                # values are not know ahead of time unless the two values
+                # come from the exact same source.
+                if self_value.protocol_path != other_value.protocol_path:
+                    return False
+
+            elif (isinstance(self_value, PlaceholderInput) or
+                  isinstance(other_value, PlaceholderInput)):
+
                 return False
 
         return True
@@ -351,36 +391,29 @@ class BaseProtocol:
             A map between any original protocol ids and their new merged values.
         """
 
-        for input_path in self.required_inputs:
+        if not self.can_merge(other):
+            raise ValueError('These protocols can not be safely merged.')
 
-            # Do not consider paths that point to child (e.g grouped) protocols.
-            # These should be handled by the container classes themselves.
-            if not (input_path.start_protocol is None or (
-                    input_path.start_protocol == input_path.last_protocol and
-                    input_path.start_protocol == self.id)):
+        inputs_to_consider = self._find_inputs_to_merge()
 
-                continue
-
-            # If no merge behaviour flag is present (for example in the case of
-            # ConditionalGroup conditions), simply assume this is handled explicitly
-            # elsewhere.
-            if not hasattr(type(self), input_path.property_name):
-                continue
-
-            if not hasattr(getattr(type(self), input_path.property_name), 'merge_behavior'):
-                continue
+        for input_path in inputs_to_consider:
 
             merge_behavior = getattr(type(self), input_path.property_name).merge_behavior
 
             if merge_behavior == MergeBehaviour.ExactlyEqual:
                 continue
 
-            value = None
+            if (isinstance(self.get_value(input_path), ProtocolPath) or
+                isinstance(other.get_value(input_path), ProtocolPath)):
 
-            if merge_behavior == MergeBehaviour.SmallestValue:
+                continue
+
+            if merge_behavior == InequalityMergeBehaviour.SmallestValue:
                 value = min(self.get_value(input_path), other.get_value(input_path))
-            elif merge_behavior == MergeBehaviour.GreatestValue:
+            elif merge_behavior == InequalityMergeBehaviour.LargestValue:
                 value = max(self.get_value(input_path), other.get_value(input_path))
+            else:
+                raise NotImplementedError()
 
             self.set_value(input_path, value)
 
@@ -463,11 +496,10 @@ class BaseProtocol:
         if (reference_path.property_name.count(ProtocolPath.property_separator) >= 1 or
             reference_path.property_name.find('[') > 0):
 
-            return None
-            # raise ValueError('The expected type cannot be found for '
-            #                  'nested property names: {}'.format(reference_path.property_name))
+            raise ValueError('The expected type cannot be found for '
+                             'nested property names: {}'.format(reference_path.property_name))
 
-        return getattr(type(self), reference_path.property_name).value_type
+        return getattr(type(self), reference_path.property_name).type_hint
 
     def get_value(self, reference_path):
         """Returns the value of one of this protocols inputs / outputs.

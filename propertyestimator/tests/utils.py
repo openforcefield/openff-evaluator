@@ -219,7 +219,7 @@ def create_dummy_stored_simulation_data(directory_path,
 
     Parameters
     ----------
-    base_directory: str
+    directory_path: str
         The path to the dummy data directory to create.
     substance: Substance
     force_field_id
@@ -240,12 +240,15 @@ def create_dummy_stored_simulation_data(directory_path,
 
     data.substance = substance
     data.force_field_id = force_field_id
+    data.thermodynamic_state = ThermodynamicState(1.0*unit.kelvin)
 
     data.coordinate_file_name = coordinate_file_name
     data.trajectory_file_name = trajectory_file_name
 
     data.statistics_file_name = statistics_file_name
     data.statistical_inefficiency = statistical_inefficiency
+
+    data.total_number_of_molecules = 1
 
     return data
 

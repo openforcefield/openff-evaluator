@@ -68,6 +68,24 @@ def _is_union_type(type_object):
     return _is_supported_generic(type_object) and type_object.__origin__ == typing.Union
 
 
+def is_supported_type(type_object):
+    """Returns if the type can be compared using the utilities in this
+    class.
+
+    Parameters
+    ----------
+    type_object: type
+        The type to validate.
+
+    Returns
+    -------
+    bool
+        True if the type can be compared using the utilities in this.
+    """
+    return (not _is_typing_object(type_object) or
+            (_is_typing_object(type_object) and _is_supported_generic(type_object)))
+
+
 def is_type_subclass_of_type(type_a, type_b):
     """Returns if `type_a` is a subclass of `type_b`.
 
