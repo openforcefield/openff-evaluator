@@ -8,6 +8,7 @@ import logging
 import os
 import os.path
 import shutil
+import subprocess
 import traceback
 import typing
 from queue import Queue
@@ -639,6 +640,12 @@ class BasePaprikaProtocol(BaseProtocol):
         return None
 
     def execute(self, directory, available_resources):
+
+        out, _ = subprocess.Popen("hostname", stdout=subprocess.PIPE).communicate()
+        logging.info(out.decode())
+
+        out, _ = subprocess.Popen("nvidia-smi", stdout=subprocess.PIPE).communicate()
+        logging.info(out.decode())
 
         # Make sure the available resources are commensurate with the
         # implemented parallelisation scheme.
