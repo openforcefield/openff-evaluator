@@ -232,6 +232,8 @@ class ProtocolInputAttribute(BaseProtocolAttribute):
             return self
 
         if not hasattr(instance, self._private_attribute_name):
+            # Make sure to only ever pass a copy of the default value to ensure
+            # mutable values such as lists don't get set by reference.
             setattr(instance, self._private_attribute_name, copy.deepcopy(self._default_value))
 
         return getattr(instance, self._private_attribute_name)
