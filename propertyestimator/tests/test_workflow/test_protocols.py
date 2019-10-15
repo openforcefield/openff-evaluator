@@ -3,30 +3,25 @@ Units tests for propertyestimator.workflow
 """
 import tempfile
 from os import path
-from tempfile import NamedTemporaryFile
 
 import pytest
-from openforcefield.topology import Molecule, Topology
-from simtk.openmm.app import PDBFile
 
 from propertyestimator import unit
 from propertyestimator.backends import ComputeResources
 from propertyestimator.properties.dielectric import ExtractAverageDielectric
 from propertyestimator.protocols.analysis import ExtractAverageStatistic, ExtractUncorrelatedTrajectoryData, \
     ExtractUncorrelatedStatisticsData
-from propertyestimator.protocols.coordinates import BuildCoordinatesPackmol, SolvateExistingStructure
+from propertyestimator.protocols.coordinates import BuildCoordinatesPackmol
 from propertyestimator.protocols.forcefield import BuildSmirnoffSystem
-from propertyestimator.protocols.forcefield import BuildTLeapSystem
-from propertyestimator.protocols.miscellaneous import AddValues, FilterSubstanceByRole, SubtractValues
+from propertyestimator.protocols.miscellaneous import AddValues
 from propertyestimator.protocols.simulation import RunEnergyMinimisation, RunOpenMMSimulation
 from propertyestimator.substances import Substance
-from propertyestimator.tests.test_workflow.utils import DummyEstimatedQuantityProtocol, DummyProtocolWithDictInput
+from propertyestimator.tests.test_workflow.utils import DummyInputOutputProtocol
 from propertyestimator.tests.utils import build_tip3p_smirnoff_force_field
 from propertyestimator.thermodynamics import Ensemble, ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
-from propertyestimator.utils.utils import get_data_filename
 from propertyestimator.workflow.plugins import available_protocols
 from propertyestimator.workflow.utils import ProtocolPath
 
@@ -46,7 +41,7 @@ def test_default_protocol_schemas(available_protocol):
 
 def test_nested_protocol_paths():
 
-    value_protocol_a = DummyEstimatedQuantityProtocol('protocol_a')
+    value_protocol_a = DummyInputOutputProtocol('protocol_a')
     value_protocol_a.input_value = EstimatedQuantity(1 * unit.kelvin, 0.1 * unit.kelvin, 'constant')
 
     assert value_protocol_a.get_value(ProtocolPath('input_value.value')) == value_protocol_a.input_value.value
@@ -54,10 +49,10 @@ def test_nested_protocol_paths():
     value_protocol_a.set_value(ProtocolPath('input_value._value'), 0.5*unit.kelvin)
     assert value_protocol_a.input_value.value == 0.5*unit.kelvin
 
-    value_protocol_b = DummyEstimatedQuantityProtocol('protocol_b')
+    value_protocol_b = DummyInputOutputProtocol('protocol_b')
     value_protocol_b.input_value = EstimatedQuantity(2 * unit.kelvin, 0.05 * unit.kelvin, 'constant')
 
-    value_protocol_c = DummyEstimatedQuantityProtocol('protocol_c')
+    value_protocol_c = DummyInputOutputProtocol('protocol_c')
     value_protocol_c.input_value = EstimatedQuantity(4 * unit.kelvin, 0.01 * unit.kelvin, 'constant')
 
     add_values_protocol = AddValues('add_values')
@@ -87,7 +82,7 @@ def test_nested_protocol_paths():
 
     assert set(add_values_protocol.values) == {0, 1, 2, 5}
 
-    dummy_dict_protocol = DummyProtocolWithDictInput('dict_protocol')
+    dummy_dict_protocol = DummyInputOutputProtocol('dict_protocol')
 
     dummy_dict_protocol.input_value = {
         'value_a': ProtocolPath('output_value', value_protocol_a.id),

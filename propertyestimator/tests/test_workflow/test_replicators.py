@@ -7,7 +7,7 @@ from propertyestimator.layers.simulation import Workflow
 from propertyestimator.properties.density import Density
 from propertyestimator.protocols.groups import ProtocolGroup
 from propertyestimator.protocols.miscellaneous import AddValues
-from propertyestimator.tests.test_workflow.utils import DummyReplicableProtocol, DummyEstimatedQuantityProtocol
+from propertyestimator.tests.test_workflow.utils import DummyReplicableProtocol, DummyInputOutputProtocol
 from propertyestimator.tests.utils import create_dummy_property
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import WorkflowSchema
@@ -21,11 +21,11 @@ def test_simple_replicators():
 
     replicator_id = 'replicator'
 
-    dummy_replicated_protocol = DummyEstimatedQuantityProtocol(f'dummy_$({replicator_id})')
+    dummy_replicated_protocol = DummyInputOutputProtocol(f'dummy_$({replicator_id})')
     dummy_replicated_protocol.input_value = ReplicatorValue(replicator_id)
     dummy_schema.protocols[dummy_replicated_protocol.id] = dummy_replicated_protocol.schema
 
-    dummy_protocol_single_value = DummyEstimatedQuantityProtocol(f'dummy_single_$({replicator_id})')
+    dummy_protocol_single_value = DummyInputOutputProtocol(f'dummy_single_$({replicator_id})')
     dummy_protocol_single_value.input_value = ProtocolPath('output_value', dummy_replicated_protocol.id)
     dummy_schema.protocols[dummy_protocol_single_value.id] = dummy_protocol_single_value.schema
 
@@ -75,14 +75,14 @@ def test_group_replicators():
 
     replicator_id = 'replicator'
 
-    dummy_replicated_protocol = DummyEstimatedQuantityProtocol(f'dummy_$({replicator_id})')
+    dummy_replicated_protocol = DummyInputOutputProtocol(f'dummy_$({replicator_id})')
     dummy_replicated_protocol.input_value = ReplicatorValue(replicator_id)
 
     dummy_group = ProtocolGroup('dummy_group')
     dummy_group.add_protocols(dummy_replicated_protocol)
     dummy_schema.protocols[dummy_group.id] = dummy_group.schema
 
-    dummy_protocol_single_value = DummyEstimatedQuantityProtocol(f'dummy_single_$({replicator_id})')
+    dummy_protocol_single_value = DummyInputOutputProtocol(f'dummy_single_$({replicator_id})')
     dummy_protocol_single_value.input_value = ProtocolPath('output_value', dummy_group.id,
                                                            dummy_replicated_protocol.id)
     dummy_schema.protocols[dummy_protocol_single_value.id] = dummy_protocol_single_value.schema
@@ -134,10 +134,10 @@ def test_advanced_group_replicators():
 
     replicator_id = 'replicator'
 
-    dummy_replicated_protocol = DummyEstimatedQuantityProtocol(f'dummy_$({replicator_id})')
+    dummy_replicated_protocol = DummyInputOutputProtocol(f'dummy_$({replicator_id})')
     dummy_replicated_protocol.input_value = ReplicatorValue(replicator_id)
 
-    dummy_replicated_protocol_2 = DummyEstimatedQuantityProtocol(f'dummy_2_$({replicator_id})')
+    dummy_replicated_protocol_2 = DummyInputOutputProtocol(f'dummy_2_$({replicator_id})')
     dummy_replicated_protocol_2.input_value = ReplicatorValue(replicator_id)
 
     dummy_group_2 = ProtocolGroup(f'dummy_group_2_$({replicator_id})')
@@ -147,12 +147,12 @@ def test_advanced_group_replicators():
     dummy_group.add_protocols(dummy_replicated_protocol, dummy_group_2)
     dummy_schema.protocols[dummy_group.id] = dummy_group.schema
 
-    dummy_protocol_single_value = DummyEstimatedQuantityProtocol(f'dummy_single_$({replicator_id})')
+    dummy_protocol_single_value = DummyInputOutputProtocol(f'dummy_single_$({replicator_id})')
     dummy_protocol_single_value.input_value = ProtocolPath('output_value', dummy_group.id,
                                                            dummy_replicated_protocol.id)
     dummy_schema.protocols[dummy_protocol_single_value.id] = dummy_protocol_single_value.schema
 
-    dummy_protocol_2_single_value = DummyEstimatedQuantityProtocol(f'dummy_single_2_$({replicator_id})')
+    dummy_protocol_2_single_value = DummyInputOutputProtocol(f'dummy_single_2_$({replicator_id})')
     dummy_protocol_2_single_value.input_value = ProtocolPath('output_value', dummy_group.id, dummy_group_2.id,
                                                              dummy_replicated_protocol_2.id)
     dummy_schema.protocols[dummy_protocol_2_single_value.id] = dummy_protocol_2_single_value.schema

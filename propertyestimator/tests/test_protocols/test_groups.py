@@ -4,7 +4,7 @@ import tempfile
 from propertyestimator import unit
 from propertyestimator.protocols.groups import ProtocolGroup, ConditionalGroup
 from propertyestimator.protocols.miscellaneous import AddValues
-from propertyestimator.tests.test_workflow.utils import DummyQuantityProtocol
+from propertyestimator.tests.test_workflow.utils import DummyInputOutputProtocol
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.workflow.utils import ProtocolPath
 
@@ -17,10 +17,10 @@ def test_protocol_group():
 
         protocol_group = ProtocolGroup('protocol_group')
 
-        value_protocol_a = DummyQuantityProtocol('protocol_a')
+        value_protocol_a = DummyInputOutputProtocol('protocol_a')
         value_protocol_a.input_value = initial_value
 
-        value_protocol_b = DummyQuantityProtocol('value_protocol_b')
+        value_protocol_b = DummyInputOutputProtocol('value_protocol_b')
         value_protocol_b.input_value = ProtocolPath('output_value', value_protocol_a.id)
 
         protocol_group.add_protocols(value_protocol_a, value_protocol_b)
@@ -36,7 +36,7 @@ def test_conditional_protocol_group():
 
         initial_value = 2 * unit.kelvin
 
-        value_protocol_a = DummyQuantityProtocol('protocol_a')
+        value_protocol_a = DummyInputOutputProtocol('protocol_a')
         value_protocol_a.input_value = initial_value
 
         add_values = AddValues('add_values')
@@ -64,7 +64,7 @@ def test_conditional_protocol_group_fail():
 
         initial_value = 2 * unit.kelvin
 
-        value_protocol_a = DummyQuantityProtocol('protocol_a')
+        value_protocol_a = DummyInputOutputProtocol('protocol_a')
         value_protocol_a.input_value = initial_value
 
         add_values = AddValues('add_values')

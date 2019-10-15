@@ -5,7 +5,7 @@ import re
 
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedBaseModel
-from propertyestimator.workflow.decorators import UNDEFINED
+from propertyestimator.workflow.decorators import UNDEFINED, protocol_input
 from propertyestimator.workflow.plugins import available_protocols
 from propertyestimator.workflow.typing import is_type_subclass_of_type
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
@@ -866,7 +866,12 @@ class WorkflowSchema(TypedBaseModel):
             for input_path in protocol_object.required_inputs:
 
                 input_value = protocol_object.get_value(input_path)
-                is_optional = protocol_object.get_class_attribute(input_path).optional
+                input_attribute = protocol_object.get_class_attribute(input_path)
+
+                if not isinstance(input_attribute, protocol_input):
+                    continue
+
+                is_optional = input_attribute.optional
 
                 if input_value == UNDEFINED and is_optional is False:
 
