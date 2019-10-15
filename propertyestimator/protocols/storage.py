@@ -26,7 +26,7 @@ class UnpackStoredDataCollection(BaseProtocol):
         docstring='A tuple which contains both the path to the simulation data object, '
                   'it\'s ancillary data directory, and the force field which was used '
                   'to generate the stored data.',
-        type_hint=tuple,
+        type_hint=Union[list, tuple],
         default_value=UNDEFINED
     )
 
