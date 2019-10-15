@@ -523,29 +523,17 @@ class ProtocolGroup(BaseProtocol):
 
         return target_protocol_id, reference_path_clone
 
-    def get_attribute_type(self, reference_path):
-        """Returns the type of one of the protocol input/output attributes.
-
-        Parameters
-        ----------
-        reference_path: ProtocolPath
-            The path pointing to the value whose type to return.
-
-        Returns
-        ----------
-        type:
-            The type of the attribute.
-        """
+    def get_class_attribute(self, reference_path):
 
         reference_property, reference_ids = ProtocolPath.to_components(reference_path.full_path)
 
         if reference_path.start_protocol is None or (reference_path.start_protocol == self.id and
                                                      len(reference_ids) == 1):
 
-            return super(ProtocolGroup, self).get_attribute_type(reference_path)
+            return super(ProtocolGroup, self).get_class_attribute(reference_path)
 
         target_protocol_id, truncated_path = self._get_next_in_path(reference_path)
-        return self._protocols[target_protocol_id].get_attribute_type(truncated_path)
+        return self._protocols[target_protocol_id].get_class_attribute(truncated_path)
 
     def get_value(self, reference_path):
         """Returns the value of one of this protocols parameters / inputs.
@@ -964,7 +952,7 @@ class ConditionalGroup(ProtocolGroup):
             if isinstance(condition.right_hand_value, ProtocolPath):
                 condition.right_hand_value.replace_protocol(old_id, new_id)
 
-    def get_attribute_type(self, reference_path):
+    def get_class_attribute(self, reference_path):
 
         if reference_path.start_protocol is None or (reference_path.start_protocol == self.id and
                                                      reference_path.last_protocol == self.id):
@@ -972,7 +960,7 @@ class ConditionalGroup(ProtocolGroup):
             if reference_path.property_name == 'conditions' or reference_path.property_name.find('condition_') >= 0:
                 return None
 
-        return super(ConditionalGroup, self).get_attribute_type(reference_path)
+        return super(ConditionalGroup, self).get_class_attribute(reference_path)
 
     def get_value(self, reference_path):
         """Returns the value of one of this protocols parameters / inputs.

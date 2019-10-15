@@ -16,7 +16,7 @@ from propertyestimator.protocols.forcefield import BuildSmirnoffSystem
 from propertyestimator.protocols.miscellaneous import AddValues
 from propertyestimator.protocols.simulation import RunEnergyMinimisation, RunOpenMMSimulation
 from propertyestimator.substances import Substance
-from propertyestimator.tests.test_workflow.utils import DummyEstimatedQuantityProtocol, DummyProtocolWithDictInput
+from propertyestimator.tests.test_workflow.utils import DummyInputOutputProtocol
 from propertyestimator.tests.utils import build_tip3p_smirnoff_force_field
 from propertyestimator.thermodynamics import Ensemble, ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
@@ -40,7 +40,8 @@ def test_default_protocol_schemas(available_protocol):
 
 
 def test_nested_protocol_paths():
-    value_protocol_a = DummyEstimatedQuantityProtocol('protocol_a')
+
+    value_protocol_a = DummyInputOutputProtocol('protocol_a')
     value_protocol_a.input_value = EstimatedQuantity(1 * unit.kelvin, 0.1 * unit.kelvin, 'constant')
 
     assert value_protocol_a.get_value(ProtocolPath('input_value.value')) == value_protocol_a.input_value.value
@@ -48,10 +49,10 @@ def test_nested_protocol_paths():
     value_protocol_a.set_value(ProtocolPath('input_value._value'), 0.5 * unit.kelvin)
     assert value_protocol_a.input_value.value == 0.5 * unit.kelvin
 
-    value_protocol_b = DummyEstimatedQuantityProtocol('protocol_b')
+    value_protocol_b = DummyInputOutputProtocol('protocol_b')
     value_protocol_b.input_value = EstimatedQuantity(2 * unit.kelvin, 0.05 * unit.kelvin, 'constant')
 
-    value_protocol_c = DummyEstimatedQuantityProtocol('protocol_c')
+    value_protocol_c = DummyInputOutputProtocol('protocol_c')
     value_protocol_c.input_value = EstimatedQuantity(4 * unit.kelvin, 0.01 * unit.kelvin, 'constant')
 
     add_values_protocol = AddValues('add_values')
@@ -80,7 +81,7 @@ def test_nested_protocol_paths():
 
     assert set(add_values_protocol.values) == {0, 1, 2, 5}
 
-    dummy_dict_protocol = DummyProtocolWithDictInput('dict_protocol')
+    dummy_dict_protocol = DummyInputOutputProtocol('dict_protocol')
 
     dummy_dict_protocol.input_value = {
         'value_a': ProtocolPath('output_value', value_protocol_a.id),
