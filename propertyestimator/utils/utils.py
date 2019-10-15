@@ -17,7 +17,7 @@ def find_types_with_decorator(class_type, decorator_type):
 
     Parameters
     ----------
-    class_type: class
+    class_type: type
         The class to pull attributes from.
     decorator_type: type
         The type of decorator to search for.
