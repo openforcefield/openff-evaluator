@@ -476,18 +476,19 @@ class BaseProtocol:
 
         return return_paths
 
-    def get_attribute_type(self, reference_path):
-        """Returns the type of one of the protocol input/output attributes.
+    def get_class_attribute(self, reference_path):
+        """Returns one of this protocols, or any of its children's,
+        attributes directly (rather than its value).
 
         Parameters
         ----------
         reference_path: ProtocolPath
-            The path pointing to the value whose type to return.
+            The path pointing to the attribute to return.
 
         Returns
         ----------
-        type:
-            The type of the attribute.
+        object:
+            The class attribute.
         """
 
         if reference_path.start_protocol is not None and reference_path.start_protocol != self.id:
@@ -496,10 +497,10 @@ class BaseProtocol:
         if (reference_path.property_name.count(ProtocolPath.property_separator) >= 1 or
             reference_path.property_name.find('[') > 0):
 
-            raise ValueError('The expected type cannot be found for '
+            raise ValueError('The expected attribute cannot be found for '
                              'nested property names: {}'.format(reference_path.property_name))
 
-        return getattr(type(self), reference_path.property_name).type_hint
+        return getattr(type(self), reference_path.property_name)
 
     def get_value(self, reference_path):
         """Returns the value of one of this protocols inputs / outputs.
