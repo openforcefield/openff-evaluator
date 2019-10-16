@@ -145,9 +145,7 @@ class BaseDaskBackend(PropertyEstimatorBackend):
         self.stop()
 
     def start(self):
-
-        self._client = distributed.Client(self._cluster,
-                                          processes=False)
+        self._client = distributed.Client(self._cluster)
 
     def stop(self):
 
