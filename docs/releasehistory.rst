@@ -11,23 +11,28 @@ Releases will eventually follow the ``major.minor.micro`` scheme recommended by
 All early releases however will simply recieve a ``micro`` version bump regardless of
 how major the changes may be.
 
-0.0.6 - 
---------------------------------------------
+0.0.6 - Solvation Free Energies
+-------------------------------
 
 This release centers around two key changes - 
 
-i) a general refactoring of the protocol classes to be much cleaner and extensible through the removal of the old stub functions, and the addition of cleaner descriptors.
+i) a general refactoring of the protocol classes to be much cleaner and extensible through the removal of the old stub functions and the addition of cleaner descriptors.
 ii) the addition of workflows to estimate solvation free energies from simulations.
+
+The implemented free energy workflow is still rather basic, and does not yet support calculating parameter gradients or estimation from cached simulation data through reweighting. 
+
+A new table has been added to the documentation to make clear which built-in properties support which features.
 
 New Features
 """"""""""""
 
 * PR `#110 <https://github.com/openforcefield/propertyestimator/pull/110>`_: Cleanup and refactor of protocol classes.
+* PR `#127 <https://github.com/openforcefield/propertyestimator/pull/127>`_: Adds a basic workflow for estimating solvation free energies with `YANK <http://getyank.org/latest/>`_.
 
 Bugfixes
 """"""""
 
-* PR `#X <https://github.com/openforcefield/propertyestimator/pull/X>`_: Fixes ...
+* PR `#128 <https://github.com/openforcefield/propertyestimator/pull/128>`_: Removed the defunct dask backend `processes` kwarg.
 
 Breaking Changes
 """"""""""""""""
