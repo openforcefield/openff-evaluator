@@ -4,6 +4,8 @@ Units tests for propertyestimator.protocols.simulation
 import tempfile
 import os
 
+import pytest
+
 from propertyestimator import unit
 from propertyestimator.backends import ComputeResources
 from propertyestimator.protocols.coordinates import BuildCoordinatesPackmol
@@ -95,13 +97,14 @@ def test_ligand_receptor_yank_protocol():
             assert not isinstance(result, PropertyEstimatorException)
 
 
-def test_solvation_yank_protocol():
+@pytest.mark.parametrize("solvent_smiles", ['O', 'C(Cl)Cl'])
+def test_solvation_yank_protocol(solvent_smiles):
 
     full_substance = Substance()
 
     full_substance.add_component(Substance.Component(smiles='CO', role=Substance.ComponentRole.Solute),
                                  Substance.ExactAmount(1))
-    full_substance.add_component(Substance.Component(smiles='O', role=Substance.ComponentRole.Solvent),
+    full_substance.add_component(Substance.Component(smiles=solvent_smiles, role=Substance.ComponentRole.Solvent),
                                  Substance.MoleFraction(1.0))
 
     solute_substance = Substance()
