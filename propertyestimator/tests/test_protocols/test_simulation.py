@@ -65,7 +65,7 @@ def test_run_openmm_simulation():
         coordinate_path, system_path = _setup_dummy_system(directory)
 
         npt_equilibration = RunOpenMMSimulation('npt_equilibration')
-        npt_equilibration.steps = 2
+        npt_equilibration.steps_per_iteration = 2
         npt_equilibration.output_frequency = 1
         npt_equilibration.thermodynamic_state = thermodynamic_state
         npt_equilibration.input_coordinate_file = coordinate_path

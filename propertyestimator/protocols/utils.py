@@ -261,7 +261,7 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
 
     equilibration_simulation = simulation.RunOpenMMSimulation(f'equilibration_simulation{id_suffix}')
     equilibration_simulation.ensemble = Ensemble.NPT
-    equilibration_simulation.steps = 100000
+    equilibration_simulation.steps_per_iteration = 100000
     equilibration_simulation.output_frequency = 5000
     equilibration_simulation.timestep = 2.0 * unit.femtosecond
     equilibration_simulation.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
@@ -271,7 +271,7 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
     # Production
     production_simulation = simulation.RunOpenMMSimulation(f'production_simulation{id_suffix}')
     production_simulation.ensemble = Ensemble.NPT
-    production_simulation.steps = 1000000
+    production_simulation.steps_per_iteration = 1000000
     production_simulation.output_frequency = 3000
     production_simulation.timestep = 2.0 * unit.femtosecond
     production_simulation.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
@@ -297,6 +297,10 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
             condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
 
             conditional_group.add_condition(condition)
+
+            # Make sure the simulation gets extended after each iteration.
+            production_simulation.number_of_iterations = ProtocolPath('current_iteration',
+                                                                      conditional_group.id)
 
     conditional_group.add_protocols(production_simulation, analysis_protocol)
 
