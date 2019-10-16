@@ -14,6 +14,26 @@ for storing, manipulating, and computing measured physical properties from simul
              have been taken to ensure correctness of the code and the results it produces, the authors
              accept no liability for any incorrectness any bugs or unintended behaviour may cause.
 
+The framework currently has built in support for estimating the following properties:
+
++-------------------------+---------------------------+---------------------------+
+|| Physical Property      || Simulation               || Reweighting              |
+||                        +--------------+------------+--------------+------------+
+||                        || Implemented || Gradients || Implemented || Gradients |
++=========================+==============+============+==============+============+
+|| Density                || Yes         || Yes       || Yes         || Yes       |
++-------------------------+--------------+------------+--------------+------------+
+|| Dielectric Constatant  || Yes         || Yes*      || Yes         || Yes*      |
++-------------------------+--------------+------------+--------------+------------+
+|| H\ :sub:`vaporization` || Yes         || Yes       || Yes         || Yes*      |
++-------------------------+--------------+------------+--------------+------------+
+|| H\ :sub:`mixing`       || Yes         || Yes*      || Yes         || Yes*      |
++-------------------------+--------------+------------+--------------+------------+
+|| V\ :sub:`excess`       || Yes         || Yes*      || Yes         || Yes*      |
++-------------------------+--------------+------------+--------------+------------+
+
+\* Entries marked with an asterisk are implemented but have not yet been extensively tested and validated.
+
 ========
 
 Index
