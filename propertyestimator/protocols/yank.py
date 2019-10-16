@@ -10,13 +10,14 @@ import traceback
 from enum import Enum
 
 import yaml
+
 from propertyestimator import unit
 from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.openmm import setup_platform_with_resources, openmm_quantity_to_pint, \
-    pint_quantity_to_openmm
+    pint_quantity_to_openmm, disable_pbc
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.utils import temporarily_change_directory
 from propertyestimator.workflow.decorators import protocol_input, protocol_output, InequalityMergeBehaviour, UNDEFINED
@@ -67,12 +68,6 @@ class BaseYankProtocol(BaseProtocol):
         default_value=2 * unit.femtosecond
     )
 
-    force_field_path = protocol_input(
-        docstring='The path to the force field to use for the calculations',
-        type_hint=str,
-        default_value=UNDEFINED
-    )
-
     verbose = protocol_input(
         docstring='Controls whether or not to run YANK at high verbosity.',
         type_hint=bool,
@@ -84,6 +79,83 @@ class BaseYankProtocol(BaseProtocol):
                   'returned by YANK.',
         type_hint=EstimatedQuantity
     )
+
+    def _get_residue_names_from_role(self, role):
+        """Returns a list of all of the residue names of
+        components which have been assigned a given role.
+
+        Parameters
+        ----------
+        role: Substance.ComponentRole
+            The role of the component to identify.
+
+        Returns
+        -------
+        set of str
+            The identified residue names.
+        """
+
+        from simtk.openmm import app
+        from openforcefield.topology import Molecule, Topology
+
+        if role == Substance.ComponentRole.Undefined:
+            return 'all'
+
+        unique_molecules = [Molecule.from_smiles(component.smiles)
+                            for component in self.substance.components]
+
+        openmm_topology = app.PDBFile(self.solvated_coordinates).topology
+        topology = Topology.from_openmm(openmm_topology, unique_molecules)
+
+        # Determine the smiles of all molecules in the system. We need to use
+        # the toolkit to re-generate the smiles as later we will compare these
+        # against more toolkit generated smiles.
+        components = [component for component in self.substance.components if
+                      component.role == role]
+        component_smiles = [Molecule.from_smiles(component.smiles).to_smiles() for
+                            component in components]
+
+        residue_names = set()
+
+        all_openmm_atoms = list(openmm_topology.atoms())
+
+        # Find the resiude names of the molecules which have the correct
+        # role.
+        for topology_molecule in topology.topology_molecules:
+
+            molecule_smiles = topology_molecule.reference_molecule.to_smiles()
+
+            if molecule_smiles not in component_smiles:
+                continue
+
+            molecule_residue_names = set([all_openmm_atoms[topology_atom.topology_atom_index].residue.name for
+                                          topology_atom in topology_molecule.atoms])
+
+            assert len(molecule_residue_names) == 1
+            residue_names.update(molecule_residue_names)
+
+        return residue_names
+
+    def _get_dsl_from_role(self, role):
+        """Returns an MDTraj DSL string which identifies those
+        atoms which belong to components flagged with a specific
+        role.
+
+        Parameters
+        ----------
+        role: Substance.ComponentRole
+            The role of the component to identify.
+
+        Returns
+        -------
+        str
+            The DSL string.
+        """
+
+        residue_names = self._get_residue_names_from_role(role)
+
+        dsl_string = ' or '.join([f'resname {residue_name}' for residue_name in residue_names])
+        return dsl_string
 
     def _get_options_dictionary(self, available_resources):
         """Returns a dictionary of options which will be serialized
@@ -135,30 +207,6 @@ class BaseYankProtocol(BaseProtocol):
 
             'platform': platform_name
         }
-
-    def _get_solvent_dictionary(self):
-        """Returns a dictionary of the solvent which will be serialized
-        to a yaml file and passed to YANK. In most cases, this should
-        just be passing force field settings over, such as PME settings.
-
-        Returns
-        -------
-        dict of str and Any
-            A yaml compatible dictionary of YANK solvents.
-        """
-
-        with open(self.force_field_path, 'r') as file:
-            force_field_source = SmirnoffForceFieldSource.parse_json(file.read())
-
-        force_field = force_field_source.to_force_field()
-        charge_method = force_field.get_parameter_handler('Electrostatics').method
-
-        if charge_method.lower() != 'pme':
-            raise ValueError('Currently only PME electrostatics are supported.')
-
-        return {'default': {
-            'nonbonded_method': charge_method,
-        }}
 
     def _get_system_dictionary(self):
         """Returns a dictionary of the system which will be serialized
@@ -223,8 +271,6 @@ class BaseYankProtocol(BaseProtocol):
 
         return {
             'options': self._get_options_dictionary(available_resources),
-
-            'solvents': self._get_solvent_dictionary(),
 
             'systems': self._get_system_dictionary(),
             'protocols': self._get_protocol_dictionary(),
@@ -412,6 +458,13 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         default_value=UNDEFINED
     )
 
+    force_field_path = protocol_input(
+        docstring='The path to the force field which defines the charge method '
+                  'to use for the calculation.',
+        type_hint=str,
+        default_value=UNDEFINED
+    )
+
     apply_restraints = protocol_input(
         docstring='Determines whether the ligand should be explicitly restrained to the '
                   'receptor in order to stop the ligand from temporarily unbinding.',
@@ -444,6 +497,30 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
 
         self._local_complex_coordinates = 'complex.pdb'
         self._local_complex_system = 'complex.xml'
+
+    def _get_solvent_dictionary(self):
+        """Returns a dictionary of the solvent which will be serialized
+        to a yaml file and passed to YANK. In most cases, this should
+        just be passing force field settings over, such as PME settings.
+
+        Returns
+        -------
+        dict of str and Any
+            A yaml compatible dictionary of YANK solvents.
+        """
+
+        with open(self.force_field_path, 'r') as file:
+            force_field_source = SmirnoffForceFieldSource.parse_json(file.read())
+
+        force_field = force_field_source.to_force_field()
+        charge_method = force_field.get_parameter_handler('Electrostatics').method
+
+        if charge_method.lower() != 'pme':
+            raise ValueError('Currently only PME electrostatics are supported.')
+
+        return {'default': {
+            'nonbonded_method': charge_method,
+        }}
 
     def _get_system_dictionary(self):
 
@@ -484,6 +561,13 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
 
         return experiments_dictionary
 
+    def _get_full_input_dictionary(self, available_resources):
+
+        full_dictionary = super(LigandReceptorYankProtocol, self)._get_full_input_dictionary(available_resources)
+        full_dictionary['solvents'] = self._get_solvent_dictionary()
+
+        return full_dictionary
+
     def execute(self, directory, available_resources):
 
         # Because of quirks in where Yank looks files while doing temporary
@@ -516,6 +600,13 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
 class SolvationYankProtocol(BaseYankProtocol):
     """A protocol for performing solvation alchemical free energy
     calculations using the YANK framework.
+
+    Todos
+    -----
+    * This protocol is could be easily generalized to facilitate
+      transfer free energies, however I am currently unclear as to
+      how yank determines what is solvent and what is solute in
+      cases of different solvents in each phase.
     """
 
     substance = protocol_input(
@@ -586,11 +677,11 @@ class SolvationYankProtocol(BaseYankProtocol):
         default_value=UNDEFINED
     )
 
-    solvated_solute_trajectory_path = protocol_output(
+    solvated_trajectory_path = protocol_output(
         docstring='The file path to the generated ligand trajectory.',
         type_hint=str
     )
-    vacuum_solute_trajectory_path = protocol_output(
+    vacuum_trajectory_path = protocol_output(
         docstring='The file path to the generated ligand trajectory.',
         type_hint=str
     )
@@ -606,78 +697,13 @@ class SolvationYankProtocol(BaseYankProtocol):
         self._local_vacuum_coordinates = 'vacuum.pdb'
         self._local_vacuum_system = 'vacuum.xml'
 
-    def _get_solvent_dictionary(self):
-
-        with open(self.force_field_path, 'r') as file:
-            force_field_source = SmirnoffForceFieldSource.parse_json(file.read())
-
-        force_field = force_field_source.to_force_field()
-        charge_method = force_field.get_parameter_handler('Electrostatics').method
-
-        if charge_method.lower() != 'pme':
-            raise ValueError('Currently only PME electrostatics are supported.')
-
-        return {
-            'solvent': {'nonbonded_method': charge_method},
-            'vacuum': {'nonbonded_method': 'NoCutoff'}
-        }
-
-    def _get_solvent_dsl(self):
-        """Returns an MDTraj DSL string which identifies the solvent
-        atoms (including ions)
-
-        Returns
-        -------
-        str
-            The DSL string.
-        """
-
-        from simtk.openmm import app
-        from openforcefield.topology import Molecule, Topology
-
-        unique_molecules = [Molecule.from_smiles(component.smiles) for component in self.substance.components]
-
-        openmm_topology = app.PDBFile(self.solvated_coordinates).topology
-        solvated_topology = Topology.from_openmm(openmm_topology, unique_molecules)
-
-        solute_components = [component for component in self.substance.components if
-                             component.role == Substance.ComponentRole.Solute]
-        solute_smiles = [Molecule.from_smiles(component.smiles).to_smiles() for component in solute_components]
-
-        solvent_components = [component for component in self.substance.components if
-                              component.role != Substance.ComponentRole.Solute]
-        solvent_smiles = [Molecule.from_smiles(component.smiles).to_smiles() for component in solvent_components]
-
-        solute_residue_names = set()
-        solvent_residue_names = set()
-
-        all_openmm_atoms = list(openmm_topology.atoms())
-
-        for topology_molecule in solvated_topology.topology_molecules:
-
-            molecule_smiles = topology_molecule.reference_molecule.to_smiles()
-            assert molecule_smiles in solute_smiles or molecule_smiles in solvent_smiles
-
-            residue_names = set([all_openmm_atoms[topology_atom.topology_atom_index].residue.name for
-                                 topology_atom in topology_molecule.atoms])
-
-            assert len(residue_names) == 1
-
-            if molecule_smiles in solute_smiles:
-                solute_residue_names.add(next(iter(residue_names)))
-            elif molecule_smiles in solvent_smiles:
-                solvent_residue_names.add(next(iter(residue_names)))
-
-        solvent_dsl = ' or '.join([f'resname {residue_name}' for residue_name in solvent_residue_names])
-        return solvent_dsl
-
     def _get_system_dictionary(self):
 
         solvation_system_dictionary = {
             'phase1_path': [self._local_solution_system, self._local_solution_coordinates],
             'phase2_path': [self._local_vacuum_system, self._local_vacuum_coordinates],
 
-            'solvent_dsl': self._get_solvent_dsl()
+            'solvent_dsl': self._get_dsl_from_role(Substance.ComponentRole.Solvent)
         }
 
         return {'solvation-system': solvation_system_dictionary}
@@ -731,6 +757,8 @@ class SolvationYankProtocol(BaseYankProtocol):
 
     def execute(self, directory, available_resources):
 
+        from simtk.openmm import XmlSerializer
+
         solutes = [component for component in self.substance.components if
                    component.role == Substance.ComponentRole.Solute]
 
@@ -756,18 +784,30 @@ class SolvationYankProtocol(BaseYankProtocol):
         shutil.copyfile(self.vacuum_coordinates, os.path.join(directory, self._local_vacuum_coordinates))
         shutil.copyfile(self.vacuum_system, os.path.join(directory, self._local_vacuum_system))
 
+        # Disable any periodic boundary conditions on the vacuum system.
+        logging.info(f'Disabling any PBC in {self._local_vacuum_system} by setting the '
+                     f'cutoff type to NoCutoff')
+
+        with open(self._local_vacuum_system, 'r') as file:
+            vacuum_system = XmlSerializer.deserialize(file.read())
+
+        disable_pbc(vacuum_system)
+
+        with open(self._local_vacuum_system, 'w') as file:
+            file.write(XmlSerializer.serialize(vacuum_system))
+
         result = super(SolvationYankProtocol, self).execute(directory, available_resources)
 
         if isinstance(result, PropertyEstimatorException):
             return result
 
-        # ligand_yank_path = os.path.join(directory, 'experiments', 'solvent.nc')
-        # complex_yank_path = os.path.join(directory, 'experiments', 'complex.nc')
-        #
-        # self.solvated_ligand_trajectory_path = os.path.join(directory, 'ligand.dcd')
-        # self.solvated_complex_trajectory_path = os.path.join(directory, 'complex.dcd')
-        #
-        # self._extract_trajectory(ligand_yank_path, self.solvated_ligand_trajectory_path)
-        # self._extract_trajectory(complex_yank_path, self.solvated_complex_trajectory_path)
+        solvated_yank_path = os.path.join(directory, 'experiments', 'solvent1.nc')
+        vacuum_yank_path = os.path.join(directory, 'experiments', 'solvent2.nc')
+
+        self.solvated_trajectory_path = os.path.join(directory, 'solvated.dcd')
+        self.vacuum_trajectory_path = os.path.join(directory, 'vacuum.dcd')
+
+        self._extract_trajectory(solvated_yank_path, self.solvated_trajectory_path)
+        self._extract_trajectory(vacuum_yank_path, self.vacuum_trajectory_path)
 
         return self._get_output_dictionary()
