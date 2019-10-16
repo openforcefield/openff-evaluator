@@ -788,12 +788,12 @@ class SolvationYankProtocol(BaseYankProtocol):
         logging.info(f'Disabling any PBC in {self._local_vacuum_system} by setting the '
                      f'cutoff type to NoCutoff')
 
-        with open(self._local_vacuum_system, 'r') as file:
+        with open(os.path.join(directory, self._local_vacuum_system), 'r') as file:
             vacuum_system = XmlSerializer.deserialize(file.read())
 
         disable_pbc(vacuum_system)
 
-        with open(self._local_vacuum_system, 'w') as file:
+        with open(os.path.join(directory, self._local_vacuum_system), 'w') as file:
             file.write(XmlSerializer.serialize(vacuum_system))
 
         result = super(SolvationYankProtocol, self).execute(directory, available_resources)
