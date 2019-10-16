@@ -718,11 +718,11 @@ class EnthalpyOfVaporization(PhysicalProperty):
                                                                            enthalpy_of_vaporization.id)
             condition.right_hand_value = ProtocolPath('target_uncertainty', 'global')
 
-            gas_protocols.production_simulation.number_of_iterations = ProtocolPath('current_iteration',
-                                                                                    converge_uncertainty.id)
+            gas_protocols.production_simulation.total_number_of_iterations = ProtocolPath('current_iteration',
+                                                                                          converge_uncertainty.id)
 
-            liquid_protocols.production_simulation.number_of_iterations = ProtocolPath('current_iteration',
-                                                                                       converge_uncertainty.id)
+            liquid_protocols.production_simulation.total_number_of_iterations = ProtocolPath('current_iteration',
+                                                                                             converge_uncertainty.id)
 
             converge_uncertainty.add_condition(condition)
 

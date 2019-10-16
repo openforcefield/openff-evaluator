@@ -155,15 +155,15 @@ class RunOpenMMSimulation(BaseProtocol):
     steps_per_iteration = protocol_input(
         docstring='The number of steps to propogate the system by at '
                   'each iteration. The total number of steps performed '
-                  'by this protocol will be `number_of_iterations * '
+                  'by this protocol will be `total_number_of_iterations * '
                   'steps_per_iteration`.',
         type_hint=int, merge_behavior=InequalityMergeBehaviour.LargestValue,
         default_value=1000000
     )
-    number_of_iterations = protocol_input(
+    total_number_of_iterations = protocol_input(
         docstring='The number of times to propogate the system forward by the '
                   '`steps_per_iteration` number of steps. The total number of '
-                  'steps performed by this protocol will be `number_of_iterations * '
+                  'steps performed by this protocol will be `total_number_of_iterations * '
                   'steps_per_iteration`.',
         type_hint=int, merge_behavior=InequalityMergeBehaviour.LargestValue,
         default_value=1
@@ -562,7 +562,7 @@ class RunOpenMMSimulation(BaseProtocol):
         """
 
         # Define how many steps should be taken.
-        total_number_of_steps = self.number_of_iterations * self.steps_per_iteration
+        total_number_of_steps = self.total_number_of_iterations * self.steps_per_iteration
 
         # Try to load the current state from any available checkpoint information
         current_step = self._resume_from_checkpoint(context)

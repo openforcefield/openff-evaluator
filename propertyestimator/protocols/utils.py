@@ -299,8 +299,8 @@ def generate_base_simulation_protocols(analysis_protocol, workflow_options, id_s
             conditional_group.add_condition(condition)
 
             # Make sure the simulation gets extended after each iteration.
-            production_simulation.number_of_iterations = ProtocolPath('current_iteration',
-                                                                      conditional_group.id)
+            production_simulation.total_number_of_iterations = ProtocolPath('current_iteration',
+                                                                            conditional_group.id)
 
     conditional_group.add_protocols(production_simulation, analysis_protocol)
 
