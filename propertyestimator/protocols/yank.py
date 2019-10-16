@@ -73,6 +73,13 @@ class BaseYankProtocol(BaseProtocol):
         type_hint=bool,
         default_value=False
     )
+    setup_only = protocol_input(
+        docstring='If true, YANK will only create and validate the setup files, '
+                  'but not actually run any simulations. This argument is mainly '
+                  'only to be used for testing purposes.',
+        type_hint=bool,
+        default_value=False
+    )
 
     estimated_free_energy = protocol_output(
         docstring='The estimated free energy value and its uncertainty '
@@ -297,7 +304,7 @@ class BaseYankProtocol(BaseProtocol):
         mdtraj_trajectory.save_dcd(output_trajectory_path)
 
     @staticmethod
-    def _run_yank(directory, available_resources):
+    def _run_yank(directory, available_resources, setup_only):
         """Runs YANK within the specified directory which contains a `yank.yaml`
         input file.
 
@@ -305,6 +312,12 @@ class BaseYankProtocol(BaseProtocol):
         ----------
         directory: str
             The directory within which to run yank.
+        available_resources: ComputeResources
+            The compute resources available to yank.
+        setup_only: bool
+            If true, YANK will only create and validate the setup files,
+            but not actually run any simulations. This argument is mainly
+            only to be used for testing purposes.
 
         Returns
         -------
@@ -317,6 +330,8 @@ class BaseYankProtocol(BaseProtocol):
         from yank.experiment import ExperimentBuilder
         from yank.analyze import ExperimentAnalyzer
 
+        from simtk import unit as simtk_unit
+
         with temporarily_change_directory(directory):
 
             # Set the default properties on the desired platform
@@ -324,6 +339,10 @@ class BaseYankProtocol(BaseProtocol):
             setup_platform_with_resources(available_resources)
 
             exp_builder = ExperimentBuilder('yank.yaml')
+
+            if setup_only is True:
+                return 0.0 * simtk_unit.kilojoule_per_mole, 0.0 * simtk_unit.kilojoule_per_mole
+
             exp_builder.run_experiments()
 
             analyzer = ExperimentAnalyzer('experiments')
@@ -335,7 +354,7 @@ class BaseYankProtocol(BaseProtocol):
         return free_energy, free_energy_uncertainty
 
     @staticmethod
-    def _run_yank_as_process(queue, directory, available_resources):
+    def _run_yank_as_process(queue, directory, available_resources, setup_only):
         """A wrapper around the `_run_yank` method which takes
         a `multiprocessing.Queue` as input, thereby allowing it
         to be launched from a separate process and still return
@@ -348,6 +367,12 @@ class BaseYankProtocol(BaseProtocol):
             launched process.
         directory: str
             The directory within which to run yank.
+        available_resources: ComputeResources
+            The compute resources available to yank.
+        setup_only: bool
+            If true, YANK will only create and validate the setup files,
+            but not actually run any simulations. This argument is mainly
+            only to be used for testing purposes.
 
         Returns
         -------
@@ -366,7 +391,9 @@ class BaseYankProtocol(BaseProtocol):
         error = None
 
         try:
-            free_energy, free_energy_uncertainty = BaseYankProtocol._run_yank(directory, available_resources)
+            free_energy, free_energy_uncertainty = BaseYankProtocol._run_yank(directory,
+                                                                              available_resources,
+                                                                              setup_only)
         except Exception as e:
             error = traceback.format_exception(None, e, e.__traceback__)
 
@@ -380,12 +407,14 @@ class BaseYankProtocol(BaseProtocol):
         with open(yaml_filename, 'w') as file:
             yaml.dump(self._get_full_input_dictionary(available_resources), file, sort_keys=False)
 
+        setup_only = self.setup_only
+
         # Yank is not safe to be called from anything other than the main thread.
         # If the current thread is not detected as the main one, then yank should
         # be spun up in a new process which should itself be safe to run yank in.
         if threading.current_thread() is threading.main_thread():
             logging.info('Launching YANK in the main thread.')
-            free_energy, free_energy_uncertainty = self._run_yank(directory, available_resources)
+            free_energy, free_energy_uncertainty = self._run_yank(directory, available_resources, setup_only)
         else:
 
             from multiprocessing import Process, Queue
@@ -396,7 +425,7 @@ class BaseYankProtocol(BaseProtocol):
             queue = Queue()
             # Create the process within which yank will run.
             process = Process(target=BaseYankProtocol._run_yank_as_process, args=[queue, directory,
-                                                                                  available_resources])
+                                                                                  available_resources, setup_only])
 
             # Start the process and gather back the output.
             process.start()
@@ -583,6 +612,9 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
 
         if isinstance(result, PropertyEstimatorException):
             return result
+
+        if self.setup_only:
+            return self._get_output_dictionary()
 
         ligand_yank_path = os.path.join(directory, 'experiments', 'solvent.nc')
         complex_yank_path = os.path.join(directory, 'experiments', 'complex.nc')
@@ -800,6 +832,9 @@ class SolvationYankProtocol(BaseYankProtocol):
 
         if isinstance(result, PropertyEstimatorException):
             return result
+
+        if self.setup_only:
+            return self._get_output_dictionary()
 
         solvated_yank_path = os.path.join(directory, 'experiments', 'solvent1.nc')
         vacuum_yank_path = os.path.join(directory, 'experiments', 'solvent2.nc')
