@@ -398,37 +398,22 @@ class RunOpenMMSimulation(BaseProtocol):
         context = openmm.Context(system, integrator, platform)
 
         # Initialize the context with the correct positions etc.
-        if os.path.isfile(self._checkpoint_path):
+        input_pdb_file = app.PDBFile(self.input_coordinate_file)
 
-            # Load the simulation state from a checkpoint file.
-            logging.info(f'Loading the checkpoint from {self._checkpoint_path}.')
+        if self.enable_pbc:
 
-            with open(self._checkpoint_path, 'r') as file:
-                checkpoint_state = XmlSerializer.deserialize(file.read())
+            # Optionally set up the box vectors.
+            box_vectors = input_pdb_file.topology.getPeriodicBoxVectors()
 
-            context.setState(checkpoint_state)
+            if box_vectors is None:
 
-        else:
+                raise ValueError('The input file must contain box vectors '
+                                 'when running with PBC.')
 
-            logging.info(f'No checkpoint file was found at {self._checkpoint_path}.')
+            context.setPeriodicBoxVectors(*box_vectors)
 
-            # Populate the simulation object from the starting input files.
-            input_pdb_file = app.PDBFile(self.input_coordinate_file)
-
-            if self.enable_pbc:
-
-                # Optionally set up the box vectors.
-                box_vectors = input_pdb_file.topology.getPeriodicBoxVectors()
-
-                if box_vectors is None:
-
-                    raise ValueError('The input file must contain box vectors '
-                                     'when running with PBC.')
-
-                context.setPeriodicBoxVectors(*box_vectors)
-
-            context.setPositions(input_pdb_file.positions)
-            context.setVelocitiesToTemperature(temperature)
+        context.setPositions(input_pdb_file.positions)
+        context.setVelocitiesToTemperature(temperature)
 
         return context, integrator
 
@@ -490,6 +475,8 @@ class RunOpenMMSimulation(BaseProtocol):
             raise ValueError('Checkpoint files were correctly found, but the trajectory '
                              'or statistics files seem to be missing. This should not happen.')
 
+        logging.info('Restoring the system state from checkpoint files.')
+
         # If they do, load the current state from disk.
         with open(self._state_path, 'r') as file:
             current_state = openmm.XmlSerializer.deserialize(file.read())
@@ -547,6 +534,8 @@ class RunOpenMMSimulation(BaseProtocol):
 
         for chunk in mdtraj.iterload(self._local_trajectory_path, top=self.input_coordinate_file):
             new_trajectory_length += len(chunk)
+
+        logging.info('System state restored from checkpoint files.')
 
         return checkpoint.current_step_number
 
