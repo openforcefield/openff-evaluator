@@ -17,7 +17,7 @@ how major the changes may be.
 This release centers around two key changes - 
 
 i) a general refactoring of the protocol classes to be much cleaner and extensible through the removal of the old stub functions and the addition of cleaner descriptors.
-ii) the addition of workflows to estimate solvation free energies from simulations.
+ii) the addition of workflows to estimate solvation free energies via the new `SolvationYankProtocol` and `SolvationFreeEnergy` classes.
 
 The implemented free energy workflow is still rather basic, and does not yet support calculating parameter gradients or estimation from cached simulation data through reweighting. 
 
