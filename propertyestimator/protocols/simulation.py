@@ -6,6 +6,7 @@ import logging
 import io
 import os
 import re
+import time
 import traceback
 
 import pandas as pd
@@ -476,8 +477,10 @@ class RunOpenMMSimulation(BaseProtocol):
                              'or statistics files seem to be missing. This should not happen.')
 
         logging.info('Restoring the system state from checkpoint files.')
+        time.sleep(30)
 
         # If they do, load the current state from disk.
+        logging.info('Loading the state + checkpoint.')
         with open(self._state_path, 'r') as file:
             current_state = openmm.XmlSerializer.deserialize(file.read())
 
@@ -491,7 +494,11 @@ class RunOpenMMSimulation(BaseProtocol):
                              'frequency can currently be changed during the '
                              'course of the simulation.')
 
+        time.sleep(30)
+        logging.info('Setting the state + checkpoint.')
         context.setState(current_state)
+        logging.info('State set.')
+        time.sleep(30)
 
         # Make sure that the number of frames in the trajectory /
         # statistics file correspond to the recorded number of steps.
@@ -501,6 +508,7 @@ class RunOpenMMSimulation(BaseProtocol):
         expected_number_of_frames = int(checkpoint.current_step_number / self.output_frequency)
 
         # Handle the truncation of the statistics file.
+        logging.info('Checking stats file.')
         with open(self._local_statistics_path) as file:
 
             header_line = file.readline()
@@ -509,7 +517,10 @@ class RunOpenMMSimulation(BaseProtocol):
             with io.StringIO(file_contents) as string_object:
                 existing_statistics_array = pd.read_csv(string_object, index_col=False, header=None)
 
+        time.sleep(30)
+
         if len(existing_statistics_array) != expected_number_of_frames:
+            logging.info('Trunc stats file.')
 
             truncated_statistics_array = existing_statistics_array[0:expected_number_of_frames]
 
@@ -518,22 +529,34 @@ class RunOpenMMSimulation(BaseProtocol):
                 file.write(f'{header_line}')
                 truncated_statistics_array.to_csv(file, index=False, header=False)
 
+            time.sleep(30)
+
         # Handle the truncation of the trajectory file.
+        logging.info('Checking traj file.')
         trajectory_length = 0
 
         for chunk in mdtraj.iterload(self._local_trajectory_path, top=self.input_coordinate_file):
             trajectory_length += len(chunk)
 
+        time.sleep(30)
+
         if trajectory_length != expected_number_of_frames:
+            logging.info('Trunc traj file.')
 
             # TODO: Don't load the full trajectory into memory.
             full_trajectory = mdtraj.load(self._local_trajectory_path, top=self.input_coordinate_file)
             full_trajectory[0:expected_number_of_frames].save_dcd(self._local_trajectory_path)
 
+            time.sleep(30)
+
+        logging.info('Checking traj new length.')
+
         new_trajectory_length = 0
 
         for chunk in mdtraj.iterload(self._local_trajectory_path, top=self.input_coordinate_file):
             new_trajectory_length += len(chunk)
+
+        time.sleep(30)
 
         logging.info('System state restored from checkpoint files.')
 
