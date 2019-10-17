@@ -451,7 +451,8 @@ class DaskLSFBackend(BaseDaskJobQueueBackend):
                  setup_script_commands=None,
                  extra_script_options=None,
                  adaptive_interval='10000ms',
-                 disable_nanny_process=False):
+                 disable_nanny_process=False,
+                 adaptive_class=None):
 
         """Constructs a new DaskLSFBackend object
 
@@ -501,7 +502,8 @@ class DaskLSFBackend(BaseDaskJobQueueBackend):
                          extra_script_options,
                          adaptive_interval,
                          disable_nanny_process,
-                         cluster_type='lsf')
+                         cluster_type='lsf',
+                         adaptive_class=adaptive_class)
 
     def _get_job_extra(self):
 
@@ -548,7 +550,8 @@ class DaskPBSBackend(BaseDaskJobQueueBackend):
                  extra_script_options=None,
                  adaptive_interval='10000ms',
                  disable_nanny_process=False,
-                 resource_line=None):
+                 resource_line=None,
+                 adaptive_class=None):
 
         """Constructs a new DaskLSFBackend object
 
@@ -596,7 +599,8 @@ class DaskPBSBackend(BaseDaskJobQueueBackend):
                          extra_script_options,
                          adaptive_interval,
                          disable_nanny_process,
-                         cluster_type='pbs')
+                         cluster_type='pbs',
+                         adaptive_class=adaptive_class)
 
         self._resource_line = resource_line
 
