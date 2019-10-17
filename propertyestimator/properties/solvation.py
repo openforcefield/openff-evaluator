@@ -73,7 +73,7 @@ class SolvationFreeEnergy(PhysicalProperty):
         # vacuum phase simulations).
         filter_solute = miscellaneous.FilterSubstanceByRole('filter_solute')
         filter_solute.input_substance = ProtocolPath('substance', 'global')
-        filter_solute.component_role = Substance.ComponentRole.Ligand
+        filter_solute.component_role = Substance.ComponentRole.Solute
 
         # Setup the solute in vacuum system.
         build_vacuum_coordinates = coordinates.BuildCoordinatesPackmol('build_vacuum_coordinates')
