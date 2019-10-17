@@ -769,7 +769,7 @@ class SolvationYankProtocol(BaseYankProtocol):
         if (self.vacuum_electrostatic_lambdas == UNDEFINED and
             self.vacuum_steric_lambdas == UNDEFINED):
 
-            solvent_1_protocol_dictionary = 'auto'
+            solvent_2_protocol_dictionary = 'auto'
 
         elif ((self.vacuum_electrostatic_lambdas != UNDEFINED and
                self.vacuum_steric_lambdas == UNDEFINED) or
