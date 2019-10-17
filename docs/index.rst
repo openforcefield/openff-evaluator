@@ -31,7 +31,7 @@ The framework currently has built in support for estimating the following proper
 +-------------------------+--------------+------------+--------------+------------+
 || V\ :sub:`excess`       || Yes         || Yes*      || Yes         || Yes*      |
 +-------------------------+--------------+------------+--------------+------------+
-|| G\ :sub:`solvation`    || Yes**       || No        || No          || No        |
+|| G\ :sub:`solvation`    || Yes*,**     || No        || No          || No        |
 +-------------------------+--------------+------------+--------------+------------+
 
 \* Entries marked with an asterisk are implemented but have not yet been extensively tested and validated.
