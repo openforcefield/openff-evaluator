@@ -321,6 +321,9 @@ class RunOpenMMSimulation(BaseProtocol):
         # Run the simulation.
         result = self._simulate(directory, self._context, self._integrator)
 
+        if isinstance(result, PropertyEstimatorException):
+            return result
+
         # Set the output results.
         self.trajectory_file_path = self._local_trajectory_path
         self.statistics_file_path = os.path.join(directory, 'statistics.csv')
@@ -328,7 +331,7 @@ class RunOpenMMSimulation(BaseProtocol):
         statistics = StatisticsArray.from_openmm_csv(self._local_statistics_path, pressure)
         statistics.to_pandas_csv(self.statistics_file_path)
 
-        return result
+        return self._get_output_dictionary()
 
     def _setup_simulation_objects(self, temperature, pressure, available_resources):
         """Initializes the objects needed to perform the simulation.
@@ -646,4 +649,4 @@ class RunOpenMMSimulation(BaseProtocol):
             app.PDBFile.writeFile(topology, positions, configuration_file)
 
         logging.info(f'Simulation performed in the {str(self.ensemble)} ensemble: {self._id}')
-        return self._get_output_dictionary()
+        return None
