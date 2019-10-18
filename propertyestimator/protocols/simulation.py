@@ -885,8 +885,7 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
         )
 
         # Run the parallel tempering simulation.
-        parallel_tempering = ParallelTemperingSampler('swap-neighbors',
-                                                      mcmc_moves=langevin_move,
+        parallel_tempering = ParallelTemperingSampler(mcmc_moves=langevin_move,
                                                       number_of_iterations=self.total_number_of_iterations)
 
         storage_path = os.path.join(directory, 'replicas.nc')
