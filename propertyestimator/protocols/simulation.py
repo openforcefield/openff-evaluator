@@ -123,21 +123,26 @@ class RunOpenMMSimulation(BaseProtocol):
         the checkpoint state xml file.
         """
 
-        def __init__(self, output_frequency=-1, checkpoint_frequency=-1, current_step_number=0):
+        def __init__(self, output_frequency=-1, checkpoint_frequency=-1,
+                     steps_per_iteration=-1, current_step_number=0):
+
             self.output_frequency = output_frequency
             self.checkpoint_frequency = checkpoint_frequency
+            self.steps_per_iteration = steps_per_iteration
             self.current_step_number = current_step_number
 
         def __getstate__(self):
             return {
                 'output_frequency': self.output_frequency,
                 'checkpoint_frequency': self.checkpoint_frequency,
+                'steps_per_iteration': self.steps_per_iteration,
                 'current_step_number': self.current_step_number
             }
 
         def __setstate__(self, state):
             self.output_frequency = state['output_frequency']
             self.checkpoint_frequency = state['checkpoint_frequency']
+            self.steps_per_iteration = state['steps_per_iteration']
             self.current_step_number = state['current_step_number']
 
     class _Simulation:
@@ -440,7 +445,8 @@ class RunOpenMMSimulation(BaseProtocol):
         with open(self._state_path, 'w') as file:
             file.write(openmm.XmlSerializer.serialize(state))
 
-        checkpoint = self._Checkpoint(self.output_frequency, self.checkpoint_frequency, current_step_number)
+        checkpoint = self._Checkpoint(self.output_frequency, self.checkpoint_frequency,
+                                      self.steps_per_iteration, current_step_number)
 
         with open(self._checkpoint_path, 'w') as file:
             json.dump(checkpoint, file, cls=TypedJSONEncoder)
@@ -584,11 +590,14 @@ class RunOpenMMSimulation(BaseProtocol):
             checkpoint = json.load(file, cls=TypedJSONDecoder)
 
         if (self.output_frequency != checkpoint.output_frequency or
-            self.checkpoint_frequency != checkpoint.checkpoint_frequency):
+            self.checkpoint_frequency != checkpoint.checkpoint_frequency or
+            self.steps_per_iteration != checkpoint.steps_per_iteration):
 
-            raise ValueError('Neither the output frequency nor the checkpoint '
-                             'frequency can currently be changed during the '
-                             'course of the simulation.')
+            raise ValueError('Neither the output frequency, the checkpoint '
+                             'frequency, nor the steps per iteration can '
+                             'currently be changed during the course of the '
+                             'simulation. Only the number of iterations is '
+                             'allowed to change.')
 
         # Make sure this simulation hasn't already finished.
         total_expected_number_of_steps = self.total_number_of_iterations * self.steps_per_iteration
