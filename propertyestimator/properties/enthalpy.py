@@ -671,13 +671,11 @@ class EnthalpyOfVaporization(PhysicalProperty):
         gas_protocols.energy_minimisation.enable_pbc = False
         gas_protocols.equilibration_simulation.ensemble = Ensemble.NVT
         gas_protocols.equilibration_simulation.enable_pbc = False
-        gas_protocols.equilibration_simulation.save_rolling_statistics = False
         gas_protocols.production_simulation.ensemble = Ensemble.NVT
         gas_protocols.production_simulation.steps_per_iteration = 15000000
         gas_protocols.production_simulation.output_frequency = 5000
         gas_protocols.production_simulation.checkpoint_frequency = 100
         gas_protocols.production_simulation.enable_pbc = False
-        gas_protocols.production_simulation.save_rolling_statistics = False
 
         # Due to a bizarre issue where the OMM Reference platform is
         # the fastest at computing properties of a single molecule

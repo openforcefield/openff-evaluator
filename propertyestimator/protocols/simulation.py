@@ -1,16 +1,14 @@
 """
 A collection of protocols for running molecular simulations.
 """
+import io
 import json
 import logging
-import io
 import os
 import re
-import time
 import traceback
 
 import pandas as pd
-
 from simtk import openmm, unit as simtk_unit
 from simtk.openmm import app
 
@@ -19,7 +17,7 @@ from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.openmm import setup_platform_with_resources, pint_quantity_to_openmm, disable_pbc
 from propertyestimator.utils.serialization import TypedJSONEncoder, TypedJSONDecoder
-from propertyestimator.utils.statistics import StatisticsArray
+from propertyestimator.utils.statistics import StatisticsArray, ObservableType
 from propertyestimator.workflow.decorators import protocol_input, protocol_output, InequalityMergeBehaviour, UNDEFINED
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
@@ -272,12 +270,13 @@ class RunOpenMMSimulation(BaseProtocol):
     def execute(self, directory, available_resources):
 
         # We handle most things in OMM units here.
-        temperature = pint_quantity_to_openmm(self.thermodynamic_state.temperature)
+        temperature = self.thermodynamic_state.temperature
+        openmm_temperature = pint_quantity_to_openmm(temperature)
 
         pressure = None if self.ensemble == Ensemble.NVT else self.thermodynamic_state.pressure
         openmm_pressure = pint_quantity_to_openmm(pressure)
 
-        if temperature is None:
+        if openmm_temperature is None:
 
             return PropertyEstimatorException(directory=directory,
                                               message='A temperature must be set to perform '
@@ -305,7 +304,7 @@ class RunOpenMMSimulation(BaseProtocol):
         # Set up the simulation objects.
         if self._context is None or self._integrator is None:
 
-            self._context, self._integrator = self._setup_simulation_objects(temperature,
+            self._context, self._integrator = self._setup_simulation_objects(openmm_temperature,
                                                                              openmm_pressure,
                                                                              available_resources)
 
@@ -325,12 +324,12 @@ class RunOpenMMSimulation(BaseProtocol):
         if isinstance(result, PropertyEstimatorException):
             return result
 
-        # Set the output results.
+        # Set the output paths.
         self.trajectory_file_path = self._local_trajectory_path
         self.statistics_file_path = os.path.join(directory, 'statistics.csv')
 
-        statistics = StatisticsArray.from_openmm_csv(self._local_statistics_path, pressure)
-        statistics.to_pandas_csv(self.statistics_file_path)
+        # Save out the final statistics in the property estimator format
+        self._save_final_statistics(self.statistics_file_path, temperature, pressure)
 
         return self._get_output_dictionary()
 
@@ -446,6 +445,107 @@ class RunOpenMMSimulation(BaseProtocol):
         with open(self._checkpoint_path, 'w') as file:
             json.dump(checkpoint, file, cls=TypedJSONEncoder)
 
+    def _truncate_statistics_file(self, number_of_frames):
+        """Truncates the statistics file to the specified number
+        of frames.
+
+        Parameters
+        ----------
+        number_of_frames: int
+            The number of frames to truncate to.
+        """
+        with open(self._local_statistics_path) as file:
+
+            header_line = file.readline()
+            file_contents = re.sub('#.*\n', '', file.read())
+
+            with io.StringIO(file_contents) as string_object:
+                existing_statistics_array = pd.read_csv(string_object, index_col=False, header=None)
+
+        statistics_length = len(existing_statistics_array)
+
+        if statistics_length < number_of_frames:
+
+            raise ValueError(f'The saved number of statistics frames ({statistics_length}) '
+                             f'is less than expected ({number_of_frames}).')
+
+        elif statistics_length == number_of_frames:
+            return
+
+        truncated_statistics_array = existing_statistics_array[0:number_of_frames]
+
+        with open(self._local_statistics_path, 'w') as file:
+
+            file.write(f'{header_line}')
+            truncated_statistics_array.to_csv(file, index=False, header=False)
+
+    def _truncate_trajectory_file(self, number_of_frames):
+        """Truncates the trajectory file to the specified number
+        of frames.
+
+        Parameters
+        ----------
+        number_of_frames: int
+            The number of frames to truncate to.
+        """
+        import mdtraj
+        from mdtraj.formats.dcd import DCDTrajectoryFile
+        from mdtraj.utils import in_units_of
+
+        # Load in the required topology object.
+        topology = mdtraj.load_topology(self.input_coordinate_file)
+
+        # Parse the internal mdtraj distance unit. While private access is
+        # undesirable, this is never publicly defined and I believe this
+        # route to be preferable over hard coding this unit here.
+        base_distance_unit = mdtraj.Trajectory._distance_unit
+
+        # Get an accurate measurement of the length of the trajectory
+        # without reading it into memory.
+        trajectory_length = 0
+
+        for chunk in mdtraj.iterload(self._local_trajectory_path, top=topology):
+            trajectory_length += len(chunk)
+
+        # Make sure there is at least the expected number of frames.
+        if trajectory_length < number_of_frames:
+
+            raise ValueError(f'The saved number of trajectory frames ({trajectory_length}) '
+                             f'is less than expected ({number_of_frames}).')
+
+        elif trajectory_length == number_of_frames:
+            return
+
+        # Truncate the trajectory by streaming one frame of the trajectory at
+        # a time.
+        temporary_trajectory_path = f'{self._local_trajectory_path}.tmp'
+
+        with DCDTrajectoryFile(self._local_trajectory_path, 'r') as input_file:
+
+            with DCDTrajectoryFile(temporary_trajectory_path, 'w') as output_file:
+
+                for frame_index in range(0, number_of_frames):
+
+                    frame = input_file.read_as_traj(topology, n_frames=1, stride=1)
+
+                    output_file.write(
+                        xyz=in_units_of(frame.xyz, base_distance_unit, output_file.distance_unit),
+                        cell_lengths=in_units_of(frame.unitcell_lengths, base_distance_unit,
+                                                 output_file.distance_unit),
+                        cell_angles=frame.unitcell_angles[0]
+                    )
+
+        os.replace(temporary_trajectory_path, self._local_trajectory_path)
+
+        # Do a sanity check to make sure the trajectory was successfully truncated.
+        new_trajectory_length = 0
+
+        for chunk in mdtraj.iterload(self._local_trajectory_path, top=self.input_coordinate_file):
+            new_trajectory_length += len(chunk)
+
+        if new_trajectory_length != number_of_frames:
+            raise ValueError('The trajectory was incorrectly truncated.')
+
     def _resume_from_checkpoint(self, context):
         """Resumes the simulation from a checkpoint file.
 
@@ -459,8 +559,6 @@ class RunOpenMMSimulation(BaseProtocol):
         int
             The current step number.
         """
-        import mdtraj
-
         current_step_number = 0
 
         # Check whether the checkpoint files actually exists.
@@ -477,10 +575,8 @@ class RunOpenMMSimulation(BaseProtocol):
                              'or statistics files seem to be missing. This should not happen.')
 
         logging.info('Restoring the system state from checkpoint files.')
-        time.sleep(30)
 
         # If they do, load the current state from disk.
-        logging.info('Loading the state + checkpoint.')
         with open(self._state_path, 'r') as file:
             current_state = openmm.XmlSerializer.deserialize(file.read())
 
@@ -494,11 +590,13 @@ class RunOpenMMSimulation(BaseProtocol):
                              'frequency can currently be changed during the '
                              'course of the simulation.')
 
-        time.sleep(30)
-        logging.info('Setting the state + checkpoint.')
+        # Make sure this simulation hasn't already finished.
+        total_expected_number_of_steps = self.total_number_of_iterations * self.steps_per_iteration
+
+        if checkpoint.current_step_number == total_expected_number_of_steps:
+            return checkpoint.current_step_number
+
         context.setState(current_state)
-        logging.info('State set.')
-        time.sleep(30)
 
         # Make sure that the number of frames in the trajectory /
         # statistics file correspond to the recorded number of steps.
@@ -508,59 +606,41 @@ class RunOpenMMSimulation(BaseProtocol):
         expected_number_of_frames = int(checkpoint.current_step_number / self.output_frequency)
 
         # Handle the truncation of the statistics file.
-        logging.info('Checking stats file.')
-        with open(self._local_statistics_path) as file:
-
-            header_line = file.readline()
-            file_contents = re.sub('#.*\n', '', file.read())
-
-            with io.StringIO(file_contents) as string_object:
-                existing_statistics_array = pd.read_csv(string_object, index_col=False, header=None)
-
-        time.sleep(30)
-
-        if len(existing_statistics_array) != expected_number_of_frames:
-            logging.info('Trunc stats file.')
-
-            truncated_statistics_array = existing_statistics_array[0:expected_number_of_frames]
-
-            with open(self._local_statistics_path, 'w') as file:
-
-                file.write(f'{header_line}')
-                truncated_statistics_array.to_csv(file, index=False, header=False)
-
-            time.sleep(30)
+        self._truncate_statistics_file(expected_number_of_frames)
 
         # Handle the truncation of the trajectory file.
-        logging.info('Checking traj file.')
-        trajectory_length = 0
-
-        for chunk in mdtraj.iterload(self._local_trajectory_path, top=self.input_coordinate_file):
-            trajectory_length += len(chunk)
-
-        time.sleep(30)
-
-        if trajectory_length != expected_number_of_frames:
-            logging.info('Trunc traj file.')
-
-            # TODO: Don't load the full trajectory into memory.
-            full_trajectory = mdtraj.load(self._local_trajectory_path, top=self.input_coordinate_file)
-            full_trajectory[0:expected_number_of_frames].save_dcd(self._local_trajectory_path)
-
-            time.sleep(30)
-
-        logging.info('Checking traj new length.')
-
-        new_trajectory_length = 0
-
-        for chunk in mdtraj.iterload(self._local_trajectory_path, top=self.input_coordinate_file):
-            new_trajectory_length += len(chunk)
-
-        time.sleep(30)
+        self._truncate_trajectory_file(expected_number_of_frames)
 
         logging.info('System state restored from checkpoint files.')
 
         return checkpoint.current_step_number
+
+    def _save_final_statistics(self, path, temperature, pressure):
+        """Converts the openmm statistic csv file into a propertyestimator
+        StatisticsArray csv file, making sure to fill in any missing entries.
+
+        Parameters
+        ----------
+        path: str
+            The path to save the statistics to.
+        temperature: unit.Quantity
+            The temperature that the simulation is being run at.
+        pressure: unit.Quantity
+            The pressure that the simulation is being run at.
+        """
+        statistics = StatisticsArray.from_openmm_csv(self._local_statistics_path, pressure)
+
+        reduced_potentials = statistics[ObservableType.PotentialEnergy] / unit.avogadro_number
+
+        if pressure is not None:
+
+            pv_terms = pressure * statistics[ObservableType.Volume]
+            reduced_potentials += pv_terms
+
+        beta = 1.0 / (unit.boltzmann_constant * temperature)
+        statistics[ObservableType.ReducedPotential] = (beta * reduced_potentials).to(unit.dimensionless)
+
+        statistics.to_pandas_csv(path)
 
     def _simulate(self, directory, context, integrator):
         """Performs the simulation using a given context
@@ -581,6 +661,9 @@ class RunOpenMMSimulation(BaseProtocol):
 
         # Try to load the current state from any available checkpoint information
         current_step = self._resume_from_checkpoint(context)
+
+        if current_step == total_number_of_steps:
+            return None
 
         # Build the reporters which we will use to report the state
         # of the simulation.
