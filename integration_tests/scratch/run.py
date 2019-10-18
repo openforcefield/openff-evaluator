@@ -1,6 +1,9 @@
 import os
 import shutil
 
+import numpy as np
+import matplotlib.pyplot as plt
+
 from propertyestimator import unit
 from propertyestimator.backends import ComputeResources
 from propertyestimator.protocols import coordinates, forcefield, simulation
@@ -11,14 +14,14 @@ from propertyestimator.utils import setup_timestamp_logging
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 
 
-def _setup_dummy_system(directory):
+def _setup_dummy_system(directory, coordinte_file_name, system_file_name):
 
     force_field_path = os.path.join(directory, 'ff.json')
 
     with open(force_field_path, 'w') as file:
         file.write(build_tip3p_smirnoff_force_field().json())
 
-    substance = Substance.from_components('C')
+    substance = Substance.from_components('CCC(=O)O')
 
     build_coordinates = coordinates.BuildCoordinatesPackmol('build_coordinates')
     build_coordinates.max_molecules = 1
@@ -32,31 +35,34 @@ def _setup_dummy_system(directory):
     assign_parameters.substance = substance
     assign_parameters.execute(directory, None)
 
-    return build_coordinates.coordinate_file_path, assign_parameters.system_path
+    shutil.copyfile(build_coordinates.coordinate_file_path, coordinte_file_name)
+    shutil.copyfile(assign_parameters.system_path, system_file_name)
 
 
 def main():
 
-    setup_timestamp_logging()
+    import mdtraj
 
-    thermodynamic_state = ThermodynamicState(298 * unit.kelvin)
+    setup_timestamp_logging()
 
     compute_resources = ComputeResources(number_of_threads=1)
 
-    if os.path.isdir('setup'):
-        shutil.rmtree('setup')
+    coordinate_path = 'input.pdb'
+    system_path = 'system.xml'
+
+    if not os.path.isfile(coordinate_path) or not os.path.isfile(system_path):
+
+        os.makedirs('setup', exist_ok=True)
+        _setup_dummy_system('setup', coordinate_path, system_path)
+
     if os.path.isdir('run'):
         shutil.rmtree('run')
 
-    os.makedirs('setup', exist_ok=True)
     os.makedirs('run', exist_ok=True)
 
-    coordinate_path, system_path = _setup_dummy_system('setup')
-
     protocol = simulation.OpenMMParallelTempering('protocol')
-    protocol.total_number_of_iterations = 333
-    protocol.steps_per_iteration = 3000
-    protocol.thermodynamic_state = thermodynamic_state
+    protocol.total_number_of_iterations = 2000
+    protocol.steps_per_iteration = 100
     protocol.input_coordinate_file = coordinate_path
     protocol.system_path = system_path
     protocol.ensemble = Ensemble.NVT
@@ -64,17 +70,28 @@ def main():
     protocol.allow_gpu_platforms = False
     protocol.high_precision = True
 
-    protocol.maximum_temperature = 450 * unit.kelvin
-    protocol.number_of_replicas = 4
+    protocol.thermodynamic_state = ThermodynamicState(298 * unit.kelvin)
+    protocol.maximum_temperature = 1243 * unit.kelvin
+    # protocol.number_of_replicas = 4
+
+    protocol.replica_temperatures = [313 * unit.kelvin,
+                                     343 * unit.kelvin,
+                                     403 * unit.kelvin,
+                                     523 * unit.kelvin,
+                                     763 * unit.kelvin]
 
     result = protocol.execute('run', compute_resources)
     assert not isinstance(result, PropertyEstimatorException)
 
-    # for iterations in range(1, 11):
-    #
-    #     equilibration_simulation.total_number_of_iterations = iterations
-    #     assert isinstance(equilibration_simulation.execute('run', compute_resources), dict)
-    #     print(iterations)
+    trajectory = mdtraj.load_dcd('trajectory.dcd', top=coordinate_path)
+
+    dihedrals = mdtraj.compute_dihedrals(trajectory, indices=np.array([[3, 2, 4, 10]]))[:, 0]
+    dihedrals = dihedrals / np.pi * 180.0 + 180
+
+    num_bins = 180
+
+    plt.hist(dihedrals, num_bins, range=[0.0, 360])
+    plt.show()
 
 
 if __name__ == "__main__":

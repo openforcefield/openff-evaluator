@@ -817,7 +817,6 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
             openmm_pressure = pint_quantity_to_openmm(self.thermodynamic_state.pressure)
 
         # Determine the temperatures to simulate at.
-        # number_of_states = self.number_of_replicas
         temperatures = None
 
         if self.replica_temperatures != UNDEFINED:
@@ -833,7 +832,9 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
                                                              '`unit.Quantity` and be compatible with units '
                                                              'of kelvin.')
 
-            sorted_temperatures = list(sorted(self.replica_temperatures))
+            sorted_temperatures = ([self.thermodynamic_state.temperature] +
+                                   list(sorted(self.replica_temperatures)) +
+                                   [self.maximum_temperature])
 
             if (sorted_temperatures[0] < self.thermodynamic_state.temperature or
                 sorted_temperatures[0] > self.maximum_temperature or
@@ -843,8 +844,8 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
                 return PropertyEstimatorException(directory, 'The replica temperatures are outside of the allowed '
                                                              'range.')
 
-            temperatures = [temperature.to(unit.kelvin) for temperature in sorted_temperatures] * simtk_unit.kelvin
-            # number_of_states = len(temperatures)
+            temperatures = [temperature.to(unit.kelvin).magnitude for
+                            temperature in sorted_temperatures] * simtk_unit.kelvin
 
         elif self.number_of_replicas == UNDEFINED:
 
@@ -889,7 +890,7 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
                                                       number_of_iterations=self.total_number_of_iterations)
 
         storage_path = os.path.join(directory, 'replicas.nc')
-        reporter = MultiStateReporter(storage_path, checkpoint_interval=1)
+        reporter = MultiStateReporter(storage_path, checkpoint_interval=5)
 
         if temperatures is None:
 
@@ -905,7 +906,8 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
             parallel_tempering.create(reference_state,
                                       sampler_state,
                                       reporter,
-                                      temperatures)
+                                      temperatures=temperatures,
+                                      n_temperatures=len(temperatures))
 
         parallel_tempering.run()
 
