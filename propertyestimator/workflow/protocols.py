@@ -314,13 +314,16 @@ class BaseProtocol:
 
         return inputs_to_consider
 
-    def can_merge(self, other):
+    def can_merge(self, other, path_replacements=None):
         """Determines whether this protocol can be merged with another.
 
         Parameters
         ----------
         other : :obj:`BaseProtocol`
             The protocol to compare against.
+        path_replacements: list of tuple of str, optional
+            Replacements to make in any value reference protocol paths
+            before comparing for equality.
 
         Returns
         ----------
@@ -330,6 +333,9 @@ class BaseProtocol:
 
         if not self.allow_merging or not isinstance(self, type(other)):
             return False
+
+        if path_replacements is None:
+            path_replacements = []
 
         inputs_to_consider = self._find_inputs_to_merge()
 
@@ -360,10 +366,15 @@ class BaseProtocol:
             elif (isinstance(self_value, ProtocolPath) or
                   isinstance(other_value, ProtocolPath)):
 
+                other_value_post_merge = ProtocolPath.from_string(other_value.full_path)
+
+                for original_id, new_id in path_replacements:
+                    other_value_post_merge.replace_protocol(original_id, new_id)
+
                 # We cannot safely choose which value to take when the
                 # values are not know ahead of time unless the two values
                 # come from the exact same source.
-                if self_value.protocol_path != other_value.protocol_path:
+                if self_value.protocol_path != other_value_post_merge.protocol_path:
                     return False
 
             elif (isinstance(self_value, PlaceholderInput) or

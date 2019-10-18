@@ -1,6 +1,8 @@
 """
 Units tests for propertyestimator.protocols.simulation
 """
+import json
+import os
 import tempfile
 from os import path
 
@@ -13,6 +15,8 @@ from propertyestimator.substances import Substance
 from propertyestimator.tests.utils import build_tip3p_smirnoff_force_field
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
+from propertyestimator.utils.statistics import StatisticsArray
 
 
 def _setup_dummy_system(directory):
@@ -65,7 +69,7 @@ def test_run_openmm_simulation():
         coordinate_path, system_path = _setup_dummy_system(directory)
 
         npt_equilibration = RunOpenMMSimulation('npt_equilibration')
-        npt_equilibration.steps = 2
+        npt_equilibration.steps_per_iteration = 2
         npt_equilibration.output_frequency = 1
         npt_equilibration.thermodynamic_state = thermodynamic_state
         npt_equilibration.input_coordinate_file = coordinate_path
@@ -77,3 +81,50 @@ def test_run_openmm_simulation():
         assert path.isfile(npt_equilibration.output_coordinate_file)
         assert path.isfile(npt_equilibration.trajectory_file_path)
         assert path.isfile(npt_equilibration.statistics_file_path)
+
+
+def test_run_openmm_simulation_checkpoints():
+
+    import mdtraj
+
+    thermodynamic_state = ThermodynamicState(298 * unit.kelvin,
+                                             1.0 * unit.atmosphere)
+
+    with tempfile.TemporaryDirectory() as directory:
+
+        coordinate_path, system_path = _setup_dummy_system(directory)
+
+        # Check that executing twice doesn't run the simulation twice
+        npt_equilibration = RunOpenMMSimulation('npt_equilibration')
+        npt_equilibration.total_number_of_iterations = 1
+        npt_equilibration.steps_per_iteration = 4
+        npt_equilibration.output_frequency = 1
+        npt_equilibration.thermodynamic_state = thermodynamic_state
+        npt_equilibration.input_coordinate_file = coordinate_path
+        npt_equilibration.system_path = system_path
+
+        npt_equilibration.execute(directory, ComputeResources())
+        assert os.path.isfile(npt_equilibration._checkpoint_path)
+        npt_equilibration.execute(directory, ComputeResources())
+
+        assert len(StatisticsArray.from_pandas_csv(npt_equilibration.statistics_file_path)) == 4
+        assert len(mdtraj.load(npt_equilibration.trajectory_file_path, top=coordinate_path)) == 4
+
+        # Make sure that the output files are correctly truncating if more frames
+        # than expected are written
+        with open(npt_equilibration._checkpoint_path, 'r') as file:
+            checkpoint = json.load(file, cls=TypedJSONDecoder)
+
+            # Fake having saved more frames than expected
+            npt_equilibration.steps_per_iteration = 8
+            checkpoint.steps_per_iteration = 8
+            npt_equilibration.output_frequency = 2
+            checkpoint.output_frequency = 2
+
+        with open(npt_equilibration._checkpoint_path, 'w') as file:
+            json.dump(checkpoint, file, cls=TypedJSONEncoder)
+
+        npt_equilibration.execute(directory, ComputeResources())
+
+        assert len(StatisticsArray.from_pandas_csv(npt_equilibration.statistics_file_path)) == 4
+        assert len(mdtraj.load(npt_equilibration.trajectory_file_path, top=coordinate_path)) == 4

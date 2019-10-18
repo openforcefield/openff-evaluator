@@ -3,6 +3,7 @@ A collection of classes for loading and manipulating statistics data files.
 """
 import copy
 import math
+import re
 from enum import Enum
 from io import StringIO
 
@@ -210,8 +211,6 @@ class StatisticsArray:
         StatisticsArray
             The loaded statistics array.
         """
-        data_array = None
-
         with open(file_path, 'r') as file:
 
             file_contents = file.read()
@@ -220,6 +219,7 @@ class StatisticsArray:
                 return cls()
 
             file_contents = file_contents[1:]
+            file_contents = re.sub('#.*\n', '', file_contents)
 
             string_object = StringIO(file_contents)
             data_array = pd.read_csv(string_object)
