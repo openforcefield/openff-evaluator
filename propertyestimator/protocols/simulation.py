@@ -8,6 +8,8 @@ import os
 import re
 import traceback
 
+import numpy as np
+
 import pandas as pd
 from simtk import openmm, unit as simtk_unit
 from simtk.openmm import app
@@ -113,48 +115,7 @@ class RunEnergyMinimisation(BaseProtocol):
 
 
 @register_calculation_protocol()
-class RunOpenMMSimulation(BaseProtocol):
-    """Performs a molecular dynamics simulation in a given ensemble using
-    an OpenMM backend.
-    """
-    class _Checkpoint:
-        """A temporary checkpoint file which keeps track
-        of the parts of the simulation state not stored in
-        the checkpoint state xml file.
-        """
-
-        def __init__(self, output_frequency=-1, checkpoint_frequency=-1,
-                     steps_per_iteration=-1, current_step_number=0):
-
-            self.output_frequency = output_frequency
-            self.checkpoint_frequency = checkpoint_frequency
-            self.steps_per_iteration = steps_per_iteration
-            self.current_step_number = current_step_number
-
-        def __getstate__(self):
-            return {
-                'output_frequency': self.output_frequency,
-                'checkpoint_frequency': self.checkpoint_frequency,
-                'steps_per_iteration': self.steps_per_iteration,
-                'current_step_number': self.current_step_number
-            }
-
-        def __setstate__(self, state):
-            self.output_frequency = state['output_frequency']
-            self.checkpoint_frequency = state['checkpoint_frequency']
-            self.steps_per_iteration = state['steps_per_iteration']
-            self.current_step_number = state['current_step_number']
-
-    class _Simulation:
-        """A fake simulation class to use with the
-        openmm file reporters.
-        """
-
-        def __init__(self, integrator, topology, system, current_step):
-            self.integrator = integrator
-            self.topology = topology
-            self.system = system
-            self.currentStep = current_step
+class BaseOpenMMSimulation(BaseProtocol):
 
     steps_per_iteration = protocol_input(
         docstring='The number of steps to propogate the system by at '
@@ -171,24 +132,6 @@ class RunOpenMMSimulation(BaseProtocol):
                   'steps_per_iteration`.',
         type_hint=int, merge_behavior=InequalityMergeBehaviour.LargestValue,
         default_value=1
-    )
-
-    output_frequency = protocol_input(
-        docstring='The frequency (in number of steps) with which to write to the '
-                  'output statistics and trajectory files.',
-        type_hint=int,
-        merge_behavior=InequalityMergeBehaviour.SmallestValue,
-        default_value=3000
-    )
-    checkpoint_frequency = protocol_input(
-        docstring='The frequency (in multiples of `output_frequency`) with which to '
-                  'write to a checkpoint file, e.g. if `output_frequency=100` and '
-                  '`checkpoint_frequency==2`, a checkpoint file would be saved every '
-                  '200 steps.',
-        type_hint=int,
-        merge_behavior=InequalityMergeBehaviour.SmallestValue,
-        optional=True,
-        default_value=10
     )
 
     timestep = protocol_input(
@@ -263,14 +206,81 @@ class RunOpenMMSimulation(BaseProtocol):
 
         super().__init__(protocol_id)
 
-        self._checkpoint_path = None
-        self._state_path = None
-
         self._local_trajectory_path = None
         self._local_statistics_path = None
 
         self._context = None
         self._integrator = None
+
+
+@register_calculation_protocol()
+class RunOpenMMSimulation(BaseOpenMMSimulation):
+    """Performs a molecular dynamics simulation in a given ensemble using
+    an OpenMM backend.
+    """
+    class _Checkpoint:
+        """A temporary checkpoint file which keeps track
+        of the parts of the simulation state not stored in
+        the checkpoint state xml file.
+        """
+
+        def __init__(self, output_frequency=-1, checkpoint_frequency=-1,
+                     steps_per_iteration=-1, current_step_number=0):
+
+            self.output_frequency = output_frequency
+            self.checkpoint_frequency = checkpoint_frequency
+            self.steps_per_iteration = steps_per_iteration
+            self.current_step_number = current_step_number
+
+        def __getstate__(self):
+            return {
+                'output_frequency': self.output_frequency,
+                'checkpoint_frequency': self.checkpoint_frequency,
+                'steps_per_iteration': self.steps_per_iteration,
+                'current_step_number': self.current_step_number
+            }
+
+        def __setstate__(self, state):
+            self.output_frequency = state['output_frequency']
+            self.checkpoint_frequency = state['checkpoint_frequency']
+            self.steps_per_iteration = state['steps_per_iteration']
+            self.current_step_number = state['current_step_number']
+
+    class _Simulation:
+        """A fake simulation class to use with the
+        openmm file reporters.
+        """
+
+        def __init__(self, integrator, topology, system, current_step):
+            self.integrator = integrator
+            self.topology = topology
+            self.system = system
+            self.currentStep = current_step
+
+    output_frequency = protocol_input(
+        docstring='The frequency (in number of steps) with which to write to the '
+                  'output statistics and trajectory files.',
+        type_hint=int,
+        merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        default_value=3000
+    )
+    checkpoint_frequency = protocol_input(
+        docstring='The frequency (in multiples of `output_frequency`) with which to '
+                  'write to a checkpoint file, e.g. if `output_frequency=100` and '
+                  '`checkpoint_frequency==2`, a checkpoint file would be saved every '
+                  '200 steps.',
+        type_hint=int,
+        merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        optional=True,
+        default_value=10
+    )
+
+    def __init__(self, protocol_id):
+
+        super().__init__(protocol_id)
+
+        self._checkpoint_path = None
+        self._state_path = None
 
     def execute(self, directory, available_resources):
 
@@ -754,3 +764,239 @@ class RunOpenMMSimulation(BaseProtocol):
 
         logging.info(f'Simulation performed in the {str(self.ensemble)} ensemble: {self._id}')
         return None
+
+
+@register_calculation_protocol()
+class OpenMMParallelTempering(BaseOpenMMSimulation):
+    """Performs a parallel tempering simulation using the utilities
+    provided by the `openmmtools <https://openmmtools.readthedocs.io>`_ package.
+    """
+
+    replica_temperatures = protocol_input(
+        docstring='The intermediate temperatures that a replica should sample at. '
+                  'These values must be greater than the temperature defined by the '
+                  'thermodynamic state, and list than the maximum temperature. If '
+                  'unset, then these will be chosen as a geometric progression between '
+                  'the defined start and end temperatures.',
+        type_hint=list,
+        default_value=UNDEFINED,
+        optional=True
+    )
+
+    number_of_replicas = protocol_input(
+        docstring='The number of exponentially-spaced temperatures between the '
+                  'temperature of interest and the maximum temperature.',
+        type_hint=int,
+        default_value=UNDEFINED
+    )
+
+    maximum_temperature = protocol_input(
+        docstring='The maximum temperature that a replica should sample at.',
+        type_hint=unit.Quantity,
+        default_value=UNDEFINED
+    )
+
+    def execute(self, directory, available_resources):
+
+        from openmmtools import cache, mcmc, states
+        from openmmtools.multistate import MultiStateReporter, ParallelTemperingSampler
+
+        # Make sure the temperature range makes sense.
+        if self.maximum_temperature < self.thermodynamic_state.temperature:
+
+            return PropertyEstimatorException(directory, 'The maximum temperature cannot be lower than '
+                                                         'the temperature of interest defined by the '
+                                                         '`thermodynamic_state` input.')
+
+        openmm_temperature = pint_quantity_to_openmm(self.thermodynamic_state.temperature)
+        openmm_max_temperature = pint_quantity_to_openmm(self.maximum_temperature)
+
+        openmm_pressure = None
+
+        if self.thermodynamic_state.pressure is not None:
+            openmm_pressure = pint_quantity_to_openmm(self.thermodynamic_state.pressure)
+
+        # Determine the temperatures to simulate at.
+        # number_of_states = self.number_of_replicas
+        temperatures = None
+
+        if self.replica_temperatures != UNDEFINED:
+
+            if len(self.replica_temperatures) == 0:
+
+                return PropertyEstimatorException(directory, 'At least one temperature must be defined in the '
+                                                             '`replica_temperatures` list.')
+
+            if not all(isinstance(x, unit.Quantity) for x in self.replica_temperatures):
+
+                return PropertyEstimatorException(directory, 'The replica temperatures must be of type '
+                                                             '`unit.Quantity` and be compatible with units '
+                                                             'of kelvin.')
+
+            sorted_temperatures = list(sorted(self.replica_temperatures))
+
+            if (sorted_temperatures[0] < self.thermodynamic_state.temperature or
+                sorted_temperatures[0] > self.maximum_temperature or
+                sorted_temperatures[-1] < self.thermodynamic_state.temperature or
+                sorted_temperatures[-1] > self.maximum_temperature):
+
+                return PropertyEstimatorException(directory, 'The replica temperatures are outside of the allowed '
+                                                             'range.')
+
+            temperatures = [temperature.to(unit.kelvin) for temperature in sorted_temperatures] * simtk_unit.kelvin
+            # number_of_states = len(temperatures)
+
+        elif self.number_of_replicas == UNDEFINED:
+
+            return PropertyEstimatorException(directory, 'The `number_of_replicas` must be set if '
+                                                         '`replica_temperatures` is UNDEFINED.')
+
+        # Load in the system object.
+        with open(self.system_path, 'r') as file:
+            system = openmm.XmlSerializer.deserialize(file.read())
+
+        if not self.enable_pbc:
+
+            disable_pbc(system)
+            openmm_pressure = None
+
+        # Create a platform with the correct resources.
+        if not self.allow_gpu_platforms:
+
+            from propertyestimator.backends import ComputeResources
+            available_resources = ComputeResources(available_resources.number_of_threads)
+
+        platform = setup_platform_with_resources(available_resources, self.high_precision)
+        context_cache = cache.ContextCache(platform=platform)
+
+        # Set up the thermodynamic states to sample.
+        reference_state = states.ThermodynamicState(system, openmm_temperature, openmm_pressure)
+
+        initial_pdb_file = app.PDBFile(self.input_coordinate_file)
+        sampler_state = [states.SamplerState(positions=initial_pdb_file.positions)]
+
+        # Propagate the replicas with Langevin dynamics.
+        langevin_move = mcmc.GHMCMove(
+            timestep=pint_quantity_to_openmm(self.timestep),
+            collision_rate=pint_quantity_to_openmm(self.thermostat_friction),
+            n_steps=self.steps_per_iteration,
+            context_cache=context_cache
+        )
+
+        # Run the parallel tempering simulation.
+        parallel_tempering = ParallelTemperingSampler('swap-neighbors',
+                                                      mcmc_moves=langevin_move,
+                                                      number_of_iterations=self.total_number_of_iterations)
+
+        storage_path = os.path.join(directory, 'replicas.nc')
+        reporter = MultiStateReporter(storage_path, checkpoint_interval=1)
+
+        if temperatures is None:
+
+            parallel_tempering.create(reference_state,
+                                      sampler_state,
+                                      reporter,
+                                      min_temperature=openmm_temperature,
+                                      max_temperature=openmm_max_temperature,
+                                      n_temperatures=self.number_of_replicas)
+
+        else:
+
+            parallel_tempering.create(reference_state,
+                                      sampler_state,
+                                      reporter,
+                                      temperatures)
+
+        parallel_tempering.run()
+
+        mdtraj_trajectory = self._extract_trajectory(os.path.join(directory, 'replicas.nc'), system, replica_index=0)
+        mdtraj_trajectory.save_dcd('trajectory.dcd')
+
+        return self._get_output_dictionary()
+
+    def _extract_trajectory(self, nc_path, reference_system, replica_index):
+        """Extract the trajectory of a replica from the NetCDF4 file.
+
+        Parameters
+        ----------
+        nc_path : str
+            Path to the primary nc_file storing the analysis options
+        reference_system: simtk.openmm.System
+            The system object describing the system which was simulated.
+        replica_index : int, optional
+            The index of the replica for which to extract the trajectory. One and
+            only one between state_index and replica_index must be not None (default
+            is None).
+
+        Returns
+        -------
+        trajectory: mdtraj.Trajectory
+            The trajectory extracted from the netcdf file.
+
+        Notes
+        -----
+        This method is mainly repurposed from the `yank.analyze.extract_trajectory`
+        method. It should be remove if the same functionality is moved into
+        `openmmtools`.
+        """
+
+        import mdtraj
+        from openmmtools import multistate
+
+        # Check correct input
+        if not os.path.isfile(nc_path):
+            raise ValueError('Cannot find file {}'.format(nc_path))
+
+        # Import simulation data
+        topology = mdtraj.load_topology(self.input_coordinate_file)
+
+        reporter = None
+
+        try:
+
+            reporter = multistate.MultiStateReporter(nc_path, open_mode='r')
+
+            # Determine if system is periodic
+            is_periodic = reference_system.usesPeriodicBoundaryConditions()
+
+            # Assume full iteration until proven otherwise
+            trajectory_storage = reporter._storage_checkpoint
+
+            n_frames = trajectory_storage.variables['positions'].shape[0]
+            n_atoms = trajectory_storage.variables['positions'].shape[2]
+
+            # Determine the number of frames that the trajectory will have.
+            frame_indices = range(0, n_frames)
+            n_trajectory_frames = len(frame_indices)
+
+            # Initialize positions and box vectors arrays. MDTraj Cython code
+            # expects float32 positions.
+            positions = np.zeros((n_trajectory_frames, n_atoms, 3), dtype=np.float32)
+            box_vectors = None
+
+            if is_periodic:
+                box_vectors = np.zeros((n_trajectory_frames, 3, 3), dtype=np.float32)
+
+            # Extract state positions and box vectors.
+            for i, iteration in enumerate(frame_indices):
+
+                positions[i, :, :] = trajectory_storage.variables['positions'][
+                                     iteration, replica_index, :, :].astype(np.float32)
+
+                if box_vectors is not None:
+
+                    box_vectors[i, :, :] = trajectory_storage.variables['box_vectors'][
+                                           iteration, replica_index, :, :].astype(np.float32)
+
+        finally:
+
+            if reporter is not None:
+                reporter.close()
+
+        # Create trajectory object
+        trajectory = mdtraj.Trajectory(positions, topology)
+
+        if is_periodic:
+            trajectory.unitcell_vectors = box_vectors
+
+        return trajectory

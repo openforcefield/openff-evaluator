@@ -10,6 +10,7 @@ import traceback
 from enum import Enum
 
 import yaml
+
 from propertyestimator import unit
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException

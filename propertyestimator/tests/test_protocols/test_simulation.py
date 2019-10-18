@@ -10,7 +10,7 @@ from propertyestimator import unit
 from propertyestimator.backends import ComputeResources
 from propertyestimator.protocols.coordinates import BuildCoordinatesPackmol
 from propertyestimator.protocols.forcefield import BuildSmirnoffSystem
-from propertyestimator.protocols.simulation import RunEnergyMinimisation, RunOpenMMSimulation
+from propertyestimator.protocols.simulation import RunEnergyMinimisation, RunOpenMMSimulation, OpenMMParallelTempering
 from propertyestimator.substances import Substance
 from propertyestimator.tests.utils import build_tip3p_smirnoff_force_field
 from propertyestimator.thermodynamics import ThermodynamicState
@@ -128,3 +128,22 @@ def test_run_openmm_simulation_checkpoints():
 
         assert len(StatisticsArray.from_pandas_csv(npt_equilibration.statistics_file_path)) == 4
         assert len(mdtraj.load(npt_equilibration.trajectory_file_path, top=coordinate_path)) == 4
+
+
+def test_openmm_parallel_tempering():
+
+    thermodynamic_state = ThermodynamicState(298 * unit.kelvin)
+
+    with tempfile.TemporaryDirectory() as directory:
+
+        coordinate_path, system_path = _setup_dummy_system(directory)
+
+        protocol = OpenMMParallelTempering('protocol')
+        protocol.total_number_of_iterations = 1
+        protocol.steps_per_iteration = 5
+        protocol.thermodynamic_state = thermodynamic_state
+        protocol.input_coordinate_file = coordinate_path
+        protocol.system_path = system_path
+
+        result = protocol.execute(directory, ComputeResources())
+        assert not isinstance(result, PropertyEstimatorException)
