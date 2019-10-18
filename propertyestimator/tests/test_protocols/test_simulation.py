@@ -117,7 +117,7 @@ def test_run_openmm_simulation_checkpoints():
 
             # Fake having saved more frames than expected
             npt_equilibration.steps_per_iteration = 8
-
+            checkpoint.steps_per_iteration = 8
             npt_equilibration.output_frequency = 2
             checkpoint.output_frequency = 2
 
