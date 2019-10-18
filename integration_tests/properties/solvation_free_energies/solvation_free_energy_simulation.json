@@ -1,0 +1,1611 @@
+{
+  "@type": "propertyestimator.client.PropertyEstimatorResult",
+  "estimated_properties": {
+    "CCC(=O)OC(1)|O{1.000000}": [
+      {
+        "@type": "propertyestimator.properties.solvation.SolvationFreeEnergy",
+        "gradients": [],
+        "id": "c30ce4be-44b0-494a-b5af-248a57cd69d7",
+        "metadata": {},
+        "phase": 2,
+        "source": {
+          "@type": "propertyestimator.properties.properties.CalculationSource",
+          "fidelity": "SimulationLayer",
+          "provenance": {
+            "5781ed75-66b1-406e-8bee-2300d8240750|assign_parameters": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "5781ed75-66b1-406e-8bee-2300d8240750|assign_parameters",
+              "inputs": {
+                ".allow_merging": true,
+                ".apply_known_charges": true,
+                ".charged_molecule_paths": [],
+                ".coordinate_file_path": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "5781ed75-66b1-406e-8bee-2300d8240750|build_vacuum_coordinates.coordinate_file_path"
+                },
+                ".force_field_path": "working_directory/SimulationLayer/92202744-f39a-49bc-910a-c6604129af4a/force_field_98f0b98c-19de-4f6d-9dbe-4364d5433023",
+                ".substance": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "5781ed75-66b1-406e-8bee-2300d8240750|filter_solute.filtered_substance"
+                },
+                ".water_model": {
+                  "@type": "propertyestimator.protocols.forcefield.BaseBuildSystemProtocol->WaterModel",
+                  "value": "TIP3P"
+                }
+              },
+              "type": "BuildSmirnoffSystem"
+            },
+            "5781ed75-66b1-406e-8bee-2300d8240750|assign_solvated_parameters": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "5781ed75-66b1-406e-8bee-2300d8240750|assign_solvated_parameters",
+              "inputs": {
+                ".allow_merging": true,
+                ".apply_known_charges": true,
+                ".charged_molecule_paths": [],
+                ".coordinate_file_path": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "5781ed75-66b1-406e-8bee-2300d8240750|build_solvated_coordinates.coordinate_file_path"
+                },
+                ".force_field_path": "working_directory/SimulationLayer/92202744-f39a-49bc-910a-c6604129af4a/force_field_98f0b98c-19de-4f6d-9dbe-4364d5433023",
+                ".substance": {
+                  "@type": "propertyestimator.substances.Substance",
+                  "amounts": {
+                    "CCC(=O)OC": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->ExactAmount",
+                          "value": 1
+                        }
+                      ]
+                    },
+                    "O": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->MoleFraction",
+                          "value": 1.0
+                        }
+                      ]
+                    }
+                  },
+                  "components": [
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "CCC(=O)OC",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solute"
+                      },
+                      "smiles": "CCC(=O)OC"
+                    },
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "O",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solvent"
+                      },
+                      "smiles": "O"
+                    }
+                  ]
+                },
+                ".water_model": {
+                  "@type": "propertyestimator.protocols.forcefield.BaseBuildSystemProtocol->WaterModel",
+                  "value": "TIP3P"
+                }
+              },
+              "type": "BuildSmirnoffSystem"
+            },
+            "5781ed75-66b1-406e-8bee-2300d8240750|build_solvated_coordinates": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "5781ed75-66b1-406e-8bee-2300d8240750|build_solvated_coordinates",
+              "inputs": {
+                ".allow_merging": true,
+                ".box_aspect_ratio": [
+                  1.0,
+                  1.0,
+                  1.0
+                ],
+                ".mass_density": {
+                  "@type": "propertyestimator.unit.Quantity",
+                  "unit": "gram / milliliter",
+                  "value": 0.95
+                },
+                ".max_molecules": 2000,
+                ".retain_packmol_files": false,
+                ".substance": {
+                  "@type": "propertyestimator.substances.Substance",
+                  "amounts": {
+                    "CCC(=O)OC": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->ExactAmount",
+                          "value": 1
+                        }
+                      ]
+                    },
+                    "O": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->MoleFraction",
+                          "value": 1.0
+                        }
+                      ]
+                    }
+                  },
+                  "components": [
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "CCC(=O)OC",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solute"
+                      },
+                      "smiles": "CCC(=O)OC"
+                    },
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "O",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solvent"
+                      },
+                      "smiles": "O"
+                    }
+                  ]
+                },
+                ".verbose_packmol": false
+              },
+              "type": "BuildCoordinatesPackmol"
+            },
+            "5781ed75-66b1-406e-8bee-2300d8240750|build_vacuum_coordinates": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "5781ed75-66b1-406e-8bee-2300d8240750|build_vacuum_coordinates",
+              "inputs": {
+                ".allow_merging": true,
+                ".box_aspect_ratio": [
+                  1.0,
+                  1.0,
+                  1.0
+                ],
+                ".mass_density": {
+                  "@type": "propertyestimator.unit.Quantity",
+                  "unit": "gram / milliliter",
+                  "value": 0.95
+                },
+                ".max_molecules": 1,
+                ".retain_packmol_files": false,
+                ".substance": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "5781ed75-66b1-406e-8bee-2300d8240750|filter_solute.filtered_substance"
+                },
+                ".verbose_packmol": false
+              },
+              "type": "BuildCoordinatesPackmol"
+            },
+            "5781ed75-66b1-406e-8bee-2300d8240750|energy_minimisation": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "5781ed75-66b1-406e-8bee-2300d8240750|energy_minimisation",
+              "inputs": {
+                ".allow_merging": true,
+                ".enable_pbc": true,
+                ".input_coordinate_file": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "5781ed75-66b1-406e-8bee-2300d8240750|build_solvated_coordinates.coordinate_file_path"
+                },
+                ".max_iterations": 10,
+                ".system_path": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "5781ed75-66b1-406e-8bee-2300d8240750|assign_solvated_parameters.system_path"
+                },
+                ".tolerance": {
+                  "@type": "propertyestimator.unit.Quantity",
+                  "unit": "kilojoule / mole",
+                  "value": 10.0
+                }
+              },
+              "type": "RunEnergyMinimisation"
+            },
+            "5781ed75-66b1-406e-8bee-2300d8240750|equilibration_simulation": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "5781ed75-66b1-406e-8bee-2300d8240750|equilibration_simulation",
+              "inputs": {
+                ".allow_gpu_platforms": true,
+                ".allow_merging": true,
+                ".enable_pbc": true,
+                ".ensemble": {
+                  "@type": "propertyestimator.thermodynamics.Ensemble",
+                  "value": "NPT"
+                },
+                ".high_precision": false,
+                ".input_coordinate_file": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "5781ed75-66b1-406e-8bee-2300d8240750|energy_minimisation.output_coordinate_file"
+                },
+                ".output_frequency": 10000,
+                ".save_rolling_statistics": true,
+                ".steps": 100000,
+                ".system_path": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "5781ed75-66b1-406e-8bee-2300d8240750|assign_solvated_parameters.system_path"
+                },
+                ".thermodynamic_state": {
+                  "@type": "propertyestimator.thermodynamics.ThermodynamicState",
+                  "pressure": {
+                    "@type": "propertyestimator.unit.Quantity",
+                    "unit": "atmosphere",
+                    "value": 1.0
+                  },
+                  "temperature": {
+                    "@type": "propertyestimator.unit.Quantity",
+                    "unit": "kelvin",
+                    "value": 298.15
+                  }
+                },
+                ".thermostat_friction": {
+                  "@type": "propertyestimator.unit.Quantity",
+                  "unit": "1 / picosecond",
+                  "value": 1.0
+                },
+                ".timestep": {
+                  "@type": "propertyestimator.unit.Quantity",
+                  "unit": "femtosecond",
+                  "value": 2.0
+                }
+              },
+              "type": "RunOpenMMSimulation"
+            },
+            "5781ed75-66b1-406e-8bee-2300d8240750|filter_solute": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "5781ed75-66b1-406e-8bee-2300d8240750|filter_solute",
+              "inputs": {
+                ".allow_merging": true,
+                ".component_role": {
+                  "@type": "propertyestimator.substances.Substance->ComponentRole",
+                  "value": "Solute"
+                },
+                ".expected_components": {
+                  "@type": "propertyestimator.workflow.decorators.UndefinedAttribute"
+                },
+                ".input_substance": {
+                  "@type": "propertyestimator.substances.Substance",
+                  "amounts": {
+                    "CCC(=O)OC": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->ExactAmount",
+                          "value": 1
+                        }
+                      ]
+                    },
+                    "O": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->MoleFraction",
+                          "value": 1.0
+                        }
+                      ]
+                    }
+                  },
+                  "components": [
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "CCC(=O)OC",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solute"
+                      },
+                      "smiles": "CCC(=O)OC"
+                    },
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "O",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solvent"
+                      },
+                      "smiles": "O"
+                    }
+                  ]
+                }
+              },
+              "type": "FilterSubstanceByRole"
+            },
+            "5781ed75-66b1-406e-8bee-2300d8240750|run_solvation_yank": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "5781ed75-66b1-406e-8bee-2300d8240750|run_solvation_yank",
+              "inputs": {
+                ".allow_merging": true,
+                ".checkpoint_interval": 50,
+                ".number_of_equilibration_iterations": 1,
+                ".number_of_iterations": 5000,
+                ".setup_only": false,
+                ".solvated_coordinates": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "5781ed75-66b1-406e-8bee-2300d8240750|equilibration_simulation.output_coordinate_file"
+                },
+                ".solvated_electrostatic_lambdas": [
+                  1.0,
+                  0.75,
+                  0.5,
+                  0.25,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                ".solvated_steric_lambdas": [
+                  1.0,
+                  1.0,
+                  1.0,
+                  1.0,
+                  1.0,
+                  0.95,
+                  0.9,
+                  0.8,
+                  0.7,
+                  0.6,
+                  0.5,
+                  0.4,
+                  0.35,
+                  0.3,
+                  0.25,
+                  0.2,
+                  0.15,
+                  0.1,
+                  0.05,
+                  0.0
+                ],
+                ".solvated_system": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "5781ed75-66b1-406e-8bee-2300d8240750|assign_solvated_parameters.system_path"
+                },
+                ".steps_per_iteration": 500,
+                ".substance": {
+                  "@type": "propertyestimator.substances.Substance",
+                  "amounts": {
+                    "CCC(=O)OC": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->ExactAmount",
+                          "value": 1
+                        }
+                      ]
+                    },
+                    "O": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->MoleFraction",
+                          "value": 1.0
+                        }
+                      ]
+                    }
+                  },
+                  "components": [
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "CCC(=O)OC",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solute"
+                      },
+                      "smiles": "CCC(=O)OC"
+                    },
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "O",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solvent"
+                      },
+                      "smiles": "O"
+                    }
+                  ]
+                },
+                ".thermodynamic_state": {
+                  "@type": "propertyestimator.thermodynamics.ThermodynamicState",
+                  "pressure": {
+                    "@type": "propertyestimator.unit.Quantity",
+                    "unit": "atmosphere",
+                    "value": 1.0
+                  },
+                  "temperature": {
+                    "@type": "propertyestimator.unit.Quantity",
+                    "unit": "kelvin",
+                    "value": 298.15
+                  }
+                },
+                ".timestep": {
+                  "@type": "propertyestimator.unit.Quantity",
+                  "unit": "femtosecond",
+                  "value": 2
+                },
+                ".vacuum_coordinates": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "5781ed75-66b1-406e-8bee-2300d8240750|build_vacuum_coordinates.coordinate_file_path"
+                },
+                ".vacuum_electrostatic_lambdas": [
+                  1.0,
+                  0.75,
+                  0.5,
+                  0.25,
+                  0.0
+                ],
+                ".vacuum_steric_lambdas": [
+                  1.0,
+                  1.0,
+                  1.0,
+                  1.0,
+                  1.0
+                ],
+                ".vacuum_system": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "5781ed75-66b1-406e-8bee-2300d8240750|assign_parameters.system_path"
+                },
+                ".verbose": false
+              },
+              "type": "SolvationYankProtocol"
+            }
+          }
+        },
+        "substance": {
+          "@type": "propertyestimator.substances.Substance",
+          "amounts": {
+            "CCC(=O)OC": {
+              "@type": "builtins.frozenset",
+              "value": [
+                {
+                  "@type": "propertyestimator.substances.Substance->ExactAmount",
+                  "value": 1
+                }
+              ]
+            },
+            "O": {
+              "@type": "builtins.frozenset",
+              "value": [
+                {
+                  "@type": "propertyestimator.substances.Substance->MoleFraction",
+                  "value": 1.0
+                }
+              ]
+            }
+          },
+          "components": [
+            {
+              "@type": "propertyestimator.substances.Substance->Component",
+              "label": "CCC(=O)OC",
+              "role": {
+                "@type": "propertyestimator.substances.Substance->ComponentRole",
+                "value": "Solute"
+              },
+              "smiles": "CCC(=O)OC"
+            },
+            {
+              "@type": "propertyestimator.substances.Substance->Component",
+              "label": "O",
+              "role": {
+                "@type": "propertyestimator.substances.Substance->ComponentRole",
+                "value": "Solvent"
+              },
+              "smiles": "O"
+            }
+          ]
+        },
+        "thermodynamic_state": {
+          "@type": "propertyestimator.thermodynamics.ThermodynamicState",
+          "pressure": {
+            "@type": "propertyestimator.unit.Quantity",
+            "unit": "atmosphere",
+            "value": 1.0
+          },
+          "temperature": {
+            "@type": "propertyestimator.unit.Quantity",
+            "unit": "kelvin",
+            "value": 298.15
+          }
+        },
+        "uncertainty": {
+          "@type": "propertyestimator.unit.Quantity",
+          "unit": "joule / mole",
+          "value": 259.7136762872826
+        },
+        "value": {
+          "@type": "propertyestimator.unit.Quantity",
+          "unit": "joule / mole",
+          "value": -13972.554385310556
+        }
+      }
+    ],
+    "CCCCO(1)|O{1.000000}": [
+      {
+        "@type": "propertyestimator.properties.solvation.SolvationFreeEnergy",
+        "gradients": [],
+        "id": "5320f5bb-57fb-4408-b29c-1b40bbb900a3",
+        "metadata": {},
+        "phase": 2,
+        "source": {
+          "@type": "propertyestimator.properties.properties.CalculationSource",
+          "fidelity": "SimulationLayer",
+          "provenance": {
+            "027421da-4675-4434-b0e9-cc7221aed70e|assign_parameters": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "027421da-4675-4434-b0e9-cc7221aed70e|assign_parameters",
+              "inputs": {
+                ".allow_merging": true,
+                ".apply_known_charges": true,
+                ".charged_molecule_paths": [],
+                ".coordinate_file_path": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "027421da-4675-4434-b0e9-cc7221aed70e|build_vacuum_coordinates.coordinate_file_path"
+                },
+                ".force_field_path": "working_directory/SimulationLayer/033a2a26-1ccb-42ea-b590-0cb271e26428/force_field_98f0b98c-19de-4f6d-9dbe-4364d5433023",
+                ".substance": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "027421da-4675-4434-b0e9-cc7221aed70e|filter_solute.filtered_substance"
+                },
+                ".water_model": {
+                  "@type": "propertyestimator.protocols.forcefield.BaseBuildSystemProtocol->WaterModel",
+                  "value": "TIP3P"
+                }
+              },
+              "type": "BuildSmirnoffSystem"
+            },
+            "027421da-4675-4434-b0e9-cc7221aed70e|assign_solvated_parameters": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "027421da-4675-4434-b0e9-cc7221aed70e|assign_solvated_parameters",
+              "inputs": {
+                ".allow_merging": true,
+                ".apply_known_charges": true,
+                ".charged_molecule_paths": [],
+                ".coordinate_file_path": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "027421da-4675-4434-b0e9-cc7221aed70e|build_solvated_coordinates.coordinate_file_path"
+                },
+                ".force_field_path": "working_directory/SimulationLayer/033a2a26-1ccb-42ea-b590-0cb271e26428/force_field_98f0b98c-19de-4f6d-9dbe-4364d5433023",
+                ".substance": {
+                  "@type": "propertyestimator.substances.Substance",
+                  "amounts": {
+                    "CCCCO": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->ExactAmount",
+                          "value": 1
+                        }
+                      ]
+                    },
+                    "O": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->MoleFraction",
+                          "value": 1.0
+                        }
+                      ]
+                    }
+                  },
+                  "components": [
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "CCCCO",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solute"
+                      },
+                      "smiles": "CCCCO"
+                    },
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "O",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solvent"
+                      },
+                      "smiles": "O"
+                    }
+                  ]
+                },
+                ".water_model": {
+                  "@type": "propertyestimator.protocols.forcefield.BaseBuildSystemProtocol->WaterModel",
+                  "value": "TIP3P"
+                }
+              },
+              "type": "BuildSmirnoffSystem"
+            },
+            "027421da-4675-4434-b0e9-cc7221aed70e|build_solvated_coordinates": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "027421da-4675-4434-b0e9-cc7221aed70e|build_solvated_coordinates",
+              "inputs": {
+                ".allow_merging": true,
+                ".box_aspect_ratio": [
+                  1.0,
+                  1.0,
+                  1.0
+                ],
+                ".mass_density": {
+                  "@type": "propertyestimator.unit.Quantity",
+                  "unit": "gram / milliliter",
+                  "value": 0.95
+                },
+                ".max_molecules": 2000,
+                ".retain_packmol_files": false,
+                ".substance": {
+                  "@type": "propertyestimator.substances.Substance",
+                  "amounts": {
+                    "CCCCO": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->ExactAmount",
+                          "value": 1
+                        }
+                      ]
+                    },
+                    "O": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->MoleFraction",
+                          "value": 1.0
+                        }
+                      ]
+                    }
+                  },
+                  "components": [
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "CCCCO",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solute"
+                      },
+                      "smiles": "CCCCO"
+                    },
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "O",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solvent"
+                      },
+                      "smiles": "O"
+                    }
+                  ]
+                },
+                ".verbose_packmol": false
+              },
+              "type": "BuildCoordinatesPackmol"
+            },
+            "027421da-4675-4434-b0e9-cc7221aed70e|build_vacuum_coordinates": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "027421da-4675-4434-b0e9-cc7221aed70e|build_vacuum_coordinates",
+              "inputs": {
+                ".allow_merging": true,
+                ".box_aspect_ratio": [
+                  1.0,
+                  1.0,
+                  1.0
+                ],
+                ".mass_density": {
+                  "@type": "propertyestimator.unit.Quantity",
+                  "unit": "gram / milliliter",
+                  "value": 0.95
+                },
+                ".max_molecules": 1,
+                ".retain_packmol_files": false,
+                ".substance": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "027421da-4675-4434-b0e9-cc7221aed70e|filter_solute.filtered_substance"
+                },
+                ".verbose_packmol": false
+              },
+              "type": "BuildCoordinatesPackmol"
+            },
+            "027421da-4675-4434-b0e9-cc7221aed70e|energy_minimisation": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "027421da-4675-4434-b0e9-cc7221aed70e|energy_minimisation",
+              "inputs": {
+                ".allow_merging": true,
+                ".enable_pbc": true,
+                ".input_coordinate_file": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "027421da-4675-4434-b0e9-cc7221aed70e|build_solvated_coordinates.coordinate_file_path"
+                },
+                ".max_iterations": 10,
+                ".system_path": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "027421da-4675-4434-b0e9-cc7221aed70e|assign_solvated_parameters.system_path"
+                },
+                ".tolerance": {
+                  "@type": "propertyestimator.unit.Quantity",
+                  "unit": "kilojoule / mole",
+                  "value": 10.0
+                }
+              },
+              "type": "RunEnergyMinimisation"
+            },
+            "027421da-4675-4434-b0e9-cc7221aed70e|equilibration_simulation": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "027421da-4675-4434-b0e9-cc7221aed70e|equilibration_simulation",
+              "inputs": {
+                ".allow_gpu_platforms": true,
+                ".allow_merging": true,
+                ".enable_pbc": true,
+                ".ensemble": {
+                  "@type": "propertyestimator.thermodynamics.Ensemble",
+                  "value": "NPT"
+                },
+                ".high_precision": false,
+                ".input_coordinate_file": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "027421da-4675-4434-b0e9-cc7221aed70e|energy_minimisation.output_coordinate_file"
+                },
+                ".output_frequency": 10000,
+                ".save_rolling_statistics": true,
+                ".steps": 100000,
+                ".system_path": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "027421da-4675-4434-b0e9-cc7221aed70e|assign_solvated_parameters.system_path"
+                },
+                ".thermodynamic_state": {
+                  "@type": "propertyestimator.thermodynamics.ThermodynamicState",
+                  "pressure": {
+                    "@type": "propertyestimator.unit.Quantity",
+                    "unit": "atmosphere",
+                    "value": 1.0
+                  },
+                  "temperature": {
+                    "@type": "propertyestimator.unit.Quantity",
+                    "unit": "kelvin",
+                    "value": 298.15
+                  }
+                },
+                ".thermostat_friction": {
+                  "@type": "propertyestimator.unit.Quantity",
+                  "unit": "1 / picosecond",
+                  "value": 1.0
+                },
+                ".timestep": {
+                  "@type": "propertyestimator.unit.Quantity",
+                  "unit": "femtosecond",
+                  "value": 2.0
+                }
+              },
+              "type": "RunOpenMMSimulation"
+            },
+            "027421da-4675-4434-b0e9-cc7221aed70e|filter_solute": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "027421da-4675-4434-b0e9-cc7221aed70e|filter_solute",
+              "inputs": {
+                ".allow_merging": true,
+                ".component_role": {
+                  "@type": "propertyestimator.substances.Substance->ComponentRole",
+                  "value": "Solute"
+                },
+                ".expected_components": {
+                  "@type": "propertyestimator.workflow.decorators.UndefinedAttribute"
+                },
+                ".input_substance": {
+                  "@type": "propertyestimator.substances.Substance",
+                  "amounts": {
+                    "CCCCO": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->ExactAmount",
+                          "value": 1
+                        }
+                      ]
+                    },
+                    "O": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->MoleFraction",
+                          "value": 1.0
+                        }
+                      ]
+                    }
+                  },
+                  "components": [
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "CCCCO",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solute"
+                      },
+                      "smiles": "CCCCO"
+                    },
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "O",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solvent"
+                      },
+                      "smiles": "O"
+                    }
+                  ]
+                }
+              },
+              "type": "FilterSubstanceByRole"
+            },
+            "027421da-4675-4434-b0e9-cc7221aed70e|run_solvation_yank": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "027421da-4675-4434-b0e9-cc7221aed70e|run_solvation_yank",
+              "inputs": {
+                ".allow_merging": true,
+                ".checkpoint_interval": 50,
+                ".number_of_equilibration_iterations": 1,
+                ".number_of_iterations": 5000,
+                ".setup_only": false,
+                ".solvated_coordinates": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "027421da-4675-4434-b0e9-cc7221aed70e|equilibration_simulation.output_coordinate_file"
+                },
+                ".solvated_electrostatic_lambdas": [
+                  1.0,
+                  0.75,
+                  0.5,
+                  0.25,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                ".solvated_steric_lambdas": [
+                  1.0,
+                  1.0,
+                  1.0,
+                  1.0,
+                  1.0,
+                  0.95,
+                  0.9,
+                  0.8,
+                  0.7,
+                  0.6,
+                  0.5,
+                  0.4,
+                  0.35,
+                  0.3,
+                  0.25,
+                  0.2,
+                  0.15,
+                  0.1,
+                  0.05,
+                  0.0
+                ],
+                ".solvated_system": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "027421da-4675-4434-b0e9-cc7221aed70e|assign_solvated_parameters.system_path"
+                },
+                ".steps_per_iteration": 500,
+                ".substance": {
+                  "@type": "propertyestimator.substances.Substance",
+                  "amounts": {
+                    "CCCCO": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->ExactAmount",
+                          "value": 1
+                        }
+                      ]
+                    },
+                    "O": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->MoleFraction",
+                          "value": 1.0
+                        }
+                      ]
+                    }
+                  },
+                  "components": [
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "CCCCO",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solute"
+                      },
+                      "smiles": "CCCCO"
+                    },
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "O",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solvent"
+                      },
+                      "smiles": "O"
+                    }
+                  ]
+                },
+                ".thermodynamic_state": {
+                  "@type": "propertyestimator.thermodynamics.ThermodynamicState",
+                  "pressure": {
+                    "@type": "propertyestimator.unit.Quantity",
+                    "unit": "atmosphere",
+                    "value": 1.0
+                  },
+                  "temperature": {
+                    "@type": "propertyestimator.unit.Quantity",
+                    "unit": "kelvin",
+                    "value": 298.15
+                  }
+                },
+                ".timestep": {
+                  "@type": "propertyestimator.unit.Quantity",
+                  "unit": "femtosecond",
+                  "value": 2
+                },
+                ".vacuum_coordinates": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "027421da-4675-4434-b0e9-cc7221aed70e|build_vacuum_coordinates.coordinate_file_path"
+                },
+                ".vacuum_electrostatic_lambdas": [
+                  1.0,
+                  0.75,
+                  0.5,
+                  0.25,
+                  0.0
+                ],
+                ".vacuum_steric_lambdas": [
+                  1.0,
+                  1.0,
+                  1.0,
+                  1.0,
+                  1.0
+                ],
+                ".vacuum_system": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "027421da-4675-4434-b0e9-cc7221aed70e|assign_parameters.system_path"
+                },
+                ".verbose": false
+              },
+              "type": "SolvationYankProtocol"
+            }
+          }
+        },
+        "substance": {
+          "@type": "propertyestimator.substances.Substance",
+          "amounts": {
+            "CCCCO": {
+              "@type": "builtins.frozenset",
+              "value": [
+                {
+                  "@type": "propertyestimator.substances.Substance->ExactAmount",
+                  "value": 1
+                }
+              ]
+            },
+            "O": {
+              "@type": "builtins.frozenset",
+              "value": [
+                {
+                  "@type": "propertyestimator.substances.Substance->MoleFraction",
+                  "value": 1.0
+                }
+              ]
+            }
+          },
+          "components": [
+            {
+              "@type": "propertyestimator.substances.Substance->Component",
+              "label": "CCCCO",
+              "role": {
+                "@type": "propertyestimator.substances.Substance->ComponentRole",
+                "value": "Solute"
+              },
+              "smiles": "CCCCO"
+            },
+            {
+              "@type": "propertyestimator.substances.Substance->Component",
+              "label": "O",
+              "role": {
+                "@type": "propertyestimator.substances.Substance->ComponentRole",
+                "value": "Solvent"
+              },
+              "smiles": "O"
+            }
+          ]
+        },
+        "thermodynamic_state": {
+          "@type": "propertyestimator.thermodynamics.ThermodynamicState",
+          "pressure": {
+            "@type": "propertyestimator.unit.Quantity",
+            "unit": "atmosphere",
+            "value": 1.0
+          },
+          "temperature": {
+            "@type": "propertyestimator.unit.Quantity",
+            "unit": "kelvin",
+            "value": 298.15
+          }
+        },
+        "uncertainty": {
+          "@type": "propertyestimator.unit.Quantity",
+          "unit": "joule / mole",
+          "value": 240.4113661851879
+        },
+        "value": {
+          "@type": "propertyestimator.unit.Quantity",
+          "unit": "joule / mole",
+          "value": -10274.142421007367
+        }
+      }
+    ],
+    "O{1.000000}|c1ccc(cc1)C(=O)N(1)": [
+      {
+        "@type": "propertyestimator.properties.solvation.SolvationFreeEnergy",
+        "gradients": [],
+        "id": "d07dfd44-e9a7-4efe-9523-2b01093cd1cd",
+        "metadata": {},
+        "phase": 2,
+        "source": {
+          "@type": "propertyestimator.properties.properties.CalculationSource",
+          "fidelity": "SimulationLayer",
+          "provenance": {
+            "b44d20df-17ae-420d-a9a1-f134301f7116|assign_parameters": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "b44d20df-17ae-420d-a9a1-f134301f7116|assign_parameters",
+              "inputs": {
+                ".allow_merging": true,
+                ".apply_known_charges": true,
+                ".charged_molecule_paths": [],
+                ".coordinate_file_path": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "b44d20df-17ae-420d-a9a1-f134301f7116|build_vacuum_coordinates.coordinate_file_path"
+                },
+                ".force_field_path": "working_directory/SimulationLayer/0bed0be4-59f9-4bb5-abdb-da51fe8ff982/force_field_98f0b98c-19de-4f6d-9dbe-4364d5433023",
+                ".substance": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "b44d20df-17ae-420d-a9a1-f134301f7116|filter_solute.filtered_substance"
+                },
+                ".water_model": {
+                  "@type": "propertyestimator.protocols.forcefield.BaseBuildSystemProtocol->WaterModel",
+                  "value": "TIP3P"
+                }
+              },
+              "type": "BuildSmirnoffSystem"
+            },
+            "b44d20df-17ae-420d-a9a1-f134301f7116|assign_solvated_parameters": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "b44d20df-17ae-420d-a9a1-f134301f7116|assign_solvated_parameters",
+              "inputs": {
+                ".allow_merging": true,
+                ".apply_known_charges": true,
+                ".charged_molecule_paths": [],
+                ".coordinate_file_path": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "b44d20df-17ae-420d-a9a1-f134301f7116|build_solvated_coordinates.coordinate_file_path"
+                },
+                ".force_field_path": "working_directory/SimulationLayer/0bed0be4-59f9-4bb5-abdb-da51fe8ff982/force_field_98f0b98c-19de-4f6d-9dbe-4364d5433023",
+                ".substance": {
+                  "@type": "propertyestimator.substances.Substance",
+                  "amounts": {
+                    "O": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->MoleFraction",
+                          "value": 1.0
+                        }
+                      ]
+                    },
+                    "c1ccc(cc1)C(=O)N": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->ExactAmount",
+                          "value": 1
+                        }
+                      ]
+                    }
+                  },
+                  "components": [
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "c1ccc(cc1)C(=O)N",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solute"
+                      },
+                      "smiles": "c1ccc(cc1)C(=O)N"
+                    },
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "O",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solvent"
+                      },
+                      "smiles": "O"
+                    }
+                  ]
+                },
+                ".water_model": {
+                  "@type": "propertyestimator.protocols.forcefield.BaseBuildSystemProtocol->WaterModel",
+                  "value": "TIP3P"
+                }
+              },
+              "type": "BuildSmirnoffSystem"
+            },
+            "b44d20df-17ae-420d-a9a1-f134301f7116|build_solvated_coordinates": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "b44d20df-17ae-420d-a9a1-f134301f7116|build_solvated_coordinates",
+              "inputs": {
+                ".allow_merging": true,
+                ".box_aspect_ratio": [
+                  1.0,
+                  1.0,
+                  1.0
+                ],
+                ".mass_density": {
+                  "@type": "propertyestimator.unit.Quantity",
+                  "unit": "gram / milliliter",
+                  "value": 0.95
+                },
+                ".max_molecules": 2000,
+                ".retain_packmol_files": false,
+                ".substance": {
+                  "@type": "propertyestimator.substances.Substance",
+                  "amounts": {
+                    "O": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->MoleFraction",
+                          "value": 1.0
+                        }
+                      ]
+                    },
+                    "c1ccc(cc1)C(=O)N": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->ExactAmount",
+                          "value": 1
+                        }
+                      ]
+                    }
+                  },
+                  "components": [
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "c1ccc(cc1)C(=O)N",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solute"
+                      },
+                      "smiles": "c1ccc(cc1)C(=O)N"
+                    },
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "O",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solvent"
+                      },
+                      "smiles": "O"
+                    }
+                  ]
+                },
+                ".verbose_packmol": false
+              },
+              "type": "BuildCoordinatesPackmol"
+            },
+            "b44d20df-17ae-420d-a9a1-f134301f7116|build_vacuum_coordinates": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "b44d20df-17ae-420d-a9a1-f134301f7116|build_vacuum_coordinates",
+              "inputs": {
+                ".allow_merging": true,
+                ".box_aspect_ratio": [
+                  1.0,
+                  1.0,
+                  1.0
+                ],
+                ".mass_density": {
+                  "@type": "propertyestimator.unit.Quantity",
+                  "unit": "gram / milliliter",
+                  "value": 0.95
+                },
+                ".max_molecules": 1,
+                ".retain_packmol_files": false,
+                ".substance": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "b44d20df-17ae-420d-a9a1-f134301f7116|filter_solute.filtered_substance"
+                },
+                ".verbose_packmol": false
+              },
+              "type": "BuildCoordinatesPackmol"
+            },
+            "b44d20df-17ae-420d-a9a1-f134301f7116|energy_minimisation": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "b44d20df-17ae-420d-a9a1-f134301f7116|energy_minimisation",
+              "inputs": {
+                ".allow_merging": true,
+                ".enable_pbc": true,
+                ".input_coordinate_file": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "b44d20df-17ae-420d-a9a1-f134301f7116|build_solvated_coordinates.coordinate_file_path"
+                },
+                ".max_iterations": 10,
+                ".system_path": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "b44d20df-17ae-420d-a9a1-f134301f7116|assign_solvated_parameters.system_path"
+                },
+                ".tolerance": {
+                  "@type": "propertyestimator.unit.Quantity",
+                  "unit": "kilojoule / mole",
+                  "value": 10.0
+                }
+              },
+              "type": "RunEnergyMinimisation"
+            },
+            "b44d20df-17ae-420d-a9a1-f134301f7116|equilibration_simulation": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "b44d20df-17ae-420d-a9a1-f134301f7116|equilibration_simulation",
+              "inputs": {
+                ".allow_gpu_platforms": true,
+                ".allow_merging": true,
+                ".enable_pbc": true,
+                ".ensemble": {
+                  "@type": "propertyestimator.thermodynamics.Ensemble",
+                  "value": "NPT"
+                },
+                ".high_precision": false,
+                ".input_coordinate_file": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "b44d20df-17ae-420d-a9a1-f134301f7116|energy_minimisation.output_coordinate_file"
+                },
+                ".output_frequency": 10000,
+                ".save_rolling_statistics": true,
+                ".steps": 100000,
+                ".system_path": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "b44d20df-17ae-420d-a9a1-f134301f7116|assign_solvated_parameters.system_path"
+                },
+                ".thermodynamic_state": {
+                  "@type": "propertyestimator.thermodynamics.ThermodynamicState",
+                  "pressure": {
+                    "@type": "propertyestimator.unit.Quantity",
+                    "unit": "atmosphere",
+                    "value": 1.0
+                  },
+                  "temperature": {
+                    "@type": "propertyestimator.unit.Quantity",
+                    "unit": "kelvin",
+                    "value": 298.15
+                  }
+                },
+                ".thermostat_friction": {
+                  "@type": "propertyestimator.unit.Quantity",
+                  "unit": "1 / picosecond",
+                  "value": 1.0
+                },
+                ".timestep": {
+                  "@type": "propertyestimator.unit.Quantity",
+                  "unit": "femtosecond",
+                  "value": 2.0
+                }
+              },
+              "type": "RunOpenMMSimulation"
+            },
+            "b44d20df-17ae-420d-a9a1-f134301f7116|filter_solute": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "b44d20df-17ae-420d-a9a1-f134301f7116|filter_solute",
+              "inputs": {
+                ".allow_merging": true,
+                ".component_role": {
+                  "@type": "propertyestimator.substances.Substance->ComponentRole",
+                  "value": "Solute"
+                },
+                ".expected_components": {
+                  "@type": "propertyestimator.workflow.decorators.UndefinedAttribute"
+                },
+                ".input_substance": {
+                  "@type": "propertyestimator.substances.Substance",
+                  "amounts": {
+                    "O": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->MoleFraction",
+                          "value": 1.0
+                        }
+                      ]
+                    },
+                    "c1ccc(cc1)C(=O)N": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->ExactAmount",
+                          "value": 1
+                        }
+                      ]
+                    }
+                  },
+                  "components": [
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "c1ccc(cc1)C(=O)N",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solute"
+                      },
+                      "smiles": "c1ccc(cc1)C(=O)N"
+                    },
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "O",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solvent"
+                      },
+                      "smiles": "O"
+                    }
+                  ]
+                }
+              },
+              "type": "FilterSubstanceByRole"
+            },
+            "b44d20df-17ae-420d-a9a1-f134301f7116|run_solvation_yank": {
+              "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+              "id": "b44d20df-17ae-420d-a9a1-f134301f7116|run_solvation_yank",
+              "inputs": {
+                ".allow_merging": true,
+                ".checkpoint_interval": 50,
+                ".number_of_equilibration_iterations": 1,
+                ".number_of_iterations": 5000,
+                ".setup_only": false,
+                ".solvated_coordinates": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "b44d20df-17ae-420d-a9a1-f134301f7116|equilibration_simulation.output_coordinate_file"
+                },
+                ".solvated_electrostatic_lambdas": [
+                  1.0,
+                  0.75,
+                  0.5,
+                  0.25,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                ".solvated_steric_lambdas": [
+                  1.0,
+                  1.0,
+                  1.0,
+                  1.0,
+                  1.0,
+                  0.95,
+                  0.9,
+                  0.8,
+                  0.7,
+                  0.6,
+                  0.5,
+                  0.4,
+                  0.35,
+                  0.3,
+                  0.25,
+                  0.2,
+                  0.15,
+                  0.1,
+                  0.05,
+                  0.0
+                ],
+                ".solvated_system": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "b44d20df-17ae-420d-a9a1-f134301f7116|assign_solvated_parameters.system_path"
+                },
+                ".steps_per_iteration": 500,
+                ".substance": {
+                  "@type": "propertyestimator.substances.Substance",
+                  "amounts": {
+                    "O": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->MoleFraction",
+                          "value": 1.0
+                        }
+                      ]
+                    },
+                    "c1ccc(cc1)C(=O)N": {
+                      "@type": "builtins.frozenset",
+                      "value": [
+                        {
+                          "@type": "propertyestimator.substances.Substance->ExactAmount",
+                          "value": 1
+                        }
+                      ]
+                    }
+                  },
+                  "components": [
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "c1ccc(cc1)C(=O)N",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solute"
+                      },
+                      "smiles": "c1ccc(cc1)C(=O)N"
+                    },
+                    {
+                      "@type": "propertyestimator.substances.Substance->Component",
+                      "label": "O",
+                      "role": {
+                        "@type": "propertyestimator.substances.Substance->ComponentRole",
+                        "value": "Solvent"
+                      },
+                      "smiles": "O"
+                    }
+                  ]
+                },
+                ".thermodynamic_state": {
+                  "@type": "propertyestimator.thermodynamics.ThermodynamicState",
+                  "pressure": {
+                    "@type": "propertyestimator.unit.Quantity",
+                    "unit": "atmosphere",
+                    "value": 1.0
+                  },
+                  "temperature": {
+                    "@type": "propertyestimator.unit.Quantity",
+                    "unit": "kelvin",
+                    "value": 298.15
+                  }
+                },
+                ".timestep": {
+                  "@type": "propertyestimator.unit.Quantity",
+                  "unit": "femtosecond",
+                  "value": 2
+                },
+                ".vacuum_coordinates": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "b44d20df-17ae-420d-a9a1-f134301f7116|build_vacuum_coordinates.coordinate_file_path"
+                },
+                ".vacuum_electrostatic_lambdas": [
+                  1.0,
+                  0.75,
+                  0.5,
+                  0.25,
+                  0.0
+                ],
+                ".vacuum_steric_lambdas": [
+                  1.0,
+                  1.0,
+                  1.0,
+                  1.0,
+                  1.0
+                ],
+                ".vacuum_system": {
+                  "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                  "full_path": "b44d20df-17ae-420d-a9a1-f134301f7116|assign_parameters.system_path"
+                },
+                ".verbose": false
+              },
+              "type": "SolvationYankProtocol"
+            }
+          }
+        },
+        "substance": {
+          "@type": "propertyestimator.substances.Substance",
+          "amounts": {
+            "O": {
+              "@type": "builtins.frozenset",
+              "value": [
+                {
+                  "@type": "propertyestimator.substances.Substance->MoleFraction",
+                  "value": 1.0
+                }
+              ]
+            },
+            "c1ccc(cc1)C(=O)N": {
+              "@type": "builtins.frozenset",
+              "value": [
+                {
+                  "@type": "propertyestimator.substances.Substance->ExactAmount",
+                  "value": 1
+                }
+              ]
+            }
+          },
+          "components": [
+            {
+              "@type": "propertyestimator.substances.Substance->Component",
+              "label": "c1ccc(cc1)C(=O)N",
+              "role": {
+                "@type": "propertyestimator.substances.Substance->ComponentRole",
+                "value": "Solute"
+              },
+              "smiles": "c1ccc(cc1)C(=O)N"
+            },
+            {
+              "@type": "propertyestimator.substances.Substance->Component",
+              "label": "O",
+              "role": {
+                "@type": "propertyestimator.substances.Substance->ComponentRole",
+                "value": "Solvent"
+              },
+              "smiles": "O"
+            }
+          ]
+        },
+        "thermodynamic_state": {
+          "@type": "propertyestimator.thermodynamics.ThermodynamicState",
+          "pressure": {
+            "@type": "propertyestimator.unit.Quantity",
+            "unit": "atmosphere",
+            "value": 1.0
+          },
+          "temperature": {
+            "@type": "propertyestimator.unit.Quantity",
+            "unit": "kelvin",
+            "value": 298.15
+          }
+        },
+        "uncertainty": {
+          "@type": "propertyestimator.unit.Quantity",
+          "unit": "joule / mole",
+          "value": 306.2071785852786
+        },
+        "value": {
+          "@type": "propertyestimator.unit.Quantity",
+          "unit": "joule / mole",
+          "value": -45623.37294983081
+        }
+      }
+    ]
+  },
+  "exceptions": [],
+  "id:": "fd0eda45-efbd-4c0b-8e8a-eb1b5119f04d",
+  "queued_properties": {},
+  "unsuccessful_properties": {}
+}
