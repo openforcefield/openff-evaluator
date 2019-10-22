@@ -84,3 +84,37 @@ def test_conditional_protocol_group_fail():
         result = protocol_group.execute(directory, None)
 
         assert isinstance(result, PropertyEstimatorException)
+
+
+def test_conditional_group_self_reference():
+    """Tests that protocols within a conditional group
+    can access the outputs of its parent, such as the
+    current iteration of the group."""
+
+    max_iterations = 10
+    criteria = random.randint(1, max_iterations - 1)
+
+    dummy_group = ConditionalGroup('conditional_group')
+    dummy_group.max_iterations = max_iterations
+
+    dummy_protocol = DummyInputOutputProtocol('protocol_a')
+    dummy_protocol.input_value = ProtocolPath('current_iteration', dummy_group.id)
+
+    dummy_condition_1 = ConditionalGroup.Condition()
+    dummy_condition_1.left_hand_value = ProtocolPath('output_value', dummy_group.id, dummy_protocol.id)
+    dummy_condition_1.right_hand_value = criteria
+    dummy_condition_1.type = ConditionalGroup.ConditionType.GreaterThan
+
+    dummy_condition_2 = ConditionalGroup.Condition()
+    dummy_condition_2.left_hand_value = ProtocolPath('current_iteration', dummy_group.id)
+    dummy_condition_2.right_hand_value = criteria
+    dummy_condition_2.type = ConditionalGroup.ConditionType.GreaterThan
+
+    dummy_group.add_protocols(dummy_protocol)
+    dummy_group.add_condition(dummy_condition_1)
+    dummy_group.add_condition(dummy_condition_2)
+
+    with tempfile.TemporaryDirectory() as directory:
+
+        assert not isinstance(dummy_group.execute(directory, None), PropertyEstimatorException)
+        assert dummy_protocol.output_value == criteria + 1

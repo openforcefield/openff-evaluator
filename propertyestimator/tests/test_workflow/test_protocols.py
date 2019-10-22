@@ -176,7 +176,7 @@ def test_base_simulation_protocols():
 
         npt_equilibration.ensemble = Ensemble.NPT
 
-        npt_equilibration.steps = 20  # Debug settings.
+        npt_equilibration.steps_per_iteration = 20  # Debug settings.
         npt_equilibration.output_frequency = 2  # Debug settings.
 
         npt_equilibration.thermodynamic_state = thermodynamic_state

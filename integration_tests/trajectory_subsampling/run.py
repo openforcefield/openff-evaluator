@@ -38,7 +38,7 @@ def generate_trajectories():
     logger.info('System built.')
 
     production_simulation = RunOpenMMSimulation(f'production_simulation')
-    production_simulation.steps = 500
+    production_simulation.steps_per_iteration = 500
     production_simulation.output_frequency = 1
     production_simulation.timestep = 2.0 * unit.femtosecond
     production_simulation.thermodynamic_state = ThermodynamicState(temperature=298.15*unit.kelvin,

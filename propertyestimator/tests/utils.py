@@ -118,7 +118,7 @@ def create_debug_density_workflow(max_molecules=128,
     npt_equilibration = simulation.RunOpenMMSimulation('')
     npt_equilibration.schema = density_workflow_schema.protocols['npt_equilibration']
 
-    npt_equilibration.steps = equilibration_steps
+    npt_equilibration.steps_per_iteration = equilibration_steps
     npt_equilibration.output_frequency = equilibration_frequency
 
     density_workflow_schema.protocols['npt_equilibration'] = npt_equilibration.schema
@@ -126,7 +126,7 @@ def create_debug_density_workflow(max_molecules=128,
     converge_uncertainty = groups.ConditionalGroup('')
     converge_uncertainty.schema = density_workflow_schema.protocols['converge_uncertainty']
 
-    converge_uncertainty.protocols['npt_production'].steps = production_steps
+    converge_uncertainty.protocols['npt_production'].steps_per_iteration = production_steps
     converge_uncertainty.protocols['npt_production'].output_frequency = production_frequency
 
     density_workflow_schema.protocols['converge_uncertainty'] = converge_uncertainty.schema

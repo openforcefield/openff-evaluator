@@ -1,26 +1,26 @@
 """
 A collection of protocols for running molecular simulations.
 """
+import io
+import json
 import logging
-import math
 import os
-import shutil
+import re
 import traceback
 
-import numpy as np
+import pandas as pd
+from simtk import openmm, unit as simtk_unit
+from simtk.openmm import app
 
 from propertyestimator import unit
 from propertyestimator.thermodynamics import ThermodynamicState, Ensemble
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.openmm import setup_platform_with_resources, openmm_quantity_to_pint, \
-    pint_quantity_to_openmm, disable_pbc
+from propertyestimator.utils.openmm import setup_platform_with_resources, pint_quantity_to_openmm, disable_pbc
+from propertyestimator.utils.serialization import TypedJSONEncoder, TypedJSONDecoder
 from propertyestimator.utils.statistics import StatisticsArray, ObservableType
-from propertyestimator.utils.utils import safe_unlink
 from propertyestimator.workflow.decorators import protocol_input, protocol_output, InequalityMergeBehaviour, UNDEFINED
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
-from simtk import openmm, unit as simtk_unit
-from simtk.openmm import app
 
 
 @register_calculation_protocol()
@@ -117,12 +117,80 @@ class RunOpenMMSimulation(BaseProtocol):
     """Performs a molecular dynamics simulation in a given ensemble using
     an OpenMM backend.
     """
+    class _Checkpoint:
+        """A temporary checkpoint file which keeps track
+        of the parts of the simulation state not stored in
+        the checkpoint state xml file.
+        """
 
-    steps = protocol_input(
-        docstring='The number of timesteps to evolve the system by.',
+        def __init__(self, output_frequency=-1, checkpoint_frequency=-1,
+                     steps_per_iteration=-1, current_step_number=0):
+
+            self.output_frequency = output_frequency
+            self.checkpoint_frequency = checkpoint_frequency
+            self.steps_per_iteration = steps_per_iteration
+            self.current_step_number = current_step_number
+
+        def __getstate__(self):
+            return {
+                'output_frequency': self.output_frequency,
+                'checkpoint_frequency': self.checkpoint_frequency,
+                'steps_per_iteration': self.steps_per_iteration,
+                'current_step_number': self.current_step_number
+            }
+
+        def __setstate__(self, state):
+            self.output_frequency = state['output_frequency']
+            self.checkpoint_frequency = state['checkpoint_frequency']
+            self.steps_per_iteration = state['steps_per_iteration']
+            self.current_step_number = state['current_step_number']
+
+    class _Simulation:
+        """A fake simulation class to use with the
+        openmm file reporters.
+        """
+
+        def __init__(self, integrator, topology, system, current_step):
+            self.integrator = integrator
+            self.topology = topology
+            self.system = system
+            self.currentStep = current_step
+
+    steps_per_iteration = protocol_input(
+        docstring='The number of steps to propogate the system by at '
+                  'each iteration. The total number of steps performed '
+                  'by this protocol will be `total_number_of_iterations * '
+                  'steps_per_iteration`.',
         type_hint=int, merge_behavior=InequalityMergeBehaviour.LargestValue,
         default_value=1000000
     )
+    total_number_of_iterations = protocol_input(
+        docstring='The number of times to propogate the system forward by the '
+                  '`steps_per_iteration` number of steps. The total number of '
+                  'steps performed by this protocol will be `total_number_of_iterations * '
+                  'steps_per_iteration`.',
+        type_hint=int, merge_behavior=InequalityMergeBehaviour.LargestValue,
+        default_value=1
+    )
+
+    output_frequency = protocol_input(
+        docstring='The frequency (in number of steps) with which to write to the '
+                  'output statistics and trajectory files.',
+        type_hint=int,
+        merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        default_value=3000
+    )
+    checkpoint_frequency = protocol_input(
+        docstring='The frequency (in multiples of `output_frequency`) with which to '
+                  'write to a checkpoint file, e.g. if `output_frequency=100` and '
+                  '`checkpoint_frequency==2`, a checkpoint file would be saved every '
+                  '200 steps.',
+        type_hint=int,
+        merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        optional=True,
+        default_value=10
+    )
+
     timestep = protocol_input(
         docstring='The timestep to evolve the system by at each step.',
         type_hint=unit.Quantity, merge_behavior=InequalityMergeBehaviour.SmallestValue,
@@ -146,13 +214,6 @@ class RunOpenMMSimulation(BaseProtocol):
         default_value=1.0 / unit.picoseconds
     )
 
-    output_frequency = protocol_input(
-        docstring='The frequency with which to write to the output statistics and '
-                  'trajectory files.',
-        type_hint=int, merge_behavior=InequalityMergeBehaviour.SmallestValue,
-        default_value=3000
-    )
-
     input_coordinate_file = protocol_input(
         docstring='The file path to the starting coordinates.',
         type_hint=str,
@@ -167,14 +228,6 @@ class RunOpenMMSimulation(BaseProtocol):
 
     enable_pbc = protocol_input(
         docstring='If true, periodic boundary conditions will be enabled.',
-        type_hint=bool,
-        default_value=True
-    )
-
-    save_rolling_statistics = protocol_input(
-        docstring='If True, the statistics file will be written to every '
-                  '`output_frequency` number of steps, rather than just once at '
-                  'the end of the simulation.',
         type_hint=bool,
         default_value=True
     )
@@ -210,10 +263,11 @@ class RunOpenMMSimulation(BaseProtocol):
 
         super().__init__(protocol_id)
 
-        self._temporary_statistics_path = None
-        self._temporary_trajectory_path = None
-
         self._checkpoint_path = None
+        self._state_path = None
+
+        self._local_trajectory_path = None
+        self._local_statistics_path = None
 
         self._context = None
         self._integrator = None
@@ -221,17 +275,19 @@ class RunOpenMMSimulation(BaseProtocol):
     def execute(self, directory, available_resources):
 
         # We handle most things in OMM units here.
-        temperature = pint_quantity_to_openmm(self.thermodynamic_state.temperature)
-        pressure = pint_quantity_to_openmm(None if self.ensemble == Ensemble.NVT else
-                                           self.thermodynamic_state.pressure)
+        temperature = self.thermodynamic_state.temperature
+        openmm_temperature = pint_quantity_to_openmm(temperature)
 
-        if temperature is None:
+        pressure = None if self.ensemble == Ensemble.NVT else self.thermodynamic_state.pressure
+        openmm_pressure = pint_quantity_to_openmm(pressure)
+
+        if openmm_temperature is None:
 
             return PropertyEstimatorException(directory=directory,
                                               message='A temperature must be set to perform '
                                                       'a simulation in any ensemble')
 
-        if Ensemble(self.ensemble) == Ensemble.NPT and pressure is None:
+        if Ensemble(self.ensemble) == Ensemble.NPT and openmm_pressure is None:
 
             return PropertyEstimatorException(directory=directory,
                                               message='A pressure must be set to perform an NPT simulation')
@@ -243,29 +299,44 @@ class RunOpenMMSimulation(BaseProtocol):
 
         logging.info('Performing a simulation in the ' + str(self.ensemble) + ' ensemble: ' + self.id)
 
-        # Clean up any temporary files from previous (possibly failed)
-        # simulations.
-        self._temporary_statistics_path = os.path.join(directory, 'temp_statistics.csv')
-        self._temporary_trajectory_path = os.path.join(directory, 'temp_trajectory.dcd')
+        # Set up the internal file paths
+        self._checkpoint_path = os.path.join(directory, 'checkpoint.json')
+        self._state_path = os.path.join(directory, 'checkpoint_state.xml')
 
-        safe_unlink(self._temporary_statistics_path)
-        safe_unlink(self._temporary_trajectory_path)
-
-        self._checkpoint_path = os.path.join(directory, 'checkpoint.xml')
-
-        # Set up the output file paths
-        self.trajectory_file_path = os.path.join(directory, 'trajectory.dcd')
-        self.statistics_file_path = os.path.join(directory, 'statistics.csv')
+        self._local_trajectory_path = os.path.join(directory, 'trajectory.dcd')
+        self._local_statistics_path = os.path.join(directory, 'openmm_statistics.csv')
 
         # Set up the simulation objects.
         if self._context is None or self._integrator is None:
 
-            self._context, self._integrator = self._setup_simulation_objects(temperature,
-                                                                             pressure,
+            self._context, self._integrator = self._setup_simulation_objects(openmm_temperature,
+                                                                             openmm_pressure,
                                                                              available_resources)
 
-        result = self._simulate(directory, temperature, pressure, self._context, self._integrator)
-        return result
+        # Save a copy of the starting configuration if it doesn't already exist
+        local_input_coordinate_path = os.path.join(directory, 'input.pdb')
+
+        if not os.path.isfile(local_input_coordinate_path):
+
+            input_pdb_file = app.PDBFile(self.input_coordinate_file)
+
+            with open(local_input_coordinate_path, 'w+') as configuration_file:
+                app.PDBFile.writeFile(input_pdb_file.topology, input_pdb_file.positions, configuration_file)
+
+        # Run the simulation.
+        result = self._simulate(directory, self._context, self._integrator)
+
+        if isinstance(result, PropertyEstimatorException):
+            return result
+
+        # Set the output paths.
+        self.trajectory_file_path = self._local_trajectory_path
+        self.statistics_file_path = os.path.join(directory, 'statistics.csv')
+
+        # Save out the final statistics in the property estimator format
+        self._save_final_statistics(self.statistics_file_path, temperature, pressure)
+
+        return self._get_output_dictionary()
 
     def _setup_simulation_objects(self, temperature, pressure, available_resources):
         """Initializes the objects needed to perform the simulation.
@@ -332,118 +403,255 @@ class RunOpenMMSimulation(BaseProtocol):
         context = openmm.Context(system, integrator, platform)
 
         # Initialize the context with the correct positions etc.
-        if os.path.isfile(self._checkpoint_path):
+        input_pdb_file = app.PDBFile(self.input_coordinate_file)
 
-            # Load the simulation state from a checkpoint file.
-            logging.info(f'Loading the checkpoint from {self._checkpoint_path}.')
+        if self.enable_pbc:
 
-            with open(self._checkpoint_path, 'r') as file:
-                checkpoint_state = XmlSerializer.deserialize(file.read())
+            # Optionally set up the box vectors.
+            box_vectors = input_pdb_file.topology.getPeriodicBoxVectors()
 
-            context.setState(checkpoint_state)
+            if box_vectors is None:
 
-        else:
+                raise ValueError('The input file must contain box vectors '
+                                 'when running with PBC.')
 
-            logging.info(f'No checkpoint file was found at {self._checkpoint_path}.')
+            context.setPeriodicBoxVectors(*box_vectors)
 
-            # Populate the simulation object from the starting input files.
-            input_pdb_file = app.PDBFile(self.input_coordinate_file)
-
-            if self.enable_pbc:
-
-                # Optionally set up the box vectors.
-                box_vectors = input_pdb_file.topology.getPeriodicBoxVectors()
-
-                if box_vectors is None:
-
-                    raise ValueError('The input file must contain box vectors '
-                                     'when running with PBC.')
-
-                context.setPeriodicBoxVectors(*box_vectors)
-
-            context.setPositions(input_pdb_file.positions)
-            context.setVelocitiesToTemperature(temperature)
+        context.setPositions(input_pdb_file.positions)
+        context.setVelocitiesToTemperature(temperature)
 
         return context, integrator
 
-    def _write_statistics_array(self, raw_statistics, current_step, temperature, pressure,
-                                degrees_of_freedom, total_mass):
-        """Appends a set of statistics to an existing `statistics_array`.
-        Those statistics are potential energy, kinetic energy, total energy,
-        volume, density and reduced potential.
+    def _write_checkpoint_file(self, current_step_number, context):
+        """Writes a simulation checkpoint file to disk.
 
         Parameters
         ----------
-        raw_statistics: dict of ObservableType and numpy.ndarray
-            A dictionary of potential energies (kJ/mol), kinetic
-            energies (kJ/mol) and volumes (angstrom**3).
-        current_step: int
-            The index of the current step.
-        temperature: simtk.unit.Quantity
-            The temperature the system is being simulated at.
-        pressure: simtk.unit.Quantity
-            The pressure the system is being simulated at.
-        degrees_of_freedom: int
-            The number of degrees of freedom the system has.
-        total_mass: simtk.unit.Quantity
-            The total mass of the system.
+        current_step_number: int
+            The total number of steps which have been taken so
+            far.
+        context: simtk.openmm.Context
+            The current OpenMM context.
+        """
+
+        # Write the current state to disk
+        state = context.getState(getPositions=True,
+                                 getEnergy=True,
+                                 getVelocities=True,
+                                 getForces=True,
+                                 getParameters=True,
+                                 enforcePeriodicBox=self.enable_pbc)
+
+        with open(self._state_path, 'w') as file:
+            file.write(openmm.XmlSerializer.serialize(state))
+
+        checkpoint = self._Checkpoint(self.output_frequency, self.checkpoint_frequency,
+                                      self.steps_per_iteration, current_step_number)
+
+        with open(self._checkpoint_path, 'w') as file:
+            json.dump(checkpoint, file, cls=TypedJSONEncoder)
+
+    def _truncate_statistics_file(self, number_of_frames):
+        """Truncates the statistics file to the specified number
+        of frames.
+
+        Parameters
+        ----------
+        number_of_frames: int
+            The number of frames to truncate to.
+        """
+        with open(self._local_statistics_path) as file:
+
+            header_line = file.readline()
+            file_contents = re.sub('#.*\n', '', file.read())
+
+            with io.StringIO(file_contents) as string_object:
+                existing_statistics_array = pd.read_csv(string_object, index_col=False, header=None)
+
+        statistics_length = len(existing_statistics_array)
+
+        if statistics_length < number_of_frames:
+
+            raise ValueError(f'The saved number of statistics frames ({statistics_length}) '
+                             f'is less than expected ({number_of_frames}).')
+
+        elif statistics_length == number_of_frames:
+            return
+
+        truncated_statistics_array = existing_statistics_array[0:number_of_frames]
+
+        with open(self._local_statistics_path, 'w') as file:
+
+            file.write(f'{header_line}')
+            truncated_statistics_array.to_csv(file, index=False, header=False)
+
+    def _truncate_trajectory_file(self, number_of_frames):
+        """Truncates the trajectory file to the specified number
+        of frames.
+
+        Parameters
+        ----------
+        number_of_frames: int
+            The number of frames to truncate to.
+        """
+        import mdtraj
+        from mdtraj.formats.dcd import DCDTrajectoryFile
+        from mdtraj.utils import in_units_of
+
+        # Load in the required topology object.
+        topology = mdtraj.load_topology(self.input_coordinate_file)
+
+        # Parse the internal mdtraj distance unit. While private access is
+        # undesirable, this is never publicly defined and I believe this
+        # route to be preferable over hard coding this unit here.
+        base_distance_unit = mdtraj.Trajectory._distance_unit
+
+        # Get an accurate measurement of the length of the trajectory
+        # without reading it into memory.
+        trajectory_length = 0
+
+        for chunk in mdtraj.iterload(self._local_trajectory_path, top=topology):
+            trajectory_length += len(chunk)
+
+        # Make sure there is at least the expected number of frames.
+        if trajectory_length < number_of_frames:
+
+            raise ValueError(f'The saved number of trajectory frames ({trajectory_length}) '
+                             f'is less than expected ({number_of_frames}).')
+
+        elif trajectory_length == number_of_frames:
+            return
+
+        # Truncate the trajectory by streaming one frame of the trajectory at
+        # a time.
+        temporary_trajectory_path = f'{self._local_trajectory_path}.tmp'
+
+        with DCDTrajectoryFile(self._local_trajectory_path, 'r') as input_file:
+
+            with DCDTrajectoryFile(temporary_trajectory_path, 'w') as output_file:
+
+                for frame_index in range(0, number_of_frames):
+
+                    frame = input_file.read_as_traj(topology, n_frames=1, stride=1)
+
+                    output_file.write(
+                        xyz=in_units_of(frame.xyz, base_distance_unit, output_file.distance_unit),
+                        cell_lengths=in_units_of(frame.unitcell_lengths, base_distance_unit,
+                                                 output_file.distance_unit),
+                        cell_angles=frame.unitcell_angles[0]
+                    )
+
+        os.replace(temporary_trajectory_path, self._local_trajectory_path)
+
+        # Do a sanity check to make sure the trajectory was successfully truncated.
+        new_trajectory_length = 0
+
+        for chunk in mdtraj.iterload(self._local_trajectory_path, top=self.input_coordinate_file):
+            new_trajectory_length += len(chunk)
+
+        if new_trajectory_length != number_of_frames:
+            raise ValueError('The trajectory was incorrectly truncated.')
+
+    def _resume_from_checkpoint(self, context):
+        """Resumes the simulation from a checkpoint file.
+
+        Parameters
+        ----------
+        context: simtk.openmm.Context
+            The current OpenMM context.
 
         Returns
         -------
-        StatisticsArray
-            The statistics array with statistics appended.
+        int
+            The current step number.
         """
-        temperature = openmm_quantity_to_pint(temperature)
-        pressure = openmm_quantity_to_pint(pressure)
+        current_step_number = 0
 
-        beta = 1.0 / (unit.boltzmann_constant * temperature)
+        # Check whether the checkpoint files actually exists.
+        if (not os.path.isfile(self._checkpoint_path) or
+            not os.path.isfile(self._state_path)):
 
-        raw_potential_energies = raw_statistics[ObservableType.PotentialEnergy][0:current_step + 1]
-        raw_kinetic_energies = raw_statistics[ObservableType.KineticEnergy][0:current_step + 1]
-        raw_volumes = raw_statistics[ObservableType.Volume][0:current_step + 1]
+            logging.info('No checkpoint files were found.')
+            return current_step_number
 
-        potential_energies = raw_potential_energies * unit.kilojoules / unit.mole
-        kinetic_energies = raw_kinetic_energies * unit.kilojoules / unit.mole
-        volumes = raw_volumes * unit.angstrom ** 3
+        if (not os.path.isfile(self._local_statistics_path) or
+            not os.path.isfile(self._local_trajectory_path)):
 
-        # Calculate the instantaneous temperature, taking account the
-        # systems degrees of freedom.
-        temperatures = 2.0 * kinetic_energies / (degrees_of_freedom * unit.molar_gas_constant)
+            raise ValueError('Checkpoint files were correctly found, but the trajectory '
+                             'or statistics files seem to be missing. This should not happen.')
 
-        # Calculate the systems enthalpy and reduced potential.
-        total_energies = potential_energies + kinetic_energies
-        enthalpies = None
+        logging.info('Restoring the system state from checkpoint files.')
 
-        reduced_potentials = potential_energies / unit.avogadro_number
+        # If they do, load the current state from disk.
+        with open(self._state_path, 'r') as file:
+            current_state = openmm.XmlSerializer.deserialize(file.read())
+
+        with open(self._checkpoint_path, 'r') as file:
+            checkpoint = json.load(file, cls=TypedJSONDecoder)
+
+        if (self.output_frequency != checkpoint.output_frequency or
+            self.checkpoint_frequency != checkpoint.checkpoint_frequency or
+            self.steps_per_iteration != checkpoint.steps_per_iteration):
+
+            raise ValueError('Neither the output frequency, the checkpoint '
+                             'frequency, nor the steps per iteration can '
+                             'currently be changed during the course of the '
+                             'simulation. Only the number of iterations is '
+                             'allowed to change.')
+
+        # Make sure this simulation hasn't already finished.
+        total_expected_number_of_steps = self.total_number_of_iterations * self.steps_per_iteration
+
+        if checkpoint.current_step_number == total_expected_number_of_steps:
+            return checkpoint.current_step_number
+
+        context.setState(current_state)
+
+        # Make sure that the number of frames in the trajectory /
+        # statistics file correspond to the recorded number of steps.
+        # This is to handle possible cases where only some of the files
+        # have been written from the current step (i.e only the trajectory may
+        # have been written to before this protocol gets unexpectedly killed.
+        expected_number_of_frames = int(checkpoint.current_step_number / self.output_frequency)
+
+        # Handle the truncation of the statistics file.
+        self._truncate_statistics_file(expected_number_of_frames)
+
+        # Handle the truncation of the trajectory file.
+        self._truncate_trajectory_file(expected_number_of_frames)
+
+        logging.info('System state restored from checkpoint files.')
+
+        return checkpoint.current_step_number
+
+    def _save_final_statistics(self, path, temperature, pressure):
+        """Converts the openmm statistic csv file into a propertyestimator
+        StatisticsArray csv file, making sure to fill in any missing entries.
+
+        Parameters
+        ----------
+        path: str
+            The path to save the statistics to.
+        temperature: unit.Quantity
+            The temperature that the simulation is being run at.
+        pressure: unit.Quantity
+            The pressure that the simulation is being run at.
+        """
+        statistics = StatisticsArray.from_openmm_csv(self._local_statistics_path, pressure)
+
+        reduced_potentials = statistics[ObservableType.PotentialEnergy] / unit.avogadro_number
 
         if pressure is not None:
 
-            pv_terms = pressure * volumes
-
+            pv_terms = pressure * statistics[ObservableType.Volume]
             reduced_potentials += pv_terms
-            enthalpies = total_energies + pv_terms * unit.avogadro_number
 
-        reduced_potentials = (beta * reduced_potentials) * unit.dimensionless
+        beta = 1.0 / (unit.boltzmann_constant * temperature)
+        statistics[ObservableType.ReducedPotential] = (beta * reduced_potentials).to(unit.dimensionless)
 
-        # Calculate the systems density.
-        densities = total_mass / (volumes * unit.avogadro_number)
+        statistics.to_pandas_csv(path)
 
-        statistics_array = StatisticsArray()
-
-        statistics_array[ObservableType.PotentialEnergy] = potential_energies
-        statistics_array[ObservableType.KineticEnergy] = kinetic_energies
-        statistics_array[ObservableType.TotalEnergy] = total_energies
-        statistics_array[ObservableType.Temperature] = temperatures
-        statistics_array[ObservableType.Volume] = volumes
-        statistics_array[ObservableType.Density] = densities
-        statistics_array[ObservableType.ReducedPotential] = reduced_potentials
-
-        if enthalpies is not None:
-            statistics_array[ObservableType.Enthalpy] = enthalpies
-
-        statistics_array.to_pandas_csv(self._temporary_statistics_path)
-
-    def _simulate(self, directory, temperature, pressure, context, integrator):
+    def _simulate(self, directory, context, integrator):
         """Performs the simulation using a given context
         and integrator.
 
@@ -451,87 +659,57 @@ class RunOpenMMSimulation(BaseProtocol):
         ----------
         directory: str
             The directory the trajectory is being run in.
-        temperature: simtk.unit.Quantity
-            The temperature to run the simulation at.
-        pressure: simtk.unit.Quantity
-            The pressure to run the simulation at.
         context: simtk.openmm.Context
             The OpenMM context to run with.
         integrator: simtk.openmm.Integrator
             The integrator to evolve the simulation with.
         """
 
+        # Define how many steps should be taken.
+        total_number_of_steps = self.total_number_of_iterations * self.steps_per_iteration
+
+        # Try to load the current state from any available checkpoint information
+        current_step = self._resume_from_checkpoint(context)
+
+        if current_step == total_number_of_steps:
+            return None
+
         # Build the reporters which we will use to report the state
         # of the simulation.
-        input_pdb_file = app.PDBFile(self.input_coordinate_file)
-        topology = input_pdb_file.topology
+        append_trajectory = os.path.isfile(self._local_trajectory_path)
+        dcd_reporter = app.DCDReporter(self._local_trajectory_path, 0, append_trajectory)
 
-        with open(os.path.join(directory, 'input.pdb'), 'w+') as configuration_file:
-            app.PDBFile.writeFile(input_pdb_file.topology, input_pdb_file.positions, configuration_file)
+        statistics_file = open(self._local_statistics_path, 'a+')
 
-        # Make a copy of the existing trajectory to append to if one already exists.
-        append_trajectory = False
+        statistics_reporter = app.StateDataReporter(statistics_file, 0,
+                                                    step=True,
+                                                    potentialEnergy=True,
+                                                    kineticEnergy=True,
+                                                    totalEnergy=True,
+                                                    temperature=True,
+                                                    volume=True,
+                                                    density=True)
 
-        if os.path.isfile(self.trajectory_file_path):
+        # Create the object which will transfer simulation output to the
+        # reporters.
+        topology = app.PDBFile(self.input_coordinate_file).topology
 
-            shutil.copyfile(self.trajectory_file_path, self._temporary_trajectory_path)
-            append_trajectory = True
+        with open(self.system_path, 'r') as file:
+            system = openmm.XmlSerializer.deserialize(file.read())
 
-        elif os.path.isfile(self._temporary_trajectory_path):
-            os.unlink(self._temporary_trajectory_path)
-
-        if append_trajectory:
-            trajectory_file_object = open(self._temporary_trajectory_path, 'r+b')
-        else:
-            trajectory_file_object = open(self._temporary_trajectory_path, 'w+b')
-
-        trajectory_dcd_object = app.DCDFile(trajectory_file_object,
-                                            topology,
-                                            integrator.getStepSize(),
-                                            0,
-                                            self.output_frequency,
-                                            append_trajectory)
-
-        expected_number_of_statistics = math.ceil(self.steps / self.output_frequency)
-
-        raw_statistics = {
-            ObservableType.PotentialEnergy: np.zeros(expected_number_of_statistics),
-            ObservableType.KineticEnergy: np.zeros(expected_number_of_statistics),
-            ObservableType.Volume: np.zeros(expected_number_of_statistics),
-        }
-
-        # Define any constants needed for extracting system statistics
-        # Compute the instantaneous temperature of degrees of freedom.
-        # This snipped is taken from the build in OpenMM `StateDataReporter`
-        system = context.getSystem()
-
-        degrees_of_freedom = sum([3 for i in range(system.getNumParticles()) if
-                                  system.getParticleMass(i) > 0 * simtk_unit.dalton])
-
-        degrees_of_freedom -= system.getNumConstraints()
-
-        if any(type(system.getForce(i)) == openmm.CMMotionRemover for i in range(system.getNumForces())):
-            degrees_of_freedom -= 3
-
-        total_mass = 0.0 * simtk_unit.dalton
-
-        for i in range(system.getNumParticles()):
-            total_mass += system.getParticleMass(i)
-
-        total_mass = openmm_quantity_to_pint(total_mass)
+        simulation = self._Simulation(integrator, topology, system, current_step)
 
         # Perform the simulation.
-        current_step_count = 0
-        current_step = 0
-
-        result = None
+        checkpoint_counter = 0
 
         try:
 
-            while current_step_count < self.steps:
+            while current_step < total_number_of_steps:
 
-                steps_to_take = min(self.output_frequency, self.steps - current_step_count)
+                steps_to_take = min(self.output_frequency, total_number_of_steps - current_step)
                 integrator.step(steps_to_take)
+
+                current_step += steps_to_take
 
                 state = context.getState(getPositions=True,
                                          getEnergy=True,
@@ -540,88 +718,32 @@ class RunOpenMMSimulation(BaseProtocol):
                                          getParameters=False,
                                          enforcePeriodicBox=self.enable_pbc)
 
-                # Write out the current frame of the trajectory.
-                trajectory_dcd_object.writeModel(positions=state.getPositions(),
-                                                 periodicBoxVectors=state.getPeriodicBoxVectors())
+                simulation.currentStep = current_step
 
-                # Write out the energies and system statistics.
-                raw_statistics[ObservableType.PotentialEnergy][current_step] = \
-                    state.getPotentialEnergy().value_in_unit(simtk_unit.kilojoules_per_mole)
-                raw_statistics[ObservableType.KineticEnergy][current_step] = \
-                    state.getKineticEnergy().value_in_unit(simtk_unit.kilojoules_per_mole)
-                raw_statistics[ObservableType.Volume][current_step] = \
-                    state.getPeriodicBoxVolume().value_in_unit(simtk_unit.angstrom ** 3)
+                # Write out the current state using the reporters.
+                dcd_reporter.report(simulation, state)
+                statistics_reporter.report(simulation, state)
 
-                if self.save_rolling_statistics:
+                if checkpoint_counter >= self.checkpoint_frequency:
+                    # Save to the checkpoint file if needed.
+                    self._write_checkpoint_file(current_step, context)
+                    checkpoint_counter = 0
 
-                    self._write_statistics_array(raw_statistics, current_step, temperature,
-                                                 pressure, degrees_of_freedom, total_mass)
-
-                current_step_count += steps_to_take
-                current_step += 1
+                checkpoint_counter += 1
 
         except Exception as e:
 
             formatted_exception = f'{traceback.format_exception(None, e, e.__traceback__)}'
 
-            result = PropertyEstimatorException(directory=directory,
-                                                message=f'The simulation failed unexpectedly: '
-                                                        f'{formatted_exception}')
-
-        # Create a checkpoint file.
-        state = context.getState(getPositions=True,
-                                 getEnergy=True,
-                                 getVelocities=True,
-                                 getForces=True,
-                                 getParameters=True,
-                                 enforcePeriodicBox=self.enable_pbc)
-
-        state_xml = openmm.XmlSerializer.serialize(state)
-
-        with open(self._checkpoint_path, 'w') as file:
-            file.write(state_xml)
-
-        # Make sure to close the open trajectory stream.
-        trajectory_file_object.close()
-
-        # Save the final statistics
-        self._write_statistics_array(raw_statistics, current_step, temperature,
-                                     pressure, degrees_of_freedom, total_mass)
-
-        if isinstance(result, PropertyEstimatorException):
-            return result
-
-        # Create a checkpoint file.
-        state = context.getState(getPositions=True,
-                                 getEnergy=True,
-                                 getVelocities=False,
-                                 getForces=False,
-                                 getParameters=False,
-                                 enforcePeriodicBox=self.enable_pbc)
-
-        state_xml = openmm.XmlSerializer.serialize(state)
-
-        with open(self._checkpoint_path, 'w') as file:
-            file.write(state_xml)
-
-        # Move the trajectory and statistics files to their
-        # final location.
-        os.replace(self._temporary_trajectory_path, self.trajectory_file_path)
-
-        if not os.path.isfile(self.statistics_file_path):
-            os.replace(self._temporary_statistics_path, self.statistics_file_path)
-        else:
-
-            existing_statistics = StatisticsArray.from_pandas_csv(self.statistics_file_path)
-            current_statistics = StatisticsArray.from_pandas_csv(self._temporary_statistics_path)
-
-            concatenated_statistics = StatisticsArray.join(existing_statistics,
-                                                           current_statistics)
-
-            concatenated_statistics.to_pandas_csv(self.statistics_file_path)
+            return PropertyEstimatorException(directory=directory,
+                                              message=f'The simulation failed unexpectedly: '
+                                                      f'{formatted_exception}')
 
         # Save out the final positions.
+        self._write_checkpoint_file(current_step, context)
+
         final_state = context.getState(getPositions=True)
+
         positions = final_state.getPositions()
         topology.setPeriodicBoxVectors(final_state.getPeriodicBoxVectors())
 
@@ -631,4 +753,4 @@ class RunOpenMMSimulation(BaseProtocol):
             app.PDBFile.writeFile(topology, positions, configuration_file)
 
         logging.info(f'Simulation performed in the {str(self.ensemble)} ensemble: {self._id}')
-        return self._get_output_dictionary()
+        return None
