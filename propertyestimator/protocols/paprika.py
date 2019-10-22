@@ -861,7 +861,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                 energy_minimisation.system_path = window_system_path
 
                 npt_equilibration = simulation.RunOpenMMSimulation('npt_equilibration')
-                npt_equilibration.steps = number_of_equilibration_steps
+                npt_equilibration.steps_per_iteration = number_of_equilibration_steps
                 npt_equilibration.output_frequency = equilibration_output_frequency
                 npt_equilibration.timestep = timestep
                 npt_equilibration.ensemble = Ensemble.NPT
@@ -872,7 +872,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
                 # Production
                 npt_production = simulation.RunOpenMMSimulation('npt_production')
-                npt_production.steps = number_of_production_steps
+                npt_production.steps_per_iteration = number_of_production_steps
                 npt_production.output_frequency = production_output_frequency
                 npt_production.timestep = timestep
                 npt_production.ensemble = Ensemble.NPT
