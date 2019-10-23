@@ -16,7 +16,7 @@ from os import path, makedirs
 from propertyestimator import unit
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.workflow.decorators import InequalityMergeBehaviour, protocol_input
+from propertyestimator.workflow.decorators import InequalityMergeBehaviour, protocol_input, protocol_output
 from propertyestimator.workflow.plugins import register_calculation_protocol, available_protocols
 from propertyestimator.workflow.protocols import BaseProtocol, ProtocolPath
 from propertyestimator.workflow.schemas import ProtocolGroupSchema
@@ -306,7 +306,11 @@ class ProtocolGroup(BaseProtocol):
 
                         continue
 
-                    value = self._protocols[value_reference.start_protocol].get_value(value_reference)
+                    if value_reference.start_protocol == self._id:
+                        value = self.get_value(value_reference)
+                    else:
+                        value = self._protocols[value_reference.start_protocol].get_value(value_reference)
+
                     protocol_to_execute.set_value(source_path, value)
 
             return_value = protocol_to_execute.execute(working_directory, available_resources)
@@ -334,13 +338,16 @@ class ProtocolGroup(BaseProtocol):
 
         return output_dictionary
 
-    def can_merge(self, other):
+    def can_merge(self, other, path_replacements=None):
         """Determines whether this protocol group can be merged with another.
 
         Parameters
         ----------
         other : ProtocolGroup
             The protocol group to compare against.
+        path_replacements: list of tuple of str, optional
+            Replacements to make in any value reference protocol paths
+            before comparing for equality.
 
         Returns
         ----------
@@ -348,7 +355,12 @@ class ProtocolGroup(BaseProtocol):
             True if the two protocols are safe to merge.
         """
 
-        if not super(ProtocolGroup, self).can_merge(other):
+        if path_replacements is None:
+            path_replacements = []
+
+        path_replacements.append((other.id, self.id))
+
+        if not super(ProtocolGroup, self).can_merge(other, path_replacements):
             return False
 
         # if len(self._root_protocols) != len(other.root_protocols):
@@ -368,7 +380,7 @@ class ProtocolGroup(BaseProtocol):
 
                 other_protocol = other.protocols[other_root_id]
 
-                if not self_protocol.can_merge(other_protocol):
+                if not self_protocol.can_merge(other_protocol, path_replacements):
                     continue
 
                 can_merge_with_root = True
@@ -379,7 +391,7 @@ class ProtocolGroup(BaseProtocol):
 
         return True
 
-    def _try_merge_protocol(self, other_protocol_id, other_group, parent_ids, merged_ids):
+    def _try_merge_protocol(self, other_protocol_id, other_group, parent_ids, merged_ids, path_replacements=None):
         """Recursively inserts a protocol node into the group.
 
         Parameters
@@ -393,6 +405,9 @@ class ProtocolGroup(BaseProtocol):
             the protocol will be added as a new parent node.
         merged_ids : Dict[str, str]
             A map between any original protocol ids and their new merged values.
+        path_replacements: list of tuple of str, optional
+            Replacements to make in any value reference protocol paths
+            before comparing for equality.
         """
 
         if other_protocol_id in self._dependants_graph:
@@ -414,7 +429,7 @@ class ProtocolGroup(BaseProtocol):
 
             protocol = self._protocols[protocol_id]
 
-            if not protocol.can_merge(protocol_to_merge):
+            if not protocol.can_merge(protocol_to_merge, path_replacements):
                 continue
 
             existing_protocol = protocol
@@ -478,7 +493,7 @@ class ProtocolGroup(BaseProtocol):
         for protocol_id in other_execution_order:
 
             parent_ids = other_parent_protocol_ids.get(protocol_id) or []
-            inserted_id = self._try_merge_protocol(protocol_id, other, parent_ids, merged_ids)
+            inserted_id = self._try_merge_protocol(protocol_id, other, parent_ids, merged_ids, [(other.id, self.id)])
 
             for dependant in other_reduced_protocol_dependants[protocol_id]:
 
@@ -687,11 +702,17 @@ class ConditionalGroup(ProtocolGroup):
         merge_behavior=InequalityMergeBehaviour.LargestValue
     )
 
+    current_iteration = protocol_output(
+        docstring='The current number of iterations this group has performed while '
+                  'attempting to satisfy the specified conditions. This value starts '
+                  'from one.',
+        type_hint=int
+    )
+
     def __init__(self, protocol_id):
         """Constructs a new ConditionalGroup
         """
         self._conditions = []
-
         super().__init__(protocol_id)
 
     def _initialize(self):
@@ -825,16 +846,16 @@ class ConditionalGroup(ProtocolGroup):
         logging.info('Starting conditional while loop: {}'.format(self.id))
 
         should_continue = True
-        current_iteration = self._read_checkpoint(directory)
+        self.current_iteration = self._read_checkpoint(directory)
 
         while should_continue:
 
             # Create a checkpoint file so we can pick off where
             # we left off if this execution fails due to time
             # constraints for e.g.
-            self._write_checkpoint(directory, current_iteration)
+            self._write_checkpoint(directory, self.current_iteration)
+            self.current_iteration += 1
 
-            current_iteration += 1
             return_value = super(ConditionalGroup, self).execute(directory, available_resources)
 
             if isinstance(return_value, PropertyEstimatorException):
@@ -851,18 +872,18 @@ class ConditionalGroup(ProtocolGroup):
 
             if conditions_met:
 
-                logging.info(f'Conditional while loop finished after {current_iteration} iterations: {self.id}')
+                logging.info(f'Conditional while loop finished after {self.current_iteration} iterations: {self.id}')
                 return return_value
 
-            if current_iteration >= self.max_iterations:
+            if self.current_iteration >= self.max_iterations:
 
                 return PropertyEstimatorException(directory=directory,
                                                   message=f'Conditional while loop failed to converge: {self.id}')
 
-            logging.info(f'Conditional criteria not yet met after {current_iteration} iterations')
+            logging.info(f'Conditional criteria not yet met after {self.current_iteration} iterations')
 
-    def can_merge(self, other):
-        return super(ConditionalGroup, self).can_merge(other)
+    def can_merge(self, other, path_replacements=None):
+        return super(ConditionalGroup, self).can_merge(other, path_replacements)
 
     def merge(self, other):
         """Merges another ProtocolGroup with this one. The id
