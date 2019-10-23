@@ -1,7 +1,6 @@
-import logging
 import os
 import shutil
-import sys
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,8 +11,8 @@ from simtk import openmm, unit as simtk_unit
 from simtk.openmm import app
 
 from propertyestimator import unit
-from propertyestimator.backends import ComputeResources
-from propertyestimator.protocols import coordinates, forcefield, simulation
+from propertyestimator.backends import ComputeResources, DaskLocalCluster
+from propertyestimator.protocols import analysis, coordinates, forcefield, simulation
 from propertyestimator.substances import Substance
 from propertyestimator.tests.utils import build_tip3p_smirnoff_force_field
 from propertyestimator.thermodynamics import Ensemble, ThermodynamicState
@@ -21,7 +20,6 @@ from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.openmm import disable_pbc
 from propertyestimator.utils.statistics import StatisticsArray, ObservableType
 from propertyestimator.utils.utils import temporarily_change_directory
-
 
 # OpenMM constant for Coulomb interactions (openmm/platforms/reference/
 # include/SimTKOpenMMRealType.h) in OpenMM units
@@ -204,7 +202,7 @@ def _determine_temperatures(minimum_temperature, maximum_temperature, number_of_
         protocol = simulation.RunOpenMMSimulation('protocol')
         protocol.input_coordinate_file = coordinate_path
         protocol.system_path = system_path
-        protocol.steps_per_iteration = 50000
+        protocol.steps_per_iteration = 100000
         protocol.output_frequency = 500
         protocol.ensemble = Ensemble.NVT
         protocol.enable_pbc = False
@@ -225,48 +223,69 @@ def _determine_temperatures(minimum_temperature, maximum_temperature, number_of_
             x_values = np.linspace(mu[index] - 3 * sigma, mu[index] + 3 * sigma, 100)
             plt.plot(x_values, norm.pdf(x_values, mu[index], sigma))
 
-    if plot:
-        plt.show()
-
     # Fit a polynomial
     coefficients = np.polyfit(temperatures.to(unit.kelvin).magnitude, mu, 2)
+
+    if plot:
+
+        plt.show()
+
+        fitted_x_values = np.linspace(temperatures[0].to(unit.kelvin).magnitude,
+                                      temperatures[-1].to(unit.kelvin).magnitude, 50)
+
+        fitted_y_values = (coefficients[0] * fitted_x_values ** 2 +
+                           coefficients[1] * fitted_x_values +
+                           coefficients[2])
+
+        plt.plot(temperatures.to(unit.kelvin).magnitude, mu)
+        plt.plot(fitted_x_values, fitted_y_values)
+        plt.show()
 
     current_temperature = temperatures[0]
     replica_temperatures = [current_temperature]
 
     while current_temperature < maximum_temperature:
 
-        def evaluate(x):
+        def evaluate_energy(x):
+
+            return (coefficients[0] * x ** 2 +
+                    coefficients[1] * x +
+                    coefficients[2]) * unit.kilojoule / unit.mole
+
+        def evaluate_energy_gradient(x):
+
+            return (coefficients[0] * x * 2 +
+                    coefficients[1]) * unit.kilojoule / unit.mole / unit.kelvin
+
+        def evaluate_root(x):
 
             beta_1 = 1.0 / (current_temperature * unit.molar_gas_constant)
             beta_2 = 1.0 / (x * unit.kelvin * unit.molar_gas_constant)
 
-            energy_1 = (coefficients[0] * current_temperature.to(unit.kelvin).magnitude ** 2 +
-                        coefficients[1] * current_temperature.to(unit.kelvin).magnitude +
-                        coefficients[2]) * unit.kilojoule / unit.mole
+            energy_1 = evaluate_energy(current_temperature.to(unit.kelvin).magnitude)
+            energy_2 = evaluate_energy(x)
 
-            energy_2 = (coefficients[0] * x ** 2 +
-                        coefficients[1] * x +
-                        coefficients[2]) * unit.kilojoule / unit.mole
+            exponent = ((beta_1 - beta_2) * (energy_1 - energy_2)).to(unit.dimensionless).magnitude
 
-            return ((beta_1 - beta_2) *
-                    (energy_1 - energy_2)).to(unit.dimensionless).magnitude - np.log(desired_probability)
+            return exponent - np.log(desired_probability)
 
-        def evaluate_gradient(x):
+        def evaluate_root_gradient(x):
 
             beta_1 = 1.0 / (current_temperature * unit.molar_gas_constant)
             beta_2 = 1.0 / (x * unit.kelvin * unit.molar_gas_constant)
 
-            energy_gradient = (coefficients[0] * x * 2 +
-                               coefficients[1]) * unit.kilojoule / unit.mole
+            energy_1 = evaluate_energy(current_temperature.to(unit.kelvin).magnitude)
+            energy_2 = evaluate_energy(x)
 
-            return -((beta_1 - beta_2) * energy_gradient).to(unit.dimensionless).magnitude
+            energy_gradient_2 = evaluate_energy_gradient(x)
 
-        new_temperature = newton(evaluate,
+            return (beta_2 * energy_gradient_2 -
+                    beta_1 * energy_gradient_2 +
+                    beta_2 * (energy_1 - energy_2) / (x * unit.kelvin)).to(unit.Unit('1/kelvin')).magnitude
+
+        new_temperature = newton(evaluate_root,
                                  current_temperature.to(unit.kelvin).magnitude * 1.5,
-                                 evaluate_gradient,
-                                 tol=5.0,
-                                 maxiter=10000) * unit.kelvin
+                                 evaluate_root_gradient) * unit.kelvin
 
         if new_temperature < maximum_temperature:
             replica_temperatures.append(new_temperature)
@@ -310,16 +329,52 @@ def _determine_temperatures(minimum_temperature, maximum_temperature, number_of_
     return replica_temperatures
 
 
+def _run_regular_simulation(temperature, total_number_of_iterations, steps_per_iteration, number_of_molecules,
+                            coordinate_path, system_path, compute_resources):
+    """Perform the simulation using the
+    RunOpenMMSimulation protocol.
+    """
+
+    if os.path.isdir('run_regular'):
+        shutil.rmtree('run_regular')
+
+    os.makedirs('run_regular', exist_ok=True)
+
+    protocol = simulation.RunOpenMMSimulation('protocol')
+    protocol.total_number_of_iterations = total_number_of_iterations
+    protocol.steps_per_iteration = steps_per_iteration
+    protocol.output_frequency = steps_per_iteration
+    protocol.input_coordinate_file = coordinate_path
+    protocol.thermodynamic_state = ThermodynamicState(temperature)
+    protocol.system_path = system_path
+    protocol.ensemble = Ensemble.NVT
+    protocol.enable_pbc = False
+    protocol.allow_gpu_platforms = number_of_molecules != 1
+    protocol.high_precision = number_of_molecules == 1
+
+    result = protocol.execute('run_regular', compute_resources)
+    assert not isinstance(result, PropertyEstimatorException)
+
+    extract_energy = analysis.ExtractAverageStatistic('extract')
+    extract_energy.statistics_type = ObservableType.PotentialEnergy
+    extract_energy.statistics_path = protocol.statistics_file_path
+
+    result = extract_energy.execute('run_regular', compute_resources)
+    assert not isinstance(result, PropertyEstimatorException)
+
+    return extract_energy.value
+
+
 def _run_parallel_tempering(temperatures, total_number_of_iterations, steps_per_iteration, number_of_molecules,
-                            coordinate_path, system_path, compute_resources, plot=False):
+                            coordinate_path, system_path, compute_resources):
     """Perform the parallel tempering simulation using the
     OpenMMParallelTempering protocol.
     """
 
-    if os.path.isdir('run'):
-        shutil.rmtree('run')
+    if os.path.isdir('run_parallel'):
+        shutil.rmtree('run_parallel')
 
-    os.makedirs('run', exist_ok=True)
+    os.makedirs('run_parallel', exist_ok=True)
 
     protocol = simulation.OpenMMParallelTempering('protocol')
     protocol.total_number_of_iterations = total_number_of_iterations
@@ -335,30 +390,21 @@ def _run_parallel_tempering(temperatures, total_number_of_iterations, steps_per_
     protocol.maximum_temperature = temperatures[-1]
     protocol.replica_temperatures = temperatures[1:-1]
 
-    result = protocol.execute('run', compute_resources)
+    result = protocol.execute('run_parallel', compute_resources)
     assert not isinstance(result, PropertyEstimatorException)
 
-    if plot:
+    extract_energy = analysis.ExtractAverageStatistic('extract')
+    extract_energy.statistics_type = ObservableType.PotentialEnergy
+    extract_energy.statistics_path = protocol.statistics_file_path
 
-        import mdtraj
+    result = extract_energy.execute('run_parallel', compute_resources)
+    assert not isinstance(result, PropertyEstimatorException)
 
-        trajectory = mdtraj.load_dcd(protocol.trajectory_file_path, top=coordinate_path)
-
-        dihedrals = mdtraj.compute_dihedrals(trajectory, indices=np.array([[3, 2, 4, 10]]))[:, 0]
-        dihedrals = dihedrals / np.pi * 180.0 + 180
-
-        num_bins = 180
-
-        plt.hist(dihedrals, num_bins, range=[0.0, 360])
-        plt.show()
-
-        statistics = StatisticsArray.from_pandas_csv(protocol.statistics_file_path)
-        plt.plot(statistics[ObservableType.PotentialEnergy].magnitude)
-        plt.show()
+    return extract_energy.value
 
 
 def _run(root_directory, smiles, maximum_temperature, number_of_molecules, exchange_probability,
-         total_number_of_iterations, steps_per_iteration):
+         total_number_of_iterations, steps_per_iteration, plot, available_resources):
 
     """A convenience function for running the full parallel tempering workflow
     with a given set of parameters.
@@ -367,17 +413,13 @@ def _run(root_directory, smiles, maximum_temperature, number_of_molecules, excha
     with temporarily_change_directory(root_directory):
 
         # Define the resources to use.
-        number_of_gpus = 1 if number_of_molecules == 1 else 0
-        compute_resources = ComputeResources(number_of_threads=1, number_of_gpus=number_of_gpus,
-                                             preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA)
-
         coordinate_path = 'input.pdb'
         system_path = 'system.xml'
 
         # Create the initial system object and coordinates.
         os.makedirs('setup', exist_ok=True)
 
-        _build_system(smiles='CCC(=O)O',
+        _build_system(smiles=smiles,
                       number_of_molecules=number_of_molecules,
                       directory='setup',
                       coordinate_file_name=coordinate_path,
@@ -391,6 +433,8 @@ def _run(root_directory, smiles, maximum_temperature, number_of_molecules, excha
                            system_file_path=system_path,
                            new_system_file_path=ideal_system_path)
 
+        parallel_tempering_start_time = time.perf_counter()
+
         # Determine the replica temperatures
         temperatures = _determine_temperatures(298.0 * unit.kelvin,
                                                maximum_temperature,
@@ -399,63 +443,98 @@ def _run(root_directory, smiles, maximum_temperature, number_of_molecules, excha
                                                exchange_probability,
                                                coordinate_path,
                                                ideal_system_path,
-                                               compute_resources,
-                                               plot=False)
+                                               available_resources,
+                                               plot=plot)
+
+        print(f'')
 
         # Run the parallel tempering
-        _run_parallel_tempering(temperatures,
-                                total_number_of_iterations,
-                                steps_per_iteration,
-                                number_of_molecules,
-                                coordinate_path,
-                                system_path,
-                                compute_resources,
-                                plot=False)
+        enhanced_average_energy = _run_parallel_tempering(temperatures,
+                                                          total_number_of_iterations,
+                                                          steps_per_iteration,
+                                                          number_of_molecules,
+                                                          coordinate_path,
+                                                          system_path,
+                                                          available_resources)
+
+        parallel_tempering_end_time = time.perf_counter()
+
+        # Run a regular simulation for comparison
+        simulation_start_time = time.perf_counter()
+
+        average_energy = _run_regular_simulation(298.0 * unit.kelvin,
+                                                 total_number_of_iterations,
+                                                 steps_per_iteration,
+                                                 number_of_molecules,
+                                                 coordinate_path,
+                                                 system_path,
+                                                 available_resources)
+
+        simulation_end_time = time.perf_counter()
+
+        print(f'{smiles} {exchange_probability} {maximum_temperature} '
+              f'Temperatures {temperatures} '
+              f'Regular_Time {(simulation_end_time - simulation_start_time) * 1000} '
+              f'Parallel_Time {(parallel_tempering_end_time - parallel_tempering_start_time) * 1000} '
+              f'Regular_Energy {average_energy} '
+              f'Parallel_Energy {enhanced_average_energy}')
 
 
 def main():
 
-    formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s',
-                                  datefmt='%H:%M:%S')
-
-    logger_handler = logging.StreamHandler(stream=sys.stdout)
-    logger_handler.setFormatter(formatter)
-
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(logger_handler)
-
     # Define the core settings to use.
-    smiles = ['CCC(=O)O', 'CC(=O)CCC(=O)O', 'CCOC(=O)CC(=O)C']
+    number_of_molecules = 1
+
+    smiles = ['CCOC(=O)CC(=O)C', 'CC(=O)CCC(=O)O', 'CCC(=O)O']
 
     exchange_probabilities = [0.2, 0.3, 0.4]
-    maximum_temperatures = [600 * unit.kelvin, 800 * unit.kelvin, 1000 * unit.kelvin]
+    maximum_temperatures = [1000 * unit.kelvin, 800 * unit.kelvin, 600 * unit.kelvin]
 
-    for smiles_index, smiles in enumerate(smiles):
+    # Set up a parallel backend.
+    number_of_gpus = 0 if number_of_molecules == 1 else 1
+    compute_resources = ComputeResources(number_of_threads=1, number_of_gpus=number_of_gpus,
+                                         preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA)
 
-        for probability_index, exchange_probability in enumerate(exchange_probabilities):
+    # backend = DaskLocalCluster(number_of_workers=4, resources_per_worker=compute_resources)
+    # backend.start()
+    #
+    # futures = []
 
-            for temperature_index, maximum_temperature in enumerate(maximum_temperatures):
+    for probability_index, exchange_probability in enumerate(exchange_probabilities):
+
+        for temperature_index, maximum_temperature in enumerate(maximum_temperatures):
+
+            for smiles_index, smiles_pattern in enumerate(smiles):
 
                 directory_name = f'{smiles_index}_{probability_index}_{temperature_index}'
                 os.makedirs(directory_name, exist_ok=True)
 
-                logger.info(f'Starting {smiles} {exchange_probability} {maximum_temperature}')
+                # future = backend.submit_task(_run,
+                #                              directory_name,
+                #                              smiles_pattern,
+                #                              maximum_temperature,
+                #                              number_of_molecules,
+                #                              exchange_probability,
+                #                              10000,
+                #                              100,
+                #                              False)
 
-                try:
+                _run(
+                    directory_name,
+                    smiles_pattern,
+                    maximum_temperature,
+                    number_of_molecules,
+                    exchange_probability,
+                    10000,
+                    100,
+                    False,
+                    compute_resources
+                )
 
-                    _run(root_directory=directory_name,
-                         smiles=smiles,
-                         maximum_temperature=maximum_temperature,
-                         number_of_molecules=1,
-                         exchange_probability=exchange_probability,
-                         total_number_of_iterations=10000,
-                         steps_per_iteration=100)
+                # futures.append(future)
 
-                except:
-                    logger.info(f'Run failed')
-                else:
-                    logger.info(f'Finished run.')
+    # backend._client.gather(futures)
+    # backend.stop()
 
 
 if __name__ == "__main__":
