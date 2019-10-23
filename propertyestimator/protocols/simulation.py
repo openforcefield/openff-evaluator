@@ -919,8 +919,7 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
         parallel_tempering.run()
 
         mdtraj_trajectory, statistics = self._extract_trajectory_statistics(os.path.join(directory, 'replicas.nc'),
-                                                                            system,
-                                                                            replica_index=0)
+                                                                            system)
 
         self.statistics_file_path = os.path.join(directory, 'statistics.csv')
         self.trajectory_file_path = os.path.join(directory, 'trajectory.dcd')
@@ -930,7 +929,7 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
 
         return self._get_output_dictionary()
 
-    def _extract_trajectory_statistics(self, nc_path, reference_system, replica_index):
+    def _extract_trajectory_statistics(self, nc_path, reference_system):
         """Extract the trajectory and statistics of a replica from the NetCDF4 file.
 
         Parameters
@@ -939,10 +938,6 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
             Path to the primary nc_file storing the analysis options
         reference_system: simtk.openmm.System
             The system object describing the system which was simulated.
-        replica_index : int, optional
-            The index of the replica for which to extract the trajectory. One and
-            only one between state_index and replica_index must be not None (default
-            is None).
 
         Returns
         -------
@@ -1007,12 +1002,12 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
             for i, iteration in enumerate(frame_indices):
 
                 positions[i, :, :] = reporter_storage.variables['positions'][
-                                     iteration, replica_index, :, :].astype(np.float32)
+                                     iteration, 0, :, :].astype(np.float32)
 
                 if box_vectors is not None:
 
                     box_vectors[i, :, :] = reporter_storage.variables['box_vectors'][
-                                           iteration, replica_index, :, :].astype(np.float32)
+                                           iteration, 0, :, :].astype(np.float32)
 
         finally:
 
