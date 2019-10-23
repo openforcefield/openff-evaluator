@@ -772,6 +772,14 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
     provided by the `openmmtools <https://openmmtools.readthedocs.io>`_ package.
     """
 
+    output_frequency = protocol_input(
+        docstring='The frequency (in number of iterations) with which to write to the '
+                  'output statistics and trajectory files.',
+        type_hint=int,
+        merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        default_value=1
+    )
+
     replica_temperatures = protocol_input(
         docstring='The intermediate temperatures that a replica should sample at. '
                   'These values must be greater than the temperature defined by the '
@@ -889,7 +897,7 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
                                                       number_of_iterations=self.total_number_of_iterations)
 
         storage_path = os.path.join(directory, 'replicas.nc')
-        reporter = MultiStateReporter(storage_path, checkpoint_interval=5)
+        reporter = MultiStateReporter(storage_path, checkpoint_interval=self.output_frequency)
 
         if temperatures is None:
 
@@ -910,13 +918,20 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
 
         parallel_tempering.run()
 
-        mdtraj_trajectory = self._extract_trajectory(os.path.join(directory, 'replicas.nc'), system, replica_index=0)
-        mdtraj_trajectory.save_dcd('trajectory.dcd')
+        mdtraj_trajectory, statistics = self._extract_trajectory_statistics(os.path.join(directory, 'replicas.nc'),
+                                                                            system,
+                                                                            replica_index=0)
+
+        self.statistics_file_path = os.path.join(directory, 'statistics.csv')
+        self.trajectory_file_path = os.path.join(directory, 'trajectory.dcd')
+
+        mdtraj_trajectory.save_dcd(self.trajectory_file_path)
+        statistics.to_pandas_csv(self.statistics_file_path)
 
         return self._get_output_dictionary()
 
-    def _extract_trajectory(self, nc_path, reference_system, replica_index):
-        """Extract the trajectory of a replica from the NetCDF4 file.
+    def _extract_trajectory_statistics(self, nc_path, reference_system, replica_index):
+        """Extract the trajectory and statistics of a replica from the NetCDF4 file.
 
         Parameters
         ----------
@@ -931,8 +946,10 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
 
         Returns
         -------
-        trajectory: mdtraj.Trajectory
+        mdtraj.Trajectory
             The trajectory extracted from the netcdf file.
+        StatisticsArray
+            The statistics extracted from the netcdf file.
 
         Notes
         -----
@@ -957,14 +974,22 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
 
             reporter = multistate.MultiStateReporter(nc_path, open_mode='r')
 
+            all_reduced_potentials, _, _ = reporter.read_energies()
+            replica_reduced_potentials = all_reduced_potentials[:, 0, 0]
+
+            statistics_array = StatisticsArray()
+            statistics_array[ObservableType.ReducedPotential] = replica_reduced_potentials * unit.dimensionless
+            statistics_array[ObservableType.PotentialEnergy] = (replica_reduced_potentials *
+                                                                self.thermodynamic_state.inverse_beta)
+
             # Determine if system is periodic
             is_periodic = reference_system.usesPeriodicBoundaryConditions()
 
             # Assume full iteration until proven otherwise
-            trajectory_storage = reporter._storage_checkpoint
+            reporter_storage = reporter._storage_checkpoint
 
-            n_frames = trajectory_storage.variables['positions'].shape[0]
-            n_atoms = trajectory_storage.variables['positions'].shape[2]
+            n_frames = reporter_storage.variables['positions'].shape[0]
+            n_atoms = reporter_storage.variables['positions'].shape[2]
 
             # Determine the number of frames that the trajectory will have.
             frame_indices = range(0, n_frames)
@@ -981,12 +1006,12 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
             # Extract state positions and box vectors.
             for i, iteration in enumerate(frame_indices):
 
-                positions[i, :, :] = trajectory_storage.variables['positions'][
+                positions[i, :, :] = reporter_storage.variables['positions'][
                                      iteration, replica_index, :, :].astype(np.float32)
 
                 if box_vectors is not None:
 
-                    box_vectors[i, :, :] = trajectory_storage.variables['box_vectors'][
+                    box_vectors[i, :, :] = reporter_storage.variables['box_vectors'][
                                            iteration, replica_index, :, :].astype(np.float32)
 
         finally:
@@ -1000,4 +1025,4 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
         if is_periodic:
             trajectory.unitcell_vectors = box_vectors
 
-        return trajectory
+        return trajectory, statistics_array
