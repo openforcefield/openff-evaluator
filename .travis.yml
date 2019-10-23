@@ -28,6 +28,7 @@ before_install:
 install:
 - python devtools/scripts/create_conda_env.py -n=test -p=$PYTHON_VER devtools/conda-envs/test_env.yaml
 - conda activate test
+- python -c "import fcntl; fcntl.fcntl(1, fcntl.F_SETFL, 0)"
 - python setup.py develop --no-deps
 script:
 - pytest -v --cov=propertyestimator propertyestimator/tests/
