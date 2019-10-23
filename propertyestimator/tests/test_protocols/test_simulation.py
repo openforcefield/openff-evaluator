@@ -140,10 +140,15 @@ def test_openmm_parallel_tempering():
 
         protocol = OpenMMParallelTempering('protocol')
         protocol.total_number_of_iterations = 1
-        protocol.steps_per_iteration = 5
+        protocol.steps_per_iteration = 1
         protocol.thermodynamic_state = thermodynamic_state
+        protocol.maximum_temperature = 500 * unit.kelvin
+        protocol.number_of_replicas = 1
         protocol.input_coordinate_file = coordinate_path
         protocol.system_path = system_path
+        protocol.high_precision = True
+        protocol.enable_pbc = False
+        protocol.allow_gpu_platforms = False
 
         result = protocol.execute(directory, ComputeResources())
         assert not isinstance(result, PropertyEstimatorException)

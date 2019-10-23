@@ -882,7 +882,8 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
         reference_state = states.ThermodynamicState(system, openmm_temperature, openmm_pressure)
 
         initial_pdb_file = app.PDBFile(self.input_coordinate_file)
-        sampler_state = [states.SamplerState(positions=initial_pdb_file.positions)]
+        sampler_state = [states.SamplerState(positions=initial_pdb_file.positions,
+                                             box_vectors=initial_pdb_file.topology.getPeriodicBoxVectors())]
 
         # Propagate the replicas with Langevin dynamics.
         langevin_move = mcmc.GHMCMove(
