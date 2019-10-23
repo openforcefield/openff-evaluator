@@ -241,7 +241,6 @@ class HostGuestBindingAffinity(PhysicalProperty):
         host_protocol.force_field_path = ProtocolPath('force_field_path', 'global')
 
         host_protocol.taproom_host_name = ProtocolPath('host_identifier', 'global')
-        host_protocol.taproom_guest_name = ''
 
         host_protocol.number_of_equilibration_steps = 200000
         host_protocol.number_of_production_steps = 1000000

@@ -17,7 +17,7 @@ class BackendType(Enum):
 
 def setup_server(backend_type=BackendType.LocalCPU, max_number_of_workers=1,
                  conda_environment='propertyestimator', worker_memory=4 * unit.gigabyte,
-                 port=8000, cuda_version='10.1'):
+                 port=8000, cuda_version='10.1', adaptive_class=None):
     """A convenience function to sets up an estimation server which will can advantage
     of different compute backends.
 
@@ -77,7 +77,8 @@ def setup_server(backend_type=BackendType.LocalCPU, max_number_of_workers=1,
                                              resources_per_worker=queue_resources,
                                              queue_name='gpuqueue',
                                              setup_script_commands=worker_script_commands,
-                                             adaptive_interval='1000ms')
+                                             adaptive_interval='1000ms',
+                                             adaptive_class=adaptive_class)
     elif backend_type == BackendType.CPU:
 
         queue_resources = QueueWorkerResources(number_of_threads=1,
@@ -93,7 +94,8 @@ def setup_server(backend_type=BackendType.LocalCPU, max_number_of_workers=1,
                                              resources_per_worker=queue_resources,
                                              queue_name='cpuqueue',
                                              setup_script_commands=worker_script_commands,
-                                             adaptive_interval='1000ms')
+                                             adaptive_interval='1000ms',
+                                             adaptive_class=adaptive_class)
 
     # Set up a backend to cache simulation data in.
     storage_backend = LocalFileStorage(storage_directory)

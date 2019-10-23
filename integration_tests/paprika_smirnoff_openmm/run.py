@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import json
 
+from distributed import Adaptive
 from openforcefield.typing.engines import smirnoff
 
 from integration_tests.utils import setup_server, BackendType
@@ -9,6 +10,19 @@ from propertyestimator.datasets.taproom import TaproomDataSet
 from propertyestimator.utils import setup_timestamp_logging, get_data_filename
 from propertyestimator.utils.serialization import TypedJSONEncoder
 from propertyestimator.workflow import WorkflowOptions
+
+
+class CustomAdaptive(Adaptive):
+    """A temporary work-around to attempt to fix
+    https://github.com/dask/distributed/issues/3154
+    """
+
+    async def recommendations(self, target: int) -> dict:
+        """
+        Make scale up/down recommendations based on current state and target
+        """
+        await self.cluster
+        return await super(CustomAdaptive, self).recommendations(target)
 
 
 def main():
@@ -29,7 +43,9 @@ def main():
     data_set.filter_by_guest_identifiers(guest)
 
     # Set up the server object which run the calculations.
-    setup_server(backend_type=BackendType.LocalGPU, max_number_of_workers=1)
+    setup_server(backend_type=BackendType.LocalGPU,
+                 max_number_of_workers=1,
+                 adaptive_class=CustomAdaptive)
 
     # Request the estimate of the host-guest binding affinity.
     options = PropertyEstimatorOptions()
