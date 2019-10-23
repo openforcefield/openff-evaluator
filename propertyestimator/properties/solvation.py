@@ -5,9 +5,10 @@ solvation free energies.
 from propertyestimator import unit
 from propertyestimator.properties import PhysicalProperty
 from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.protocols import coordinates, forcefield, miscellaneous, yank, simulation
+from propertyestimator.protocols import coordinates, forcefield, miscellaneous, yank, simulation, groups
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import Ensemble
+from propertyestimator.workflow import WorkflowOptions
 from propertyestimator.workflow.schemas import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
@@ -61,7 +62,7 @@ class SolvationFreeEnergy(PhysicalProperty):
 
         equilibration_simulation = simulation.RunOpenMMSimulation('equilibration_simulation')
         equilibration_simulation.ensemble = Ensemble.NPT
-        equilibration_simulation.steps = 100000
+        equilibration_simulation.steps_per_iteration = 100000
         equilibration_simulation.output_frequency = 10000
         equilibration_simulation.timestep = 2.0 * unit.femtosecond
         equilibration_simulation.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
@@ -90,13 +91,39 @@ class SolvationFreeEnergy(PhysicalProperty):
         run_yank = yank.SolvationYankProtocol('run_solvation_yank')
         run_yank.substance = ProtocolPath('substance', 'global')
         run_yank.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
-        run_yank.number_of_iterations = 5000
         run_yank.steps_per_iteration = 500
         run_yank.checkpoint_interval = 50
         run_yank.solvated_coordinates = ProtocolPath('output_coordinate_file', equilibration_simulation.id)
         run_yank.solvated_system = ProtocolPath('system_path', assign_full_parameters.id)
         run_yank.vacuum_coordinates = ProtocolPath('coordinate_file_path', build_vacuum_coordinates.id)
         run_yank.vacuum_system = ProtocolPath('system_path', assign_vacuum_parameters.id)
+
+        # Set up the group which will run yank until the free energy has been determined to within
+        # a given uncertainty
+        conditional_group = groups.ConditionalGroup(f'conditional_group')
+        conditional_group.max_iterations = 20
+
+        if options.convergence_mode != WorkflowOptions.ConvergenceMode.NoChecks:
+
+            condition = groups.ConditionalGroup.Condition()
+            condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
+            condition.right_hand_value = ProtocolPath('target_uncertainty', 'global')
+            condition.left_hand_value = ProtocolPath('estimated_free_energy.uncertainty',
+                                                     conditional_group.id,
+                                                     run_yank.id)
+
+            conditional_group.add_condition(condition)
+
+        # Define the total number of iterations that yank should run for.
+        total_iterations = miscellaneous.MultiplyValue('total_iterations')
+        total_iterations.value = 2000
+        total_iterations.multiplier = ProtocolPath('current_iteration', conditional_group.id)
+
+        # Make sure the simulations gets extended after each iteration.
+        run_yank.number_of_iterations = ProtocolPath('result',
+                                                     total_iterations.id)
+
+        conditional_group.add_protocols(total_iterations, run_yank)
 
         # Define the full workflow schema.
         schema = WorkflowSchema(property_type=SolvationFreeEnergy.__name__)
@@ -113,8 +140,8 @@ class SolvationFreeEnergy(PhysicalProperty):
             build_vacuum_coordinates.id: build_vacuum_coordinates.schema,
             assign_vacuum_parameters.id: assign_vacuum_parameters.schema,
 
-            run_yank.id: run_yank.schema
+            conditional_group.id: conditional_group.schema
         }
 
-        schema.final_value_source = ProtocolPath('estimated_free_energy', run_yank.id)
+        schema.final_value_source = ProtocolPath('estimated_free_energy', conditional_group.id, run_yank.id)
         return schema

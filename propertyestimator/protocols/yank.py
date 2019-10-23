@@ -49,7 +49,7 @@ class BaseYankProtocol(BaseProtocol):
     number_of_iterations = protocol_input(
         docstring='The number of YANK iterations to perform.',
         type_hint=int, merge_behavior=InequalityMergeBehaviour.LargestValue,
-        default_value=1
+        default_value=5000
     )
     steps_per_iteration = protocol_input(
         docstring='The number of steps per YANK iteration to perform.',

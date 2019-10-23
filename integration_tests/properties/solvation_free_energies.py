@@ -9,7 +9,7 @@ from propertyestimator.datasets import PhysicalPropertyDataSet
 from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.properties import PropertyPhase, MeasurementSource
 from propertyestimator.properties.solvation import SolvationFreeEnergy
-from propertyestimator.protocols.yank import SolvationYankProtocol
+from propertyestimator.protocols.groups import ConditionalGroup
 from propertyestimator.server import PropertyEstimatorServer
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.substances import Substance
@@ -32,9 +32,14 @@ class CustomAdaptive(Adaptive):
         return await super(CustomAdaptive, self).recommendations(target)
 
 
-def _get_fixed_lambda_schema():
+def _get_fixed_lambda_schema(workflow_options):
     """Manually override trailblazing to set the values found in the previous OFF study
      https://github.com/MobleyLab/SMIRNOFF_paper_code/tree/master/FreeSolv
+
+    Parameters
+    ----------
+    workflow_options: WorkflowOptions
+        The options to use when building the workflow schema.
 
     Returns
     -------
@@ -42,12 +47,12 @@ def _get_fixed_lambda_schema():
         A workflow schema with the alchemical lambdas explicitly set.
     """
 
-    default_schema = SolvationFreeEnergy.get_default_simulation_workflow_schema()
+    default_schema = SolvationFreeEnergy.get_default_simulation_workflow_schema(workflow_options)
 
-    yank_protocol_schema = default_schema.protocols['run_solvation_yank']
+    conditional_group = ConditionalGroup('conditional_group')
+    conditional_group.schema = default_schema.protocols['conditional_group']
 
-    yank_protocol = SolvationYankProtocol(yank_protocol_schema.id)
-    yank_protocol.schema = yank_protocol_schema
+    yank_protocol = conditional_group.protocols['run_solvation_yank']
 
     yank_protocol.solvated_electrostatic_lambdas = [1.00, 0.75, 0.50, 0.25, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00,
                                                     0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
@@ -57,7 +62,7 @@ def _get_fixed_lambda_schema():
     yank_protocol.vacuum_electrostatic_lambdas = [1.00, 0.75, 0.50, 0.25, 0.00]
     yank_protocol.vacuum_steric_lambdas = [1.00, 1.00, 1.00, 1.00, 1.00]
 
-    default_schema.protocols['run_solvation_yank'] = yank_protocol.schema
+    default_schema.protocols['conditional_group'] = conditional_group.schema
 
     return default_schema
 
@@ -171,11 +176,11 @@ def main():
     options = PropertyEstimatorOptions()
     options.allowed_calculation_layers = ['SimulationLayer']
 
-    options.workflow_options = {
-        'SolvationFreeEnergy': {'SimulationLayer': WorkflowOptions(WorkflowOptions.ConvergenceMode.NoChecks)}
-    }
+    workflow_options = WorkflowOptions(WorkflowOptions.ConvergenceMode.NoChecks)
+
+    options.workflow_options = {'SolvationFreeEnergy': {'SimulationLayer': workflow_options}}
     options.workflow_schemas = {
-        'SolvationFreeEnergy': {'SimulationLayer': _get_fixed_lambda_schema()}
+        'SolvationFreeEnergy': {'SimulationLayer': _get_fixed_lambda_schema(workflow_options)}
     }
 
     request = property_estimator.request_estimate(property_set=data_set,
