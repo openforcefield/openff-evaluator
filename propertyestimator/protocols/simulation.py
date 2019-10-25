@@ -330,6 +330,8 @@ class RunOpenMMSimulation(BaseProtocol):
             return result
 
         # Set the output paths.
+        self.output_coordinate_file = os.path.join(directory, 'output.pdb')
+        
         self.trajectory_file_path = self._local_trajectory_path
         self.statistics_file_path = os.path.join(directory, 'statistics.csv')
 
@@ -747,9 +749,7 @@ class RunOpenMMSimulation(BaseProtocol):
         positions = final_state.getPositions()
         topology.setPeriodicBoxVectors(final_state.getPeriodicBoxVectors())
 
-        self.output_coordinate_file = os.path.join(directory, 'output.pdb')
-
-        with open(self.output_coordinate_file, 'w+') as configuration_file:
+        with open(os.path.join(directory, 'output.pdb'), 'w+') as configuration_file:
             app.PDBFile.writeFile(topology, positions, configuration_file)
 
         logging.info(f'Simulation performed in the {str(self.ensemble)} ensemble: {self._id}')
