@@ -7,6 +7,8 @@ import os
 import shutil
 import time
 
+import numpy as np
+
 from propertyestimator import unit
 from propertyestimator.protocols import analysis, simulation
 from propertyestimator.thermodynamics import Ensemble, ThermodynamicState
@@ -94,6 +96,21 @@ def _run_parallel_tempering(temperatures, total_number_of_iterations, steps_per_
     return extract_energy.value
 
 
+def _mean_std(list_of_quantity):
+
+    array = np.zeros(len(list_of_quantity))
+
+    base_unit = list_of_quantity[0].units
+
+    for i, quantity in enumerate(list_of_quantity):
+        array[i] = quantity.to(base_unit).magnitude
+
+    mean = array.mean() * base_unit
+    std = array.std() * base_unit
+
+    return mean, std
+
+
 def test_run(input_json, available_resources):
 
     """A convenience function for running the full parallel tempering workflow
@@ -113,11 +130,11 @@ def test_run(input_json, available_resources):
     integrator = input_dictionary['integrator']
     replicates = input_dictionary['replicates']
 
-    simulation_mean_deviation = 0.0 * unit.kilojoule / unit.mole
-    parallel_mean_deviation = 0.0 * unit.kilojoule / unit.mole
+    simulation_means = []
+    parallel_means = []
 
-    simulation_error_deviation = 0.0 * unit.kilojoule / unit.mole
-    parallel_error_deviation = 0.0 * unit.kilojoule / unit.mole
+    simulation_stds = []
+    parallel_stds = []
 
     for replicate_index in range(replicates):
 
@@ -150,8 +167,8 @@ def test_run(input_json, available_resources):
 
             parallel_tempering_end_time = time.perf_counter()
 
-            parallel_mean_deviation += parallel_average_energy.value
-            parallel_error_deviation += parallel_average_energy.uncertainty
+            parallel_means.append(parallel_average_energy.value)
+            parallel_stds.append(parallel_average_energy.uncertainty)
 
             # Run a regular simulation for comparison
             simulation_start_time = time.perf_counter()
@@ -167,17 +184,13 @@ def test_run(input_json, available_resources):
 
             simulation_end_time = time.perf_counter()
 
-            simulation_mean_deviation += average_energy.value
-            simulation_error_deviation += average_energy.uncertainty
+            simulation_means.append(average_energy.value)
+            simulation_stds.append(average_energy.uncertainty)
 
             logging.info(f'Regular_Time {(simulation_end_time - simulation_start_time) * 1000} '
                          f'Parallel_Time {(parallel_tempering_end_time - parallel_tempering_start_time) * 1000}')
 
-    parallel_mean_deviation /= replicates
-    parallel_error_deviation /= replicates
-
-    simulation_mean_deviation /= replicates
-    simulation_error_deviation /= replicates
-
-    return (simulation_mean_deviation, simulation_error_deviation,
-            parallel_mean_deviation, parallel_error_deviation)
+    return (*_mean_std(parallel_means),
+            *_mean_std(parallel_stds),
+            *_mean_std(simulation_means),
+            *_mean_std(simulation_stds))
