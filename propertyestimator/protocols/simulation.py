@@ -804,6 +804,38 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
         default_value=UNDEFINED
     )
 
+    def _validate_temperatures(self):
+        """Validates any user provided temperatures.
+
+        Returns
+        -------
+        list of simtk.unit.Quantity
+            The list of ordered temperatures.
+        """
+        if len(self.replica_temperatures) == 0:
+            raise ValueError('At least one temperature must be defined in the `replica_temperatures` list.')
+
+        if not all(isinstance(x, unit.Quantity) for x in self.replica_temperatures):
+
+            raise ValueError('The replica temperatures must be of type `unit.Quantity` '
+                             'and be compatible with units of kelvin.')
+
+        sorted_temperatures = ([self.thermodynamic_state.temperature] +
+                               list(sorted(self.replica_temperatures)) +
+                               [self.maximum_temperature])
+
+        if (sorted_temperatures[0] < self.thermodynamic_state.temperature or
+            sorted_temperatures[0] > self.maximum_temperature or
+            sorted_temperatures[-1] < self.thermodynamic_state.temperature or
+            sorted_temperatures[-1] > self.maximum_temperature):
+
+            raise ValueError('The replica temperatures are outside of the allowed range.')
+
+        temperatures = [temperature.to(unit.kelvin).magnitude for
+                        temperature in sorted_temperatures] * simtk_unit.kelvin
+
+        return temperatures
+
     def execute(self, directory, available_resources):
 
         from openmmtools import cache, mcmc, states
@@ -829,31 +861,7 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
 
         if self.replica_temperatures != UNDEFINED:
 
-            if len(self.replica_temperatures) == 0:
-
-                return PropertyEstimatorException(directory, 'At least one temperature must be defined in the '
-                                                             '`replica_temperatures` list.')
-
-            if not all(isinstance(x, unit.Quantity) for x in self.replica_temperatures):
-
-                return PropertyEstimatorException(directory, 'The replica temperatures must be of type '
-                                                             '`unit.Quantity` and be compatible with units '
-                                                             'of kelvin.')
-
-            sorted_temperatures = ([self.thermodynamic_state.temperature] +
-                                   list(sorted(self.replica_temperatures)) +
-                                   [self.maximum_temperature])
-
-            if (sorted_temperatures[0] < self.thermodynamic_state.temperature or
-                sorted_temperatures[0] > self.maximum_temperature or
-                sorted_temperatures[-1] < self.thermodynamic_state.temperature or
-                sorted_temperatures[-1] > self.maximum_temperature):
-
-                return PropertyEstimatorException(directory, 'The replica temperatures are outside of the allowed '
-                                                             'range.')
-
-            temperatures = [temperature.to(unit.kelvin).magnitude for
-                            temperature in sorted_temperatures] * simtk_unit.kelvin
+            temperatures = self._validate_temperatures()
 
         elif self.number_of_replicas == UNDEFINED:
 
@@ -882,11 +890,12 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
         reference_state = states.ThermodynamicState(system, openmm_temperature, openmm_pressure)
 
         initial_pdb_file = app.PDBFile(self.input_coordinate_file)
-        sampler_state = [states.SamplerState(positions=initial_pdb_file.positions,
-                                             box_vectors=initial_pdb_file.topology.getPeriodicBoxVectors())]
+
+        sampler_state = states.SamplerState(positions=initial_pdb_file.positions,
+                                            box_vectors=initial_pdb_file.topology.getPeriodicBoxVectors())
 
         # Propagate the replicas with Langevin dynamics.
-        langevin_move = mcmc.GHMCMove(
+        langevin_move = mcmc.LangevinDynamicsMove(
             timestep=pint_quantity_to_openmm(self.timestep),
             collision_rate=pint_quantity_to_openmm(self.thermostat_friction),
             n_steps=self.steps_per_iteration,
@@ -903,7 +912,7 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
         if temperatures is None:
 
             parallel_tempering.create(reference_state,
-                                      sampler_state,
+                                      [sampler_state],
                                       reporter,
                                       min_temperature=openmm_temperature,
                                       max_temperature=openmm_max_temperature,
@@ -912,7 +921,7 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
         else:
 
             parallel_tempering.create(reference_state,
-                                      sampler_state,
+                                      [sampler_state],
                                       reporter,
                                       temperatures=temperatures,
                                       n_temperatures=len(temperatures))
@@ -930,7 +939,7 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
 
         return self._get_output_dictionary()
 
-    def _extract_trajectory_statistics(self, nc_path, reference_system):
+    def _extract_trajectory_statistics(self, nc_path, reference_system, temperature_index=0):
         """Extract the trajectory and statistics of a replica from the NetCDF4 file.
 
         Parameters
@@ -939,6 +948,10 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
             Path to the primary nc_file storing the analysis options
         reference_system: simtk.openmm.System
             The system object describing the system which was simulated.
+        temperature_index: int
+            The index of the temperature at which the statistics are desired.
+            For example, an index of 0 will yield the trajectories and statistics
+            sampled by replicas at the minimum temperature.
 
         Returns
         -------
@@ -961,54 +974,69 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
         if not os.path.isfile(nc_path):
             raise ValueError('Cannot find file {}'.format(nc_path))
 
-        # Import simulation data
-        topology = mdtraj.load_topology(self.input_coordinate_file)
-
         reporter = None
 
         try:
 
             reporter = multistate.MultiStateReporter(nc_path, open_mode='r')
 
+            # Extract the energies of all of the replicas at different states
+            # as well as the indices of which states correspond to the
+            # temperature of interest.
             all_reduced_potentials, _, _ = reporter.read_energies()
-            replica_reduced_potentials = all_reduced_potentials[:, 0, 0]
+
+            replica_state_indices = reporter.read_replica_thermodynamic_states().filled(-1)
+            thermodynamic_states = reporter.read_thermodynamic_states()[0]
+
+            state_indices = [np.nonzero(indices == temperature_index)[0][0] for
+                             indices in replica_state_indices]
+
+            # Extract the statistics sampled at the temperature of interest.
+            reduced_potentials = np.zeros(len(state_indices))
+
+            for iteration in range(len(state_indices)):
+
+                reduced_potentials[iteration] = all_reduced_potentials[iteration,
+                                                                       state_indices[iteration],
+                                                                       temperature_index]
+
+            temperature = thermodynamic_states[temperature_index].temperature.value_in_unit(simtk_unit.kelvin)
+
+            reduced_potentials *= unit.dimensionless
+
+            potential_energies = reduced_potentials * temperature * unit.kelvin * unit.molar_gas_constant
+            potential_energies.ito(unit.kilojoule / unit.mole)
 
             statistics_array = StatisticsArray()
-            statistics_array[ObservableType.ReducedPotential] = replica_reduced_potentials * unit.dimensionless
-            statistics_array[ObservableType.PotentialEnergy] = (replica_reduced_potentials *
-                                                                self.thermodynamic_state.inverse_beta)
+            statistics_array[ObservableType.ReducedPotential] = reduced_potentials
+            statistics_array[ObservableType.PotentialEnergy] = potential_energies
 
-            # Determine if system is periodic
-            is_periodic = reference_system.usesPeriodicBoundaryConditions()
-
-            # Assume full iteration until proven otherwise
+            # Extract the frames of the trajectory which correspond to the correct
+            # temperature.
             reporter_storage = reporter._storage_checkpoint
 
-            n_frames = reporter_storage.variables['positions'].shape[0]
-            n_atoms = reporter_storage.variables['positions'].shape[2]
-
-            # Determine the number of frames that the trajectory will have.
-            frame_indices = range(0, n_frames)
-            n_trajectory_frames = len(frame_indices)
+            number_of_frames = reporter_storage.variables['positions'].shape[0]
+            number_of_atoms = reporter_storage.variables['positions'].shape[2]
 
             # Initialize positions and box vectors arrays. MDTraj Cython code
             # expects float32 positions.
-            positions = np.zeros((n_trajectory_frames, n_atoms, 3), dtype=np.float32)
+            positions = np.zeros((number_of_frames, number_of_atoms, 3), dtype=np.float32)
             box_vectors = None
 
-            if is_periodic:
-                box_vectors = np.zeros((n_trajectory_frames, 3, 3), dtype=np.float32)
+            if reference_system.usesPeriodicBoundaryConditions():
+                box_vectors = np.zeros((number_of_frames, 3, 3), dtype=np.float32)
 
             # Extract state positions and box vectors.
-            for i, iteration in enumerate(frame_indices):
+            for iteration in range(number_of_frames):
 
-                positions[i, :, :] = reporter_storage.variables['positions'][
-                                     iteration, 0, :, :].astype(np.float32)
+                replica_index = state_indices[iteration]
+
+                positions[iteration, :, :] = reporter_storage.variables['positions'][
+                                             iteration, replica_index, :, :].astype(np.float32)
 
                 if box_vectors is not None:
-
-                    box_vectors[i, :, :] = reporter_storage.variables['box_vectors'][
-                                           iteration, 0, :, :].astype(np.float32)
+                    box_vectors[iteration, :, :] = reporter_storage.variables['box_vectors'][
+                                                   iteration, replica_index, :, :].astype(np.float32)
 
         finally:
 
@@ -1016,9 +1044,10 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
                 reporter.close()
 
         # Create trajectory object
+        topology = mdtraj.load_topology(self.input_coordinate_file)
         trajectory = mdtraj.Trajectory(positions, topology)
 
-        if is_periodic:
+        if reference_system.usesPeriodicBoundaryConditions():
             trajectory.unitcell_vectors = box_vectors
 
         return trajectory, statistics_array

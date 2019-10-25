@@ -1,3 +1,5 @@
+import argparse
+import logging
 import os
 import shutil
 import time
@@ -11,15 +13,17 @@ from simtk import openmm, unit as simtk_unit
 from simtk.openmm import app
 
 from propertyestimator import unit
-from propertyestimator.backends import ComputeResources, DaskLocalCluster
-from propertyestimator.protocols import analysis, coordinates, forcefield, simulation
+from propertyestimator.backends import ComputeResources
+from propertyestimator.protocols import analysis, coordinates, forcefield, reweighting, simulation
 from propertyestimator.substances import Substance
 from propertyestimator.tests.utils import build_tip3p_smirnoff_force_field
 from propertyestimator.thermodynamics import Ensemble, ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.openmm import disable_pbc
 from propertyestimator.utils.statistics import StatisticsArray, ObservableType
-from propertyestimator.utils.utils import temporarily_change_directory
+from propertyestimator.utils.utils import temporarily_change_directory, setup_timestamp_logging
+
+logger = logging.getLogger()
 
 # OpenMM constant for Coulomb interactions (openmm/platforms/reference/
 # include/SimTKOpenMMRealType.h) in OpenMM units
@@ -202,7 +206,7 @@ def _determine_temperatures(minimum_temperature, maximum_temperature, number_of_
         protocol = simulation.RunOpenMMSimulation('protocol')
         protocol.input_coordinate_file = coordinate_path
         protocol.system_path = system_path
-        protocol.steps_per_iteration = 100000
+        protocol.steps_per_iteration = 200000
         protocol.output_frequency = 500
         protocol.ensemble = Ensemble.NVT
         protocol.enable_pbc = False
@@ -410,6 +414,8 @@ def _run(root_directory, smiles, maximum_temperature, number_of_molecules, excha
     with a given set of parameters.
     """
 
+    logger.info(f'Starting')
+
     with temporarily_change_directory(root_directory):
 
         # Define the resources to use.
@@ -446,9 +452,10 @@ def _run(root_directory, smiles, maximum_temperature, number_of_molecules, excha
                                                available_resources,
                                                plot=plot)
 
-        print(f'')
+        logger.info(f'Chosen Temperatures: {temperatures}')
 
         # Run the parallel tempering
+        logger.info('Starting parallel tempering')
         enhanced_average_energy = _run_parallel_tempering(temperatures,
                                                           total_number_of_iterations,
                                                           steps_per_iteration,
@@ -457,11 +464,13 @@ def _run(root_directory, smiles, maximum_temperature, number_of_molecules, excha
                                                           system_path,
                                                           available_resources)
 
+        logger.info('Finished parallel tempering')
         parallel_tempering_end_time = time.perf_counter()
 
         # Run a regular simulation for comparison
         simulation_start_time = time.perf_counter()
 
+        logger.info('Starting simulation')
         average_energy = _run_regular_simulation(298.0 * unit.kelvin,
                                                  total_number_of_iterations,
                                                  steps_per_iteration,
@@ -470,14 +479,15 @@ def _run(root_directory, smiles, maximum_temperature, number_of_molecules, excha
                                                  system_path,
                                                  available_resources)
 
+        logger.info('Finished simulation')
         simulation_end_time = time.perf_counter()
 
-        print(f'{smiles} {exchange_probability} {maximum_temperature} '
-              f'Temperatures {temperatures} '
-              f'Regular_Time {(simulation_end_time - simulation_start_time) * 1000} '
-              f'Parallel_Time {(parallel_tempering_end_time - parallel_tempering_start_time) * 1000} '
-              f'Regular_Energy {average_energy} '
-              f'Parallel_Energy {enhanced_average_energy}')
+        logger.info(f'{smiles} {exchange_probability} {maximum_temperature} '
+                    f'Temperatures {temperatures} '
+                    f'Regular_Time {(simulation_end_time - simulation_start_time) * 1000} '
+                    f'Parallel_Time {(parallel_tempering_end_time - parallel_tempering_start_time) * 1000} '
+                    f'Regular_Energy {average_energy} '
+                    f'Parallel_Energy {enhanced_average_energy}')
 
 
 def main():
@@ -488,54 +498,176 @@ def main():
     smiles = ['CCOC(=O)CC(=O)C', 'CC(=O)CCC(=O)O', 'CCC(=O)O']
 
     exchange_probabilities = [0.2, 0.3, 0.4]
-    maximum_temperatures = [1000 * unit.kelvin, 800 * unit.kelvin, 600 * unit.kelvin]
+    maximum_temperatures = [1000 * unit.kelvin, 800 * unit.kelvin]
 
     # Set up a parallel backend.
     number_of_gpus = 0 if number_of_molecules == 1 else 1
     compute_resources = ComputeResources(number_of_threads=1, number_of_gpus=number_of_gpus,
                                          preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA)
 
-    # backend = DaskLocalCluster(number_of_workers=4, resources_per_worker=compute_resources)
-    # backend.start()
-    #
-    # futures = []
+    # Extract the indices to use
+    parser = argparse.ArgumentParser()
+    parser.add_argument('index', type=int)
 
-    for probability_index, exchange_probability in enumerate(exchange_probabilities):
+    index = parser.parse_args().index
+    setup_timestamp_logging(f'{index}.log')
 
-        for temperature_index, maximum_temperature in enumerate(maximum_temperatures):
+    temperature_index = int(index % len(maximum_temperatures))
+    probability_index = int((index / len(maximum_temperatures)) % len(exchange_probabilities))
+    smiles_index = int(index / (len(exchange_probabilities) * len(maximum_temperatures)))
+
+    maximum_temperature = maximum_temperatures[temperature_index]
+    exchange_probability = exchange_probabilities[probability_index]
+    smiles_pattern = smiles[smiles_index]
+
+    directory_name = f'{smiles_index}_{probability_index}_{temperature_index}'
+    os.makedirs(directory_name, exist_ok=True)
+
+    _run(root_directory=directory_name,
+         smiles=smiles_pattern,
+         maximum_temperature=maximum_temperature,
+         number_of_molecules=number_of_molecules,
+         exchange_probability=exchange_probability,
+         total_number_of_iterations=2000,
+         steps_per_iteration=500,
+         plot=False,
+         available_resources=compute_resources)
+
+
+def _compute_dihedral(trajectory, indices):
+
+    import mdtraj
+
+    dihedrals = mdtraj.compute_dihedrals(trajectory, indices=indices)[:, 0]
+    dihedrals = dihedrals / np.pi * 180.0
+
+    return dihedrals
+
+
+def analyse_dihedrals():
+
+    import mdtraj
+
+    smiles = ['CCOC(=O)CC(=O)C', 'CC(=O)CCC(=O)O', 'CCC(=O)O']
+
+    exchange_probabilities = [0.2, 0.3, 0.4]
+    maximum_temperatures = [1000 * unit.kelvin, 800 * unit.kelvin]
+
+    per_smiles_indices = {
+        'CCOC(=O)CC(=O)C': np.array([[1, 2, 3, 4], [1, 2, 3, 4]]),
+        'CC(=O)CCC(=O)O': np.array([[6, 5, 7, 15]]),
+        'CCC(=O)O': np.array([[3, 2, 4, 10]])
+    }
+
+    for temperature_index, maximum_temperature in enumerate(maximum_temperatures):
+
+        for probability_index, exchange_probability in enumerate(exchange_probabilities):
 
             for smiles_index, smiles_pattern in enumerate(smiles):
 
+                if smiles_pattern != 'CC(=O)CCC(=O)O':
+                    continue
+
                 directory_name = f'{smiles_index}_{probability_index}_{temperature_index}'
-                os.makedirs(directory_name, exist_ok=True)
 
-                # future = backend.submit_task(_run,
-                #                              directory_name,
-                #                              smiles_pattern,
-                #                              maximum_temperature,
-                #                              number_of_molecules,
-                #                              exchange_probability,
-                #                              10000,
-                #                              100,
-                #                              False)
+                coordinate_path = os.path.join(directory_name, 'input.pdb')
 
-                _run(
-                    directory_name,
-                    smiles_pattern,
-                    maximum_temperature,
-                    number_of_molecules,
-                    exchange_probability,
-                    10000,
-                    100,
-                    False,
-                    compute_resources
-                )
+                original_trajectory_path = os.path.join(directory_name, 'run_regular', 'trajectory.dcd')
+                parallel_trajectory_path = os.path.join(directory_name, 'run_parallel', 'trajectory.dcd')
 
-                # futures.append(future)
+                indices = per_smiles_indices[smiles_pattern]
 
-    # backend._client.gather(futures)
-    # backend.stop()
+                if not os.path.isfile(original_trajectory_path) or not os.path.isfile(parallel_trajectory_path):
+                    continue
+
+                original_trajectory = mdtraj.load_dcd(original_trajectory_path, top=coordinate_path)
+                parallel_trajectory = mdtraj.load_dcd(parallel_trajectory_path, top=coordinate_path)
+
+                original_dihedrals = _compute_dihedral(original_trajectory, indices)
+                parallel_dihedrals = _compute_dihedral(parallel_trajectory, indices)
+
+                figure, axes = plt.subplots(nrows=1,
+                                            ncols=2,
+                                            figsize=(17, 8.5))
+
+                figure.suptitle(f'{smiles_pattern} {exchange_probability} {maximum_temperature:~}')
+
+                axes[0].plot(original_dihedrals, alpha=0.5, label='Regular', marker='x', linestyle ='None')
+                axes[0].plot(parallel_dihedrals, alpha=0.5, label='Parallel', marker='x', linestyle='None')
+
+                axes[0].legend(loc='upper center')
+
+                axes[1].hist(original_dihedrals, 180, range=[-180.0, 180], alpha=0.5, label='Regular', density=True)
+                axes[1].hist(parallel_dihedrals, 180, range=[-180.0, 180], alpha=0.5, label='Parallel', density=True)
+
+                axes[1].set_ylim(0.0, 0.04)
+
+                axes[1].legend(loc='upper center')
+
+                figure.tight_layout(pad=2)
+                figure.show()
+
+
+def analyse_energies():
+
+    import seaborn
+    seaborn.set_palette('colorblind')
+
+    figure, axes = plt.subplots(nrows=1,
+                                ncols=1,
+                                figsize=(8, 8))
+
+    # Plot the energies from the single temperature simulation.
+    simulation_statistics = StatisticsArray.from_pandas_csv(f'0_0_0/run_regular/statistics.csv')
+    reduced_potentials = simulation_statistics[ObservableType.ReducedPotential].magnitude
+
+    mu = np.mean(reduced_potentials)
+    sigma = np.std(reduced_potentials)
+
+    x_values = np.linspace(mu - 3 * sigma, mu + 3 * sigma, 100)
+    axes.plot(x_values, norm.pdf(x_values, mu, sigma), label=f'Simulation')
+
+    # Plot the energies from the parallel tempering simulation.
+    simulation_statistics = StatisticsArray.from_pandas_csv(f'0_0_0/run_parallel/statistics.csv')
+    reduced_potentials = simulation_statistics[ObservableType.ReducedPotential].magnitude
+
+    mu = np.mean(reduced_potentials)
+    sigma = np.std(reduced_potentials)
+
+    x_values = np.linspace(mu - 3 * sigma, mu + 3 * sigma, 100)
+    axes.plot(x_values, norm.pdf(x_values, mu, sigma), label=f'Simulation')
+
+    axes.legend(loc='upper right')
+
+    figure.show()
+
+
+def verify_energies(trajectory_path, statistics_path):
+
+    compute_resources = ComputeResources(number_of_threads=1)
+
+    protocol = reweighting.CalculateReducedPotentialOpenMM('')
+    protocol.thermodynamic_state = ThermodynamicState(298.0 * unit.kelvin,)
+    protocol.system_path = 'ideal_system.xml'
+    protocol.enable_pbc = False
+    protocol.coordinate_file_path = 'input.pdb'
+    protocol.trajectory_file_path = trajectory_path
+    protocol.high_precision = True
+
+    assert not isinstance(protocol.execute('', compute_resources), PropertyEstimatorException)
+
+    trajectory_statistics = StatisticsArray.from_pandas_csv(protocol.statistics_file_path)
+    reporter_statistics = StatisticsArray.from_pandas_csv(statistics_path)
+
+    assert np.allclose(trajectory_statistics[ObservableType.ReducedPotential].magnitude,
+                       reporter_statistics[ObservableType.ReducedPotential].magnitude, atol=1e-0)
+
+    assert np.allclose(trajectory_statistics[ObservableType.PotentialEnergy].magnitude,
+                       reporter_statistics[ObservableType.PotentialEnergy].magnitude, atol=1e-0)
 
 
 if __name__ == "__main__":
+
     main()
+    analyse_energies()
+    # analyse_dihedrals()

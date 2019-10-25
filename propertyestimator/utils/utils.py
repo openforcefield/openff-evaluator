@@ -155,7 +155,7 @@ def setup_timestamp_logging(file_path=None):
     logger_handler.setFormatter(formatter)
 
     logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     logger.addHandler(logger_handler)
 
 

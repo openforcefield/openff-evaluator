@@ -236,21 +236,28 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
             potential_energies[frame_index] = potential_energy.value_in_unit(simtk_unit.kilojoule_per_mole)
             reduced_potentials[frame_index] = openmm_state.reduced_potential(openmm_context)
 
-        kinetic_energies = StatisticsArray.from_pandas_csv(self.kinetic_energies_path)[ObservableType.KineticEnergy]
-
         statistics_array = StatisticsArray()
         statistics_array[ObservableType.PotentialEnergy] = potential_energies * unit.kilojoule / unit.mole
-        statistics_array[ObservableType.KineticEnergy] = kinetic_energies
         statistics_array[ObservableType.ReducedPotential] = reduced_potentials * unit.dimensionless
 
-        statistics_array[ObservableType.TotalEnergy] = (statistics_array[ObservableType.PotentialEnergy] +
-                                                        statistics_array[ObservableType.KineticEnergy])
+        if self.kinetic_energies_path != UNDEFINED:
 
-        statistics_array[ObservableType.Enthalpy] = (statistics_array[ObservableType.ReducedPotential] *
-                                                     self.thermodynamic_state.inverse_beta + kinetic_energies)
+            kinetic_energies = StatisticsArray.from_pandas_csv(self.kinetic_energies_path)[ObservableType.KineticEnergy]
 
-        if self.use_internal_energy:
-            statistics_array[ObservableType.ReducedPotential] += kinetic_energies * self.thermodynamic_state.beta
+            statistics_array[ObservableType.KineticEnergy] = kinetic_energies
+
+            statistics_array[ObservableType.TotalEnergy] = (statistics_array[ObservableType.PotentialEnergy] +
+                                                            statistics_array[ObservableType.KineticEnergy])
+
+            statistics_array[ObservableType.Enthalpy] = (statistics_array[ObservableType.ReducedPotential] *
+                                                         self.thermodynamic_state.inverse_beta + kinetic_energies)
+
+            if self.use_internal_energy:
+                statistics_array[ObservableType.ReducedPotential] += kinetic_energies * self.thermodynamic_state.beta
+
+        elif self.use_internal_energy is True:
+            raise ValueError('The internal energy can only be used when '
+                             'the kinetic energies are provided.')
 
         self.statistics_file_path = path.join(directory, 'statistics.csv')
         statistics_array.to_pandas_csv(self.statistics_file_path)
