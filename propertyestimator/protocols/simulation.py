@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import traceback
+from enum import Enum
 
 import numpy as np
 
@@ -772,12 +773,25 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
     provided by the `openmmtools <https://openmmtools.readthedocs.io>`_ package.
     """
 
+    class Integrator(Enum):
+
+        LangevinWithoutVReset = 'LangevinWithoutVReset'
+        LangevinWithVReset = 'LangevinWithVReset'
+        GeneralizedHybridMC = 'GeneralizedHybridMC'
+
     output_frequency = protocol_input(
         docstring='The frequency (in number of iterations) with which to write to the '
                   'output statistics and trajectory files.',
         type_hint=int,
         merge_behavior=InequalityMergeBehaviour.SmallestValue,
         default_value=1
+    )
+
+    integrator_type = protocol_input(
+        docstring='The type of integrator to use to propogate the simulation '
+                  'forward between exchange switching moves.',
+        type_hint=Integrator,
+        default_value=Integrator.GeneralizedHybridMC
     )
 
     replica_temperatures = protocol_input(
@@ -790,7 +804,6 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
         default_value=UNDEFINED,
         optional=True
     )
-
     number_of_replicas = protocol_input(
         docstring='The number of exponentially-spaced temperatures between the '
                   'temperature of interest and the maximum temperature.',
@@ -895,15 +908,40 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
                                             box_vectors=initial_pdb_file.topology.getPeriodicBoxVectors())
 
         # Propagate the replicas with Langevin dynamics.
-        langevin_move = mcmc.GHMCMove(
-            timestep=pint_quantity_to_openmm(self.timestep),
-            collision_rate=pint_quantity_to_openmm(self.thermostat_friction),
-            n_steps=self.steps_per_iteration,
-            context_cache=context_cache
-        )
+        if self.integrator_type == self.Integrator.GeneralizedHybridMC:
+
+            mcmc_move = mcmc.GHMCMove(
+                timestep=pint_quantity_to_openmm(self.timestep),
+                collision_rate=pint_quantity_to_openmm(self.thermostat_friction),
+                n_steps=self.steps_per_iteration,
+                context_cache=context_cache
+            )
+
+        elif self.integrator_type == self.Integrator.LangevinWithoutVReset:
+
+            mcmc_move = mcmc.LangevinSplittingDynamicsMove(
+                timestep=pint_quantity_to_openmm(self.timestep),
+                collision_rate=pint_quantity_to_openmm(self.thermostat_friction),
+                n_steps=self.steps_per_iteration,
+                reassign_velocities=False,
+                context_cache=context_cache
+            )
+
+        elif self.integrator_type == self.Integrator.LangevinWithVReset:
+
+            mcmc_move = mcmc.LangevinSplittingDynamicsMove(
+                timestep=pint_quantity_to_openmm(self.timestep),
+                collision_rate=pint_quantity_to_openmm(self.thermostat_friction),
+                n_steps=self.steps_per_iteration,
+                reassign_velocities=True,
+                context_cache=context_cache
+            )
+
+        else:
+            raise NotImplementedError()
 
         # Run the parallel tempering simulation.
-        parallel_tempering = ParallelTemperingSampler(mcmc_moves=langevin_move,
+        parallel_tempering = ParallelTemperingSampler(mcmc_moves=mcmc_move,
                                                       number_of_iterations=self.total_number_of_iterations)
 
         storage_path = os.path.join(directory, 'replicas.nc')
