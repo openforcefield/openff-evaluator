@@ -895,7 +895,7 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
                                             box_vectors=initial_pdb_file.topology.getPeriodicBoxVectors())
 
         # Propagate the replicas with Langevin dynamics.
-        langevin_move = mcmc.LangevinDynamicsMove(
+        langevin_move = mcmc.GHMCMove(
             timestep=pint_quantity_to_openmm(self.timestep),
             collision_rate=pint_quantity_to_openmm(self.thermostat_friction),
             n_steps=self.steps_per_iteration,
