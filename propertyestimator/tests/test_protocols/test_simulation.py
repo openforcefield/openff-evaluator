@@ -149,6 +149,25 @@ def test_openmm_parallel_tempering():
         protocol.high_precision = True
         protocol.enable_pbc = False
         protocol.allow_gpu_platforms = False
+        protocol.replica_temperatures = []
 
         result = protocol.execute(directory, ComputeResources())
         assert not isinstance(result, PropertyEstimatorException)
+
+        original_number_of_points = len(StatisticsArray.from_pandas_csv(protocol.statistics_file_path))
+
+        result = protocol.execute(directory, ComputeResources())
+        assert not isinstance(result, PropertyEstimatorException)
+
+        new_number_of_points = len(StatisticsArray.from_pandas_csv(protocol.statistics_file_path))
+
+        assert new_number_of_points == original_number_of_points
+
+        # Increase the number of steps to make sure things resume from the
+        # checkpoint correctly.
+        protocol.total_number_of_iterations = 2
+        result = protocol.execute(directory, ComputeResources())
+        assert not isinstance(result, PropertyEstimatorException)
+
+        new_number_of_points = len(StatisticsArray.from_pandas_csv(protocol.statistics_file_path))
+        assert new_number_of_points == original_number_of_points + 1

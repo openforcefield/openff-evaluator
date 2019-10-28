@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import traceback
+from collections import Iterable
 from enum import Enum
 
 import numpy as np
@@ -796,19 +797,13 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
 
     replica_temperatures = protocol_input(
         docstring='The intermediate temperatures that a replica should sample at. '
-                  'These values must be greater than the temperature defined by the '
-                  'thermodynamic state, and list than the maximum temperature. If '
-                  'unset, then these will be chosen as a geometric progression between '
-                  'the defined start and end temperatures.',
+                  'These values must be greater than the temperature of interest '
+                  '(defined by the `thermodynamic_state` input), and less than the '
+                  'maximum temperature. If unset, then these will be chosen automatically '
+                  'so as to achieve a target exchange probability.',
         type_hint=list,
         default_value=UNDEFINED,
         optional=True
-    )
-    number_of_replicas = protocol_input(
-        docstring='The number of exponentially-spaced temperatures between the '
-                  'temperature of interest and the maximum temperature.',
-        type_hint=int,
-        default_value=UNDEFINED
     )
 
     maximum_temperature = protocol_input(
@@ -825,8 +820,6 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
         list of simtk.unit.Quantity
             The list of ordered temperatures.
         """
-        if len(self.replica_temperatures) == 0:
-            raise ValueError('At least one temperature must be defined in the `replica_temperatures` list.')
 
         if not all(isinstance(x, unit.Quantity) for x in self.replica_temperatures):
 
@@ -849,46 +842,63 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
 
         return temperatures
 
-    def execute(self, directory, available_resources):
+    def _restore_sampler_object(self, file_path, context_cache):
+        """Restores the sampler object from its checkpoint files.
 
-        from openmmtools import cache, mcmc, states
-        from openmmtools.multistate import MultiStateReporter, ParallelTemperingSampler
+        Parameters
+        ----------
+        file_path: str
+            The file path to the sampler object.
+        context_cache: openmmtools.cache.ContextCache
+            The context cache to use for the mcmc moves.
 
-        # Make sure the temperature range makes sense.
-        if self.maximum_temperature < self.thermodynamic_state.temperature:
+        Returns
+        -------
+        multistate.ParallelTemperingSampler
+            The sampler object which takes advantage
+            of the correct context cache.
+        """
+        from openmmtools import multistate
 
-            return PropertyEstimatorException(directory, 'The maximum temperature cannot be lower than '
-                                                         'the temperature of interest defined by the '
-                                                         '`thermodynamic_state` input.')
+        sampler_object = multistate.ParallelTemperingSampler.from_storage(file_path)
 
-        openmm_temperature = pint_quantity_to_openmm(self.thermodynamic_state.temperature)
-        openmm_max_temperature = pint_quantity_to_openmm(self.maximum_temperature)
+        # Update total number of iterations. This may write the new number
+        # of iterations in the storage file so we do it only if necessary.
+        if sampler_object.number_of_iterations != self.total_number_of_iterations:
+            sampler_object.number_of_iterations = self.total_number_of_iterations
 
-        openmm_pressure = None
+        # Use a context cache with the correct platform settings.
+        if isinstance(sampler_object.mcmc_moves, Iterable):
 
-        if self.thermodynamic_state.pressure is not None:
-            openmm_pressure = pint_quantity_to_openmm(self.thermodynamic_state.pressure)
+            for mcmc_move in sampler_object.mcmc_moves:
+                mcmc_move.context_cache = context_cache
 
-        # Determine the temperatures to simulate at.
-        temperatures = None
+        else:
+            sampler_object.mcmc_moves.context_cache = context_cache
 
-        if self.replica_temperatures != UNDEFINED:
+        return sampler_object
 
-            temperatures = self._validate_temperatures()
+    def _setup_sampler_object(self, directory, temperatures, available_resources):
+        """Initializes the sampler objects needed to perform the parallel
+        tempering simulations.
 
-        elif self.number_of_replicas == UNDEFINED:
+        Parameters
+        ----------
+        directory: str
+            The directory which the sampler should run in.
+        temperatures: simtk.unit.Quantity
+            The temperatures that the replicas should sample.
+        available_resources: ComputeResources
+            The resources available to run on.
 
-            return PropertyEstimatorException(directory, 'The `number_of_replicas` must be set if '
-                                                         '`replica_temperatures` is UNDEFINED.')
+        Returns
+        -------
+        multistate.ParallelTemperingSampler
+            The sampler object which takes advantage
+            of the available compute resources.
+        """
 
-        # Load in the system object.
-        with open(self.system_path, 'r') as file:
-            system = openmm.XmlSerializer.deserialize(file.read())
-
-        if not self.enable_pbc:
-
-            disable_pbc(system)
-            openmm_pressure = None
+        from openmmtools import cache, mcmc, multistate, states
 
         # Create a platform with the correct resources.
         if not self.allow_gpu_platforms:
@@ -899,8 +909,26 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
         platform = setup_platform_with_resources(available_resources, self.high_precision)
         context_cache = cache.ContextCache(platform=platform)
 
+        # Attempt to load any existing objects from disk.
+        storage_path = os.path.join(directory, 'replicas.nc')
+
+        if os.path.isfile(storage_path):
+            return self._restore_sampler_object(storage_path, context_cache)
+
+        # Load in the system object.
+        with open(self.system_path, 'r') as file:
+            system = openmm.XmlSerializer.deserialize(file.read())
+
+        pressure = None if self.ensemble == Ensemble.NVT else self.thermodynamic_state.pressure
+
+        openmm_pressure = pint_quantity_to_openmm(pressure)
+
+        if not self.enable_pbc:
+            disable_pbc(system)
+            openmm_pressure = None
+
         # Set up the thermodynamic states to sample.
-        reference_state = states.ThermodynamicState(system, openmm_temperature, openmm_pressure)
+        reference_state = states.ThermodynamicState(system, temperatures[0], openmm_pressure)
 
         initial_pdb_file = app.PDBFile(self.input_coordinate_file)
 
@@ -941,51 +969,26 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
             raise NotImplementedError()
 
         # Run the parallel tempering simulation.
-        parallel_tempering = ParallelTemperingSampler(mcmc_moves=mcmc_move,
-                                                      number_of_iterations=self.total_number_of_iterations)
+        sampler_object = multistate.ParallelTemperingSampler(mcmc_moves=mcmc_move,
+                                                             number_of_iterations=self.total_number_of_iterations)
 
-        storage_path = os.path.join(directory, 'replicas.nc')
-        reporter = MultiStateReporter(storage_path, checkpoint_interval=self.output_frequency)
+        reporter = multistate.MultiStateReporter(storage_path, checkpoint_interval=self.output_frequency)
 
-        if temperatures is None:
+        sampler_object.create(reference_state,
+                              [sampler_state],
+                              reporter,
+                              temperatures=temperatures,
+                              n_temperatures=len(temperatures))
 
-            parallel_tempering.create(reference_state,
-                                      [sampler_state],
-                                      reporter,
-                                      min_temperature=openmm_temperature,
-                                      max_temperature=openmm_max_temperature,
-                                      n_temperatures=self.number_of_replicas)
+        return sampler_object
 
-        else:
-
-            parallel_tempering.create(reference_state,
-                                      [sampler_state],
-                                      reporter,
-                                      temperatures=temperatures,
-                                      n_temperatures=len(temperatures))
-
-        parallel_tempering.run()
-
-        mdtraj_trajectory, statistics = self._extract_trajectory_statistics(os.path.join(directory, 'replicas.nc'),
-                                                                            system)
-
-        self.statistics_file_path = os.path.join(directory, 'statistics.csv')
-        self.trajectory_file_path = os.path.join(directory, 'trajectory.dcd')
-
-        mdtraj_trajectory.save_dcd(self.trajectory_file_path)
-        statistics.to_pandas_csv(self.statistics_file_path)
-
-        return self._get_output_dictionary()
-
-    def _extract_trajectory_statistics(self, nc_path, reference_system, temperature_index=0):
+    def _extract_trajectory_statistics(self, nc_path, temperature_index=0):
         """Extract the trajectory and statistics of a replica from the NetCDF4 file.
 
         Parameters
         ----------
         nc_path : str
             Path to the primary nc_file storing the analysis options
-        reference_system: simtk.openmm.System
-            The system object describing the system which was simulated.
         temperature_index: int
             The index of the temperature at which the statistics are desired.
             For example, an index of 0 will yield the trajectories and statistics
@@ -1061,7 +1064,13 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
             positions = np.zeros((number_of_frames, number_of_atoms, 3), dtype=np.float32)
             box_vectors = None
 
-            if reference_system.usesPeriodicBoundaryConditions():
+            with open(self.system_path, 'r') as file:
+                system = openmm.XmlSerializer.deserialize(file.read())
+
+            if not self.enable_pbc:
+                disable_pbc(system)
+
+            if system.usesPeriodicBoundaryConditions():
                 box_vectors = np.zeros((number_of_frames, 3, 3), dtype=np.float32)
 
             # Extract state positions and box vectors.
@@ -1085,7 +1094,35 @@ class OpenMMParallelTempering(BaseOpenMMSimulation):
         topology = mdtraj.load_topology(self.input_coordinate_file)
         trajectory = mdtraj.Trajectory(positions, topology)
 
-        if reference_system.usesPeriodicBoundaryConditions():
+        if system.usesPeriodicBoundaryConditions():
             trajectory.unitcell_vectors = box_vectors
 
         return trajectory, statistics_array
+
+    def execute(self, directory, available_resources):
+
+        # Make sure the temperature range makes sense.
+        if self.maximum_temperature < self.thermodynamic_state.temperature:
+
+            return PropertyEstimatorException(directory, 'The maximum temperature cannot be lower than '
+                                                         'the temperature of interest defined by the '
+                                                         '`thermodynamic_state` input.')
+
+        # Determine the temperatures to simulate at.
+        if self.replica_temperatures != UNDEFINED:
+            temperatures = self._validate_temperatures()
+        else:
+            raise NotImplementedError()
+
+        sampler_object = self._setup_sampler_object(directory, temperatures, available_resources)
+        sampler_object.run()
+
+        mdtraj_trajectory, statistics = self._extract_trajectory_statistics(os.path.join(directory, 'replicas.nc'))
+
+        self.statistics_file_path = os.path.join(directory, 'statistics.csv')
+        self.trajectory_file_path = os.path.join(directory, 'trajectory.dcd')
+
+        mdtraj_trajectory.save_dcd(self.trajectory_file_path)
+        statistics.to_pandas_csv(self.statistics_file_path)
+
+        return self._get_output_dictionary()
