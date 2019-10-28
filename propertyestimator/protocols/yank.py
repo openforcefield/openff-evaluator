@@ -768,11 +768,18 @@ class SolvationYankProtocol(BaseYankProtocol):
                                                 self.solvent_2_coordinates,
                                                 Substance.ComponentRole.Solvent)
 
+        full_solvent_dsl_components = []
+
+        if len(solvent_1_dsl) > 0:
+            full_solvent_dsl_components.append(solvent_1_dsl)
+        if len(solvent_2_dsl) > 0:
+            full_solvent_dsl_components.append(solvent_2_dsl)
+
         solvation_system_dictionary = {
             'phase1_path': [self._local_solvent_1_system, self._local_solvent_1_coordinates],
             'phase2_path': [self._local_solvent_2_system, self._local_solvent_2_coordinates],
 
-            'solvent_dsl': ' or '.join([solvent_1_dsl, solvent_2_dsl])
+            'solvent_dsl': ' or '.join(full_solvent_dsl_components)
         }
 
         return {'solvation-system': solvation_system_dictionary}
