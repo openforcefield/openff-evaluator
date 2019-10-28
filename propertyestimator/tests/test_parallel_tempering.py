@@ -24,8 +24,8 @@ def _run_regular_simulation(temperature, total_number_of_iterations, steps_per_i
     RunOpenMMSimulation protocol.
     """
 
-    if os.path.isdir('run_regular'):
-        shutil.rmtree('run_regular')
+    # if os.path.isdir('run_regular'):
+    #     shutil.rmtree('run_regular')
 
     os.makedirs('run_regular', exist_ok=True)
 
@@ -61,8 +61,8 @@ def _run_parallel_tempering(temperatures, total_number_of_iterations, steps_per_
     OpenMMParallelTempering protocol.
     """
 
-    if os.path.isdir('run_parallel'):
-        shutil.rmtree('run_parallel')
+    # if os.path.isdir('run_parallel'):
+    #     shutil.rmtree('run_parallel')
 
     os.makedirs('run_parallel', exist_ok=True)
 
