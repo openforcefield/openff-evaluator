@@ -87,12 +87,18 @@ class BaseYankProtocol(BaseProtocol):
         type_hint=EstimatedQuantity
     )
 
-    def _get_residue_names_from_role(self, role):
+    @staticmethod
+    def _get_residue_names_from_role(substances, coordinate_path, role):
         """Returns a list of all of the residue names of
         components which have been assigned a given role.
 
         Parameters
         ----------
+        substances: list of Substance
+            The substances which contains the components.
+        coordinate_path: str
+            The path to the coordinates which describe the systems
+            topology.
         role: Substance.ComponentRole
             The role of the component to identify.
 
@@ -108,17 +114,20 @@ class BaseYankProtocol(BaseProtocol):
         if role == Substance.ComponentRole.Undefined:
             return 'all'
 
-        unique_molecules = [Molecule.from_smiles(component.smiles)
-                            for component in self.substance.components]
+        unique_molecules = [Molecule.from_smiles(component.smiles) for
+                            substance in substances for
+                            component in substance.components]
 
-        openmm_topology = app.PDBFile(self.solvated_coordinates).topology
+        openmm_topology = app.PDBFile(coordinate_path).topology
         topology = Topology.from_openmm(openmm_topology, unique_molecules)
 
         # Determine the smiles of all molecules in the system. We need to use
         # the toolkit to re-generate the smiles as later we will compare these
         # against more toolkit generated smiles.
-        components = [component for component in self.substance.components if
+        components = [component for substance in substances for
+                      component in substance.components if
                       component.role == role]
+
         component_smiles = [Molecule.from_smiles(component.smiles).to_smiles() for
                             component in components]
 
@@ -143,13 +152,19 @@ class BaseYankProtocol(BaseProtocol):
 
         return residue_names
 
-    def _get_dsl_from_role(self, role):
+    @staticmethod
+    def _get_dsl_from_role(substances, coordinate_path, role):
         """Returns an MDTraj DSL string which identifies those
         atoms which belong to components flagged with a specific
         role.
 
         Parameters
         ----------
+        substance: list of Substance
+            The substances which contains the components.
+        coordinate_path: str
+            The path to the coordinates which describe the systems
+            topology.
         role: Substance.ComponentRole
             The role of the component to identify.
 
@@ -159,7 +174,7 @@ class BaseYankProtocol(BaseProtocol):
             The DSL string.
         """
 
-        residue_names = self._get_residue_names_from_role(role)
+        residue_names = BaseYankProtocol._get_residue_names_from_role(substances, coordinate_path, role)
 
         dsl_string = ' or '.join([f'resname {residue_name}' for residue_name in residue_names])
         return dsl_string
@@ -633,46 +648,60 @@ class SolvationYankProtocol(BaseYankProtocol):
     """A protocol for performing solvation alchemical free energy
     calculations using the YANK framework.
 
-    Todos
-    -----
-    * This protocol is could be easily generalized to facilitate
-      transfer free energies, however I am currently unclear as to
-      how yank determines what is solvent and what is solute in
-      cases of different solvents in each phase.
+    This protocol can be used for box solvation free energies (setting
+    the `solvent_1` input to the solvent of interest and setting
+    `solvent_2` as an empty `Substance`) or transfer free energies (setting
+    both the `solvent_1` and `solvent_2` inputs to different solvents).
     """
 
-    substance = protocol_input(
+    solute = protocol_input(
         docstring='The substance describing the composition of '
-                  'the system',
+                  'the solute. This should include the solute '
+                  'molecule as well as any counter ions.',
         type_hint=Substance,
         default_value=UNDEFINED
     )
 
-    solvated_coordinates = protocol_input(
+    solvent_1 = protocol_input(
+        docstring='The substance describing the composition of '
+                  'the first solvent.',
+        type_hint=Substance,
+        default_value=UNDEFINED
+    )
+    solvent_2 = protocol_input(
+        docstring='The substance describing the composition of '
+                  'the second solvent.',
+        type_hint=Substance,
+        default_value=UNDEFINED
+    )
+
+    solvent_1_coordinates = protocol_input(
         docstring='The file path to the coordinates of the solute embedded in the '
                   'first solvent.',
         type_hint=str,
         default_value=UNDEFINED
     )
-    solvated_system = protocol_input(
+    solvent_1_system = protocol_input(
         docstring='The file path to the system object of the solute embedded in the '
                   'first solvent.',
         type_hint=str,
         default_value=UNDEFINED
     )
 
-    vacuum_coordinates = protocol_input(
-        docstring='The file path to the coordinates of the solute embedded in vacuum.',
+    solvent_2_coordinates = protocol_input(
+        docstring='The file path to the coordinates of the solute embedded in the '
+                  'second solvent.',
         type_hint=str,
         default_value=UNDEFINED
     )
-    vacuum_system = protocol_input(
-        docstring='The file path to the system object of the solute embedded in vacuum.',
+    solvent_2_system = protocol_input(
+        docstring='The file path to the system object of the solute embedded in the '
+                  'second solvent.',
         type_hint=str,
         default_value=UNDEFINED
     )
 
-    solvated_electrostatic_lambdas = protocol_input(
+    electrostatic_lambdas_1 = protocol_input(
         docstring='The list of electrostatic alchemical states that YANK should sample at. '
                   'These values will be passed to the YANK `lambda_electrostatics` option. '
                   'If no option is set, YANK will use `trailblaze` algorithm to determine '
@@ -681,7 +710,7 @@ class SolvationYankProtocol(BaseYankProtocol):
         optional=True,
         default_value=UNDEFINED
     )
-    solvated_steric_lambdas = protocol_input(
+    steric_lambdas_1 = protocol_input(
         docstring='The list of steric alchemical states that YANK should sample at. '
                   'These values will be passed to the YANK `lambda_sterics` option. '
                   'If no option is set, YANK will use `trailblaze` algorithm to determine '
@@ -690,7 +719,7 @@ class SolvationYankProtocol(BaseYankProtocol):
         optional=True,
         default_value=UNDEFINED
     )
-    vacuum_electrostatic_lambdas = protocol_input(
+    electrostatic_lambdas_2 = protocol_input(
         docstring='The list of electrostatic alchemical states that YANK should sample at. '
                   'These values will be passed to the YANK `lambda_electrostatics` option. '
                   'If no option is set, YANK will use `trailblaze` algorithm to determine '
@@ -699,7 +728,7 @@ class SolvationYankProtocol(BaseYankProtocol):
         optional=True,
         default_value=UNDEFINED
     )
-    vacuum_steric_lambdas = protocol_input(
+    steric_lambdas_2 = protocol_input(
         docstring='The list of steric alchemical states that YANK should sample at. '
                   'These values will be passed to the YANK `lambda_sterics` option. '
                   'If no option is set, YANK will use `trailblaze` algorithm to determine '
@@ -709,33 +738,41 @@ class SolvationYankProtocol(BaseYankProtocol):
         default_value=UNDEFINED
     )
 
-    solvated_trajectory_path = protocol_output(
-        docstring='The file path to the generated ligand trajectory.',
+    solvent_1_trajectory_path = protocol_output(
+        docstring='The file path to the trajectory of the solute in the '
+                  'first solvent.',
         type_hint=str
     )
-    vacuum_trajectory_path = protocol_output(
-        docstring='The file path to the generated ligand trajectory.',
+    solvent_2_trajectory_path = protocol_output(
+        docstring='The file path to the trajectory of the solute in the '
+                  'second solvent.',
         type_hint=str
     )
 
     def __init__(self, protocol_id):
-        """Constructs a new LigandReceptorYankProtocol object."""
-
         super().__init__(protocol_id)
 
-        self._local_solution_coordinates = 'solution.pdb'
-        self._local_solution_system = 'solution.xml'
+        self._local_solvent_1_coordinates = 'solvent_1.pdb'
+        self._local_solvent_1_system = 'solvent_1.xml'
 
-        self._local_vacuum_coordinates = 'vacuum.pdb'
-        self._local_vacuum_system = 'vacuum.xml'
+        self._local_solvent_2_coordinates = 'solvent_2.pdb'
+        self._local_solvent_2_system = 'solvent_2.xml'
 
     def _get_system_dictionary(self):
 
-        solvation_system_dictionary = {
-            'phase1_path': [self._local_solution_system, self._local_solution_coordinates],
-            'phase2_path': [self._local_vacuum_system, self._local_vacuum_coordinates],
+        solvent_1_dsl = self._get_dsl_from_role([self.solute, self.solvent_1],
+                                                self.solvent_1_coordinates,
+                                                Substance.ComponentRole.Solvent)
 
-            'solvent_dsl': self._get_dsl_from_role(Substance.ComponentRole.Solvent)
+        solvent_2_dsl = self._get_dsl_from_role([self.solute, self.solvent_2],
+                                                self.solvent_2_coordinates,
+                                                Substance.ComponentRole.Solvent)
+
+        solvation_system_dictionary = {
+            'phase1_path': [self._local_solvent_1_system, self._local_solvent_1_coordinates],
+            'phase2_path': [self._local_solvent_2_system, self._local_solvent_2_coordinates],
+
+            'solvent_dsl': ' or '.join([solvent_1_dsl, solvent_2_dsl])
         }
 
         return {'solvation-system': solvation_system_dictionary}
@@ -743,91 +780,94 @@ class SolvationYankProtocol(BaseYankProtocol):
     def _get_protocol_dictionary(self):
 
         solvent_1_protocol_dictionary = {
-            'lambda_electrostatics': self.solvated_electrostatic_lambdas,
-            'lambda_sterics': self.solvated_steric_lambdas
+            'lambda_electrostatics': self.electrostatic_lambdas_1,
+            'lambda_sterics': self.steric_lambdas_1
         }
 
-        if (self.solvated_electrostatic_lambdas == UNDEFINED and
-            self.solvated_steric_lambdas == UNDEFINED):
+        if self.electrostatic_lambdas_1 == UNDEFINED and self.steric_lambdas_1 == UNDEFINED:
 
             solvent_1_protocol_dictionary = 'auto'
 
-        elif ((self.solvated_electrostatic_lambdas != UNDEFINED and
-               self.solvated_steric_lambdas == UNDEFINED) or
-              (self.solvated_electrostatic_lambdas == UNDEFINED and
-               self.solvated_steric_lambdas != UNDEFINED)):
+        elif ((self.electrostatic_lambdas_1 != UNDEFINED and self.steric_lambdas_1 == UNDEFINED) or
+              (self.electrostatic_lambdas_1 == UNDEFINED and self.steric_lambdas_1 != UNDEFINED)):
 
-            raise ValueError('Either both of `solvated_electrostatic_lambdas` and '
-                             '`solvated_steric_lambdas` must be set, or neither '
+            raise ValueError('Either both of `electrostatic_lambdas_1` and '
+                             '`steric_lambdas_1` must be set, or neither '
                              'must be set.')
 
         solvent_2_protocol_dictionary = {
-            'lambda_electrostatics': self.vacuum_electrostatic_lambdas,
-            'lambda_sterics': self.vacuum_steric_lambdas
+            'lambda_electrostatics': self.electrostatic_lambdas_2,
+            'lambda_sterics': self.steric_lambdas_2
         }
         
-        if (self.vacuum_electrostatic_lambdas == UNDEFINED and
-            self.vacuum_steric_lambdas == UNDEFINED):
+        if self.electrostatic_lambdas_2 == UNDEFINED and self.steric_lambdas_2 == UNDEFINED:
 
             solvent_2_protocol_dictionary = 'auto'
 
-        elif ((self.vacuum_electrostatic_lambdas != UNDEFINED and
-               self.vacuum_steric_lambdas == UNDEFINED) or
-              (self.vacuum_electrostatic_lambdas == UNDEFINED and
-               self.vacuum_steric_lambdas != UNDEFINED)):
+        elif ((self.electrostatic_lambdas_2 != UNDEFINED and self.steric_lambdas_2 == UNDEFINED) or
+              (self.electrostatic_lambdas_2 == UNDEFINED and self.steric_lambdas_2 != UNDEFINED)):
 
-            raise ValueError('Either both of `vacuum_electrostatic_lambdas` and '
-                             '`vacuum_steric_lambdas` must be set, or neither '
+            raise ValueError('Either both of `electrostatic_lambdas_2` and '
+                             '`steric_lambdas_2` must be set, or neither '
                              'must be set.')
 
-        absolute_binding_dictionary = {
+        protocol_dictionary = {
             'solvent1': {'alchemical_path': solvent_1_protocol_dictionary},
             'solvent2': {'alchemical_path': solvent_2_protocol_dictionary}
         }
 
-        return {'solvation-protocol': absolute_binding_dictionary}
+        return {'solvation-protocol': protocol_dictionary}
 
     def execute(self, directory, available_resources):
 
         from simtk.openmm import XmlSerializer
 
-        solutes = [component for component in self.substance.components if
-                   component.role == Substance.ComponentRole.Solute]
+        solute_components = [component for component in self.solute.components if
+                             component.role == Substance.ComponentRole.Solute]
 
-        solvent = [component for component in self.substance.components if
-                   component.role != Substance.ComponentRole.Solute]
+        solvent_1_components = [component for component in self.solvent_1.components if
+                                component.role == Substance.ComponentRole.Solvent]
 
-        if len(solutes) != 1:
+        solvent_2_components = [component for component in self.solvent_2.components if
+                                component.role == Substance.ComponentRole.Solvent]
 
-            return PropertyEstimatorException(directory, 'There must only be a single component marked as '
-                                                         'a solute in the substance.')
-
-        if len(solvent) <= 0:
-
-            return PropertyEstimatorException(directory, 'There must be at least one solvent component in '
-                                                         'the system.')
+        if len(solute_components) != 1:
+            return PropertyEstimatorException(directory, 'There must only be a single component marked as a solute.')
+        if len(solvent_1_components) == 0 and len(solvent_2_components) == 0:
+            return PropertyEstimatorException(directory, 'At least one of the solvents must not be vacuum.')
 
         # Because of quirks in where Yank looks files while doing temporary
         # directory changes, we need to copy the coordinate files locally so
         # they are correctly found.
-        shutil.copyfile(self.solvated_coordinates, os.path.join(directory, self._local_solution_coordinates))
-        shutil.copyfile(self.solvated_system, os.path.join(directory, self._local_solution_system))
+        shutil.copyfile(self.solvent_1_coordinates, os.path.join(directory, self._local_solvent_1_coordinates))
+        shutil.copyfile(self.solvent_1_system, os.path.join(directory, self._local_solvent_1_system))
 
-        shutil.copyfile(self.vacuum_coordinates, os.path.join(directory, self._local_vacuum_coordinates))
-        shutil.copyfile(self.vacuum_system, os.path.join(directory, self._local_vacuum_system))
+        shutil.copyfile(self.solvent_2_coordinates, os.path.join(directory, self._local_solvent_2_coordinates))
+        shutil.copyfile(self.solvent_2_system, os.path.join(directory, self._local_solvent_2_system))
 
-        # Disable any periodic boundary conditions on the vacuum system.
-        logging.info(f'Disabling any PBC in {self._local_vacuum_system} by setting the '
-                     f'cutoff type to NoCutoff')
+        # Disable the pbc of the any solvents which should be treated
+        # as vacuum.
+        vacuum_system_path = None
 
-        with open(os.path.join(directory, self._local_vacuum_system), 'r') as file:
-            vacuum_system = XmlSerializer.deserialize(file.read())
+        if len(solvent_1_components) == 0:
+            vacuum_system_path = self._local_solvent_1_system
+        elif len(solvent_2_components) == 0:
+            vacuum_system_path = self._local_solvent_2_system
 
-        disable_pbc(vacuum_system)
+        if vacuum_system_path is not None:
 
-        with open(os.path.join(directory, self._local_vacuum_system), 'w') as file:
-            file.write(XmlSerializer.serialize(vacuum_system))
+            logging.info(f'Disabling the periodic boundary conditions in {vacuum_system_path} '
+                         f'by setting the cutoff type to NoCutoff')
 
+            with open(os.path.join(directory, vacuum_system_path), 'r') as file:
+                vacuum_system = XmlSerializer.deserialize(file.read())
+
+            disable_pbc(vacuum_system)
+
+            with open(os.path.join(directory, vacuum_system_path), 'w') as file:
+                file.write(XmlSerializer.serialize(vacuum_system))
+
+        # Set up the yank input file.
         result = super(SolvationYankProtocol, self).execute(directory, available_resources)
 
         if isinstance(result, PropertyEstimatorException):
@@ -836,13 +876,13 @@ class SolvationYankProtocol(BaseYankProtocol):
         if self.setup_only:
             return self._get_output_dictionary()
 
-        solvated_yank_path = os.path.join(directory, 'experiments', 'solvent1.nc')
-        vacuum_yank_path = os.path.join(directory, 'experiments', 'solvent2.nc')
+        solvent_1_yank_path = os.path.join(directory, 'experiments', 'solvent_1.nc')
+        solvent_2_yank_path = os.path.join(directory, 'experiments', 'solvent_2.nc')
 
-        self.solvated_trajectory_path = os.path.join(directory, 'solvated.dcd')
-        self.vacuum_trajectory_path = os.path.join(directory, 'vacuum.dcd')
+        self.solvent_1_trajectory_path = os.path.join(directory, 'solvent_1.dcd')
+        self.solvent_2_trajectory_path = os.path.join(directory, 'solvent_2.dcd')
 
-        self._extract_trajectory(solvated_yank_path, self.solvated_trajectory_path)
-        self._extract_trajectory(vacuum_yank_path, self.vacuum_trajectory_path)
+        self._extract_trajectory(solvent_1_yank_path, self.solvent_1_trajectory_path)
+        self._extract_trajectory(solvent_2_yank_path, self.solvent_2_trajectory_path)
 
         return self._get_output_dictionary()

@@ -107,6 +107,10 @@ def test_solvation_yank_protocol(solvent_smiles):
     full_substance.add_component(Substance.Component(smiles=solvent_smiles, role=Substance.ComponentRole.Solvent),
                                  Substance.MoleFraction(1.0))
 
+    solvent_substance = Substance()
+    solvent_substance.add_component(Substance.Component(smiles=solvent_smiles, role=Substance.ComponentRole.Solvent),
+                                    Substance.MoleFraction(1.0))
+
     solute_substance = Substance()
     solute_substance.add_component(Substance.Component(smiles='CO', role=Substance.ComponentRole.Solute),
                                    Substance.ExactAmount(1))
@@ -134,22 +138,24 @@ def test_solvation_yank_protocol(solvent_smiles):
                                                                              force_field_path)
 
             run_yank = SolvationYankProtocol('yank')
-            run_yank.substance = full_substance
+            run_yank.solute = solute_substance
+            run_yank.solvent_1 = solvent_substance
+            run_yank.solvent_2 = Substance()
             run_yank.thermodynamic_state = thermodynamic_state
             run_yank.number_of_iterations = 1
             run_yank.steps_per_iteration = 1
             run_yank.checkpoint_interval = 1
             run_yank.verbose = True
             run_yank.setup_only = True
-            run_yank.solvated_coordinates = solvated_coordinate_path
-            run_yank.solvated_system = solvated_system_path
-            run_yank.vacuum_coordinates = vacuum_coordinate_path
-            run_yank.vacuum_system = vacuum_system_path
+            run_yank.solvent_1_coordinates = solvated_coordinate_path
+            run_yank.solvent_1_system = solvated_system_path
+            run_yank.solvent_2_coordinates = vacuum_coordinate_path
+            run_yank.solvent_2_system = vacuum_system_path
 
-            run_yank.solvated_electrostatic_lambdas = [1.00]
-            run_yank.solvated_steric_lambdas = [1.00]
-            run_yank.vacuum_electrostatic_lambdas = [1.00]
-            run_yank.vacuum_steric_lambdas = [1.00]
+            run_yank.electrostatic_lambdas_1 = [1.00]
+            run_yank.steric_lambdas_1 = [1.00]
+            run_yank.electrostatic_lambdas_2 = [1.00]
+            run_yank.steric_lambdas_2 = [1.00]
 
             result = run_yank.execute('', ComputeResources())
             assert not isinstance(result, PropertyEstimatorException)

@@ -72,6 +72,10 @@ class SolvationFreeEnergy(PhysicalProperty):
 
         # Create a substance which only contains the solute (e.g. for the
         # vacuum phase simulations).
+        filter_solvent = miscellaneous.FilterSubstanceByRole('filter_solvent')
+        filter_solvent.input_substance = ProtocolPath('substance', 'global')
+        filter_solvent.component_role = Substance.ComponentRole.Solvent
+
         filter_solute = miscellaneous.FilterSubstanceByRole('filter_solute')
         filter_solute.input_substance = ProtocolPath('substance', 'global')
         filter_solute.component_role = Substance.ComponentRole.Solute
@@ -89,14 +93,16 @@ class SolvationFreeEnergy(PhysicalProperty):
 
         # Set up the protocol to run yank.
         run_yank = yank.SolvationYankProtocol('run_solvation_yank')
-        run_yank.substance = ProtocolPath('substance', 'global')
+        run_yank.solute = ProtocolPath('filtered_substance', filter_solute.id)
+        run_yank.solvent_1 = ProtocolPath('filtered_substance', filter_solvent.id)
+        run_yank.solvent_2 = Substance()
         run_yank.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
         run_yank.steps_per_iteration = 500
         run_yank.checkpoint_interval = 50
-        run_yank.solvated_coordinates = ProtocolPath('output_coordinate_file', equilibration_simulation.id)
-        run_yank.solvated_system = ProtocolPath('system_path', assign_full_parameters.id)
-        run_yank.vacuum_coordinates = ProtocolPath('coordinate_file_path', build_vacuum_coordinates.id)
-        run_yank.vacuum_system = ProtocolPath('system_path', assign_vacuum_parameters.id)
+        run_yank.solvent_1_coordinates = ProtocolPath('output_coordinate_file', equilibration_simulation.id)
+        run_yank.solvent_1_system = ProtocolPath('system_path', assign_full_parameters.id)
+        run_yank.solvent_2_coordinates = ProtocolPath('coordinate_file_path', build_vacuum_coordinates.id)
+        run_yank.solvent_2_system = ProtocolPath('system_path', assign_vacuum_parameters.id)
 
         # Set up the group which will run yank until the free energy has been determined to within
         # a given uncertainty
@@ -136,7 +142,9 @@ class SolvationFreeEnergy(PhysicalProperty):
             energy_minimisation.id: energy_minimisation.schema,
             equilibration_simulation.id: equilibration_simulation.schema,
 
+            filter_solvent.id: filter_solvent.schema,
             filter_solute.id: filter_solute.schema,
+
             build_vacuum_coordinates.id: build_vacuum_coordinates.schema,
             assign_vacuum_parameters.id: assign_vacuum_parameters.schema,
 

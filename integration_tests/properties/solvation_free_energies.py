@@ -54,13 +54,13 @@ def _get_fixed_lambda_schema(workflow_options):
 
     yank_protocol = conditional_group.protocols['run_solvation_yank']
 
-    yank_protocol.solvated_electrostatic_lambdas = [1.00, 0.75, 0.50, 0.25, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00,
-                                                    0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
-    yank_protocol.solvated_steric_lambdas = [1.00, 1.00, 1.00, 1.00, 1.00, 0.95, 0.90, 0.80, 0.70, 0.60, 0.50,
-                                             0.40, 0.35, 0.30, 0.25, 0.20, 0.15, 0.10, 0.05, 0.00]
+    yank_protocol.electrostatic_lambdas_1 = [1.00, 0.75, 0.50, 0.25, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00,
+                                             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+    yank_protocol.steric_lambdas_1 = [1.00, 1.00, 1.00, 1.00, 1.00, 0.95, 0.90, 0.80, 0.70, 0.60, 0.50,
+                                      0.40, 0.35, 0.30, 0.25, 0.20, 0.15, 0.10, 0.05, 0.00]
 
-    yank_protocol.vacuum_electrostatic_lambdas = [1.00, 0.75, 0.50, 0.25, 0.00]
-    yank_protocol.vacuum_steric_lambdas = [1.00, 1.00, 1.00, 1.00, 1.00]
+    yank_protocol.electrostatic_lambdas_2 = [1.00, 0.75, 0.50, 0.25, 0.00]
+    yank_protocol.steric_lambdas_2 = [1.00, 1.00, 1.00, 1.00, 1.00]
 
     default_schema.protocols['conditional_group'] = conditional_group.schema
 
