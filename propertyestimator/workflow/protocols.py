@@ -358,13 +358,7 @@ class BaseProtocol:
                 # is currently known.
                 return False
 
-            if merge_behavior == MergeBehaviour.ExactlyEqual:
-
-                if self_value != other_value:
-                    return False
-
-            elif (isinstance(self_value, ProtocolPath) or
-                  isinstance(other_value, ProtocolPath)):
+            if isinstance(self_value, ProtocolPath) and isinstance(other_value, ProtocolPath):
 
                 other_value_post_merge = ProtocolPath.from_string(other_value.full_path)
 
@@ -377,9 +371,10 @@ class BaseProtocol:
                 if self_value.protocol_path != other_value_post_merge.protocol_path:
                     return False
 
-            elif (isinstance(self_value, PlaceholderInput) or
-                  isinstance(other_value, PlaceholderInput)):
+            elif isinstance(self_value, PlaceholderInput) and isinstance(other_value, PlaceholderInput):
+                return False
 
+            elif merge_behavior == MergeBehaviour.ExactlyEqual and self_value != other_value:
                 return False
 
         return True

@@ -563,7 +563,7 @@ class Substance(TypedBaseModel):
         return hash(string_hash)
 
     def __eq__(self, other):
-        return hash(self) == hash(other)
+        return isinstance(other, Substance) and hash(self) == hash(other)
 
     def __ne__(self, other):
         return not (self == other)

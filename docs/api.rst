@@ -296,8 +296,17 @@ Built-in Workflow Protocols
 
     RunEnergyMinimisation
     RunOpenMMSimulation
+
+**YANK Free Energies**
+
+.. currentmodule:: propertyestimator.protocols.yank
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
     BaseYankProtocol
     LigandReceptorYankProtocol
+    SolvationYankProtocol
 
 **Simulation Analysis**
 
