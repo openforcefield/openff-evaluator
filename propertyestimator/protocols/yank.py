@@ -160,7 +160,7 @@ class BaseYankProtocol(BaseProtocol):
 
         Parameters
         ----------
-        substance: list of Substance
+        substances: list of Substance
             The substances which contains the components.
         coordinate_path: str
             The path to the coordinates which describe the systems
