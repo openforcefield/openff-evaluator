@@ -17,7 +17,7 @@ how major the changes may be.
 This release centers around two key changes - 
 
 i) a general refactoring of the protocol classes to be much cleaner and extensible through the removal of the old stub functions and the addition of cleaner descriptors.
-ii) the addition of workflows to estimate solvation free energies via the new `SolvationYankProtocol` and `SolvationFreeEnergy` classes.
+ii) the addition of workflows to estimate solvation free energies via the new ``SolvationYankProtocol`` and ``SolvationFreeEnergy`` classes.
 
 The implemented free energy workflow is still rather basic, and does not yet support calculating parameter gradients or estimation from cached simulation data through reweighting. 
 
@@ -36,13 +36,13 @@ Bugfixes
 """"""""
 
 * PR `#128 <https://github.com/openforcefield/propertyestimator/pull/128>`_: Removed the defunct dask backend `processes` kwarg.
-* PR `#133 <https://github.com/openforcefield/propertyestimator/pull/133>`_: Fix for tests failing on mac due to `travis` issues.
+* PR `#133 <https://github.com/openforcefield/propertyestimator/pull/133>`_: Fix for tests failing on MacOS due to `travis` issues.
 
 
 Breaking Changes
 """"""""""""""""
 
-* PR `#130 <https://github.com/openforcefield/propertyestimator/pull/130>`_: The `RunOpenMMSimulation.steps` input has now been split into the `steps_per_iteration` and `total_number_of_iterations` inputs.
+* PR `#130 <https://github.com/openforcefield/propertyestimator/pull/130>`_: The ``RunOpenMMSimulation.steps`` input has now been split into the ``steps_per_iteration`` and ``total_number_of_iterations`` inputs.
 
 Migration Guide
 """""""""""""""
@@ -50,7 +50,7 @@ Migration Guide
 This release contained several public API breaking changes. For the most part, these can be
 remedied by the follow steps:
 
-* Replace all instances of `run_openmm_simulation_protocol.steps` to `run_openmm_simulation_protocol.steps_per_iteration`
+* Replace all instances of ``run_openmm_simulation_protocol.steps`` to ``run_openmm_simulation_protocol.steps_per_iteration``
 
 
 0.0.5 - Fix For Merging of Estimation Requests
