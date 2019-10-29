@@ -883,11 +883,11 @@ class SolvationYankProtocol(BaseYankProtocol):
         if self.setup_only:
             return self._get_output_dictionary()
 
-        solvent_1_yank_path = os.path.join(directory, 'experiments', 'solvent_1.nc')
-        solvent_2_yank_path = os.path.join(directory, 'experiments', 'solvent_2.nc')
+        solvent_1_yank_path = os.path.join(directory, 'experiments', 'solvent1.nc')
+        solvent_2_yank_path = os.path.join(directory, 'experiments', 'solvent2.nc')
 
-        self.solvent_1_trajectory_path = os.path.join(directory, 'solvent_1.dcd')
-        self.solvent_2_trajectory_path = os.path.join(directory, 'solvent_2.dcd')
+        self.solvent_1_trajectory_path = os.path.join(directory, 'solvent1.dcd')
+        self.solvent_2_trajectory_path = os.path.join(directory, 'solvent2.dcd')
 
         self._extract_trajectory(solvent_1_yank_path, self.solvent_1_trajectory_path)
         self._extract_trajectory(solvent_2_yank_path, self.solvent_2_trajectory_path)
