@@ -11,6 +11,48 @@ Releases will eventually follow the ``major.minor.micro`` scheme recommended by
 All early releases however will simply recieve a ``micro`` version bump regardless of
 how major the changes may be.
 
+0.0.6 - Solvation Free Energies
+-------------------------------
+
+This release centers around two key changes - 
+
+i) a general refactoring of the protocol classes to be much cleaner and extensible through the removal of the old stub functions and the addition of cleaner descriptors.
+ii) the addition of workflows to estimate solvation free energies via the new ``SolvationYankProtocol`` and ``SolvationFreeEnergy`` classes.
+
+The implemented free energy workflow is still rather basic, and does not yet support calculating parameter gradients or estimation from cached simulation data through reweighting. 
+
+A new table has been added to the documentation to make clear which built-in properties support which features.
+
+New Features
+""""""""""""
+
+* PR `#110 <https://github.com/openforcefield/propertyestimator/pull/110>`_: Cleanup and refactor of protocol classes.
+* PR `#125 <https://github.com/openforcefield/propertyestimator/pull/125>`_: Support for PBS based HPC clusters.
+* PR `#127 <https://github.com/openforcefield/propertyestimator/pull/127>`_: Adds a basic workflow for estimating solvation free energies with `YANK <http://getyank.org/latest/>`_.
+* PR `#130 <https://github.com/openforcefield/propertyestimator/pull/130>`_: Adds a cleaner mechanism for restarting simulations from checkpoints.
+* PR `#134 <https://github.com/openforcefield/propertyestimator/pull/134>`_: Update to a more stable dask version.
+
+Bugfixes
+""""""""
+
+* PR `#128 <https://github.com/openforcefield/propertyestimator/pull/128>`_: Removed the defunct dask backend `processes` kwarg.
+* PR `#133 <https://github.com/openforcefield/propertyestimator/pull/133>`_: Fix for tests failing on MacOS due to `travis` issues.
+
+
+Breaking Changes
+""""""""""""""""
+
+* PR `#130 <https://github.com/openforcefield/propertyestimator/pull/130>`_: The ``RunOpenMMSimulation.steps`` input has now been split into the ``steps_per_iteration`` and ``total_number_of_iterations`` inputs.
+
+Migration Guide
+"""""""""""""""
+
+This release contained several public API breaking changes. For the most part, these can be
+remedied by the follow steps:
+
+* Replace all instances of ``run_openmm_simulation_protocol.steps`` to ``run_openmm_simulation_protocol.steps_per_iteration``
+
+
 0.0.5 - Fix For Merging of Estimation Requests
 ----------------------------------------------
 
