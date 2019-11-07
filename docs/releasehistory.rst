@@ -11,6 +11,18 @@ Releases will eventually follow the ``major.minor.micro`` scheme recommended by
 All early releases however will simply recieve a ``micro`` version bump regardless of
 how major the changes may be.
 
+
+0.0.7 - Bug Quick Fixes
+-----------------------
+
+This release aims to fix a number of minor bugs.
+
+Bugfixes
+""""""""
+
+* PR `#136 <https://github.com/openforcefield/propertyestimator/pull/136>`_: Fix for comparing thermodynamic states with unset pressures.
+
+
 0.0.6 - Solvation Free Energies
 -------------------------------
 
