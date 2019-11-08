@@ -21,6 +21,7 @@ Bugfixes
 """"""""
 
 * PR `#136 <https://github.com/openforcefield/propertyestimator/pull/136>`_: Fix for comparing thermodynamic states with unset pressures.
+* PR `#138 <https://github.com/openforcefield/propertyestimator/pull/138>`_: Fix for a typo in the maximum number of minimization iterations.
 
 
 0.0.6 - Solvation Free Energies
