@@ -111,6 +111,10 @@ class ThermodynamicState(TypedBaseModel):
         if not isinstance(other, ThermodynamicState):
             return False
 
+        if ((self.pressure is None and other.pressure is not None) or
+            (self.pressure is not None and other.pressure is None)):
+            return False
+
         if (self.pressure is not None and not
             math.isclose(self.pressure.to(unit.kilopascal).magnitude,
                          other.pressure.to(unit.kilopascal).magnitude)):
