@@ -28,14 +28,14 @@ dependencies:
   - packmol
   - pymbar
   - mdtraj
-  - dask >=2.5.0
-  - distributed >=2.5.1
-  - dask-jobqueue >=0.6.3
+  - dask >=2.6.0
+  - distributed >=2.6.0
+  - dask-jobqueue >=0.7.0
   - tornado
   - coverage >=4.4
   - uncertainties
   - openmmtools >=0.18.2
-  - yank
+  - yank >=0.24.1
   - pyyaml
   - requests
   - requests-mock # For testing http requests.

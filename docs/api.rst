@@ -297,7 +297,6 @@ Built-in Workflow Protocols
     RunEnergyMinimisation
     RunOpenMMSimulation
 
-
 **pAPRika**
 
 .. currentmodule:: propertyestimator.protocols.paprika
@@ -309,8 +308,7 @@ Built-in Workflow Protocols
     OpenMMPaprikaProtocol
     AmberPaprikaProtocol
 
-
-**Yank**
+**YANK Free Energies**
 
 .. currentmodule:: propertyestimator.protocols.yank
 .. autosummary::
@@ -319,7 +317,7 @@ Built-in Workflow Protocols
 
     BaseYankProtocol
     LigandReceptorYankProtocol
-
+    SolvationYankProtocol
 
 **Simulation Analysis**
 
