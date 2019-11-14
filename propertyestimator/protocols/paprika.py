@@ -92,7 +92,13 @@ class BasePaprikaProtocol(BaseProtocol):
         type_hint=unit.Quantity, merge_behavior=InequalityMergeBehaviour.SmallestValue,
         default_value=2.0 * unit.femtosecond
     )
-    
+
+    equilibration_timestep = protocol_input(
+        docstring='The timestep to evolve the system during equilibration by at each step.',
+        type_hint=unit.Quantity, merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        default_value=1.0 * unit.femtosecond
+    )
+
     number_of_equilibration_steps = protocol_input(
         docstring='The number of NPT equilibration steps to take. Data from '
                   'the equilibration simulations will be discarded.',
@@ -815,6 +821,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                    self._solvated_system_xml_paths[index],
                    self.thermodynamic_state,
                    self.timestep,
+                   self.equilibration_timestep,
                    self.number_of_equilibration_steps,
                    self.equilibration_output_frequency,
                    self.number_of_production_steps,
@@ -827,7 +834,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
         while True:
 
-            index, window_coordinate_path, window_system_path, thermodynamic_state, timestep, \
+            index, window_coordinate_path, window_system_path, thermodynamic_state, timestep, equilibration_timestep, \
                 number_of_equilibration_steps, equilibration_output_frequency, number_of_production_steps, \
                 production_output_frequency, available_resources, exceptions = queue.get()
 
@@ -866,7 +873,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                 npt_equilibration = simulation.RunOpenMMSimulation('npt_equilibration')
                 npt_equilibration.steps_per_iteration = number_of_equilibration_steps
                 npt_equilibration.output_frequency = equilibration_output_frequency
-                npt_equilibration.timestep = timestep
+                npt_equilibration.timestep = equilibration_timestep
                 npt_equilibration.ensemble = Ensemble.NPT
                 npt_equilibration.thermodynamic_state = thermodynamic_state
                 npt_equilibration.system_path = window_system_path
@@ -985,6 +992,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
                    self.thermodynamic_state,
                    self.gaff_cutoff,
                    self.timestep,
+                   self.equilibration_timestep,
                    self.number_of_equilibration_steps,
                    self.equilibration_output_frequency,
                    self.number_of_production_steps,
@@ -1095,7 +1103,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             amber_simulation.cntrl["ntr"] = 1
             amber_simulation.cntrl["restraint_wt"] = 50.0
             amber_simulation.cntrl["restraintmask"] = "'@DUM'"
-            amber_simulation.cntrl["dt"] = timestep.to(unit.picoseconds).magnitude
+            amber_simulation.cntrl["dt"] = equilibration_timestep.to(unit.picoseconds).magnitude
             amber_simulation.cntrl["nstlim"] = number_of_equilibration_steps
             amber_simulation.cntrl["ntwx"] = equilibration_output_frequency
             amber_simulation.cntrl["barostat"] = 2
