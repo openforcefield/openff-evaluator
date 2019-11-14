@@ -1008,8 +1008,8 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
         while True:
 
             index, window_coordinate_path, window_system_path, thermodynamic_state, gaff_cutoff, timestep, \
-                number_of_equilibration_steps, equilibration_output_frequency, number_of_production_steps, \
-                production_output_frequency, available_resources, exceptions = queue.get()
+                equilibration_timestep, number_of_equilibration_steps, equilibration_output_frequency, \
+                number_of_production_steps, production_output_frequency, available_resources, exceptions = queue.get()
 
             window_directory = os.path.dirname(window_coordinate_path)
 
