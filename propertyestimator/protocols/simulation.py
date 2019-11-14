@@ -50,7 +50,7 @@ class RunEnergyMinimisation(BaseProtocol):
                   'minimization is continued until the results converge without regard to '
                   'how many iterations it takes.',
         type_hint=int,
-        default_value=10
+        default_value=0
     )
 
     enable_pbc = protocol_input(
