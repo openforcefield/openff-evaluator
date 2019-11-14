@@ -1103,7 +1103,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             amber_simulation.cntrl["ntr"] = 1
             amber_simulation.cntrl["restraint_wt"] = 50.0
             amber_simulation.cntrl["restraintmask"] = "'@DUM'"
-            amber_simulation.cntrl["dt"] = timestep.to(unit.picoseconds).magnitude
+            amber_simulation.cntrl["dt"] = equilibration_timestep.to(unit.picoseconds).magnitude
             amber_simulation.cntrl["nstlim"] = number_of_equilibration_steps
             amber_simulation.cntrl["ntwx"] = equilibration_output_frequency
             amber_simulation.cntrl["barostat"] = 2
