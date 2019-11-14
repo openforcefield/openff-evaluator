@@ -519,7 +519,7 @@ class BasePaprikaProtocol(BaseProtocol):
                 self._results_dictionary['release']['ti-block']['sem'] * unit.kilocalorie / unit.mole,
                 self._id + "_release")
 
-        if 'ref_state_work' in self._results_dictiohost_protocol.schemanary:
+        if 'ref_state_work' in self._results_dictionary:
 
             self.reference_free_energy = EstimatedQuantity(
                 -self._results_dictionary['ref_state_work'] * unit.kilocalorie / unit.mole,
