@@ -40,7 +40,7 @@ def unit_from_thermoml_string(full_string):
     # Extract the unit portion of the string
     unit_string = full_string_split[1] if len(full_string_split) > 1 else ''
     # Convert symbols like dm3 to dm**3
-    unit_string = re.sub(r'([0-9]+)', r'**\1', unit_string.strip())
+    unit_string = re.sub(r'([a-z])([0-9]+)', r'\1**\2', unit_string.strip())
 
     return unit.Unit(unit_string)
 
