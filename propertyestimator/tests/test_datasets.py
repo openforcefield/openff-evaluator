@@ -76,9 +76,6 @@ def test_thermoml_from_doi():
             physical_property_recreated = PhysicalProperty.parse_json(physical_property_json)
             print(physical_property_recreated)
 
-    data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.12.009')
-    assert data_set is None
-
     data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.12.009x')
     assert data_set is None
 
