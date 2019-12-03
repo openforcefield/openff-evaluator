@@ -46,22 +46,18 @@ def test_thermoml_unit_from_string(unit_string):
     assert returned_unit is not None and isinstance(returned_unit, unit.Unit)
 
 
-@pytest.mark.skip(reason="Uncertainties have been unexpectedly removed from ThermoML "
-                         "so these tests will fail until they have been re-added")
 def test_thermoml_from_url():
     """A test to ensure that ThermoML archive files can be loaded from a url."""
 
-    data_set = ThermoMLDataSet.from_url('https://trc.nist.gov/journals/jct/2005v37/i04/j.jct.2004.09.022.xml')
+    data_set = ThermoMLDataSet.from_url('https://trc.nist.gov/ThermoML/10.1021/acs.jced.6b00916.xml')
     assert data_set is not None
 
     assert len(data_set.properties) > 0
 
-    data_set = ThermoMLDataSet.from_url('https://trc.nist.gov/journals/jct/2005v37/i04/j.jct.2004.09.022.xmld')
+    data_set = ThermoMLDataSet.from_url('https://trc.nist.gov/ThermoML/10.1021/acs.jced.6b00916.xmld')
     assert data_set is None
 
 
-@pytest.mark.skip(reason="Uncertainties have been unexpectedly removed from ThermoML "
-                         "so these tests will fail until they have been re-added")
 def test_thermoml_from_doi():
     """A test to ensure that ThermoML archive files can be loaded from a doi."""
 
@@ -79,9 +75,6 @@ def test_thermoml_from_doi():
 
             physical_property_recreated = PhysicalProperty.parse_json(physical_property_json)
             print(physical_property_recreated)
-
-    data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.12.009')
-    assert data_set is None
 
     data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.12.009x')
     assert data_set is None

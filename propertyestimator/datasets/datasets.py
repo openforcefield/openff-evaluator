@@ -306,6 +306,16 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
         self.filter_by_function(filter_function)
 
+    def filter_by_uncertainties(self):
+        """Filters out those properties which don't have
+        their uncertainties reported.
+        """
+
+        def filter_function(physical_property):
+            return physical_property.uncertainty is not None
+
+        self.filter_by_function(filter_function)
+
     def to_pandas(self):
         """Converts a `PhysicalPropertyDataSet` to a `pandas.DataFrame` object
         with columns of
