@@ -11,6 +11,22 @@ Releases will eventually follow the ``major.minor.micro`` scheme recommended by
 All early releases however will simply recieve a ``micro`` version bump regardless of
 how major the changes may be.
 
+0.0.8 - ThermoML Improvements
+-----------------------------
+
+This release is centered around improving the ThermoML data set utilities.
+
+New Features
+""""""""""""
+
+* PR `#110 <https://github.com/openforcefield/propertyestimator/pull/110>`_: Cleanup and refactor of protocol classes.
+
+Bugfixes
+""""""""
+
+* PR `#136 <https://github.com/openforcefield/propertyestimator/pull/136>`_: Fix for comparing thermodynamic states with unset pressures.
+* PR `#138 <https://github.com/openforcefield/propertyestimator/pull/138>`_: Fix for a typo in the maximum number of minimization iterations.
+
 
 0.0.7 - Bug Quick Fixes
 -----------------------
