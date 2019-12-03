@@ -11,6 +11,21 @@ Releases will eventually follow the ``major.minor.micro`` scheme recommended by
 All early releases however will simply recieve a ``micro`` version bump regardless of
 how major the changes may be.
 
+0.0.8 - ThermoML Improvements
+-----------------------------
+
+This release is centered around cleaning up the ThermoML data set utilities. The main change is that ThermoML archive files can now be loaded even if they don't contain measurement uncertainties.
+
+New Features
+""""""""""""
+
+* PR `#142 <https://github.com/openforcefield/propertyestimator/pull/142>`_: ThermoML archives without uncertainties can now be loaded.
+
+Breaking Changes
+""""""""""""""""
+
+* PR `#142 <https://github.com/openforcefield/propertyestimator/pull/142>`_: All `ThermoMLXXX` classes other than `ThermoMLDataSet` are now private.
+
 
 0.0.7 - Bug Quick Fixes
 -----------------------
