@@ -877,6 +877,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
         extract_gas_energy = analysis.ExtractAverageStatistic('extract_gas_energy_'
                                                               f'{data_replicator.placeholder_id}')
         extract_gas_energy.statistics_type = ObservableType.PotentialEnergy
+
         reweight_gas_energy = reweighting.ReweightStatistics('reweight_gas_energy')
         reweight_gas_energy.statistics_type = ObservableType.PotentialEnergy
 

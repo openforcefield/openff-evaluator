@@ -32,8 +32,7 @@ def test_gradient_reduced_potentials(use_subset):
         reduced_potentials = GradientReducedPotentials(f'reduced_potentials')
         reduced_potentials.substance = substance
         reduced_potentials.thermodynamic_state = thermodynamic_state
-        reduced_potentials.reference_force_field_paths = [force_field_path]
-        reduced_potentials.reference_statistics_path = get_data_filename('test/statistics/stats_pandas.csv')
+        reduced_potentials.statistics_path = get_data_filename('test/statistics/stats_pandas.csv')
         reduced_potentials.force_field_path = force_field_path
         reduced_potentials.trajectory_file_path = get_data_filename('test/trajectories/water.dcd')
         reduced_potentials.coordinate_file_path = get_data_filename('test/trajectories/water.pdb')
@@ -48,9 +47,6 @@ def test_gradient_reduced_potentials(use_subset):
 
         assert path.isfile(reduced_potentials.forward_potentials_path)
         assert path.isfile(reduced_potentials.reverse_potentials_path)
-
-        for reference_path in reduced_potentials.reference_force_field_paths:
-            assert path.isfile(reference_path)
 
 
 def test_central_difference_gradient():
