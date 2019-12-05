@@ -10,6 +10,7 @@ from propertyestimator.protocols import analysis, forcefield, gradients, groups,
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow import WorkflowOptions
+from propertyestimator.workflow.decorators import UNDEFINED
 from propertyestimator.workflow.plugins import available_protocols
 from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSimulationDataToStore
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
@@ -381,8 +382,11 @@ def generate_gradient_protocol_group(template_reweighting_protocol,
     template_reweighting_protocol: BaseMBARProtocol
         A template protocol which will be used to reweight the observable of
         interest to small perturbations to the parameter of interest. These
-        will then be used to calculate the finite difference gradient. This
-        utility takes care of setting the target and reference reduced potentials.
+        will then be used to calculate the finite difference gradient.
+
+        The template *must* have it's `reference_reduced_potentials` input set.
+        The `target_reduced_potentials` input will be set automatically by this
+        function.
 
         In the case that the template is of type `ReweightStatistics` and the
         observable is an energy, the statistics path will automatically be pointed
@@ -431,6 +435,8 @@ def generate_gradient_protocol_group(template_reweighting_protocol,
     """
 
     assert isinstance(template_reweighting_protocol, reweighting.BaseMBARProtocol)
+    assert template_reweighting_protocol.reference_reduced_potentials is not None
+    assert template_reweighting_protocol.reference_reduced_potentials is not UNDEFINED
 
     id_suffix = f'_$({replicator_id}){id_suffix}'
 
@@ -456,7 +462,6 @@ def generate_gradient_protocol_group(template_reweighting_protocol,
     # observable to the forward and reverse states.
     template_reweighting_protocol.bootstrap_iterations = 1
     template_reweighting_protocol.required_effective_samples = 0
-    template_reweighting_protocol.reference_reduced_potentials = [statistics_file_path]
 
     # We need to make sure we use the observable evaluated at the target state
     # if the observable depends on the parameter being reweighted.
@@ -482,11 +487,6 @@ def generate_gradient_protocol_group(template_reweighting_protocol,
     forward_mbar.target_reduced_potentials = [ProtocolPath('forward_potentials_path', reduced_potentials.id)]
 
     if use_target_state_energies:
-
-        if len(template_reweighting_schema.frame_counts) == 0:
-
-            raise ValueError('The frame counts must be set to the number of samples '
-                             'from each state.')
 
         reverse_mbar.statistics_paths = [ProtocolPath('reverse_potentials_path', reduced_potentials.id)]
         forward_mbar.statistics_paths = [ProtocolPath('forward_potentials_path', reduced_potentials.id)]

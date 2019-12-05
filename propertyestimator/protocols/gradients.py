@@ -252,6 +252,11 @@ class GradientReducedPotentials(BaseProtocol):
 
         pressure = pint_quantity_to_openmm(self.thermodynamic_state.pressure)
 
+        if subset_energy_corrections is None:
+            subset_energy_corrections = np.zeros(trajectory.n_frames, dtype=np.float64) * simtk_unit.kilojoules_per_mole
+        else:
+            subset_energy_corrections = pint_quantity_to_openmm(subset_energy_corrections)
+
         for frame_index in range(trajectory.n_frames):
 
             positions = trajectory.xyz[frame_index]
@@ -264,19 +269,17 @@ class GradientReducedPotentials(BaseProtocol):
 
             state = openmm_context.getState(getEnergy=True)
 
-            unreduced_potential = state.getPotentialEnergy() / simtk_unit.AVOGADRO_CONSTANT_NA
+            potential_energy = state.getPotentialEnergy() + subset_energy_corrections[frame_index]
+            unreduced_potential = potential_energy / simtk_unit.AVOGADRO_CONSTANT_NA
 
             if pressure is not None and self.enable_pbc:
                 unreduced_potential += pressure * state.getPeriodicBoxVolume()
 
-            potentials[frame_index] = state.getPotentialEnergy().value_in_unit(simtk_unit.kilojoule_per_mole)
+            potentials[frame_index] = potential_energy.value_in_unit(simtk_unit.kilojoule_per_mole)
             reduced_potentials[frame_index] = unreduced_potential * beta
 
         potentials *= unit.kilojoule / unit.mole
         reduced_potentials *= unit.dimensionless
-
-        if subset_energy_corrections is not None:
-            potentials += subset_energy_corrections
 
         statistics_array = StatisticsArray()
         statistics_array[ObservableType.ReducedPotential] = reduced_potentials
