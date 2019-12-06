@@ -158,10 +158,6 @@ def generate_base_reweighting_protocols(analysis_protocol, mbar_protocol, workfl
         mbar_protocol.statistics_paths = [ProtocolPath('statistics_file_path', reduced_target_potential.id)]
         mbar_protocol.frame_counts = ProtocolPath('number_of_uncorrelated_samples', decorrelate_statistics.id)
 
-    # TODO: Implement a cleaner way to handle this.
-    if workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.NoChecks:
-        mbar_protocol.required_effective_samples = -1
-
     base_protocols = BaseReweightingProtocols(unpack_stored_data,
                                               analysis_protocol,
                                               decorrelate_statistics,
