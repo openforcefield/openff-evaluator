@@ -143,7 +143,7 @@ def generate_base_reweighting_protocols(analysis_protocol, mbar_protocol, workfl
 
     # Finally, apply MBAR to get the reweighted value.
     mbar_protocol.reference_reduced_potentials = ProtocolPath('statistics_file_path', reduced_reference_potential.id)
-    mbar_protocol.target_reduced_potentials = [ProtocolPath('statistics_file_path', reduced_target_potential.id)]
+    mbar_protocol.target_reduced_potentials = ProtocolPath('statistics_file_path', reduced_target_potential.id)
 
     if (isinstance(mbar_protocol, reweighting.ReweightStatistics) and
         mbar_protocol.statistics_type != ObservableType.PotentialEnergy and
@@ -474,13 +474,13 @@ def generate_gradient_protocol_group(template_reweighting_protocol,
     reverse_mbar_schema.id = f'reverse_reweight{id_suffix}'
     reverse_mbar = available_protocols[reverse_mbar_schema.type](reverse_mbar_schema.id)
     reverse_mbar.schema = reverse_mbar_schema
-    reverse_mbar.target_reduced_potentials = [ProtocolPath('reverse_potentials_path', reduced_potentials.id)]
+    reverse_mbar.target_reduced_potentials = ProtocolPath('reverse_potentials_path', reduced_potentials.id)
 
     forward_mbar_schema = copy.deepcopy(template_reweighting_schema)
     forward_mbar_schema.id = f'forward_reweight{id_suffix}'
     forward_mbar = available_protocols[forward_mbar_schema.type](forward_mbar_schema.id)
     forward_mbar.schema = forward_mbar_schema
-    forward_mbar.target_reduced_potentials = [ProtocolPath('forward_potentials_path', reduced_potentials.id)]
+    forward_mbar.target_reduced_potentials = ProtocolPath('forward_potentials_path', reduced_potentials.id)
 
     if use_target_state_energies:
 

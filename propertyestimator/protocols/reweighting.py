@@ -269,12 +269,12 @@ class BaseMBARProtocol(BaseProtocol):
     reference_reduced_potentials = protocol_input(
         docstring='A list of paths to the reduced potentials of each '
                   'reference state.',
-        type_hint=list,
+        type_hint=typing.Union[str, list],
         default_value=UNDEFINED
     )
     target_reduced_potentials = protocol_input(
         docstring='A list of paths to the reduced potentials of the target state.',
-        type_hint=list,
+        type_hint=typing.Union[str, list],
         default_value=UNDEFINED
     )
 
@@ -323,6 +323,12 @@ class BaseMBARProtocol(BaseProtocol):
         self._reference_observables = []
 
     def execute(self, directory, available_resources):
+
+        if isinstance(self.reference_reduced_potentials, str):
+            self.reference_reduced_potentials = [self.reference_reduced_potentials]
+
+        if isinstance(self.target_reduced_potentials, str):
+            self.target_reduced_potentials = [self.target_reduced_potentials]
 
         if len(self._reference_observables) == 0:
 
