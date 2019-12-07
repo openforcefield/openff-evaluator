@@ -41,4 +41,4 @@ script:
 notifications:
   email: false
 after_success:
-  - if [[ $LINT == false ]]; codecov ; fi
+  - if [[ $LINT == false ]]; then codecov ; fi
