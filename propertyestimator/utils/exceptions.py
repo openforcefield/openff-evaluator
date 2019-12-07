@@ -5,10 +5,11 @@ from propertyestimator.utils.serialization import TypedBaseModel
 
 
 class XmlNodeMissingException(Exception):
-
     def __init__(self, node_name):
 
-        message = 'The calculation template does not contain a <' + str(node_name) + '> node.'
+        message = (
+            "The calculation template does not contain a <" + str(node_name) + "> node."
+        )
         super().__init__(message)
 
 
@@ -19,7 +20,7 @@ class PropertyEstimatorException(TypedBaseModel):
     .. todo:: Flesh out more fully.
     """
 
-    def __init__(self, directory='', message=''):
+    def __init__(self, directory="", message=""):
         """Constructs a new PropertyEstimatorException object.
 
         Parameters
@@ -35,12 +36,9 @@ class PropertyEstimatorException(TypedBaseModel):
 
     def __getstate__(self):
 
-        return {
-            'directory': self.directory,
-            'message': self.message
-        }
+        return {"directory": self.directory, "message": self.message}
 
     def __setstate__(self, state):
 
-        self.directory = state['directory']
-        self.message = state['message']
+        self.directory = state["directory"]
+        self.message = state["message"]

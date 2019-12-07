@@ -5,8 +5,11 @@ The direct simulation estimation layer.
 import logging
 from os import path
 
-from propertyestimator.layers import register_calculation_layer, PropertyCalculationLayer
-from propertyestimator.workflow import WorkflowGraph, Workflow
+from propertyestimator.layers import (
+    PropertyCalculationLayer,
+    register_calculation_layer,
+)
+from propertyestimator.workflow import Workflow, WorkflowGraph
 
 
 @register_calculation_layer()
@@ -18,7 +21,13 @@ class SimulationLayer(PropertyCalculationLayer):
     """
 
     @staticmethod
-    def _build_workflow_graph(working_directory, properties, force_field_path, parameter_gradient_keys, options):
+    def _build_workflow_graph(
+        working_directory,
+        properties,
+        force_field_path,
+        parameter_gradient_keys,
+        options,
+    ):
         """ Construct a graph of the protocols needed to calculate a set of properties.
 
         Parameters
@@ -44,8 +53,10 @@ class SimulationLayer(PropertyCalculationLayer):
 
             if property_type not in options.workflow_schemas:
 
-                logging.warning('The property calculator does not support {} '
-                                'workflows.'.format(property_type))
+                logging.warning(
+                    "The property calculator does not support {} "
+                    "workflows.".format(property_type)
+                )
 
                 continue
 
@@ -53,42 +64,67 @@ class SimulationLayer(PropertyCalculationLayer):
                 continue
 
             schema = options.workflow_schemas[property_type][SimulationLayer.__name__]
-            workflow_options = options.workflow_options[property_type].get(SimulationLayer.__name__)
+            workflow_options = options.workflow_options[property_type].get(
+                SimulationLayer.__name__
+            )
 
-            global_metadata = Workflow.generate_default_metadata(property_to_calculate,
-                                                                 force_field_path,
-                                                                 parameter_gradient_keys,
-                                                                 workflow_options)
+            global_metadata = Workflow.generate_default_metadata(
+                property_to_calculate,
+                force_field_path,
+                parameter_gradient_keys,
+                workflow_options,
+            )
 
             workflow = Workflow(property_to_calculate, global_metadata)
             workflow.schema = schema
 
             from propertyestimator.properties import CalculationSource
-            workflow.physical_property.source = CalculationSource(fidelity=SimulationLayer.__name__,
-                                                                           provenance={})
+
+            workflow.physical_property.source = CalculationSource(
+                fidelity=SimulationLayer.__name__, provenance={}
+            )
 
             workflow_graph.add_workflow(workflow)
 
         return workflow_graph
 
     @staticmethod
-    def schedule_calculation(calculation_backend, storage_backend, layer_directory,
-                             data_model, callback, synchronous=False):
+    def schedule_calculation(
+        calculation_backend,
+        storage_backend,
+        layer_directory,
+        data_model,
+        callback,
+        synchronous=False,
+    ):
 
         # Store a temporary copy of the force field for protocols to easily access.
-        force_field_source = storage_backend.retrieve_force_field(data_model.force_field_id)
-        force_field_path = path.join(layer_directory, 'force_field_{}'.format(data_model.force_field_id))
+        force_field_source = storage_backend.retrieve_force_field(
+            data_model.force_field_id
+        )
+        force_field_path = path.join(
+            layer_directory, "force_field_{}".format(data_model.force_field_id)
+        )
 
-        with open(force_field_path, 'w') as file:
+        with open(force_field_path, "w") as file:
             file.write(force_field_source.json())
 
-        workflow_graph = SimulationLayer._build_workflow_graph(layer_directory,
-                                                               data_model.queued_properties,
-                                                               force_field_path,
-                                                               data_model.parameter_gradient_keys,
-                                                               data_model.options)
+        workflow_graph = SimulationLayer._build_workflow_graph(
+            layer_directory,
+            data_model.queued_properties,
+            force_field_path,
+            data_model.parameter_gradient_keys,
+            data_model.options,
+        )
 
         simulation_futures = workflow_graph.submit(calculation_backend)
 
-        PropertyCalculationLayer._await_results(calculation_backend, storage_backend, layer_directory,
-                                                data_model, callback, simulation_futures, synchronous)
+        PropertyCalculationLayer._await_results(
+            calculation_backend,
+            storage_backend,
+            layer_directory,
+            data_model,
+            callback,
+            simulation_futures,
+            synchronous,
+        )

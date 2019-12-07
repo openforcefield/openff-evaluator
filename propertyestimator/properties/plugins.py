@@ -19,7 +19,9 @@ def register_estimable_property():
     def decorator(cls):
 
         if cls.__name__ in registered_properties:
-            raise ValueError('The {} property is already registered.'.format(cls.__name__))
+            raise ValueError(
+                "The {} property is already registered.".format(cls.__name__)
+            )
 
         registered_properties[cls.__name__] = cls
         return cls

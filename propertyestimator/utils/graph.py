@@ -122,7 +122,7 @@ def topological_sort(graph):
     graph: dict(str, list(str))
         The graph to explore. Each key in the dictionary represents a node in the graph, and each
         string in the value list represents a node which depends on the node defined by the key.
-        
+
     Returns
     -------
     list(str)
@@ -168,7 +168,7 @@ def topological_sort(graph):
         remaining_dependant_count += len(graph_copy[node_key])
 
     if remaining_dependant_count > 0:
-        return[]
+        return []
 
     return sorted_order
 
@@ -244,16 +244,18 @@ def append_uuid(base_id, uuid):
     str
         The uuid appended id of the form uuid|base_id
     """
-    if base_id.find('|') >= 0:
+    if base_id.find("|") >= 0:
 
-        base_id_split = base_id.split('|')
+        base_id_split = base_id.split("|")
 
         if len(base_id_split) != 2:
-            raise ValueError('A uuid appended protocol id should be of the form uuid|base_id')
+            raise ValueError(
+                "A uuid appended protocol id should be of the form uuid|base_id"
+            )
 
         base_id = base_id_split[1]
 
-    return '{}|{}'.format(uuid, base_id)
+    return "{}|{}".format(uuid, base_id)
 
 
 def retrieve_uuid(uuid_appended_id):
@@ -270,13 +272,15 @@ def retrieve_uuid(uuid_appended_id):
         The uuid portion of the appended id.
     """
 
-    if uuid_appended_id.find('|') < 0:
+    if uuid_appended_id.find("|") < 0:
         return None
 
-    id_split = uuid_appended_id.split('|')
+    id_split = uuid_appended_id.split("|")
 
     if len(id_split) != 2:
-        raise ValueError('A uuid appended protocol id should be of the form uuid|base_id')
+        raise ValueError(
+            "A uuid appended protocol id should be of the form uuid|base_id"
+        )
 
     return_uuid = id_split[0]
 

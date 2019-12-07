@@ -5,7 +5,6 @@ A collection of utilities which aid in sending and receiving messages sent over 
 import struct
 from enum import IntEnum
 
-
 int_struct = struct.Struct("<i")
 
 unpack_int = int_struct.unpack

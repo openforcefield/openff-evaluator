@@ -19,8 +19,9 @@ class ComputeResources:
         """An enumeration of the different GPU toolkits to
         make available to different calculations.
         """
-        CUDA = 'CUDA'
-        OpenCL = 'OpenCL'
+
+        CUDA = "CUDA"
+        OpenCL = "OpenCL"
 
     @property
     def number_of_threads(self):
@@ -43,7 +44,9 @@ class ComputeResources:
         implementation detail and should not be relied upon externally."""
         return self._gpu_device_indices
 
-    def __init__(self, number_of_threads=1, number_of_gpus=0, preferred_gpu_toolkit=None):
+    def __init__(
+        self, number_of_threads=1, number_of_gpus=0, preferred_gpu_toolkit=None
+    ):
         """Constructs a new ComputeResources object.
 
         Parameters
@@ -63,7 +66,7 @@ class ComputeResources:
         # A workaround for when using a local cluster backend which is
         # strictly for internal purposes only for now.
         self._gpu_device_indices = None
-        
+
         assert self._number_of_threads >= 0
         assert self._number_of_gpus >= 0
 
@@ -74,23 +77,25 @@ class ComputeResources:
 
     def __getstate__(self):
         return {
-            'number_of_threads': self.number_of_threads,
-            'number_of_gpus': self.number_of_gpus,
-            'preferred_gpu_toolkit': self.preferred_gpu_toolkit,
-            '_gpu_device_indices': self._gpu_device_indices
+            "number_of_threads": self.number_of_threads,
+            "number_of_gpus": self.number_of_gpus,
+            "preferred_gpu_toolkit": self.preferred_gpu_toolkit,
+            "_gpu_device_indices": self._gpu_device_indices,
         }
 
     def __setstate__(self, state):
 
-        self._number_of_threads = state['number_of_threads']
-        self._number_of_gpus = state['number_of_gpus']
-        self._preferred_gpu_toolkit = state['preferred_gpu_toolkit']
-        self._gpu_device_indices = state['_gpu_device_indices']
+        self._number_of_threads = state["number_of_threads"]
+        self._number_of_gpus = state["number_of_gpus"]
+        self._preferred_gpu_toolkit = state["preferred_gpu_toolkit"]
+        self._gpu_device_indices = state["_gpu_device_indices"]
 
     def __eq__(self, other):
-        return self.number_of_threads == other.number_of_threads and \
-               self.number_of_gpus == other.number_of_gpus and \
-               self.preferred_gpu_toolkit == other.preferred_gpu_toolkit
+        return (
+            self.number_of_threads == other.number_of_threads
+            and self.number_of_gpus == other.number_of_gpus
+            and self.preferred_gpu_toolkit == other.preferred_gpu_toolkit
+        )
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -114,8 +119,14 @@ class QueueWorkerResources(ComputeResources):
         be a string of the form `HH:MM` where HH is the number of hours and MM the number of minutes"""
         return self._wallclock_time_limit
 
-    def __init__(self, number_of_threads=1, number_of_gpus=0, preferred_gpu_toolkit=None,
-                 per_thread_memory_limit=1*unit.gigabytes, wallclock_time_limit="01:00"):
+    def __init__(
+        self,
+        number_of_threads=1,
+        number_of_gpus=0,
+        preferred_gpu_toolkit=None,
+        per_thread_memory_limit=1 * unit.gigabytes,
+        wallclock_time_limit="01:00",
+    ):
         """Constructs a new ComputeResources object.
 
         Notes
@@ -142,38 +153,45 @@ class QueueWorkerResources(ComputeResources):
 
         assert self._per_thread_memory_limit is not None
 
-        assert (isinstance(self._per_thread_memory_limit, unit.Quantity) and
-                unit.get_base_units(unit.byte)[-1] == unit.get_base_units(self._per_thread_memory_limit.units)[-1])
+        assert (
+            isinstance(self._per_thread_memory_limit, unit.Quantity)
+            and unit.get_base_units(unit.byte)[-1]
+            == unit.get_base_units(self._per_thread_memory_limit.units)[-1]
+        )
 
         assert self._per_thread_memory_limit > 0 * unit.byte
 
         assert wallclock_time_limit is not None
         assert isinstance(wallclock_time_limit, str) and len(wallclock_time_limit) > 0
 
-        wallclock_pattern = re.compile(r'\d\d:\d\d')
+        wallclock_pattern = re.compile(r"\d\d:\d\d")
         assert wallclock_pattern.match(wallclock_time_limit) is not None
 
     def __getstate__(self):
 
         base_dict = super(QueueWorkerResources, self).__getstate__()
 
-        base_dict.update({
-            'per_thread_memory_limit': self.number_of_threads,
-            'wallclock_time_limit': self.number_of_threads,
-        })
+        base_dict.update(
+            {
+                "per_thread_memory_limit": self.number_of_threads,
+                "wallclock_time_limit": self.number_of_threads,
+            }
+        )
 
         return base_dict
 
     def __setstate__(self, state):
         super(QueueWorkerResources, self).__setstate__(state)
 
-        self._per_thread_memory_limit = state['per_thread_memory_limit']
-        self._wallclock_time_limit = state['wallclock_time_limit']
+        self._per_thread_memory_limit = state["per_thread_memory_limit"]
+        self._wallclock_time_limit = state["wallclock_time_limit"]
 
     def __eq__(self, other):
-        return super(QueueWorkerResources, self).__eq__(other) and \
-               self.per_thread_memory_limit == other.per_thread_memory_limit and \
-               self.wallclock_time_limit == other.wallclock_time_limit
+        return (
+            super(QueueWorkerResources, self).__eq__(other)
+            and self.per_thread_memory_limit == other.per_thread_memory_limit
+            and self.wallclock_time_limit == other.wallclock_time_limit
+        )
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -216,8 +234,8 @@ class PropertyEstimatorBackend:
         dict of str and int
         """
         return {
-            'number_of_threads': self._resources_per_worker.number_of_threads,
-            'number_of_gpus': self._resources_per_worker.number_of_gpus,
+            "number_of_threads": self._resources_per_worker.number_of_threads,
+            "number_of_gpus": self._resources_per_worker.number_of_gpus,
         }
 
     def start(self):

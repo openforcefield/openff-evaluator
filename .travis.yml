@@ -4,16 +4,20 @@ matrix:
   include:
   - os: osx
     language: generic
-    env: PYTHON_VER=3.6
+    env: PYTHON_VER=3.6 LINT=false
   - os: osx
     language: generic
-    env: PYTHON_VER=3.7
+    env: PYTHON_VER=3.7 LINT=false
   - os: linux
     python: 3.6
-    env: PYTHON_VER=3.6
+    env: PYTHON_VER=3.6 LINT=false
   - os: linux
     python: 3.7
-    env: PYTHON_VER=3.7
+    env: PYTHON_VER=3.7 LINT=false
+  # Add checks to ensure the repo has been linted /
+  # formatted with black / flake8 / isort
+  - os: linux
+    env: PYTHON_VER=3.6 LINT=true
 env:
   global:
   - OE_LICENSE="$HOME/oe_license.txt"
@@ -31,8 +35,10 @@ install:
 - python -c "import fcntl; fcntl.fcntl(1, fcntl.F_SETFL, 0)"
 - python setup.py develop --no-deps
 script:
-- pytest -v --cov=propertyestimator propertyestimator/tests/
+  - if [[ $LINT == false ]]; then pytest -v --cov=propertyestimator propertyestimator/tests/ ; fi
+  - if [[ $LINT == true ]]; then conda install flake8 ; flake8 propertyestimator ; flake8 examples ; fi
+  - if [[ $LINT == true ]]; then conda install flake8-black; black propertyestimator --check; black examples --check ; fi
 notifications:
   email: false
 after_success:
-- codecov
+  - if [[ $LINT == false ]]; then codecov ; fi

@@ -25,7 +25,7 @@ def register_calculation_layer():
     def decorator(cls):
 
         if cls.__name__ in available_layers:
-            raise ValueError('The {} layer is already registered.'.format(cls.__name__))
+            raise ValueError("The {} layer is already registered.".format(cls.__name__))
 
         available_layers[cls.__name__] = cls
         return cls
@@ -70,20 +70,20 @@ class CalculationLayerResult:
     def __getstate__(self):
 
         return {
-            'property_id': self.property_id,
-            'calculated_property': self.calculated_property,
-            'exception': self.exception,
-            'data_to_store': self.data_to_store
+            "property_id": self.property_id,
+            "calculated_property": self.calculated_property,
+            "exception": self.exception,
+            "data_to_store": self.data_to_store,
         }
 
     def __setstate__(self, state):
 
-        self.property_id = state['property_id']
+        self.property_id = state["property_id"]
 
-        self.calculated_property = state['calculated_property']
-        self.exception = state['exception']
+        self.calculated_property = state["calculated_property"]
+        self.exception = state["exception"]
 
-        self.data_to_store = state['data_to_store']
+        self.data_to_store = state["data_to_store"]
 
 
 class PropertyCalculationLayer:
@@ -104,8 +104,15 @@ class PropertyCalculationLayer:
     """
 
     @staticmethod
-    def _await_results(calculation_backend, storage_backend, layer_directory, server_request,
-                       callback, submitted_futures, synchronous=False):
+    def _await_results(
+        calculation_backend,
+        storage_backend,
+        layer_directory,
+        server_request,
+        callback,
+        submitted_futures,
+        synchronous=False,
+    ):
         """A helper method to handle passing the results of this layer back to
         the main thread.
 
@@ -127,12 +134,14 @@ class PropertyCalculationLayer:
             If true, this function will block until the calculation has completed.
         """
 
-        callback_future = calculation_backend.submit_task(return_args,
-                                                          *submitted_futures,
-                                                          key=f'return_{server_request.id}')
+        callback_future = calculation_backend.submit_task(
+            return_args, *submitted_futures, key=f"return_{server_request.id}"
+        )
 
         def callback_wrapper(results_future):
-            PropertyCalculationLayer._process_results(results_future, server_request, storage_backend, callback)
+            PropertyCalculationLayer._process_results(
+                results_future, server_request, storage_backend, callback
+            )
 
         if synchronous:
             callback_wrapper(callback_future)
@@ -159,12 +168,14 @@ class PropertyCalculationLayer:
 
             # Make sure the data directory / file to store actually exists
             if not path.isdir(data_directory_path) or not path.isfile(data_object_path):
-                logging.info(f'Invalid data directory ({data_directory_path}) / '
-                             f'file ({data_object_path})')
+                logging.info(
+                    f"Invalid data directory ({data_directory_path}) / "
+                    f"file ({data_object_path})"
+                )
                 continue
 
             # Attach any extra metadata which is missing.
-            with open(data_object_path, 'r') as file:
+            with open(data_object_path, "r") as file:
 
                 data_object = json.load(file, cls=TypedJSONDecoder)
 
@@ -176,7 +187,9 @@ class PropertyCalculationLayer:
                     for inner_data_object in data_object.data.values():
 
                         if inner_data_object.force_field_id is None:
-                            inner_data_object.force_field_id = server_request.force_field_id
+                            inner_data_object.force_field_id = (
+                                server_request.force_field_id
+                            )
 
             storage_backend.store_simulation_data(data_object, data_directory_path)
 
@@ -215,36 +228,52 @@ class PropertyCalculationLayer:
                 if not isinstance(returned_output, CalculationLayerResult):
 
                     # Make sure we are actually dealing with the object we expect.
-                    raise ValueError('The output of the calculation was not '
-                                     'a CalculationLayerResult as expected.')
+                    raise ValueError(
+                        "The output of the calculation was not "
+                        "a CalculationLayerResult as expected."
+                    )
 
                 if returned_output.exception is not None:
                     # If an exception was raised, make sure to add it to the list.
                     server_request.exceptions.append(returned_output.exception)
 
-                    logging.info(f'An exception was raised: '
-                                 f'{returned_output.exception.directory} - '
-                                 f'{returned_output.exception.message}')
+                    logging.info(
+                        f"An exception was raised: "
+                        f"{returned_output.exception.directory} - "
+                        f"{returned_output.exception.message}"
+                    )
 
                 else:
 
                     # Make sure to store any important calculation data if no exceptions
                     # were thrown.
-                    if (returned_output.data_to_store is not None and
-                        returned_output.calculated_property is not None):
+                    if (
+                        returned_output.data_to_store is not None
+                        and returned_output.calculated_property is not None
+                    ):
 
-                        PropertyCalculationLayer._store_cached_output(server_request, returned_output, storage_backend)
+                        PropertyCalculationLayer._store_cached_output(
+                            server_request, returned_output, storage_backend
+                        )
 
-                matches = [x for x in server_request.queued_properties if x.id == returned_output.property_id]
+                matches = [
+                    x
+                    for x in server_request.queued_properties
+                    if x.id == returned_output.property_id
+                ]
 
                 if len(matches) > 1:
-                    raise ValueError(f'A property id ({returned_output.property_id}) conflict occurred.')
+                    raise ValueError(
+                        f"A property id ({returned_output.property_id}) conflict occurred."
+                    )
 
                 elif len(matches) == 0:
 
-                    logging.info('A calculation layer returned results for a property not in the '
-                                 'queue. This sometimes and expectedly occurs when using queue based '
-                                 'calculation backends, but should be investigated.')
+                    logging.info(
+                        "A calculation layer returned results for a property not in the "
+                        "queue. This sometimes and expectedly occurs when using queue based "
+                        "calculation backends, but should be investigated."
+                    )
 
                     continue
 
@@ -252,9 +281,11 @@ class PropertyCalculationLayer:
 
                     if returned_output.exception is None:
 
-                        logging.info('A calculation layer did not return an estimated property nor did it '
-                                     'raise an Exception. This sometimes and expectedly occurs when using '
-                                     'queue based calculation backends, but should be investigated.')
+                        logging.info(
+                            "A calculation layer did not return an estimated property nor did it "
+                            "raise an Exception. This sometimes and expectedly occurs when using "
+                            "queue based calculation backends, but should be investigated."
+                        )
 
                     continue
 
@@ -269,24 +300,36 @@ class PropertyCalculationLayer:
                 if substance_id not in server_request.estimated_properties:
                     server_request.estimated_properties[substance_id] = []
 
-                server_request.estimated_properties[substance_id].append(returned_output.calculated_property)
+                server_request.estimated_properties[substance_id].append(
+                    returned_output.calculated_property
+                )
 
         except Exception as e:
 
-            logging.info(f'Error processing layer results for request {server_request.id}')
+            logging.info(
+                f"Error processing layer results for request {server_request.id}"
+            )
 
             formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
-            exception = PropertyEstimatorException(message='An unhandled internal exception '
-                                                           'occurred: {}'.format(formatted_exception))
+            exception = PropertyEstimatorException(
+                message="An unhandled internal exception "
+                "occurred: {}".format(formatted_exception)
+            )
 
             server_request.exceptions.append(exception)
 
         callback(server_request)
 
     @staticmethod
-    def schedule_calculation(calculation_backend, storage_backend, layer_directory,
-                             data_model, callback, synchronous=False):
+    def schedule_calculation(
+        calculation_backend,
+        storage_backend,
+        layer_directory,
+        data_model,
+        callback,
+        synchronous=False,
+    ):
         """Submit the proposed calculation to the backend of choice.
 
         Parameters

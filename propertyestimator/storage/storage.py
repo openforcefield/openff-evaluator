@@ -27,15 +27,15 @@ class PropertyEstimatorStorage:
         """
 
         self._stored_object_keys = set()
-        self._stored_object_keys_file = 'internal_object_keys'
+        self._stored_object_keys_file = "internal_object_keys"
 
         # Store a map between the unique id of a force field,
         # and its hash value for easy comparision of force fields.
         self._force_field_id_map = {}
-        self._force_field_id_map_file = 'internal_force_field_map'
+        self._force_field_id_map_file = "internal_force_field_map"
 
         self._simulation_data_by_substance = {}
-        self._simulation_data_by_substance_file = 'internal_simulation_data_map'
+        self._simulation_data_by_substance_file = "internal_simulation_data_map"
 
         self._load_stored_object_keys()
         self._load_force_field_hashes()
@@ -79,7 +79,7 @@ class PropertyEstimatorStorage:
         """
 
         if object_to_store is None:
-            raise ValueError('The object to store cannot be None.')
+            raise ValueError("The object to store cannot be None.")
 
         if storage_key in self._stored_object_keys:
             return
@@ -130,7 +130,7 @@ class PropertyEstimatorStorage:
 
         for unique_id in force_field_id_map:
 
-            force_field_key = 'force_field_{}'.format(unique_id)
+            force_field_key = "force_field_{}".format(unique_id)
 
             if not self._has_object(force_field_key):
                 # The force field file does not exist, so skip the entry.
@@ -190,7 +190,7 @@ class PropertyEstimatorStorage:
             if hash_string != existing_hash:
                 continue
 
-            force_field_key = 'force_field_{}'.format(unique_id)
+            force_field_key = "force_field_{}".format(unique_id)
 
             if not self._has_object(force_field_key):
                 # For some reason the force field got deleted..
@@ -213,16 +213,18 @@ class PropertyEstimatorStorage:
         ForceFieldSource, optional
             The force field if present in the storage system with the given key, otherwise None.
         """
-        force_field_key = 'force_field_{}'.format(unique_id)
+        force_field_key = "force_field_{}".format(unique_id)
         force_field_source = self._retrieve_object(force_field_key)
 
         if force_field_source is None:
 
-            raise KeyError(f'The force field with id {unique_id} does not exist '
-                           f'in the storage system.')
+            raise KeyError(
+                f"The force field with id {unique_id} does not exist "
+                f"in the storage system."
+            )
 
         if not isinstance(force_field_source, ForceFieldSource):
-            raise ValueError(f'The stored force field is invalid.')
+            raise ValueError(f"The stored force field is invalid.")
 
         return force_field_source
 
@@ -249,15 +251,17 @@ class PropertyEstimatorStorage:
             unique_id = str(uuid.uuid4())
 
         hash_string = self._force_field_to_hash(force_field)
-        force_field_key = 'force_field_{}'.format(unique_id)
+        force_field_key = "force_field_{}".format(unique_id)
 
         # We make sure to strip the cosmetic attributes from the stored FF as these should
         # not affect the science of the FF, and aren't currently consumed by the estimator.
         self._store_object(force_field_key, force_field)
 
         # Make sure to hash the force field for easy access.
-        if (unique_id not in self._force_field_id_map or
-            hash_string != self._force_field_id_map[unique_id]):
+        if (
+            unique_id not in self._force_field_id_map
+            or hash_string != self._force_field_id_map[unique_id]
+        ):
 
             self._force_field_id_map[unique_id] = hash_string
             self._save_force_field_hashes()
@@ -268,7 +272,9 @@ class PropertyEstimatorStorage:
         """Load the dictionary which tracks which stored simulation data
         was calculated for a specific substance.
         """
-        _simulation_data_by_substance = self._retrieve_object(self._simulation_data_by_substance_file)
+        _simulation_data_by_substance = self._retrieve_object(
+            self._simulation_data_by_substance_file
+        )
 
         if _simulation_data_by_substance is None:
             _simulation_data_by_substance = {}
@@ -279,7 +285,9 @@ class PropertyEstimatorStorage:
 
             for unique_id in _simulation_data_by_substance[substance_id]:
 
-                data_object, data_directory = self.retrieve_simulation_data_by_id(unique_id)
+                data_object, data_directory = self.retrieve_simulation_data_by_id(
+                    unique_id
+                )
 
                 if data_object is None or not path.isdir(data_directory):
                     # The stored data does not exist, so skip the entry.
@@ -294,8 +302,9 @@ class PropertyEstimatorStorage:
     def _save_simulation_data_map(self):
         """Save the unique id and simulation data key by substance dictionary.
         """
-        self._store_object(self._simulation_data_by_substance_file,
-                           self._simulation_data_by_substance)
+        self._store_object(
+            self._simulation_data_by_substance_file, self._simulation_data_by_substance
+        )
 
     def retrieve_simulation_data_by_id(self, unique_id):
         """Attempts to retrieve a storage piece of simulation data
@@ -315,8 +324,9 @@ class PropertyEstimatorStorage:
         """
         raise NotImplementedError()
 
-    def retrieve_simulation_data(self, substance, include_component_data=True,
-                                 data_class=StoredSimulationData):
+    def retrieve_simulation_data(
+        self, substance, include_component_data=True, data_class=StoredSimulationData
+    ):
 
         """Retrieves any data that has been stored for a given substance.
 
@@ -364,14 +374,18 @@ class PropertyEstimatorStorage:
 
         if not path.isdir(data_directory):
 
-            raise ValueError(f'The {data_directory} data directory either could'
-                             f' not be found or is invalid.')
+            raise ValueError(
+                f"The {data_directory} data directory either could"
+                f" not be found or is invalid."
+            )
 
         if not isinstance(data_object, BaseStoredData):
-            raise ValueError('The data object must inherit from the `BaseStoredData` class.')
+            raise ValueError(
+                "The data object must inherit from the `BaseStoredData` class."
+            )
 
         if data_object.substance is None:
-            raise ValueError('The data object must have a valid substance.')
+            raise ValueError("The data object must have a valid substance.")
 
         substance_id = data_object.substance.identifier
 
@@ -404,8 +418,10 @@ class PropertyEstimatorStorage:
 
         # Store the unique id assigned to the data in the master
         # list of ids if not already present.
-        if (substance_id not in self._simulation_data_by_substance or
-            existing_data_key not in self._simulation_data_by_substance[substance_id]):
+        if (
+            substance_id not in self._simulation_data_by_substance
+            or existing_data_key not in self._simulation_data_by_substance[substance_id]
+        ):
 
             if substance_id not in self._simulation_data_by_substance:
                 self._simulation_data_by_substance[substance_id] = []

@@ -6,7 +6,6 @@ import json
 import logging
 from time import sleep
 
-from simtk import unit
 from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
 from tornado.tcpclient import TCPClient
@@ -15,7 +14,11 @@ from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.layers import ReweightingLayer, SimulationLayer
 from propertyestimator.properties.plugins import registered_properties
 from propertyestimator.utils.serialization import TypedBaseModel
-from propertyestimator.utils.tcp import PropertyEstimatorMessageTypes, pack_int, unpack_int
+from propertyestimator.utils.tcp import (
+    PropertyEstimatorMessageTypes,
+    pack_int,
+    unpack_int,
+)
 from propertyestimator.workflow import WorkflowOptions
 
 
@@ -49,8 +52,7 @@ class PropertyEstimatorOptions(TypedBaseModel):
         If true, allows individual identical steps in a property estimation workflow to be merged.
     """
 
-    def __init__(self, allowed_calculation_layers=None,
-                 allow_protocol_merging=True):
+    def __init__(self, allowed_calculation_layers=None, allow_protocol_merging=True):
         """Constructs a new PropertyEstimatorOptions object.
 
         Parameters
@@ -68,7 +70,7 @@ class PropertyEstimatorOptions(TypedBaseModel):
 
             self.allowed_calculation_layers = [
                 ReweightingLayer.__name__,
-                SimulationLayer.__name__
+                SimulationLayer.__name__,
             ]
 
         else:
@@ -90,22 +92,20 @@ class PropertyEstimatorOptions(TypedBaseModel):
     def __getstate__(self):
 
         return {
-            'allowed_calculation_layers': self.allowed_calculation_layers,
-
-            'workflow_schemas': self.workflow_schemas,
-            'workflow_options': self.workflow_options,
-
-            'allow_protocol_merging': self.allow_protocol_merging
+            "allowed_calculation_layers": self.allowed_calculation_layers,
+            "workflow_schemas": self.workflow_schemas,
+            "workflow_options": self.workflow_options,
+            "allow_protocol_merging": self.allow_protocol_merging,
         }
 
     def __setstate__(self, state):
 
-        self.allowed_calculation_layers = state['allowed_calculation_layers']
+        self.allowed_calculation_layers = state["allowed_calculation_layers"]
 
-        self.workflow_schemas = state['workflow_schemas']
-        self.workflow_options = state['workflow_options']
+        self.workflow_schemas = state["workflow_schemas"]
+        self.workflow_options = state["workflow_options"]
 
-        self.allow_protocol_merging = state['allow_protocol_merging']
+        self.allow_protocol_merging = state["allow_protocol_merging"]
 
 
 class PropertyEstimatorSubmission(TypedBaseModel):
@@ -126,7 +126,14 @@ class PropertyEstimatorSubmission(TypedBaseModel):
     force_field_source: ForceFieldSource
         The source of the force field parameters used during the calculations.
     """
-    def __init__(self, properties=None, force_field_source=None, options=None, parameter_gradient_keys=None):
+
+    def __init__(
+        self,
+        properties=None,
+        force_field_source=None,
+        options=None,
+        parameter_gradient_keys=None,
+    ):
         """Constructs a new PropertyEstimatorSubmission object.
 
         Parameters
@@ -146,26 +153,26 @@ class PropertyEstimatorSubmission(TypedBaseModel):
 
         self.force_field_source = force_field_source
 
-        self.parameter_gradient_keys = [] if parameter_gradient_keys is None else parameter_gradient_keys
+        self.parameter_gradient_keys = (
+            [] if parameter_gradient_keys is None else parameter_gradient_keys
+        )
 
     def __getstate__(self):
 
         return {
-            'properties': self.properties,
-            'options': self.options,
-
-            'force_field_source': self.force_field_source,
-
-            'parameter_gradient_keys': self.parameter_gradient_keys
+            "properties": self.properties,
+            "options": self.options,
+            "force_field_source": self.force_field_source,
+            "parameter_gradient_keys": self.parameter_gradient_keys,
         }
 
     def __setstate__(self, state):
 
-        self.properties = state['properties']
-        self.options = state['options']
+        self.properties = state["properties"]
+        self.options = state["options"]
 
-        self.force_field_source = state['force_field_source']
-        self.parameter_gradient_keys = state['parameter_gradient_keys']
+        self.force_field_source = state["force_field_source"]
+        self.parameter_gradient_keys = state["parameter_gradient_keys"]
 
 
 class PropertyEstimatorResult(TypedBaseModel):
@@ -193,7 +200,7 @@ class PropertyEstimatorResult(TypedBaseModel):
         estimation request.
     """
 
-    def __init__(self, result_id=''):
+    def __init__(self, result_id=""):
         """Constructs a new PropertyEstimatorResult object.
 
         Parameters
@@ -214,26 +221,23 @@ class PropertyEstimatorResult(TypedBaseModel):
     def __getstate__(self):
 
         return {
-            'id:': self.id,
-
-            'queued_properties': self.queued_properties,
-
-            'estimated_properties': self.estimated_properties,
-            'unsuccessful_properties': self.unsuccessful_properties,
-
-            'exceptions': self.exceptions,
+            "id:": self.id,
+            "queued_properties": self.queued_properties,
+            "estimated_properties": self.estimated_properties,
+            "unsuccessful_properties": self.unsuccessful_properties,
+            "exceptions": self.exceptions,
         }
 
     def __setstate__(self, state):
 
-        self.id = state['id:']
+        self.id = state["id:"]
 
-        self.queued_properties = state['queued_properties']
+        self.queued_properties = state["queued_properties"]
 
-        self.estimated_properties = state['estimated_properties']
-        self.unsuccessful_properties = state['unsuccessful_properties']
+        self.estimated_properties = state["estimated_properties"]
+        self.unsuccessful_properties = state["unsuccessful_properties"]
 
-        self.exceptions = state['exceptions']
+        self.exceptions = state["exceptions"]
 
 
 class ConnectionOptions(TypedBaseModel):
@@ -252,10 +256,10 @@ class ConnectionOptions(TypedBaseModel):
     This class is still heavily under development and is subject to rapid changes.
     """
 
-    server_address: str = 'localhost'
+    server_address: str = "localhost"
     server_port: int = 8000
 
-    def __init__(self, server_address='localhost', server_port=8000):
+    def __init__(self, server_address="localhost", server_port=8000):
         """Constructs a new ConnectionOptions object.
 
         Parameters
@@ -272,14 +276,14 @@ class ConnectionOptions(TypedBaseModel):
     def __getstate__(self):
 
         return {
-            'server_address': self.server_address,
-            'server_port': self.server_port,
+            "server_address": self.server_address,
+            "server_port": self.server_port,
         }
 
     def __setstate__(self, state):
 
-        self.server_address = state['server_address']
-        self.server_port = state['server_port']
+        self.server_address = state["server_address"]
+        self.server_port = state["server_port"]
 
 
 class PropertyEstimatorClient:
@@ -452,20 +456,21 @@ class PropertyEstimatorClient:
 
                 connection_options = ConnectionOptions(
                     server_address=connection_options.server_address,
-                    server_port=connection_options.server_port)
+                    server_port=connection_options.server_port,
+                )
 
                 self._client = PropertyEstimatorClient(connection_options)
 
         def __str__(self):
 
-            return 'EstimateRequest id: {} server_address: {} server_port: {}'.format(self._id,
-                                                                                      self._server_address,
-                                                                                      self._server_port)
+            return "EstimateRequest id: {} server_address: {} server_port: {}".format(
+                self._id, self._server_address, self._server_port
+            )
 
         def __repr__(self):
-            return '<EstimateRequest id: {} server_address: {} server_port: {}>'.format(self._id,
-                                                                                        self._server_address,
-                                                                                        self._server_port)
+            return "<EstimateRequest id: {} server_address: {} server_port: {}>".format(
+                self._id, self._server_address, self._server_port
+            )
 
         def json(self):
             """Returns a JSON representation of the `Request` object.
@@ -476,11 +481,9 @@ class PropertyEstimatorClient:
                 The JSON representation of the `Request` object.
             """
 
-            return json.dumps({
-                'id': self._id,
-                'server_address': self._id,
-                'server_port': self._id
-            })
+            return json.dumps(
+                {"id": self._id, "server_address": self._id, "server_port": self._id}
+            )
 
         @classmethod
         def from_json(cls, json_string):
@@ -498,9 +501,9 @@ class PropertyEstimatorClient:
             """
             json_dict = json.loads(json_string)
 
-            return cls(json_dict['id'],
-                       json_dict['server_address'],
-                       json_dict['server_port'])
+            return cls(
+                json_dict["id"], json_dict["server_address"], json_dict["server_port"]
+            )
 
         def results(self, synchronous=False, polling_interval=5):
             """Retrieve the results of an estimate request.
@@ -524,7 +527,9 @@ class PropertyEstimatorClient:
                 thread until all of the requested properties have been estimated, or
                 an exception is returned.
             """
-            return self._client._retrieve_estimate(self._id, synchronous, polling_interval)
+            return self._client._retrieve_estimate(
+                self._id, synchronous, polling_interval
+            )
 
     def __init__(self, connection_options=ConnectionOptions()):
         """Constructs a new PropertyEstimatorClient object.
@@ -539,12 +544,20 @@ class PropertyEstimatorClient:
 
         if connection_options.server_address is None:
 
-            raise ValueError('The address of the server which will run'
-                             'these calculations must be given.')
+            raise ValueError(
+                "The address of the server which will run"
+                "these calculations must be given."
+            )
 
         self._tcp_client = TCPClient()
 
-    def request_estimate(self, property_set, force_field_source, options=None, parameter_gradient_keys=None):
+    def request_estimate(
+        self,
+        property_set,
+        force_field_source,
+        options=None,
+        parameter_gradient_keys=None,
+    ):
         """Requests that a PropertyEstimatorServer attempt to estimate the
         provided property set using the supplied force field and estimator options.
 
@@ -570,17 +583,21 @@ class PropertyEstimatorClient:
 
         if property_set is None or force_field_source is None:
 
-            raise ValueError('Both a data set and force field source must be '
-                             'present to compute physical properties.')
+            raise ValueError(
+                "Both a data set and force field source must be "
+                "present to compute physical properties."
+            )
 
         if options is None:
             options = PropertyEstimatorOptions()
 
         if isinstance(force_field_source, smirnoff.ForceField):
-            force_field_source = SmirnoffForceFieldSource.from_object(force_field_source)
+            force_field_source = SmirnoffForceFieldSource.from_object(
+                force_field_source
+            )
 
         if len(options.allowed_calculation_layers) == 0:
-            raise ValueError('A submission contains no allowed calculation layers.')
+            raise ValueError("A submission contains no allowed calculation layers.")
 
         properties_list = []
         property_types = set()
@@ -596,7 +613,9 @@ class PropertyEstimatorClient:
                 type_name = type(physical_property).__name__
 
                 if type_name not in registered_properties:
-                    raise ValueError(f'The property estimator does not support {type_name} properties.')
+                    raise ValueError(
+                        f"The property estimator does not support {type_name} properties."
+                    )
 
                 if type_name in property_types:
                     continue
@@ -621,18 +640,28 @@ class PropertyEstimatorClient:
 
                 property_type = registered_properties[type_name]()
 
-                if (calculation_layer not in options.workflow_options[type_name] or
-                    options.workflow_options[type_name][calculation_layer] is None):
+                if (
+                    calculation_layer not in options.workflow_options[type_name]
+                    or options.workflow_options[type_name][calculation_layer] is None
+                ):
 
-                    options.workflow_options[type_name][calculation_layer] = WorkflowOptions()
+                    options.workflow_options[type_name][
+                        calculation_layer
+                    ] = WorkflowOptions()
 
-                if (calculation_layer not in options.workflow_schemas[type_name] or
-                    options.workflow_schemas[type_name][calculation_layer] is None):
+                if (
+                    calculation_layer not in options.workflow_schemas[type_name]
+                    or options.workflow_schemas[type_name][calculation_layer] is None
+                ):
 
                     default_schema = property_type.get_default_workflow_schema(
-                        calculation_layer, options.workflow_options[type_name][calculation_layer])
+                        calculation_layer,
+                        options.workflow_options[type_name][calculation_layer],
+                    )
 
-                    options.workflow_schemas[type_name][calculation_layer] = default_schema
+                    options.workflow_schemas[type_name][
+                        calculation_layer
+                    ] = default_schema
 
                 workflow = options.workflow_schemas[type_name][calculation_layer]
 
@@ -643,7 +672,9 @@ class PropertyEstimatorClient:
                 # Handle the cases where some protocol types should be replaced with
                 # others.
                 workflow.replace_protocol_types(
-                    options.workflow_options[type_name][calculation_layer].protocol_replacements
+                    options.workflow_options[type_name][
+                        calculation_layer
+                    ].protocol_replacements
                 )
 
                 # Will raise the correct exception for non-valid interfaces.
@@ -655,18 +686,22 @@ class PropertyEstimatorClient:
                     protocol_schema = workflow.protocols[protocol_schema_name]
 
                     if not options.allow_protocol_merging:
-                        protocol_schema.inputs['.allow_merging'] = False
+                        protocol_schema.inputs[".allow_merging"] = False
 
-        submission = PropertyEstimatorSubmission(properties=properties_list,
-                                                 force_field_source=force_field_source,
-                                                 options=options,
-                                                 parameter_gradient_keys=parameter_gradient_keys)
+        submission = PropertyEstimatorSubmission(
+            properties=properties_list,
+            force_field_source=force_field_source,
+            options=options,
+            parameter_gradient_keys=parameter_gradient_keys,
+        )
 
-        request_id = IOLoop.current().run_sync(lambda: self._send_calculations_to_server(submission))
+        request_id = IOLoop.current().run_sync(
+            lambda: self._send_calculations_to_server(submission)
+        )
 
-        request_object = PropertyEstimatorClient.Request(request_id,
-                                                         self._connection_options,
-                                                         self)
+        request_object = PropertyEstimatorClient.Request(
+            request_id, self._connection_options, self
+        )
 
         return request_object
 
@@ -699,7 +734,9 @@ class PropertyEstimatorClient:
         # If running asynchronously, just return whatever the server
         # sends back.
         if synchronous is False:
-            return IOLoop.current().run_sync(lambda: self._send_query_server(request_id))
+            return IOLoop.current().run_sync(
+                lambda: self._send_query_server(request_id)
+            )
 
         assert polling_interval >= 0
 
@@ -711,12 +748,17 @@ class PropertyEstimatorClient:
             if polling_interval > 0:
                 sleep(polling_interval)
 
-            response = IOLoop.current().run_sync(lambda: self._send_query_server(request_id))
+            response = IOLoop.current().run_sync(
+                lambda: self._send_query_server(request_id)
+            )
 
-            if isinstance(response, PropertyEstimatorResult) and len(response.queued_properties) > 0:
+            if (
+                isinstance(response, PropertyEstimatorResult)
+                and len(response.queued_properties) > 0
+            ):
                 continue
 
-            logging.info(f'The server has completed request {request_id}.')
+            logging.info(f"The server has completed request {request_id}.")
             should_run = False
 
         return response
@@ -750,14 +792,24 @@ class PropertyEstimatorClient:
         try:
 
             # Attempt to establish a connection to the server.
-            logging.info("Attempting Connection to {}:{}".format(self._connection_options.server_address,
-                                                                 self._connection_options.server_port))
+            logging.info(
+                "Attempting Connection to {}:{}".format(
+                    self._connection_options.server_address,
+                    self._connection_options.server_port,
+                )
+            )
 
-            stream = await self._tcp_client.connect(self._connection_options.server_address,
-                                                                 self._connection_options.server_port)
+            stream = await self._tcp_client.connect(
+                self._connection_options.server_address,
+                self._connection_options.server_port,
+            )
 
-            logging.info("Connected to {}:{}".format(self._connection_options.server_address,
-                                                                 self._connection_options.server_port))
+            logging.info(
+                "Connected to {}:{}".format(
+                    self._connection_options.server_address,
+                    self._connection_options.server_port,
+                )
+            )
 
             stream.set_nodelay(True)
 
@@ -772,9 +824,13 @@ class PropertyEstimatorClient:
 
             await stream.write(message_type + length + encoded_json)
 
-            logging.info("Sent calculations to {}:{}. Waiting for a response from"
-                         " the server...".format(self._connection_options.server_address,
-                                                 self._connection_options.server_port))
+            logging.info(
+                "Sent calculations to {}:{}. Waiting for a response from"
+                " the server...".format(
+                    self._connection_options.server_address,
+                    self._connection_options.server_port,
+                )
+            )
 
             # Wait for confirmation that the server has submitted
             # the jobs. The first four bytes of the response should
@@ -788,16 +844,21 @@ class PropertyEstimatorClient:
             encoded_json = await stream.read_bytes(length)
             request_id = json.loads(encoded_json.decode())
 
-            logging.info('Received job id from server: {}'.format(request_id))
+            logging.info("Received job id from server: {}".format(request_id))
             stream.close()
             self._tcp_client.close()
 
         except StreamClosedError as e:
 
             # Handle no connections to the server gracefully.
-            logging.info("Error connecting to {}:{} : {}. Please ensure the server is running and"
-                         "that the server address / port is correct.".format(self._connection_options.server_address,
-                                                                             self._connection_options.server_port, e))
+            logging.info(
+                "Error connecting to {}:{} : {}. Please ensure the server is running and"
+                "that the server address / port is correct.".format(
+                    self._connection_options.server_address,
+                    self._connection_options.server_port,
+                    e,
+                )
+            )
 
         # Return the ids of the submitted jobs.
         return request_id
@@ -828,8 +889,10 @@ class PropertyEstimatorClient:
         try:
 
             # Attempt to establish a connection to the server.
-            stream = await self._tcp_client.connect(self._connection_options.server_address,
-                                                    self._connection_options.server_port)
+            stream = await self._tcp_client.connect(
+                self._connection_options.server_address,
+                self._connection_options.server_port,
+            )
 
             stream.set_nodelay(True)
 
@@ -858,9 +921,14 @@ class PropertyEstimatorClient:
         except StreamClosedError as e:
 
             # Handle no connections to the server gracefully.
-            logging.info("Error connecting to {}:{} : {}. Please ensure the server is running and"
-                         "that the server address / port is correct.".format(self._connection_options.server_address,
-                                                                             self._connection_options.server_port, e))
+            logging.info(
+                "Error connecting to {}:{} : {}. Please ensure the server is running and"
+                "that the server address / port is correct.".format(
+                    self._connection_options.server_address,
+                    self._connection_options.server_port,
+                    e,
+                )
+            )
 
         if server_response is not None:
             server_response = TypedBaseModel.parse_json(server_response)

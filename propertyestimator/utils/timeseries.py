@@ -52,25 +52,37 @@ def calculate_statistical_inefficiency(time_series, minimum_samples=3):
     time_series_mean = standardised_time_series.mean(axis=0)
     time_series_shifted = standardised_time_series - time_series_mean
 
-    sigma_squared = np.mean(np.sum(time_series_shifted * time_series_shifted, axis=1), axis=0)
+    sigma_squared = np.mean(
+        np.sum(time_series_shifted * time_series_shifted, axis=1), axis=0
+    )
 
     if sigma_squared == 0:
-        raise ParameterError('Sample covariance sigma_AB^2 = 0 -- cannot compute statistical inefficiency')
+        raise ParameterError(
+            "Sample covariance sigma_AB^2 = 0 -- cannot compute statistical inefficiency"
+        )
 
     current_timestep = 1
     statistical_inefficiency = 1.0
 
     while current_timestep < number_of_timesteps - 1:
 
-        autocorrelation_function = np.sum(np.sum(time_series_shifted[0:(number_of_timesteps - current_timestep)] *
-                                                 time_series_shifted[current_timestep:number_of_timesteps], axis=1),
-                                          axis=0) / (float(number_of_timesteps - current_timestep) * sigma_squared)
+        autocorrelation_function = np.sum(
+            np.sum(
+                time_series_shifted[0 : (number_of_timesteps - current_timestep)]
+                * time_series_shifted[current_timestep:number_of_timesteps],
+                axis=1,
+            ),
+            axis=0,
+        ) / (float(number_of_timesteps - current_timestep) * sigma_squared)
 
         if autocorrelation_function <= 0.0 and current_timestep > minimum_samples:
             break
 
-        statistical_inefficiency += (2.0 * autocorrelation_function *
-                                    (1.0 - float(current_timestep) / float(number_of_timesteps)))
+        statistical_inefficiency += (
+            2.0
+            * autocorrelation_function
+            * (1.0 - float(current_timestep) / float(number_of_timesteps))
+        )
 
         current_timestep += 1
 
@@ -98,7 +110,9 @@ def calculate_autocorrelation_time(time_series, minimum_samples=3):
         The autocorrelation time.
     """
 
-    statistical_inefficiency = calculate_statistical_inefficiency(time_series, minimum_samples)
+    statistical_inefficiency = calculate_statistical_inefficiency(
+        time_series, minimum_samples
+    )
     return (statistical_inefficiency - 1.0) / 2.0
 
 
@@ -145,14 +159,20 @@ def detect_equilibration(time_series, minimum_samples=3):
     for current_timestep in range(0, number_of_timesteps - 1):
 
         try:
-            statistical_inefficiency_array[current_timestep] = calculate_statistical_inefficiency(
-                time_series[current_timestep:number_of_timesteps], minimum_samples)
+            statistical_inefficiency_array[
+                current_timestep
+            ] = calculate_statistical_inefficiency(
+                time_series[current_timestep:number_of_timesteps], minimum_samples
+            )
 
         except ParameterError:  # Fix for issue https://github.com/choderalab/pymbar/issues/122
-            statistical_inefficiency_array[current_timestep] = (number_of_timesteps - current_timestep + 1)
+            statistical_inefficiency_array[current_timestep] = (
+                number_of_timesteps - current_timestep + 1
+            )
 
-        effect_samples_array[current_timestep] = (number_of_timesteps - current_timestep + 1) / \
-                                                 statistical_inefficiency_array[current_timestep]
+        effect_samples_array[current_timestep] = (
+            number_of_timesteps - current_timestep + 1
+        ) / statistical_inefficiency_array[current_timestep]
 
     maximum_effective_samples = effect_samples_array.max()
     equilibration_time = effect_samples_array.argmax()
@@ -180,7 +200,9 @@ def decorrelate_time_series(time_series):
     """
 
     # Compute the indices of the uncorrelated time series
-    [equilibration_index, inefficiency, effective_samples] = detect_equilibration(time_series)
+    [equilibration_index, inefficiency, effective_samples] = detect_equilibration(
+        time_series
+    )
     equilibrated_data = time_series[equilibration_index:]
 
     # Extract a set of uncorrelated data points.

@@ -23,35 +23,42 @@ def extract_variable_index_and_name(string):
     str
         The index that was inside of the accessor brackets.
     """
-    if string.count('[') > 1 or string.count(']') > 1:
-        raise ValueError('Nested array indices (e.g. values[0][0]) are not '
-                         'supported: {}'.format(string))
+    if string.count("[") > 1 or string.count("]") > 1:
+        raise ValueError(
+            "Nested array indices (e.g. values[0][0]) are not "
+            "supported: {}".format(string)
+        )
 
-    start_bracket_index = string.find('[')
-    end_bracket_index = string.find(']')
+    start_bracket_index = string.find("[")
+    end_bracket_index = string.find("]")
 
     if start_bracket_index >= 0 > end_bracket_index:
-        raise ValueError('Property name containts a [ without a matching ]: '
-                         '{}'.format('.'.join(string)))
+        raise ValueError(
+            "Property name containts a [ without a matching ]: "
+            "{}".format(".".join(string))
+        )
 
     if end_bracket_index >= 0 > start_bracket_index:
-        raise ValueError('Property name containts a ] without a matching [: '
-                         '{}'.format(string))
+        raise ValueError(
+            "Property name containts a ] without a matching [: " "{}".format(string)
+        )
 
     if start_bracket_index > end_bracket_index:
-        raise ValueError('Property name containts a ] before a [: '
-                         '{}'.format(string))
+        raise ValueError("Property name containts a ] before a [: " "{}".format(string))
 
     if end_bracket_index == start_bracket_index + 1:
-        raise ValueError('There is no index between the array brackets: '
-                         '{}'.format(string))
+        raise ValueError(
+            "There is no index between the array brackets: " "{}".format(string)
+        )
 
     if end_bracket_index != len(string) - 1:
-        raise ValueError('The ] array bracket must be at the end of the property name: '
-                         '{}'.format(string))
+        raise ValueError(
+            "The ] array bracket must be at the end of the property name: "
+            "{}".format(string)
+        )
 
-    array_index = string[start_bracket_index + 1: end_bracket_index]
-    property_name = string[0: start_bracket_index]
+    array_index = string[start_bracket_index + 1 : end_bracket_index]
+    property_name = string[0:start_bracket_index]
 
     return property_name, array_index
 
@@ -70,4 +77,4 @@ def sanitize_smiles_file_name(file_name):
     -------
     The sanitized file name.
     """
-    return file_name.replace('/', '_')
+    return file_name.replace("/", "_")

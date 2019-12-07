@@ -1,8 +1,6 @@
 """
 Units tests for propertyestimator.utils.tcp
 """
-import pytest
-
 from propertyestimator.utils import tcp
 
 
@@ -13,11 +11,16 @@ def test_message_packing():
 
 def test_message_type_enum():
     """Test the message type enum creation."""
-    assert tcp.PropertyEstimatorMessageTypes(0) == \
-           tcp.PropertyEstimatorMessageTypes.Undefined
+    assert (
+        tcp.PropertyEstimatorMessageTypes(0)
+        == tcp.PropertyEstimatorMessageTypes.Undefined
+    )
 
-    assert tcp.PropertyEstimatorMessageTypes(1) == \
-           tcp.PropertyEstimatorMessageTypes.Submission
+    assert (
+        tcp.PropertyEstimatorMessageTypes(1)
+        == tcp.PropertyEstimatorMessageTypes.Submission
+    )
 
-    assert tcp.PropertyEstimatorMessageTypes(2) == \
-           tcp.PropertyEstimatorMessageTypes.Query
+    assert (
+        tcp.PropertyEstimatorMessageTypes(2) == tcp.PropertyEstimatorMessageTypes.Query
+    )

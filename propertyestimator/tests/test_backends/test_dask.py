@@ -1,6 +1,10 @@
 import pytest
 
-from propertyestimator.backends import DaskLSFBackend, DaskPBSBackend, QueueWorkerResources
+from propertyestimator.backends import (
+    DaskLSFBackend,
+    DaskPBSBackend,
+    QueueWorkerResources,
+)
 from propertyestimator.backends.dask import _Multiprocessor
 from propertyestimator.workflow.plugins import available_protocols
 
@@ -28,18 +32,22 @@ def test_dask_jobqueue_backend_creation(cluster_class):
     cpu_backend.start()
     cpu_backend.stop()
 
-    gpu_resources = QueueWorkerResources(1, 1, preferred_gpu_toolkit=QueueWorkerResources.GPUToolkit.CUDA)
+    gpu_resources = QueueWorkerResources(
+        1, 1, preferred_gpu_toolkit=QueueWorkerResources.GPUToolkit.CUDA
+    )
 
     gpu_commands = [
-        'module load cuda/9.2',
+        "module load cuda/9.2",
     ]
 
-    gpu_backend = cluster_class(resources_per_worker=gpu_resources,
-                                queue_name='gpuqueue',
-                                setup_script_commands=gpu_commands)
+    gpu_backend = cluster_class(
+        resources_per_worker=gpu_resources,
+        queue_name="gpuqueue",
+        setup_script_commands=gpu_commands,
+    )
 
     gpu_backend.start()
-    assert 'module load cuda/9.2' in gpu_backend.job_script()
+    assert "module load cuda/9.2" in gpu_backend.job_script()
     gpu_backend.stop()
 
 
@@ -57,8 +65,10 @@ def test_lsf_wrapped_function():
 
     available_resources = QueueWorkerResources()
 
-    protocols_to_import = [protocol_class.__module__ + '.' +
-                           protocol_class.__qualname__ for protocol_class in available_protocols.values()]
+    protocols_to_import = [
+        protocol_class.__module__ + "." + protocol_class.__qualname__
+        for protocol_class in available_protocols.values()
+    ]
 
     per_worker_logging = True
 
@@ -66,11 +76,13 @@ def test_lsf_wrapped_function():
 
     expected_output = 12345
 
-    result = DaskLSFBackend._wrapped_function(dummy_function,
-                                              expected_output,
-                                              available_resources=available_resources,
-                                              available_protocols=protocols_to_import,
-                                              per_worker_logging=per_worker_logging,
-                                              gpu_assignments=gpu_assignments)
+    result = DaskLSFBackend._wrapped_function(
+        dummy_function,
+        expected_output,
+        available_resources=available_resources,
+        available_protocols=protocols_to_import,
+        per_worker_logging=per_worker_logging,
+        gpu_assignments=gpu_assignments,
+    )
 
     assert expected_output == result

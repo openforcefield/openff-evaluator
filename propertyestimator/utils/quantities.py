@@ -109,7 +109,10 @@ class EstimatedQuantity:
         assert isinstance(value, unit.Quantity)
         assert isinstance(uncertainty, unit.Quantity)
 
-        assert unit.get_base_units(value.units)[-1] == unit.get_base_units(uncertainty.units)[-1]
+        assert (
+            unit.get_base_units(value.units)[-1]
+            == unit.get_base_units(uncertainty.units)[-1]
+        )
 
         self._value = value
         self._uncertainty = uncertainty
@@ -142,7 +145,7 @@ class EstimatedQuantity:
     def __sub__(self, other):
 
         assert isinstance(other, EstimatedQuantity)
-        
+
         for source in other.sources:
             if source in self.sources:
                 raise DependantValuesException()
@@ -204,16 +207,16 @@ class EstimatedQuantity:
     def __getstate__(self):
 
         return {
-            'value': self.value,
-            'uncertainty': self.uncertainty,
-            'sources': self.sources
+            "value": self.value,
+            "uncertainty": self.uncertainty,
+            "sources": self.sources,
         }
 
     def __setstate__(self, state):
 
-        self._value = state['value']
-        self._uncertainty = state['uncertainty']
-        self._sources = state['sources']
+        self._value = state["value"]
+        self._uncertainty = state["uncertainty"]
+        self._sources = state["sources"]
 
     @staticmethod
     def _get_uncertainty_object(estimated_quantity):
@@ -235,16 +238,20 @@ class EstimatedQuantity:
         base_value_unit = base_value.units
 
         unitless_value = base_value.magnitude
-        unitless_uncertainty = estimated_quantity.uncertainty.to(base_value_unit).magnitude
+        unitless_uncertainty = estimated_quantity.uncertainty.to(
+            base_value_unit
+        ).magnitude
 
         return ufloat(unitless_value, unitless_uncertainty), base_value_unit
 
     def __eq__(self, other):
 
-        return (isinstance(other, EstimatedQuantity) and
-                self.value == other.value and
-                self.uncertainty == other.uncertainty and
-                self.sources == other.sources)
+        return (
+            isinstance(other, EstimatedQuantity)
+            and self.value == other.value
+            and self.uncertainty == other.uncertainty
+            and self.sources == other.sources
+        )
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -255,8 +262,10 @@ class EstimatedQuantity:
 
     def __repr__(self):
 
-        return f'<EstimatedQuantity value={self.value} ' \
+        return (
+            f"<EstimatedQuantity value={self.value} "
             f'uncertainty={self.uncertainty} sources=[{", ".join(self.sources)}]>'
+        )
 
 
 class DependantValuesException(ValueError):
@@ -265,7 +274,9 @@ class DependantValuesException(ValueError):
 
     def __init__(self):
 
-        super().__init__('The two quantities came from the same source, and so'
-                         'cannot be treated as independent. The propagation /'
-                         'calculation of uncertainties must be handled by'
-                         'more sophisticated methods than this class employs.')
+        super().__init__(
+            "The two quantities came from the same source, and so"
+            "cannot be treated as independent. The propagation /"
+            "calculation of uncertainties must be handled by"
+            "more sophisticated methods than this class employs."
+        )

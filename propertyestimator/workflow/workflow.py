@@ -11,19 +11,30 @@ import traceback
 import uuid
 from enum import Enum
 from math import sqrt
-from os import path, makedirs
+from os import makedirs, path
 
 from propertyestimator import unit
-from propertyestimator.forcefield import SmirnoffForceFieldSource, ForceFieldSource
-from propertyestimator.storage.dataclasses import BaseStoredData, StoredSimulationData, StoredDataCollection
+from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource
+from propertyestimator.storage.dataclasses import (
+    BaseStoredData,
+    StoredDataCollection,
+    StoredSimulationData,
+)
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import TypedJSONEncoder, TypedJSONDecoder
-from propertyestimator.utils.string import extract_variable_index_and_name, sanitize_smiles_file_name
+from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
+from propertyestimator.utils.string import (
+    extract_variable_index_and_name,
+    sanitize_smiles_file_name,
+)
 from propertyestimator.utils.utils import SubhookedABCMeta, get_nested_attribute
 from propertyestimator.workflow.protocols import BaseProtocol
-from propertyestimator.workflow.schemas import WorkflowSchema, ProtocolReplicator, WorkflowSimulationDataToStore, \
-    WorkflowDataCollectionToStore
+from propertyestimator.workflow.schemas import (
+    ProtocolReplicator,
+    WorkflowDataCollectionToStore,
+    WorkflowSchema,
+    WorkflowSimulationDataToStore,
+)
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
@@ -34,7 +45,8 @@ class IWorkflowProperty(SubhookedABCMeta):
 
     @staticmethod
     @abc.abstractmethod
-    def get_default_workflow_schema(calculation_layer, options): pass
+    def get_default_workflow_schema(calculation_layer, options):
+        pass
 
 
 class WorkflowOptions:
@@ -49,14 +61,17 @@ class WorkflowOptions:
         (`ConvergenceMode.RelativeUncertainty`) or is less than some absolute
         value (`ConvergenceMode.AbsoluteUncertainty`)."""
 
-        NoChecks = 'NoChecks'
-        RelativeUncertainty = 'RelativeUncertainty'
-        AbsoluteUncertainty = 'AbsoluteUncertainty'
+        NoChecks = "NoChecks"
+        RelativeUncertainty = "RelativeUncertainty"
+        AbsoluteUncertainty = "AbsoluteUncertainty"
 
-    def __init__(self,
-                 convergence_mode=ConvergenceMode.RelativeUncertainty,
-                 relative_uncertainty_fraction=1.0, absolute_uncertainty=None,
-                 protocol_replacements=None):
+    def __init__(
+        self,
+        convergence_mode=ConvergenceMode.RelativeUncertainty,
+        relative_uncertainty_fraction=1.0,
+        absolute_uncertainty=None,
+        protocol_replacements=None,
+    ):
         """Constructs a new WorkflowOptions object.
 
         Parameters
@@ -84,39 +99,47 @@ class WorkflowOptions:
         self.absolute_uncertainty = absolute_uncertainty
         self.relative_uncertainty_fraction = relative_uncertainty_fraction
 
-        if (self.convergence_mode is self.ConvergenceMode.RelativeUncertainty and
-            self.relative_uncertainty_fraction is None):
+        if (
+            self.convergence_mode is self.ConvergenceMode.RelativeUncertainty
+            and self.relative_uncertainty_fraction is None
+        ):
 
-            raise ValueError('The relative uncertainty fraction must be set when the convergence '
-                             'mode is set to RelativeUncertainty.')
+            raise ValueError(
+                "The relative uncertainty fraction must be set when the convergence "
+                "mode is set to RelativeUncertainty."
+            )
 
-        if (self.convergence_mode is self.ConvergenceMode.AbsoluteUncertainty and
-            self.absolute_uncertainty is None):
+        if (
+            self.convergence_mode is self.ConvergenceMode.AbsoluteUncertainty
+            and self.absolute_uncertainty is None
+        ):
 
-            raise ValueError('The absolute uncertainty must be set when the convergence '
-                             'mode is set to AbsoluteUncertainty.')
+            raise ValueError(
+                "The absolute uncertainty must be set when the convergence "
+                "mode is set to AbsoluteUncertainty."
+            )
 
-        self.protocol_replacements = protocol_replacements if protocol_replacements is not None else {}
+        self.protocol_replacements = (
+            protocol_replacements if protocol_replacements is not None else {}
+        )
 
     def __getstate__(self):
 
         return {
-            'convergence_mode': self.convergence_mode,
-
-            'absolute_uncertainty': self.absolute_uncertainty,
-            'relative_uncertainty_fraction': self.relative_uncertainty_fraction,
-
-            'protocol_replacements': self.protocol_replacements
+            "convergence_mode": self.convergence_mode,
+            "absolute_uncertainty": self.absolute_uncertainty,
+            "relative_uncertainty_fraction": self.relative_uncertainty_fraction,
+            "protocol_replacements": self.protocol_replacements,
         }
 
     def __setstate__(self, state):
 
-        self.convergence_mode = state['convergence_mode']
+        self.convergence_mode = state["convergence_mode"]
 
-        self.absolute_uncertainty = state['absolute_uncertainty']
-        self.relative_uncertainty_fraction = state['relative_uncertainty_fraction']
+        self.absolute_uncertainty = state["absolute_uncertainty"]
+        self.relative_uncertainty_fraction = state["relative_uncertainty_fraction"]
 
-        self.protocol_replacements = state['protocol_replacements']
+        self.protocol_replacements = state["protocol_replacements"]
 
 
 class Workflow:
@@ -183,16 +206,22 @@ class Workflow:
             schema.protocols[protocol_id] = protocol.schema
 
         if self.final_value_source is not None:
-            schema.final_value_source = ProtocolPath.from_string(self.final_value_source.full_path)
+            schema.final_value_source = ProtocolPath.from_string(
+                self.final_value_source.full_path
+            )
 
-        schema.gradients_sources = [ProtocolPath.from_string(source.full_path) for source in self.gradients_sources]
+        schema.gradients_sources = [
+            ProtocolPath.from_string(source.full_path)
+            for source in self.gradients_sources
+        ]
 
         schema.outputs_to_store = {}
 
         for substance_identifier in self.outputs_to_store:
 
-            schema.outputs_to_store[substance_identifier] = \
-                copy.deepcopy(self.outputs_to_store[substance_identifier])
+            schema.outputs_to_store[substance_identifier] = copy.deepcopy(
+                self.outputs_to_store[substance_identifier]
+            )
 
         return schema
 
@@ -208,7 +237,9 @@ class Workflow:
 
         if schema.final_value_source is not None:
 
-            self.final_value_source = ProtocolPath.from_string(schema.final_value_source.full_path)
+            self.final_value_source = ProtocolPath.from_string(
+                schema.final_value_source.full_path
+            )
             self.final_value_source.append_uuid(self.uuid)
 
         self._build_protocols(schema)
@@ -227,7 +258,9 @@ class Workflow:
 
         for label in schema.outputs_to_store:
             self._append_uuid_to_output_to_store(schema.outputs_to_store[label])
-            self.outputs_to_store[label] = self._build_output_to_store(schema.outputs_to_store[label])
+            self.outputs_to_store[label] = self._build_output_to_store(
+                schema.outputs_to_store[label]
+            )
 
     def _append_uuid_to_output_to_store(self, output_to_store):
         """Appends this workflows uuid to all of the protocol paths
@@ -274,10 +307,15 @@ class Workflow:
 
             attribute_value = getattr(output_to_store, attribute_key)
 
-            if not isinstance(attribute_value, ProtocolPath) or not attribute_value.is_global:
+            if (
+                not isinstance(attribute_value, ProtocolPath)
+                or not attribute_value.is_global
+            ):
                 continue
 
-            attribute_value = get_nested_attribute(self.global_metadata, attribute_value.property_name)
+            attribute_value = get_nested_attribute(
+                self.global_metadata, attribute_value.property_name
+            )
             setattr(output_to_store, attribute_key, attribute_value)
 
         # Make sure to also up any child data objects.
@@ -285,7 +323,9 @@ class Workflow:
 
             for child_data_label in output_to_store.data:
 
-                child_data = self._build_output_to_store(output_to_store.data[child_data_label])
+                child_data = self._build_output_to_store(
+                    output_to_store.data[child_data_label]
+                )
                 output_to_store.data[child_data_label] = child_data
 
         return output_to_store
@@ -319,7 +359,9 @@ class Workflow:
                     if not value_reference.is_global:
                         continue
 
-                    value = get_nested_attribute(self.global_metadata, value_reference.property_name)
+                    value = get_nested_attribute(
+                        self.global_metadata, value_reference.property_name
+                    )
                     protocol.set_value(source_path, value)
 
             protocol.set_uuid(self.uuid)
@@ -341,8 +383,10 @@ class Workflow:
             The template values.
         """
 
-        invalid_value_error = ValueError(f'Template values must either be a constant or come '
-                                         f'from the global scope (and not from {replicator.template_values})')
+        invalid_value_error = ValueError(
+            f"Template values must either be a constant or come "
+            f"from the global scope (and not from {replicator.template_values})"
+        )
 
         # Get the list of values which will be passed to the newly created protocols.
         if isinstance(replicator.template_values, ProtocolPath):
@@ -350,7 +394,9 @@ class Workflow:
             if not replicator.template_values.is_global:
                 raise invalid_value_error
 
-            return get_nested_attribute(self.global_metadata, replicator.template_values.property_name)
+            return get_nested_attribute(
+                self.global_metadata, replicator.template_values.property_name
+            )
 
         elif not isinstance(replicator.template_values, list):
             raise NotImplementedError()
@@ -367,8 +413,9 @@ class Workflow:
             if not template_value.is_global:
                 raise invalid_value_error
 
-            evaluated_template_values.append(get_nested_attribute(self.global_metadata,
-                                                                  template_value.property_name))
+            evaluated_template_values.append(
+                get_nested_attribute(self.global_metadata, template_value.property_name)
+            )
 
         return evaluated_template_values
 
@@ -389,7 +436,9 @@ class Workflow:
             self._apply_replicator(schema, replicator)
 
             if schema.json().find(replicator.placeholder_id) >= 0:
-                raise RuntimeError(f'The {replicator.id} replicator was not fully applied.')
+                raise RuntimeError(
+                    f"The {replicator.id} replicator was not fully applied."
+                )
 
     def _apply_replicator(self, schema, replicator):
         """A method to create a set of protocol schemas based on a ProtocolReplicator,
@@ -418,8 +467,12 @@ class Workflow:
             protocol.schema = protocol_schema
             protocols[protocol_id] = protocol
 
-        replicated_protocols, replication_map = replicator.apply(protocols, template_values)
-        replicator.update_references(replicated_protocols, replication_map, template_values)
+        replicated_protocols, replication_map = replicator.apply(
+            protocols, template_values
+        )
+        replicator.update_references(
+            replicated_protocols, replication_map, template_values
+        )
 
         # Update the schema with the replicated protocols.
         schema.protocols = {}
@@ -440,7 +493,10 @@ class Workflow:
             for index, template_value in enumerate(template_values):
 
                 replicated_source = ProtocolPath.from_string(
-                    gradient_source.full_path.replace(replicator.placeholder_id, str(index)))
+                    gradient_source.full_path.replace(
+                        replicator.placeholder_id, str(index)
+                    )
+                )
 
                 replicated_gradient_sources.append(replicated_source)
 
@@ -471,8 +527,12 @@ class Workflow:
             if output_label.find(replicator.id) < 0:
                 continue
 
-            if isinstance(schema.outputs_to_store[output_label], WorkflowDataCollectionToStore):
-                raise NotImplementedError('`WorkflowDataCollectionToStore` cannot currently be replicated.')
+            if isinstance(
+                schema.outputs_to_store[output_label], WorkflowDataCollectionToStore
+            ):
+                raise NotImplementedError(
+                    "`WorkflowDataCollectionToStore` cannot currently be replicated."
+                )
 
             outputs_to_replicate.append(output_label)
 
@@ -484,7 +544,9 @@ class Workflow:
 
             for index, template_value in enumerate(template_values):
 
-                replicated_label = output_label.replace(replicator.placeholder_id, str(index))
+                replicated_label = output_label.replace(
+                    replicator.placeholder_id, str(index)
+                )
                 replicated_output = copy.deepcopy(output_to_replicate)
 
                 for attribute_key in replicated_output.__getstate__():
@@ -494,7 +556,10 @@ class Workflow:
                     if isinstance(attribute_value, ProtocolPath):
 
                         attribute_value = ProtocolPath.from_string(
-                            attribute_value.full_path.replace(replicator.placeholder_id, str(index)))
+                            attribute_value.full_path.replace(
+                                replicator.placeholder_id, str(index)
+                            )
+                        )
 
                     elif isinstance(attribute_value, ReplicatorValue):
 
@@ -502,7 +567,8 @@ class Workflow:
 
                             # Make sure to handle nested dependent replicators.
                             attribute_value.replicator_id = attribute_value.replicator_id.replace(
-                                replicator.placeholder_id, str(index))
+                                replicator.placeholder_id, str(index)
+                            )
 
                             continue
 
@@ -544,7 +610,9 @@ class Workflow:
             # Create the replicated replicators
             for template_index in new_indices:
 
-                replicator_id = original_replicator.id.replace(replicator.placeholder_id, template_index)
+                replicator_id = original_replicator.id.replace(
+                    replicator.placeholder_id, template_index
+                )
 
                 new_replicator = ProtocolReplicator(replicator_id)
                 new_replicator.template_values = original_replicator.template_values
@@ -553,10 +621,13 @@ class Workflow:
                 # with the actual index.
                 if isinstance(new_replicator.template_values, ProtocolPath):
 
-                    updated_path = new_replicator.template_values.full_path.replace(replicator.placeholder_id,
-                                                                                    template_index)
+                    updated_path = new_replicator.template_values.full_path.replace(
+                        replicator.placeholder_id, template_index
+                    )
 
-                    new_replicator.template_values = ProtocolPath.from_string(updated_path)
+                    new_replicator.template_values = ProtocolPath.from_string(
+                        updated_path
+                    )
 
                 elif isinstance(new_replicator.template_values, list):
 
@@ -569,7 +640,9 @@ class Workflow:
                             updated_values.append(template_value)
                             continue
 
-                        updated_path = template_value.full_path.replace(replicator.placeholder_id, template_index)
+                        updated_path = template_value.full_path.replace(
+                            replicator.placeholder_id, template_index
+                        )
                         updated_values.append(ProtocolPath.from_string(updated_path))
 
                     new_replicator.template_values = updated_values
@@ -598,16 +671,24 @@ class Workflow:
                     # schema dependency graph.
                     continue
 
-                if dependency.start_protocol == dependant_protocol_name and dependency.start_protocol:
+                if (
+                    dependency.start_protocol == dependant_protocol_name
+                    and dependency.start_protocol
+                ):
                     # Don't add self to the dependency list.
                     continue
 
                 # Only add a dependency on the protocol at the head of the path,
                 # dependencies on the rest of protocols in the path is then implied.
-                if dependant_protocol.id in self.dependants_graph[dependency.start_protocol]:
+                if (
+                    dependant_protocol.id
+                    in self.dependants_graph[dependency.start_protocol]
+                ):
                     continue
 
-                self.dependants_graph[dependency.start_protocol].append(dependant_protocol.id)
+                self.dependants_graph[dependency.start_protocol].append(
+                    dependant_protocol.id
+                )
 
         self.starting_protocols = graph.find_root_nodes(self.dependants_graph)
 
@@ -636,7 +717,9 @@ class Workflow:
             new_protocol_id = new_protocol.id
 
         if new_protocol_id in self.protocols:
-            raise ValueError('A protocol with the same id already exists in this workflow.')
+            raise ValueError(
+                "A protocol with the same id already exists in this workflow."
+            )
 
         for protocol_id in self.protocols:
             protocol = self.protocols[protocol_id]
@@ -663,7 +746,9 @@ class Workflow:
                 self.dependants_graph[protocol_id][index] = dependant_id
 
         if old_protocol_id in self.dependants_graph:
-            self.dependants_graph[new_protocol_id] = self.dependants_graph.pop(old_protocol_id)
+            self.dependants_graph[new_protocol_id] = self.dependants_graph.pop(
+                old_protocol_id
+            )
 
         if self.final_value_source is not None:
             self.final_value_source.replace_protocol(old_protocol_id, new_protocol_id)
@@ -682,8 +767,7 @@ class Workflow:
                 if not isinstance(attribute_value, ProtocolPath):
                     continue
 
-                attribute_value.replace_protocol(old_protocol_id,
-                                                 new_protocol_id)
+                attribute_value.replace_protocol(old_protocol_id, new_protocol_id)
 
             if not isinstance(output_to_store, WorkflowDataCollectionToStore):
                 continue
@@ -697,11 +781,12 @@ class Workflow:
                     if not isinstance(attribute_value, ProtocolPath):
                         continue
 
-                    attribute_value.replace_protocol(old_protocol_id,
-                                                     new_protocol_id)
+                    attribute_value.replace_protocol(old_protocol_id, new_protocol_id)
 
     @staticmethod
-    def _find_relevant_gradient_keys(substance, force_field_path, parameter_gradient_keys):
+    def _find_relevant_gradient_keys(
+        substance, force_field_path, parameter_gradient_keys
+    ):
         """Extract only those keys which may be applied to the
         given substance.
 
@@ -747,7 +832,10 @@ class Workflow:
 
             for parameter_key in parameter_gradient_keys:
 
-                if parameter_key.tag not in labelled_molecule or parameter_key in reduced_parameter_keys:
+                if (
+                    parameter_key.tag not in labelled_molecule
+                    or parameter_key in reduced_parameter_keys
+                ):
                     continue
 
                 contains_parameter = False
@@ -768,10 +856,14 @@ class Workflow:
         return reduced_parameter_keys
 
     @staticmethod
-    def generate_default_metadata(physical_property, force_field_path,
-                                  parameter_gradient_keys=None, workflow_options=None):
+    def generate_default_metadata(
+        physical_property,
+        force_field_path,
+        parameter_gradient_keys=None,
+        workflow_options=None,
+    ):
         """Generates a default global metadata dictionary.
-        
+
         Parameters
         ----------
         physical_property: PhysicalProperty
@@ -822,28 +914,49 @@ class Workflow:
         if workflow_options is None:
             workflow_options = WorkflowOptions()
 
-        if workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.RelativeUncertainty:
-            target_uncertainty = physical_property.uncertainty * workflow_options.relative_uncertainty_fraction
-        elif workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.AbsoluteUncertainty:
+        if (
+            workflow_options.convergence_mode
+            == WorkflowOptions.ConvergenceMode.RelativeUncertainty
+        ):
+            target_uncertainty = (
+                physical_property.uncertainty
+                * workflow_options.relative_uncertainty_fraction
+            )
+        elif (
+            workflow_options.convergence_mode
+            == WorkflowOptions.ConvergenceMode.AbsoluteUncertainty
+        ):
             target_uncertainty = workflow_options.absolute_uncertainty
-        elif workflow_options.convergence_mode == WorkflowOptions.ConvergenceMode.NoChecks:
+        elif (
+            workflow_options.convergence_mode
+            == WorkflowOptions.ConvergenceMode.NoChecks
+        ):
             target_uncertainty = math.inf
         else:
-            raise ValueError('The convergence mode {} is not supported.'.format(workflow_options.convergence_mode))
+            raise ValueError(
+                "The convergence mode {} is not supported.".format(
+                    workflow_options.convergence_mode
+                )
+            )
 
-        if (isinstance(physical_property.uncertainty, unit.Quantity) and not
-            isinstance(target_uncertainty, unit.Quantity)):
+        if isinstance(physical_property.uncertainty, unit.Quantity) and not isinstance(
+            target_uncertainty, unit.Quantity
+        ):
 
-            target_uncertainty = target_uncertainty * physical_property.uncertainty.units
+            target_uncertainty = (
+                target_uncertainty * physical_property.uncertainty.units
+            )
 
         # +1 comes from inclusion of the full mixture as a possible component.
-        per_component_uncertainty = target_uncertainty / sqrt(physical_property.substance.number_of_components + 1)
+        per_component_uncertainty = target_uncertainty / sqrt(
+            physical_property.substance.number_of_components + 1
+        )
 
         # Find only those gradient keys which will actually be relevant to the
         # property of interest
-        relevant_gradient_keys = Workflow._find_relevant_gradient_keys(physical_property.substance,
-                                                                       force_field_path,
-                                                                       parameter_gradient_keys)
+        relevant_gradient_keys = Workflow._find_relevant_gradient_keys(
+            physical_property.substance, force_field_path, parameter_gradient_keys
+        )
 
         # Define a dictionary of accessible 'global' properties.
         global_metadata = {
@@ -853,7 +966,7 @@ class Workflow:
             "target_uncertainty": target_uncertainty,
             "per_component_uncertainty": per_component_uncertainty,
             "force_field_path": force_field_path,
-            "parameter_gradient_keys": relevant_gradient_keys
+            "parameter_gradient_keys": relevant_gradient_keys,
         }
 
         # Include the properties metadata
@@ -867,7 +980,7 @@ class WorkflowGraph:
     which will estimate a set of physical properties..
     """
 
-    def __init__(self, root_directory=''):
+    def __init__(self, root_directory=""):
         """Constructs a new WorkflowGraph
 
         Parameters
@@ -901,13 +1014,19 @@ class WorkflowGraph:
 
         if protocol_name in self._protocols_by_id:
 
-            raise RuntimeError('A protocol with id {} has already been '
-                               'inserted into the graph.'.format(protocol_name))
+            raise RuntimeError(
+                "A protocol with id {} has already been "
+                "inserted into the graph.".format(protocol_name)
+            )
 
         protocols = self._root_protocol_ids if len(parent_protocol_ids) == 0 else []
 
         for parent_protocol_id in parent_protocol_ids:
-            protocols.extend(x for x in self._dependants_graph[parent_protocol_id] if x not in protocols)
+            protocols.extend(
+                x
+                for x in self._dependants_graph[parent_protocol_id]
+                if x not in protocols
+            )
 
         protocol_to_insert = workflow.protocols[protocol_name]
         existing_protocol = None
@@ -946,7 +1065,9 @@ class WorkflowGraph:
                 parent_protocol = self._protocols_by_id[parent_protocol_ids[0]]
                 root_directory = parent_protocol.directory
 
-            protocol_to_insert.directory = path.join(root_directory, protocol_to_insert.id)
+            protocol_to_insert.directory = path.join(
+                root_directory, protocol_to_insert.id
+            )
 
             # Add the protocol as a new protocol in the graph.
             self._protocols_by_id[protocol_name] = protocol_to_insert
@@ -961,9 +1082,11 @@ class WorkflowGraph:
 
             for protocol_id in workflow.dependants_graph:
 
-                if (existing_protocol.id not in workflow.dependants_graph[protocol_id] or
-                    existing_protocol.id in self._dependants_graph[protocol_id] or
-                    protocol_id in self._dependants_graph[existing_protocol.id]):
+                if (
+                    existing_protocol.id not in workflow.dependants_graph[protocol_id]
+                    or existing_protocol.id in self._dependants_graph[protocol_id]
+                    or protocol_id in self._dependants_graph[existing_protocol.id]
+                ):
 
                     continue
 
@@ -982,8 +1105,10 @@ class WorkflowGraph:
 
         if workflow.uuid in self._workflows_to_execute:
 
-            raise ValueError('A workflow with the uuid ({}) is '
-                             'already in the graph.'.format(workflow.uuid))
+            raise ValueError(
+                "A workflow with the uuid ({}) is "
+                "already in the graph.".format(workflow.uuid)
+            )
 
         self._workflows_to_execute[workflow.uuid] = workflow
 
@@ -1043,11 +1168,13 @@ class WorkflowGraph:
             for dependency in dependencies[node_id]:
                 dependency_futures.append(submitted_futures[dependency])
 
-            submitted_futures[node_id] = backend.submit_task(WorkflowGraph._execute_protocol,
-                                                             node.directory,
-                                                             node.schema.json(),
-                                                             *dependency_futures,
-                                                             key=f'execute_{node_id}')
+            submitted_futures[node_id] = backend.submit_task(
+                WorkflowGraph._execute_protocol,
+                node.directory,
+                node.schema.json(),
+                *dependency_futures,
+                key=f"execute_{node_id}",
+            )
 
         for workflow_id in self._workflows_to_execute:
 
@@ -1057,7 +1184,7 @@ class WorkflowGraph:
             provenance = {}
 
             for protocol_id in workflow.protocols:
-                
+
                 protocol = workflow.protocols[protocol_id]
                 provenance[protocol_id] = protocol.schema
 
@@ -1086,7 +1213,9 @@ class WorkflowGraph:
                     if not isinstance(attribute_value, ProtocolPath):
                         continue
 
-                    final_futures.append(submitted_futures[attribute_value.start_protocol])
+                    final_futures.append(
+                        submitted_futures[attribute_value.start_protocol]
+                    )
 
                 if not isinstance(output_to_store, WorkflowDataCollectionToStore):
                     continue
@@ -1100,25 +1229,36 @@ class WorkflowGraph:
                         if not isinstance(attribute_value, ProtocolPath):
                             continue
 
-                        final_futures.append(submitted_futures[attribute_value.start_protocol])
+                        final_futures.append(
+                            submitted_futures[attribute_value.start_protocol]
+                        )
 
             if len(final_futures) == 0:
                 final_futures = [submitted_futures[key] for key in submitted_futures]
 
             target_uncertainty = None
 
-            if include_uncertainty_check and 'target_uncertainty' in workflow.global_metadata:
-                target_uncertainty = workflow.global_metadata['target_uncertainty'].to_tuple()
+            if (
+                include_uncertainty_check
+                and "target_uncertainty" in workflow.global_metadata
+            ):
+                target_uncertainty = workflow.global_metadata[
+                    "target_uncertainty"
+                ].to_tuple()
 
             # Gather the values and uncertainties of each property being calculated.
-            value_futures.append(backend.submit_task(WorkflowGraph._gather_results,
-                                                     self._root_directory,
-                                                     workflow.physical_property,
-                                                     workflow.final_value_source,
-                                                     workflow.gradients_sources,
-                                                     workflow.outputs_to_store,
-                                                     target_uncertainty,
-                                                     *final_futures))
+            value_futures.append(
+                backend.submit_task(
+                    WorkflowGraph._gather_results,
+                    self._root_directory,
+                    workflow.physical_property,
+                    workflow.final_value_source,
+                    workflow.gradients_sources,
+                    workflow.outputs_to_store,
+                    target_uncertainty,
+                    *final_futures,
+                )
+            )
 
         return value_futures
 
@@ -1136,11 +1276,17 @@ class WorkflowGraph:
             by the `TypedJSONEncoder`
         """
 
-        with open(file_path, 'w') as file:
+        with open(file_path, "w") as file:
             json.dump(output_dictionary, file, cls=TypedJSONEncoder)
 
     @staticmethod
-    def _execute_protocol(directory, protocol_schema_json, *previous_output_paths, available_resources, **_):
+    def _execute_protocol(
+        directory,
+        protocol_schema_json,
+        *previous_output_paths,
+        available_resources,
+        **_,
+    ):
         """Executes a protocol whose state is defined by the ``protocol_schema``.
 
         Parameters
@@ -1164,7 +1310,9 @@ class WorkflowGraph:
         protocol_schema = protocols.ProtocolSchema.parse_json(protocol_schema_json)
 
         # The path where the output of this protocol will be stored.
-        output_dictionary_path = path.join(directory, '{}_output.json'.format(protocol_schema.id))
+        output_dictionary_path = path.join(
+            directory, "{}_output.json".format(protocol_schema.id)
+        )
         makedirs(directory, exist_ok=True)
 
         # We need to make sure ALL exceptions are handled within this method,
@@ -1185,19 +1333,24 @@ class WorkflowGraph:
 
                 try:
 
-                    with open(previous_output_path, 'r') as file:
+                    with open(previous_output_path, "r") as file:
                         parent_output = json.load(file, cls=TypedJSONDecoder)
 
                 except json.JSONDecodeError as e:
 
-                    formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+                    formatted_exception = traceback.format_exception(
+                        None, e, e.__traceback__
+                    )
 
-                    exception = PropertyEstimatorException(directory,
-                                                           f'Could not load the output dictionary of {parent_id} '
-                                                           f'({previous_output_path}): {formatted_exception}')
+                    exception = PropertyEstimatorException(
+                        directory,
+                        f"Could not load the output dictionary of {parent_id} "
+                        f"({previous_output_path}): {formatted_exception}",
+                    )
 
-                    WorkflowGraph._save_protocol_output(output_dictionary_path,
-                                                        exception)
+                    WorkflowGraph._save_protocol_output(
+                        output_dictionary_path, exception
+                    )
 
                     return protocol_schema.id, output_dictionary_path
 
@@ -1206,9 +1359,13 @@ class WorkflowGraph:
 
                 for output_path, output_value in parent_output.items():
 
-                    property_name, protocol_ids = ProtocolPath.to_components(output_path)
+                    property_name, protocol_ids = ProtocolPath.to_components(
+                        output_path
+                    )
 
-                    if len(protocol_ids) == 0 or (len(protocol_ids) > 0 and protocol_ids[0] != parent_id):
+                    if len(protocol_ids) == 0 or (
+                        len(protocol_ids) > 0 and protocol_ids[0] != parent_id
+                    ):
                         protocol_ids.insert(0, parent_id)
 
                     final_path = ProtocolPath(property_name, *protocol_ids)
@@ -1227,8 +1384,10 @@ class WorkflowGraph:
 
                 for source_path, target_path in value_references.items():
 
-                    if (target_path.start_protocol == input_path.start_protocol or
-                        target_path.start_protocol == protocol.id):
+                    if (
+                        target_path.start_protocol == input_path.start_protocol
+                        or target_path.start_protocol == protocol.id
+                    ):
 
                         continue
 
@@ -1237,46 +1396,63 @@ class WorkflowGraph:
 
                     nested_property_name = None
 
-                    if property_name.find('.') > 0:
+                    if property_name.find(".") > 0:
 
-                        nested_property_name = '.'.join(property_name.split('.')[1:])
-                        property_name = property_name.split('.')[0]
+                        nested_property_name = ".".join(property_name.split(".")[1:])
+                        property_name = property_name.split(".")[0]
 
-                    if property_name.find('[') >= 0 or property_name.find(']') >= 0:
-                        property_name, property_index = extract_variable_index_and_name(property_name)
+                    if property_name.find("[") >= 0 or property_name.find("]") >= 0:
+                        property_name, property_index = extract_variable_index_and_name(
+                            property_name
+                        )
 
-                    _, target_protocol_ids = ProtocolPath.to_components(target_path.full_path)
+                    _, target_protocol_ids = ProtocolPath.to_components(
+                        target_path.full_path
+                    )
 
-                    target_value = previous_outputs_by_path[ProtocolPath(property_name,
-                                                                         *target_protocol_ids)]
+                    target_value = previous_outputs_by_path[
+                        ProtocolPath(property_name, *target_protocol_ids)
+                    ]
 
                     if property_index is not None:
                         target_value = target_value[property_index]
 
                     if nested_property_name is not None:
-                        target_value = get_nested_attribute(target_value, nested_property_name)
+                        target_value = get_nested_attribute(
+                            target_value, nested_property_name
+                        )
 
                     protocol.set_value(source_path, target_value)
 
-            logging.info('Executing protocol: {}'.format(protocol.id))
+            logging.info("Executing protocol: {}".format(protocol.id))
 
             start_time = time.perf_counter()
             output_dictionary = protocol.execute(directory, available_resources)
             end_time = time.perf_counter()
 
-            logging.info('Protocol finished executing ({} ms): {}'.format((end_time-start_time)*1000, protocol.id))
+            logging.info(
+                "Protocol finished executing ({} ms): {}".format(
+                    (end_time - start_time) * 1000, protocol.id
+                )
+            )
 
             try:
 
-                WorkflowGraph._save_protocol_output(output_dictionary_path, output_dictionary)
+                WorkflowGraph._save_protocol_output(
+                    output_dictionary_path, output_dictionary
+                )
 
             except TypeError as e:
 
-                formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+                formatted_exception = traceback.format_exception(
+                    None, e, e.__traceback__
+                )
 
-                exception = PropertyEstimatorException(directory=directory,
-                                                       message=f'Could not save the output dictionary of {protocol.id} '
-                                                               f'({output_dictionary_path}): {formatted_exception}')
+                exception = PropertyEstimatorException(
+                    directory=directory,
+                    message=f"Could not save the output dictionary of {protocol.id} "
+                    f"({output_dictionary_path}): {formatted_exception}",
+                )
 
                 WorkflowGraph._save_protocol_output(output_dictionary_path, exception)
 
@@ -1284,21 +1460,31 @@ class WorkflowGraph:
 
         except Exception as e:
 
-            logging.info(f'Protocol failed to execute: {protocol_schema.id}')
+            logging.info(f"Protocol failed to execute: {protocol_schema.id}")
 
             # Except the unexcepted...
             formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
-            exception = PropertyEstimatorException(directory=directory,
-                                                   message='An unhandled exception '
-                                                           'occurred: {}'.format(formatted_exception))
+            exception = PropertyEstimatorException(
+                directory=directory,
+                message="An unhandled exception "
+                "occurred: {}".format(formatted_exception),
+            )
 
             WorkflowGraph._save_protocol_output(output_dictionary_path, exception)
             return protocol_schema.id, output_dictionary_path
 
     @staticmethod
-    def _gather_results(directory, property_to_return, value_reference, gradient_sources,
-                        outputs_to_store, target_uncertainty, *protocol_result_paths, **_):
+    def _gather_results(
+        directory,
+        property_to_return,
+        value_reference,
+        gradient_sources,
+        outputs_to_store,
+        target_uncertainty,
+        *protocol_result_paths,
+        **_,
+    ):
         """Gather the value and uncertainty calculated from the submission graph
         and store them in the property to return.
 
@@ -1344,16 +1530,20 @@ class WorkflowGraph:
 
                 try:
 
-                    with open(protocol_result_path, 'r') as file:
+                    with open(protocol_result_path, "r") as file:
                         protocol_results = json.load(file, cls=TypedJSONDecoder)
 
                 except json.JSONDecodeError as e:
 
-                    formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+                    formatted_exception = traceback.format_exception(
+                        None, e, e.__traceback__
+                    )
 
-                    exception = PropertyEstimatorException(message=f'Could not load the output dictionary of '
-                                                                   f'{protocol_id} ({protocol_result_path}): '
-                                                                   f'{formatted_exception}')
+                    exception = PropertyEstimatorException(
+                        message=f"Could not load the output dictionary of "
+                        f"{protocol_id} ({protocol_result_path}): "
+                        f"{formatted_exception}"
+                    )
 
                     return_object.exception = exception
                     return return_object
@@ -1367,9 +1557,13 @@ class WorkflowGraph:
 
                 for output_path, output_value in protocol_results.items():
 
-                    property_name, protocol_ids = ProtocolPath.to_components(output_path)
+                    property_name, protocol_ids = ProtocolPath.to_components(
+                        output_path
+                    )
 
-                    if len(protocol_ids) == 0 or (len(protocol_ids) > 0 and protocol_ids[0] != protocol_id):
+                    if len(protocol_ids) == 0 or (
+                        len(protocol_ids) > 0 and protocol_ids[0] != protocol_id
+                    ):
                         protocol_ids.insert(0, protocol_id)
 
                     final_path = ProtocolPath(property_name, *protocol_ids)
@@ -1377,16 +1571,24 @@ class WorkflowGraph:
 
             if value_reference is not None:
 
-                if (target_uncertainty is not None and
-                    results_by_id[value_reference].uncertainty > target_uncertainty):
+                if (
+                    target_uncertainty is not None
+                    and results_by_id[value_reference].uncertainty > target_uncertainty
+                ):
 
-                    logging.info('The final uncertainty ({}) was not less than the target threshold ({}).'.format(
-                        results_by_id[value_reference].uncertainty, target_uncertainty))
+                    logging.info(
+                        "The final uncertainty ({}) was not less than the target threshold ({}).".format(
+                            results_by_id[value_reference].uncertainty,
+                            target_uncertainty,
+                        )
+                    )
 
                     return None
 
                 property_to_return.value = results_by_id[value_reference].value
-                property_to_return.uncertainty = results_by_id[value_reference].uncertainty
+                property_to_return.uncertainty = results_by_id[
+                    value_reference
+                ].uncertainty
 
             for gradient_source in gradient_sources:
 
@@ -1403,20 +1605,28 @@ class WorkflowGraph:
 
                 else:
 
-                    substance_id = (property_to_return.substance.identifier if
-                                    output_to_store.substance is None else
-                                    output_to_store.substance.identifier)
+                    substance_id = (
+                        property_to_return.substance.identifier
+                        if output_to_store.substance is None
+                        else output_to_store.substance.identifier
+                    )
 
                 sanitized_id = sanitize_smiles_file_name(substance_id)
 
-                data_object_path = path.join(directory, f'results_{property_to_return.id}_{sanitized_id}.json')
-                data_directory = path.join(directory, f'results_{property_to_return.id}_{sanitized_id}')
+                data_object_path = path.join(
+                    directory, f"results_{property_to_return.id}_{sanitized_id}.json"
+                )
+                data_directory = path.join(
+                    directory, f"results_{property_to_return.id}_{sanitized_id}"
+                )
 
-                WorkflowGraph._store_output_data(data_object_path,
-                                                 data_directory,
-                                                 output_to_store,
-                                                 property_to_return,
-                                                 results_by_id)
+                WorkflowGraph._store_output_data(
+                    data_object_path,
+                    data_directory,
+                    output_to_store,
+                    property_to_return,
+                    results_by_id,
+                )
 
                 return_object.data_to_store.append((data_object_path, data_directory))
 
@@ -1424,15 +1634,21 @@ class WorkflowGraph:
 
             formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
-            return_object.exception = PropertyEstimatorException(directory=directory,
-                                                                 message=f'An unhandled exception '
-                                                                         f'occurred: {formatted_exception}')
+            return_object.exception = PropertyEstimatorException(
+                directory=directory,
+                message=f"An unhandled exception " f"occurred: {formatted_exception}",
+            )
 
         return return_object
 
     @staticmethod
-    def _store_output_data(data_object_path, data_directory, output_to_store,
-                           physical_property, results_by_id):
+    def _store_output_data(
+        data_object_path,
+        data_directory,
+        output_to_store,
+        physical_property,
+        results_by_id,
+    ):
 
         """Collects all of the simulation to store, and saves it into a directory
         whose path will be passed to the storage backend to process.
@@ -1476,10 +1692,9 @@ class WorkflowGraph:
 
         if isinstance(output_to_store, WorkflowSimulationDataToStore):
 
-            WorkflowGraph._store_simulation_data(stored_object,
-                                                 data_directory,
-                                                 output_to_store,
-                                                 results_by_id)
+            WorkflowGraph._store_simulation_data(
+                stored_object, data_directory, output_to_store, results_by_id
+            )
 
         elif isinstance(output_to_store, WorkflowDataCollectionToStore):
 
@@ -1487,25 +1702,33 @@ class WorkflowGraph:
 
                 inner_data_object = StoredSimulationData()
                 inner_data_object.substance = stored_object.substance
-                inner_data_object.thermodynamic_state = stored_object.thermodynamic_state
-                inner_data_object.source_calculation_id = stored_object.source_calculation_id
+                inner_data_object.thermodynamic_state = (
+                    stored_object.thermodynamic_state
+                )
+                inner_data_object.source_calculation_id = (
+                    stored_object.source_calculation_id
+                )
 
                 inner_data_directory = path.join(data_directory, data_key)
 
                 makedirs(inner_data_directory, exist_ok=True)
 
-                WorkflowGraph._store_simulation_data(inner_data_object,
-                                                     inner_data_directory,
-                                                     output_to_store.data[data_key],
-                                                     results_by_id)
+                WorkflowGraph._store_simulation_data(
+                    inner_data_object,
+                    inner_data_directory,
+                    output_to_store.data[data_key],
+                    results_by_id,
+                )
 
                 stored_object.data[data_key] = inner_data_object
 
-        with open(data_object_path, 'w') as file:
+        with open(data_object_path, "w") as file:
             json.dump(stored_object, file, cls=TypedJSONEncoder)
 
     @staticmethod
-    def _store_simulation_data(data_object, data_directory, output_to_store, results_by_id):
+    def _store_simulation_data(
+        data_object, data_directory, output_to_store, results_by_id
+    ):
         """Collects all of the simulation to store, and saves it into a directory
         whose path will be passed to the storage backend to process.
 
@@ -1524,13 +1747,21 @@ class WorkflowGraph:
         """
         from shutil import copy as file_copy
 
-        data_object.total_number_of_molecules = results_by_id[output_to_store.total_number_of_molecules]
+        data_object.total_number_of_molecules = results_by_id[
+            output_to_store.total_number_of_molecules
+        ]
 
         # Copy the files into the directory to store.
-        _, coordinate_file_name = path.split(results_by_id[output_to_store.coordinate_file_path])
-        _, trajectory_file_name = path.split(results_by_id[output_to_store.trajectory_file_path])
+        _, coordinate_file_name = path.split(
+            results_by_id[output_to_store.coordinate_file_path]
+        )
+        _, trajectory_file_name = path.split(
+            results_by_id[output_to_store.trajectory_file_path]
+        )
 
-        _, statistics_file_name = path.split(results_by_id[output_to_store.statistics_file_path])
+        _, statistics_file_name = path.split(
+            results_by_id[output_to_store.statistics_file_path]
+        )
 
         file_copy(results_by_id[output_to_store.coordinate_file_path], data_directory)
         file_copy(results_by_id[output_to_store.trajectory_file_path], data_directory)
@@ -1542,4 +1773,6 @@ class WorkflowGraph:
 
         data_object.statistics_file_name = statistics_file_name
 
-        data_object.statistical_inefficiency = results_by_id[output_to_store.statistical_inefficiency]
+        data_object.statistical_inefficiency = results_by_id[
+            output_to_store.statistical_inefficiency
+        ]

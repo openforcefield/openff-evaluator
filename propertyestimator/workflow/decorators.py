@@ -4,7 +4,6 @@ as the inputs or outputs of workflow protocols.
 """
 import abc
 import copy
-
 from enum import Enum
 
 from propertyestimator import unit
@@ -37,6 +36,7 @@ class BaseMergeBehaviour(Enum):
     """A base class for enums which will describes how attributes should
     be handled when attempting to merge similar protocols.
     """
+
     pass
 
 
@@ -49,7 +49,8 @@ class MergeBehaviour(BaseMergeBehaviour):
     * ExactlyEqual: This attribute must be exactly equal between two protocols for
       them to be able to merge.
     """
-    ExactlyEqual = 'ExactlyEqual'
+
+    ExactlyEqual = "ExactlyEqual"
 
 
 class InequalityMergeBehaviour(BaseMergeBehaviour):
@@ -63,8 +64,9 @@ class InequalityMergeBehaviour(BaseMergeBehaviour):
     * LargestValue: When two protocols are merged, the largest value of this
       attribute from either protocol is retained.
     """
-    SmallestValue = 'SmallestValue'
-    LargestValue = 'LargestValue'
+
+    SmallestValue = "SmallestValue"
+    LargestValue = "LargestValue"
 
 
 class BaseProtocolAttribute(abc.ABC):
@@ -96,28 +98,30 @@ class BaseProtocolAttribute(abc.ABC):
 
         if not is_supported_type(type_hint):
 
-            raise ValueError(f'The {type_hint} type is not supported by the '
-                             f'workflow type hinting system.')
+            raise ValueError(
+                f"The {type_hint} type is not supported by the "
+                f"workflow type hinting system."
+            )
 
-        if hasattr(type_hint, '__qualname__'):
+        if hasattr(type_hint, "__qualname__"):
 
-            if type_hint.__qualname__ == 'build_quantity_class.<locals>.Quantity':
-                typed_docstring = f'Quantity: {docstring}'
-            elif type_hint.__qualname__ == 'build_quantity_class.<locals>.Unit':
-                typed_docstring = f'Unit: {docstring}'
+            if type_hint.__qualname__ == "build_quantity_class.<locals>.Quantity":
+                typed_docstring = f"Quantity: {docstring}"
+            elif type_hint.__qualname__ == "build_quantity_class.<locals>.Unit":
+                typed_docstring = f"Unit: {docstring}"
             else:
-                typed_docstring = f'{type_hint.__qualname__}: {docstring}'
+                typed_docstring = f"{type_hint.__qualname__}: {docstring}"
 
-        elif hasattr(type_hint, '__name__'):
-            typed_docstring = f'{type_hint.__name__}: {docstring}'
+        elif hasattr(type_hint, "__name__"):
+            typed_docstring = f"{type_hint.__name__}: {docstring}"
         else:
-            typed_docstring = f'{str(type_hint)}: {docstring}'
+            typed_docstring = f"{str(type_hint)}: {docstring}"
 
         self.__doc__ = typed_docstring
         self.type_hint = type_hint
 
     def __set_name__(self, owner, name):
-        self._private_attribute_name = '_' + name
+        self._private_attribute_name = "_" + name
 
     def __get__(self, instance, owner=None):
 
@@ -133,12 +137,16 @@ class BaseProtocolAttribute(abc.ABC):
 
     def __set__(self, instance, value):
 
-        if (not is_instance_of_type(value, self.type_hint) and
-            not isinstance(value, PlaceholderInput) and
-            not value == UNDEFINED):
+        if (
+            not is_instance_of_type(value, self.type_hint)
+            and not isinstance(value, PlaceholderInput)
+            and not value == UNDEFINED
+        ):
 
-            raise ValueError(f'The {self._private_attribute_name[1:]} attribute can only accept '
-                             f'values of type {self.type_hint}')
+            raise ValueError(
+                f"The {self._private_attribute_name[1:]} attribute can only accept "
+                f"values of type {self.type_hint}"
+            )
 
         setattr(instance, self._private_attribute_name, value)
 
@@ -163,8 +171,14 @@ class ProtocolInputAttribute(BaseProtocolAttribute):
     >>>     )
     """
 
-    def __init__(self, docstring, type_hint, default_value, optional=False,
-                 merge_behavior=MergeBehaviour.ExactlyEqual):
+    def __init__(
+        self,
+        docstring,
+        type_hint,
+        default_value,
+        optional=False,
+        merge_behavior=MergeBehaviour.ExactlyEqual,
+    ):
 
         """Initializes a new protocol_input object.
 
@@ -180,42 +194,58 @@ class ProtocolInputAttribute(BaseProtocolAttribute):
             whether to, and actually merging two different protocols.
         """
 
-        docstring = f'**Protocol Input** - {docstring}'
+        docstring = f"**Protocol Input** - {docstring}"
 
         if not isinstance(merge_behavior, BaseMergeBehaviour):
-            raise ValueError('The merge behaviour must inherit from `BaseMergeBehaviour`')
+            raise ValueError(
+                "The merge behaviour must inherit from `BaseMergeBehaviour`"
+            )
 
         # Automatically extend the docstrings.
-        if (isinstance(default_value, (int, float, str, unit.Quantity, EstimatedQuantity, Enum)) or
-            (isinstance(default_value, (list, tuple, set, frozenset)) and len(default_value) <= 4)):
+        if isinstance(
+            default_value, (int, float, str, unit.Quantity, EstimatedQuantity, Enum)
+        ) or (
+            isinstance(default_value, (list, tuple, set, frozenset))
+            and len(default_value) <= 4
+        ):
 
-            docstring = f'{docstring} The default value of this attribute ' \
-                        f'is ``{str(default_value)}``.'
+            docstring = (
+                f"{docstring} The default value of this attribute "
+                f"is ``{str(default_value)}``."
+            )
 
         elif default_value == UNDEFINED:
 
-            optional_string = '' if optional else ' and must be set by the user.'
+            optional_string = "" if optional else " and must be set by the user."
 
-            docstring = f'{docstring} The default value of this attribute ' \
-                         f'is not set{optional_string}.'
+            docstring = (
+                f"{docstring} The default value of this attribute "
+                f"is not set{optional_string}."
+            )
 
-        if (merge_behavior == InequalityMergeBehaviour.SmallestValue or
-            merge_behavior == InequalityMergeBehaviour.LargestValue):
+        if (
+            merge_behavior == InequalityMergeBehaviour.SmallestValue
+            or merge_behavior == InequalityMergeBehaviour.LargestValue
+        ):
 
-            merge_docstring = ''
+            merge_docstring = ""
 
             if merge_behavior == InequalityMergeBehaviour.SmallestValue:
-                merge_docstring = 'When two protocols are merged, the smallest value of ' \
-                                        'this attribute from either protocol is retained.'
+                merge_docstring = (
+                    "When two protocols are merged, the smallest value of "
+                    "this attribute from either protocol is retained."
+                )
 
             if merge_behavior == InequalityMergeBehaviour.SmallestValue:
-                merge_docstring = 'When two protocols are merged, the largest value of ' \
-                                  'this attribute from either protocol is retained.'
+                merge_docstring = (
+                    "When two protocols are merged, the largest value of "
+                    "this attribute from either protocol is retained."
+                )
 
-            docstring = f'{docstring} {merge_docstring}'
+            docstring = f"{docstring} {merge_docstring}"
 
         if optional is True:
-            docstring = f'{docstring} This input is *optional*.'
+            docstring = f"{docstring} This input is *optional*."
 
         super().__init__(docstring, type_hint)
 
@@ -234,7 +264,11 @@ class ProtocolInputAttribute(BaseProtocolAttribute):
         if not hasattr(instance, self._private_attribute_name):
             # Make sure to only ever pass a copy of the default value to ensure
             # mutable values such as lists don't get set by reference.
-            setattr(instance, self._private_attribute_name, copy.deepcopy(self._default_value))
+            setattr(
+                instance,
+                self._private_attribute_name,
+                copy.deepcopy(self._default_value),
+            )
 
         return getattr(instance, self._private_attribute_name)
 
@@ -261,7 +295,7 @@ class ProtocolOutputAttribute(BaseProtocolAttribute):
     def __init__(self, docstring, type_hint):
         """Initializes a new protocol_output object.
         """
-        docstring = f'**Protocol Output** - {docstring}'
+        docstring = f"**Protocol Output** - {docstring}"
         super().__init__(docstring, type_hint)
 
 

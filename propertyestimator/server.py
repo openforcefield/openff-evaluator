@@ -5,17 +5,25 @@ import copy
 import json
 import logging
 import uuid
-from os import path, makedirs
+from os import makedirs, path
 
 from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
 from tornado.tcpserver import TCPServer
 
-from propertyestimator.client import PropertyEstimatorSubmission, PropertyEstimatorResult, PropertyEstimatorOptions
+from propertyestimator.client import (
+    PropertyEstimatorOptions,
+    PropertyEstimatorResult,
+    PropertyEstimatorSubmission,
+)
 from propertyestimator.layers import available_layers
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedBaseModel
-from propertyestimator.utils.tcp import PropertyEstimatorMessageTypes, pack_int, unpack_int
+from propertyestimator.utils.tcp import (
+    PropertyEstimatorMessageTypes,
+    pack_int,
+    unpack_int,
+)
 
 
 class PropertyEstimatorServer(TCPServer):
@@ -62,8 +70,14 @@ class PropertyEstimatorServer(TCPServer):
         in a fixed ratio)
         """
 
-        def __init__(self, estimation_id='', queued_properties=None, options=None,
-                     force_field_id=None, parameter_gradient_keys=None):
+        def __init__(
+            self,
+            estimation_id="",
+            queued_properties=None,
+            options=None,
+            force_field_id=None,
+            parameter_gradient_keys=None,
+        ):
             """Constructs a new ServerEstimationRequest object.
 
             Parameters
@@ -97,40 +111,39 @@ class PropertyEstimatorServer(TCPServer):
 
         def __getstate__(self):
             return {
-                'id': self.id,
-
-                'queued_properties': self.queued_properties,
-
-                'estimated_properties': self.estimated_properties,
-                'unsuccessful_properties': self.unsuccessful_properties,
-
-                'exceptions': self.exceptions,
-
-                'options': self.options,
-
-                'force_field_id': self.force_field_id,
-
-                'parameter_gradient_keys': self.parameter_gradient_keys
+                "id": self.id,
+                "queued_properties": self.queued_properties,
+                "estimated_properties": self.estimated_properties,
+                "unsuccessful_properties": self.unsuccessful_properties,
+                "exceptions": self.exceptions,
+                "options": self.options,
+                "force_field_id": self.force_field_id,
+                "parameter_gradient_keys": self.parameter_gradient_keys,
             }
 
         def __setstate__(self, state):
-            self.id = state['id']
+            self.id = state["id"]
 
-            self.queued_properties = state['queued_properties']
+            self.queued_properties = state["queued_properties"]
 
-            self.estimated_properties = state['estimated_properties']
-            self.unsuccessful_properties = state['unsuccessful_properties']
+            self.estimated_properties = state["estimated_properties"]
+            self.unsuccessful_properties = state["unsuccessful_properties"]
 
-            self.exceptions = state['exceptions']
+            self.exceptions = state["exceptions"]
 
-            self.options = state['options']
+            self.options = state["options"]
 
-            self.force_field_id = state['force_field_id']
+            self.force_field_id = state["force_field_id"]
 
-            self.parameter_gradient_keys = state['parameter_gradient_keys']
+            self.parameter_gradient_keys = state["parameter_gradient_keys"]
 
-    def __init__(self, calculation_backend, storage_backend,
-                 port=8000, working_directory='working-data'):
+    def __init__(
+        self,
+        calculation_backend,
+        storage_backend,
+        port=8000,
+        working_directory="working-data",
+    ):
         """Constructs a new PropertyEstimatorServer object.
 
         Parameters
@@ -191,7 +204,7 @@ class PropertyEstimatorServer(TCPServer):
             The length of the message being received.
         """
 
-        logging.info('Received estimation request from {}'.format(address))
+        logging.info("Received estimation request from {}".format(address))
 
         # Read the incoming request from the server. The first four bytes
         # of the response should be the length of the message being sent.
@@ -217,10 +230,13 @@ class PropertyEstimatorServer(TCPServer):
 
         await stream.write(length + encoded_job_ids)
 
-        logging.info('Request id sent to the client ({}): {}'.format(address, client_request_id))
+        logging.info(
+            "Request id sent to the client ({}): {}".format(address, client_request_id)
+        )
 
-        server_requests, request_ids_to_launch = self._prepare_server_requests(client_data_model,
-                                                                               client_request_id)
+        server_requests, request_ids_to_launch = self._prepare_server_requests(
+            client_data_model, client_request_id
+        )
 
         # Keep track of which server request ids belong to which client
         # request id.
@@ -247,9 +263,11 @@ class PropertyEstimatorServer(TCPServer):
 
         if client_request_id not in self._server_request_ids_per_client_id:
 
-            response = PropertyEstimatorException(directory='',
-                                                  message=f'The {client_request_id} request id was not found '
-                                                          f'on the server.')
+            response = PropertyEstimatorException(
+                directory="",
+                message=f"The {client_request_id} request id was not found "
+                f"on the server.",
+            )
 
         else:
             response = self._query_client_request_status(client_request_id)
@@ -298,7 +316,7 @@ class PropertyEstimatorServer(TCPServer):
 
                 except ValueError as e:
 
-                    logging.info('Bad message type recieved: {}'.format(e))
+                    logging.info("Bad message type recieved: {}".format(e))
 
                     # Discard the unrecognised message.
                     if message_length > 0:
@@ -396,7 +414,9 @@ class PropertyEstimatorServer(TCPServer):
             if physical_property.substance.identifier not in properties_by_substance:
                 properties_by_substance[physical_property.substance.identifier] = []
 
-            properties_by_substance[physical_property.substance.identifier].append(physical_property)
+            properties_by_substance[physical_property.substance.identifier].append(
+                physical_property
+            )
 
         for substance_identifier in properties_by_substance:
 
@@ -404,22 +424,30 @@ class PropertyEstimatorServer(TCPServer):
 
             # Make sure we don't somehow generate the same uuid
             # twice (although this is very unlikely to ever happen).
-            while (calculation_id in self._queued_calculations or
-                   calculation_id in self._finished_calculations):
+            while (
+                calculation_id in self._queued_calculations
+                or calculation_id in self._finished_calculations
+            ):
 
                 calculation_id = str(uuid.uuid4())
 
             properties_to_estimate = properties_by_substance[substance_identifier]
 
-            options_copy = PropertyEstimatorOptions.parse_json(client_data_model.options.json())
+            options_copy = PropertyEstimatorOptions.parse_json(
+                client_data_model.options.json()
+            )
 
-            parameter_gradient_keys = copy.deepcopy(client_data_model.parameter_gradient_keys)
+            parameter_gradient_keys = copy.deepcopy(
+                client_data_model.parameter_gradient_keys
+            )
 
-            request = self.ServerEstimationRequest(estimation_id=calculation_id,
-                                                   queued_properties=properties_to_estimate,
-                                                   options=options_copy,
-                                                   force_field_id=force_field_id,
-                                                   parameter_gradient_keys=parameter_gradient_keys)
+            request = self.ServerEstimationRequest(
+                estimation_id=calculation_id,
+                queued_properties=properties_to_estimate,
+                options=options_copy,
+                force_field_id=force_field_id,
+                parameter_gradient_keys=parameter_gradient_keys,
+            )
 
             server_requests[calculation_id] = request
 
@@ -440,7 +468,9 @@ class PropertyEstimatorServer(TCPServer):
 
                 self._queued_calculations[server_request_id] = server_request
 
-            self._server_request_ids_per_client_id[client_request_id].append(existing_id)
+            self._server_request_ids_per_client_id[client_request_id].append(
+                existing_id
+            )
 
         return server_requests, request_ids_to_launch
 
@@ -461,7 +491,9 @@ class PropertyEstimatorServer(TCPServer):
 
         request_results = PropertyEstimatorResult(result_id=client_request_id)
 
-        for server_request_id in self._server_request_ids_per_client_id[client_request_id]:
+        for server_request_id in self._server_request_ids_per_client_id[
+            client_request_id
+        ]:
 
             server_request = None
 
@@ -474,13 +506,17 @@ class PropertyEstimatorServer(TCPServer):
 
                 if len(server_request.queued_properties) > 0:
 
-                    return PropertyEstimatorException(message=f'An internal error occurred - the {server_request_id} '
-                                                              f'was prematurely marked us finished.')
+                    return PropertyEstimatorException(
+                        message=f"An internal error occurred - the {server_request_id} "
+                        f"was prematurely marked us finished."
+                    )
 
             else:
 
-                return PropertyEstimatorException(message=f'An internal error occurred - the {server_request_id} '
-                                                          f'request was not found on the server.')
+                return PropertyEstimatorException(
+                    message=f"An internal error occurred - the {server_request_id} "
+                    f"request was not found on the server."
+                )
 
             for physical_property in server_request.queued_properties:
 
@@ -489,7 +525,9 @@ class PropertyEstimatorServer(TCPServer):
                 if substance_id not in request_results.queued_properties:
                     request_results.queued_properties[substance_id] = []
 
-                request_results.queued_properties[substance_id].append(physical_property)
+                request_results.queued_properties[substance_id].append(
+                    physical_property
+                )
 
             for substance_id in server_request.unsuccessful_properties:
 
@@ -498,7 +536,9 @@ class PropertyEstimatorServer(TCPServer):
                 if substance_id not in request_results.unsuccessful_properties:
                     request_results.unsuccessful_properties[substance_id] = []
 
-                request_results.unsuccessful_properties[substance_id].append(physical_property)
+                request_results.unsuccessful_properties[substance_id].append(
+                    physical_property
+                )
 
             for substance_id in server_request.estimated_properties:
 
@@ -507,7 +547,9 @@ class PropertyEstimatorServer(TCPServer):
                 if substance_id not in request_results.estimated_properties:
                     request_results.estimated_properties[substance_id] = []
 
-                request_results.estimated_properties[substance_id].extend(physical_properties)
+                request_results.estimated_properties[substance_id].extend(
+                    physical_properties
+                )
 
             request_results.exceptions.extend(server_request.exceptions)
 
@@ -526,8 +568,10 @@ class PropertyEstimatorServer(TCPServer):
             should be performed.
         """
 
-        if len(server_request.options.allowed_calculation_layers) == 0 or \
-           len(server_request.queued_properties) == 0:
+        if (
+            len(server_request.options.allowed_calculation_layers) == 0
+            or len(server_request.queued_properties) == 0
+        ):
 
             # Move any remaining properties to the unsuccessful list.
             for physical_property in server_request.queued_properties:
@@ -537,14 +581,16 @@ class PropertyEstimatorServer(TCPServer):
                 if substance_id not in server_request.unsuccessful_properties:
                     server_request.unsuccessful_properties[substance_id] = []
 
-                server_request.unsuccessful_properties[substance_id].append(physical_property)
+                server_request.unsuccessful_properties[substance_id].append(
+                    physical_property
+                )
 
                 server_request.queued_properties = []
 
             self._queued_calculations.pop(server_request.id)
             self._finished_calculations[server_request.id] = server_request
 
-            logging.info(f'Finished server request {server_request.id}')
+            logging.info(f"Finished server request {server_request.id}")
             return
 
         current_layer_type = server_request.options.allowed_calculation_layers.pop(0)
@@ -552,8 +598,10 @@ class PropertyEstimatorServer(TCPServer):
         if current_layer_type not in available_layers:
 
             # Kill all remaining properties if we reach an unsupported calculation layer.
-            error_object = PropertyEstimatorException(message=f'The {current_layer_type} layer is not '
-                                                              f'supported by / available on the server.')
+            error_object = PropertyEstimatorException(
+                message=f"The {current_layer_type} layer is not "
+                f"supported by / available on the server."
+            )
 
             server_request.exceptions.append(error_object)
 
@@ -563,26 +611,32 @@ class PropertyEstimatorServer(TCPServer):
             self._schedule_server_request(server_request)
             return
 
-        logging.info(f'Launching server request {server_request.id} using the {current_layer_type} layer')
+        logging.info(
+            f"Launching server request {server_request.id} using the {current_layer_type} layer"
+        )
 
-        layer_directory = path.join(self._working_directory, current_layer_type, server_request.id)
+        layer_directory = path.join(
+            self._working_directory, current_layer_type, server_request.id
+        )
 
         if not path.isdir(layer_directory):
             makedirs(layer_directory)
 
         current_layer = available_layers[current_layer_type]
 
-        current_layer.schedule_calculation(self._calculation_backend,
-                                           self._storage_backend,
-                                           layer_directory,
-                                           server_request,
-                                           self._schedule_server_request)
+        current_layer.schedule_calculation(
+            self._calculation_backend,
+            self._storage_backend,
+            layer_directory,
+            server_request,
+            self._schedule_server_request,
+        )
 
     def start_listening_loop(self):
         """Starts the main (blocking) server IOLoop which will run until
         the user kills the process.
         """
-        logging.info('Server listening at port {}'.format(self._port))
+        logging.info("Server listening at port {}".format(self._port))
 
         try:
             IOLoop.current().start()

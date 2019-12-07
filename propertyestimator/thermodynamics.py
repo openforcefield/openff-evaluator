@@ -11,6 +11,7 @@ from propertyestimator.utils.serialization import TypedBaseModel
 class Ensemble(Enum):
     """An enum describing the available thermodynamic ensembles.
     """
+
     NVT = "NVT"
     NPT = "NPT"
 
@@ -38,7 +39,9 @@ class ThermodynamicState(TypedBaseModel):
     @property
     def inverse_beta(self):
         """Returns the temperature multiplied by the molar gas constant"""
-        return (self.temperature * unit.molar_gas_constant).to(unit.kilojoule / unit.mole)
+        return (self.temperature * unit.molar_gas_constant).to(
+            unit.kilojoule / unit.mole
+        )
 
     @property
     def beta(self):
@@ -62,14 +65,14 @@ class ThermodynamicState(TypedBaseModel):
     def __getstate__(self):
 
         return {
-            'temperature': self.temperature,
-            'pressure': self.pressure,
+            "temperature": self.temperature,
+            "pressure": self.pressure,
         }
 
     def __setstate__(self, state):
 
-        self.temperature = state['temperature']
-        self.pressure = state['pressure']
+        self.temperature = state["temperature"]
+        self.pressure = state["pressure"]
 
     def __repr__(self):
         """
@@ -102,26 +105,36 @@ class ThermodynamicState(TypedBaseModel):
     def __hash__(self):
 
         temperature = self.temperature.to(unit.kelvin).magnitude
-        pressure = None if self.pressure is None else self.pressure.to(unit.kilopascal).magnitude
+        pressure = (
+            None
+            if self.pressure is None
+            else self.pressure.to(unit.kilopascal).magnitude
+        )
 
-        return hash((f'{temperature:.6f}', None if pressure is None else f'{pressure:.6f}'))
+        return hash(
+            (f"{temperature:.6f}", None if pressure is None else f"{pressure:.6f}")
+        )
 
     def __eq__(self, other):
 
         if not isinstance(other, ThermodynamicState):
             return False
 
-        if ((self.pressure is None and other.pressure is not None) or
-            (self.pressure is not None and other.pressure is None)):
+        if (self.pressure is None and other.pressure is not None) or (
+            self.pressure is not None and other.pressure is None
+        ):
             return False
 
-        if (self.pressure is not None and not
-            math.isclose(self.pressure.to(unit.kilopascal).magnitude,
-                         other.pressure.to(unit.kilopascal).magnitude)):
+        if self.pressure is not None and not math.isclose(
+            self.pressure.to(unit.kilopascal).magnitude,
+            other.pressure.to(unit.kilopascal).magnitude,
+        ):
             return False
 
-        return (math.isclose(self.temperature.to(unit.kelvin).magnitude,
-                             other.temperature.to(unit.kelvin).magnitude))
+        return math.isclose(
+            self.temperature.to(unit.kelvin).magnitude,
+            other.temperature.to(unit.kelvin).magnitude,
+        )
 
     def __ne__(self, other):
         return not (self == other)
