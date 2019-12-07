@@ -3,7 +3,7 @@ Units tests for propertyestimator.workflow.decorators
 """
 import json
 
-from propertyestimator.utils.serialization import TypedJSONEncoder, TypedJSONDecoder
+from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from propertyestimator.workflow.decorators import UNDEFINED, UndefinedAttribute
 
 

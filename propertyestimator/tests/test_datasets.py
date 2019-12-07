@@ -5,42 +5,73 @@ Units tests for propertyestimator.datasets
 import pytest
 
 from propertyestimator import unit
-from propertyestimator.datasets import ThermoMLDataSet, PhysicalPropertyDataSet
+from propertyestimator.datasets import PhysicalPropertyDataSet, ThermoMLDataSet
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.datasets.thermoml import unit_from_thermoml_string
-from propertyestimator.properties import PhysicalProperty, PropertyPhase, Density, CalculationSource, \
-    DielectricConstant, EnthalpyOfMixing, ExcessMolarVolume
+from propertyestimator.properties import (
+    CalculationSource,
+    Density,
+    DielectricConstant,
+    EnthalpyOfMixing,
+    ExcessMolarVolume,
+    PhysicalProperty,
+    PropertyPhase,
+)
 from propertyestimator.substances import Substance
-from propertyestimator.tests.utils import create_filterable_data_set, create_dummy_property
+from propertyestimator.tests.utils import (
+    create_dummy_property,
+    create_filterable_data_set,
+)
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import get_data_filename
 
 
-@register_thermoml_property('Osmotic coefficient', supported_phases=PropertyPhase.Liquid)
+@register_thermoml_property(
+    "Osmotic coefficient", supported_phases=PropertyPhase.Liquid
+)
 class OsmoticCoefficient(PhysicalProperty):
     pass
 
 
-@register_thermoml_property("Vapor or sublimation pressure, kPa",
-                            supported_phases=PropertyPhase.Liquid | PropertyPhase.Gas)
+@register_thermoml_property(
+    "Vapor or sublimation pressure, kPa",
+    supported_phases=PropertyPhase.Liquid | PropertyPhase.Gas,
+)
 class VaporPressure(PhysicalProperty):
     pass
 
 
-@register_thermoml_property('Activity coefficient', supported_phases=PropertyPhase.Liquid)
+@register_thermoml_property(
+    "Activity coefficient", supported_phases=PropertyPhase.Liquid
+)
 class ActivityCoefficient(PhysicalProperty):
     pass
 
 
-supported_units = ['K', 'kPa', 'kg/m3', 'mol/kg', 'mol/dm3', 'kJ/mol', 'm3/kg', 'mol/m3',
-                   'm3/mol', 'J/K/mol', 'J/K/kg', 'J/K/m3', '1/kPa', 'm/s', 'MHz']
+supported_units = [
+    "K",
+    "kPa",
+    "kg/m3",
+    "mol/kg",
+    "mol/dm3",
+    "kJ/mol",
+    "m3/kg",
+    "mol/m3",
+    "m3/mol",
+    "J/K/mol",
+    "J/K/kg",
+    "J/K/m3",
+    "1/kPa",
+    "m/s",
+    "MHz",
+]
 
 
 @pytest.mark.parametrize("unit_string", supported_units)
 def test_thermoml_unit_from_string(unit_string):
     """A test to ensure all unit conversions are valid."""
 
-    dummy_string = f'Property, {unit_string}'
+    dummy_string = f"Property, {unit_string}"
 
     returned_unit = unit_from_thermoml_string(dummy_string)
     assert returned_unit is not None and isinstance(returned_unit, unit.Unit)
@@ -49,19 +80,23 @@ def test_thermoml_unit_from_string(unit_string):
 def test_thermoml_from_url():
     """A test to ensure that ThermoML archive files can be loaded from a url."""
 
-    data_set = ThermoMLDataSet.from_url('https://trc.nist.gov/ThermoML/10.1021/acs.jced.6b00916.xml')
+    data_set = ThermoMLDataSet.from_url(
+        "https://trc.nist.gov/ThermoML/10.1021/acs.jced.6b00916.xml"
+    )
     assert data_set is not None
 
     assert len(data_set.properties) > 0
 
-    data_set = ThermoMLDataSet.from_url('https://trc.nist.gov/ThermoML/10.1021/acs.jced.6b00916.xmld')
+    data_set = ThermoMLDataSet.from_url(
+        "https://trc.nist.gov/ThermoML/10.1021/acs.jced.6b00916.xmld"
+    )
     assert data_set is None
 
 
 def test_thermoml_from_doi():
     """A test to ensure that ThermoML archive files can be loaded from a doi."""
 
-    data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
+    data_set = ThermoMLDataSet.from_doi("10.1016/j.jct.2016.10.001")
     assert data_set is not None
 
     assert len(data_set.properties) > 0
@@ -73,24 +108,28 @@ def test_thermoml_from_doi():
             physical_property_json = physical_property.json()
             print(physical_property_json)
 
-            physical_property_recreated = PhysicalProperty.parse_json(physical_property_json)
+            physical_property_recreated = PhysicalProperty.parse_json(
+                physical_property_json
+            )
             print(physical_property_recreated)
 
-    data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.12.009x')
+    data_set = ThermoMLDataSet.from_doi("10.1016/j.jct.2016.12.009x")
     assert data_set is None
 
 
 def test_thermoml_from_files():
     """A test to ensure that ThermoML archive files can be loaded from local sources."""
 
-    data_set = ThermoMLDataSet.from_file(get_data_filename('properties/single_density.xml'),
-                                         get_data_filename('properties/single_dielectric.xml'),
-                                         get_data_filename('properties/single_enthalpy_mixing.xml'))
+    data_set = ThermoMLDataSet.from_file(
+        get_data_filename("properties/single_density.xml"),
+        get_data_filename("properties/single_dielectric.xml"),
+        get_data_filename("properties/single_enthalpy_mixing.xml"),
+    )
 
     assert data_set is not None
     assert len(data_set.properties) == 3
 
-    data_set = ThermoMLDataSet.from_file('dummy_filename')
+    data_set = ThermoMLDataSet.from_file("dummy_filename")
     assert data_set is None
 
 
@@ -99,19 +138,23 @@ def test_thermoml_mass_constraints():
     implemented correctly alongside solvent constraints."""
 
     # Mass fraction
-    data_set = ThermoMLDataSet.from_file(get_data_filename('test/properties/mass.xml'))
+    data_set = ThermoMLDataSet.from_file(get_data_filename("test/properties/mass.xml"))
 
     assert data_set is not None
     assert len(data_set.properties) > 0
 
     # Mass fraction + Solvent: Mass fraction
-    data_set = ThermoMLDataSet.from_file(get_data_filename('test/properties/mass_mass.xml'))
+    data_set = ThermoMLDataSet.from_file(
+        get_data_filename("test/properties/mass_mass.xml")
+    )
 
     assert data_set is not None
     assert len(data_set.properties) > 0
 
     # Mass fraction + Solvent: Mole fraction
-    data_set = ThermoMLDataSet.from_file(get_data_filename('test/properties/mass_mole.xml'))
+    data_set = ThermoMLDataSet.from_file(
+        get_data_filename("test/properties/mass_mole.xml")
+    )
 
     assert data_set is not None
     assert len(data_set.properties) > 0
@@ -122,25 +165,33 @@ def test_thermoml_molality_constraints():
     implemented correctly alongside solvent constraints."""
 
     # Molality
-    data_set = ThermoMLDataSet.from_file(get_data_filename('test/properties/molality.xml'))
+    data_set = ThermoMLDataSet.from_file(
+        get_data_filename("test/properties/molality.xml")
+    )
 
     assert data_set is not None
     assert len(data_set.properties) > 0
 
     # Molality + Solvent: Mass fraction
-    data_set = ThermoMLDataSet.from_file(get_data_filename('test/properties/molality_mass.xml'))
+    data_set = ThermoMLDataSet.from_file(
+        get_data_filename("test/properties/molality_mass.xml")
+    )
 
     assert data_set is not None
     assert len(data_set.properties) > 0
 
     # Molality + Solvent: Mole fraction
-    data_set = ThermoMLDataSet.from_file(get_data_filename('test/properties/molality_mole.xml'))
+    data_set = ThermoMLDataSet.from_file(
+        get_data_filename("test/properties/molality_mole.xml")
+    )
 
     assert data_set is not None
     assert len(data_set.properties) > 0
 
     # Molality + Solvent: Molality
-    data_set = ThermoMLDataSet.from_file(get_data_filename('test/properties/molality_molality.xml'))
+    data_set = ThermoMLDataSet.from_file(
+        get_data_filename("test/properties/molality_molality.xml")
+    )
 
     assert data_set is not None
     assert len(data_set.properties) > 0
@@ -151,25 +202,31 @@ def test_thermoml_mole_constraints():
     implemented correctly alongside solvent constraints."""
 
     # Mole fraction
-    data_set = ThermoMLDataSet.from_file(get_data_filename('test/properties/mole.xml'))
+    data_set = ThermoMLDataSet.from_file(get_data_filename("test/properties/mole.xml"))
 
     assert data_set is not None
     assert len(data_set.properties) > 0
 
     # Mole fraction + Solvent: Mass fraction
-    data_set = ThermoMLDataSet.from_file(get_data_filename('test/properties/mole_mass.xml'))
+    data_set = ThermoMLDataSet.from_file(
+        get_data_filename("test/properties/mole_mass.xml")
+    )
 
     assert data_set is not None
     assert len(data_set.properties) > 0
 
     # Mole fraction + Solvent: Mole fraction
-    data_set = ThermoMLDataSet.from_file(get_data_filename('test/properties/mole_mole.xml'))
+    data_set = ThermoMLDataSet.from_file(
+        get_data_filename("test/properties/mole_mole.xml")
+    )
 
     assert data_set is not None
     assert len(data_set.properties) > 0
 
     # Mole fraction + Solvent: Molality
-    data_set = ThermoMLDataSet.from_file(get_data_filename('test/properties/mole_molality.xml'))
+    data_set = ThermoMLDataSet.from_file(
+        get_data_filename("test/properties/mole_molality.xml")
+    )
 
     assert data_set is not None
     assert len(data_set.properties) > 0
@@ -178,7 +235,9 @@ def test_thermoml_mole_constraints():
 def test_serialization():
     """A test to ensure that data sets are JSON serializable."""
 
-    data_set = ThermoMLDataSet.from_file(get_data_filename('properties/single_density.xml'))
+    data_set = ThermoMLDataSet.from_file(
+        get_data_filename("properties/single_density.xml")
+    )
     data_set_json = data_set.json()
 
     parsed_data_set = ThermoMLDataSet.parse_json(data_set_json)
@@ -191,10 +250,10 @@ def test_serialization():
 def test_to_pandas():
     """A test to ensure that data sets are convertable to pandas objects."""
 
-    source = CalculationSource('Dummy', {})
+    source = CalculationSource("Dummy", {})
 
-    pure_substance = Substance.from_components('C')
-    binary_substance = Substance.from_components('C', 'O')
+    pure_substance = Substance.from_components("C")
+    binary_substance = Substance.from_components("C", "O")
 
     data_set = PhysicalPropertyDataSet()
 
@@ -203,42 +262,54 @@ def test_to_pandas():
 
     for temperature in [298 * unit.kelvin, 300 * unit.kelvin, 302 * unit.kelvin]:
 
-        thermodynamic_state = ThermodynamicState(temperature=temperature, pressure=1.0 * unit.atmosphere)
+        thermodynamic_state = ThermodynamicState(
+            temperature=temperature, pressure=1.0 * unit.atmosphere
+        )
 
-        density_property = Density(thermodynamic_state=thermodynamic_state,
-                                   phase=PropertyPhase.Liquid,
-                                   substance=pure_substance,
-                                   value=1 * unit.gram / unit.milliliter,
-                                   uncertainty=0.11 * unit.gram / unit.milliliter,
-                                   source=source)
+        density_property = Density(
+            thermodynamic_state=thermodynamic_state,
+            phase=PropertyPhase.Liquid,
+            substance=pure_substance,
+            value=1 * unit.gram / unit.milliliter,
+            uncertainty=0.11 * unit.gram / unit.milliliter,
+            source=source,
+        )
 
-        dielectric_property = DielectricConstant(thermodynamic_state=thermodynamic_state,
-                                                 phase=PropertyPhase.Liquid,
-                                                 substance=pure_substance,
-                                                 value=1 * unit.dimensionless,
-                                                 uncertainty=0.11 * unit.dimensionless,
-                                                 source=source)
+        dielectric_property = DielectricConstant(
+            thermodynamic_state=thermodynamic_state,
+            phase=PropertyPhase.Liquid,
+            substance=pure_substance,
+            value=1 * unit.dimensionless,
+            uncertainty=0.11 * unit.dimensionless,
+            source=source,
+        )
 
         data_set.properties[pure_substance.identifier].append(density_property)
         data_set.properties[pure_substance.identifier].append(dielectric_property)
 
     for temperature in [298 * unit.kelvin, 300 * unit.kelvin, 302 * unit.kelvin]:
 
-        thermodynamic_state = ThermodynamicState(temperature=temperature, pressure=1.0 * unit.atmosphere)
+        thermodynamic_state = ThermodynamicState(
+            temperature=temperature, pressure=1.0 * unit.atmosphere
+        )
 
-        enthalpy_property = EnthalpyOfMixing(thermodynamic_state=thermodynamic_state,
-                                             phase=PropertyPhase.Liquid,
-                                             substance=binary_substance,
-                                             value=1 * unit.kilojoules / unit.mole,
-                                             uncertainty=0.11 * unit.kilojoules / unit.mole,
-                                             source=source)
+        enthalpy_property = EnthalpyOfMixing(
+            thermodynamic_state=thermodynamic_state,
+            phase=PropertyPhase.Liquid,
+            substance=binary_substance,
+            value=1 * unit.kilojoules / unit.mole,
+            uncertainty=0.11 * unit.kilojoules / unit.mole,
+            source=source,
+        )
 
-        excess_property = ExcessMolarVolume(thermodynamic_state=thermodynamic_state,
-                                            phase=PropertyPhase.Liquid,
-                                            substance=binary_substance,
-                                            value=1 * unit.meter**3 / unit.mole,
-                                            uncertainty=0.11 * unit.meter**3 / unit.mole,
-                                            source=source)
+        excess_property = ExcessMolarVolume(
+            thermodynamic_state=thermodynamic_state,
+            phase=PropertyPhase.Liquid,
+            substance=binary_substance,
+            value=1 * unit.meter ** 3 / unit.mole,
+            uncertainty=0.11 * unit.meter ** 3 / unit.mole,
+            source=source,
+        )
 
         data_set.properties[binary_substance.identifier].append(enthalpy_property)
         data_set.properties[binary_substance.identifier].append(excess_property)
@@ -253,12 +324,12 @@ def test_filter_by_property_types():
     """A test to ensure that data sets may be filtered by property type."""
 
     dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_property_types('Density')
+    dummy_data_set.filter_by_property_types("Density")
 
     assert dummy_data_set.number_of_properties == 1
 
     dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_property_types('Density', 'DielectricConstant')
+    dummy_data_set.filter_by_property_types("Density", "DielectricConstant")
 
     assert dummy_data_set.number_of_properties == 2
 
@@ -272,15 +343,14 @@ def test_filter_by_phases():
     assert dummy_data_set.number_of_properties == 1
 
     dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_phases(phases=PropertyPhase.Liquid |
-                                           PropertyPhase.Solid)
+    dummy_data_set.filter_by_phases(phases=PropertyPhase.Liquid | PropertyPhase.Solid)
 
     assert dummy_data_set.number_of_properties == 2
 
     dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_phases(phases=PropertyPhase.Liquid |
-                                           PropertyPhase.Solid |
-                                           PropertyPhase.Gas)
+    dummy_data_set.filter_by_phases(
+        phases=PropertyPhase.Liquid | PropertyPhase.Solid | PropertyPhase.Gas
+    )
 
     assert dummy_data_set.number_of_properties == 3
 
@@ -289,20 +359,23 @@ def test_filter_by_temperature():
     """A test to ensure that data sets may be filtered by temperature."""
 
     dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_temperature(min_temperature=287 * unit.kelvin,
-                                         max_temperature=289 * unit.kelvin)
+    dummy_data_set.filter_by_temperature(
+        min_temperature=287 * unit.kelvin, max_temperature=289 * unit.kelvin
+    )
 
     assert dummy_data_set.number_of_properties == 1
 
     dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_temperature(min_temperature=287 * unit.kelvin,
-                                         max_temperature=299 * unit.kelvin)
+    dummy_data_set.filter_by_temperature(
+        min_temperature=287 * unit.kelvin, max_temperature=299 * unit.kelvin
+    )
 
     assert dummy_data_set.number_of_properties == 2
 
     dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_temperature(min_temperature=287 * unit.kelvin,
-                                         max_temperature=309 * unit.kelvin)
+    dummy_data_set.filter_by_temperature(
+        min_temperature=287 * unit.kelvin, max_temperature=309 * unit.kelvin
+    )
 
     assert dummy_data_set.number_of_properties == 3
 
@@ -311,20 +384,23 @@ def test_filter_by_pressure():
     """A test to ensure that data sets may be filtered by pressure."""
 
     dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_pressure(min_pressure=0.4 * unit.atmosphere,
-                                      max_pressure=0.6 * unit.atmosphere)
+    dummy_data_set.filter_by_pressure(
+        min_pressure=0.4 * unit.atmosphere, max_pressure=0.6 * unit.atmosphere
+    )
 
     assert dummy_data_set.number_of_properties == 1
 
     dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_pressure(min_pressure=0.4 * unit.atmosphere,
-                                      max_pressure=1.1 * unit.atmosphere)
+    dummy_data_set.filter_by_pressure(
+        min_pressure=0.4 * unit.atmosphere, max_pressure=1.1 * unit.atmosphere
+    )
 
     assert dummy_data_set.number_of_properties == 2
 
     dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_pressure(min_pressure=0.4 * unit.atmosphere,
-                                      max_pressure=1.6 * unit.atmosphere)
+    dummy_data_set.filter_by_pressure(
+        min_pressure=0.4 * unit.atmosphere, max_pressure=1.6 * unit.atmosphere
+    )
 
     assert dummy_data_set.number_of_properties == 3
 
@@ -353,17 +429,17 @@ def test_filter_by_elements():
     measured properties contain."""
 
     dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_elements('H', 'C')
+    dummy_data_set.filter_by_elements("H", "C")
 
     assert dummy_data_set.number_of_properties == 1
 
     dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_elements('H', 'C', 'N')
+    dummy_data_set.filter_by_elements("H", "C", "N")
 
     assert dummy_data_set.number_of_properties == 2
 
     dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_elements('H', 'C', 'N', 'O')
+    dummy_data_set.filter_by_elements("H", "C", "N", "O")
 
     assert dummy_data_set.number_of_properties == 3
 
@@ -373,10 +449,14 @@ def test_filter_by_smiles():
     measured properties contain."""
 
     methanol_substance = Substance()
-    methanol_substance.add_component(Substance.Component('CO'), Substance.MoleFraction(1.0))
+    methanol_substance.add_component(
+        Substance.Component("CO"), Substance.MoleFraction(1.0)
+    )
 
     ethanol_substance = Substance()
-    ethanol_substance.add_component(Substance.Component('CCO'), Substance.MoleFraction(1.0))
+    ethanol_substance.add_component(
+        Substance.Component("CCO"), Substance.MoleFraction(1.0)
+    )
 
     property_a = create_dummy_property(Density)
     property_a.substance = methanol_substance
@@ -388,7 +468,7 @@ def test_filter_by_smiles():
     data_set.properties[methanol_substance.identifier] = [property_a]
     data_set.properties[ethanol_substance.identifier] = [property_b]
 
-    data_set.filter_by_smiles('CO')
+    data_set.filter_by_smiles("CO")
 
     assert data_set.number_of_properties == 1
     assert methanol_substance.identifier in data_set.properties

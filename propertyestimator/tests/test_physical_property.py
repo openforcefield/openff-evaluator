@@ -2,15 +2,15 @@
 Units tests for propertyestimator.layers.simulation
 """
 import json
+
 import numpy as np
 import pytest
 
 from propertyestimator import unit
 from propertyestimator.properties import ParameterGradient, ParameterGradientKey
 from propertyestimator.properties.density import Density
-from propertyestimator.utils.serialization import TypedJSONEncoder
-
 from propertyestimator.tests.utils import create_dummy_property
+from propertyestimator.utils.serialization import TypedJSONEncoder
 
 
 def test_physical_property_state_methods():
@@ -31,13 +31,19 @@ def test_physical_property_state_methods():
 
 def test_gradient_addition():
 
-    gradient_a = ParameterGradient(ParameterGradientKey('vdW', '[#1:1]', 'epsilon'), 1.0 * unit.kelvin)
-    gradient_b = ParameterGradient(ParameterGradientKey('vdW', '[#1:1]', 'epsilon'), 2.0 * unit.kelvin)
+    gradient_a = ParameterGradient(
+        ParameterGradientKey("vdW", "[#1:1]", "epsilon"), 1.0 * unit.kelvin
+    )
+    gradient_b = ParameterGradient(
+        ParameterGradientKey("vdW", "[#1:1]", "epsilon"), 2.0 * unit.kelvin
+    )
 
     result = gradient_a + gradient_b
     assert np.isclose(result.value.to(unit.kelvin).magnitude, 3.0)
 
-    gradient_c = ParameterGradient(ParameterGradientKey('vdW', '[#6:1]', 'epsilon'), 1.0 * unit.kelvin)
+    gradient_c = ParameterGradient(
+        ParameterGradientKey("vdW", "[#6:1]", "epsilon"), 1.0 * unit.kelvin
+    )
 
     with pytest.raises(ValueError):
         gradient_a + gradient_c
@@ -48,8 +54,12 @@ def test_gradient_addition():
 
 def test_gradient_subtraction():
 
-    gradient_a = ParameterGradient(ParameterGradientKey('vdW', '[#1:1]', 'epsilon'), 1.0 * unit.kelvin)
-    gradient_b = ParameterGradient(ParameterGradientKey('vdW', '[#1:1]', 'epsilon'), 2.0 * unit.kelvin)
+    gradient_a = ParameterGradient(
+        ParameterGradientKey("vdW", "[#1:1]", "epsilon"), 1.0 * unit.kelvin
+    )
+    gradient_b = ParameterGradient(
+        ParameterGradientKey("vdW", "[#1:1]", "epsilon"), 2.0 * unit.kelvin
+    )
 
     result = gradient_a - gradient_b
     assert np.isclose(result.value.to(unit.kelvin).magnitude, -1.0)
@@ -57,7 +67,9 @@ def test_gradient_subtraction():
     result = gradient_b - gradient_a
     assert np.isclose(result.value.to(unit.kelvin).magnitude, 1.0)
 
-    gradient_c = ParameterGradient(ParameterGradientKey('vdW', '[#6:1]', 'epsilon'), 1.0 * unit.kelvin)
+    gradient_c = ParameterGradient(
+        ParameterGradientKey("vdW", "[#6:1]", "epsilon"), 1.0 * unit.kelvin
+    )
 
     with pytest.raises(ValueError):
         gradient_a - gradient_c
@@ -71,7 +83,9 @@ def test_gradient_subtraction():
 
 def test_gradient_multiplication():
 
-    gradient_a = ParameterGradient(ParameterGradientKey('vdW', '[#1:1]', 'epsilon'), 1.0 * unit.kelvin)
+    gradient_a = ParameterGradient(
+        ParameterGradientKey("vdW", "[#1:1]", "epsilon"), 1.0 * unit.kelvin
+    )
 
     result = gradient_a * 2.0
     assert np.isclose(result.value.to(unit.kelvin).magnitude, 2.0)
@@ -79,7 +93,9 @@ def test_gradient_multiplication():
     result = 3.0 * gradient_a
     assert np.isclose(result.value.to(unit.kelvin).magnitude, 3.0)
 
-    gradient_c = ParameterGradient(ParameterGradientKey('vdW', '[#1:1]', 'epsilon'), 1.0 * unit.kelvin)
+    gradient_c = ParameterGradient(
+        ParameterGradientKey("vdW", "[#1:1]", "epsilon"), 1.0 * unit.kelvin
+    )
 
     with pytest.raises(ValueError):
         gradient_a * gradient_c
@@ -87,12 +103,16 @@ def test_gradient_multiplication():
 
 def test_gradient_division():
 
-    gradient_a = ParameterGradient(ParameterGradientKey('vdW', '[#1:1]', 'epsilon'), 2.0 * unit.kelvin)
+    gradient_a = ParameterGradient(
+        ParameterGradientKey("vdW", "[#1:1]", "epsilon"), 2.0 * unit.kelvin
+    )
 
     result = gradient_a / 2.0
     assert np.isclose(result.value.to(unit.kelvin).magnitude, 1.0)
 
-    gradient_c = ParameterGradient(ParameterGradientKey('vdW', '[#1:1]', 'epsilon'), 1.0 * unit.kelvin)
+    gradient_c = ParameterGradient(
+        ParameterGradientKey("vdW", "[#1:1]", "epsilon"), 1.0 * unit.kelvin
+    )
 
     with pytest.raises(ValueError):
         gradient_a / gradient_c

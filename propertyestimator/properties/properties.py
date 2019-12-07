@@ -28,7 +28,7 @@ class PropertyPhase(IntFlag):
         str
             A string representation of the PropertyPhase enum
         """
-        phases = '|'.join([phase.name for phase in PropertyPhase if self & phase])
+        phases = "|".join([phase.name for phase in PropertyPhase if self & phase])
         return phases
 
     def __repr__(self):
@@ -47,9 +47,11 @@ class Source(TypedBaseModel):
     .. todo:: Swap this out with a more general provenance class.
     """
 
-    def __getstate__(self): return {}
+    def __getstate__(self):
+        return {}
 
-    def __setstate__(self, state): pass
+    def __setstate__(self, state):
+        pass
 
 
 class MeasurementSource(Source):
@@ -67,7 +69,7 @@ class MeasurementSource(Source):
         information is needed or wanted.
     """
 
-    def __init__(self, doi='', reference=''):
+    def __init__(self, doi="", reference=""):
         """Constructs a new MeasurementSource object.
 
         Parameters
@@ -85,14 +87,14 @@ class MeasurementSource(Source):
     def __getstate__(self):
 
         return {
-            'doi': self.doi,
-            'reference': self.reference,
+            "doi": self.doi,
+            "reference": self.reference,
         }
 
     def __setstate__(self, state):
 
-        self.doi = state['doi']
-        self.reference = state['reference']
+        self.doi = state["doi"]
+        self.reference = state["reference"]
 
 
 class CalculationSource(Source):
@@ -127,18 +129,17 @@ class CalculationSource(Source):
     def __getstate__(self):
 
         return {
-            'fidelity': self.fidelity,
-            'provenance': self.provenance,
+            "fidelity": self.fidelity,
+            "provenance": self.provenance,
         }
 
     def __setstate__(self, state):
 
-        self.fidelity = state['fidelity']
-        self.provenance = state['provenance']
+        self.fidelity = state["fidelity"]
+        self.provenance = state["provenance"]
 
 
 class ParameterGradientKey:
-
     @property
     def tag(self):
         return self._tag
@@ -159,40 +160,37 @@ class ParameterGradientKey:
 
     def __getstate__(self):
 
-        return {
-            'tag': self._tag,
-            'smirks': self._smirks,
-            'attribute': self._attribute
-        }
+        return {"tag": self._tag, "smirks": self._smirks, "attribute": self._attribute}
 
     def __setstate__(self, state):
 
-        self._tag = state['tag']
-        self._smirks = state['smirks']
-        self._attribute = state['attribute']
+        self._tag = state["tag"]
+        self._smirks = state["smirks"]
+        self._attribute = state["attribute"]
 
     def __str__(self):
-        return f'tag={self._tag} smirks={self._smirks} attribute={self._attribute}'
+        return f"tag={self._tag} smirks={self._smirks} attribute={self._attribute}"
 
     def __repr__(self):
-        return f'<ParameterGradientKey {str(self)}>'
+        return f"<ParameterGradientKey {str(self)}>"
 
     def __hash__(self):
         return hash((self._tag, self._smirks, self._attribute))
 
     def __eq__(self, other):
 
-        return (isinstance(other, ParameterGradientKey) and
-                self._tag == other._tag and
-                self._smirks == other._smirks and
-                self._attribute == other._attribute)
+        return (
+            isinstance(other, ParameterGradientKey)
+            and self._tag == other._tag
+            and self._smirks == other._smirks
+            and self._attribute == other._attribute
+        )
 
     def __ne__(self, other):
         return not self.__eq__(other)
 
 
 class ParameterGradient:
-
     @property
     def key(self):
         return self._key
@@ -209,20 +207,20 @@ class ParameterGradient:
     def __getstate__(self):
 
         return {
-            'key': self._key,
-            'value': self._value,
+            "key": self._key,
+            "value": self._value,
         }
 
     def __setstate__(self, state):
 
-        self._key = state['key']
-        self._value = state['value']
+        self._key = state["key"]
+        self._value = state["value"]
 
     def __str__(self):
-        return f'key=({self._key}) value={self._value}'
+        return f"key=({self._key}) value={self._value}"
 
     def __repr__(self):
-        return f'<ParameterGradient key={self._key} value={self._value}>'
+        return f"<ParameterGradient key={self._key} value={self._value}>"
 
     def __add__(self, other):
         """
@@ -231,10 +229,12 @@ class ParameterGradient:
         other: ParameterGradient
         """
         if not isinstance(other, ParameterGradient):
-            raise ValueError('Only ParameterGradient objects can be added together.')
+            raise ValueError("Only ParameterGradient objects can be added together.")
 
         elif other.key != self.key:
-            raise ValueError('Only ParameterGradient objects with the same key can be added together.')
+            raise ValueError(
+                "Only ParameterGradient objects with the same key can be added together."
+            )
 
         return ParameterGradient(self.key, self.value + other.value)
 
@@ -245,10 +245,12 @@ class ParameterGradient:
         other: ParameterGradient
         """
         if not isinstance(other, ParameterGradient):
-            raise ValueError('Only ParameterGradient objects can be subtracted.')
+            raise ValueError("Only ParameterGradient objects can be subtracted.")
 
         elif other.key != self.key:
-            raise ValueError('Only ParameterGradient objects with the same key can be subtracted.')
+            raise ValueError(
+                "Only ParameterGradient objects with the same key can be subtracted."
+            )
 
         return ParameterGradient(self.key, self.value - other.value)
 
@@ -259,12 +261,16 @@ class ParameterGradient:
         other: float, int, Quantity
         """
 
-        if (not isinstance(other, float) and
-            not isinstance(other, int) and
-            not isinstance(other, unit.Quantity)):
+        if (
+            not isinstance(other, float)
+            and not isinstance(other, int)
+            and not isinstance(other, unit.Quantity)
+        ):
 
-            raise ValueError('ParameterGradient objects can only be multiplied by int\'s, '
-                             'float\'s or Quantity objects.')
+            raise ValueError(
+                "ParameterGradient objects can only be multiplied by int's, "
+                "float's or Quantity objects."
+            )
 
         return ParameterGradient(self.key, self.value * other)
 
@@ -278,20 +284,26 @@ class ParameterGradient:
         other: float, int, Quantity
         """
 
-        if (not isinstance(other, float) and
-            not isinstance(other, int) and
-            not isinstance(other, unit.Quantity)):
+        if (
+            not isinstance(other, float)
+            and not isinstance(other, int)
+            and not isinstance(other, unit.Quantity)
+        ):
 
-            raise ValueError('ParameterGradient objects can only be divided by int\'s, '
-                             'float\'s or Quantity objects.')
+            raise ValueError(
+                "ParameterGradient objects can only be divided by int's, "
+                "float's or Quantity objects."
+            )
 
         return ParameterGradient(self.key, self.value / other)
 
     def __eq__(self, other):
 
-        return (isinstance(other, ParameterGradient) and
-                self.key == other.key and
-                np.isclose(self.value, other.value))
+        return (
+            isinstance(other, ParameterGradient)
+            and self.key == other.key
+            and np.isclose(self.value, other.value)
+        )
 
 
 class PhysicalProperty(TypedBaseModel):
@@ -303,8 +315,16 @@ class PhysicalProperty(TypedBaseModel):
     property was collected.
     """
 
-    def __init__(self, thermodynamic_state=None, phase=PropertyPhase.Undefined,
-                 substance=None, value=None, uncertainty=None, gradients=None, source=None):
+    def __init__(
+        self,
+        thermodynamic_state=None,
+        phase=PropertyPhase.Undefined,
+        substance=None,
+        value=None,
+        uncertainty=None,
+        gradients=None,
+        source=None,
+    ):
         """Constructs a new PhysicalProperty object.
 
         Parameters
@@ -341,50 +361,52 @@ class PhysicalProperty(TypedBaseModel):
     def __getstate__(self):
 
         return {
-            'id': self.id,
-
-            'thermodynamic_state': self.thermodynamic_state,
-            'phase': self.phase,
-    
-            'substance': self.substance,
-    
-            'value': self.value,
-            'uncertainty': self.uncertainty,
-
-            'gradients': self.gradients,
-    
-            'source': self.source,
-
-            'metadata': self._metadata
+            "id": self.id,
+            "thermodynamic_state": self.thermodynamic_state,
+            "phase": self.phase,
+            "substance": self.substance,
+            "value": self.value,
+            "uncertainty": self.uncertainty,
+            "gradients": self.gradients,
+            "source": self.source,
+            "metadata": self._metadata,
         }
 
     def __setstate__(self, state):
 
-        self.id = state['id']
+        self.id = state["id"]
 
-        self.thermodynamic_state = state['thermodynamic_state']
-        self.phase = state['phase']
+        self.thermodynamic_state = state["thermodynamic_state"]
+        self.phase = state["phase"]
 
-        self.substance = state['substance']
+        self.substance = state["substance"]
 
-        self.value = state['value']
-        self.uncertainty = state['uncertainty']
+        self.value = state["value"]
+        self.uncertainty = state["uncertainty"]
 
-        self.gradients = state['gradients']
+        self.gradients = state["gradients"]
 
-        self.source = state['source']
+        self.source = state["source"]
 
-        self._metadata = state['metadata']
+        self._metadata = state["metadata"]
 
     @property
     def temperature(self):
         """propertyestimator.unit.Quantity or None: The temperature at which the property was collected."""
-        return None if self.thermodynamic_state is None else self.thermodynamic_state.temperature
+        return (
+            None
+            if self.thermodynamic_state is None
+            else self.thermodynamic_state.temperature
+        )
 
     @property
     def pressure(self):
         """propertyestimator.unit.Quantity or None: The pressure at which the property was collected."""
-        return None if self.thermodynamic_state is None else self.thermodynamic_state.pressure
+        return (
+            None
+            if self.thermodynamic_state is None
+            else self.thermodynamic_state.pressure
+        )
 
     @property
     def metadata(self):

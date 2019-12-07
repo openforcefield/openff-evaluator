@@ -8,32 +8,32 @@ import numpy as np
 import pytest
 
 from propertyestimator import unit
-from propertyestimator.utils.serialization import TypedBaseModel, TypedJSONEncoder, TypedJSONDecoder, \
-    serialize_quantity, deserialize_quantity
+from propertyestimator.utils.serialization import (
+    TypedBaseModel,
+    TypedJSONDecoder,
+    TypedJSONEncoder,
+    deserialize_quantity,
+    serialize_quantity,
+)
 
 
 class Foo:
-
     def __init__(self):
 
-        self.field1 = 'field1'
+        self.field1 = "field1"
         self.field2 = 2
 
     def __getstate__(self):
 
-        return {
-            'field1': self.field1,
-            'field2': self.field2
-        }
+        return {"field1": self.field1, "field2": self.field2}
 
     def __setstate__(self, state):
 
-        self.field1 = state['field1']
-        self.field2 = state['field2']
+        self.field1 = state["field1"]
+        self.field2 = state["field2"]
 
 
 class FooInherited(Foo):
-
     def __init__(self):
 
         super().__init__()
@@ -41,7 +41,7 @@ class FooInherited(Foo):
 
     def __getstate__(self):
 
-        self_state = {'field3': self.field3}
+        self_state = {"field3": self.field3}
         parent_state = super(FooInherited, self).__getstate__()
 
         self_state.update(parent_state)
@@ -50,28 +50,27 @@ class FooInherited(Foo):
 
     def __setstate__(self, state):
 
-        self.field3 = state['field3']
+        self.field3 = state["field3"]
         super(FooInherited, self).__setstate__(state)
 
 
 class Bar(TypedBaseModel):
-
     def __init__(self):
 
-        self.field1 = 'field1'
+        self.field1 = "field1"
         self.field2 = 2
 
     def __getstate__(self):
 
         return {
-            'field1': self.field1,
-            'field2': self.field2,
+            "field1": self.field1,
+            "field2": self.field2,
         }
 
     def __setstate__(self, state):
 
-        self.field1 = state['field1']
-        self.field2 = state['field2']
+        self.field1 = state["field1"]
+        self.field2 = state["field2"]
 
 
 class BarInherited(Bar):
@@ -92,7 +91,6 @@ class Qux(IntEnum):
 
 
 class NestedParent:
-
     class NestedChild(Enum):
 
         Option1 = "Option1"
@@ -100,33 +98,30 @@ class NestedParent:
 
 
 class ComplexObject:
-
     class NestedClass1:
-
         def __init__(self):
 
             self.field1 = 5 * unit.kelvin
 
         def __getstate__(self):
             return {
-                'field1': self.field1,
+                "field1": self.field1,
             }
 
         def __setstate__(self, state):
-            self.field1 = state['field1']
+            self.field1 = state["field1"]
 
     class NestedClass2:
-
         def __init__(self):
             self.field1 = Qux.Option1
 
         def __getstate__(self):
             return {
-                'field1': self.field1,
+                "field1": self.field1,
             }
 
         def __setstate__(self, state):
-            self.field1 = state['field1']
+            self.field1 = state["field1"]
 
     def __init__(self):
 
@@ -135,19 +130,15 @@ class ComplexObject:
 
     def __getstate__(self):
 
-        return {
-            'field1': self.field1,
-            'field2': self.field2
-        }
+        return {"field1": self.field1, "field2": self.field2}
 
     def __setstate__(self, state):
 
-        self.field1 = state['field1']
-        self.field2 = state['field2']
+        self.field1 = state["field1"]
+        self.field2 = state["field2"]
 
 
 class TestClass(TypedBaseModel):
-
     def __init__(self, inputs=None):
         self.inputs = inputs
 
@@ -162,35 +153,32 @@ class TestClass(TypedBaseModel):
     def __getstate__(self):
 
         return {
-            'inputs': self.inputs,
-
-            'foo': self.foo,
-            'bar': self.bar,
-    
-            'foo_inherited': self.foo_inherited,
-            'bar_inherited': self.bar_inherited,
-    
-            'complex': self.complex,
+            "inputs": self.inputs,
+            "foo": self.foo,
+            "bar": self.bar,
+            "foo_inherited": self.foo_inherited,
+            "bar_inherited": self.bar_inherited,
+            "complex": self.complex,
         }
 
     def __setstate__(self, state):
 
-        self.inputs = state['inputs']
+        self.inputs = state["inputs"]
 
-        self.foo = state['foo']
-        self.bar = state['bar']
+        self.foo = state["foo"]
+        self.bar = state["bar"]
 
-        self.foo_inherited = state['foo_inherited']
-        self.bar_inherited = state['bar_inherited']
+        self.foo_inherited = state["foo_inherited"]
+        self.bar_inherited = state["bar_inherited"]
 
-        self.complex = state['complex']
+        self.complex = state["complex"]
 
 
 def test_polymorphic_dictionary():
     """Test the polymorphic dictionary helper class."""
 
     test_dictionary = {
-        "test_str": 'test1',
+        "test_str": "test1",
         "test_int": 1,
         "test_bool": True,
         "test_None": None,
@@ -201,8 +189,8 @@ def test_polymorphic_dictionary():
         "test_Baz": Baz.Option1,
         "test_Qux": Qux.Option1,
         "test_Nested": NestedParent.NestedChild.Option1,
-        "test_List": [Foo(), Bar(), 1, 'Hello World'],
-        "test_Complex": ComplexObject()
+        "test_List": [Foo(), Bar(), 1, "Hello World"],
+        "test_Complex": ComplexObject(),
     }
 
     test_object = TestClass(inputs=test_dictionary)

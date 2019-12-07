@@ -55,6 +55,7 @@ class SmirnoffForceFieldSource(ForceFieldSource):
             The created force field.
         """
         from openforcefield.typing.engines import smirnoff
+
         return smirnoff.ForceField(self._inner_xml)
 
     @classmethod
@@ -77,7 +78,7 @@ class SmirnoffForceFieldSource(ForceFieldSource):
             The created object.
         """
 
-        return cls(force_field.to_string('XML', True))
+        return cls(force_field.to_string("XML", True))
 
     @classmethod
     def from_path(cls, file_path):
@@ -106,10 +107,10 @@ class SmirnoffForceFieldSource(ForceFieldSource):
         return cls.from_object(force_field)
 
     def __getstate__(self):
-        return {'inner_xml': self._inner_xml}
+        return {"inner_xml": self._inner_xml}
 
     def __setstate__(self, state):
-        self._inner_xml = state['inner_xml']
+        self._inner_xml = state["inner_xml"]
 
 
 class TLeapForceFieldSource(ForceFieldSource):
@@ -135,7 +136,7 @@ class TLeapForceFieldSource(ForceFieldSource):
         """
         return self._cutoff
 
-    def __init__(self, leap_source='leaprc.gaff2', cutoff=9.0*unit.angstrom):
+    def __init__(self, leap_source="leaprc.gaff2", cutoff=9.0 * unit.angstrom):
         """Constructs a new TLeapForceFieldSource object
 
         Parameters
@@ -159,20 +160,17 @@ class TLeapForceFieldSource(ForceFieldSource):
         """
 
         if leap_source is not None:
-            assert leap_source == 'leaprc.gaff2' or leap_source == 'leaprc.gaff'
+            assert leap_source == "leaprc.gaff2" or leap_source == "leaprc.gaff"
 
         self._leap_source = leap_source
         self._cutoff = cutoff
 
     def __getstate__(self):
-        return {
-            'leap_source': self._leap_source,
-            'cutoff': self._cutoff
-        }
+        return {"leap_source": self._leap_source, "cutoff": self._cutoff}
 
     def __setstate__(self, state):
-        self._leap_source = state['leap_source']
-        self._cutoff = state['cutoff']
+        self._leap_source = state["leap_source"]
+        self._cutoff = state["cutoff"]
 
 
 class LigParGenForceFieldSource(ForceFieldSource):
@@ -194,8 +192,8 @@ class LigParGenForceFieldSource(ForceFieldSource):
 
     class ChargeModel(Enum):
 
-        CM1A_1_14_LBCC = '1.14*CM1A-LBCC'
-        CM1A_1_14 = '1.14*CM1A'
+        CM1A_1_14_LBCC = "1.14*CM1A-LBCC"
+        CM1A_1_14 = "1.14*CM1A"
 
     @property
     def preferred_charge_model(self):
@@ -222,8 +220,13 @@ class LigParGenForceFieldSource(ForceFieldSource):
         """str: The URL of the LIGPARGEN server file to download the results of a request from."""
         return self._download_url
 
-    def __init__(self, preferred_charge_model=ChargeModel.CM1A_1_14_LBCC,
-                 cutoff=9.0*unit.angstrom, request_url='', download_url=''):
+    def __init__(
+        self,
+        preferred_charge_model=ChargeModel.CM1A_1_14_LBCC,
+        cutoff=9.0 * unit.angstrom,
+        request_url="",
+        download_url="",
+    ):
         """Constructs a new LigParGenForceFieldSource object
 
         Parameters
@@ -249,14 +252,14 @@ class LigParGenForceFieldSource(ForceFieldSource):
 
     def __getstate__(self):
         return {
-            'preferred_charge_model': self._preferred_charge_model,
-            'cutoff': self._cutoff,
-            'request_url': self._request_url,
-            'download_url': self._download_url
+            "preferred_charge_model": self._preferred_charge_model,
+            "cutoff": self._cutoff,
+            "request_url": self._request_url,
+            "download_url": self._download_url,
         }
 
     def __setstate__(self, state):
-        self._preferred_charge_model = state['preferred_charge_model']
-        self._cutoff = state['cutoff']
-        self._request_url = state['request_url']
-        self._download_url = state['download_url']
+        self._preferred_charge_model = state["preferred_charge_model"]
+        self._cutoff = state["cutoff"]
+        self._request_url = state["request_url"]
+        self._download_url = state["download_url"]

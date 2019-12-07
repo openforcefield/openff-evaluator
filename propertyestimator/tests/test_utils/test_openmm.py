@@ -6,8 +6,13 @@ import pytest
 from simtk import unit as simtk_unit
 
 from propertyestimator import unit
-from propertyestimator.utils.openmm import openmm_quantity_to_pint, pint_quantity_to_openmm, openmm_unit_to_pint, \
-    pint_unit_to_openmm, unsupported_openmm_units
+from propertyestimator.utils.openmm import (
+    openmm_quantity_to_pint,
+    openmm_unit_to_pint,
+    pint_quantity_to_openmm,
+    pint_unit_to_openmm,
+    unsupported_openmm_units,
+)
 
 
 def _get_all_openmm_units():
@@ -18,8 +23,13 @@ def _get_all_openmm_units():
     list of simtk.unit.Unit
     """
 
-    all_openmm_units = set([unit_type for _, unit_type in inspect.getmembers(simtk_unit)
-                           if isinstance(unit_type, simtk_unit.Unit)])
+    all_openmm_units = set(
+        [
+            unit_type
+            for _, unit_type in inspect.getmembers(simtk_unit)
+            if isinstance(unit_type, simtk_unit.Unit)
+        ]
+    )
 
     all_openmm_units = all_openmm_units.difference(unsupported_openmm_units)
 
@@ -37,7 +47,9 @@ def _get_all_pint_units():
 
     all_openmm_units = _get_all_openmm_units()
 
-    all_pint_units = [openmm_unit_to_pint(openmm_unit) for openmm_unit in all_openmm_units]
+    all_pint_units = [
+        openmm_unit_to_pint(openmm_unit) for openmm_unit in all_openmm_units
+    ]
     return all_pint_units
 
 
@@ -53,7 +65,10 @@ def test_daltons():
 
 
 @pytest.mark.parametrize("openmm_unit", _get_all_openmm_units())
-@pytest.mark.parametrize("value", [random(), randint(1, 10), [random(), random()], np.array([random(), random()])])
+@pytest.mark.parametrize(
+    "value",
+    [random(), randint(1, 10), [random(), random()], np.array([random(), random()])],
+)
 def test_openmm_unit_to_pint(openmm_unit, value):
 
     openmm_quantity = value * openmm_unit
@@ -66,7 +81,10 @@ def test_openmm_unit_to_pint(openmm_unit, value):
 
 
 @pytest.mark.parametrize("pint_unit", _get_all_pint_units())
-@pytest.mark.parametrize("value", [random(), randint(1, 10), [random(), random()], np.array([random(), random()])])
+@pytest.mark.parametrize(
+    "value",
+    [random(), randint(1, 10), [random(), random()], np.array([random(), random()])],
+)
 def test_pint_to_openmm(pint_unit, value):
 
     pint_quantity = value * pint_unit
@@ -116,8 +134,14 @@ def test_combinatorial_openmm_to_pint():
             assert np.isclose(openmm_raw_value, pint_raw_value)
 
 
-@pytest.mark.parametrize("openmm_unit", {*_get_all_openmm_units(), simtk_unit.dalton**2, simtk_unit.dalton**3})
-@pytest.mark.parametrize("value", [random(), randint(1, 10), [random(), random()], np.array([random(), random()])])
+@pytest.mark.parametrize(
+    "openmm_unit",
+    {*_get_all_openmm_units(), simtk_unit.dalton ** 2, simtk_unit.dalton ** 3},
+)
+@pytest.mark.parametrize(
+    "value",
+    [random(), randint(1, 10), [random(), random()], np.array([random(), random()])],
+)
 def test_openmm_unit_conversions(openmm_unit, value):
 
     openmm_quantity = value * openmm_unit
@@ -139,7 +163,10 @@ def test_openmm_unit_conversions(openmm_unit, value):
 
 
 @pytest.mark.parametrize("pint_unit", _get_all_pint_units())
-@pytest.mark.parametrize("value", [random(), randint(1, 10), [random(), random()], np.array([random(), random()])])
+@pytest.mark.parametrize(
+    "value",
+    [random(), randint(1, 10), [random(), random()], np.array([random(), random()])],
+)
 def test_pint_unit_conversions(pint_unit, value):
 
     pint_quantity = value * pint_unit
@@ -152,10 +179,12 @@ def test_pint_unit_conversions(pint_unit, value):
 
     pint_raw_value = pint_quantity.magnitude
 
-    if pint_unit == unit.dimensionless and (isinstance(openmm_quantity, float) or
-                                            isinstance(openmm_quantity, int) or
-                                            isinstance(openmm_quantity, list) or
-                                            isinstance(openmm_quantity, np.ndarray)):
+    if pint_unit == unit.dimensionless and (
+        isinstance(openmm_quantity, float)
+        or isinstance(openmm_quantity, int)
+        or isinstance(openmm_quantity, list)
+        or isinstance(openmm_quantity, np.ndarray)
+    ):
         openmm_raw_value = openmm_quantity
     else:
         openmm_raw_value = openmm_quantity.value_in_unit(openmm_unit)
@@ -165,27 +194,37 @@ def test_pint_unit_conversions(pint_unit, value):
 
 def test_constants():
 
-    assert np.isclose(simtk_unit.AVOGADRO_CONSTANT_NA.value_in_unit((1.0 / simtk_unit.mole).unit),
-                      (1.0 * unit.avogadro_number).to((1.0 / unit.mole).units))
+    assert np.isclose(
+        simtk_unit.AVOGADRO_CONSTANT_NA.value_in_unit((1.0 / simtk_unit.mole).unit),
+        (1.0 * unit.avogadro_number).to((1.0 / unit.mole).units),
+    )
 
-    assert np.isclose(simtk_unit.BOLTZMANN_CONSTANT_kB.value_in_unit(simtk_unit.joule /
-                                                                     simtk_unit.kelvin),
-                      (1.0 * unit.boltzmann_constant).to(unit.joule /
-                                                         unit.kelvin))
+    assert np.isclose(
+        simtk_unit.BOLTZMANN_CONSTANT_kB.value_in_unit(
+            simtk_unit.joule / simtk_unit.kelvin
+        ),
+        (1.0 * unit.boltzmann_constant).to(unit.joule / unit.kelvin),
+    )
 
-    assert np.isclose(simtk_unit.MOLAR_GAS_CONSTANT_R.value_in_unit(simtk_unit.joule /
-                                                                    simtk_unit.kelvin /
-                                                                    simtk_unit.mole),
-                      (1.0 * unit.molar_gas_constant).to(unit.joule /
-                                                         unit.kelvin /
-                                                         unit.mole))
+    assert np.isclose(
+        simtk_unit.MOLAR_GAS_CONSTANT_R.value_in_unit(
+            simtk_unit.joule / simtk_unit.kelvin / simtk_unit.mole
+        ),
+        (1.0 * unit.molar_gas_constant).to(unit.joule / unit.kelvin / unit.mole),
+    )
 
-    assert np.isclose(simtk_unit.GRAVITATIONAL_CONSTANT_G.value_in_unit(simtk_unit.meter**2 *
-                                                                        simtk_unit.newton /
-                                                                        simtk_unit.kilogram**2),
-                      (1.0 * unit.newtonian_constant_of_gravitation).to(unit.meter**2 *
-                                                                        unit.newton /
-                                                                        unit.kilogram**2))
+    assert np.isclose(
+        simtk_unit.GRAVITATIONAL_CONSTANT_G.value_in_unit(
+            simtk_unit.meter ** 2 * simtk_unit.newton / simtk_unit.kilogram ** 2
+        ),
+        (1.0 * unit.newtonian_constant_of_gravitation).to(
+            unit.meter ** 2 * unit.newton / unit.kilogram ** 2
+        ),
+    )
 
-    assert np.isclose(simtk_unit.SPEED_OF_LIGHT_C.value_in_unit(simtk_unit.meter / simtk_unit.seconds),
-                      (1.0 * unit.speed_of_light).to(unit.meter / unit.seconds))
+    assert np.isclose(
+        simtk_unit.SPEED_OF_LIGHT_C.value_in_unit(
+            simtk_unit.meter / simtk_unit.seconds
+        ),
+        (1.0 * unit.speed_of_light).to(unit.meter / unit.seconds),
+    )

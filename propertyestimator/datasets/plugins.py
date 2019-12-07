@@ -48,9 +48,9 @@ def register_thermoml_property(thermoml_string, supported_phases):
     """
 
     def decorator(cls):
-        registered_thermoml_properties[thermoml_string] = ThermoMLPlugin(cls,
-                                                                         thermoml_string,
-                                                                         supported_phases)
+        registered_thermoml_properties[thermoml_string] = ThermoMLPlugin(
+            cls, thermoml_string, supported_phases
+        )
 
         return cls
 

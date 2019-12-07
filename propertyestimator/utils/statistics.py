@@ -18,14 +18,14 @@ class ObservableType(Enum):
     in statistics data files.
     """
 
-    PotentialEnergy = 'PotentialEnergy'
-    KineticEnergy = 'KineticEnergy'
-    TotalEnergy = 'TotalEnergy'
-    Temperature = 'Temperature'
-    Volume = 'Volume'
-    Density = 'Density'
-    Enthalpy = 'Enthalpy'
-    ReducedPotential = 'ReducedPotential'
+    PotentialEnergy = "PotentialEnergy"
+    KineticEnergy = "KineticEnergy"
+    TotalEnergy = "TotalEnergy"
+    Temperature = "Temperature"
+    Volume = "Volume"
+    Density = "Density"
+    Enthalpy = "Enthalpy"
+    ReducedPotential = "ReducedPotential"
 
 
 class StatisticsArray:
@@ -39,10 +39,10 @@ class StatisticsArray:
         ObservableType.KineticEnergy: unit.kilojoules / unit.mole,
         ObservableType.TotalEnergy: unit.kilojoules / unit.mole,
         ObservableType.Temperature: unit.kelvin,
-        ObservableType.Volume: unit.nanometer**3,
+        ObservableType.Volume: unit.nanometer ** 3,
         ObservableType.Density: unit.gram / unit.milliliter,
         ObservableType.Enthalpy: unit.kilojoules / unit.mole,
-        ObservableType.ReducedPotential: unit.dimensionless
+        ObservableType.ReducedPotential: unit.dimensionless,
     }
 
     def __init__(self):
@@ -67,8 +67,10 @@ class StatisticsArray:
         ObservableType
             The validated key
         """
-        key_error_message = 'The key must either be an ObservableType or a ' \
-                            'string representation of an ObservableType'
+        key_error_message = (
+            "The key must either be an ObservableType or a "
+            "string representation of an ObservableType"
+        )
 
         if isinstance(key, str):
 
@@ -115,16 +117,25 @@ class StatisticsArray:
 
         if not len(value) == len(self) and len(self) > 0:
 
-            raise ValueError(f'The length of the data ({len(value)}) must match the'
-                             f'shape of the array ({len(self)})')
+            raise ValueError(
+                f"The length of the data ({len(value)}) must match the"
+                f"shape of the array ({len(self)})"
+            )
 
         if not isinstance(value, unit.Quantity):
-            raise ValueError('The data must be a unit bearing `propertyestimator.unit.Quantity`')
+            raise ValueError(
+                "The data must be a unit bearing `propertyestimator.unit.Quantity`"
+            )
 
-        if unit.get_base_units(value.units)[-1] != unit.get_base_units(StatisticsArray._observable_units[key])[-1]:
+        if (
+            unit.get_base_units(value.units)[-1]
+            != unit.get_base_units(StatisticsArray._observable_units[key])[-1]
+        ):
 
-            raise ValueError(f'{key} must have units compatible with '
-                             f'{StatisticsArray._observable_units[key]}')
+            raise ValueError(
+                f"{key} must have units compatible with "
+                f"{StatisticsArray._observable_units[key]}"
+            )
 
         self._internal_data[key] = value
 
@@ -169,8 +180,8 @@ class StatisticsArray:
         if len(self._internal_data) == 0:
 
             # Handle the case where there is no data in the array.
-            with open(file_path, 'w') as file:
-                file.write('')
+            with open(file_path, "w") as file:
+                file.write("")
 
             return
 
@@ -186,11 +197,13 @@ class StatisticsArray:
             unit_type = StatisticsArray._observable_units[observable_type]
 
             data_list.append(data.to(unit_type).magnitude)
-            units_list[observable_type] = f'{unit_type:~}'
+            units_list[observable_type] = f"{unit_type:~}"
 
         data_array = np.array(data_list).transpose()
 
-        columns_names = [f'{data_type.value} ({units_list[data_type]})' for data_type in units_list]
+        columns_names = [
+            f"{data_type.value} ({units_list[data_type]})" for data_type in units_list
+        ]
 
         data_frame = pd.DataFrame(data=data_array, columns=columns_names)
         data_frame.to_csv(file_path)
@@ -211,7 +224,7 @@ class StatisticsArray:
         StatisticsArray
             The loaded statistics array.
         """
-        with open(file_path, 'r') as file:
+        with open(file_path, "r") as file:
 
             file_contents = file.read()
 
@@ -219,7 +232,7 @@ class StatisticsArray:
                 return cls()
 
             file_contents = file_contents[1:]
-            file_contents = re.sub('#.*\n', '', file_contents)
+            file_contents = re.sub("#.*\n", "", file_contents)
 
             string_object = StringIO(file_contents)
             data_array = pd.read_csv(string_object)
@@ -227,21 +240,21 @@ class StatisticsArray:
         values = {}
 
         observable_to_openmm_header = {
-            ObservableType.PotentialEnergy: 'Potential Energy (kJ/mole)',
-            ObservableType.KineticEnergy: 'Kinetic Energy (kJ/mole)',
-            ObservableType.TotalEnergy: 'Total Energy (kJ/mole)',
-            ObservableType.Temperature: 'Temperature (K)',
-            ObservableType.Volume: 'Box Volume (nm^3)',
-            ObservableType.Density: 'Density (g/mL)'
+            ObservableType.PotentialEnergy: "Potential Energy (kJ/mole)",
+            ObservableType.KineticEnergy: "Kinetic Energy (kJ/mole)",
+            ObservableType.TotalEnergy: "Total Energy (kJ/mole)",
+            ObservableType.Temperature: "Temperature (K)",
+            ObservableType.Volume: "Box Volume (nm^3)",
+            ObservableType.Density: "Density (g/mL)",
         }
 
         openmm_header_to_unit = {
-            'Potential Energy (kJ/mole)': unit.kilojoules / unit.mole,
-            'Kinetic Energy (kJ/mole)': unit.kilojoules / unit.mole,
-            'Total Energy (kJ/mole)': unit.kilojoules / unit.mole,
-            'Temperature (K)': unit.kelvin,
-            'Box Volume (nm^3)': unit.nanometer ** 3,
-            'Density (g/mL)': unit.gram / unit.milliliter
+            "Potential Energy (kJ/mole)": unit.kilojoules / unit.mole,
+            "Kinetic Energy (kJ/mole)": unit.kilojoules / unit.mole,
+            "Total Energy (kJ/mole)": unit.kilojoules / unit.mole,
+            "Temperature (K)": unit.kelvin,
+            "Box Volume (nm^3)": unit.nanometer ** 3,
+            "Density (g/mL)": unit.gram / unit.milliliter,
         }
 
         for observable_type, header_name in observable_to_openmm_header.items():
@@ -249,13 +262,16 @@ class StatisticsArray:
             if header_name not in data_array:
                 continue
 
-            values[observable_type] = np.array(data_array[header_name]) * \
-                                      openmm_header_to_unit[header_name]
+            values[observable_type] = (
+                np.array(data_array[header_name]) * openmm_header_to_unit[header_name]
+            )
 
         if pressure is not None:
 
-            values[ObservableType.Enthalpy] = values[ObservableType.TotalEnergy] + \
-                                              values[ObservableType.Volume] * pressure * unit.avogadro_number
+            values[ObservableType.Enthalpy] = (
+                values[ObservableType.TotalEnergy]
+                + values[ObservableType.Volume] * pressure * unit.avogadro_number
+            )
 
         return_object = cls()
         return_object._internal_data = values
@@ -273,12 +289,12 @@ class StatisticsArray:
         """
         data_array = None
 
-        with open(file_path, 'r') as file:
+        with open(file_path, "r") as file:
 
             file_contents = file.read()
 
             if len(file_contents) < 1:
-                raise ValueError('The statistics file is empty.')
+                raise ValueError("The statistics file is empty.")
 
             string_object = StringIO(file_contents)
             data_array = pd.read_csv(string_object)
@@ -359,12 +375,15 @@ class StatisticsArray:
         number_of_arrays = sum([1 for instance in existing_instances])
 
         if number_of_arrays < 2:
-            raise ValueError('At least two arrays must be passed.')
+            raise ValueError("At least two arrays must be passed.")
 
         new_values = {}
 
-        observable_types = [observable_type for observable_type in ObservableType if
-                            observable_type in existing_instances[0]]
+        observable_types = [
+            observable_type
+            for observable_type in ObservableType
+            if observable_type in existing_instances[0]
+        ]
 
         for observable_type in observable_types:
 
@@ -374,8 +393,9 @@ class StatisticsArray:
 
                 if observable_type not in existing_instance:
 
-                    raise ValueError('The arrays must contain the same'
-                                     'types of observable.')
+                    raise ValueError(
+                        "The arrays must contain the same" "types of observable."
+                    )
 
                 new_length += len(existing_instance)
 
@@ -398,7 +418,13 @@ class StatisticsArray:
         return return_object
 
 
-def bootstrap(bootstrap_function, iterations=200, relative_sample_size=1.0, data_sub_counts=None, **data_kwargs):
+def bootstrap(
+    bootstrap_function,
+    iterations=200,
+    relative_sample_size=1.0,
+    data_sub_counts=None,
+    **data_kwargs,
+):
     """Performs bootstrapping on a data set to calculate the
     average value, and the standard error in the average,
     bootstrapping.
@@ -435,8 +461,8 @@ def bootstrap(bootstrap_function, iterations=200, relative_sample_size=1.0, data
         The uncertainty in the average.
     """
 
-    if len(data_kwargs) is 0:
-        raise ValueError('There is no data to bootstrap')
+    if len(data_kwargs) == 0:
+        raise ValueError("There is no data to bootstrap")
 
     # Make a copy of the data so we don't accidentally destroy anything.
     data_to_bootstrap = {}
@@ -476,10 +502,14 @@ def bootstrap(bootstrap_function, iterations=200, relative_sample_size=1.0, data
 
             for keyword in data_to_bootstrap:
 
-                sub_data = data_to_bootstrap[keyword][start_index: start_index + sub_count]
+                sub_data = data_to_bootstrap[keyword][
+                    start_index : start_index + sub_count
+                ]
 
                 for index in range(sub_count):
-                    sample_data[keyword][index + start_index] = sub_data[sample_indices][index]
+                    sample_data[keyword][index + start_index] = sub_data[
+                        sample_indices
+                    ][index]
 
             start_index += sub_count
 

@@ -7,7 +7,7 @@ import pandas
 from simtk.openmm.app import element
 
 from propertyestimator import unit
-from propertyestimator.properties import MeasurementSource, CalculationSource
+from propertyestimator.properties import CalculationSource, MeasurementSource
 from propertyestimator.substances import Substance
 from propertyestimator.utils import create_molecule_from_smiles
 from propertyestimator.utils.serialization import TypedBaseModel
@@ -71,8 +71,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             if substance_hash not in self._properties:
                 self._properties[substance_hash] = []
 
-            self._properties[substance_hash].extend(
-                data_set.properties[substance_hash])
+            self._properties[substance_hash].extend(data_set.properties[substance_hash])
 
         self._sources.extend(data_set.sources)
 
@@ -91,8 +90,9 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         # a 'filtered' list needs to be maintained separately to the main list.
         for substance_id in self._properties:
 
-            substance_properties = list(filter(
-                filter_function, self._properties[substance_id]))
+            substance_properties = list(
+                filter(filter_function, self._properties[substance_id])
+            )
 
             if len(substance_properties) <= 0:
                 continue
@@ -161,6 +161,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         >>> from propertyestimator.properties import PropertyPhase
         >>> data_set.filter_by_temperature(PropertyPhase.Liquid)
         """
+
         def filter_function(x):
             return x.phase & phases
 
@@ -189,7 +190,9 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         """
 
         def filter_function(x):
-            return min_temperature <= x.thermodynamic_state.temperature <= max_temperature
+            return (
+                min_temperature <= x.thermodynamic_state.temperature <= max_temperature
+            )
 
         self.filter_by_function(filter_function)
 
@@ -214,6 +217,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         >>> from propertyestimator import unit
         >>> data_set.filter_by_temperature(min_pressure=70*unit.kilopascal, max_temperature=150*unit.kilopascal)
         """
+
         def filter_function(x):
 
             if x.thermodynamic_state.pressure is None:
@@ -241,6 +245,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         >>>
         >>> data_set.filter_by_components(number_of_components=1)
         """
+
         def filter_function(x):
             return x.substance.number_of_components == number_of_components
 
@@ -269,7 +274,9 @@ class PhysicalPropertyDataSet(TypedBaseModel):
                 for atom in oe_molecule.GetAtoms():
 
                     atomic_number = atom.GetAtomicNum()
-                    atomic_element = element.Element.getByAtomicNumber(atomic_number).symbol
+                    atomic_element = element.Element.getByAtomicNumber(
+                        atomic_number
+                    ).symbol
 
                     if atomic_element in allowed_elements:
                         continue
@@ -354,7 +361,9 @@ class PhysicalPropertyDataSet(TypedBaseModel):
                 continue
 
             substance = self._properties[substance_id][0].substance
-            maximum_number_of_components = max(maximum_number_of_components, substance.number_of_components)
+            maximum_number_of_components = max(
+                maximum_number_of_components, substance.number_of_components
+            )
 
             for physical_property in self._properties[substance_id]:
                 all_property_types.add(type(physical_property))
@@ -362,8 +371,10 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         # Make sure the maximum number of components is not zero.
         if maximum_number_of_components <= 0 and len(self._properties) > 0:
 
-            raise ValueError('The data set did not contain any substances with '
-                             'one or more components.')
+            raise ValueError(
+                "The data set did not contain any substances with "
+                "one or more components."
+            )
 
         data_rows = []
 
@@ -377,11 +388,15 @@ class PhysicalPropertyDataSet(TypedBaseModel):
                 all_property_types.add(type(physical_property))
 
                 # Extract the measured state.
-                temperature = physical_property.thermodynamic_state.temperature.to(unit.kelvin)
+                temperature = physical_property.thermodynamic_state.temperature.to(
+                    unit.kelvin
+                )
                 pressure = None
 
                 if physical_property.thermodynamic_state.pressure is not None:
-                    pressure = physical_property.thermodynamic_state.pressure.to(unit.kilopascal)
+                    pressure = physical_property.thermodynamic_state.pressure.to(
+                        unit.kilopascal
+                    )
 
                 phase = physical_property.phase
 
@@ -390,16 +405,28 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
                 components = [] * maximum_number_of_components
 
-                for index, component in enumerate(physical_property.substance.components):
+                for index, component in enumerate(
+                    physical_property.substance.components
+                ):
 
-                    amount = next(iter(physical_property.substance.get_amounts(component)))
+                    amount = next(
+                        iter(physical_property.substance.get_amounts(component))
+                    )
                     assert isinstance(amount, Substance.MoleFraction)
 
                     components.append((component.smiles, amount.value))
 
                 # Extract the value data as a string.
-                value = None if physical_property.value is None else str(physical_property.value)
-                uncertainty = None if physical_property.uncertainty is None else str(physical_property.uncertainty)
+                value = (
+                    None
+                    if physical_property.value is None
+                    else str(physical_property.value)
+                )
+                uncertainty = (
+                    None
+                    if physical_property.uncertainty is None
+                    else str(physical_property.uncertainty)
+                )
 
                 # Extract the data source.
                 source = None
@@ -416,23 +443,27 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
                 # Create the data row.
                 data_row = {
-                    'Temperature': str(temperature),
-                    'Pressure': str(pressure),
-                    'Phase': phase,
-                    'Number Of Components': number_of_components
+                    "Temperature": str(temperature),
+                    "Pressure": str(pressure),
+                    "Phase": phase,
+                    "Number Of Components": number_of_components,
                 }
 
                 for index in range(len(components)):
 
-                    data_row[f'Component {index + 1}'] = components[index][0]
-                    data_row[f'Mole Fraction {index + 1}'] = components[index][1]
+                    data_row[f"Component {index + 1}"] = components[index][0]
+                    data_row[f"Mole Fraction {index + 1}"] = components[index][1]
 
-                data_row[f'{type(physical_property).__name__} Value'] = value
-                data_row[f'{type(physical_property).__name__} Uncertainty'] = uncertainty
+                data_row[f"{type(physical_property).__name__} Value"] = value
+                data_row[
+                    f"{type(physical_property).__name__} Uncertainty"
+                ] = uncertainty
 
-                data_row['Source'] = source
+                data_row["Source"] = source
 
-                data_points_by_state[physical_property.thermodynamic_state].update(data_row)
+                data_points_by_state[physical_property.thermodynamic_state].update(
+                    data_row
+                )
 
             for state in data_points_by_state:
                 data_rows.append(data_points_by_state[state])
@@ -442,31 +473,28 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             return None
 
         data_columns = [
-            'Temperature',
-            'Pressure',
-            'Phase',
-            'Number Of Components',
+            "Temperature",
+            "Pressure",
+            "Phase",
+            "Number Of Components",
         ]
 
         for index in range(maximum_number_of_components):
-            data_columns.append(f'Component {index + 1}')
-            data_columns.append(f'Mole Fraction {index + 1}')
+            data_columns.append(f"Component {index + 1}")
+            data_columns.append(f"Mole Fraction {index + 1}")
 
         for property_type in all_property_types:
-            data_columns.append(f'{property_type.__name__} Value')
-            data_columns.append(f'{property_type.__name__} Uncertainty')
+            data_columns.append(f"{property_type.__name__} Value")
+            data_columns.append(f"{property_type.__name__} Uncertainty")
 
         data_frame = pandas.DataFrame(data_rows, columns=data_columns)
         return data_frame
 
     def __getstate__(self):
 
-        return {
-            'properties': self._properties,
-            'sources': self._sources
-        }
+        return {"properties": self._properties, "sources": self._sources}
 
     def __setstate__(self, state):
 
-        self._properties = state['properties']
-        self._sources = state['sources']
+        self._properties = state["properties"]
+        self._sources = state["sources"]

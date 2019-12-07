@@ -21,8 +21,11 @@ from simtk import openmm
 from propertyestimator import unit
 from propertyestimator.utils.utils import temporarily_change_directory
 
-PACKMOL_PATH = find_executable("packmol") or shutil.which("packmol") or \
-               None if 'PACKMOL' not in os.environ else os.environ['PACKMOL']
+PACKMOL_PATH = (
+    find_executable("packmol") or shutil.which("packmol") or None
+    if "PACKMOL" not in os.environ
+    else os.environ["PACKMOL"]
+)
 
 _HEADER_TEMPLATE = """
 # Mixture
@@ -48,16 +51,18 @@ end structure
 """
 
 
-def pack_box(molecules,
-             number_of_copies,
-             structure_to_solvate=None,
-             tolerance=2.0,
-             box_size=None,
-             mass_density=None,
-             box_aspect_ratio=None,
-             verbose=False,
-             working_directory=None,
-             retain_working_files=False):
+def pack_box(
+    molecules,
+    number_of_copies,
+    structure_to_solvate=None,
+    tolerance=2.0,
+    box_size=None,
+    mass_density=None,
+    box_aspect_ratio=None,
+    verbose=False,
+    working_directory=None,
+    retain_working_files=False,
+):
 
     """Run packmol to generate a box containing a mixture of molecules.
 
@@ -100,12 +105,14 @@ def pack_box(molecules,
     """
 
     if box_size is None and mass_density is None:
-        raise ValueError('Either a `box_size` or `mass_density` must be specified.')
+        raise ValueError("Either a `box_size` or `mass_density` must be specified.")
 
     if box_size is not None and len(box_size) != 3:
 
-        raise ValueError('`box_size` must be a propertyestimator.unit.Quantity '
-                         'wrapped list of length 3')
+        raise ValueError(
+            "`box_size` must be a propertyestimator.unit.Quantity "
+            "wrapped list of length 3"
+        )
 
     if mass_density is not None and box_aspect_ratio is None:
         box_aspect_ratio = [1.0, 1.0, 1.0]
@@ -117,7 +124,9 @@ def pack_box(molecules,
 
     # noinspection PyTypeChecker
     if len(molecules) != len(number_of_copies):
-        raise ValueError('Length of `molecules` and `number_of_copies` must be identical.')
+        raise ValueError(
+            "Length of `molecules` and `number_of_copies` must be identical."
+        )
 
     temporary_directory = False
 
@@ -139,7 +148,7 @@ def pack_box(molecules,
     # and do a temporary cd into the working directory to get around this.
     for index, molecule in enumerate(molecules):
 
-        tmp_file_name = f'{index}.pdb'
+        tmp_file_name = f"{index}.pdb"
         tmp_file_path = os.path.join(working_directory, tmp_file_name)
 
         pdb_file_paths.append(tmp_file_path)
@@ -152,10 +161,15 @@ def pack_box(molecules,
     if structure_to_solvate is not None:
 
         if not os.path.isfile(structure_to_solvate):
-            raise ValueError(f'The structure to solvate ({structure_to_solvate}) does not exist.')
+            raise ValueError(
+                f"The structure to solvate ({structure_to_solvate}) does not exist."
+            )
 
         structure_to_solvate_file_name = os.path.basename(structure_to_solvate)
-        shutil.copyfile(structure_to_solvate, os.path.join(working_directory, structure_to_solvate_file_name))
+        shutil.copyfile(
+            structure_to_solvate,
+            os.path.join(working_directory, structure_to_solvate_file_name),
+        )
 
     # Run packmol
     if PACKMOL_PATH is None:
@@ -168,20 +182,20 @@ def pack_box(molecules,
     if box_size is None:
 
         # Estimate box_size from mass density.
-        initial_box_length = _approximate_volume_by_density(molecules,
-                                                            number_of_copies,
-                                                            mass_density)
+        initial_box_length = _approximate_volume_by_density(
+            molecules, number_of_copies, mass_density
+        )
 
         initial_box_length_angstrom = initial_box_length.to(unit.angstrom).magnitude
 
-        aspect_ratio_normalizer = (box_aspect_ratio[0] *
-                                   box_aspect_ratio[1] *
-                                   box_aspect_ratio[2]) ** (1.0 / 3.0)
+        aspect_ratio_normalizer = (
+            box_aspect_ratio[0] * box_aspect_ratio[1] * box_aspect_ratio[2]
+        ) ** (1.0 / 3.0)
 
         box_size = [
             initial_box_length_angstrom * box_aspect_ratio[0],
             initial_box_length_angstrom * box_aspect_ratio[1],
-            initial_box_length_angstrom * box_aspect_ratio[2]
+            initial_box_length_angstrom * box_aspect_ratio[2],
         ] * unit.angstrom
 
         box_size /= aspect_ratio_normalizer
@@ -190,28 +204,32 @@ def pack_box(molecules,
 
     packmol_input = _HEADER_TEMPLATE.format(tolerance, output_file_name)
 
-    for (pdb_file_name, molecule, count) in zip(pdb_file_names,
-                                                molecules,
-                                                number_of_copies):
+    for (pdb_file_name, molecule, count) in zip(
+        pdb_file_names, molecules, number_of_copies
+    ):
 
-        packmol_input += _BOX_TEMPLATE.format(pdb_file_name,
-                                              count,
-                                              unitless_box_angstrom[0],
-                                              unitless_box_angstrom[1],
-                                              unitless_box_angstrom[2])
+        packmol_input += _BOX_TEMPLATE.format(
+            pdb_file_name,
+            count,
+            unitless_box_angstrom[0],
+            unitless_box_angstrom[1],
+            unitless_box_angstrom[2],
+        )
 
     if structure_to_solvate_file_name is not None:
 
-        packmol_input += _SOLVATE_TEMPLATE.format(structure_to_solvate_file_name,
-                                                  unitless_box_angstrom[0] / 2.0,
-                                                  unitless_box_angstrom[1] / 2.0,
-                                                  unitless_box_angstrom[2] / 2.0)
+        packmol_input += _SOLVATE_TEMPLATE.format(
+            structure_to_solvate_file_name,
+            unitless_box_angstrom[0] / 2.0,
+            unitless_box_angstrom[1] / 2.0,
+            unitless_box_angstrom[2] / 2.0,
+        )
 
     # Write packmol input
     packmol_file_name = "packmol_input.txt"
     packmol_file_path = os.path.join(working_directory, packmol_file_name)
 
-    with open(packmol_file_path, 'w') as file_handle:
+    with open(packmol_file_path, "w") as file_handle:
         file_handle.write(packmol_input)
 
     packmol_succeeded = False
@@ -220,14 +238,14 @@ def pack_box(molecules,
 
         with open(packmol_file_name) as file_handle:
 
-            result = subprocess.check_output(PACKMOL_PATH,
-                                             stdin=file_handle,
-                                             stderr=subprocess.STDOUT).decode("utf-8")
+            result = subprocess.check_output(
+                PACKMOL_PATH, stdin=file_handle, stderr=subprocess.STDOUT
+            ).decode("utf-8")
 
             if verbose:
                 logging.info(result)
 
-            packmol_succeeded = result.find('Success!') > 0
+            packmol_succeeded = result.find("Success!") > 0
 
     if not retain_working_files:
 
@@ -251,10 +269,9 @@ def pack_box(molecules,
 
     # Append missing connect statements to the end of the
     # output file.
-    positions, topology = _correct_packmol_output(output_file_path,
-                                                  mdtraj_topologies,
-                                                  number_of_copies,
-                                                  structure_to_solvate)
+    positions, topology = _correct_packmol_output(
+        output_file_path, mdtraj_topologies, number_of_copies, structure_to_solvate
+    )
 
     if not retain_working_files:
 
@@ -265,22 +282,31 @@ def pack_box(molecules,
 
     # Add a 2 angstrom buffer to help alleviate PBC issues.
     box_vectors = [
-        openmm.Vec3((box_size[0] + 2.0 * unit.angstrom).to(unit.nanometers).magnitude, 0, 0),
-        openmm.Vec3(0, (box_size[1] + 2.0 * unit.angstrom).to(unit.nanometers).magnitude, 0),
-        openmm.Vec3(0, 0, (box_size[2] + 2.0 * unit.angstrom).to(unit.nanometers).magnitude)
+        openmm.Vec3(
+            (box_size[0] + 2.0 * unit.angstrom).to(unit.nanometers).magnitude, 0, 0
+        ),
+        openmm.Vec3(
+            0, (box_size[1] + 2.0 * unit.angstrom).to(unit.nanometers).magnitude, 0
+        ),
+        openmm.Vec3(
+            0, 0, (box_size[2] + 2.0 * unit.angstrom).to(unit.nanometers).magnitude
+        ),
     ]
 
     # Set the periodic box vectors.
     from simtk import unit as simtk_unit
+
     topology.setPeriodicBoxVectors(box_vectors * simtk_unit.nanometers)
 
     return topology, positions
 
 
-def _approximate_volume_by_density(molecules,
-                                   n_copies,
-                                   mass_density=1.0*unit.grams/unit.milliliters,
-                                   box_scaleup_factor=1.1):
+def _approximate_volume_by_density(
+    molecules,
+    n_copies,
+    mass_density=1.0 * unit.grams / unit.milliliters,
+    box_scaleup_factor=1.1,
+):
     """Generate an approximate box size based on the number and molecular weight of molecules present, and a target
     density for the final solvated mixture. If no density is specified, the target density is assumed to be 1 g/ml.
 
@@ -311,23 +337,28 @@ def _approximate_volume_by_density(molecules,
     from openeye import oechem
 
     # Load molecules to get molecular weights
-    volume = 0.0 * unit.angstrom**3
+    volume = 0.0 * unit.angstrom ** 3
 
     for (molecule, number) in zip(molecules, n_copies):
 
-        molecule_mass = oechem.OECalculateMolecularWeight(molecule) * \
-                        unit.grams / unit.mole / unit.avogadro_number
+        molecule_mass = (
+            oechem.OECalculateMolecularWeight(molecule)
+            * unit.grams
+            / unit.mole
+            / unit.avogadro_number
+        )
 
         molecule_volume = molecule_mass / mass_density
 
         volume += molecule_volume * number
 
-    box_edge = volume**(1.0/3.0) * box_scaleup_factor
+    box_edge = volume ** (1.0 / 3.0) * box_scaleup_factor
     return box_edge
 
 
-def _correct_packmol_output(file_path, molecule_topologies,
-                            number_of_copies, structure_to_solvate):
+def _correct_packmol_output(
+    file_path, molecule_topologies, number_of_copies, structure_to_solvate
+):
     """Corrects the PDB file output by packmol (i.e adds full connectivity
     information, and extracts the topology and positions.
 
@@ -361,7 +392,10 @@ def _correct_packmol_output(file_path, molecule_topologies,
     atoms_data_frame, _ = trajectory.topology.to_dataframe()
 
     all_bonds = []
-    all_positions = trajectory.openmm_positions(0).value_in_unit(simtk_unit.angstrom) * unit.angstrom
+    all_positions = (
+        trajectory.openmm_positions(0).value_in_unit(simtk_unit.angstrom)
+        * unit.angstrom
+    )
 
     all_topologies = []
     all_copies = []
@@ -386,8 +420,9 @@ def _correct_packmol_output(file_path, molecule_topologies,
 
             for bond in molecule_bonds:
 
-                all_bonds.append([int(bond[0].item()) + offset,
-                                  int(bond[1].item()) + offset])
+                all_bonds.append(
+                    [int(bond[0].item()) + offset, int(bond[1].item()) + offset]
+                )
 
             offset += molecule_topology.n_atoms
 
@@ -411,8 +446,9 @@ def _correct_packmol_output(file_path, molecule_topologies,
 
         for existing_bond in existing_bonds:
 
-            if ((existing_bond.atom1 == atom_a and existing_bond.atom2 == atom_b) or
-                (existing_bond.atom2 == atom_a and existing_bond.atom1 == atom_b)):
+            if (existing_bond.atom1 == atom_a and existing_bond.atom2 == atom_b) or (
+                existing_bond.atom2 == atom_a and existing_bond.atom1 == atom_b
+            ):
 
                 bond_exists = True
                 break
@@ -449,7 +485,7 @@ def _create_pdb_and_topology(molecule, file_path):
     # amino acid residue name even if that molecule is not
     # an amino acid, e.g. C(CO)N is not Gly), save the
     # altered object as a pdb.
-    with tempfile.NamedTemporaryFile(suffix='.mol2') as mol2_file:
+    with tempfile.NamedTemporaryFile(suffix=".mol2") as mol2_file:
 
         mol2_flavor = oechem.OEOFlavor_MOL2_DEFAULT
 
@@ -470,22 +506,22 @@ def _create_pdb_and_topology(molecule, file_path):
 
             residue_map[residue.name] = None
 
-            if smiles == 'O':
-                residue_map[residue.name] = 'HOH'
+            if smiles == "O":
+                residue_map[residue.name] = "HOH"
 
-            elif smiles == '[Cl-]':
+            elif smiles == "[Cl-]":
 
-                residue_map[residue.name] = 'Cl-'
-
-                for atom in residue.atoms:
-                    atom.name = 'Cl-'
-
-            elif smiles == '[Na+]':
-
-                residue_map[residue.name] = 'Na+'
+                residue_map[residue.name] = "Cl-"
 
                 for atom in residue.atoms:
-                    atom.name = 'Na+'
+                    atom.name = "Cl-"
+
+            elif smiles == "[Na+]":
+
+                residue_map[residue.name] = "Na+"
+
+                for atom in residue.atoms:
+                    atom.name = "Na+"
 
         for original_residue_name in residue_map:
 
@@ -495,17 +531,37 @@ def _create_pdb_and_topology(molecule, file_path):
             # Make sure the residue is not already reserved, as this can occasionally
             # result in bonds being automatically added in the wrong places when
             # loading the pdb file either through mdtraj or openmm
-            forbidden_residue_names = [*residue_names._AMINO_ACID_CODES,
-                                       *residue_names._SOLVENT_TYPES,
-                                       *residue_names._WATER_RESIDUES,
-                                       'ADE', 'CYT', 'CYX', 'DAD', 'DGU', 'FOR', 'GUA', 'HID',
-                                       'HIE', 'HIH', 'HSD', 'HSH', 'HSP', 'NMA', 'THY', 'URA']
+            forbidden_residue_names = [
+                *residue_names._AMINO_ACID_CODES,
+                *residue_names._SOLVENT_TYPES,
+                *residue_names._WATER_RESIDUES,
+                "ADE",
+                "CYT",
+                "CYX",
+                "DAD",
+                "DGU",
+                "FOR",
+                "GUA",
+                "HID",
+                "HIE",
+                "HIH",
+                "HSD",
+                "HSH",
+                "HSP",
+                "NMA",
+                "THY",
+                "URA",
+            ]
 
-            new_residue_name = ''.join([random.choice(string.ascii_uppercase) for _ in range(3)])
+            new_residue_name = "".join(
+                [random.choice(string.ascii_uppercase) for _ in range(3)]
+            )
 
             while new_residue_name in forbidden_residue_names:
                 # Re-choose the residue name until we find a safe one.
-                new_residue_name = ''.join([random.choice(string.ascii_uppercase) for _ in range(3)])
+                new_residue_name = "".join(
+                    [random.choice(string.ascii_uppercase) for _ in range(3)]
+                )
 
             residue_map[original_residue_name] = new_residue_name
 

@@ -23,7 +23,7 @@ class ReplicatorValue(PlaceholderInput):
     with the specified id.
     """
 
-    def __init__(self, replicator_id=''):
+    def __init__(self, replicator_id=""):
         """Constructs a new ReplicatorValue object
 
         Parameters
@@ -34,20 +34,20 @@ class ReplicatorValue(PlaceholderInput):
         self.replicator_id = replicator_id
 
     def __getstate__(self):
-        return {
-            'replicator_id': self.replicator_id
-        }
+        return {"replicator_id": self.replicator_id}
 
     def __setstate__(self, state):
-        self.replicator_id = state['replicator_id']
+        self.replicator_id = state["replicator_id"]
 
 
 class ProtocolPath(PlaceholderInput):
     """Represents a pointer to the output of another protocol.
     """
 
-    path_separator = '/'  # The character which separates protocol ids.
-    property_separator = '.'  # The character which separates the property name from the path.
+    path_separator = "/"  # The character which separates protocol ids.
+    property_separator = (
+        "."  # The character which separates the property name from the path.
+    )
 
     @property
     def property_name(self):
@@ -81,9 +81,9 @@ class ProtocolPath(PlaceholderInput):
 
     @property
     def is_global(self):
-        return self.start_protocol == 'global'
+        return self.start_protocol == "global"
 
-    def __init__(self, property_name='', *protocol_ids):
+    def __init__(self, property_name="", *protocol_ids):
         """Constructs a new ProtocolPath object.
 
         Parameters
@@ -94,13 +94,13 @@ class ProtocolPath(PlaceholderInput):
             An args list of protocol ids in the order in which they will appear in the path.
         """
 
-        self._full_path = ''
+        self._full_path = ""
 
         if len(property_name) > 0 or len(protocol_ids) > 0:
             self._from_components(property_name, *protocol_ids)
 
         else:
-            self._full_path = '{}'.format(ProtocolPath.property_separator)
+            self._full_path = "{}".format(ProtocolPath.property_separator)
 
     def _from_components(self, property_name, *protocol_ids):
         """Sets this components path from individual components.
@@ -121,17 +121,19 @@ class ProtocolPath(PlaceholderInput):
 
             assert protocol_id is not None and isinstance(protocol_id, str)
 
-            assert protocol_id.find(ProtocolPath.property_separator) < 0 and \
-                   protocol_id.find(ProtocolPath.path_separator) < 0
+            assert (
+                protocol_id.find(ProtocolPath.property_separator) < 0
+                and protocol_id.find(ProtocolPath.path_separator) < 0
+            )
 
         protocol_path = ProtocolPath.path_separator.join(protocol_ids)
 
         if len(protocol_ids) == 0:
-            protocol_path = ''
+            protocol_path = ""
 
-        self._full_path = '{}{}{}'.format(protocol_path,
-                                          ProtocolPath.property_separator,
-                                          property_name)
+        self._full_path = "{}{}{}".format(
+            protocol_path, ProtocolPath.property_separator, property_name
+        )
 
     @classmethod
     def from_string(cls, existing_path_string: str):
@@ -141,8 +143,12 @@ class ProtocolPath(PlaceholderInput):
 
         if property_name_index < 0:
 
-            raise ValueError('A protocol path must contain a {} followed by the '
-                             'property name this path represents'.format(ProtocolPath.property_separator))
+            raise ValueError(
+                "A protocol path must contain a {} followed by the "
+                "property name this path represents".format(
+                    ProtocolPath.property_separator
+                )
+            )
 
         property_name, protocol_ids = ProtocolPath.to_components(existing_path_string)
 
@@ -151,7 +157,7 @@ class ProtocolPath(PlaceholderInput):
             if protocol_id is not None and len(protocol_id) > 0:
                 continue
 
-            raise ValueError('An invalid protocol id (either None or empty) was found.')
+            raise ValueError("An invalid protocol id (either None or empty) was found.")
 
         return ProtocolPath(property_name, *protocol_ids)
 
@@ -171,7 +177,7 @@ class ProtocolPath(PlaceholderInput):
             A tuple of the property name, and a list of the protocol ids in the path.
         """
         property_name_index = path_string.find(ProtocolPath.property_separator)
-        property_name = path_string[property_name_index + 1:]
+        property_name = path_string[property_name_index + 1 :]
 
         protocol_id_path = path_string[:property_name_index]
         protocol_ids = protocol_id_path.split(ProtocolPath.path_separator)
@@ -191,7 +197,9 @@ class ProtocolPath(PlaceholderInput):
         """
         property_name, protocol_ids = ProtocolPath.to_components(self._full_path)
 
-        if len(protocol_ids) == 0 or (len(protocol_ids) > 0 and protocol_ids[0] != id_to_prepend):
+        if len(protocol_ids) == 0 or (
+            len(protocol_ids) > 0 and protocol_ids[0] != id_to_prepend
+        ):
             protocol_ids.insert(0, id_to_prepend)
 
         self._from_components(property_name, *protocol_ids)
@@ -266,7 +274,7 @@ class ProtocolPath(PlaceholderInput):
             return ProtocolPath.from_string(v)
         elif isinstance(v, dict):
 
-            path_object = ProtocolPath('', *[])
+            path_object = ProtocolPath("", *[])
             path_object.__setstate__(v)
 
             v = path_object
@@ -277,7 +285,7 @@ class ProtocolPath(PlaceholderInput):
         return self._full_path
 
     def __repr__(self):
-        return '<ProtocolPath full_path={}>'.format(self._full_path)
+        return "<ProtocolPath full_path={}>".format(self._full_path)
 
     def __hash__(self):
         """Returns the hash key of this ProtocolPath."""
@@ -292,7 +300,7 @@ class ProtocolPath(PlaceholderInput):
         return not (self == other)
 
     def __getstate__(self):
-        return {'full_path': self._full_path}
+        return {"full_path": self._full_path}
 
     def __setstate__(self, state):
-        self._full_path = state['full_path']
+        self._full_path = state["full_path"]

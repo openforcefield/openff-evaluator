@@ -5,13 +5,12 @@ the protocols input and outputs align correctly.
 """
 import typing
 
-
 _built_in_types_to_use = {
     list: typing.List,
     tuple: typing.Tuple,
     set: typing.Set,
     frozenset: typing.FrozenSet,
-    dict: typing.Dict
+    dict: typing.Dict,
 }
 
 
@@ -31,7 +30,7 @@ def _is_typing_object(type_object):
     bool
         True if `type_object` is a member of `typing`.
     """
-    return type_object.__module__ == 'typing'
+    return type_object.__module__ == "typing"
 
 
 def _is_supported_generic(type_object):
@@ -48,8 +47,10 @@ def _is_supported_generic(type_object):
     bool
         True if `type_object` is a member of `typing`.
     """
-    return (_is_typing_object(type_object) and
-            type_object.__origin__ in _supported_generic_types)
+    return (
+        _is_typing_object(type_object)
+        and type_object.__origin__ in _supported_generic_types
+    )
 
 
 def _is_union_type(type_object):
@@ -82,8 +83,9 @@ def is_supported_type(type_object):
     bool
         True if the type can be compared using the utilities in this.
     """
-    return (not _is_typing_object(type_object) or
-            (_is_typing_object(type_object) and _is_supported_generic(type_object)))
+    return not _is_typing_object(type_object) or (
+        _is_typing_object(type_object) and _is_supported_generic(type_object)
+    )
 
 
 def is_type_subclass_of_type(type_a, type_b):
@@ -105,13 +107,17 @@ def is_type_subclass_of_type(type_a, type_b):
     # Make sure these are types we support.
     if _is_typing_object(type_a) and not _is_supported_generic(type_a):
 
-        raise ValueError(f'Only the {" ".join(map(str, _supported_generic_types))} '
-                         f'typing module types are supported, and not {type_a}.')
+        raise ValueError(
+            f'Only the {" ".join(map(str, _supported_generic_types))} '
+            f"typing module types are supported, and not {type_a}."
+        )
 
     if _is_typing_object(type_b) and not _is_supported_generic(type_b):
 
-        raise ValueError(f'Only the {" ".join(map(str, _supported_generic_types))} '
-                         f'typing module types are supported, and not {type_b}.')
+        raise ValueError(
+            f'Only the {" ".join(map(str, _supported_generic_types))} '
+            f"typing module types are supported, and not {type_b}."
+        )
 
     if _is_union_type(type_a):
 

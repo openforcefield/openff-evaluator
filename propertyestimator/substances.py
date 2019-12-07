@@ -51,13 +51,14 @@ class Substance(TypedBaseModel):
         the correct species in a system, such as when doing docking or performing
         solvation free energy calculations.
         """
-        Solvent = 'Solvent'
-        Solute = 'Solute'
 
-        Ligand = 'Ligand'
-        Receptor = 'Receptor'
+        Solvent = "Solvent"
+        Solute = "Solute"
 
-        Undefined = 'Undefined'
+        Ligand = "Ligand"
+        Receptor = "Receptor"
+
+        Undefined = "Undefined"
 
     class Component(TypedBaseModel):
         """Defines a single component in a system, as well as properties
@@ -110,9 +111,11 @@ class Substance(TypedBaseModel):
             if label == smiles:
                 label = None
 
-            assert ((label is None and smiles is not None) or
-                    (label is not None and smiles is None) or
-                    (label is None and smiles is None))
+            assert (
+                (label is None and smiles is not None)
+                or (label is not None and smiles is None)
+                or (label is None and smiles is None)
+            )
 
             label = label if label is not None else smiles
 
@@ -122,18 +125,13 @@ class Substance(TypedBaseModel):
             self._role = role or Substance.ComponentRole.Solvent
 
         def __getstate__(self):
-            return {
-                'label': self.label,
-                'smiles': self.smiles,
-
-                'role': self.role
-            }
+            return {"label": self.label, "smiles": self.smiles, "role": self.role}
 
         def __setstate__(self, state):
-            self._label = state['label']
-            self._smiles = state['smiles']
+            self._label = state["label"]
+            self._smiles = state["smiles"]
 
-            self._role = state['role']
+            self._role = state["role"]
 
         def __str__(self):
             return self.identifier
@@ -190,10 +188,10 @@ class Substance(TypedBaseModel):
             raise NotImplementedError()
 
         def __getstate__(self):
-            return {'value': self._value}
+            return {"value": self._value}
 
         def __setstate__(self, state):
-            self._value = state['value']
+            self._value = state["value"]
 
         def __str__(self):
             return self.identifier
@@ -218,7 +216,7 @@ class Substance(TypedBaseModel):
 
         @property
         def identifier(self):
-            return f'{{{self._value:.6f}}}'
+            return f"{{{self._value:.6f}}}"
 
         def __init__(self, value=1.0):
             """Constructs a new MoleFraction object.
@@ -231,13 +229,17 @@ class Substance(TypedBaseModel):
 
             if value <= 0.0 or value > 1.0:
 
-                raise ValueError('A mole fraction must be greater than zero, and less than or '
-                                 'equal to one.')
+                raise ValueError(
+                    "A mole fraction must be greater than zero, and less than or "
+                    "equal to one."
+                )
 
             if math.floor(value * 1e6) < 1:
 
-                raise ValueError('Mole fractions are only precise to the sixth '
-                                 'decimal place within this class representation.')
+                raise ValueError(
+                    "Mole fractions are only precise to the sixth "
+                    "decimal place within this class representation."
+                )
 
             super().__init__(value)
 
@@ -253,18 +255,22 @@ class Substance(TypedBaseModel):
                 number_of_molecules = int(round(number_of_molecules))
 
             if number_of_molecules == 0:
-                raise ValueError('The total number of substance molecules was not large enough, '
-                                 'such that this non-zero amount translates into zero molecules '
-                                 'of this component in the substance.')
+                raise ValueError(
+                    "The total number of substance molecules was not large enough, "
+                    "such that this non-zero amount translates into zero molecules "
+                    "of this component in the substance."
+                )
 
             if tolerance is not None:
 
                 mole_fraction = number_of_molecules / total_substance_molecules
 
                 if abs(mole_fraction - self._value) > tolerance:
-                    raise ValueError(f'The mole fraction ({mole_fraction}) given a total number of molecules '
-                                     f'({total_substance_molecules}) is outside of the tolerance {tolerance} '
-                                     f'of the target mole fraction {self._value}')
+                    raise ValueError(
+                        f"The mole fraction ({mole_fraction}) given a total number of molecules "
+                        f"({total_substance_molecules}) is outside of the tolerance {tolerance} "
+                        f"of the target mole fraction {self._value}"
+                    )
 
             return number_of_molecules
 
@@ -283,7 +289,7 @@ class Substance(TypedBaseModel):
 
         @property
         def identifier(self):
-            return f'({int(round(self._value)):d})'
+            return f"({int(round(self._value)):d})"
 
         def __init__(self, value=1):
             """Constructs a new ExactAmount object.
@@ -295,7 +301,7 @@ class Substance(TypedBaseModel):
             """
 
             if not np.isclose(int(round(value)), value):
-                raise ValueError('The value must be an integer.')
+                raise ValueError("The value must be an integer.")
 
             super().__init__(value)
 
@@ -310,20 +316,26 @@ class Substance(TypedBaseModel):
         component_identifiers = [component.identifier for component in self._components]
         component_identifiers.sort()
 
-        sorted_component_identifiers = [component.identifier for component in self._components]
+        sorted_component_identifiers = [
+            component.identifier for component in self._components
+        ]
         sorted_component_identifiers.sort()
 
         identifier_split = []
 
         for component_identifier in sorted_component_identifiers:
 
-            component_amounts = sorted(self._amounts[component_identifier], key=lambda x: type(x).__name__)
-            amount_identifier = ''.join([component_amount.identifier for component_amount in component_amounts])
+            component_amounts = sorted(
+                self._amounts[component_identifier], key=lambda x: type(x).__name__
+            )
+            amount_identifier = "".join(
+                [component_amount.identifier for component_amount in component_amounts]
+            )
 
-            identifier = f'{component_identifier}{amount_identifier}'
+            identifier = f"{component_identifier}{amount_identifier}"
             identifier_split.append(identifier)
 
-        return '|'.join(identifier_split)
+        return "|".join(identifier_split)
 
     @property
     def components(self):
@@ -361,7 +373,7 @@ class Substance(TypedBaseModel):
         """
 
         if len(components) == 0:
-            raise ValueError('At least one component must be specified')
+            raise ValueError("At least one component must be specified")
 
         mole_fraction = 1.0 / len(components)
 
@@ -372,7 +384,9 @@ class Substance(TypedBaseModel):
             if isinstance(component, str):
                 component = Substance.Component(smiles=component)
 
-            return_substance.add_component(component, Substance.MoleFraction(mole_fraction))
+            return_substance.add_component(
+                component, Substance.MoleFraction(mole_fraction)
+            )
 
         return return_substance
 
@@ -398,21 +412,32 @@ class Substance(TypedBaseModel):
 
             for component_identifier in self._amounts:
 
-                total_mole_fraction += sum([amount.value for amount in self._amounts[component_identifier] if
-                                            isinstance(amount, Substance.MoleFraction)])
+                total_mole_fraction += sum(
+                    [
+                        amount.value
+                        for amount in self._amounts[component_identifier]
+                        if isinstance(amount, Substance.MoleFraction)
+                    ]
+                )
 
             if np.isclose(total_mole_fraction, 1.0):
                 total_mole_fraction = 1.0
 
             if total_mole_fraction > 1.0:
-                raise ValueError(f'The total mole fraction of this substance {total_mole_fraction} exceeds 1.0')
+                raise ValueError(
+                    f"The total mole fraction of this substance {total_mole_fraction} exceeds 1.0"
+                )
 
         if component.identifier not in self._amounts:
             self._components.append(component)
 
         existing_amount_of_type = None
 
-        all_amounts = [] if component.identifier not in self._amounts else self._amounts[component.identifier]
+        all_amounts = (
+            []
+            if component.identifier not in self._amounts
+            else self._amounts[component.identifier]
+        )
         remaining_amounts = []
 
         # Check to see if an amount of the same type already exists in
@@ -490,8 +515,10 @@ class Substance(TypedBaseModel):
 
         if remaining_molecule_slots < 0:
 
-            raise ValueError(f'The required number of molecules {maximum_molecules - remaining_molecule_slots} '
-                             f'exceeds the provided maximum number ({maximum_molecules}).')
+            raise ValueError(
+                f"The required number of molecules {maximum_molecules - remaining_molecule_slots} "
+                f"exceeds the provided maximum number ({maximum_molecules})."
+            )
 
         for component in self._components:
 
@@ -499,8 +526,9 @@ class Substance(TypedBaseModel):
 
             for amount in self._amounts[component.identifier]:
 
-                number_of_molecules[component.identifier] += amount.to_number_of_molecules(remaining_molecule_slots,
-                                                                                           tolerance)
+                number_of_molecules[
+                    component.identifier
+                ] += amount.to_number_of_molecules(remaining_molecule_slots, tolerance)
 
         return number_of_molecules
 
@@ -522,30 +550,33 @@ class Substance(TypedBaseModel):
 
         # Taken from YANK:
         # https://github.com/choderalab/yank/blob/4dfcc8e127c51c20180fe6caeb49fcb1f21730c6/Yank/pipeline.py#L1869
-        water_molarity = (998.23 * unit.gram / unit.litre) / (18.01528 * unit.gram / unit.mole)
+        water_molarity = (998.23 * unit.gram / unit.litre) / (
+            18.01528 * unit.gram / unit.mole
+        )
 
         ionic_mole_fraction = ionic_strength / (ionic_strength + water_molarity)
         return ionic_mole_fraction
 
     def __getstate__(self):
-        return {
-            'components': self._components,
-            'amounts': self._amounts
-        }
+        return {"components": self._components, "amounts": self._amounts}
 
     def __setstate__(self, state):
-        self._components = state['components']
-        self._amounts = state['amounts']
+        self._components = state["components"]
+        self._amounts = state["amounts"]
 
     def __str__(self):
         return self.identifier
 
     def __hash__(self):
 
-        sorted_component_identifiers = [component.identifier for component in self._components]
+        sorted_component_identifiers = [
+            component.identifier for component in self._components
+        ]
         sorted_component_identifiers.sort()
 
-        component_by_id = {component.identifier: component for component in self._components}
+        component_by_id = {
+            component.identifier: component for component in self._components
+        }
 
         string_hash_split = []
 
@@ -553,12 +584,18 @@ class Substance(TypedBaseModel):
 
             component_role = component_by_id[identifier].role
 
-            component_amounts = sorted(self._amounts[identifier], key=lambda x: type(x).__name__)
-            amount_identifier = ''.join([component_amount.identifier for component_amount in component_amounts])
+            component_amounts = sorted(
+                self._amounts[identifier], key=lambda x: type(x).__name__
+            )
+            amount_identifier = "".join(
+                [component_amount.identifier for component_amount in component_amounts]
+            )
 
-            string_hash_split.append(f'{identifier}_{component_role}_{amount_identifier}')
+            string_hash_split.append(
+                f"{identifier}_{component_role}_{amount_identifier}"
+            )
 
-        string_hash = '|'.join(string_hash_split)
+        string_hash = "|".join(string_hash_split)
 
         return hash(string_hash)
 

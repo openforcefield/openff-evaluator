@@ -3,12 +3,13 @@ A local file based storage backend.
 """
 import json
 import shutil
-from os import path, makedirs
+from os import makedirs, path
 
 from propertyestimator.storage import StoredSimulationData
 from propertyestimator.storage.dataclasses import BaseStoredData
 from propertyestimator.substances import Substance
-from propertyestimator.utils.serialization import TypedJSONEncoder, TypedJSONDecoder
+from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
+
 from .storage import PropertyEstimatorStorage
 
 
@@ -22,7 +23,7 @@ class LocalFileStorage(PropertyEstimatorStorage):
         """str: Returns the directory in which all stored objects are located."""
         return self.root_directory
 
-    def __init__(self, root_directory='stored_data'):
+    def __init__(self, root_directory="stored_data"):
 
         self._root_directory = root_directory
 
@@ -40,7 +41,7 @@ class LocalFileStorage(PropertyEstimatorStorage):
         if not isinstance(object_to_store, str):
             object_to_store = json.dumps(object_to_store, cls=TypedJSONEncoder)
 
-        with open(file_path, 'w') as file:
+        with open(file_path, "w") as file:
             file.write(object_to_store)
 
         super(LocalFileStorage, self)._store_object(storage_key, object_to_store)
@@ -52,7 +53,7 @@ class LocalFileStorage(PropertyEstimatorStorage):
 
         file_path = path.join(self._root_directory, storage_key)
 
-        with open(file_path, 'r') as file:
+        with open(file_path, "r") as file:
             loaded_object_string = file.read()
 
         try:
@@ -73,10 +74,11 @@ class LocalFileStorage(PropertyEstimatorStorage):
 
     def store_simulation_data(self, data_object, data_directory):
 
-        unique_id = super(LocalFileStorage, self).store_simulation_data(data_object,
-                                                                        data_directory)
+        unique_id = super(LocalFileStorage, self).store_simulation_data(
+            data_object, data_directory
+        )
 
-        storage_directory_path = path.join(self._root_directory, f'{unique_id}_data')
+        storage_directory_path = path.join(self._root_directory, f"{unique_id}_data")
 
         if path.isdir(storage_directory_path):
             shutil.rmtree(storage_directory_path, ignore_errors=True)
@@ -106,11 +108,12 @@ class LocalFileStorage(PropertyEstimatorStorage):
         if not isinstance(stored_object, BaseStoredData):
             return None, None
 
-        data_directory = path.join(self._root_directory, f'{unique_id}_data')
+        data_directory = path.join(self._root_directory, f"{unique_id}_data")
         return stored_object, data_directory
 
-    def retrieve_simulation_data(self, substance, include_component_data=True,
-                                 data_class=StoredSimulationData):
+    def retrieve_simulation_data(
+        self, substance, include_component_data=True, data_class=StoredSimulationData
+    ):
 
         substance_ids = {substance.identifier}
 
@@ -136,7 +139,9 @@ class LocalFileStorage(PropertyEstimatorStorage):
 
             for data_key in self._simulation_data_by_substance[substance_id]:
 
-                data_object, data_directory = self.retrieve_simulation_data_by_id(data_key)
+                data_object, data_directory = self.retrieve_simulation_data_by_id(
+                    data_key
+                )
 
                 if data_object is None:
                     continue

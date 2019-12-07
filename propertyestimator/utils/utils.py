@@ -41,8 +41,13 @@ def find_types_with_decorator(class_type, decorator_type):
 
     for base in all_bases:
 
-        inputs.extend([attribute_name for attribute_name in base.__dict__ if
-                       isinstance(base.__dict__[attribute_name], decorator_type)])
+        inputs.extend(
+            [
+                attribute_name
+                for attribute_name in base.__dict__
+                if isinstance(base.__dict__[attribute_name], decorator_type)
+            ]
+        )
 
     return inputs
 
@@ -61,10 +66,14 @@ def get_data_filename(relative_path):
     """
 
     from pkg_resources import resource_filename
-    fn = resource_filename('propertyestimator', os.path.join('data', relative_path))
+
+    fn = resource_filename("propertyestimator", os.path.join("data", relative_path))
 
     if not os.path.exists(fn):
-        raise ValueError("Sorry! %s does not exist. If you just added it, you'll have to re-install" % fn)
+        raise ValueError(
+            "Sorry! %s does not exist. If you just added it, you'll have to re-install"
+            % fn
+        )
 
     return fn
 
@@ -104,7 +113,7 @@ def create_molecule_from_smiles(smiles, number_of_conformers=1):
 
     if not oechem.OEParseSmiles(molecule, smiles, parse_smiles_options):
 
-        logging.warning('Could not parse SMILES: ' + smiles)
+        logging.warning("Could not parse SMILES: " + smiles)
         return None
 
     # Normalize molecule
@@ -127,7 +136,7 @@ def create_molecule_from_smiles(smiles, number_of_conformers=1):
 
         if not status:
 
-            logging.warning('Could not generate a conformer for ' + smiles)
+            logging.warning("Could not generate a conformer for " + smiles)
             return None
 
     _cached_molecules[(number_of_conformers, smiles)] = molecule
@@ -144,8 +153,9 @@ def setup_timestamp_logging(file_path=None):
         The file to write the log to. If none, the logger will
         print to the terminal.
     """
-    formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s',
-                                  datefmt='%H:%M:%S')
+    formatter = logging.Formatter(
+        fmt="%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s", datefmt="%H:%M:%S"
+    )
 
     if file_path is None:
         logger_handler = logging.StreamHandler(stream=sys.stdout)
@@ -193,7 +203,7 @@ def get_nested_attribute(containing_object, name):
     Any
         The value of the attribute.
     """
-    attribute_name_split = name.split('.')
+    attribute_name_split = name.split(".")
 
     current_attribute = containing_object
 
@@ -202,8 +212,10 @@ def get_nested_attribute(containing_object, name):
         array_index = None
         attribute_name = full_attribute_name
 
-        if attribute_name.find('[') >= 0 or attribute_name.find(']') >= 0:
-            attribute_name, array_index = extract_variable_index_and_name(attribute_name)
+        if attribute_name.find("[") >= 0 or attribute_name.find("]") >= 0:
+            attribute_name, array_index = extract_variable_index_and_name(
+                attribute_name
+            )
 
         if current_attribute is None:
             return None
@@ -212,8 +224,10 @@ def get_nested_attribute(containing_object, name):
 
             if not hasattr(current_attribute, attribute_name):
 
-                raise ValueError('This object does not have a {} '
-                                 'attribute.'.format('.'.join(attribute_name_split[:index + 1])))
+                raise ValueError(
+                    "This object does not have a {} "
+                    "attribute.".format(".".join(attribute_name_split[: index + 1]))
+                )
 
             else:
 
@@ -223,8 +237,10 @@ def get_nested_attribute(containing_object, name):
 
             if attribute_name not in current_attribute:
 
-                raise ValueError('This object does not have a {} '
-                                 'attribute.'.format('.'.join(attribute_name_split[:index + 1])))
+                raise ValueError(
+                    "This object does not have a {} "
+                    "attribute.".format(".".join(attribute_name_split[: index + 1]))
+                )
 
             else:
                 current_attribute = current_attribute[attribute_name]
@@ -237,8 +253,10 @@ def get_nested_attribute(containing_object, name):
                     array_index = int(array_index)
                 except ValueError:
 
-                    raise ValueError('List indices must be integer: '
-                                     '{}'.format('.'.join(attribute_name_split[:index + 1])))
+                    raise ValueError(
+                        "List indices must be integer: "
+                        "{}".format(".".join(attribute_name_split[: index + 1]))
+                    )
 
             array_value = current_attribute[array_index]
             current_attribute = array_value
@@ -266,21 +284,24 @@ def set_nested_attribute(containing_object, name, value):
     current_attribute = containing_object
     attribute_name = name
 
-    if attribute_name.find('.') > 1:
+    if attribute_name.find(".") > 1:
 
-        last_separator_index = attribute_name.rfind('.')
+        last_separator_index = attribute_name.rfind(".")
 
-        current_attribute = get_nested_attribute(current_attribute, attribute_name[:last_separator_index])
-        attribute_name = attribute_name[last_separator_index + 1:]
+        current_attribute = get_nested_attribute(
+            current_attribute, attribute_name[:last_separator_index]
+        )
+        attribute_name = attribute_name[last_separator_index + 1 :]
 
-    if attribute_name.find('[') >= 0:
+    if attribute_name.find("[") >= 0:
 
         attribute_name, array_index = extract_variable_index_and_name(attribute_name)
 
         if not hasattr(current_attribute, attribute_name):
 
-            raise ValueError('This object does not have a {} '
-                             'attribute.'.format(attribute_name))
+            raise ValueError(
+                "This object does not have a {} " "attribute.".format(attribute_name)
+            )
 
         current_attribute = getattr(current_attribute, attribute_name)
 
@@ -289,8 +310,9 @@ def set_nested_attribute(containing_object, name, value):
             try:
                 array_index = int(array_index)
             except ValueError:
-                raise ValueError('List indices must be integer: '
-                                 '{}'.format(attribute_name))
+                raise ValueError(
+                    "List indices must be integer: " "{}".format(attribute_name)
+                )
 
         current_attribute[array_index] = value
 
@@ -298,8 +320,9 @@ def set_nested_attribute(containing_object, name, value):
 
         if not hasattr(current_attribute, attribute_name):
 
-            raise ValueError('This object does not have a {} '
-                             'attribute.'.format(attribute_name))
+            raise ValueError(
+                "This object does not have a {} " "attribute.".format(attribute_name)
+            )
 
         setattr(current_attribute, attribute_name, value)
 

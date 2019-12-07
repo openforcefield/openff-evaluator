@@ -12,9 +12,10 @@ import dask
 from dask import distributed
 from dask_jobqueue import LSFCluster, PBSCluster
 from distributed import get_worker
+
 from propertyestimator import unit
 
-from .backends import PropertyEstimatorBackend, ComputeResources, QueueWorkerResources
+from .backends import ComputeResources, PropertyEstimatorBackend, QueueWorkerResources
 
 
 class _Multiprocessor:
@@ -50,23 +51,27 @@ class _Multiprocessor:
             # launch script, and as such custom plugins will no
             # longer be registered. We re-import / register them
             # here.
-            if 'available_protocols' in kwargs:
+            if "available_protocols" in kwargs:
 
-                protocols_to_import = kwargs.pop('available_protocols')
+                protocols_to_import = kwargs.pop("available_protocols")
 
                 for protocol_class in protocols_to_import:
-                    module_name = '.'.join(protocol_class.split('.')[:-1])
-                    class_name = protocol_class.split('.')[-1]
+                    module_name = ".".join(protocol_class.split(".")[:-1])
+                    class_name = protocol_class.split(".")[-1]
 
                     imported_module = importlib.import_module(module_name)
-                    available_protocols[class_name] = getattr(imported_module, class_name)
+                    available_protocols[class_name] = getattr(
+                        imported_module, class_name
+                    )
 
-            if 'logger_path' in kwargs:
+            if "logger_path" in kwargs:
 
-                formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s',
-                                              datefmt='%H:%M:%S')
+                formatter = logging.Formatter(
+                    fmt="%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s",
+                    datefmt="%H:%M:%S",
+                )
 
-                logger_path = kwargs.pop('logger_path')
+                logger_path = kwargs.pop("logger_path")
 
                 logger = logging.getLogger()
 
@@ -102,9 +107,10 @@ class _Multiprocessor:
         """
 
         import propertyestimator
+
         # An unpleasant way to ensure that codecov works correctly
         # when testing on travis.
-        if hasattr(propertyestimator, '_called_from_test'):
+        if hasattr(propertyestimator, "_called_from_test"):
             return function(*args, **kwargs)
 
         # queue = multiprocessing.Queue()
@@ -112,16 +118,24 @@ class _Multiprocessor:
         queue = manager.Queue()
         target_args = [function, queue, args, kwargs]
 
-        process = multiprocessing.Process(target=_Multiprocessor._wrapper, args=target_args)
+        process = multiprocessing.Process(
+            target=_Multiprocessor._wrapper, args=target_args
+        )
         process.start()
 
         return_value = queue.get()
         process.join()
 
-        if isinstance(return_value, tuple) and len(return_value) > 0 and isinstance(return_value[0], Exception):
+        if (
+            isinstance(return_value, tuple)
+            and len(return_value) > 0
+            and isinstance(return_value[0], Exception)
+        ):
 
-            formatted_exception = traceback.format_exception(None, return_value[0], return_value[1])
-            logging.info(f'{formatted_exception} {return_value[0]} {return_value[1]}')
+            formatted_exception = traceback.format_exception(
+                None, return_value[0], return_value[1]
+            )
+            logging.info(f"{formatted_exception} {return_value[0]} {return_value[1]}")
 
             raise return_value[0]
 
@@ -154,8 +168,8 @@ class BaseDaskBackend(PropertyEstimatorBackend):
         if self._cluster is not None:
             self._cluster.close()
 
-        if os.path.isdir('dask-worker-space'):
-            shutil.rmtree('dask-worker-space')
+        if os.path.isdir("dask-worker-space"):
+            shutil.rmtree("dask-worker-space")
 
     @staticmethod
     def _wrapped_function(function, *args, **kwargs):
@@ -192,17 +206,19 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
     dask_jobqueue.JobQueueCluster
     """
 
-    def __init__(self,
-                 minimum_number_of_workers=1,
-                 maximum_number_of_workers=1,
-                 resources_per_worker=QueueWorkerResources(),
-                 queue_name='default',
-                 setup_script_commands=None,
-                 extra_script_options=None,
-                 adaptive_interval='10000ms',
-                 disable_nanny_process=False,
-                 cluster_type=None,
-                 adaptive_class=None):
+    def __init__(
+        self,
+        minimum_number_of_workers=1,
+        maximum_number_of_workers=1,
+        resources_per_worker=QueueWorkerResources(),
+        queue_name="default",
+        setup_script_commands=None,
+        extra_script_options=None,
+        adaptive_interval="10000ms",
+        disable_nanny_process=False,
+        cluster_type=None,
+        adaptive_class=None,
+    ):
 
         """Constructs a new BaseDaskJobQueueBackend object
 
@@ -252,11 +268,14 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
 
         if resources_per_worker.number_of_gpus > 0:
 
-            if resources_per_worker.preferred_gpu_toolkit == ComputeResources.GPUToolkit.OpenCL:
-                raise ValueError('The OpenCL gpu backend is not currently supported.')
+            if (
+                resources_per_worker.preferred_gpu_toolkit
+                == ComputeResources.GPUToolkit.OpenCL
+            ):
+                raise ValueError("The OpenCL gpu backend is not currently supported.")
 
             if resources_per_worker.number_of_gpus > 1:
-                raise ValueError('Only one GPU per worker is currently supported.')
+                raise ValueError("Only one GPU per worker is currently supported.")
 
         # For now we need to set this to some high number to ensure
         # jobs restarting because of workers being killed (due to
@@ -265,7 +284,7 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
         # exceptions up as PropertyEstimatorExceptions and return these
         # gracefully (such that the task won't be marked as failed by
         # dask).
-        dask.config.set({'distributed.scheduler.allowed-failures': 500})
+        dask.config.set({"distributed.scheduler.allowed-failures": 500})
 
         self._minimum_number_of_workers = minimum_number_of_workers
         self._maximum_number_of_workers = maximum_number_of_workers
@@ -291,7 +310,9 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
         list of str
             The extra commands to run.
         """
-        env_extra = dask.config.get(f'jobqueue.{self._cluster_type}.env-extra', default=[])
+        env_extra = dask.config.get(
+            f"jobqueue.{self._cluster_type}.env-extra", default=[]
+        )
 
         if self._setup_script_commands is not None:
             env_extra.extend(self._setup_script_commands)
@@ -307,7 +328,9 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
         list of str
             The extra header options to add.
         """
-        job_extra = dask.config.get(f'jobqueue.{self._cluster_type}.job-extra', default=[])
+        job_extra = dask.config.get(
+            f"jobqueue.{self._cluster_type}.job-extra", default=[]
+        )
 
         if self._extra_script_options is not None:
             job_extra.extend(self._extra_script_options)
@@ -345,70 +368,79 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
         """
         if self._cluster is None:
 
-            raise ValueError('The cluster is not initialized. This is usually'
-                             'caused by calling `job_script` before `start`.')
+            raise ValueError(
+                "The cluster is not initialized. This is usually"
+                "caused by calling `job_script` before `start`."
+            )
 
         return self._cluster.job_script()
 
     def start(self):
 
         requested_memory = self._resources_per_worker.per_thread_memory_limit
-        memory_string = f'{requested_memory.to(unit.byte):~}'.replace(' ', '')
+        memory_string = f"{requested_memory.to(unit.byte):~}".replace(" ", "")
 
         job_extra = self._get_job_extra()
         env_extra = self._get_env_extra()
 
-        extra = None if not self._disable_nanny_process else ['--no-nanny']
+        extra = None if not self._disable_nanny_process else ["--no-nanny"]
 
         cluster_class = self._get_cluster_class()
 
-        self._cluster = cluster_class(queue=self._queue_name,
-                                      cores=self._resources_per_worker.number_of_threads,
-                                      memory=memory_string,
-                                      walltime=self._resources_per_worker.wallclock_time_limit,
-                                      job_extra=job_extra,
-                                      env_extra=env_extra,
-                                      extra=extra,
-                                      local_directory='dask-worker-space',
-                                      **self._get_extra_cluster_kwargs())
+        self._cluster = cluster_class(
+            queue=self._queue_name,
+            cores=self._resources_per_worker.number_of_threads,
+            memory=memory_string,
+            walltime=self._resources_per_worker.wallclock_time_limit,
+            job_extra=job_extra,
+            env_extra=env_extra,
+            extra=extra,
+            local_directory="dask-worker-space",
+            **self._get_extra_cluster_kwargs(),
+        )
 
         # The very small target duration is an attempt to force dask to scale
         # based on the number of processing tasks per worker.
         extra_kwargs = {}
 
         if self._adaptive_class is not None:
-            extra_kwargs['Adaptive'] = self._adaptive_class
+            extra_kwargs["Adaptive"] = self._adaptive_class
 
-        self._cluster.adapt(minimum=self._minimum_number_of_workers,
-                            maximum=self._maximum_number_of_workers,
-                            interval=self._adaptive_interval,
-                            target_duration='0.00000000001s',
-                            **extra_kwargs)
+        self._cluster.adapt(
+            minimum=self._minimum_number_of_workers,
+            maximum=self._maximum_number_of_workers,
+            interval=self._adaptive_interval,
+            target_duration="0.00000000001s",
+            **extra_kwargs,
+        )
 
         super(BaseDaskJobQueueBackend, self).start()
 
     @staticmethod
     def _wrapped_function(function, *args, **kwargs):
 
-        available_resources = kwargs['available_resources']
-        per_worker_logging = kwargs.pop('per_worker_logging')
+        available_resources = kwargs["available_resources"]
+        per_worker_logging = kwargs.pop("per_worker_logging")
 
-        gpu_assignments = kwargs.pop('gpu_assignments')
+        gpu_assignments = kwargs.pop("gpu_assignments")
 
         # Set up the logging per worker if the flag is set to True.
         if per_worker_logging:
 
             # Each worker should have its own log file.
-            kwargs['logger_path'] = '{}.log'.format(get_worker().id)
+            kwargs["logger_path"] = "{}.log".format(get_worker().id)
 
         if available_resources.number_of_gpus > 0:
 
             worker_id = distributed.get_worker().id
 
-            available_resources._gpu_device_indices = ('0' if worker_id not in gpu_assignments
-                                                       else gpu_assignments[worker_id])
+            available_resources._gpu_device_indices = (
+                "0" if worker_id not in gpu_assignments else gpu_assignments[worker_id]
+            )
 
-            logging.info(f'Launching a job with access to GPUs {available_resources._gpu_device_indices}')
+            logging.info(
+                f"Launching a job with access to GPUs {available_resources._gpu_device_indices}"
+            )
 
         return_value = _Multiprocessor.run(function, *args, **kwargs)
         return return_value
@@ -418,19 +450,23 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
 
         from propertyestimator.workflow.plugins import available_protocols
 
-        key = kwargs.pop('key', None)
+        key = kwargs.pop("key", None)
 
-        protocols_to_import = [protocol_class.__module__ + '.' +
-                               protocol_class.__qualname__ for protocol_class in available_protocols.values()]
+        protocols_to_import = [
+            protocol_class.__module__ + "." + protocol_class.__qualname__
+            for protocol_class in available_protocols.values()
+        ]
 
-        return self._client.submit(BaseDaskJobQueueBackend._wrapped_function,
-                                   function,
-                                   *args,
-                                   available_resources=self._resources_per_worker,
-                                   available_protocols=protocols_to_import,
-                                   gpu_assignments={},
-                                   per_worker_logging=True,
-                                   key=key)
+        return self._client.submit(
+            BaseDaskJobQueueBackend._wrapped_function,
+            function,
+            *args,
+            available_resources=self._resources_per_worker,
+            available_protocols=protocols_to_import,
+            gpu_assignments={},
+            per_worker_logging=True,
+            key=key,
+        )
 
 
 class DaskLSFBackend(BaseDaskJobQueueBackend):
@@ -443,16 +479,18 @@ class DaskLSFBackend(BaseDaskJobQueueBackend):
     DaskPBSBackend
     """
 
-    def __init__(self,
-                 minimum_number_of_workers=1,
-                 maximum_number_of_workers=1,
-                 resources_per_worker=QueueWorkerResources(),
-                 queue_name='default',
-                 setup_script_commands=None,
-                 extra_script_options=None,
-                 adaptive_interval='10000ms',
-                 disable_nanny_process=False,
-                 adaptive_class=None):
+    def __init__(
+        self,
+        minimum_number_of_workers=1,
+        maximum_number_of_workers=1,
+        resources_per_worker=QueueWorkerResources(),
+        queue_name="default",
+        setup_script_commands=None,
+        extra_script_options=None,
+        adaptive_interval="10000ms",
+        disable_nanny_process=False,
+        adaptive_class=None,
+    ):
 
         """Constructs a new DaskLSFBackend object
 
@@ -494,16 +532,18 @@ class DaskLSFBackend(BaseDaskJobQueueBackend):
         >>>                              extra_script_options=extra_script_options)
         """
 
-        super().__init__(minimum_number_of_workers,
-                         maximum_number_of_workers,
-                         resources_per_worker,
-                         queue_name,
-                         setup_script_commands,
-                         extra_script_options,
-                         adaptive_interval,
-                         disable_nanny_process,
-                         cluster_type='lsf',
-                         adaptive_class=adaptive_class)
+        super().__init__(
+            minimum_number_of_workers,
+            maximum_number_of_workers,
+            resources_per_worker,
+            queue_name,
+            setup_script_commands,
+            extra_script_options,
+            adaptive_interval,
+            disable_nanny_process,
+            cluster_type="lsf",
+            adaptive_class=adaptive_class,
+        )
 
     def _get_job_extra(self):
 
@@ -512,7 +552,9 @@ class DaskLSFBackend(BaseDaskJobQueueBackend):
         if self._resources_per_worker.number_of_gpus > 0:
 
             job_extra.append(
-                '-gpu num={}:j_exclusive=yes:mode=shared:mps=no:'.format(self._resources_per_worker.number_of_gpus)
+                "-gpu num={}:j_exclusive=yes:mode=shared:mps=no:".format(
+                    self._resources_per_worker.number_of_gpus
+                )
             )
 
         return job_extra
@@ -523,7 +565,7 @@ class DaskLSFBackend(BaseDaskJobQueueBackend):
         memory_bytes = requested_memory.to(unit.byte).magnitude
 
         extra_kwargs = super(DaskLSFBackend, self)._get_extra_cluster_kwargs()
-        extra_kwargs.update({'mem': memory_bytes})
+        extra_kwargs.update({"mem": memory_bytes})
 
         return extra_kwargs
 
@@ -541,17 +583,19 @@ class DaskPBSBackend(BaseDaskJobQueueBackend):
     DaskLSFBackend
     """
 
-    def __init__(self,
-                 minimum_number_of_workers=1,
-                 maximum_number_of_workers=1,
-                 resources_per_worker=QueueWorkerResources(),
-                 queue_name='default',
-                 setup_script_commands=None,
-                 extra_script_options=None,
-                 adaptive_interval='10000ms',
-                 disable_nanny_process=False,
-                 resource_line=None,
-                 adaptive_class=None):
+    def __init__(
+        self,
+        minimum_number_of_workers=1,
+        maximum_number_of_workers=1,
+        resources_per_worker=QueueWorkerResources(),
+        queue_name="default",
+        setup_script_commands=None,
+        extra_script_options=None,
+        adaptive_interval="10000ms",
+        disable_nanny_process=False,
+        resource_line=None,
+        adaptive_class=None,
+    ):
 
         """Constructs a new DaskLSFBackend object
 
@@ -591,23 +635,25 @@ class DaskPBSBackend(BaseDaskJobQueueBackend):
         >>>                              setup_script_commands=setup_script_commands)
         """
 
-        super().__init__(minimum_number_of_workers,
-                         maximum_number_of_workers,
-                         resources_per_worker,
-                         queue_name,
-                         setup_script_commands,
-                         extra_script_options,
-                         adaptive_interval,
-                         disable_nanny_process,
-                         cluster_type='pbs',
-                         adaptive_class=adaptive_class)
+        super().__init__(
+            minimum_number_of_workers,
+            maximum_number_of_workers,
+            resources_per_worker,
+            queue_name,
+            setup_script_commands,
+            extra_script_options,
+            adaptive_interval,
+            disable_nanny_process,
+            cluster_type="pbs",
+            adaptive_class=adaptive_class,
+        )
 
         self._resource_line = resource_line
 
     def _get_extra_cluster_kwargs(self):
 
         extra_kwargs = super(DaskPBSBackend, self)._get_extra_cluster_kwargs()
-        extra_kwargs.update({'resource_spec': self._resource_line})
+        extra_kwargs.update({"resource_spec": self._resource_line})
 
         return extra_kwargs
 
@@ -636,33 +682,40 @@ class DaskLocalCluster(BaseDaskBackend):
 
         if requested_threads > maximum_threads:
 
-            raise ValueError('The total number of requested threads ({})is greater than is available on the'
-                             'machine ({})'.format(requested_threads, maximum_threads))
+            raise ValueError(
+                "The total number of requested threads ({})is greater than is available on the"
+                "machine ({})".format(requested_threads, maximum_threads)
+            )
 
         if resources_per_worker.number_of_gpus > 0:
 
-            if resources_per_worker.preferred_gpu_toolkit == ComputeResources.GPUToolkit.OpenCL:
-                raise ValueError('The OpenCL gpu backend is not currently supported.')
+            if (
+                resources_per_worker.preferred_gpu_toolkit
+                == ComputeResources.GPUToolkit.OpenCL
+            ):
+                raise ValueError("The OpenCL gpu backend is not currently supported.")
 
             if resources_per_worker.number_of_gpus > 1:
-                raise ValueError('Only one GPU per worker is currently supported.')
+                raise ValueError("Only one GPU per worker is currently supported.")
 
-            visible_devices = os.environ.get('CUDA_VISIBLE_DEVICES')
+            visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES")
 
             if visible_devices is None:
-                raise ValueError('The CUDA_VISIBLE_DEVICES variable is empty.')
+                raise ValueError("The CUDA_VISIBLE_DEVICES variable is empty.")
 
-            gpu_device_indices = visible_devices.split(',')
+            gpu_device_indices = visible_devices.split(",")
 
             if len(gpu_device_indices) != number_of_workers:
-                raise ValueError('The number of available GPUs {} must match '
-                                 'the number of requested workers {}.')
+                raise ValueError(
+                    "The number of available GPUs {} must match "
+                    "the number of requested workers {}."
+                )
 
     def start(self):
 
-        self._cluster = distributed.LocalCluster(self._number_of_workers,
-                                                 1,
-                                                 processes=False)
+        self._cluster = distributed.LocalCluster(
+            self._number_of_workers, 1, processes=False
+        )
 
         if self._resources_per_worker.number_of_gpus > 0:
 
@@ -674,15 +727,19 @@ class DaskLocalCluster(BaseDaskBackend):
     @staticmethod
     def _wrapped_function(function, *args, **kwargs):
 
-        available_resources = kwargs['available_resources']
-        gpu_assignments = kwargs.pop('gpu_assignments')
+        available_resources = kwargs["available_resources"]
+        gpu_assignments = kwargs.pop("gpu_assignments")
 
         if available_resources.number_of_gpus > 0:
 
             worker_id = distributed.get_worker().id
             available_resources._gpu_device_indices = gpu_assignments[worker_id]
 
-            logging.info('Launching a job with access to GPUs {}'.format(gpu_assignments[worker_id]))
+            logging.info(
+                "Launching a job with access to GPUs {}".format(
+                    gpu_assignments[worker_id]
+                )
+            )
 
         return_value = _Multiprocessor.run(function, *args, **kwargs)
         return return_value
@@ -690,11 +747,13 @@ class DaskLocalCluster(BaseDaskBackend):
 
     def submit_task(self, function, *args, **kwargs):
 
-        key = kwargs.pop('key', None)
+        key = kwargs.pop("key", None)
 
-        return self._client.submit(DaskLocalCluster._wrapped_function,
-                                   function,
-                                   *args,
-                                   key=key,
-                                   available_resources=self._resources_per_worker,
-                                   gpu_assignments=self._gpu_device_indices_by_worker)
+        return self._client.submit(
+            DaskLocalCluster._wrapped_function,
+            function,
+            *args,
+            key=key,
+            available_resources=self._resources_per_worker,
+            gpu_assignments=self._gpu_device_indices_by_worker,
+        )

@@ -4,7 +4,8 @@ A set of utilities for helping to perform simulations using openmm.
 import logging
 
 from pint import UndefinedUnitError
-from simtk import unit as simtk_unit, openmm
+from simtk import openmm
+from simtk import unit as simtk_unit
 
 from propertyestimator import unit
 
@@ -35,11 +36,17 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
         # TODO: Deterministic forces = True
 
         from propertyestimator.backends import ComputeResources
-        toolkit_enum = ComputeResources.GPUToolkit(compute_resources.preferred_gpu_toolkit)
+
+        toolkit_enum = ComputeResources.GPUToolkit(
+            compute_resources.preferred_gpu_toolkit
+        )
 
         # A platform which runs on GPUs has been requested.
-        platform_name = 'CUDA' if toolkit_enum == ComputeResources.GPUToolkit.CUDA else \
-                                                  ComputeResources.GPUToolkit.OpenCL
+        platform_name = (
+            "CUDA"
+            if toolkit_enum == ComputeResources.GPUToolkit.CUDA
+            else ComputeResources.GPUToolkit.OpenCL
+        )
 
         # noinspection PyCallByClass,PyTypeChecker
         platform = Platform.getPlatformByName(platform_name)
@@ -51,25 +58,37 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
             if toolkit_enum == ComputeResources.GPUToolkit.CUDA:
                 property_platform_name = platform_name.lower().capitalize()
 
-            platform.setPropertyDefaultValue(property_platform_name + 'DeviceIndex',
-                                             compute_resources.gpu_device_indices)
+            platform.setPropertyDefaultValue(
+                property_platform_name + "DeviceIndex",
+                compute_resources.gpu_device_indices,
+            )
 
         if high_precision:
-            platform.setPropertyDefaultValue('Precision', 'double')
+            platform.setPropertyDefaultValue("Precision", "double")
 
-        logging.info('Setting up an openmm platform on GPU {}'.format(compute_resources.gpu_device_indices or 0))
+        logging.info(
+            "Setting up an openmm platform on GPU {}".format(
+                compute_resources.gpu_device_indices or 0
+            )
+        )
 
     else:
 
         if not high_precision:
             # noinspection PyCallByClass,PyTypeChecker
-            platform = Platform.getPlatformByName('CPU')
-            platform.setPropertyDefaultValue('Threads', str(compute_resources.number_of_threads))
+            platform = Platform.getPlatformByName("CPU")
+            platform.setPropertyDefaultValue(
+                "Threads", str(compute_resources.number_of_threads)
+            )
         else:
             # noinspection PyCallByClass,PyTypeChecker
-            platform = Platform.getPlatformByName('Reference')
+            platform = Platform.getPlatformByName("Reference")
 
-        logging.info('Setting up a simulation with {} threads'.format(compute_resources.number_of_threads))
+        logging.info(
+            "Setting up a simulation with {} threads".format(
+                compute_resources.number_of_threads
+            )
+        )
 
     return platform
 
@@ -96,7 +115,7 @@ unsupported_openmm_units = {
     simtk_unit.psi,
     simtk_unit.pound_mass,
     simtk_unit.stone,
-    simtk_unit.millenium
+    simtk_unit.millenium,
 }
 
 
@@ -121,8 +140,10 @@ def openmm_quantity_to_pint(openmm_quantity):
 
     if openmm_quantity.unit in unsupported_openmm_units:
 
-        raise ValueError(f'Quantities bearing the {openmm_quantity.unit} are not '
-                         f'currently supported by pint.')
+        raise ValueError(
+            f"Quantities bearing the {openmm_quantity.unit} are not "
+            f"currently supported by pint."
+        )
 
     openmm_unit = openmm_quantity.unit
     openmm_raw_value = openmm_quantity.value_in_unit(openmm_unit)
@@ -155,23 +176,30 @@ def openmm_unit_to_pint(openmm_unit):
 
     if openmm_unit in unsupported_openmm_units:
 
-        raise ValueError(f'Quantities bearing the {openmm_unit} are not '
-                         f'currently supported by pint.')
+        raise ValueError(
+            f"Quantities bearing the {openmm_unit} are not "
+            f"currently supported by pint."
+        )
 
     openmm_unit_string = unit_to_string(openmm_unit)
 
     # Handle the case whereby OMM treats daltons as having
     # units of g / mol, whereas SI and pint define them to
     # have units of kg.
-    openmm_unit_string = (None if openmm_unit_string is None else
-                          openmm_unit_string.replace('dalton', '(gram / mole)'))
+    openmm_unit_string = (
+        None
+        if openmm_unit_string is None
+        else openmm_unit_string.replace("dalton", "(gram / mole)")
+    )
 
     try:
         pint_unit = unit(openmm_unit_string).units
     except UndefinedUnitError:
 
-        logging.info(f'The {openmm_unit_string} OMM unit string (based on the {openmm_unit} object) '
-                     f'is undefined in pint')
+        logging.info(
+            f"The {openmm_unit_string} OMM unit string (based on the {openmm_unit} object) "
+            f"is undefined in pint"
+        )
 
         raise
 
@@ -241,8 +269,10 @@ def pint_unit_to_openmm(pint_unit):
         openmm_unit = string_to_unit(pint_unit_string)
     except AttributeError:
 
-        logging.info(f'The {pint_unit_string} pint unit string (based on the {pint_unit} object) '
-                     f'could not be understood by `openforcefield.utils.string_to_unit`')
+        logging.info(
+            f"The {pint_unit_string} pint unit string (based on the {pint_unit} object) "
+            f"could not be understood by `openforcefield.utils.string_to_unit`"
+        )
 
         raise
 
@@ -268,4 +298,6 @@ def disable_pbc(system):
         if not isinstance(force, openmm.NonbondedForce):
             continue
 
-        force.setNonbondedMethod(0)  # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1
+        force.setNonbondedMethod(
+            0
+        )  # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1

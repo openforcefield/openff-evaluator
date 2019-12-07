@@ -13,7 +13,9 @@ def register_calculation_protocol():
     def decorator(cls):
 
         if cls.__name__ in available_protocols:
-            raise ValueError('The {} protocol is already registered.'.format(cls.__name__))
+            raise ValueError(
+                "The {} protocol is already registered.".format(cls.__name__)
+            )
 
         available_protocols[cls.__name__] = cls
         return cls

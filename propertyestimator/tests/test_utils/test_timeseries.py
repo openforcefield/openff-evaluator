@@ -21,9 +21,17 @@ def test_statistical_inefficiency():
 
     a = np.array(numpy_vector_array)
 
-    statistical_inefficiency = timeseries.calculate_statistical_inefficiency(a, minimum_samples=3)
-    pymbar_statistical_inefficiency = pymbar_timeseries.statisticalInefficiency(a, mintime=3)
+    statistical_inefficiency = timeseries.calculate_statistical_inefficiency(
+        a, minimum_samples=3
+    )
+    pymbar_statistical_inefficiency = pymbar_timeseries.statisticalInefficiency(
+        a, mintime=3
+    )
 
-    print('utils: {}, pymbar: {}', statistical_inefficiency, pymbar_statistical_inefficiency)
+    print(
+        "utils: {}, pymbar: {}",
+        statistical_inefficiency,
+        pymbar_statistical_inefficiency,
+    )
 
     assert abs(statistical_inefficiency - pymbar_statistical_inefficiency) < 0.00001

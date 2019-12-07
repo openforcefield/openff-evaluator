@@ -7,10 +7,14 @@ import copy
 
 from propertyestimator.utils import graph, utils
 from propertyestimator.utils.utils import get_nested_attribute, set_nested_attribute
-from propertyestimator.workflow.decorators import protocol_input, MergeBehaviour, InequalityMergeBehaviour, \
-    protocol_output
+from propertyestimator.workflow.decorators import (
+    InequalityMergeBehaviour,
+    MergeBehaviour,
+    protocol_input,
+    protocol_output,
+)
 from propertyestimator.workflow.schemas import ProtocolSchema
-from propertyestimator.workflow.utils import ProtocolPath, PlaceholderInput
+from propertyestimator.workflow.utils import PlaceholderInput, ProtocolPath
 
 
 class BaseProtocol:
@@ -81,8 +85,10 @@ class BaseProtocol:
                 if value_reference in return_dependencies:
                     continue
 
-                if (value_reference.start_protocol is None or
-                    value_reference.start_protocol == self.id):
+                if (
+                    value_reference.start_protocol is None
+                    or value_reference.start_protocol == self.id
+                ):
 
                     continue
 
@@ -90,10 +96,12 @@ class BaseProtocol:
 
         return return_dependencies
 
-    allow_merging = protocol_input(docstring='Defines whether this protocols is allowed '
-                                             'to merge with other protocols.',
-                                   type_hint=bool,
-                                   default_value=True)
+    allow_merging = protocol_input(
+        docstring="Defines whether this protocols is allowed "
+        "to merge with other protocols.",
+        type_hint=bool,
+        default_value=True,
+    )
 
     def __init__(self, protocol_id):
 
@@ -165,14 +173,21 @@ class BaseProtocol:
 
         for input_path in self.required_inputs:
 
-            if not (input_path.start_protocol is None or (input_path.start_protocol == self.id and
-                                                          input_path.start_protocol == input_path.last_protocol)):
+            if not (
+                input_path.start_protocol is None
+                or (
+                    input_path.start_protocol == self.id
+                    and input_path.start_protocol == input_path.last_protocol
+                )
+            ):
 
                 continue
 
             # Always make sure to only pass a copy of the input. Changing the schema
             # should NOT change the protocol.
-            schema.inputs[input_path.full_path] = copy.deepcopy(self.get_value(input_path))
+            schema.inputs[input_path.full_path] = copy.deepcopy(
+                self.get_value(input_path)
+            )
 
         return schema
 
@@ -189,8 +204,11 @@ class BaseProtocol:
 
         if type(self).__name__ != schema_value.type:
             # Make sure this object is the correct type.
-            raise ValueError('Cannot convert a {} protocol to a {}.'
-                             .format(str(type(self)), schema_value.type))
+            raise ValueError(
+                "Cannot convert a {} protocol to a {}.".format(
+                    str(type(self)), schema_value.type
+                )
+            )
 
         for input_full_path in schema_value.inputs:
 
@@ -262,8 +280,10 @@ class BaseProtocol:
 
             input_path.replace_protocol(old_id, new_id)
 
-            if input_path.start_protocol is not None or (input_path.start_protocol != input_path.last_protocol and
-                                                         input_path.start_protocol != self.id):
+            if input_path.start_protocol is not None or (
+                input_path.start_protocol != input_path.last_protocol
+                and input_path.start_protocol != self.id
+            ):
                 continue
 
             value_references = self.get_value_references(input_path)
@@ -294,20 +314,28 @@ class BaseProtocol:
 
             # Do not consider paths that point to child (e.g grouped) protocols.
             # These should be handled by the container classes themselves.
-            if (input_path.start_protocol is not None and
-                input_path.start_protocol != self.id):
+            if (
+                input_path.start_protocol is not None
+                and input_path.start_protocol != self.id
+            ):
                 continue
 
-            if not (input_path.start_protocol is None or (
-                    input_path.start_protocol == input_path.last_protocol and
-                    input_path.start_protocol == self.id)):
+            if not (
+                input_path.start_protocol is None
+                or (
+                    input_path.start_protocol == input_path.last_protocol
+                    and input_path.start_protocol == self.id
+                )
+            ):
 
                 continue
 
             # If no merge behaviour flag is present (for example in the case of
             # ConditionalGroup conditions), simply assume this is handled explicitly
             # elsewhere.
-            if not hasattr(getattr(type(self), input_path.property_name), 'merge_behavior'):
+            if not hasattr(
+                getattr(type(self), input_path.property_name), "merge_behavior"
+            ):
                 continue
 
             inputs_to_consider.add(input_path)
@@ -346,19 +374,28 @@ class BaseProtocol:
             if input_path not in other.required_inputs:
                 return False
 
-            merge_behavior = getattr(type(self), input_path.property_name).merge_behavior
+            merge_behavior = getattr(
+                type(self), input_path.property_name
+            ).merge_behavior
 
             self_value = self.get_value(input_path)
             other_value = other.get_value(input_path)
 
-            if ((isinstance(self_value, PlaceholderInput) and not isinstance(other_value, PlaceholderInput)) or
-                (isinstance(other_value, PlaceholderInput) and not isinstance(self_value, PlaceholderInput))):
+            if (
+                isinstance(self_value, PlaceholderInput)
+                and not isinstance(other_value, PlaceholderInput)
+            ) or (
+                isinstance(other_value, PlaceholderInput)
+                and not isinstance(self_value, PlaceholderInput)
+            ):
 
                 # We cannot safely merge inputs when only one of the values
                 # is currently known.
                 return False
 
-            if isinstance(self_value, ProtocolPath) and isinstance(other_value, ProtocolPath):
+            if isinstance(self_value, ProtocolPath) and isinstance(
+                other_value, ProtocolPath
+            ):
 
                 other_value_post_merge = ProtocolPath.from_string(other_value.full_path)
 
@@ -371,10 +408,15 @@ class BaseProtocol:
                 if self_value.protocol_path != other_value_post_merge.protocol_path:
                     return False
 
-            elif isinstance(self_value, PlaceholderInput) and isinstance(other_value, PlaceholderInput):
+            elif isinstance(self_value, PlaceholderInput) and isinstance(
+                other_value, PlaceholderInput
+            ):
                 return False
 
-            elif merge_behavior == MergeBehaviour.ExactlyEqual and self_value != other_value:
+            elif (
+                merge_behavior == MergeBehaviour.ExactlyEqual
+                and self_value != other_value
+            ):
                 return False
 
         return True
@@ -398,19 +440,22 @@ class BaseProtocol:
         """
 
         if not self.can_merge(other):
-            raise ValueError('These protocols can not be safely merged.')
+            raise ValueError("These protocols can not be safely merged.")
 
         inputs_to_consider = self._find_inputs_to_merge()
 
         for input_path in inputs_to_consider:
 
-            merge_behavior = getattr(type(self), input_path.property_name).merge_behavior
+            merge_behavior = getattr(
+                type(self), input_path.property_name
+            ).merge_behavior
 
             if merge_behavior == MergeBehaviour.ExactlyEqual:
                 continue
 
-            if (isinstance(self.get_value(input_path), ProtocolPath) or
-                isinstance(other.get_value(input_path), ProtocolPath)):
+            if isinstance(self.get_value(input_path), ProtocolPath) or isinstance(
+                other.get_value(input_path), ProtocolPath
+            ):
 
                 continue
 
@@ -450,9 +495,11 @@ class BaseProtocol:
         if isinstance(input_value, ProtocolPath):
             return {input_path: input_value}
 
-        if (not isinstance(input_value, list) and
-            not isinstance(input_value, tuple) and
-            not isinstance(input_value, dict)):
+        if (
+            not isinstance(input_value, list)
+            and not isinstance(input_value, tuple)
+            and not isinstance(input_value, dict)
+        ):
 
             return {}
 
@@ -467,7 +514,9 @@ class BaseProtocol:
                 if not isinstance(list_value, ProtocolPath):
                     continue
 
-                path_index = ProtocolPath(property_name + '[{}]'.format(index), *protocols_ids)
+                path_index = ProtocolPath(
+                    property_name + "[{}]".format(index), *protocols_ids
+                )
                 return_paths[path_index] = list_value
 
         else:
@@ -477,7 +526,9 @@ class BaseProtocol:
                 if not isinstance(input_value[dict_key], ProtocolPath):
                     continue
 
-                path_index = ProtocolPath(property_name + '[{}]'.format(dict_key), *protocols_ids)
+                path_index = ProtocolPath(
+                    property_name + "[{}]".format(dict_key), *protocols_ids
+                )
                 return_paths[path_index] = input_value[dict_key]
 
         return return_paths
@@ -497,14 +548,25 @@ class BaseProtocol:
             The class attribute.
         """
 
-        if reference_path.start_protocol is not None and reference_path.start_protocol != self.id:
-            raise ValueError('The reference path {} does not point to this protocol'.format(reference_path))
+        if (
+            reference_path.start_protocol is not None
+            and reference_path.start_protocol != self.id
+        ):
+            raise ValueError(
+                "The reference path {} does not point to this protocol".format(
+                    reference_path
+                )
+            )
 
-        if (reference_path.property_name.count(ProtocolPath.property_separator) >= 1 or
-            reference_path.property_name.find('[') > 0):
+        if (
+            reference_path.property_name.count(ProtocolPath.property_separator) >= 1
+            or reference_path.property_name.find("[") > 0
+        ):
 
-            raise ValueError('The expected attribute cannot be found for '
-                             'nested property names: {}'.format(reference_path.property_name))
+            raise ValueError(
+                "The expected attribute cannot be found for "
+                "nested property names: {}".format(reference_path.property_name)
+            )
 
         return getattr(type(self), reference_path.property_name)
 
@@ -522,13 +584,15 @@ class BaseProtocol:
             The value of the input / output
         """
 
-        if (reference_path.start_protocol is not None and
-            reference_path.start_protocol != self.id):
+        if (
+            reference_path.start_protocol is not None
+            and reference_path.start_protocol != self.id
+        ):
 
-            raise ValueError('The reference path does not target this protocol.')
+            raise ValueError("The reference path does not target this protocol.")
 
-        if reference_path.property_name is None or reference_path.property_name == '':
-            raise ValueError('The reference path does specify a property to return.')
+        if reference_path.property_name is None or reference_path.property_name == "":
+            raise ValueError("The reference path does specify a property to return.")
 
         return get_nested_attribute(self, reference_path.property_name)
 
@@ -543,21 +607,29 @@ class BaseProtocol:
             The value to set.
         """
 
-        if (reference_path.start_protocol is not None and
-            reference_path.start_protocol != self.id):
+        if (
+            reference_path.start_protocol is not None
+            and reference_path.start_protocol != self.id
+        ):
 
-            raise ValueError('The reference path does not target this protocol.')
+            raise ValueError("The reference path does not target this protocol.")
 
-        if reference_path.property_name is None or reference_path.property_name == '':
-            raise ValueError('The reference path does specify a property to set.')
+        if reference_path.property_name is None or reference_path.property_name == "":
+            raise ValueError("The reference path does specify a property to set.")
 
         if reference_path in self.provided_outputs:
-            raise ValueError('Output values cannot be set by this method.')
+            raise ValueError("Output values cannot be set by this method.")
 
         set_nested_attribute(self, reference_path.property_name, value)
 
-    def apply_replicator(self, replicator, template_values, template_index=-1,
-                         template_value=None, update_input_references=False):
+    def apply_replicator(
+        self,
+        replicator,
+        template_values,
+        template_index=-1,
+        template_value=None,
+        update_input_references=False,
+    ):
         """Applies a `ProtocolReplicator` to this protocol. This method
         should clone any protocols whose id contains the id of the
         replicator (in the format `$(replicator.id)`).

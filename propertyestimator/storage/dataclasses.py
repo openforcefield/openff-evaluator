@@ -107,23 +107,21 @@ class BaseStoredData:
 
     def __getstate__(self):
         return {
-            'substance': self.substance,
-            'thermodynamic_state': self.thermodynamic_state,
-
-            'source_calculation_id': self.source_calculation_id,
-            'provenance': self.provenance,
-
-            'force_field_id': self.force_field_id,
+            "substance": self.substance,
+            "thermodynamic_state": self.thermodynamic_state,
+            "source_calculation_id": self.source_calculation_id,
+            "provenance": self.provenance,
+            "force_field_id": self.force_field_id,
         }
 
     def __setstate__(self, state):
-        self.substance = state['substance']
-        self.thermodynamic_state = state['thermodynamic_state']
+        self.substance = state["substance"]
+        self.thermodynamic_state = state["thermodynamic_state"]
 
-        self.source_calculation_id = state['source_calculation_id']
-        self.provenance = state['provenance']
+        self.source_calculation_id = state["source_calculation_id"]
+        self.provenance = state["provenance"]
 
-        self.force_field_id = state['force_field_id']
+        self.force_field_id = state["force_field_id"]
 
 
 class StoredSimulationData(BaseStoredData):
@@ -194,10 +192,15 @@ class StoredSimulationData(BaseStoredData):
         # Make sure the two objects can actually be merged.
         if not stored_data_1.can_merge(stored_data_2):
 
-            raise ValueError('The two pieces of data are incompatible and cannot '
-                             'be merged into one.')
+            raise ValueError(
+                "The two pieces of data are incompatible and cannot "
+                "be merged into one."
+            )
 
-        if stored_data_1.statistical_inefficiency < stored_data_2.statistical_inefficiency:
+        if (
+            stored_data_1.statistical_inefficiency
+            < stored_data_2.statistical_inefficiency
+        ):
             return stored_data_2
 
         return stored_data_1
@@ -205,29 +208,28 @@ class StoredSimulationData(BaseStoredData):
     def __getstate__(self):
         base_state = super(StoredSimulationData, self).__getstate__()
 
-        base_state.update({
-
-            'coordinate_file_name': self.coordinate_file_name,
-            'trajectory_file_name': self.trajectory_file_name,
-
-            'statistics_file_name': self.statistics_file_name,
-            'statistical_inefficiency': self.statistical_inefficiency,
-
-            'total_number_of_molecules': self.total_number_of_molecules
-        })
+        base_state.update(
+            {
+                "coordinate_file_name": self.coordinate_file_name,
+                "trajectory_file_name": self.trajectory_file_name,
+                "statistics_file_name": self.statistics_file_name,
+                "statistical_inefficiency": self.statistical_inefficiency,
+                "total_number_of_molecules": self.total_number_of_molecules,
+            }
+        )
 
         return base_state
 
     def __setstate__(self, state):
         super(StoredSimulationData, self).__setstate__(state)
 
-        self.coordinate_file_name = state['coordinate_file_name']
-        self.trajectory_file_name = state['trajectory_file_name']
+        self.coordinate_file_name = state["coordinate_file_name"]
+        self.trajectory_file_name = state["trajectory_file_name"]
 
-        self.statistics_file_name = state['statistics_file_name']
-        self.statistical_inefficiency = state['statistical_inefficiency']
+        self.statistics_file_name = state["statistics_file_name"]
+        self.statistical_inefficiency = state["statistical_inefficiency"]
 
-        self.total_number_of_molecules = state['total_number_of_molecules']
+        self.total_number_of_molecules = state["total_number_of_molecules"]
 
 
 class StoredDataCollection(BaseStoredData):
@@ -318,25 +320,28 @@ class StoredDataCollection(BaseStoredData):
         # Make sure the two objects can actually be merged.
         if not stored_data_1.can_merge(stored_data_2):
 
-            raise ValueError('The two pieces of data are incompatible and '
-                             'cannot be merged into one.')
+            raise ValueError(
+                "The two pieces of data are incompatible and "
+                "cannot be merged into one."
+            )
 
         merged_data = cls()
         merged_data.force_field_id = stored_data_1.force_field_id
 
         for data_key in stored_data_1.data:
 
-            merged_data.data[data_key] = stored_data_1.data[data_key].merge(stored_data_1.data[data_key],
-                                                                                  stored_data_2.data[data_key])
+            merged_data.data[data_key] = stored_data_1.data[data_key].merge(
+                stored_data_1.data[data_key], stored_data_2.data[data_key]
+            )
 
         return merged_data
 
     def __getstate__(self):
 
         state = super(StoredDataCollection, self).__getstate__()
-        state.update({'data': self.data})
+        state.update({"data": self.data})
         return state
 
     def __setstate__(self, state):
         super(StoredDataCollection, self).__setstate__(state)
-        self.data = state['data']
+        self.data = state["data"]

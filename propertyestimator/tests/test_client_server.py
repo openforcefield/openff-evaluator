@@ -4,11 +4,14 @@ Units tests for propertyestimator.client and server
 import tempfile
 from os import path
 
-from propertyestimator.backends import DaskLocalCluster, ComputeResources
+from propertyestimator.backends import ComputeResources, DaskLocalCluster
 from propertyestimator.client import PropertyEstimatorClient, PropertyEstimatorOptions
 from propertyestimator.datasets import PhysicalPropertyDataSet
 from propertyestimator.forcefield import SmirnoffForceFieldSource
-from propertyestimator.layers import register_calculation_layer, PropertyCalculationLayer
+from propertyestimator.layers import (
+    PropertyCalculationLayer,
+    register_calculation_layer,
+)
 from propertyestimator.properties import Density
 from propertyestimator.server import PropertyEstimatorServer
 from propertyestimator.storage import LocalFileStorage
@@ -23,8 +26,14 @@ class TestCalculationLayer(PropertyCalculationLayer):
     """
 
     @staticmethod
-    def schedule_calculation(calculation_backend, storage_backend, layer_directory,
-                             data_model, callback, synchronous=False):
+    def schedule_calculation(
+        calculation_backend,
+        storage_backend,
+        layer_directory,
+        data_model,
+        callback,
+        synchronous=False,
+    ):
 
         for physical_property in data_model.queued_properties:
 
@@ -42,29 +51,37 @@ class TestCalculationLayer(PropertyCalculationLayer):
 def test_estimate_request():
     """Test sending an estimator request to a server."""
 
-    from openforcefield.typing.engines import smirnoff
-
     with tempfile.TemporaryDirectory() as temporary_directory:
 
-        storage_directory = path.join(temporary_directory, 'storage')
-        working_directory = path.join(temporary_directory, 'working')
+        storage_directory = path.join(temporary_directory, "storage")
+        working_directory = path.join(temporary_directory, "working")
 
         dummy_property = create_dummy_property(Density)
 
         dummy_data_set = PhysicalPropertyDataSet()
-        dummy_data_set.properties[dummy_property.substance.identifier] = [dummy_property]
+        dummy_data_set.properties[dummy_property.substance.identifier] = [
+            dummy_property
+        ]
 
-        force_field_source = SmirnoffForceFieldSource.from_path('smirnoff99Frosst-1.1.0.offxml')
+        force_field_source = SmirnoffForceFieldSource.from_path(
+            "smirnoff99Frosst-1.1.0.offxml"
+        )
 
         calculation_backend = DaskLocalCluster(1, ComputeResources())
         storage_backend = LocalFileStorage(storage_directory)
 
-        PropertyEstimatorServer(calculation_backend, storage_backend, working_directory=working_directory)
+        PropertyEstimatorServer(
+            calculation_backend, storage_backend, working_directory=working_directory
+        )
 
         property_estimator = PropertyEstimatorClient()
-        options = PropertyEstimatorOptions(allowed_calculation_layers=[TestCalculationLayer])
+        options = PropertyEstimatorOptions(
+            allowed_calculation_layers=[TestCalculationLayer]
+        )
 
-        request = property_estimator.request_estimate(dummy_data_set, force_field_source, options)
+        request = property_estimator.request_estimate(
+            dummy_data_set, force_field_source, options
+        )
         result = request.results(synchronous=True, polling_interval=0)
 
         assert not isinstance(result, PropertyEstimatorException)
