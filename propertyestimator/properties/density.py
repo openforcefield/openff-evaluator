@@ -1,6 +1,8 @@
 """
 A collection of density physical property definitions.
 """
+import copy
+
 from propertyestimator import unit
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties import PhysicalProperty, PropertyPhase
@@ -65,21 +67,22 @@ class Density(PhysicalProperty):
                                                                                       options)
 
         # Set up the gradient calculations
+        coordinate_source = ProtocolPath('output_coordinate_file',
+                                         protocols.equilibration_simulation.id)
+        trajectory_source = ProtocolPath('trajectory_file_path',
+                                         protocols.converge_uncertainty.id,
+                                         protocols.production_simulation.id)
+        statistics_source = ProtocolPath('statistics_file_path',
+                                         protocols.converge_uncertainty.id,
+                                         protocols.production_simulation.id)
+
         reweight_density_template = reweighting.ReweightStatistics('')
         reweight_density_template.statistics_type = ObservableType.Density
-        reweight_density_template.statistics_paths = [ProtocolPath('statistics_file_path',
-                                                                   protocols.converge_uncertainty.id,
-                                                                   protocols.production_simulation.id)]
-
-        coordinate_source = ProtocolPath('output_coordinate_file', protocols.equilibration_simulation.id)
-        trajectory_source = ProtocolPath('trajectory_file_path', protocols.converge_uncertainty.id,
-                                         protocols.production_simulation.id)
-        statistics_source = ProtocolPath('statistics_file_path', protocols.converge_uncertainty.id,
-                                         protocols.production_simulation.id)
+        reweight_density_template.statistics_paths = statistics_source
+        reweight_density_template.reference_reduced_potentials = statistics_source
 
         gradient_group, gradient_replicator, gradient_source = \
             generate_gradient_protocol_group(reweight_density_template,
-                                             [ProtocolPath('force_field_path', 'global')],
                                              ProtocolPath('force_field_path', 'global'),
                                              coordinate_source,
                                              trajectory_source,
@@ -135,43 +138,38 @@ class Density(PhysicalProperty):
         reweight_density = reweighting.ReweightStatistics(f'reweight_density')
         reweight_density.statistics_type = ObservableType.Density
 
-        reweighting_protocols, data_replicator = generate_base_reweighting_protocols(density_calculation,
-                                                                                     reweight_density,
-                                                                                     options,
-                                                                                     data_replicator_id)
+        protocols, data_replicator = generate_base_reweighting_protocols(density_calculation,
+                                                                         reweight_density,
+                                                                         options,
+                                                                         data_replicator_id)
 
         # Set up the gradient calculations
-        coordinate_path = ProtocolPath('output_coordinate_path', reweighting_protocols.concatenate_trajectories.id)
-        trajectory_path = ProtocolPath('output_trajectory_path', reweighting_protocols.concatenate_trajectories.id)
+        coordinate_path = ProtocolPath('output_coordinate_path', protocols.concatenate_trajectories.id)
+        trajectory_path = ProtocolPath('output_trajectory_path', protocols.concatenate_trajectories.id)
+        statistics_path = ProtocolPath('statistics_file_path', protocols.reduced_target_potential.id)
 
-        reweight_density_template = reweighting.ReweightStatistics('')
-        reweight_density_template.statistics_type = ObservableType.Density
-        reweight_density_template.statistics_paths = ProtocolPath('output_statistics_path',
-                                                                  reweighting_protocols.decorrelate_statistics.id)
+        reweight_density_template = copy.deepcopy(reweight_density)
 
         gradient_group, gradient_replicator, gradient_source = \
             generate_gradient_protocol_group(reweight_density_template,
-                                             ProtocolPath('force_field_path',
-                                                          reweighting_protocols.unpack_stored_data.id),
                                              ProtocolPath('force_field_path', 'global'),
                                              coordinate_path,
                                              trajectory_path,
+                                             statistics_path,
                                              replicator_id='grad',
-                                             use_subset_of_force_field=False,
                                              effective_sample_indices=ProtocolPath('effective_sample_indices',
-                                                                                   reweighting_protocols.
-                                                                                   mbar_protocol.id))
+                                                                                   protocols.mbar_protocol.id))
 
         schema = WorkflowSchema(property_type=Density.__name__)
         schema.id = '{}{}'.format(Density.__name__, 'Schema')
 
-        schema.protocols = {protocol.id: protocol.schema for protocol in reweighting_protocols}
+        schema.protocols = {protocol.id: protocol.schema for protocol in protocols}
         schema.protocols[gradient_group.id] = gradient_group.schema
 
         schema.replicators = [data_replicator, gradient_replicator]
 
         schema.gradients_sources = [gradient_source]
-        schema.final_value_source = ProtocolPath('value', reweighting_protocols.mbar_protocol.id)
+        schema.final_value_source = ProtocolPath('value', protocols.mbar_protocol.id)
 
         return schema
 
@@ -315,21 +313,22 @@ class ExcessMolarVolume(PhysicalProperty):
                                                                                weight_by_mole_fraction.id)
 
         # Set up the gradient calculations
+        coordinate_source = ProtocolPath('output_coordinate_file',
+                                         simulation_protocols.equilibration_simulation.id)
+        trajectory_source = ProtocolPath('trajectory_file_path',
+                                         simulation_protocols.converge_uncertainty.id,
+                                         simulation_protocols.production_simulation.id)
+        statistics_source = ProtocolPath('statistics_file_path',
+                                         simulation_protocols.converge_uncertainty.id,
+                                         simulation_protocols.production_simulation.id)
+
         reweight_molar_volume_template = reweighting.ReweightStatistics('')
         reweight_molar_volume_template.statistics_type = ObservableType.Volume
-        reweight_molar_volume_template.statistics_paths = [ProtocolPath('statistics_file_path',
-                                                                        conditional_group.id,
-                                                                        simulation_protocols.production_simulation.id)]
-
-        coordinate_source = ProtocolPath('output_coordinate_file', simulation_protocols.equilibration_simulation.id)
-        trajectory_source = ProtocolPath('trajectory_file_path', simulation_protocols.converge_uncertainty.id,
-                                         simulation_protocols.production_simulation.id)
-        statistics_source = ProtocolPath('statistics_file_path', simulation_protocols.converge_uncertainty.id,
-                                         simulation_protocols.production_simulation.id)
+        reweight_molar_volume_template.statistics_paths = statistics_source
+        reweight_molar_volume_template.reference_reduced_potentials = statistics_source
 
         gradient_group, gradient_replicator, gradient_source = \
             generate_gradient_protocol_group(reweight_molar_volume_template,
-                                             [ProtocolPath('force_field_path', 'global')],
                                              ProtocolPath('force_field_path', 'global'),
                                              coordinate_source,
                                              trajectory_source,
@@ -463,24 +462,21 @@ class ExcessMolarVolume(PhysicalProperty):
         value_source = ProtocolPath('result', divide_by_molecules.id)
 
         # Set up the gradient calculations.
-        reweight_volume_template = reweighting.ReweightStatistics('')
-        reweight_volume_template.statistics_type = ObservableType.Volume
-        reweight_volume_template.statistics_paths = ProtocolPath('output_statistics_path',
-                                                                 protocols.decorrelate_statistics.id)
+        reweight_volume_template = copy.deepcopy(reweight_volume)
 
         coordinate_path = ProtocolPath('output_coordinate_path', protocols.concatenate_trajectories.id)
         trajectory_path = ProtocolPath('output_trajectory_path', protocols.concatenate_trajectories.id)
+        statistics_path = ProtocolPath('statistics_file_path', protocols.reduced_target_potential.id)
 
         gradient_group, _, gradient_source = \
             generate_gradient_protocol_group(reweight_volume_template,
-                                             ProtocolPath('force_field_path', protocols.unpack_stored_data.id),
                                              ProtocolPath('force_field_path', 'global'),
                                              coordinate_path,
                                              trajectory_path,
+                                             statistics_path,
                                              replicator_id=gradient_replicator_id,
                                              id_suffix=id_suffix,
                                              substance_source=substance_reference,
-                                             use_subset_of_force_field=False,
                                              effective_sample_indices=ProtocolPath('effective_sample_indices',
                                                                                    protocols.mbar_protocol.id))
 
@@ -552,20 +548,23 @@ class ExcessMolarVolume(PhysicalProperty):
         # different to the mole fractions of the measure property due to rounding.
         full_substance = ProtocolPath('output_substance', full_system_protocols.build_coordinates.id)
 
-        (component_protocols,
-         component_molar_molecules,
-         component_volumes,
-         component_output,
-         component_gradient_group,
-         component_gradient_replicator,
-         component_gradient) = ExcessMolarVolume._get_simulation_protocols('_component',
-                                                                           gradient_replicator_id,
-                                                                           replicator_id=component_replicator_id,
-                                                                           weight_by_mole_fraction=True,
-                                                                           component_substance_reference=
-                                                                                   component_substance,
-                                                                           full_substance_reference=full_substance,
-                                                                           options=options)
+        (
+            component_protocols,
+            component_molar_molecules,
+            component_volumes,
+            component_output,
+            component_gradient_group,
+            component_gradient_replicator,
+            component_gradient
+        ) = ExcessMolarVolume._get_simulation_protocols(
+            '_component',
+            gradient_replicator_id,
+            replicator_id=component_replicator_id,
+            weight_by_mole_fraction=True,
+            component_substance_reference=component_substance,
+            full_substance_reference=full_substance,
+            options=options
+        )
 
         # Finally, set up the protocols which will be responsible for adding together
         # the component molar volumes, and subtracting these from the mixed system molar volume.
@@ -684,18 +683,21 @@ class ExcessMolarVolume(PhysicalProperty):
         # Set up the protocols which will reweight data for each component.
         component_data_replicator_id = f'component_{component_replicator.placeholder_id}_data_replicator'
 
-        (component_protocols,
-         component_volumes,
-         component_data_replicator,
-         component_gradient_group,
-         component_gradient_source) = ExcessMolarVolume._get_reweighting_protocols('_component',
-                                                                                   gradient_replicator.id,
-                                                                                   component_data_replicator_id,
-                                                                                   replicator_id=component_replicator.id,
-                                                                                   weight_by_mole_fraction=True,
-                                                                                   substance_reference=ReplicatorValue(
-                                                                                       component_replicator.id),
-                                                                                   options=options)
+        (
+            component_protocols,
+            component_volumes,
+            component_data_replicator,
+            component_gradient_group,
+            component_gradient_source
+        ) = ExcessMolarVolume._get_reweighting_protocols(
+            '_component',
+            gradient_replicator.id,
+            component_data_replicator_id,
+            replicator_id=component_replicator.id,
+            weight_by_mole_fraction=True,
+            substance_reference=ReplicatorValue(component_replicator.id),
+            options=options
+        )
 
         # Make sure the replicator is only replicating over component data.
         component_data_replicator.template_values = ProtocolPath(f'component_data[$({component_replicator.id})]',

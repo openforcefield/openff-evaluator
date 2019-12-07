@@ -32,46 +32,30 @@ class GradientReducedPotentials(BaseProtocol):
     of a trajectory using reverse and forward perturbed simulation parameters for
     use with estimating reweighted gradients using the central difference method.
     """
-
-    reference_force_field_paths = protocol_input(
-        docstring='A list of paths to the force field files which were '
-                  'originally used to generate the configurations.',
-        type_hint=list,
-        default_value=UNDEFINED
-    )
     force_field_path = protocol_input(
         docstring='The path to the force field which contains the parameters to '
-                  'differentiate the observable with respect to.',
+                  'differentiate the observable with respect to. When reweighting '
+                  'observables, this should be the `target` force field.',
         type_hint=str,
         default_value=UNDEFINED
     )
-
-    reference_statistics_path = protocol_input(
-        docstring='An optional path to the statistics array which was '
-                  'generated alongside the observable of interest, which will '
-                  'be used to correct the potential energies at the reverse '
-                  'and forward states. This is only really needed when the '
-                  'observable of interest is an energy.',
+    statistics_path = protocol_input(
+        docstring='The path to a statistics array containing potentials '
+                  'evaluated at each frame of the trajectory using the input '
+                  '`force_field_path` and at the input `thermodynamic_state`.',
         type_hint=str,
-        default_value=UNDEFINED,
-        optional=True
+        default_value=UNDEFINED
     )
-
-    enable_pbc = protocol_input(
-        docstring='If true, periodic boundary conditions will be enabled when '
-                  're-evaluating the reduced potentials.',
-        type_hint=bool,
-        default_value=True
+    thermodynamic_state = protocol_input(
+        docstring='The thermodynamic state to estimate the gradients at. When '
+                  'reweighting observables, this should be the `target` state.',
+        type_hint=ThermodynamicState,
+        default_value=UNDEFINED
     )
 
     substance = protocol_input(
         docstring='The substance which describes the composition of the system.',
         type_hint=Substance,
-        default_value=UNDEFINED
-    )
-    thermodynamic_state = protocol_input(
-        docstring='The thermodynamic state to estimate the gradients at.',
-        type_hint=ThermodynamicState,
         default_value=UNDEFINED
     )
 
@@ -87,12 +71,18 @@ class GradientReducedPotentials(BaseProtocol):
         default_value=UNDEFINED
     )
 
+    enable_pbc = protocol_input(
+        docstring='If true, periodic boundary conditions will be enabled when '
+                  're-evaluating the reduced potentials.',
+        type_hint=bool,
+        default_value=True
+    )
+
     parameter_key = protocol_input(
         docstring='The key of the parameter to differentiate with respect to.',
         type_hint=ParameterGradientKey,
         default_value=UNDEFINED
     )
-
     perturbation_scale = protocol_input(
         docstring='The amount to perturb the parameter by, such that '
                   'p_new = p_old * (1 +/- `perturbation_scale`)',
@@ -101,8 +91,8 @@ class GradientReducedPotentials(BaseProtocol):
     )
 
     use_subset_of_force_field = protocol_input(
-        docstring='If true, the reduced potential will be estimated using '
-                  'an OpenMM system which only contains the parameter of '
+        docstring='If true, the reduced potentials will be estimated using '
+                  'an OpenMM system which only contains the parameters of '
                   'interest',
         type_hint=bool,
         default_value=True
@@ -115,11 +105,6 @@ class GradientReducedPotentials(BaseProtocol):
         optional=True
     )
 
-    reference_potential_paths = protocol_output(
-        docstring='File paths to the reduced potentials evaluated using each '
-                  'of the reference force fields.',
-        type_hint=list
-    )
     reverse_potentials_path = protocol_output(
         docstring='A file path to the energies evaluated using the parameters'
                   'perturbed in the reverse direction.',
@@ -130,7 +115,6 @@ class GradientReducedPotentials(BaseProtocol):
                   'perturbed in the forward direction.',
         type_hint=str
     )
-
     reverse_parameter_value = protocol_output(
         docstring='The value of the parameter perturbed in the reverse '
                   'direction.',
@@ -227,7 +211,9 @@ class GradientReducedPotentials(BaseProtocol):
 
     def _evaluate_reduced_potential(self, system, trajectory, file_path,
                                     compute_resources, subset_energy_corrections=None):
-        """Return the potential energy.
+        """Computes the reduced potential of each frame in a trajectory
+        using the provided system.
+
         Parameters
         ----------
         system: simtk.openmm.System
@@ -248,10 +234,8 @@ class GradientReducedPotentials(BaseProtocol):
 
         Returns
         ---------
-        propertyestimator.unit.Quantity
-            A unit bearing `np.ndarray` which contains the reduced potential.
-        PropertyEstimatorException, optional
-            Any exceptions that were raised.
+        StatisticsArray
+            The array containing the reduced potentials.
         """
         from simtk import unit as simtk_unit
 
@@ -268,6 +252,11 @@ class GradientReducedPotentials(BaseProtocol):
 
         pressure = pint_quantity_to_openmm(self.thermodynamic_state.pressure)
 
+        if subset_energy_corrections is None:
+            subset_energy_corrections = np.zeros(trajectory.n_frames, dtype=np.float64) * simtk_unit.kilojoules_per_mole
+        else:
+            subset_energy_corrections = pint_quantity_to_openmm(subset_energy_corrections)
+
         for frame_index in range(trajectory.n_frames):
 
             positions = trajectory.xyz[frame_index]
@@ -280,24 +269,24 @@ class GradientReducedPotentials(BaseProtocol):
 
             state = openmm_context.getState(getEnergy=True)
 
-            unreduced_potential = state.getPotentialEnergy() / simtk_unit.AVOGADRO_CONSTANT_NA
+            potential_energy = state.getPotentialEnergy() + subset_energy_corrections[frame_index]
+            unreduced_potential = potential_energy / simtk_unit.AVOGADRO_CONSTANT_NA
 
             if pressure is not None and self.enable_pbc:
                 unreduced_potential += pressure * state.getPeriodicBoxVolume()
 
-            potentials[frame_index] = state.getPotentialEnergy().value_in_unit(simtk_unit.kilojoule_per_mole)
+            potentials[frame_index] = potential_energy.value_in_unit(simtk_unit.kilojoule_per_mole)
             reduced_potentials[frame_index] = unreduced_potential * beta
 
         potentials *= unit.kilojoule / unit.mole
         reduced_potentials *= unit.dimensionless
 
-        if subset_energy_corrections is not None:
-            potentials += subset_energy_corrections
-
         statistics_array = StatisticsArray()
         statistics_array[ObservableType.ReducedPotential] = reduced_potentials
         statistics_array[ObservableType.PotentialEnergy] = potentials
         statistics_array.to_pandas_csv(file_path)
+
+        return statistics_array
 
     def execute(self, directory, available_resources):
 
@@ -307,26 +296,16 @@ class GradientReducedPotentials(BaseProtocol):
 
         logging.info(f'Calculating the reduced gradient potentials for {self.parameter_key}: {self._id}')
 
-        if len(self.reference_force_field_paths) != 1 and self.use_subset_of_force_field:
-
-            return PropertyEstimatorException(directory, 'A single reference force field must be '
-                                                         'provided when calculating the reduced '
-                                                         'potentials using a subset of the full force')
-
-        if len(self.reference_statistics_path) <= 0 and self.use_subset_of_force_field:
-
-            return PropertyEstimatorException(directory, 'The path to the statistics evaluated using '
-                                                         'the full force field must be provided.')
-
         with open(self.force_field_path) as file:
-            target_force_field_source = ForceFieldSource.parse_json(file.read())
+            force_field_source = ForceFieldSource.parse_json(file.read())
 
-        if not isinstance(target_force_field_source, SmirnoffForceFieldSource):
+        if not isinstance(force_field_source, SmirnoffForceFieldSource):
 
             return PropertyEstimatorException(directory, 'Only SMIRNOFF force fields are supported by '
                                                          'this protocol.')
 
-        target_force_field = target_force_field_source.to_force_field()
+        # Load in the inputs
+        force_field = force_field_source.to_force_field()
 
         trajectory = mdtraj.load_dcd(self.trajectory_file_path,
                                      self.coordinate_file_path)
@@ -341,54 +320,30 @@ class GradientReducedPotentials(BaseProtocol):
         pdb_file = app.PDBFile(self.coordinate_file_path)
         topology = Topology.from_openmm(pdb_file.topology, unique_molecules=unique_molecules)
 
-        # If we are using only a subset of the system object, load in the reference
-        # statistics containing the full system energies to correct the output
-        # forward and reverse potential energies.
-        reference_statistics = None
-        subset_energy_corrections = None
+        # Compute the difference between the energies using the reduced force field,
+        # and the full force field.
+        energy_corrections = None
 
         if self.use_subset_of_force_field:
-            reference_statistics = StatisticsArray.from_pandas_csv(self.reference_statistics_path)
 
-        # Compute the reduced reference energy if any reference force field files
-        # have been provided.
-        self.reference_potential_paths = []
+            target_system, _ = self._build_reduced_system(force_field, topology)
 
-        for index, reference_force_field_path in enumerate(self.reference_force_field_paths):
+            subset_potentials_path = path.join(directory, f'subset.csv')
+            subset_potentials = self._evaluate_reduced_potential(target_system, trajectory,
+                                                                 subset_potentials_path,
+                                                                 available_resources)
 
-            with open(reference_force_field_path) as file:
-                reference_force_field_source = ForceFieldSource.parse_json(file.read())
+            full_statistics = StatisticsArray.from_pandas_csv(self.statistics_path)
 
-            if not isinstance(reference_force_field_source, SmirnoffForceFieldSource):
-                return PropertyEstimatorException(directory, 'Only SMIRNOFF force fields are supported by '
-                                                             'this protocol.')
-
-            reference_force_field = reference_force_field_source.to_force_field()
-            reference_system, _ = self._build_reduced_system(reference_force_field, topology)
-
-            reference_potentials_path = path.join(directory, f'reference_{index}.csv')
-
-            self._evaluate_reduced_potential(reference_system, trajectory,
-                                             reference_potentials_path,
-                                             available_resources)
-
-            self.reference_potential_paths.append(reference_potentials_path)
-
-            if reference_statistics is not None:
-
-                subset_energies = StatisticsArray.from_pandas_csv(reference_potentials_path)
-                subset_energy_corrections = (reference_statistics[ObservableType.PotentialEnergy] -
-                                             subset_energies[ObservableType.PotentialEnergy])
-
-                subset_energies[ObservableType.PotentialEnergy] = reference_statistics[ObservableType.PotentialEnergy]
-                subset_energies.to_pandas_csv(reference_potentials_path)
+            energy_corrections = (full_statistics[ObservableType.PotentialEnergy] -
+                                  subset_potentials[ObservableType.PotentialEnergy])
 
         # Build the slightly perturbed system.
-        reverse_system, reverse_parameter_value = self._build_reduced_system(target_force_field,
+        reverse_system, reverse_parameter_value = self._build_reduced_system(force_field,
                                                                              topology,
                                                                              -self.perturbation_scale)
 
-        forward_system, forward_parameter_value = self._build_reduced_system(target_force_field,
+        forward_system, forward_parameter_value = self._build_reduced_system(force_field,
                                                                              topology,
                                                                              self.perturbation_scale)
 
@@ -400,9 +355,9 @@ class GradientReducedPotentials(BaseProtocol):
         self.forward_potentials_path = path.join(directory, 'forward.csv')
 
         self._evaluate_reduced_potential(reverse_system, trajectory, self.reverse_potentials_path,
-                                         available_resources, subset_energy_corrections)
+                                         available_resources, energy_corrections)
         self._evaluate_reduced_potential(forward_system, trajectory, self.forward_potentials_path,
-                                         available_resources, subset_energy_corrections)
+                                         available_resources, energy_corrections)
 
         logging.info(f'Finished calculating the reduced gradient potentials.')
 

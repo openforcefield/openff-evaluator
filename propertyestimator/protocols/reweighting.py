@@ -6,6 +6,7 @@ from os import path
 
 import numpy as np
 import pymbar
+import typing
 from scipy.special import logsumexp
 
 from propertyestimator import unit
@@ -268,12 +269,12 @@ class BaseMBARProtocol(BaseProtocol):
     reference_reduced_potentials = protocol_input(
         docstring='A list of paths to the reduced potentials of each '
                   'reference state.',
-        type_hint=list,
+        type_hint=typing.Union[str, list],
         default_value=UNDEFINED
     )
     target_reduced_potentials = protocol_input(
         docstring='A list of paths to the reduced potentials of the target state.',
-        type_hint=list,
+        type_hint=typing.Union[str, list],
         default_value=UNDEFINED
     )
 
@@ -322,6 +323,12 @@ class BaseMBARProtocol(BaseProtocol):
         self._reference_observables = []
 
     def execute(self, directory, available_resources):
+
+        if isinstance(self.reference_reduced_potentials, str):
+            self.reference_reduced_potentials = [self.reference_reduced_potentials]
+
+        if isinstance(self.target_reduced_potentials, str):
+            self.target_reduced_potentials = [self.target_reduced_potentials]
 
         if len(self._reference_observables) == 0:
 
@@ -675,7 +682,7 @@ class ReweightStatistics(BaseMBARProtocol):
                   'of interest from each state. If the observable of interest is '
                   'dependant on the changing variable (e.g. the potential energy) then '
                   'this must be a path to the observable re-evaluated at the new state.',
-        type_hint=list,
+        type_hint=typing.Union[list, str],
         default_value=UNDEFINED
     )
     statistics_type = protocol_input(
@@ -694,6 +701,9 @@ class ReweightStatistics(BaseMBARProtocol):
     )
 
     def execute(self, directory, available_resources):
+
+        if isinstance(self.statistics_paths, str):
+            self.statistics_paths = [self.statistics_paths]
 
         if self.statistics_paths is None or len(self.statistics_paths) == 0:
             return PropertyEstimatorException(directory, 'No statistics paths were provided.')

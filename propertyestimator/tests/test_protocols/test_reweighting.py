@@ -118,9 +118,9 @@ def test_reweight_statistics():
 
         reweight_protocol = ReweightStatistics(f'reduced_potentials')
         reweight_protocol.statistics_type = ObservableType.PotentialEnergy
-        reweight_protocol.statistics_paths = [statistics_path]
-        reweight_protocol.reference_reduced_potentials = [statistics_path]
-        reweight_protocol.target_reduced_potentials = [statistics_path]
+        reweight_protocol.statistics_paths = statistics_path
+        reweight_protocol.reference_reduced_potentials = statistics_path
+        reweight_protocol.target_reduced_potentials = statistics_path
         reweight_protocol.bootstrap_uncertainties = True
         reweight_protocol.required_effective_samples = 0
 
