@@ -35,9 +35,9 @@ install:
 - python -c "import fcntl; fcntl.fcntl(1, fcntl.F_SETFL, 0)"
 - python setup.py develop --no-deps
 script:
-  - if [[ $LINT == false ]]; then pytest -v --cov=nistdataselection nistdataselection/tests/ ; fi
-  - if [[ $LINT == true ]]; then conda install flake8 ; flake8 nistdataselection ; flake8 examples ; fi
-  - if [[ $LINT == true ]]; then conda install flake8-black; black nistdataselection --check; black examples --check ; fi
+  - if [[ $LINT == false ]]; then pytest -v --cov=propertyestimator propertyestimator/tests/ ; fi
+  - if [[ $LINT == true ]]; then conda install flake8 ; flake8 propertyestimator ; flake8 examples ; fi
+  - if [[ $LINT == true ]]; then conda install flake8-black; black propertyestimator --check; black examples --check ; fi
 notifications:
   email: false
 after_success:
