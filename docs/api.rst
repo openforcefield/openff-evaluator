@@ -246,22 +246,8 @@ Workflow API
     :nosignatures:
     :toctree: api/generated/
 
-    PlaceholderInput
     ReplicatorValue
     ProtocolPath
-
-**Decorators**
-
-.. currentmodule:: propertyestimator.workflow.decorators
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    protocol_input
-    protocol_output
-    BaseProtocolAttribute
-    MergeBehaviour
-    InequalityMergeBehaviour
 
 Built-in Workflow Protocols
 ---------------------------
@@ -397,3 +383,18 @@ Workflow Construction Utilities
     generate_base_reweighting_protocols
     generate_base_simulation_protocols
     generate_gradient_protocol_group
+
+Attribute Utilities
+-------------------
+
+.. currentmodule:: propertyestimator.attributes
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    BaseAttributeClass
+    InputAttribute
+    OutputAttribute
+    MergeBehaviour
+    InequalityMergeBehaviour
+    PlaceholderInput

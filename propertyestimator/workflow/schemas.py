@@ -3,11 +3,11 @@ A collection of schemas which represent elements of a property calculation workf
 """
 import re
 
+from propertyestimator.attributes import UNDEFINED, InputAttribute
+from propertyestimator.attributes.typing import is_type_subclass_of_type
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedBaseModel
-from propertyestimator.workflow.decorators import UNDEFINED, protocol_input
 from propertyestimator.workflow.plugins import available_protocols
-from propertyestimator.workflow.typing import is_type_subclass_of_type
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
@@ -975,7 +975,7 @@ class WorkflowSchema(TypedBaseModel):
                 input_value = protocol_object.get_value(input_path)
                 input_attribute = protocol_object.get_class_attribute(input_path)
 
-                if not isinstance(input_attribute, protocol_input):
+                if not isinstance(input_attribute, InputAttribute):
                     continue
 
                 is_optional = input_attribute.optional

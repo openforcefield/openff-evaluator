@@ -1,5 +1,5 @@
 """
-Units tests for propertyestimator.workflow.typing
+Units tests for propertyestimator.attributes.typing
 """
 
 import typing
@@ -8,7 +8,7 @@ from random import random
 import pytest
 
 from propertyestimator import unit
-from propertyestimator.workflow.typing import (
+from propertyestimator.attributes.typing import (
     is_instance_of_type,
     is_type_subclass_of_type,
 )

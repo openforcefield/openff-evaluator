@@ -14,13 +14,13 @@ from enum import Enum, unique
 from os import makedirs, path
 
 from propertyestimator import unit
+from propertyestimator.attributes import (
+    InequalityMergeBehaviour,
+    InputAttribute,
+    OutputAttribute,
+)
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.workflow.decorators import (
-    InequalityMergeBehaviour,
-    protocol_input,
-    protocol_output,
-)
 from propertyestimator.workflow.plugins import (
     available_protocols,
     register_calculation_protocol,
@@ -769,7 +769,7 @@ class ConditionalGroup(ProtocolGroup):
     def conditions(self):
         return self._conditions
 
-    max_iterations = protocol_input(
+    max_iterations = InputAttribute(
         docstring="The maximum number of iterations to run for to try and satisfy the "
         "groups conditions.",
         type_hint=int,
@@ -777,7 +777,7 @@ class ConditionalGroup(ProtocolGroup):
         merge_behavior=InequalityMergeBehaviour.LargestValue,
     )
 
-    current_iteration = protocol_output(
+    current_iteration = OutputAttribute(
         docstring="The current number of iterations this group has performed while "
         "attempting to satisfy the specified conditions. This value starts "
         "from one.",

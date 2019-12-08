@@ -5,16 +5,17 @@ form a larger property estimation workflow.
 
 import copy
 
+from propertyestimator.attributes import (
+    InequalityMergeBehaviour,
+    InputAttribute,
+    MergeBehaviour,
+    OutputAttribute,
+    PlaceholderInput,
+)
 from propertyestimator.utils import graph, utils
 from propertyestimator.utils.utils import get_nested_attribute, set_nested_attribute
-from propertyestimator.workflow.decorators import (
-    InequalityMergeBehaviour,
-    MergeBehaviour,
-    protocol_input,
-    protocol_output,
-)
 from propertyestimator.workflow.schemas import ProtocolSchema
-from propertyestimator.workflow.utils import PlaceholderInput, ProtocolPath
+from propertyestimator.workflow.utils import ProtocolPath
 
 
 class BaseProtocol:
@@ -96,7 +97,7 @@ class BaseProtocol:
 
         return return_dependencies
 
-    allow_merging = protocol_input(
+    allow_merging = InputAttribute(
         docstring="Defines whether this protocols is allowed "
         "to merge with other protocols.",
         type_hint=bool,
@@ -144,8 +145,8 @@ class BaseProtocol:
         self.provided_outputs = []
         self.required_inputs = []
 
-        output_attributes = utils.find_types_with_decorator(type(self), protocol_output)
-        input_attributes = utils.find_types_with_decorator(type(self), protocol_input)
+        output_attributes = utils.find_types_with_decorator(type(self), OutputAttribute)
+        input_attributes = utils.find_types_with_decorator(type(self), InputAttribute)
 
         for output_attribute in output_attributes:
             self.provided_outputs.append(ProtocolPath(output_attribute))

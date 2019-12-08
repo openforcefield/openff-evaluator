@@ -7,15 +7,11 @@ import typing
 import numpy as np
 
 from propertyestimator import unit
+from propertyestimator.attributes import UNDEFINED, InputAttribute, OutputAttribute
 from propertyestimator.properties import ParameterGradient
 from propertyestimator.substances import Substance
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.workflow.decorators import (
-    UNDEFINED,
-    protocol_input,
-    protocol_output,
-)
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
@@ -30,11 +26,11 @@ class AddValues(BaseProtocol):
     of unit.Quantity, or a list of ProtocolPath which each point to a unit.Quantity.
     """
 
-    values = protocol_input(
+    values = InputAttribute(
         docstring="The values to add together.", type_hint=list, default_value=UNDEFINED
     )
 
-    result = protocol_output(
+    result = OutputAttribute(
         docstring="The sum of the values.",
         type_hint=typing.Union[
             int, float, EstimatedQuantity, unit.Quantity, ParameterGradient
@@ -71,14 +67,14 @@ class SubtractValues(BaseProtocol):
     `result = value_b - value_a`
     """
 
-    value_a = protocol_input(
+    value_a = InputAttribute(
         docstring="`value_a` in the formula `result` = `value_b` - `value_a`.",
         type_hint=typing.Union[
             int, float, unit.Quantity, EstimatedQuantity, ParameterGradient
         ],
         default_value=UNDEFINED,
     )
-    value_b = protocol_input(
+    value_b = InputAttribute(
         docstring="`value_b` in the formula `result` = `value_b` - `value_a`.",
         type_hint=typing.Union[
             int, float, unit.Quantity, EstimatedQuantity, ParameterGradient
@@ -86,7 +82,7 @@ class SubtractValues(BaseProtocol):
         default_value=UNDEFINED,
     )
 
-    result = protocol_output(
+    result = OutputAttribute(
         docstring="The results of `value_b` - `value_a`.",
         type_hint=typing.Union[
             int, float, EstimatedQuantity, unit.Quantity, ParameterGradient
@@ -104,20 +100,20 @@ class MultiplyValue(BaseProtocol):
     """A protocol which multiplies a value by a specified scalar
     """
 
-    value = protocol_input(
+    value = InputAttribute(
         docstring="The value to multiply.",
         type_hint=typing.Union[
             int, float, unit.Quantity, EstimatedQuantity, ParameterGradient
         ],
         default_value=UNDEFINED,
     )
-    multiplier = protocol_input(
+    multiplier = InputAttribute(
         docstring="The scalar to multiply by.",
         type_hint=typing.Union[int, float, unit.Quantity],
         default_value=UNDEFINED,
     )
 
-    result = protocol_output(
+    result = OutputAttribute(
         docstring="The result of the multiplication.",
         type_hint=typing.Union[
             int, float, EstimatedQuantity, unit.Quantity, ParameterGradient
@@ -146,20 +142,20 @@ class DivideValue(BaseProtocol):
     """A protocol which divides a value by a specified scalar
     """
 
-    value = protocol_input(
+    value = InputAttribute(
         docstring="The value to divide.",
         type_hint=typing.Union[
             int, float, unit.Quantity, EstimatedQuantity, ParameterGradient
         ],
         default_value=UNDEFINED,
     )
-    divisor = protocol_input(
+    divisor = InputAttribute(
         docstring="The scalar to divide by.",
         type_hint=typing.Union[int, float, unit.Quantity],
         default_value=UNDEFINED,
     )
 
-    result = protocol_output(
+    result = OutputAttribute(
         docstring="The result of the division.",
         type_hint=typing.Union[
             int, float, EstimatedQuantity, unit.Quantity, ParameterGradient
@@ -178,7 +174,7 @@ class WeightByMoleFraction(BaseProtocol):
     in a `Substance`.
     """
 
-    value = protocol_input(
+    value = InputAttribute(
         docstring="The value to be weighted.",
         type_hint=typing.Union[
             float, int, EstimatedQuantity, unit.Quantity, ParameterGradient
@@ -186,18 +182,18 @@ class WeightByMoleFraction(BaseProtocol):
         default_value=UNDEFINED,
     )
 
-    component = protocol_input(
+    component = InputAttribute(
         docstring="The component whose mole fraction to weight by.",
         type_hint=Substance,
         default_value=UNDEFINED,
     )
-    full_substance = protocol_input(
+    full_substance = InputAttribute(
         docstring="The full substance which describes the mole fraction of the component.",
         type_hint=Substance,
         default_value=UNDEFINED,
     )
 
-    weighted_value = protocol_output(
+    weighted_value = OutputAttribute(
         "The value weighted by the `component`s mole fraction as determined from the "
         "`full_substance`.",
         type_hint=typing.Union[
@@ -256,19 +252,19 @@ class FilterSubstanceByRole(BaseProtocol):
     contains components whose role match a given criteria.
     """
 
-    input_substance = protocol_input(
+    input_substance = InputAttribute(
         docstring="The substance to filter.",
         type_hint=Substance,
         default_value=UNDEFINED,
     )
 
-    component_role = protocol_input(
+    component_role = InputAttribute(
         docstring="The role to filter substance components against.",
         type_hint=Substance.ComponentRole,
         default_value=UNDEFINED,
     )
 
-    expected_components = protocol_input(
+    expected_components = InputAttribute(
         docstring="The number of components expected to remain after filtering. "
         "An exception is raised if this number is not matched.",
         type_hint=int,
@@ -276,7 +272,7 @@ class FilterSubstanceByRole(BaseProtocol):
         optional=True,
     )
 
-    filtered_substance = protocol_output(
+    filtered_substance = OutputAttribute(
         docstring="The filtered substance.", type_hint=Substance
     )
 

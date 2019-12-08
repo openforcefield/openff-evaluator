@@ -6,16 +6,12 @@ import json
 from os import path
 from typing import Union
 
+from propertyestimator.attributes import UNDEFINED, InputAttribute, OutputAttribute
 from propertyestimator.storage.dataclasses import StoredDataCollection
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
-from propertyestimator.workflow.decorators import (
-    UNDEFINED,
-    protocol_input,
-    protocol_output,
-)
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
@@ -26,7 +22,7 @@ class UnpackStoredDataCollection(BaseProtocol):
     and makes its inner data objects easily accessible to other protocols.
     """
 
-    input_data_path = protocol_input(
+    input_data_path = InputAttribute(
         docstring="A tuple which contains both the path to the simulation data object, "
         "it's ancillary data directory, and the force field which was used "
         "to generate the stored data.",
@@ -34,7 +30,7 @@ class UnpackStoredDataCollection(BaseProtocol):
         default_value=UNDEFINED,
     )
 
-    collection_data_paths = protocol_output(
+    collection_data_paths = OutputAttribute(
         docstring="A dictionary of data object path, data directory path and "
         "force field path tuples partitioned by the unique collection "
         "keys.",
@@ -116,7 +112,7 @@ class UnpackStoredSimulationData(BaseProtocol):
     and makes its attributes easily accessible to other protocols.
     """
 
-    simulation_data_path = protocol_input(
+    simulation_data_path = InputAttribute(
         docstring="A list / tuple which contains both the path to the simulation data "
         "object, it's ancillary data directory, and the force field which "
         "was used to generate the stored data.",
@@ -124,34 +120,34 @@ class UnpackStoredSimulationData(BaseProtocol):
         default_value=UNDEFINED,
     )
 
-    substance = protocol_output(
+    substance = OutputAttribute(
         docstring="The substance which was stored.", type_hint=Substance
     )
 
-    total_number_of_molecules = protocol_output(
+    total_number_of_molecules = OutputAttribute(
         docstring="The total number of molecules in the stored system.", type_hint=int
     )
 
-    thermodynamic_state = protocol_output(
+    thermodynamic_state = OutputAttribute(
         docstring="The thermodynamic state which was stored.",
         type_hint=ThermodynamicState,
     )
 
-    statistical_inefficiency = protocol_output(
+    statistical_inefficiency = OutputAttribute(
         docstring="The statistical inefficiency of the stored data.", type_hint=float
     )
 
-    coordinate_file_path = protocol_output(
+    coordinate_file_path = OutputAttribute(
         docstring="A path to the stored simulation output coordinates.", type_hint=str
     )
-    trajectory_file_path = protocol_output(
+    trajectory_file_path = OutputAttribute(
         docstring="A path to the stored simulation trajectory.", type_hint=str
     )
-    statistics_file_path = protocol_output(
+    statistics_file_path = OutputAttribute(
         docstring="A path to the stored simulation statistics array.", type_hint=str
     )
 
-    force_field_path = protocol_output(
+    force_field_path = OutputAttribute(
         docstring="A path to the force field parameters used to generate the stored data.",
         type_hint=str,
     )

@@ -1,13 +1,9 @@
 from typing import Union
 
 from propertyestimator import unit
+from propertyestimator.attributes import UNDEFINED, InputAttribute, OutputAttribute
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import Workflow
-from propertyestimator.workflow.decorators import (
-    UNDEFINED,
-    protocol_input,
-    protocol_output,
-)
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
@@ -37,19 +33,19 @@ def create_dummy_metadata(dummy_property, calculation_layer):
 @register_calculation_protocol()
 class DummyReplicableProtocol(BaseProtocol):
 
-    replicated_value_a = protocol_input(
+    replicated_value_a = InputAttribute(
         docstring="", type_hint=Union[str, int, float], default_value=UNDEFINED
     )
-    replicated_value_b = protocol_input(
+    replicated_value_b = InputAttribute(
         docstring="", type_hint=Union[str, int, float], default_value=UNDEFINED
     )
-    final_value = protocol_output(docstring="", type_hint=EstimatedQuantity)
+    final_value = OutputAttribute(docstring="", type_hint=EstimatedQuantity)
 
 
 @register_calculation_protocol()
 class DummyInputOutputProtocol(BaseProtocol):
 
-    input_value = protocol_input(
+    input_value = InputAttribute(
         docstring="A dummy input.",
         type_hint=Union[
             str,
@@ -65,7 +61,7 @@ class DummyInputOutputProtocol(BaseProtocol):
         ],
         default_value=UNDEFINED,
     )
-    output_value = protocol_output(
+    output_value = OutputAttribute(
         docstring="A dummy output.",
         type_hint=Union[
             str,

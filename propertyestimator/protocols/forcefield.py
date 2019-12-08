@@ -15,6 +15,7 @@ import requests
 from simtk import openmm
 from simtk.openmm import app
 
+from propertyestimator.attributes import UNDEFINED, InputAttribute, OutputAttribute
 from propertyestimator.forcefield import (
     ForceFieldSource,
     LigParGenForceFieldSource,
@@ -27,11 +28,6 @@ from propertyestimator.utils.openmm import pint_quantity_to_openmm
 from propertyestimator.utils.utils import (
     get_data_filename,
     temporarily_change_directory,
-)
-from propertyestimator.workflow.decorators import (
-    UNDEFINED,
-    protocol_input,
-    protocol_output,
 )
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
@@ -55,12 +51,12 @@ class BaseBuildSystemProtocol(BaseProtocol):
 
         TIP3P = "TIP3P"
 
-    force_field_path = protocol_input(
+    force_field_path = InputAttribute(
         docstring="The file path to the force field parameters to assign to the system.",
         type_hint=str,
         default_value=UNDEFINED,
     )
-    coordinate_file_path = protocol_input(
+    coordinate_file_path = InputAttribute(
         docstring="The file path to the PDB coordinate file which defines the "
         "topology of the system to which the force field parameters "
         "will be assigned.",
@@ -68,18 +64,18 @@ class BaseBuildSystemProtocol(BaseProtocol):
         default_value=UNDEFINED,
     )
 
-    substance = protocol_input(
+    substance = InputAttribute(
         docstring="The composition of the system.",
         type_hint=Substance,
         default_value=UNDEFINED,
     )
-    water_model = protocol_input(
+    water_model = InputAttribute(
         docstring="The water model to apply, if any water molecules are present.",
         type_hint=WaterModel,
         default_value=WaterModel.TIP3P,
     )
 
-    system_path = protocol_output(
+    system_path = OutputAttribute(
         docstring="The path to the assigned system object.", type_hint=str
     )
 
@@ -287,7 +283,7 @@ class BuildSmirnoffSystem(BaseBuildSystemProtocol):
     using the `OpenFF toolkit <https://github.com/openforcefield/openforcefield>`_.
     """
 
-    charged_molecule_paths = protocol_input(
+    charged_molecule_paths = InputAttribute(
         docstring="File paths to mol2 files which contain the charges assigned to "
         "molecules in the system. This input is helpful when dealing "
         "with large molecules (such as hosts in host-guest binding "
@@ -296,7 +292,7 @@ class BuildSmirnoffSystem(BaseBuildSystemProtocol):
         type_hint=list,
         default_value=[],
     )
-    apply_known_charges = protocol_input(
+    apply_known_charges = InputAttribute(
         docstring="If true, the formal charges of ions and the partial charges of "
         "the selected water model will be automatically applied to any "
         "matching molecules in the system.",
@@ -802,7 +798,7 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
         OpenEye = "OpenEye"
         AmberTools = "AmberTools"
 
-    charge_backend = protocol_input(
+    charge_backend = InputAttribute(
         docstring="The backend framework to use to assign partial charges.",
         type_hint=ChargeBackend,
         default_value=ChargeBackend.OpenEye,

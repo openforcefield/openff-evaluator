@@ -10,6 +10,7 @@ import pymbar
 from scipy.special import logsumexp
 
 from propertyestimator import unit
+from propertyestimator.attributes import UNDEFINED, InputAttribute, OutputAttribute
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.openmm import (
@@ -23,11 +24,6 @@ from propertyestimator.utils.statistics import (
     StatisticsArray,
     bootstrap,
 )
-from propertyestimator.workflow.decorators import (
-    UNDEFINED,
-    protocol_input,
-    protocol_output,
-)
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
@@ -38,24 +34,24 @@ class ConcatenateTrajectories(BaseProtocol):
     a single one.
     """
 
-    input_coordinate_paths = protocol_input(
+    input_coordinate_paths = InputAttribute(
         docstring="A list of paths to the starting PDB coordinates for each of the trajectories.",
         type_hint=list,
         default_value=UNDEFINED,
     )
-    input_trajectory_paths = protocol_input(
+    input_trajectory_paths = InputAttribute(
         docstring="A list of paths to the trajectories to concatenate.",
         type_hint=list,
         default_value=UNDEFINED,
     )
 
-    output_coordinate_path = protocol_output(
+    output_coordinate_path = OutputAttribute(
         docstring="The path the PDB coordinate file which contains the topology "
         "of the concatenated trajectory.",
         type_hint=str,
     )
 
-    output_trajectory_path = protocol_output(
+    output_trajectory_path = OutputAttribute(
         docstring="The path to the concatenated trajectory.", type_hint=str
     )
 
@@ -108,12 +104,12 @@ class ConcatenateStatistics(BaseProtocol):
     a single one.
     """
 
-    input_statistics_paths = protocol_input(
+    input_statistics_paths = InputAttribute(
         docstring="A list of paths to statistics arrays to concatenate.",
         type_hint=list,
         default_value=UNDEFINED,
     )
-    output_statistics_path = protocol_output(
+    output_statistics_path = OutputAttribute(
         docstring="The path the csv file which contains the concatenated statistics.",
         type_hint=str,
     )
@@ -149,50 +145,50 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
     set of configurations.
     """
 
-    thermodynamic_state = protocol_input(
+    thermodynamic_state = InputAttribute(
         docstring="The state to calculate the reduced potential at.",
         type_hint=ThermodynamicState,
         default_value=UNDEFINED,
     )
 
-    system_path = protocol_input(
+    system_path = InputAttribute(
         docstring="The path to the system object which describes the systems potential "
         "energy function.",
         type_hint=str,
         default_value=UNDEFINED,
     )
-    enable_pbc = protocol_input(
+    enable_pbc = InputAttribute(
         docstring="If true, periodic boundary conditions will be enabled.",
         type_hint=bool,
         default_value=True,
     )
 
-    coordinate_file_path = protocol_input(
+    coordinate_file_path = InputAttribute(
         docstring="The path to the coordinate file which contains topology "
         "information about the system.",
         type_hint=str,
         default_value=UNDEFINED,
     )
-    trajectory_file_path = protocol_input(
+    trajectory_file_path = InputAttribute(
         docstring="The path to the trajectory file which contains the "
         "configurations to calculate the energies of.",
         type_hint=str,
         default_value=UNDEFINED,
     )
-    kinetic_energies_path = protocol_input(
+    kinetic_energies_path = InputAttribute(
         docstring="The file path to a statistics array which contain the kinetic "
         "energies of each frame in the trajectory.",
         type_hint=str,
         default_value=UNDEFINED,
     )
 
-    high_precision = protocol_input(
+    high_precision = InputAttribute(
         docstring="If true, OpenMM will be run in double precision mode.",
         type_hint=bool,
         default_value=False,
     )
 
-    use_internal_energy = protocol_input(
+    use_internal_energy = InputAttribute(
         docstring="If true the internal energy, rather than the potential energy will "
         "be used when calculating the reduced potential. This is required "
         "when reweighting properties which depend on the total energy, such "
@@ -201,7 +197,7 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         default_value=False,
     )
 
-    statistics_file_path = protocol_output(
+    statistics_file_path = OutputAttribute(
         docstring="A file path to the statistics file which contains the reduced "
         "potentials, and the potential, kinetic and total energies and "
         "enthalpies evaluated at the specified state and using the "
@@ -316,37 +312,37 @@ class BaseMBARProtocol(BaseProtocol):
     than they were originally measured.
     """
 
-    reference_reduced_potentials = protocol_input(
+    reference_reduced_potentials = InputAttribute(
         docstring="A list of paths to the reduced potentials of each "
         "reference state.",
         type_hint=typing.Union[str, list],
         default_value=UNDEFINED,
     )
-    target_reduced_potentials = protocol_input(
+    target_reduced_potentials = InputAttribute(
         docstring="A list of paths to the reduced potentials of the target state.",
         type_hint=typing.Union[str, list],
         default_value=UNDEFINED,
     )
 
-    bootstrap_uncertainties = protocol_input(
+    bootstrap_uncertainties = InputAttribute(
         docstring="If true, bootstrapping will be used to estimated the total uncertainty",
         type_hint=bool,
         default_value=False,
     )
-    bootstrap_iterations = protocol_input(
+    bootstrap_iterations = InputAttribute(
         docstring="The number of bootstrap iterations to perform if bootstraped "
         "uncertainties have been requested",
         type_hint=int,
         default_value=1,
     )
-    bootstrap_sample_size = protocol_input(
+    bootstrap_sample_size = InputAttribute(
         docstring="The relative bootstrap sample size to use if bootstraped "
         "uncertainties have been requested",
         type_hint=float,
         default_value=1.0,
     )
 
-    required_effective_samples = protocol_input(
+    required_effective_samples = InputAttribute(
         docstring="The minimum number of MBAR effective samples for the "
         "reweighted value to be trusted. If this minimum is not met "
         "then the uncertainty will be set to sys.float_info.max",
@@ -354,16 +350,16 @@ class BaseMBARProtocol(BaseProtocol):
         default_value=50,
     )
 
-    value = protocol_output(
+    value = OutputAttribute(
         docstring="The reweighted average value of the observable at the target state.",
         type_hint=EstimatedQuantity,
     )
 
-    effective_samples = protocol_output(
+    effective_samples = OutputAttribute(
         docstring="The number of effective samples which were reweighted.",
         type_hint=float,
     )
-    effective_sample_indices = protocol_output(
+    effective_sample_indices = OutputAttribute(
         docstring="The indices of those samples which have a non-zero weight.",
         type_hint=list,
     )
@@ -800,7 +796,7 @@ class ReweightStatistics(BaseMBARProtocol):
     """Reweights a set of observables from a `StatisticsArray` using MBAR.
     """
 
-    statistics_paths = protocol_input(
+    statistics_paths = InputAttribute(
         docstring="The file paths to the statistics array which contains the observables "
         "of interest from each state. If the observable of interest is "
         "dependant on the changing variable (e.g. the potential energy) then "
@@ -808,13 +804,13 @@ class ReweightStatistics(BaseMBARProtocol):
         type_hint=typing.Union[list, str],
         default_value=UNDEFINED,
     )
-    statistics_type = protocol_input(
+    statistics_type = InputAttribute(
         docstring="The type of observable to reweight.",
         type_hint=ObservableType,
         default_value=UNDEFINED,
     )
 
-    frame_counts = protocol_input(
+    frame_counts = InputAttribute(
         docstring="A list which describes how many of the statistics in the array "
         "belong to each reference state. If this input is used, only a single file "
         "path should be passed to the `statistics_paths` input.",

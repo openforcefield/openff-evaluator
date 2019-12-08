@@ -9,6 +9,7 @@ from simtk import openmm
 from simtk.openmm import XmlSerializer
 
 from propertyestimator import unit
+from propertyestimator.attributes import UNDEFINED, InputAttribute, OutputAttribute
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties import PhysicalProperty, PropertyPhase
 from propertyestimator.properties.plugins import register_estimable_property
@@ -25,11 +26,6 @@ from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import bootstrap
 from propertyestimator.workflow import plugins
-from propertyestimator.workflow.decorators import (
-    UNDEFINED,
-    protocol_input,
-    protocol_output,
-)
 from propertyestimator.workflow.schemas import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
@@ -39,28 +35,28 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
     """Extracts the average dielectric constant from a simulation trajectory.
     """
 
-    system_path = protocol_input(
+    system_path = InputAttribute(
         docstring="The path to the XML system object which defines the forces present in the system.",
         type_hint=str,
         default_value=UNDEFINED,
     )
-    thermodynamic_state = protocol_input(
+    thermodynamic_state = InputAttribute(
         docstring="The thermodynamic state at which the trajectory was generated.",
         type_hint=ThermodynamicState,
         default_value=UNDEFINED,
     )
 
-    dipole_moments = protocol_output(
+    dipole_moments = OutputAttribute(
         docstring="The raw (possibly correlated) dipole moments which were used in "
         "the dielectric calculation.",
         type_hint=unit.Quantity,
     )
-    volumes = protocol_output(
+    volumes = OutputAttribute(
         docstring="The raw (possibly correlated) which were used in the dielectric calculation.",
         type_hint=unit.Quantity,
     )
 
-    uncorrelated_volumes = protocol_output(
+    uncorrelated_volumes = OutputAttribute(
         docstring="The uncorrelated volumes which were used in the dielectric "
         "calculation.",
         type_hint=unit.Quantity,
@@ -231,20 +227,20 @@ class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
     by bootstrapping.
     """
 
-    reference_dipole_moments = protocol_input(
+    reference_dipole_moments = InputAttribute(
         docstring="A Quantity wrapped np.ndarray of the dipole moments of each "
         "of the reference states.",
         type_hint=list,
         default_value=UNDEFINED,
     )
-    reference_volumes = protocol_input(
+    reference_volumes = InputAttribute(
         docstring="A Quantity wrapped np.ndarray of the volumes of each of the "
         "reference states.",
         type_hint=list,
         default_value=UNDEFINED,
     )
 
-    thermodynamic_state = protocol_input(
+    thermodynamic_state = InputAttribute(
         docstring="The thermodynamic state at which the trajectory was generated.",
         type_hint=ThermodynamicState,
         default_value=UNDEFINED,

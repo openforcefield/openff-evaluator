@@ -5,6 +5,7 @@ import copy
 from collections import namedtuple
 
 from propertyestimator import unit
+from propertyestimator.attributes import UNDEFINED
 from propertyestimator.protocols import (
     analysis,
     coordinates,
@@ -18,7 +19,6 @@ from propertyestimator.protocols import (
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow import WorkflowOptions
-from propertyestimator.workflow.decorators import UNDEFINED
 from propertyestimator.workflow.plugins import available_protocols
 from propertyestimator.workflow.schemas import (
     ProtocolReplicator,

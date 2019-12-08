@@ -12,6 +12,12 @@ from enum import Enum
 import yaml
 
 from propertyestimator import unit
+from propertyestimator.attributes import (
+    UNDEFINED,
+    InequalityMergeBehaviour,
+    InputAttribute,
+    OutputAttribute,
+)
 from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
@@ -24,12 +30,6 @@ from propertyestimator.utils.openmm import (
 )
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.utils import temporarily_change_directory
-from propertyestimator.workflow.decorators import (
-    UNDEFINED,
-    InequalityMergeBehaviour,
-    protocol_input,
-    protocol_output,
-)
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
@@ -43,51 +43,51 @@ class BaseYankProtocol(BaseProtocol):
     methods.
     """
 
-    thermodynamic_state = protocol_input(
+    thermodynamic_state = InputAttribute(
         docstring="The state at which to run the calculations.",
         type_hint=ThermodynamicState,
         default_value=UNDEFINED,
     )
 
-    number_of_equilibration_iterations = protocol_input(
+    number_of_equilibration_iterations = InputAttribute(
         docstring="The number of iterations used for equilibration before production run. "
         "Only post-equilibration iterations are written to file.",
         type_hint=int,
         merge_behavior=InequalityMergeBehaviour.LargestValue,
         default_value=1,
     )
-    number_of_iterations = protocol_input(
+    number_of_iterations = InputAttribute(
         docstring="The number of YANK iterations to perform.",
         type_hint=int,
         merge_behavior=InequalityMergeBehaviour.LargestValue,
         default_value=5000,
     )
-    steps_per_iteration = protocol_input(
+    steps_per_iteration = InputAttribute(
         docstring="The number of steps per YANK iteration to perform.",
         type_hint=int,
         merge_behavior=InequalityMergeBehaviour.LargestValue,
         default_value=500,
     )
-    checkpoint_interval = protocol_input(
+    checkpoint_interval = InputAttribute(
         docstring="The number of iterations between saving YANK checkpoint files.",
         type_hint=int,
         merge_behavior=InequalityMergeBehaviour.SmallestValue,
         default_value=50,
     )
 
-    timestep = protocol_input(
+    timestep = InputAttribute(
         docstring="The length of the timestep to take.",
         type_hint=unit.Quantity,
         merge_behavior=InequalityMergeBehaviour.SmallestValue,
         default_value=2 * unit.femtosecond,
     )
 
-    verbose = protocol_input(
+    verbose = InputAttribute(
         docstring="Controls whether or not to run YANK at high verbosity.",
         type_hint=bool,
         default_value=False,
     )
-    setup_only = protocol_input(
+    setup_only = InputAttribute(
         docstring="If true, YANK will only create and validate the setup files, "
         "but not actually run any simulations. This argument is mainly "
         "only to be used for testing purposes.",
@@ -95,7 +95,7 @@ class BaseYankProtocol(BaseProtocol):
         default_value=False,
     )
 
-    estimated_free_energy = protocol_output(
+    estimated_free_energy = OutputAttribute(
         docstring="The estimated free energy value and its uncertainty "
         "returned by YANK.",
         type_hint=EstimatedQuantity,
@@ -517,63 +517,63 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         Harmonic = "Harmonic"
         FlatBottom = "FlatBottom"
 
-    ligand_residue_name = protocol_input(
+    ligand_residue_name = InputAttribute(
         docstring="The residue name of the ligand.",
         type_hint=str,
         default_value=UNDEFINED,
     )
-    receptor_residue_name = protocol_input(
+    receptor_residue_name = InputAttribute(
         docstring="The residue name of the receptor.",
         type_hint=str,
         default_value=UNDEFINED,
     )
 
-    solvated_ligand_coordinates = protocol_input(
+    solvated_ligand_coordinates = InputAttribute(
         docstring="The file path to the solvated ligand coordinates.",
         type_hint=str,
         default_value=UNDEFINED,
     )
-    solvated_ligand_system = protocol_input(
+    solvated_ligand_system = InputAttribute(
         docstring="The file path to the solvated ligand system object.",
         type_hint=str,
         default_value=UNDEFINED,
     )
 
-    solvated_complex_coordinates = protocol_input(
+    solvated_complex_coordinates = InputAttribute(
         docstring="The file path to the solvated complex coordinates.",
         type_hint=str,
         default_value=UNDEFINED,
     )
-    solvated_complex_system = protocol_input(
+    solvated_complex_system = InputAttribute(
         docstring="The file path to the solvated complex system object.",
         type_hint=str,
         default_value=UNDEFINED,
     )
 
-    force_field_path = protocol_input(
+    force_field_path = InputAttribute(
         docstring="The path to the force field which defines the charge method "
         "to use for the calculation.",
         type_hint=str,
         default_value=UNDEFINED,
     )
 
-    apply_restraints = protocol_input(
+    apply_restraints = InputAttribute(
         docstring="Determines whether the ligand should be explicitly restrained to the "
         "receptor in order to stop the ligand from temporarily unbinding.",
         type_hint=bool,
         default_value=True,
     )
-    restraint_type = protocol_input(
+    restraint_type = InputAttribute(
         docstring="The type of ligand restraint applied, provided that `apply_restraints` "
         "is `True`",
         type_hint=RestraintType,
         default_value=RestraintType.Harmonic,
     )
 
-    solvated_ligand_trajectory_path = protocol_output(
+    solvated_ligand_trajectory_path = OutputAttribute(
         docstring="The file path to the generated ligand trajectory.", type_hint=str
     )
-    solvated_complex_trajectory_path = protocol_output(
+    solvated_complex_trajectory_path = OutputAttribute(
         docstring="The file path to the generated ligand trajectory.", type_hint=str
     )
 
@@ -719,7 +719,7 @@ class SolvationYankProtocol(BaseYankProtocol):
     both the `solvent_1` and `solvent_2` inputs to different solvents).
     """
 
-    solute = protocol_input(
+    solute = InputAttribute(
         docstring="The substance describing the composition of "
         "the solute. This should include the solute "
         "molecule as well as any counter ions.",
@@ -727,44 +727,44 @@ class SolvationYankProtocol(BaseYankProtocol):
         default_value=UNDEFINED,
     )
 
-    solvent_1 = protocol_input(
+    solvent_1 = InputAttribute(
         docstring="The substance describing the composition of " "the first solvent.",
         type_hint=Substance,
         default_value=UNDEFINED,
     )
-    solvent_2 = protocol_input(
+    solvent_2 = InputAttribute(
         docstring="The substance describing the composition of " "the second solvent.",
         type_hint=Substance,
         default_value=UNDEFINED,
     )
 
-    solvent_1_coordinates = protocol_input(
+    solvent_1_coordinates = InputAttribute(
         docstring="The file path to the coordinates of the solute embedded in the "
         "first solvent.",
         type_hint=str,
         default_value=UNDEFINED,
     )
-    solvent_1_system = protocol_input(
+    solvent_1_system = InputAttribute(
         docstring="The file path to the system object of the solute embedded in the "
         "first solvent.",
         type_hint=str,
         default_value=UNDEFINED,
     )
 
-    solvent_2_coordinates = protocol_input(
+    solvent_2_coordinates = InputAttribute(
         docstring="The file path to the coordinates of the solute embedded in the "
         "second solvent.",
         type_hint=str,
         default_value=UNDEFINED,
     )
-    solvent_2_system = protocol_input(
+    solvent_2_system = InputAttribute(
         docstring="The file path to the system object of the solute embedded in the "
         "second solvent.",
         type_hint=str,
         default_value=UNDEFINED,
     )
 
-    electrostatic_lambdas_1 = protocol_input(
+    electrostatic_lambdas_1 = InputAttribute(
         docstring="The list of electrostatic alchemical states that YANK should sample at. "
         "These values will be passed to the YANK `lambda_electrostatics` option. "
         "If no option is set, YANK will use `trailblaze` algorithm to determine "
@@ -773,7 +773,7 @@ class SolvationYankProtocol(BaseYankProtocol):
         optional=True,
         default_value=UNDEFINED,
     )
-    steric_lambdas_1 = protocol_input(
+    steric_lambdas_1 = InputAttribute(
         docstring="The list of steric alchemical states that YANK should sample at. "
         "These values will be passed to the YANK `lambda_sterics` option. "
         "If no option is set, YANK will use `trailblaze` algorithm to determine "
@@ -782,7 +782,7 @@ class SolvationYankProtocol(BaseYankProtocol):
         optional=True,
         default_value=UNDEFINED,
     )
-    electrostatic_lambdas_2 = protocol_input(
+    electrostatic_lambdas_2 = InputAttribute(
         docstring="The list of electrostatic alchemical states that YANK should sample at. "
         "These values will be passed to the YANK `lambda_electrostatics` option. "
         "If no option is set, YANK will use `trailblaze` algorithm to determine "
@@ -791,7 +791,7 @@ class SolvationYankProtocol(BaseYankProtocol):
         optional=True,
         default_value=UNDEFINED,
     )
-    steric_lambdas_2 = protocol_input(
+    steric_lambdas_2 = InputAttribute(
         docstring="The list of steric alchemical states that YANK should sample at. "
         "These values will be passed to the YANK `lambda_sterics` option. "
         "If no option is set, YANK will use `trailblaze` algorithm to determine "
@@ -801,12 +801,12 @@ class SolvationYankProtocol(BaseYankProtocol):
         default_value=UNDEFINED,
     )
 
-    solvent_1_trajectory_path = protocol_output(
+    solvent_1_trajectory_path = OutputAttribute(
         docstring="The file path to the trajectory of the solute in the "
         "first solvent.",
         type_hint=str,
     )
-    solvent_2_trajectory_path = protocol_output(
+    solvent_2_trajectory_path = OutputAttribute(
         docstring="The file path to the trajectory of the solute in the "
         "second solvent.",
         type_hint=str,

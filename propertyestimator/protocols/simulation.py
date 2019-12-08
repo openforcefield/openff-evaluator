@@ -14,6 +14,12 @@ from simtk import unit as simtk_unit
 from simtk.openmm import app
 
 from propertyestimator import unit
+from propertyestimator.attributes import (
+    UNDEFINED,
+    InequalityMergeBehaviour,
+    InputAttribute,
+    OutputAttribute,
+)
 from propertyestimator.thermodynamics import Ensemble, ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.openmm import (
@@ -23,12 +29,6 @@ from propertyestimator.utils.openmm import (
 )
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from propertyestimator.utils.statistics import ObservableType, StatisticsArray
-from propertyestimator.workflow.decorators import (
-    UNDEFINED,
-    InequalityMergeBehaviour,
-    protocol_input,
-    protocol_output,
-)
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
@@ -38,22 +38,22 @@ class RunEnergyMinimisation(BaseProtocol):
     """A protocol to minimise the potential energy of a system.
     """
 
-    input_coordinate_file = protocol_input(
+    input_coordinate_file = InputAttribute(
         docstring="The coordinates to minimise.", type_hint=str, default_value=UNDEFINED
     )
-    system_path = protocol_input(
+    system_path = InputAttribute(
         docstring="The path to the XML system object which defines the forces present "
         "in the system.",
         type_hint=str,
         default_value=UNDEFINED,
     )
 
-    tolerance = protocol_input(
+    tolerance = InputAttribute(
         docstring="The energy tolerance to which the system should be minimized.",
         type_hint=unit.Quantity,
         default_value=10 * unit.kilojoules / unit.mole,
     )
-    max_iterations = protocol_input(
+    max_iterations = InputAttribute(
         docstring="The maximum number of iterations to perform. If this is 0, "
         "minimization is continued until the results converge without regard to "
         "how many iterations it takes.",
@@ -61,13 +61,13 @@ class RunEnergyMinimisation(BaseProtocol):
         default_value=0,
     )
 
-    enable_pbc = protocol_input(
+    enable_pbc = InputAttribute(
         docstring="If true, periodic boundary conditions will be enabled.",
         type_hint=bool,
         default_value=True,
     )
 
-    output_coordinate_file = protocol_output(
+    output_coordinate_file = OutputAttribute(
         docstring="The file path to the minimised coordinates.", type_hint=str
     )
 
@@ -175,7 +175,7 @@ class RunOpenMMSimulation(BaseProtocol):
             self.system = system
             self.currentStep = current_step
 
-    steps_per_iteration = protocol_input(
+    steps_per_iteration = InputAttribute(
         docstring="The number of steps to propogate the system by at "
         "each iteration. The total number of steps performed "
         "by this protocol will be `total_number_of_iterations * "
@@ -184,7 +184,7 @@ class RunOpenMMSimulation(BaseProtocol):
         merge_behavior=InequalityMergeBehaviour.LargestValue,
         default_value=1000000,
     )
-    total_number_of_iterations = protocol_input(
+    total_number_of_iterations = InputAttribute(
         docstring="The number of times to propogate the system forward by the "
         "`steps_per_iteration` number of steps. The total number of "
         "steps performed by this protocol will be `total_number_of_iterations * "
@@ -194,14 +194,14 @@ class RunOpenMMSimulation(BaseProtocol):
         default_value=1,
     )
 
-    output_frequency = protocol_input(
+    output_frequency = InputAttribute(
         docstring="The frequency (in number of steps) with which to write to the "
         "output statistics and trajectory files.",
         type_hint=int,
         merge_behavior=InequalityMergeBehaviour.SmallestValue,
         default_value=3000,
     )
-    checkpoint_frequency = protocol_input(
+    checkpoint_frequency = InputAttribute(
         docstring="The frequency (in multiples of `output_frequency`) with which to "
         "write to a checkpoint file, e.g. if `output_frequency=100` and "
         "`checkpoint_frequency==2`, a checkpoint file would be saved every "
@@ -212,56 +212,56 @@ class RunOpenMMSimulation(BaseProtocol):
         default_value=10,
     )
 
-    timestep = protocol_input(
+    timestep = InputAttribute(
         docstring="The timestep to evolve the system by at each step.",
         type_hint=unit.Quantity,
         merge_behavior=InequalityMergeBehaviour.SmallestValue,
         default_value=2.0 * unit.femtosecond,
     )
 
-    thermodynamic_state = protocol_input(
+    thermodynamic_state = InputAttribute(
         docstring="The thermodynamic conditions to simulate under",
         type_hint=ThermodynamicState,
         default_value=UNDEFINED,
     )
-    ensemble = protocol_input(
+    ensemble = InputAttribute(
         docstring="The thermodynamic ensemble to simulate in.",
         type_hint=Ensemble,
         default_value=Ensemble.NPT,
     )
 
-    thermostat_friction = protocol_input(
+    thermostat_friction = InputAttribute(
         docstring="The thermostat friction coefficient.",
         type_hint=unit.Quantity,
         merge_behavior=InequalityMergeBehaviour.SmallestValue,
         default_value=1.0 / unit.picoseconds,
     )
 
-    input_coordinate_file = protocol_input(
+    input_coordinate_file = InputAttribute(
         docstring="The file path to the starting coordinates.",
         type_hint=str,
         default_value=UNDEFINED,
     )
-    system_path = protocol_input(
+    system_path = InputAttribute(
         docstring="A path to the XML system object which defines the forces present "
         "in the system.",
         type_hint=str,
         default_value=UNDEFINED,
     )
 
-    enable_pbc = protocol_input(
+    enable_pbc = InputAttribute(
         docstring="If true, periodic boundary conditions will be enabled.",
         type_hint=bool,
         default_value=True,
     )
 
-    allow_gpu_platforms = protocol_input(
+    allow_gpu_platforms = InputAttribute(
         docstring="If true, OpenMM will be allowed to run using a GPU if available, "
         "otherwise it will be constrained to only using CPUs.",
         type_hint=bool,
         default_value=True,
     )
-    high_precision = protocol_input(
+    high_precision = InputAttribute(
         docstring="If true, OpenMM will be run using a platform with high precision "
         "settings. This will be the Reference platform when only a CPU is "
         "available, or double precision mode when a GPU is available.",
@@ -269,15 +269,15 @@ class RunOpenMMSimulation(BaseProtocol):
         default_value=False,
     )
 
-    output_coordinate_file = protocol_output(
+    output_coordinate_file = OutputAttribute(
         docstring="The file path to the coordinates of the final system configuration.",
         type_hint=str,
     )
-    trajectory_file_path = protocol_output(
+    trajectory_file_path = OutputAttribute(
         docstring="The file path to the trajectory sampled during the simulation.",
         type_hint=str,
     )
-    statistics_file_path = protocol_output(
+    statistics_file_path = OutputAttribute(
         docstring="The file path to the statistics sampled during the simulation.",
         type_hint=str,
     )

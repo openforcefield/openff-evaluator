@@ -9,16 +9,16 @@ from os import path
 import numpy as np
 
 from propertyestimator import unit
+from propertyestimator.attributes import (
+    UNDEFINED,
+    InequalityMergeBehaviour,
+    InputAttribute,
+    OutputAttribute,
+)
 from propertyestimator.utils import statistics, timeseries
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import StatisticsArray, bootstrap
-from propertyestimator.workflow.decorators import (
-    UNDEFINED,
-    InequalityMergeBehaviour,
-    protocol_input,
-    protocol_output,
-)
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
@@ -29,31 +29,31 @@ class AveragePropertyProtocol(BaseProtocol):
     average of a property and its uncertainty via bootstrapping.
     """
 
-    bootstrap_iterations = protocol_input(
+    bootstrap_iterations = InputAttribute(
         docstring="The number of bootstrap iterations to perform.",
         type_hint=int,
         default_value=250,
         merge_behavior=InequalityMergeBehaviour.LargestValue,
     )
-    bootstrap_sample_size = protocol_input(
+    bootstrap_sample_size = InputAttribute(
         docstring="The relative sample size to use for bootstrapping.",
         type_hint=float,
         default_value=1.0,
         merge_behavior=InequalityMergeBehaviour.LargestValue,
     )
 
-    equilibration_index = protocol_output(
+    equilibration_index = OutputAttribute(
         docstring="The index in the data set after which the data is stationary.",
         type_hint=int,
     )
-    statistical_inefficiency = protocol_output(
+    statistical_inefficiency = OutputAttribute(
         docstring="The statistical inefficiency in the data set.", type_hint=float
     )
 
-    value = protocol_output(
+    value = OutputAttribute(
         docstring="The average value and its uncertainty.", type_hint=EstimatedQuantity
     )
-    uncorrelated_values = protocol_output(
+    uncorrelated_values = OutputAttribute(
         docstring="The uncorrelated values which the average was calculated from.",
         type_hint=unit.Quantity,
     )
@@ -90,12 +90,12 @@ class AverageTrajectoryProperty(AveragePropertyProtocol):
     average of a property from a simulation trajectory.
     """
 
-    input_coordinate_file = protocol_input(
+    input_coordinate_file = InputAttribute(
         docstring="The file path to the starting coordinates of a trajectory.",
         type_hint=str,
         default_value=UNDEFINED,
     )
-    trajectory_path = protocol_input(
+    trajectory_path = InputAttribute(
         docstring="The file path to the trajectory to average over.",
         type_hint=str,
         default_value=UNDEFINED,
@@ -120,18 +120,18 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
     during a simulation.
     """
 
-    statistics_path = protocol_input(
+    statistics_path = InputAttribute(
         docstring="The file path to the statistics to average over.",
         type_hint=str,
         default_value=UNDEFINED,
     )
-    statistics_type = protocol_input(
+    statistics_type = InputAttribute(
         docstring="The type of statistic to average over.",
         type_hint=statistics.ObservableType,
         default_value=UNDEFINED,
     )
 
-    divisor = protocol_input(
+    divisor = InputAttribute(
         docstring="A value to divide the statistic by. This is useful if a statistic (such "
         "as enthalpy) needs to be normalised by the number of molecules.",
         type_hint=typing.Union[int, float, unit.Quantity],
@@ -210,20 +210,20 @@ class ExtractUncorrelatedData(BaseProtocol):
     a data set, yielding only equilibrated, uncorrelated data.
     """
 
-    equilibration_index = protocol_input(
+    equilibration_index = InputAttribute(
         docstring="The index in the data set after which the data is stationary.",
         type_hint=int,
         default_value=UNDEFINED,
         merge_behavior=InequalityMergeBehaviour.LargestValue,
     )
-    statistical_inefficiency = protocol_input(
+    statistical_inefficiency = InputAttribute(
         docstring="The statistical inefficiency in the data set.",
         type_hint=float,
         default_value=UNDEFINED,
         merge_behavior=InequalityMergeBehaviour.LargestValue,
     )
 
-    number_of_uncorrelated_samples = protocol_output(
+    number_of_uncorrelated_samples = OutputAttribute(
         docstring="The number of uncorrelated samples.", type_hint=int
     )
 
@@ -237,18 +237,18 @@ class ExtractUncorrelatedTrajectoryData(ExtractUncorrelatedData):
     frames as determined from a provided statistical inefficiency and equilibration time.
     """
 
-    input_coordinate_file = protocol_input(
+    input_coordinate_file = InputAttribute(
         docstring="The file path to the starting coordinates of a trajectory.",
         type_hint=str,
         default_value=UNDEFINED,
     )
-    input_trajectory_path = protocol_input(
+    input_trajectory_path = InputAttribute(
         docstring="The file path to the trajectory to subsample.",
         type_hint=str,
         default_value=UNDEFINED,
     )
 
-    output_trajectory_path = protocol_output(
+    output_trajectory_path = OutputAttribute(
         docstring="The file path to the subsampled trajectory.", type_hint=str
     )
 
@@ -349,13 +349,13 @@ class ExtractUncorrelatedStatisticsData(ExtractUncorrelatedData):
     entries as determined from a provided statistical inefficiency and equilibration time.
     """
 
-    input_statistics_path = protocol_input(
+    input_statistics_path = InputAttribute(
         docstring="The file path to the statistics to subsample.",
         type_hint=str,
         default_value=UNDEFINED,
     )
 
-    output_statistics_path = protocol_output(
+    output_statistics_path = OutputAttribute(
         docstring="The file path to the subsampled statistics.", type_hint=str
     )
 

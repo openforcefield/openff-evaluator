@@ -10,14 +10,10 @@ import numpy as np
 from simtk.openmm import app
 
 from propertyestimator import unit
+from propertyestimator.attributes import UNDEFINED, InputAttribute, OutputAttribute
 from propertyestimator.substances import Substance
 from propertyestimator.utils import create_molecule_from_smiles, packmol
 from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.workflow.decorators import (
-    UNDEFINED,
-    protocol_input,
-    protocol_output,
-)
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
@@ -28,48 +24,48 @@ class BuildCoordinatesPackmol(BaseProtocol):
     using the PACKMOL package.
     """
 
-    max_molecules = protocol_input(
+    max_molecules = InputAttribute(
         docstring="The maximum number of molecules to be added to the system.",
         type_hint=int,
         default_value=1000,
     )
-    mass_density = protocol_input(
+    mass_density = InputAttribute(
         docstring="The target density of the created system.",
         type_hint=unit.Quantity,
         default_value=0.95 * unit.grams / unit.milliliters,
     )
 
-    box_aspect_ratio = protocol_input(
+    box_aspect_ratio = InputAttribute(
         docstring="The aspect ratio of the simulation box.",
         type_hint=list,
         default_value=[1.0, 1.0, 1.0],
     )
 
-    substance = protocol_input(
+    substance = InputAttribute(
         docstring="The composition of the system to build.",
         type_hint=Substance,
         default_value=UNDEFINED,
     )
 
-    verbose_packmol = protocol_input(
+    verbose_packmol = InputAttribute(
         docstring="If True, packmol will print verbose information to the logger",
         type_hint=bool,
         default_value=False,
     )
-    retain_packmol_files = protocol_input(
+    retain_packmol_files = InputAttribute(
         docstring="If True, packmol will not delete all of the temporary files "
         "it creates while building the coordinates.",
         type_hint=bool,
         default_value=False,
     )
 
-    output_number_of_molecules = protocol_output(
+    output_number_of_molecules = OutputAttribute(
         docstring="The number of molecules in the created system. This "
         "may be less than maximum requested due to rounding of "
         "mole fractions",
         type_hint=int,
     )
-    output_substance = protocol_output(
+    output_substance = OutputAttribute(
         docstring="The substance which was built by packmol. This may differ "
         "from the input substance for system containing two or "
         "more components due to rounding of mole fractions. The "
@@ -78,7 +74,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
         type_hint=Substance,
     )
 
-    coordinate_file_path = protocol_output(
+    coordinate_file_path = OutputAttribute(
         docstring="The file path to the created PDB coordinate file.", type_hint=str
     )
 
@@ -304,7 +300,7 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
     using the PACKMOL package.
     """
 
-    solute_coordinate_file = protocol_input(
+    solute_coordinate_file = InputAttribute(
         docstring="A file path to the solute to solvate.",
         type_hint=str,
         default_value=UNDEFINED,
@@ -377,43 +373,43 @@ class BuildDockedCoordinates(BaseProtocol):
 
         ReceptorCenterOfMass = "ReceptorCenterOfMass"
 
-    ligand_substance = protocol_input(
+    ligand_substance = InputAttribute(
         docstring="A substance containing only the ligand to dock.",
         type_hint=Substance,
         default_value=UNDEFINED,
     )
-    number_of_ligand_conformers = protocol_input(
+    number_of_ligand_conformers = InputAttribute(
         docstring="The number of conformers to try and dock into the "
         "receptor structure.",
         type_hint=int,
         default_value=100,
     )
 
-    receptor_coordinate_file = protocol_input(
+    receptor_coordinate_file = InputAttribute(
         docstring="The file path to the MOL2 coordinates of the receptor molecule.",
         type_hint=str,
         default_value=UNDEFINED,
     )
-    activate_site_location = protocol_input(
+    activate_site_location = InputAttribute(
         docstring="Defines the method by which the activate site is identified.",
         type_hint=ActivateSiteLocation,
         default_value=ActivateSiteLocation.ReceptorCenterOfMass,
     )
 
-    docked_ligand_coordinate_path = protocol_output(
+    docked_ligand_coordinate_path = OutputAttribute(
         docstring="The file path to the coordinates of the ligand in "
         "it's docked pose, aligned with the initial "
         "`receptor_coordinate_file`.",
         type_hint=str,
     )
-    docked_complex_coordinate_path = protocol_output(
+    docked_complex_coordinate_path = OutputAttribute(
         docstring="The file path to the docked ligand-receptor complex.", type_hint=str
     )
 
-    ligand_residue_name = protocol_output(
+    ligand_residue_name = OutputAttribute(
         docstring="The residue name assigned to the docked ligand.", type_hint=str
     )
-    receptor_residue_name = protocol_output(
+    receptor_residue_name = OutputAttribute(
         docstring="The residue name assigned to the receptor.", type_hint=str
     )
 
