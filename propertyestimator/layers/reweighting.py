@@ -100,7 +100,7 @@ class ReweightingLayer(PropertyCalculationLayer):
         ----------
         physical_properties: list of PhysicalProperty
             The physical properties to attempt to estimate.
-        storage_backend: PropertyEstimatorStorage
+        storage_backend: StorageBackend
             The storage backend to retrieve the data from.
         layer_directory: str
             The directory in which to store the retrieved data.

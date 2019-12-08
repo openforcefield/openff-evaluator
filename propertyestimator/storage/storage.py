@@ -12,7 +12,7 @@ from propertyestimator.storage.dataclasses import BaseStoredData
 from propertyestimator.utils.string import sanitize_smiles_file_name
 
 
-class PropertyEstimatorStorage:
+class StorageBackend:
     """An abstract base representation of how the property estimator will
     interact with and store simulation data.
 
@@ -23,7 +23,7 @@ class PropertyEstimatorStorage:
     """
 
     def __init__(self):
-        """Constructs a new PropertyEstimatorStorage object.
+        """Constructs a new StorageBackend object.
         """
 
         self._stored_object_keys = set()

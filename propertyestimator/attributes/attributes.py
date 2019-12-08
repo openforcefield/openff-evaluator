@@ -208,6 +208,83 @@ class BaseAttributeClass(TypedBaseModel):
             setattr(self, name, state_output[name])
 
 
+class MergeableAttributeClass(BaseAttributeClass):
+    """Represents an object which can be merged with other
+    classes of the same type, whereby how the objects are
+    merged is defined by the object attributes.
+    """
+
+    def can_merge(self, other):
+        """Determines whether this object can be safely merged with
+        another of the same type.
+
+        Parameters
+        ----------
+        other: BaseAttributeClass
+            The object to compare against.
+
+        Returns
+        ----------
+        bool
+            True if the two objects are safe to merge.
+        """
+
+        if type(self) != type(other):
+            # We can only merge objects with the same types.
+            return False
+
+        for input_name in self.get_input_attributes():
+
+            merge_behavior = getattr(self.__class__, input_name).merge_behavior
+
+            self_value = getattr(self, input_name)
+            other_value = getattr(other, input_name)
+
+            if isinstance(self_value, PlaceholderInput) or isinstance(
+                other_value, PlaceholderInput
+            ):
+
+                # We cannot safely merge inputs when only one of the values
+                # is currently known.
+                return False
+
+            elif (
+                merge_behavior == MergeBehaviour.ExactlyEqual
+                and self_value != other_value
+            ):
+                return False
+
+        return True
+
+    def merge(self, other):
+        """Merges another object with this one.
+
+        Parameters
+        ----------
+        other: BaseAttributeClass
+            The object to merge into this one.
+        """
+
+        if not self.can_merge(other):
+            raise ValueError("These protocols can not be safely merged.")
+
+        for input_name in self.get_input_attributes():
+
+            merge_behavior = getattr(self.__class__, input_name).merge_behavior
+
+            if merge_behavior == MergeBehaviour.ExactlyEqual:
+                continue
+
+            if merge_behavior == InequalityMergeBehaviour.SmallestValue:
+                value = min(getattr(self, input_name), getattr(other, input_name))
+            elif merge_behavior == InequalityMergeBehaviour.LargestValue:
+                value = max(getattr(self, input_name), getattr(other, input_name))
+            else:
+                raise NotImplementedError()
+
+            setattr(self, input_name, value)
+
+
 class BaseAttribute(abc.ABC):
     """A custom descriptor used to mark class attributes as being either
     a required input, or provided output of a protocol.

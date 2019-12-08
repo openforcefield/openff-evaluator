@@ -120,7 +120,7 @@ class PropertyCalculationLayer:
         ----------
         calculation_backend: PropertyEstimatorBackend
             The backend to the submit the calculations to.
-        storage_backend: PropertyEstimatorStorage
+        storage_backend: StorageBackend
             The backend used to store / retrieve data from previous calculations.
         layer_directory: str
             The local directory in which to store all local, temporary calculation data from this layer.
@@ -158,7 +158,7 @@ class PropertyCalculationLayer:
             The request which generated the cached data.
         returned_output: CalculationLayerResult
             The layer result which contains the cached data.
-        storage_backend: PropertyEstimatorStorage
+        storage_backend: StorageBackend
             The backend to use to store the cached data.
         """
 
@@ -205,7 +205,7 @@ class PropertyCalculationLayer:
             The future object which will hold the results.
         server_request: PropertyEstimatorServer.ServerEstimationRequest
             The request object which spawned the awaited results.
-        storage_backend: PropertyEstimatorStorage
+        storage_backend: StorageBackend
             The backend used to store / retrieve data from previous calculations.
         callback: function
             The function to call when the backend returns the results (or an error).
@@ -336,7 +336,7 @@ class PropertyCalculationLayer:
         ----------
         calculation_backend: PropertyEstimatorBackend
             The backend to the submit the calculations to.
-        storage_backend: PropertyEstimatorStorage
+        storage_backend: StorageBackend
             The backend used to store / retrieve data from previous calculations.
         layer_directory: str
             The local directory in which to store all local, temporary calculation data from this layer.

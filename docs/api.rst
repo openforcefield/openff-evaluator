@@ -180,7 +180,7 @@ Storage Backends API
     :nosignatures:
     :toctree: api/generated/
 
-    PropertyEstimatorStorage
+    StorageBackend
 
 **Built-in Storage Backends**
 

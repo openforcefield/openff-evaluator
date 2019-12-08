@@ -10,10 +10,10 @@ from propertyestimator.storage.dataclasses import BaseStoredData
 from propertyestimator.substances import Substance
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 
-from .storage import PropertyEstimatorStorage
+from .storage import StorageBackend
 
 
-class LocalFileStorage(PropertyEstimatorStorage):
+class LocalFileStorage(StorageBackend):
     """A storage backend which stores files in directories on the local
     disk.
     """

@@ -150,7 +150,7 @@ class PropertyEstimatorServer(TCPServer):
         ----------
         calculation_backend: PropertyEstimatorBackend
             The backend to use for executing calculations.
-        storage_backend: PropertyEstimatorStorage
+        storage_backend: StorageBackend
             The backend to use for storing information from any calculations.
         port: int
             The port on which to listen for incoming client requests.
