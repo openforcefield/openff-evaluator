@@ -1,7 +1,6 @@
 """
-A collection of descriptors used to mark-up class fields which
-hold importance to the workflow engine, such as the inputs or
-outputs of workflow protocols.
+A collection of descriptors used to add meta data to
+object attributes.
 """
 import copy
 import inspect
@@ -30,7 +29,7 @@ class UndefinedAttribute:
         return
 
 
-class PlaceholderInput:
+class PlaceholderValue:
     """A class to act as a place holder for an input value
     which is not known a priori. This may include a value
     which will be set by a workflow as the output of an
@@ -47,57 +46,18 @@ class PlaceholderInput:
 UNDEFINED = UndefinedAttribute()
 
 
-class BaseMergeBehaviour(Enum):
-    """A base class for enums which will describes how attributes should
-    be handled when attempting to merge similar protocols.
-    """
-
-    pass
-
-
-class MergeBehaviour(BaseMergeBehaviour):
-    """A enum which describes how attributes should be handled when
-    attempting to merge similar protocols.
-
-    This enum may take values of
-
-    * ExactlyEqual: This attribute must be exactly equal between two protocols for
-      them to be able to merge.
-    """
-
-    ExactlyEqual = "ExactlyEqual"
-
-
-class InequalityMergeBehaviour(BaseMergeBehaviour):
-    """A enum which describes how attributes which can be compared
-    with inequalities should be merged.
-
-    This enum may take values of
-
-    * SmallestValue: When two protocols are merged, the smallest value of this
-      attribute from either protocol is retained.
-    * LargestValue: When two protocols are merged, the largest value of this
-      attribute from either protocol is retained.
-    """
-
-    SmallestValue = "SmallestValue"
-    LargestValue = "LargestValue"
-
-
 class AttributeClass(TypedBaseModel):
-    """A base class for objects which require will defined
-    attributes which, dependant on the object, may be flagged
-    as either being a required input to the object or a
-    provided output.
+    """A base class for objects which require well defined
+    attributes with additional metadata.
     """
 
     @classmethod
-    def _get_attributes(cls, attribute_type):
+    def _get_attributes(cls, attribute_type=None):
         """Returns all attributes of a specific `attribute_type`.
 
         Parameters
         ----------
-        attribute_type: type of Attribute
+        attribute_type: type of Attribute, optional
             The type of attribute to search for.
 
         Returns
@@ -113,99 +73,49 @@ class AttributeClass(TypedBaseModel):
 
         for base_class in all_bases:
 
-            attribute_names.extend(
-                [
-                    attribute_name
-                    for attribute_name in base_class.__dict__
-                    if type(base_class.__dict__[attribute_name]) == attribute_type
+            found_attributes = [
+                attribute_name
+                for attribute_name in base_class.__dict__
+                if isinstance(base_class.__dict__[attribute_name], Attribute)
+            ]
+
+            if attribute_type is not None:
+
+                found_attributes = [
+                    name
+                    for name in found_attributes
+                    if type(base_class.__dict__[name]) == attribute_type
                 ]
-            )
+
+            attribute_names.extend(found_attributes)
 
         return attribute_names
 
-    @classmethod
-    def get_input_attributes(cls):
-        """Returns all of the input attributes of the class.
-
-        Returns
-        -------
-        list of str
-            The names of the attributes.
-        """
-        return cls._get_attributes(InputAttribute)
-
-    @classmethod
-    def get_output_attributes(cls):
-        """Returns all of the input attributes of the class.
-
-        Returns
-        -------
-        list of str
-            The names of the attributes.
-        """
-        return cls._get_attributes(OutputAttribute)
-
-    @classmethod
-    def get_all_attributes(cls):
-        """Returns all of the attributes of the class.
-
-        Returns
-        -------
-        list of str
-            The names of the attributes.
-        """
-        return cls.get_input_attributes() + cls.get_output_attributes()
-
     def __getstate__(self):
 
-        input_attributes = {
-            name: getattr(self, name) for name in self.get_input_attributes()
-        }
-        output_attributes = {
-            name: getattr(self, name) for name in self.get_output_attributes()
+        attributes = {
+            name: getattr(self, name) for name in self._get_attributes()
         }
 
-        state = {}
-
-        if len(input_attributes) > 0:
-            state["input_attributes"] = input_attributes
-        if len(output_attributes) > 0:
-            state["output_attributes"] = output_attributes
-
-        return state
+        return attributes
 
     def __setstate__(self, state):
 
-        input_attributes = {
-            name: getattr(self, name) for name in self.get_input_attributes()
-        }
-        output_attributes = {
-            name: getattr(self, name) for name in self.get_output_attributes()
-        }
+        attribute_names = self._get_attributes()
 
-        state_input = state.get("input_attributes", {})
-        state_output = state.get("output_attributes", {})
-
-        for name in input_attributes:
+        for name in attribute_names:
 
             attribute = getattr(self.__class__, name)
 
-            if not attribute.optional and name not in state_input:
+            if not attribute.optional and name not in state:
 
                 raise IndexError(
-                    f"The required {name} input was not present in "
+                    f"The {name} attribute was not present in "
                     f"the state dictionary."
                 )
 
             # This should handle type checking.
-            setattr(self, name, state_input[name])
-
-        for name in output_attributes:
-
-            if name not in state_output:
-                continue
-
-            setattr(self, name, state_output[name])
+            setattr(self, name, state[name])
 
 
 class Attribute:
@@ -240,7 +150,7 @@ class Attribute:
             The default value for this attribute.
         optional: bool
             Defines whether this is an optional input of a class. If true,
-            the `default_value` must be set to `UNDEFINED`.
+            the `default_value` should be set to `UNDEFINED`.
         """
 
         if not is_supported_type(type_hint):
@@ -306,107 +216,6 @@ class Attribute:
             # rather than an instance.
             return self
 
-        try:
-            return getattr(instance, self._private_attribute_name)
-        except AttributeError:
-            return UNDEFINED
-
-    def __set__(self, instance, value):
-
-        if (
-            not is_instance_of_type(value, self.type_hint)
-            and not isinstance(value, PlaceholderInput)
-            and not value == UNDEFINED
-        ):
-
-            raise ValueError(
-                f"The {self._private_attribute_name[1:]} attribute can only accept "
-                f"values of type {self.type_hint}"
-            )
-
-        setattr(instance, self._private_attribute_name, value)
-
-
-class InputAttribute(Attribute):
-    """A descriptor used to mark an attribute of an object as
-    an input to that object.
-
-    An attribute can either be set with a value directly, or it
-    can also be set to a `ProtocolPath` to be set be the workflow
-    manager.
-
-    Examples
-    ----------
-    To mark an attribute as an input:
-
-    >>> from propertyestimator.attributes import AttributeClass, InputAttribute
-    >>>
-    >>> class MyObject(AttributeClass):
-    >>>
-    >>>     my_input = InputAttribute(
-    >>>         docstring='An input will be used.',
-    >>>         type_hint=float,
-    >>>         default_value=0.1
-    >>>     )
-    """
-
-    def __init__(
-        self,
-        docstring,
-        type_hint,
-        default_value,
-        optional=False,
-        merge_behavior=MergeBehaviour.ExactlyEqual,
-    ):
-
-        """Initializes a new InputAttribute object.
-
-        Parameters
-        ----------
-        merge_behavior: BaseMergeBehaviour
-            An enum describing how this input should be handled when considering
-            whether to, and actually merging two different objects.
-        """
-
-        docstring = f"**Input** - {docstring}"
-
-        if not isinstance(merge_behavior, BaseMergeBehaviour):
-            raise ValueError(
-                "The merge behaviour must inherit from `BaseMergeBehaviour`"
-            )
-
-        if (
-            merge_behavior == InequalityMergeBehaviour.SmallestValue
-            or merge_behavior == InequalityMergeBehaviour.LargestValue
-        ):
-
-            merge_docstring = ""
-
-            if merge_behavior == InequalityMergeBehaviour.SmallestValue:
-                merge_docstring = (
-                    "When two protocols are merged, the smallest value of "
-                    "this attribute from either protocol is retained."
-                )
-
-            if merge_behavior == InequalityMergeBehaviour.SmallestValue:
-                merge_docstring = (
-                    "When two protocols are merged, the largest value of "
-                    "this attribute from either protocol is retained."
-                )
-
-            docstring = f"{docstring} {merge_docstring}"
-
-        super().__init__(docstring, type_hint, default_value, optional)
-
-        self.merge_behavior = merge_behavior
-
-    def __get__(self, instance, owner=None):
-
-        if instance is None:
-            # Handle the case where this is called on the class directly,
-            # rather than an instance.
-            return self
-
         if not hasattr(instance, self._private_attribute_name):
             # Make sure to only ever pass a copy of the default value to ensure
             # mutable values such as lists don't get set by reference.
@@ -418,29 +227,17 @@ class InputAttribute(Attribute):
 
         return getattr(instance, self._private_attribute_name)
 
+    def __set__(self, instance, value):
 
-class OutputAttribute(Attribute):
-    """A descriptor used to mark an attribute of an as
-    an output of that object. This attribute is expected
-    to be populated by the object itself, rather than be
-    set externally.
+        if (
+            not is_instance_of_type(value, self.type_hint)
+            and not isinstance(value, PlaceholderValue)
+            and not value == UNDEFINED
+        ):
 
-    Examples
-    ----------
-    To mark an attribute as an output:
+            raise ValueError(
+                f"The {self._private_attribute_name[1:]} attribute can only accept "
+                f"values of type {self.type_hint}"
+            )
 
-    >>> from propertyestimator.attributes import AttributeClass, OutputAttribute,
-    >>>
-    >>> class MyObject(AttributeClass):
-    >>>
-    >>>     my_output = OutputAttribute(
-    >>>         docstring='An output that will be filled.',
-    >>>         type_hint=float
-    >>>     )
-    """
-
-    def __init__(self, docstring, type_hint):
-        """Initializes a new OutputAttribute object.
-        """
-        docstring = f"**Output** - {docstring}"
-        super().__init__(docstring, type_hint, UNDEFINED, False)
+        setattr(instance, self._private_attribute_name, value)

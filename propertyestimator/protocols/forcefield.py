@@ -15,7 +15,7 @@ import requests
 from simtk import openmm
 from simtk.openmm import app
 
-from propertyestimator.attributes import UNDEFINED, InputAttribute, OutputAttribute
+from propertyestimator.attributes import UNDEFINED
 from propertyestimator.forcefield import (
     ForceFieldSource,
     LigParGenForceFieldSource,
@@ -29,6 +29,7 @@ from propertyestimator.utils.utils import (
     get_data_filename,
     temporarily_change_directory,
 )
+from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 

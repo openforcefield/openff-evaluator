@@ -2,11 +2,11 @@
 buildings blocks in a property estimation workflow.
 """
 
-from propertyestimator.attributes import PlaceholderInput
+from propertyestimator.attributes import PlaceholderValue
 from propertyestimator.utils import graph
 
 
-class ReplicatorValue(PlaceholderInput):
+class ReplicatorValue(PlaceholderValue):
     """A placeholder value which will be set by a protocol replicator
     with the specified id.
     """
@@ -28,7 +28,7 @@ class ReplicatorValue(PlaceholderInput):
         self.replicator_id = state["replicator_id"]
 
 
-class ProtocolPath(PlaceholderInput):
+class ProtocolPath(PlaceholderValue):
     """Represents a pointer to the output of another protocol.
     """
 

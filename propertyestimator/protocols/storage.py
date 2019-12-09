@@ -6,12 +6,13 @@ import json
 from os import path
 from typing import Union
 
-from propertyestimator.attributes import UNDEFINED, InputAttribute, OutputAttribute
+from propertyestimator.attributes import UNDEFINED
 from propertyestimator.storage.dataclasses import StoredDataCollection
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
+from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 

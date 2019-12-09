@@ -3,10 +3,11 @@ A collection of schemas which represent elements of a property calculation workf
 """
 import re
 
-from propertyestimator.attributes import UNDEFINED, InputAttribute
+from propertyestimator.attributes import UNDEFINED
 from propertyestimator.attributes.typing import is_type_subclass_of_type
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedBaseModel
+from propertyestimator.workflow.attributes import InputAttribute
 from propertyestimator.workflow.plugins import available_protocols
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 

@@ -14,12 +14,7 @@ from simtk import unit as simtk_unit
 from simtk.openmm import app
 
 from propertyestimator import unit
-from propertyestimator.attributes import (
-    UNDEFINED,
-    InequalityMergeBehaviour,
-    InputAttribute,
-    OutputAttribute,
-)
+from propertyestimator.attributes import UNDEFINED
 from propertyestimator.thermodynamics import Ensemble, ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.openmm import (
@@ -29,6 +24,11 @@ from propertyestimator.utils.openmm import (
 )
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from propertyestimator.utils.statistics import ObservableType, StatisticsArray
+from propertyestimator.workflow.attributes import (
+    InequalityMergeBehaviour,
+    InputAttribute,
+    OutputAttribute,
+)
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 

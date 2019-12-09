@@ -10,10 +10,11 @@ import numpy as np
 from simtk.openmm import app
 
 from propertyestimator import unit
-from propertyestimator.attributes import UNDEFINED, InputAttribute, OutputAttribute
+from propertyestimator.attributes import UNDEFINED
 from propertyestimator.substances import Substance
 from propertyestimator.utils import create_molecule_from_smiles, packmol
 from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 

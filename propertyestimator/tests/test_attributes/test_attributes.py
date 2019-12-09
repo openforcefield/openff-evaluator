@@ -5,13 +5,9 @@ import json
 
 import pytest
 
-from propertyestimator.attributes import (
-    UNDEFINED,
-    AttributeClass,
-    InputAttribute,
-    OutputAttribute,
-)
+from propertyestimator.attributes import UNDEFINED, AttributeClass
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
+from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 
 
 class AttributeObject(AttributeClass):

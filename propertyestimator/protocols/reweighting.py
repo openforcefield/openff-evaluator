@@ -10,7 +10,7 @@ import pymbar
 from scipy.special import logsumexp
 
 from propertyestimator import unit
-from propertyestimator.attributes import UNDEFINED, InputAttribute, OutputAttribute
+from propertyestimator.attributes import UNDEFINED
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.openmm import (
@@ -24,6 +24,7 @@ from propertyestimator.utils.statistics import (
     StatisticsArray,
     bootstrap,
 )
+from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 

@@ -99,10 +99,10 @@ class EnthalpyOfMixing(PhysicalProperty):
         weight_by_mole_fraction: bool
             If true, an extra protocol will be added to weight the calculated
             enthalpy by the mole fraction of the component.
-        component_substance_reference: ProtocolPath or PlaceholderInput, optional
+        component_substance_reference: ProtocolPath or PlaceholderValue, optional
             An optional protocol path (or replicator reference) to the component substance
             whose enthalpy is being estimated.
-        full_substance_reference: ProtocolPath or PlaceholderInput, optional
+        full_substance_reference: ProtocolPath or PlaceholderValue, optional
             An optional protocol path (or replicator reference) to the full substance
             whose enthalpy of mixing is being estimated. This cannot be `None` if
             `weight_by_mole_fraction` is `True`.
@@ -303,7 +303,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         weight_by_mole_fraction: bool
             If true, an extra protocol will be added to weight the calculated
             enthalpy by the mole fraction of the component.
-        substance_reference: ProtocolPath or PlaceholderInput, optional
+        substance_reference: ProtocolPath or PlaceholderValue, optional
             An optional protocol path (or replicator reference) to the substance
             whose enthalpy is being estimated.
         options: WorkflowOptions

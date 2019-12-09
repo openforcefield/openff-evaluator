@@ -2,20 +2,12 @@ from .attributes import (
     UNDEFINED,
     Attribute,
     AttributeClass,
-    InequalityMergeBehaviour,
-    InputAttribute,
-    MergeBehaviour,
-    OutputAttribute,
-    PlaceholderInput,
+    PlaceholderValue,
 )
 
 __all__ = [
     UNDEFINED,
     Attribute,
     AttributeClass,
-    InequalityMergeBehaviour,
-    InputAttribute,
-    MergeBehaviour,
-    OutputAttribute,
-    PlaceholderInput,
+    PlaceholderValue,
 ]

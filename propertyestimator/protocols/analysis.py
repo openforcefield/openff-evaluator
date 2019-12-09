@@ -9,16 +9,16 @@ from os import path
 import numpy as np
 
 from propertyestimator import unit
-from propertyestimator.attributes import (
-    UNDEFINED,
-    InequalityMergeBehaviour,
-    InputAttribute,
-    OutputAttribute,
-)
+from propertyestimator.attributes import UNDEFINED
 from propertyestimator.utils import statistics, timeseries
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import StatisticsArray, bootstrap
+from propertyestimator.workflow.attributes import (
+    InequalityMergeBehaviour,
+    InputAttribute,
+    OutputAttribute,
+)
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 

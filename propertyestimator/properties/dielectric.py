@@ -9,7 +9,7 @@ from simtk import openmm
 from simtk.openmm import XmlSerializer
 
 from propertyestimator import unit
-from propertyestimator.attributes import UNDEFINED, InputAttribute, OutputAttribute
+from propertyestimator.attributes import UNDEFINED
 from propertyestimator.datasets.plugins import register_thermoml_property
 from propertyestimator.properties import PhysicalProperty, PropertyPhase
 from propertyestimator.properties.plugins import register_estimable_property
@@ -26,6 +26,7 @@ from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import bootstrap
 from propertyestimator.workflow import plugins
+from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.schemas import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
 

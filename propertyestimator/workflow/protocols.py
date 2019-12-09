@@ -5,15 +5,15 @@ form a larger property estimation workflow.
 
 import copy
 
-from propertyestimator.attributes import (
+from propertyestimator.attributes import PlaceholderValue
+from propertyestimator.utils import graph, utils
+from propertyestimator.utils.utils import get_nested_attribute, set_nested_attribute
+from propertyestimator.workflow.attributes import (
     InequalityMergeBehaviour,
     InputAttribute,
     MergeBehaviour,
     OutputAttribute,
-    PlaceholderInput,
 )
-from propertyestimator.utils import graph, utils
-from propertyestimator.utils.utils import get_nested_attribute, set_nested_attribute
 from propertyestimator.workflow.schemas import ProtocolSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
@@ -383,11 +383,11 @@ class BaseProtocol:
             other_value = other.get_value(input_path)
 
             if (
-                isinstance(self_value, PlaceholderInput)
-                and not isinstance(other_value, PlaceholderInput)
+                isinstance(self_value, PlaceholderValue)
+                and not isinstance(other_value, PlaceholderValue)
             ) or (
-                isinstance(other_value, PlaceholderInput)
-                and not isinstance(self_value, PlaceholderInput)
+                isinstance(other_value, PlaceholderValue)
+                and not isinstance(self_value, PlaceholderValue)
             ):
 
                 # We cannot safely merge inputs when only one of the values
@@ -409,8 +409,8 @@ class BaseProtocol:
                 if self_value.protocol_path != other_value_post_merge.protocol_path:
                     return False
 
-            elif isinstance(self_value, PlaceholderInput) and isinstance(
-                other_value, PlaceholderInput
+            elif isinstance(self_value, PlaceholderValue) and isinstance(
+                other_value, PlaceholderValue
             ):
                 return False
 

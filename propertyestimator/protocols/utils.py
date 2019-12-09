@@ -568,7 +568,7 @@ def generate_gradient_protocol_group(
     replicator_id: str
         A unique id which will be used for the protocol replicator which will
         replicate this group for every parameter of interest.
-    substance_source: PlaceholderInput, optional
+    substance_source: PlaceholderValue, optional
         An optional protocol path to the substance whose gradient
         is being estimated. If None, the global property substance
         is used.

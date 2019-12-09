@@ -1,9 +1,10 @@
 from typing import Union
 
 from propertyestimator import unit
-from propertyestimator.attributes import UNDEFINED, InputAttribute, OutputAttribute
+from propertyestimator.attributes import UNDEFINED
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import Workflow
+from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 

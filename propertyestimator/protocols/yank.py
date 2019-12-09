@@ -12,12 +12,7 @@ from enum import Enum
 import yaml
 
 from propertyestimator import unit
-from propertyestimator.attributes import (
-    UNDEFINED,
-    InequalityMergeBehaviour,
-    InputAttribute,
-    OutputAttribute,
-)
+from propertyestimator.attributes import UNDEFINED
 from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
@@ -30,6 +25,11 @@ from propertyestimator.utils.openmm import (
 )
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.utils import temporarily_change_directory
+from propertyestimator.workflow.attributes import (
+    InequalityMergeBehaviour,
+    InputAttribute,
+    OutputAttribute,
+)
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 

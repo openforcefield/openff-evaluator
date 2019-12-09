@@ -14,13 +14,13 @@ from enum import Enum, unique
 from os import makedirs, path
 
 from propertyestimator import unit
-from propertyestimator.attributes import (
+from propertyestimator.utils import graph
+from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.workflow.attributes import (
     InequalityMergeBehaviour,
     InputAttribute,
     OutputAttribute,
 )
-from propertyestimator.utils import graph
-from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.workflow.plugins import (
     available_protocols,
     register_calculation_protocol,

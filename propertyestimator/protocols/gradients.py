@@ -12,7 +12,7 @@ from simtk import openmm
 from simtk.openmm import app
 
 from propertyestimator import unit
-from propertyestimator.attributes import UNDEFINED, InputAttribute, OutputAttribute
+from propertyestimator.attributes import UNDEFINED
 from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource
 from propertyestimator.properties.properties import (
     ParameterGradient,
@@ -29,6 +29,7 @@ from propertyestimator.utils.openmm import (
 )
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType, StatisticsArray
+from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
