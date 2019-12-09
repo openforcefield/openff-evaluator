@@ -1,9 +1,9 @@
 from .attributes import (
     UNDEFINED,
-    BaseAttributeClass,
+    Attribute,
+    AttributeClass,
     InequalityMergeBehaviour,
     InputAttribute,
-    MergeableAttributeClass,
     MergeBehaviour,
     OutputAttribute,
     PlaceholderInput,
@@ -11,11 +11,11 @@ from .attributes import (
 
 __all__ = [
     UNDEFINED,
-    MergeBehaviour,
+    Attribute,
+    AttributeClass,
     InequalityMergeBehaviour,
-    BaseAttributeClass,
-    MergeableAttributeClass,
     InputAttribute,
+    MergeBehaviour,
     OutputAttribute,
     PlaceholderInput,
 ]

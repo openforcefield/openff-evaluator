@@ -1,8 +1,8 @@
 """
-A collection of descriptors used to mark-up elements in a workflow, such
-as the inputs or outputs of workflow protocols.
+A collection of descriptors used to mark-up class fields which
+hold importance to the workflow engine, such as the inputs or
+outputs of workflow protocols.
 """
-import abc
 import copy
 import inspect
 from enum import Enum
@@ -84,7 +84,7 @@ class InequalityMergeBehaviour(BaseMergeBehaviour):
     LargestValue = "LargestValue"
 
 
-class BaseAttributeClass(TypedBaseModel):
+class AttributeClass(TypedBaseModel):
     """A base class for objects which require will defined
     attributes which, dependant on the object, may be flagged
     as either being a required input to the object or a
@@ -97,7 +97,7 @@ class BaseAttributeClass(TypedBaseModel):
 
         Parameters
         ----------
-        attribute_type: type of BaseAttribute
+        attribute_type: type of Attribute
             The type of attribute to search for.
 
         Returns
@@ -208,86 +208,9 @@ class BaseAttributeClass(TypedBaseModel):
             setattr(self, name, state_output[name])
 
 
-class MergeableAttributeClass(BaseAttributeClass):
-    """Represents an object which can be merged with other
-    classes of the same type, whereby how the objects are
-    merged is defined by the object attributes.
-    """
-
-    def can_merge(self, other):
-        """Determines whether this object can be safely merged with
-        another of the same type.
-
-        Parameters
-        ----------
-        other: BaseAttributeClass
-            The object to compare against.
-
-        Returns
-        ----------
-        bool
-            True if the two objects are safe to merge.
-        """
-
-        if type(self) != type(other):
-            # We can only merge objects with the same types.
-            return False
-
-        for input_name in self.get_input_attributes():
-
-            merge_behavior = getattr(self.__class__, input_name).merge_behavior
-
-            self_value = getattr(self, input_name)
-            other_value = getattr(other, input_name)
-
-            if isinstance(self_value, PlaceholderInput) or isinstance(
-                other_value, PlaceholderInput
-            ):
-
-                # We cannot safely merge inputs when only one of the values
-                # is currently known.
-                return False
-
-            elif (
-                merge_behavior == MergeBehaviour.ExactlyEqual
-                and self_value != other_value
-            ):
-                return False
-
-        return True
-
-    def merge(self, other):
-        """Merges another object with this one.
-
-        Parameters
-        ----------
-        other: BaseAttributeClass
-            The object to merge into this one.
-        """
-
-        if not self.can_merge(other):
-            raise ValueError("These protocols can not be safely merged.")
-
-        for input_name in self.get_input_attributes():
-
-            merge_behavior = getattr(self.__class__, input_name).merge_behavior
-
-            if merge_behavior == MergeBehaviour.ExactlyEqual:
-                continue
-
-            if merge_behavior == InequalityMergeBehaviour.SmallestValue:
-                value = min(getattr(self, input_name), getattr(other, input_name))
-            elif merge_behavior == InequalityMergeBehaviour.LargestValue:
-                value = max(getattr(self, input_name), getattr(other, input_name))
-            else:
-                raise NotImplementedError()
-
-            setattr(self, input_name, value)
-
-
-class BaseAttribute(abc.ABC):
-    """A custom descriptor used to mark class attributes as being either
-    a required input, or provided output of a protocol.
+class Attribute:
+    """A custom descriptor used to add useful metadata to class
+    attributes.
 
     This decorator expects the object to have a matching private field
     in addition to the public attribute. For example if an object has
@@ -300,8 +223,8 @@ class BaseAttribute(abc.ABC):
     attribute on the object and populate it with the default value.
     """
 
-    def __init__(self, docstring, type_hint):
-        """Initializes a new BaseAttribute object.
+    def __init__(self, docstring, type_hint, default_value, optional=False):
+        """Initializes a new Attribute object.
 
         Parameters
         ----------
@@ -313,6 +236,11 @@ class BaseAttribute(abc.ABC):
             The expected type of this attribute. This will be used to help the
             workflow engine ensure that expected input types match corresponding
             output values.
+        default_value: Any
+            The default value for this attribute.
+        optional: bool
+            Defines whether this is an optional input of a class. If true,
+            the `default_value` must be set to `UNDEFINED`.
         """
 
         if not is_supported_type(type_hint):
@@ -325,18 +253,47 @@ class BaseAttribute(abc.ABC):
         if hasattr(type_hint, "__qualname__"):
 
             if type_hint.__qualname__ == "build_quantity_class.<locals>.Quantity":
-                typed_docstring = f"Quantity: {docstring}"
+                docstring = f"Quantity: {docstring}"
             elif type_hint.__qualname__ == "build_quantity_class.<locals>.Unit":
-                typed_docstring = f"Unit: {docstring}"
+                docstring = f"Unit: {docstring}"
             else:
-                typed_docstring = f"{type_hint.__qualname__}: {docstring}"
+                docstring = f"{type_hint.__qualname__}: {docstring}"
 
         elif hasattr(type_hint, "__name__"):
-            typed_docstring = f"{type_hint.__name__}: {docstring}"
+            docstring = f"{type_hint.__name__}: {docstring}"
         else:
-            typed_docstring = f"{str(type_hint)}: {docstring}"
+            docstring = f"{str(type_hint)}: {docstring}"
 
-        self.__doc__ = typed_docstring
+        # Handle the default value.
+        self._default_value = default_value
+
+        if isinstance(
+            default_value, (int, float, str, unit.Quantity, EstimatedQuantity, Enum)
+        ) or (
+            isinstance(default_value, (list, tuple, set, frozenset))
+            and len(default_value) <= 4
+        ):
+
+            docstring = (
+                f"{docstring} The default value of this attribute "
+                f"is ``{str(default_value)}``."
+            )
+
+        elif default_value == UNDEFINED:
+
+            optional_string = "" if optional else " and must be set by the user."
+
+            docstring = (
+                f"{docstring} The default value of this attribute "
+                f"is not set{optional_string}."
+            )
+
+        self.optional = optional
+
+        if optional is True:
+            docstring = f"{docstring} This attribute is *optional*."
+
+        self.__doc__ = docstring
         self.type_hint = type_hint
 
     def __set_name__(self, owner, name):
@@ -370,7 +327,7 @@ class BaseAttribute(abc.ABC):
         setattr(instance, self._private_attribute_name, value)
 
 
-class InputAttribute(BaseAttribute):
+class InputAttribute(Attribute):
     """A descriptor used to mark an attribute of an object as
     an input to that object.
 
@@ -382,9 +339,9 @@ class InputAttribute(BaseAttribute):
     ----------
     To mark an attribute as an input:
 
-    >>> from propertyestimator.attributes import BaseAttributeClass, InputAttribute
+    >>> from propertyestimator.attributes import AttributeClass, InputAttribute
     >>>
-    >>> class MyObject(BaseAttributeClass):
+    >>> class MyObject(AttributeClass):
     >>>
     >>>     my_input = InputAttribute(
     >>>         docstring='An input will be used.',
@@ -406,11 +363,6 @@ class InputAttribute(BaseAttribute):
 
         Parameters
         ----------
-        default_value: Any
-            The default value for this attribute.
-        optional: bool
-            Defines whether this is an optional input of a class. If true,
-            the `default_value` must be set to `UNDEFINED`.
         merge_behavior: BaseMergeBehaviour
             An enum describing how this input should be handled when considering
             whether to, and actually merging two different objects.
@@ -421,28 +373,6 @@ class InputAttribute(BaseAttribute):
         if not isinstance(merge_behavior, BaseMergeBehaviour):
             raise ValueError(
                 "The merge behaviour must inherit from `BaseMergeBehaviour`"
-            )
-
-        # Automatically extend the docstrings.
-        if isinstance(
-            default_value, (int, float, str, unit.Quantity, EstimatedQuantity, Enum)
-        ) or (
-            isinstance(default_value, (list, tuple, set, frozenset))
-            and len(default_value) <= 4
-        ):
-
-            docstring = (
-                f"{docstring} The default value of this attribute "
-                f"is ``{str(default_value)}``."
-            )
-
-        elif default_value == UNDEFINED:
-
-            optional_string = "" if optional else " and must be set by the user."
-
-            docstring = (
-                f"{docstring} The default value of this attribute "
-                f"is not set{optional_string}."
             )
 
         if (
@@ -466,15 +396,9 @@ class InputAttribute(BaseAttribute):
 
             docstring = f"{docstring} {merge_docstring}"
 
-        if optional is True:
-            docstring = f"{docstring} This input is *optional*."
+        super().__init__(docstring, type_hint, default_value, optional)
 
-        super().__init__(docstring, type_hint)
-
-        self.optional = optional
         self.merge_behavior = merge_behavior
-
-        self._default_value = default_value
 
     def __get__(self, instance, owner=None):
 
@@ -495,18 +419,19 @@ class InputAttribute(BaseAttribute):
         return getattr(instance, self._private_attribute_name)
 
 
-class OutputAttribute(BaseAttribute):
+class OutputAttribute(Attribute):
     """A descriptor used to mark an attribute of an as
-    an output of that object. This attribute is
-    expected to be populated by the class itself.
+    an output of that object. This attribute is expected
+    to be populated by the object itself, rather than be
+    set externally.
 
     Examples
     ----------
     To mark an attribute as an output:
 
-    >>> from propertyestimator.attributes import BaseAttributeClass, OutputAttribute,
+    >>> from propertyestimator.attributes import AttributeClass, OutputAttribute,
     >>>
-    >>> class MyObject(BaseAttributeClass):
+    >>> class MyObject(AttributeClass):
     >>>
     >>>     my_output = OutputAttribute(
     >>>         docstring='An output that will be filled.',
@@ -518,4 +443,4 @@ class OutputAttribute(BaseAttribute):
         """Initializes a new OutputAttribute object.
         """
         docstring = f"**Output** - {docstring}"
-        super().__init__(docstring, type_hint)
+        super().__init__(docstring, type_hint, UNDEFINED, False)

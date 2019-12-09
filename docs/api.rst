@@ -392,7 +392,8 @@ Attribute Utilities
     :nosignatures:
     :toctree: api/generated/
 
-    BaseAttributeClass
+    AttributeClass
+    Attribute
     InputAttribute
     OutputAttribute
     MergeBehaviour

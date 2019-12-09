@@ -7,14 +7,14 @@ import pytest
 
 from propertyestimator.attributes import (
     UNDEFINED,
-    BaseAttributeClass,
+    AttributeClass,
     InputAttribute,
     OutputAttribute,
 )
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 
 
-class AttributeObject(BaseAttributeClass):
+class AttributeObject(AttributeClass):
 
     required_input = InputAttribute("", str, "Hello World", optional=False)
     optional_input = InputAttribute("", int, UNDEFINED, optional=True)
