@@ -5,7 +5,7 @@ outputs of workflow protocols.
 """
 from enum import Enum
 
-from propertyestimator.attributes import Attribute
+from propertyestimator.attributes import Attribute, UNDEFINED
 
 
 class ComparisonBehaviour(Enum):
@@ -34,7 +34,6 @@ class StorageAttribute(Attribute):
         self,
         docstring,
         type_hint,
-        default_value,
         optional=False,
         comparison_behavior=ComparisonBehaviour.Compare,
     ):
@@ -71,6 +70,6 @@ class StorageAttribute(Attribute):
 
         docstring = f"{docstring} {compare_docstring}"
 
-        super().__init__(docstring, type_hint, default_value, optional)
+        super().__init__(docstring, type_hint, UNDEFINED, optional)
 
         self.comparison_behavior = comparison_behavior

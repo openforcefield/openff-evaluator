@@ -133,7 +133,7 @@ class Attribute:
     attribute on the object and populate it with the default value.
     """
 
-    def __init__(self, docstring, type_hint, default_value, optional=False):
+    def __init__(self, docstring, type_hint, default_value=UNDEFINED, optional=False):
         """Initializes a new Attribute object.
 
         Parameters

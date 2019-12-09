@@ -14,6 +14,7 @@ from propertyestimator.protocols.utils import (
     generate_gradient_protocol_group,
 )
 from propertyestimator.storage import StoredSimulationData
+from propertyestimator.storage.query import SimulationDataQuery
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow import WorkflowOptions
@@ -28,13 +29,14 @@ from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 class Density(PhysicalProperty):
     """A class representation of a density property"""
 
-    @property
-    def multi_component_property(self):
-        return False
+    @staticmethod
+    def cached_data_queries(physical_property):
 
-    @property
-    def required_data_class(self):
-        return StoredSimulationData
+        query = SimulationDataQuery()
+        query.substance = physical_property.substance
+        query.phase = physical_property.phase
+
+        return {'full_system': query}
 
     @staticmethod
     def get_default_workflow_schema(calculation_layer, options=None):

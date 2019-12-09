@@ -7,8 +7,7 @@ import uuid
 from os import path
 
 from propertyestimator.forcefield import ForceFieldSource
-from propertyestimator.storage import StoredSimulationData
-from propertyestimator.storage.dataclasses import BaseStoredData
+from propertyestimator.storage.data import BaseStoredData, StoredSimulationData
 from propertyestimator.utils.string import sanitize_smiles_file_name
 
 
@@ -25,7 +24,6 @@ class StorageBackend:
     def __init__(self):
         """Constructs a new StorageBackend object.
         """
-
         self._stored_object_keys = set()
         self._stored_object_keys_file = "internal_object_keys"
 

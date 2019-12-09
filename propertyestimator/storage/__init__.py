@@ -1,4 +1,4 @@
-from .dataclasses import StoredSimulationData
+from .data import StoredSimulationData
 from .localfile import LocalFileStorage
 from .storage import StorageBackend
 
