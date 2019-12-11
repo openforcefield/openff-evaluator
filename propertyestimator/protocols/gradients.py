@@ -13,12 +13,10 @@ from simtk.openmm import app
 
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
-from propertyestimator.datasets.properties import (
-    ParameterGradient,
-    ParameterGradientKey,
-)
 from propertyestimator.forcefield import (
     ForceFieldSource,
+    ParameterGradient,
+    ParameterGradientKey,
     SmirnoffForceFieldSource,
 )
 from propertyestimator.substances import Substance

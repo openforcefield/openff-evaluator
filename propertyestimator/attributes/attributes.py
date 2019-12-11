@@ -30,10 +30,10 @@ class UndefinedAttribute:
 
 
 class PlaceholderValue:
-    """A class to act as a place holder for an input value
-    which is not known a priori. This may include a value
-    which will be set by a workflow as the output of an
-    executed protocol.
+    """A class to act as a place holder for an attribute whose value is
+    not known a priori, but will be set later by some specialised code.
+    This may include the input to a protocol which will be set by a
+    workflow as the output of an executed protocol.
     """
 
     def __getstate__(self):

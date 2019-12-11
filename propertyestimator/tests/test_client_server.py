@@ -8,10 +8,7 @@ from propertyestimator.backends import ComputeResources, DaskLocalCluster
 from propertyestimator.client import PropertyEstimatorClient, PropertyEstimatorOptions
 from propertyestimator.datasets import PhysicalPropertyDataSet
 from propertyestimator.forcefield import SmirnoffForceFieldSource
-from propertyestimator.layers import (
-    PropertyCalculationLayer,
-    register_calculation_layer,
-)
+from propertyestimator.layers import CalculationLayer, register_calculation_layer
 from propertyestimator.properties import Density
 from propertyestimator.server import PropertyEstimatorServer
 from propertyestimator.storage import LocalFileStorage
@@ -20,7 +17,7 @@ from propertyestimator.utils.exceptions import PropertyEstimatorException
 
 
 @register_calculation_layer()
-class TestCalculationLayer(PropertyCalculationLayer):
+class TestCalculationLayer(CalculationLayer):
     """A calculation layer which marks properties to be calculated
     as finished for the purpose of testing.
     """

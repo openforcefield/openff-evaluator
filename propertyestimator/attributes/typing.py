@@ -5,15 +5,6 @@ the protocols input and outputs align correctly.
 """
 import typing
 
-_built_in_types_to_use = {
-    list: typing.List,
-    tuple: typing.Tuple,
-    set: typing.Set,
-    frozenset: typing.FrozenSet,
-    dict: typing.Dict,
-}
-
-
 _supported_generic_types = {typing.Union}
 
 

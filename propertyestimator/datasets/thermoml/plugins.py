@@ -1,3 +1,7 @@
+"""A collection of utility functions for registering mappings between
+ThermoML archive properties, and properties supported by the estimation
+framework.
+"""
 import functools
 
 from propertyestimator.datasets.thermoml import ThermoMLDataSet

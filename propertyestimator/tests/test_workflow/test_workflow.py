@@ -8,7 +8,7 @@ import pytest
 
 from propertyestimator import unit
 from propertyestimator.backends import ComputeResources, DaskLocalCluster
-from propertyestimator.layers import available_layers
+from propertyestimator.layers import registered_calculation_layers
 from propertyestimator.layers.layers import CalculationLayerResult
 from propertyestimator.layers.plugins import registered_properties
 from propertyestimator.layers.simulation import Workflow, WorkflowGraph
@@ -31,7 +31,7 @@ from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
 @pytest.mark.parametrize("registered_property_name", registered_properties)
-@pytest.mark.parametrize("available_layer", available_layers)
+@pytest.mark.parametrize("available_layer", registered_calculation_layers)
 def test_workflow_schema_simulation(registered_property_name, available_layer):
     """Tests serialisation and deserialization of a calculation schema."""
 
@@ -57,7 +57,7 @@ def test_workflow_schema_simulation(registered_property_name, available_layer):
 
 
 @pytest.mark.parametrize("registered_property_name", registered_properties)
-@pytest.mark.parametrize("available_layer", available_layers)
+@pytest.mark.parametrize("available_layer", registered_calculation_layers)
 def test_cloned_schema_merging_simulation(registered_property_name, available_layer):
     """Tests that two, the exact the same, calculations get merged into one
     by the `WorkflowGraph`."""

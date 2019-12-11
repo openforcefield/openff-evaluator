@@ -16,7 +16,7 @@ from propertyestimator.client import (
     PropertyEstimatorResult,
     PropertyEstimatorSubmission,
 )
-from propertyestimator.layers import available_layers
+from propertyestimator.layers import registered_calculation_layers
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedBaseModel
 from propertyestimator.utils.tcp import (
@@ -595,7 +595,7 @@ class PropertyEstimatorServer(TCPServer):
 
         current_layer_type = server_request.options.allowed_calculation_layers.pop(0)
 
-        if current_layer_type not in available_layers:
+        if current_layer_type not in registered_calculation_layers:
 
             # Kill all remaining properties if we reach an unsupported calculation layer.
             error_object = PropertyEstimatorException(
@@ -622,7 +622,7 @@ class PropertyEstimatorServer(TCPServer):
         if not path.isdir(layer_directory):
             makedirs(layer_directory)
 
-        current_layer = available_layers[current_layer_type]
+        current_layer = registered_calculation_layers[current_layer_type]
 
         current_layer.schedule_calculation(
             self._calculation_backend,
