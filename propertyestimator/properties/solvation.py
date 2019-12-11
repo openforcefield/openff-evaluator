@@ -3,8 +3,8 @@ A collection of physical property definitions relating to
 solvation free energies.
 """
 from propertyestimator import unit
+from propertyestimator.layers.plugins import register_estimable_property
 from propertyestimator.properties import PhysicalProperty
-from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.protocols import (
     coordinates,
     forcefield,

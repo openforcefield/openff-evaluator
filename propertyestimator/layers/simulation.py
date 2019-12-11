@@ -5,14 +5,11 @@ The direct simulation estimation layer.
 import logging
 from os import path
 
-from propertyestimator.layers import (
-    PropertyCalculationLayer,
-    register_calculation_layer,
-)
+from propertyestimator.layers import PropertyCalculationLayer, calculation_layer
 from propertyestimator.workflow import Workflow, WorkflowGraph
 
 
-@register_calculation_layer()
+@calculation_layer()
 class SimulationLayer(PropertyCalculationLayer):
     """A calculation layer which aims to calculate physical properties
     directly from molecular simulation.

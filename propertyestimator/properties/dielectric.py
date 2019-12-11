@@ -10,9 +10,9 @@ from simtk.openmm import XmlSerializer
 
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
-from propertyestimator.datasets.plugins import register_thermoml_property
+from propertyestimator.datasets.thermoml.plugins import register_thermoml_property
+from propertyestimator.layers.plugins import register_estimable_property
 from propertyestimator.properties import PhysicalProperty, PropertyPhase
-from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.protocols import analysis, reweighting
 from propertyestimator.protocols.utils import (
     generate_base_reweighting_protocols,

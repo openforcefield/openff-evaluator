@@ -1,9 +1,4 @@
-from .attributes import (
-    UNDEFINED,
-    Attribute,
-    AttributeClass,
-    PlaceholderValue,
-)
+from .attributes import UNDEFINED, Attribute, AttributeClass, PlaceholderValue
 
 __all__ = [
     UNDEFINED,

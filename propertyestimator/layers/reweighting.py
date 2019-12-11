@@ -1,42 +1,18 @@
 """
 The simulation reweighting estimation layer.
 """
-import abc
 import json
 import logging
 import os
 
-from propertyestimator.layers import (
-    PropertyCalculationLayer,
-    register_calculation_layer,
-)
+from propertyestimator.layers import PropertyCalculationLayer, calculation_layer
 from propertyestimator.substances import Substance
 from propertyestimator.utils.serialization import TypedJSONEncoder
-from propertyestimator.utils.utils import SubhookedABCMeta
 from propertyestimator.workflow import Workflow, WorkflowGraph
 from propertyestimator.workflow.workflow import IWorkflowProperty
 
 
-class IReweightable(SubhookedABCMeta):
-    @property
-    @abc.abstractmethod
-    def multi_component_property(self):
-        """bool: Returns whether this property is dependant on properties of the
-        full mixed substance, or whether it is also dependant on the properties
-        of the individual components also.
-        """
-        pass
-
-    @property
-    @abc.abstractmethod
-    def required_data_class(self):
-        """subclass of BaseStoredData: The data class required to reweight this
-        property (e.g. `StoredSimulationData`).
-        """
-        pass
-
-
-@register_calculation_layer()
+@calculation_layer()
 class ReweightingLayer(PropertyCalculationLayer):
     """A calculation layer which aims to calculate physical properties by
     reweighting the results of previous calculations.

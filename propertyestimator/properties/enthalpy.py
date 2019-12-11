@@ -5,9 +5,9 @@ import copy
 from collections import namedtuple
 
 from propertyestimator import unit
-from propertyestimator.datasets.plugins import register_thermoml_property
-from propertyestimator.properties.plugins import register_estimable_property
-from propertyestimator.properties.properties import PhysicalProperty, PropertyPhase
+from propertyestimator.datasets.properties import PhysicalProperty, PropertyPhase
+from propertyestimator.datasets.thermoml.plugins import register_thermoml_property
+from propertyestimator.layers.plugins import register_estimable_property
 from propertyestimator.protocols import (
     analysis,
     groups,

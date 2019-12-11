@@ -5,7 +5,7 @@ from propertyestimator.client import PropertyEstimatorOptions
 from propertyestimator.datasets import PhysicalPropertyDataSet
 from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.properties import ParameterGradientKey
-from propertyestimator.properties.plugins import registered_properties
+from propertyestimator.layers.plugins import registered_properties
 from integration_tests.utils import setup_server, BackendType
 from propertyestimator.utils import setup_timestamp_logging
 from propertyestimator.utils.serialization import TypedJSONEncoder

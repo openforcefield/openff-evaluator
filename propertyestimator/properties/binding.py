@@ -2,8 +2,8 @@
 A collection of density physical property definitions.
 """
 
+from propertyestimator.layers.plugins import register_estimable_property
 from propertyestimator.properties import PhysicalProperty
-from propertyestimator.properties.plugins import register_estimable_property
 from propertyestimator.protocols import coordinates, forcefield, miscellaneous, yank
 from propertyestimator.substances import Substance
 from propertyestimator.workflow.schemas import WorkflowSchema

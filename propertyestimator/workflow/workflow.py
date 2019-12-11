@@ -14,7 +14,10 @@ from math import sqrt
 from os import makedirs, path
 
 from propertyestimator import unit
-from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource
+from propertyestimator.forcefield import (
+    ForceFieldSource,
+    SmirnoffForceFieldSource,
+)
 from propertyestimator.storage.dataclasses import (
     BaseStoredData,
     StoredDataCollection,

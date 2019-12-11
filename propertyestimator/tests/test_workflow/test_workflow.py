@@ -10,11 +10,11 @@ from propertyestimator import unit
 from propertyestimator.backends import ComputeResources, DaskLocalCluster
 from propertyestimator.layers import available_layers
 from propertyestimator.layers.layers import CalculationLayerResult
+from propertyestimator.layers.plugins import registered_properties
 from propertyestimator.layers.simulation import Workflow, WorkflowGraph
 from propertyestimator.properties import PropertyPhase
 from propertyestimator.properties.density import Density
 from propertyestimator.properties.dielectric import DielectricConstant
-from propertyestimator.properties.plugins import registered_properties
 from propertyestimator.protocols.groups import ConditionalGroup
 from propertyestimator.substances import Substance
 from propertyestimator.tests.test_workflow.utils import (

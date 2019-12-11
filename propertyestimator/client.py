@@ -12,7 +12,7 @@ from tornado.tcpclient import TCPClient
 
 from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.layers import ReweightingLayer, SimulationLayer
-from propertyestimator.properties.plugins import registered_properties
+from propertyestimator.layers.plugins import registered_properties
 from propertyestimator.utils.serialization import TypedBaseModel
 from propertyestimator.utils.tcp import (
     PropertyEstimatorMessageTypes,

@@ -93,9 +93,7 @@ class AttributeClass(TypedBaseModel):
 
     def __getstate__(self):
 
-        attributes = {
-            name: getattr(self, name) for name in self._get_attributes()
-        }
+        attributes = {name: getattr(self, name) for name in self._get_attributes()}
 
         return attributes
 
@@ -110,8 +108,7 @@ class AttributeClass(TypedBaseModel):
             if not attribute.optional and name not in state:
 
                 raise IndexError(
-                    f"The {name} attribute was not present in "
-                    f"the state dictionary."
+                    f"The {name} attribute was not present in " f"the state dictionary."
                 )
 
             # This should handle type checking.

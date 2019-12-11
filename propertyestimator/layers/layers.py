@@ -6,31 +6,8 @@ import logging
 import traceback
 from os import path
 
-from propertyestimator.storage.dataclasses import StoredDataCollection
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder
-
-available_layers = {}
-
-
-def register_calculation_layer():
-    """A decorator which registers a class as being a calculation layer
-    which may be used in property calculations.
-
-    See Also
-    --------
-    TODO: add documentation for plugin support
-    """
-
-    def decorator(cls):
-
-        if cls.__name__ in available_layers:
-            raise ValueError("The {} layer is already registered.".format(cls.__name__))
-
-        available_layers[cls.__name__] = cls
-        return cls
-
-    return decorator
 
 
 def return_args(*args, **kwargs):

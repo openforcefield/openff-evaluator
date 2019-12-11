@@ -6,8 +6,8 @@ import pytest
 
 from propertyestimator import unit
 from propertyestimator.datasets import PhysicalPropertyDataSet, ThermoMLDataSet
-from propertyestimator.datasets.plugins import register_thermoml_property
-from propertyestimator.datasets.thermoml import unit_from_thermoml_string
+from propertyestimator.datasets.thermoml.plugins import register_thermoml_property
+from propertyestimator.datasets.thermoml.thermoml import _unit_from_thermoml_string
 from propertyestimator.properties import (
     CalculationSource,
     Density,
@@ -73,7 +73,7 @@ def test_thermoml_unit_from_string(unit_string):
 
     dummy_string = f"Property, {unit_string}"
 
-    returned_unit = unit_from_thermoml_string(dummy_string)
+    returned_unit = _unit_from_thermoml_string(dummy_string)
     assert returned_unit is not None and isinstance(returned_unit, unit.Unit)
 
 

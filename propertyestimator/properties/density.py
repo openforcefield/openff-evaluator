@@ -4,9 +4,13 @@ A collection of density physical property definitions.
 import copy
 
 from propertyestimator import unit
-from propertyestimator.datasets.plugins import register_thermoml_property
-from propertyestimator.properties import PhysicalProperty, PropertyPhase
-from propertyestimator.properties.plugins import register_estimable_property
+from propertyestimator.datasets import PhysicalProperty, PropertyPhase
+from propertyestimator.datasets.thermoml import thermoml_property
+from propertyestimator.layers import (
+    ReweightingLayer,
+    SimulationLayer,
+    register_default_schema,
+)
 from propertyestimator.protocols import analysis, miscellaneous, reweighting
 from propertyestimator.protocols.utils import (
     generate_base_reweighting_protocols,
@@ -22,8 +26,7 @@ from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSchem
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
-@register_estimable_property()
-@register_thermoml_property(
+@thermoml_property(
     thermoml_string="Mass density, kg/m3", supported_phases=PropertyPhase.Liquid
 )
 class Density(PhysicalProperty):
@@ -36,17 +39,7 @@ class Density(PhysicalProperty):
         query.substance = physical_property.substance
         query.phase = physical_property.phase
 
-        return {'full_system': query}
-
-    @staticmethod
-    def get_default_workflow_schema(calculation_layer, options=None):
-
-        if calculation_layer == "SimulationLayer":
-            return Density.get_default_simulation_workflow_schema(options)
-        elif calculation_layer == "ReweightingLayer":
-            return Density.get_default_reweighting_workflow_schema(options)
-
-        return None
+        return {"full_system": query}
 
     @staticmethod
     def get_default_simulation_workflow_schema(options=None):
@@ -205,10 +198,15 @@ class Density(PhysicalProperty):
         return schema
 
 
-@register_estimable_property()
-@register_thermoml_property(
-    "Excess molar volume, m3/mol", supported_phases=PropertyPhase.Liquid
+register_default_schema(
+    Density, SimulationLayer, Density.get_default_simulation_workflow_schema
 )
+register_default_schema(
+    Density, ReweightingLayer, Density.get_default_reweighting_workflow_schema
+)
+
+
+@thermoml_property("Excess molar volume, m3/mol", supported_phases=PropertyPhase.Liquid)
 class ExcessMolarVolume(PhysicalProperty):
     """A class representation of an excess molar volume property"""
 
@@ -894,3 +892,15 @@ class ExcessMolarVolume(PhysicalProperty):
         schema.final_value_source = ProtocolPath("result", calculate_excess_volume.id)
 
         return schema
+
+
+register_default_schema(
+    ExcessMolarVolume,
+    SimulationLayer,
+    ExcessMolarVolume.get_default_simulation_workflow_schema,
+)
+register_default_schema(
+    ExcessMolarVolume,
+    ReweightingLayer,
+    ExcessMolarVolume.get_default_reweighting_workflow_schema,
+)
