@@ -57,7 +57,7 @@ class PhysicalProperty(AttributeClass):
     id = Attribute(
         docstring="A unique identifier string assigned to this property",
         type_hint=str,
-        default_value=str(uuid.uuid4()),
+        default_value=lambda: str(uuid.uuid4()),
     )
 
     substance = Attribute(
@@ -653,5 +653,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         self._properties = state["properties"]
         self._sources = state["sources"]
 
-        assert all(isinstance(x, PhysicalProperty) for x in self._properties)
+        for key in self._properties:
+            assert all(isinstance(x, PhysicalProperty) for x in self._properties[key])
+
         assert all(isinstance(x, Source) for x in self._sources)

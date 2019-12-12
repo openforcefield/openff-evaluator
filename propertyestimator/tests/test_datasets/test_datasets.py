@@ -4,7 +4,11 @@ Units tests for propertyestimator.datasets
 import json
 
 from propertyestimator import unit
-from propertyestimator.datasets import PhysicalPropertyDataSet, CalculationSource, PropertyPhase
+from propertyestimator.datasets import (
+    CalculationSource,
+    PhysicalPropertyDataSet,
+    PropertyPhase,
+)
 from propertyestimator.properties import (
     Density,
     DielectricConstant,
@@ -152,13 +156,17 @@ def test_filter_by_phases():
     assert dummy_data_set.number_of_properties == 1
 
     dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_phases(phases=PropertyPhase(PropertyPhase.Liquid | PropertyPhase.Solid))
+    dummy_data_set.filter_by_phases(
+        phases=PropertyPhase(PropertyPhase.Liquid | PropertyPhase.Solid)
+    )
 
     assert dummy_data_set.number_of_properties == 2
 
     dummy_data_set = create_filterable_data_set()
     dummy_data_set.filter_by_phases(
-        phases=PropertyPhase(PropertyPhase.Liquid | PropertyPhase.Solid | PropertyPhase.Gas)
+        phases=PropertyPhase(
+            PropertyPhase.Liquid | PropertyPhase.Solid | PropertyPhase.Gas
+        )
     )
 
     assert dummy_data_set.number_of_properties == 3

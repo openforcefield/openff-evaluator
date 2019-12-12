@@ -46,14 +46,15 @@ def _default_mapping(property_class, property_to_map):
     mapped_property = property_class()
 
     mapped_property.value = property_to_map.value
-    mapped_property.uncertainty = property_to_map.uncertainty
+
+    if property_to_map.uncertainty is not None:
+        mapped_property.uncertainty = property_to_map.uncertainty
 
     mapped_property.phase = property_to_map.phase
 
     mapped_property.thermodynamic_state = property_to_map.thermodynamic_state
     mapped_property.substance = property_to_map.substance
 
-    mapped_property.source = property_to_map
     return mapped_property
 
 

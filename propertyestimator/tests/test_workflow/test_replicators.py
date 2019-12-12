@@ -3,7 +3,6 @@ Units tests for propertyestimator.layers.simulation
 """
 
 from propertyestimator import unit
-from propertyestimator.layers.simulation import Workflow
 from propertyestimator.properties.density import Density
 from propertyestimator.protocols.groups import ProtocolGroup
 from propertyestimator.protocols.miscellaneous import AddValues
@@ -13,7 +12,7 @@ from propertyestimator.tests.test_workflow.utils import (
 )
 from propertyestimator.tests.utils import create_dummy_property
 from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.workflow import WorkflowSchema
+from propertyestimator.workflow import Workflow, WorkflowSchema
 from propertyestimator.workflow.schemas import ProtocolReplicator
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 

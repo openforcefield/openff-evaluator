@@ -5,15 +5,16 @@ Units tests for propertyestimator.datasets
 import pytest
 
 from propertyestimator import unit
-from propertyestimator.datasets import PropertyPhase, PhysicalProperty
+from propertyestimator.datasets import PhysicalProperty, PropertyPhase
 from propertyestimator.datasets.thermoml.plugins import thermoml_property
-from propertyestimator.datasets.thermoml.thermoml import _unit_from_thermoml_string, ThermoMLDataSet
+from propertyestimator.datasets.thermoml.thermoml import (
+    ThermoMLDataSet,
+    _unit_from_thermoml_string,
+)
 from propertyestimator.utils import get_data_filename
 
 
-@thermoml_property(
-    "Osmotic coefficient", supported_phases=PropertyPhase.Liquid
-)
+@thermoml_property("Osmotic coefficient", supported_phases=PropertyPhase.Liquid)
 class OsmoticCoefficient(PhysicalProperty):
     pass
 
@@ -26,9 +27,7 @@ class VaporPressure(PhysicalProperty):
     pass
 
 
-@thermoml_property(
-    "Activity coefficient", supported_phases=PropertyPhase.Liquid
-)
+@thermoml_property("Activity coefficient", supported_phases=PropertyPhase.Liquid)
 class ActivityCoefficient(PhysicalProperty):
     pass
 

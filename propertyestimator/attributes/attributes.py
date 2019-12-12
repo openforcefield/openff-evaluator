@@ -4,7 +4,7 @@ object attributes.
 """
 import copy
 import inspect
-from enum import Enum
+from enum import Enum, IntEnum, IntFlag
 
 from propertyestimator import unit
 from propertyestimator.attributes.typing import is_instance_of_type, is_supported_type
@@ -246,15 +246,24 @@ class Attribute:
         if not hasattr(instance, self._private_attribute_name):
             # Make sure to only ever pass a copy of the default value to ensure
             # mutable values such as lists don't get set by reference.
+
+            if not callable(self._default_value):
+                value = copy.deepcopy(self._default_value)
+            else:
+                value = copy.deepcopy(self._default_value())
+
             setattr(
-                instance,
-                self._private_attribute_name,
-                copy.deepcopy(self._default_value),
+                instance, self._private_attribute_name, value,
             )
 
         return getattr(instance, self._private_attribute_name)
 
     def __set__(self, instance, value):
+
+        if isinstance(value, int) and issubclass(self.type_hint, (IntFlag, IntEnum)):
+            # This is necessary as the json library currently doesn't
+            # support custom serialization of IntFlag or IntEnum.
+            value = self.type_hint(value)
 
         if (
             not is_instance_of_type(value, self.type_hint)

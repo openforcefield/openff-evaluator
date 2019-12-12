@@ -10,7 +10,7 @@ import pytest
 
 from propertyestimator import unit
 from propertyestimator.backends import ComputeResources
-from propertyestimator.properties import ParameterGradient, ParameterGradientKey
+from propertyestimator.forcefield import ParameterGradient, ParameterGradientKey
 from propertyestimator.protocols.miscellaneous import (
     AddValues,
     DivideValue,

@@ -15,10 +15,7 @@ from os import makedirs, path
 
 from propertyestimator import unit
 from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource
-from propertyestimator.storage.data import (
-    BaseStoredData,
-    StoredSimulationData,
-)
+from propertyestimator.storage.data import BaseStoredData, StoredSimulationData
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder

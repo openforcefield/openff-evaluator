@@ -6,7 +6,7 @@ import pytest
 
 from propertyestimator import unit
 from propertyestimator.backends import ComputeResources
-from propertyestimator.properties import ParameterGradientKey
+from propertyestimator.forcefield import ParameterGradientKey
 from propertyestimator.protocols.gradients import (
     CentralDifferenceGradient,
     GradientReducedPotentials,
