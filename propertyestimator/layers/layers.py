@@ -1,51 +1,31 @@
 """
 Defines the base API for defining new property estimator estimation layers.
 """
+import abc
 import json
 import logging
 import traceback
 from os import path
 
-from propertyestimator.storage.dataclasses import StoredDataCollection
+from propertyestimator import unit
+from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder
 
-available_layers = {}
 
-
-def register_calculation_layer():
-    """A decorator which registers a class as being a calculation layer
-    which may be used in property calculations.
-
-    See Also
-    --------
-    TODO: add documentation for plugin support
-    """
-
-    def decorator(cls):
-
-        if cls.__name__ in available_layers:
-            raise ValueError("The {} layer is already registered.".format(cls.__name__))
-
-        available_layers[cls.__name__] = cls
-        return cls
-
-    return decorator
-
-
-def return_args(*args, **kwargs):
+def return_args(*args, **_):
     return args
 
 
 class CalculationLayerResult:
     """The output returned from attempting to calculate a property on
-    a PropertyCalculationLayer.
+    a `CalculationLayer`.
 
     Attributes
     ----------
     property_id: str
         The unique id of the original physical property that this
-        calculation layer attempts to estimate.
+        calculation layer attempted to estimate.
     calculated_property: PhysicalProperty, optional
         The property which was estimated by this layer. The will
         be `None` if the layer could not estimate the property.
@@ -86,28 +66,68 @@ class CalculationLayerResult:
         self.data_to_store = state["data_to_store"]
 
 
-class PropertyCalculationLayer:
+class CalculationLayerSchema(AttributeClass):
+    """A schema which encodes the options that a `CalculationLayer`
+    should use when estimating a given class of physical properties.
+    """
+
+    absolute_uncertainty = Attribute(
+        docstring="The absolute uncertainty that the property should "
+        "be estimated to within. This attribute is mutually exclusive "
+        "with the `relative_uncertainty_fraction` attribute.",
+        type_hint=unit.Quantity,
+        default_value=UNDEFINED,
+        optional=True,
+    )
+    relative_uncertainty_fraction = Attribute(
+        docstring="The relative uncertainty that the property should "
+        "be estimated to within, i.e `relative_uncertainty_fraction * "
+        "measured_property.uncertainty`. This attribute is mutually "
+        "exclusive with the `absolute_uncertainty` attribute.",
+        type_hint=float,
+        default_value=UNDEFINED,
+        optional=True,
+    )
+
+    def validate(self, attribute_type=None):
+
+        if (
+            self.absolute_uncertainty != UNDEFINED
+            and self.relative_uncertainty_fraction != UNDEFINED
+        ):
+
+            raise ValueError(
+                "Only one of `absolute_uncertainty` and `relative_uncertainty_fraction` "
+                "can be set."
+            )
+
+        super(CalculationLayerSchema, self).validate(attribute_type)
+
+
+class CalculationLayer(abc.ABC):
     """An abstract representation of a calculation layer whose goal is
     to estimate a set of physical properties using a single approach,
     such as a layer which employs direct simulations to estimate properties,
     or one which reweights cached simulation data to the same end.
-
-    Notes
-    -----
-    Calculation layers must inherit from this class, and must override the
-    `schedule_calculation` method.
-
-    See Also
-    --------
-    TODO: Link to a general page outlining what calculation layers are
-          and how they are used.
     """
+
+    @classmethod
+    @abc.abstractmethod
+    def required_schema_type(cls):
+        """Returns the type of `CalculationLayerSchema` required by
+        this layer.
+
+        Returns
+        -------
+        type of CalculationLayerSchema
+            The required schema type.
+        """
+        raise NotImplementedError()
 
     @staticmethod
     def _await_results(
         calculation_backend,
         storage_backend,
-        layer_directory,
         server_request,
         callback,
         submitted_futures,
@@ -122,13 +142,11 @@ class PropertyCalculationLayer:
             The backend to the submit the calculations to.
         storage_backend: StorageBackend
             The backend used to store / retrieve data from previous calculations.
-        layer_directory: str
-            The local directory in which to store all local, temporary calculation data from this layer.
         server_request: PropertyEstimatorServer.ServerEstimationRequest
             The request object which spawned the awaited results.
         callback: function
             The function to call when the backend returns the results (or an error).
-        submitted_futures: list(dask.distributed.Future)
+        submitted_futures: list of dask.distributed.Future
             A list of the futures returned by the backed when submitting the calculation.
         synchronous: bool
             If true, this function will block until the calculation has completed.
@@ -139,7 +157,7 @@ class PropertyCalculationLayer:
         )
 
         def callback_wrapper(results_future):
-            PropertyCalculationLayer._process_results(
+            CalculationLayer._process_results(
                 results_future, server_request, storage_backend, callback
             )
 
@@ -181,15 +199,6 @@ class PropertyCalculationLayer:
 
                 if data_object.force_field_id is None:
                     data_object.force_field_id = server_request.force_field_id
-
-                if isinstance(data_object, StoredDataCollection):
-
-                    for inner_data_object in data_object.data.values():
-
-                        if inner_data_object.force_field_id is None:
-                            inner_data_object.force_field_id = (
-                                server_request.force_field_id
-                            )
 
             storage_backend.store_simulation_data(data_object, data_directory_path)
 
@@ -252,7 +261,7 @@ class PropertyCalculationLayer:
                         and returned_output.calculated_property is not None
                     ):
 
-                        PropertyCalculationLayer._store_cached_output(
+                        CalculationLayer._store_cached_output(
                             server_request, returned_output, storage_backend
                         )
 
@@ -321,8 +330,10 @@ class PropertyCalculationLayer:
 
         callback(server_request)
 
-    @staticmethod
+    @classmethod
+    @abc.abstractmethod
     def schedule_calculation(
+        cls,
         calculation_backend,
         storage_backend,
         layer_directory,

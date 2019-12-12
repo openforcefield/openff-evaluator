@@ -6,8 +6,9 @@ from os import makedirs, path
 from propertyestimator.backends import DaskLocalCluster
 from propertyestimator.client import PropertyEstimatorOptions
 from propertyestimator.layers import (
-    PropertyCalculationLayer,
-    register_calculation_layer,
+    CalculationLayer,
+    CalculationLayerSchema,
+    calculation_layer,
 )
 from propertyestimator.layers.layers import CalculationLayerResult
 from propertyestimator.properties import Density
@@ -19,14 +20,19 @@ from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEnc
 from propertyestimator.utils.utils import temporarily_change_directory
 
 
-@register_calculation_layer()
-class DummyCalculationLayer(PropertyCalculationLayer):
+@calculation_layer()
+class DummyCalculationLayer(CalculationLayer):
     """A dummy calculation layer class to test out the base
     calculation layer methods.
     """
 
-    @staticmethod
+    @classmethod
+    def required_schema_type(cls):
+        return CalculationLayerSchema
+
+    @classmethod
     def schedule_calculation(
+        cls,
         calculation_backend,
         storage_backend,
         layer_directory,
@@ -55,10 +61,9 @@ class DummyCalculationLayer(PropertyCalculationLayer):
             ),
         ]
 
-        PropertyCalculationLayer._await_results(
+        CalculationLayer._await_results(
             calculation_backend,
             storage_backend,
-            layer_directory,
             data_model,
             callback,
             futures,

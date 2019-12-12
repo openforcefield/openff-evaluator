@@ -44,13 +44,13 @@ def test_undefined_serialization():
 
 def test_get_attributes():
 
-    input_attributes = AttributeObject.get_input_attributes()
+    input_attributes = AttributeObject.get_attributes(InputAttribute)
     assert input_attributes == ["required_input", "optional_input"]
 
-    output_attributes = AttributeObject.get_output_attributes()
+    output_attributes = AttributeObject.get_attributes(OutputAttribute)
     assert output_attributes == ["some_output"]
 
-    all_attributes = AttributeObject.get_all_attributes()
+    all_attributes = AttributeObject.get_attributes()
     assert all_attributes == ["required_input", "optional_input", "some_output"]
 
 
@@ -69,8 +69,7 @@ def test_state_methods():
 
     state = some_object.__getstate__()
 
-    assert "input_attributes" in state and len(state["input_attributes"]) == 2
-    assert "output_attributes" in state and len(state["output_attributes"]) == 1
+    assert len(state) == 2
 
     new_object = AttributeObject()
     new_object.required_input = ""

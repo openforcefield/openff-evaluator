@@ -1,16 +1,158 @@
 """
-An API for defining, storing, and loading collections of physical property data.
+An API for defining, storing, and loading sets of physical
+property data.
 """
+import uuid
 from collections import defaultdict
+from enum import IntFlag, unique
 
 import pandas
 from simtk.openmm.app import element
 
 from propertyestimator import unit
-from propertyestimator.properties import CalculationSource, MeasurementSource
+from propertyestimator.attributes import Attribute, AttributeClass
+from propertyestimator.datasets import CalculationSource, MeasurementSource, Source
 from propertyestimator.substances import Substance
+from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import create_molecule_from_smiles
 from propertyestimator.utils.serialization import TypedBaseModel
+
+
+@unique
+class PropertyPhase(IntFlag):
+    """An enum describing the phase that a property was
+    collected in.
+
+    Examples
+    --------
+    Properties measured in multiple phases (e.g. enthalpies of
+    vaporization) can be defined be concatenating `PropertyPhase`
+    enums:
+
+    >>> gas_liquid_phase = PropertyPhase.Gas | PropertyPhase.Liquid
+    """
+
+    Undefined = 0x00
+    Solid = 0x01
+    Liquid = 0x02
+    Gas = 0x04
+
+    def __str__(self):
+        return " + ".join([phase.name for phase in PropertyPhase if self & phase])
+
+    def __repr__(self):
+        return f"<PropertyPhase {str(self)}>"
+
+
+class PhysicalProperty(AttributeClass):
+    """Represents the value of any physical property and it's uncertainty
+    if provided.
+
+    It additionally stores the thermodynamic state at which the property
+    was collected, the phase it was collected in, information about
+    the composition of the observed system, and metadata about how the
+    property was collected.
+    """
+
+    id = Attribute(
+        docstring="A unique identifier string assigned to this property",
+        type_hint=str,
+        default_value=lambda: str(uuid.uuid4()),
+    )
+
+    substance = Attribute(
+        docstring="The substance that this property was measured estimated for.",
+        type_hint=Substance,
+    )
+    phase = Attribute(
+        docstring="The phase / phases that this property was measured in.",
+        type_hint=PropertyPhase,
+    )
+    thermodynamic_state = Attribute(
+        docstring="The thermodynamic state that this property"
+        "was measured / estimated at.",
+        type_hint=ThermodynamicState,
+    )
+
+    value = Attribute(
+        docstring="The measured / estimated value of this property.",
+        type_hint=unit.Quantity,
+    )
+    uncertainty = Attribute(
+        docstring="The uncertainty in measured / estimated value of this property.",
+        type_hint=unit.Quantity,
+        optional=True,
+    )
+
+    source = Attribute(
+        docstring="The original source of this physical property.",
+        type_hint=Source,
+        optional=True,
+    )
+    metadata = Attribute(
+        docstring="Additional metadata associated with this property. All property "
+        "metadata will be made accessible to estimation workflows.",
+        type_hint=dict,
+        optional=True,
+    )
+
+    gradients = Attribute(
+        docstring="The gradients of this property with respect to "
+        "different force field parameters.",
+        type_hint=list,
+        optional=True,
+    )
+
+    def __init__(
+        self,
+        thermodynamic_state=None,
+        phase=PropertyPhase.Undefined,
+        substance=None,
+        value=None,
+        uncertainty=None,
+        source=None,
+    ):
+        """Constructs a new PhysicalProperty object.
+
+        Parameters
+        ----------
+        thermodynamic_state : ThermodynamicState
+            The thermodynamic state that the property was measured in.
+        phase : PropertyPhase
+            The phase that the property was measured in.
+        substance : Substance
+            The composition of the substance that was measured.
+        value: unit.Quantity
+            The value of the measured physical property.
+        uncertainty: unit.Quantity
+            The uncertainty in the measured value.
+        source: Source
+            The source of this property.
+        """
+        if thermodynamic_state is not None:
+            self.thermodynamic_state = thermodynamic_state
+        if phase is not None:
+            self.phase = phase
+
+        if substance is not None:
+            self.substance = substance
+
+        if value is not None:
+            self.value = value
+        if uncertainty is not None:
+            self.uncertainty = uncertainty
+
+        self.gradients = []
+
+        if source is not None:
+            self.source = source
+
+    def __setstate__(self, state):
+
+        if "id" not in state:
+            state["id"] = str(uuid.uuid4())
+
+        super(PhysicalProperty, self).__setstate__(state)
 
 
 class PhysicalPropertyDataSet(TypedBaseModel):
@@ -34,9 +176,6 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         """
         dict of str and list of PhysicalProperty: A list of all of the properties
         within this set, partitioned by substance identifier.
-
-        TODO: Add a link to Substance.identifier when have access to sphinx docs.
-        TODO: Investigate why PhysicalProperty is not cross-linking.
 
         See Also
         --------
@@ -74,6 +213,21 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             self._properties[substance_hash].extend(data_set.properties[substance_hash])
 
         self._sources.extend(data_set.sources)
+
+    def add_property(self, physical_property):
+        """Adds a physical property to the data set.
+
+        Parameters
+        ----------
+        physical_property: PhysicalProperty
+            The physical property to add.
+        """
+        if physical_property.substance.identifier not in self._properties:
+            self._properties[physical_property.substance.identifier] = []
+
+        self._properties[physical_property.substance.identifier].append(
+            physical_property
+        )
 
     def filter_by_function(self, filter_function):
         """Filter the data set using a given filter function.
@@ -117,7 +271,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         Filter the dataset to only contain densities and static dielectric constants
 
         >>> # Load in the data set of properties which will be used for comparisons
-        >>> from propertyestimator.datasets import ThermoMLDataSet
+        >>> from propertyestimator.datasets.thermoml import ThermoMLDataSet
         >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
         >>>
         >>> # Filter the dataset to only include densities and dielectric constants.
@@ -155,10 +309,10 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         Filter the dataset to only include liquid properties.
 
         >>> # Load in the data set of properties which will be used for comparisons
-        >>> from propertyestimator.datasets import ThermoMLDataSet
+        >>> from propertyestimator.datasets.thermoml import ThermoMLDataSet
         >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
         >>>
-        >>> from propertyestimator.properties import PropertyPhase
+        >>> from propertyestimator.datasets import PropertyPhase
         >>> data_set.filter_by_temperature(PropertyPhase.Liquid)
         """
 
@@ -182,7 +336,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         Filter the dataset to only include properties measured between 130-260 K.
 
         >>> # Load in the data set of properties which will be used for comparisons
-        >>> from propertyestimator.datasets import ThermoMLDataSet
+        >>> from propertyestimator.datasets.thermoml import ThermoMLDataSet
         >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
         >>>
         >>> from propertyestimator import unit
@@ -211,7 +365,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         Filter the dataset to only include properties measured between 70-150 kPa.
 
         >>> # Load in the data set of properties which will be used for comparisons
-        >>> from propertyestimator.datasets import ThermoMLDataSet
+        >>> from propertyestimator.datasets.thermoml import ThermoMLDataSet
         >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
         >>>
         >>> from propertyestimator import unit
@@ -240,7 +394,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         Filter the dataset to only include pure substance properties.
 
         >>> # Load in the data set of properties which will be used for comparisons
-        >>> from propertyestimator.datasets import ThermoMLDataSet
+        >>> from propertyestimator.datasets.thermoml import ThermoMLDataSet
         >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
         >>>
         >>> data_set.filter_by_components(number_of_components=1)
@@ -369,7 +523,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
                 all_property_types.add(type(physical_property))
 
         # Make sure the maximum number of components is not zero.
-        if maximum_number_of_components <= 0 and len(self._properties) > 0:
+        if maximum_number_of_components <= 0 < len(self._properties):
 
             raise ValueError(
                 "The data set did not contain any substances with "
@@ -498,3 +652,8 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
         self._properties = state["properties"]
         self._sources = state["sources"]
+
+        for key in self._properties:
+            assert all(isinstance(x, PhysicalProperty) for x in self._properties[key])
+
+        assert all(isinstance(x, Source) for x in self._sources)

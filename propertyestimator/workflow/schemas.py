@@ -5,6 +5,7 @@ import re
 
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.attributes.typing import is_type_subclass_of_type
+from propertyestimator.forcefield import ParameterGradient
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedBaseModel
 from propertyestimator.workflow.attributes import InputAttribute
@@ -830,8 +831,6 @@ class WorkflowSchema(TypedBaseModel):
         assert is_type_subclass_of_type(attribute_type, EstimatedQuantity)
 
     def _validate_gradients(self):
-
-        from propertyestimator.properties import ParameterGradient
 
         for gradient_source in self.gradients_sources:
 

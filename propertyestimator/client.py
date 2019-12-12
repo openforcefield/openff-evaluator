@@ -4,6 +4,7 @@ Property estimator client side API.
 
 import json
 import logging
+from collections import defaultdict
 from time import sleep
 
 from tornado.ioloop import IOLoop
@@ -11,15 +12,19 @@ from tornado.iostream import StreamClosedError
 from tornado.tcpclient import TCPClient
 
 from propertyestimator.forcefield import SmirnoffForceFieldSource
-from propertyestimator.layers import ReweightingLayer, SimulationLayer
-from propertyestimator.properties.plugins import registered_properties
+from propertyestimator.layers import (
+    registered_calculation_layers,
+    registered_calculation_schemas,
+)
+from propertyestimator.layers.reweighting import ReweightingLayer
+from propertyestimator.layers.simulation import SimulationLayer
+from propertyestimator.layers.workflow import WorkflowCalculationSchema
 from propertyestimator.utils.serialization import TypedBaseModel
 from propertyestimator.utils.tcp import (
     PropertyEstimatorMessageTypes,
     pack_int,
     unpack_int,
 )
-from propertyestimator.workflow import WorkflowOptions
 
 
 class PropertyEstimatorOptions(TypedBaseModel):
@@ -324,9 +329,10 @@ class PropertyEstimatorClient:
     options:
 
     >>> # Load in the data set of properties which will be used for comparisons
-    >>> from propertyestimator.datasets import ThermoMLDataSet
+    >>> from propertyestimator.datasets.thermoml import ThermoMLDataSet
     >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
     >>> # Filter the dataset to only include densities measured between 130-260 K
+    >>> from propertyestimator import unit
     >>> from propertyestimator.properties import Density
     >>>
     >>> data_set.filter_by_property_types(Density)
@@ -355,7 +361,8 @@ class PropertyEstimatorClient:
     The calculations layers which will be used to estimate the properties can be
     controlled for example like so:
 
-    >>> from propertyestimator.layers import ReweightingLayer, SimulationLayer
+    >>> from propertyestimator.layers.reweighting import ReweightingLayer
+    >>> from propertyestimator.layers.simulation import SimulationLayer
     >>>
     >>> options = PropertyEstimatorOptions(allowed_calculation_layers = [ReweightingLayer,
     >>>                                                                  SimulationLayer])
@@ -393,7 +400,7 @@ class PropertyEstimatorClient:
     bond length parameter for the [#6:1]-[#8:2] chemical environment, and the bond
     angle parameter for the [*:1]-[#8:2]-[*:3] chemical environment:
 
-    >>> from propertyestimator.properties import ParameterGradientKey
+    >>> from propertyestimator.forcefield import ParameterGradientKey
     >>>
     >>> parameter_gradient_keys = [
     >>>     ParameterGradientKey('Bonds', '[#6:1]-[#8:2]', 'length')
@@ -592,6 +599,8 @@ class PropertyEstimatorClient:
             options = PropertyEstimatorOptions()
 
         if isinstance(force_field_source, smirnoff.ForceField):
+            # Handle conversion of the force field object for
+            # backwards compatibility.
             force_field_source = SmirnoffForceFieldSource.from_object(
                 force_field_source
             )
@@ -609,84 +618,90 @@ class PropertyEstimatorClient:
             for physical_property in property_set.properties[substance_tag]:
 
                 properties_list.append(physical_property)
+                property_types.add(physical_property.__class__.__name__)
 
-                type_name = type(physical_property).__name__
-
-                if type_name not in registered_properties:
-                    raise ValueError(
-                        f"The property estimator does not support {type_name} properties."
-                    )
-
-                if type_name in property_types:
-                    continue
-
-                property_types.add(type_name)
+        # type_name = type(physical_property).__name__
+        #
+        # if type_name not in registered_properties:
+        #     raise ValueError(
+        #         f"The property estimator does not support {type_name} properties."
+        #     )
+        #
+        # if type_name in property_types:
+        #     continue
 
         if options.workflow_options is None:
-            options.workflow_options = {}
+            options.workflow_options = defaultdict(dict)
 
-        # Assign default workflows in the cases where the user hasn't
-        # provided one, and validate all of the workflows to be used
+        properties_without_schemas = {*property_types}
+
+        # Assign default calculation schemas in the cases where the user
+        # hasn't provided one, and validate all of the schemas to be used
         # in the estimation.
-        for type_name in property_types:
-
-            if type_name not in options.workflow_schemas:
-                options.workflow_schemas[type_name] = {}
-
-            if type_name not in options.workflow_options:
-                options.workflow_options[type_name] = {}
+        for property_type in property_types:
 
             for calculation_layer in options.allowed_calculation_layers:
 
-                property_type = registered_properties[type_name]()
+                calculation_layer_class = registered_calculation_layers[
+                    calculation_layer
+                ]
 
                 if (
-                    calculation_layer not in options.workflow_options[type_name]
-                    or options.workflow_options[type_name][calculation_layer] is None
+                    calculation_layer not in registered_calculation_schemas
+                    or property_type
+                    not in registered_calculation_schemas[calculation_layer]
+                ):
+                    continue
+
+                if property_type in properties_without_schemas:
+                    # Mark this property as having at least one registered
+                    # calculation schema.
+                    properties_without_schemas.remove(property_type)
+
+                # TODO: When refactoring the main data models clean-up this mess.
+                # Set a default schema with default options if none have been
+                # provided.
+                if (
+                    calculation_layer not in options.workflow_options[property_type]
+                    or options.workflow_options[property_type][calculation_layer]
+                    is None
                 ):
 
-                    options.workflow_options[type_name][
+                    options.workflow_options[property_type][
                         calculation_layer
-                    ] = WorkflowOptions()
+                    ] = calculation_layer_class.required_schema_type()()
 
                 if (
-                    calculation_layer not in options.workflow_schemas[type_name]
-                    or options.workflow_schemas[type_name][calculation_layer] is None
+                    calculation_layer not in options.workflow_schemas[property_type]
+                    or options.workflow_schemas[property_type][calculation_layer]
+                    is None
                 ):
 
-                    default_schema = property_type.get_default_workflow_schema(
-                        calculation_layer,
-                        options.workflow_options[type_name][calculation_layer],
-                    )
+                    default_schema = registered_calculation_schemas[calculation_layer][
+                        property_type
+                    ]
 
-                    options.workflow_schemas[type_name][
+                    if callable(default_schema):
+                        default_schema = default_schema()
+
+                    options.workflow_schemas[property_type][
                         calculation_layer
                     ] = default_schema
 
-                workflow = options.workflow_schemas[type_name][calculation_layer]
+                calculation_schema = options.workflow_schemas[property_type][
+                    calculation_layer
+                ]
+                calculation_schema.validate()
 
-                if workflow is None:
-                    # Not all properties may support every calculation layer.
+                if not isinstance(calculation_schema, WorkflowCalculationSchema):
                     continue
 
                 # Handle the cases where some protocol types should be replaced with
                 # others.
-                workflow.replace_protocol_types(
-                    options.workflow_options[type_name][
-                        calculation_layer
-                    ].protocol_replacements
+                # TODO: Fix.
+                calculation_schema.workflow_schema.replace_protocol_types(
+                    calculation_schema.workflow_options.protocol_replacements
                 )
-
-                # Will raise the correct exception for non-valid interfaces.
-                workflow.validate_interfaces()
-
-                # Enforce the global option of whether to allow merging or not.
-                for protocol_schema_name in workflow.protocols:
-
-                    protocol_schema = workflow.protocols[protocol_schema_name]
-
-                    if not options.allow_protocol_merging:
-                        protocol_schema.inputs[".allow_merging"] = False
 
         submission = PropertyEstimatorSubmission(
             properties=properties_list,

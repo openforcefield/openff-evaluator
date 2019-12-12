@@ -9,8 +9,9 @@ from propertyestimator.client import PropertyEstimatorClient, PropertyEstimatorO
 from propertyestimator.datasets import PhysicalPropertyDataSet
 from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.layers import (
-    PropertyCalculationLayer,
-    register_calculation_layer,
+    CalculationLayer,
+    CalculationLayerSchema,
+    calculation_layer,
 )
 from propertyestimator.properties import Density
 from propertyestimator.server import PropertyEstimatorServer
@@ -19,14 +20,19 @@ from propertyestimator.tests.utils import create_dummy_property
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 
 
-@register_calculation_layer()
-class TestCalculationLayer(PropertyCalculationLayer):
+@calculation_layer()
+class TestCalculationLayer(CalculationLayer):
     """A calculation layer which marks properties to be calculated
     as finished for the purpose of testing.
     """
 
-    @staticmethod
+    @classmethod
+    def required_schema_type(cls):
+        return CalculationLayerSchema
+
+    @classmethod
     def schedule_calculation(
+        cls,
         calculation_backend,
         storage_backend,
         layer_directory,

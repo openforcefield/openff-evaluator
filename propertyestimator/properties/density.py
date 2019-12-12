@@ -4,17 +4,17 @@ A collection of density physical property definitions.
 import copy
 
 from propertyestimator import unit
-from propertyestimator.datasets.plugins import register_thermoml_property
-from propertyestimator.properties import PhysicalProperty, PropertyPhase
-from propertyestimator.properties.plugins import register_estimable_property
+from propertyestimator.datasets import PhysicalProperty, PropertyPhase
+from propertyestimator.datasets.thermoml import thermoml_property
+from propertyestimator.layers import register_calculation_schema
+from propertyestimator.layers.reweighting import ReweightingLayer, ReweightingSchema
+from propertyestimator.layers.simulation import SimulationLayer, SimulationSchema
 from propertyestimator.protocols import analysis, miscellaneous, reweighting
 from propertyestimator.protocols.utils import (
     generate_base_reweighting_protocols,
     generate_base_simulation_protocols,
     generate_gradient_protocol_group,
 )
-from propertyestimator.storage import StoredSimulationData
-from propertyestimator.storage.query import SimulationDataQuery
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow import WorkflowOptions
@@ -22,47 +22,34 @@ from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSchem
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
-@register_estimable_property()
-@register_thermoml_property(
-    thermoml_string="Mass density, kg/m3", supported_phases=PropertyPhase.Liquid
-)
+@thermoml_property("Mass density, kg/m3", supported_phases=PropertyPhase.Liquid)
 class Density(PhysicalProperty):
     """A class representation of a density property"""
 
     @staticmethod
-    def cached_data_queries(physical_property):
-
-        query = SimulationDataQuery()
-        query.substance = physical_property.substance
-        query.phase = physical_property.phase
-
-        return {'full_system': query}
-
-    @staticmethod
-    def get_default_workflow_schema(calculation_layer, options=None):
-
-        if calculation_layer == "SimulationLayer":
-            return Density.get_default_simulation_workflow_schema(options)
-        elif calculation_layer == "ReweightingLayer":
-            return Density.get_default_reweighting_workflow_schema(options)
-
-        return None
-
-    @staticmethod
-    def get_default_simulation_workflow_schema(options=None):
-        """Returns the default workflow to use when estimating this property
-        from direct simulations.
+    def default_simulation_schema(existing_schema=None):
+        """Returns the default calculation schema to use when estimating
+        this class of property from direct simulations.
 
         Parameters
         ----------
-        options: WorkflowOptions
-            The default options to use when setting up the estimation workflow.
+        existing_schema: SimulationSchema, optional
+            An existing schema whose settings to use. If set,
+            the schema's `workflow_schema` will be overwritten
+            by this method.
 
         Returns
         -------
-        WorkflowSchema
+        SimulationSchema
             The schema to follow when estimating this property.
         """
+
+        calculation_schema = SimulationSchema()
+
+        if existing_schema is not None:
+
+            assert isinstance(existing_schema, SimulationSchema)
+            calculation_schema = copy.deepcopy(existing_schema)
 
         # Define the protocol which will extract the average density from
         # the results of a simulation.
@@ -71,7 +58,7 @@ class Density(PhysicalProperty):
 
         # Define the protocols which will run the simulation itself.
         protocols, value_source, output_to_store = generate_base_simulation_protocols(
-            extract_density, options
+            extract_density, calculation_schema.workflow_options
         )
 
         # Set up the gradient calculations
@@ -128,23 +115,33 @@ class Density(PhysicalProperty):
         schema.gradients_sources = [gradient_source]
         schema.final_value_source = value_source
 
-        return schema
+        calculation_schema.workflow_schema = schema
+        return calculation_schema
 
     @staticmethod
-    def get_default_reweighting_workflow_schema(options):
-        """Returns the default workflow to use when estimating this property
-        by reweighting existing data.
+    def default_reweighting_schema(existing_schema=None):
+        """Returns the default calculation schema to use when estimating
+        this property by reweighting existing data.
 
         Parameters
         ----------
-        options: WorkflowOptions
-            The default options to use when setting up the estimation workflow.
+        existing_schema: ReweightingSchema, optional
+            An existing schema whose settings to use. If set,
+            the schema's `workflow_schema` will be overwritten
+            by this method.
 
         Returns
         -------
-        WorkflowSchema
+        ReweightingSchema
             The schema to follow when estimating this property.
         """
+
+        calculation_schema = ReweightingSchema()
+
+        if existing_schema is not None:
+
+            assert isinstance(existing_schema, ReweightingSchema)
+            calculation_schema = copy.deepcopy(existing_schema)
 
         data_replicator_id = "data_replicator"
 
@@ -159,7 +156,7 @@ class Density(PhysicalProperty):
         reweight_density.statistics_type = ObservableType.Density
 
         protocols, data_replicator = generate_base_reweighting_protocols(
-            density_calculation, reweight_density, options, data_replicator_id
+            density_calculation, reweight_density, data_replicator_id
         )
 
         # Set up the gradient calculations
@@ -202,33 +199,13 @@ class Density(PhysicalProperty):
         schema.gradients_sources = [gradient_source]
         schema.final_value_source = ProtocolPath("value", protocols.mbar_protocol.id)
 
-        return schema
+        calculation_schema.workflow_schema = schema
+        return calculation_schema
 
 
-@register_estimable_property()
-@register_thermoml_property(
-    "Excess molar volume, m3/mol", supported_phases=PropertyPhase.Liquid
-)
+@thermoml_property("Excess molar volume, m3/mol", supported_phases=PropertyPhase.Liquid)
 class ExcessMolarVolume(PhysicalProperty):
     """A class representation of an excess molar volume property"""
-
-    @property
-    def multi_component_property(self):
-        return True
-
-    @property
-    def required_data_class(self):
-        return StoredSimulationData
-
-    @staticmethod
-    def get_default_workflow_schema(calculation_layer, options=None):
-
-        if calculation_layer == "SimulationLayer":
-            return ExcessMolarVolume.get_default_simulation_workflow_schema(options)
-        elif calculation_layer == "ReweightingLayer":
-            return ExcessMolarVolume.get_default_reweighting_workflow_schema(options)
-
-        return None
 
     @staticmethod
     def _get_simulation_protocols(
@@ -446,7 +423,6 @@ class ExcessMolarVolume(PhysicalProperty):
         replicator_id=None,
         weight_by_mole_fraction=False,
         substance_reference=None,
-        options=None,
     ):
 
         """Returns the set of protocols which when combined in a workflow
@@ -471,8 +447,6 @@ class ExcessMolarVolume(PhysicalProperty):
         substance_reference: ProtocolPath or PlaceholderValue, optional
             An optional protocol path (or replicator reference) to the substance
             whose molar volume is being estimated.
-        options: WorkflowOptions
-            The options to use when setting up the workflows.
 
         Returns
         -------
@@ -511,7 +485,6 @@ class ExcessMolarVolume(PhysicalProperty):
         (protocols, data_replicator) = generate_base_reweighting_protocols(
             analysis_protocol=extract_volume,
             mbar_protocol=reweight_volume,
-            workflow_options=options,
             replicator_id=data_replicator_id,
             id_suffix=id_suffix,
         )
@@ -630,20 +603,29 @@ class ExcessMolarVolume(PhysicalProperty):
         )
 
     @staticmethod
-    def get_default_simulation_workflow_schema(options=None):
-        """Returns the default workflow to use when estimating this property
-        from direct simulations.
+    def default_simulation_schema(existing_schema=None):
+        """Returns the default calculation schema to use when estimating
+        this class of property from direct simulations.
 
         Parameters
         ----------
-        options: WorkflowOptions
-            The default options to use when setting up the estimation workflow.
+        existing_schema: SimulationSchema, optional
+            An existing schema whose settings to use. If set,
+            the schema's `workflow_schema` will be overwritten
+            by this method.
 
         Returns
         -------
-        WorkflowSchema
+        SimulationSchema
             The schema to follow when estimating this property.
         """
+
+        calculation_schema = SimulationSchema()
+
+        if existing_schema is not None:
+
+            assert isinstance(existing_schema, SimulationSchema)
+            calculation_schema = copy.deepcopy(existing_schema)
 
         # Define the id of the replicator which will clone the gradient protocols
         # for each gradient key to be estimated.
@@ -659,7 +641,7 @@ class ExcessMolarVolume(PhysicalProperty):
             full_system_gradient_replicator,
             full_system_gradient,
         ) = ExcessMolarVolume._get_simulation_protocols(
-            "_full", gradient_replicator_id, options=options
+            "_full", gradient_replicator_id, options=calculation_schema.workflow_options
         )
 
         # Set up a general workflow for calculating the molar volume of one of the system components.
@@ -687,7 +669,7 @@ class ExcessMolarVolume(PhysicalProperty):
             weight_by_mole_fraction=True,
             component_substance_reference=component_substance,
             full_substance_reference=full_substance,
-            options=options,
+            options=calculation_schema.workflow_options,
         )
 
         # Finally, set up the protocols which will be responsible for adding together
@@ -768,23 +750,33 @@ class ExcessMolarVolume(PhysicalProperty):
             f"component_$({component_replicator_id})": component_output,
         }
 
-        return schema
+        calculation_schema.workflow_schema = schema
+        return calculation_schema
 
     @staticmethod
-    def get_default_reweighting_workflow_schema(options=None):
-        """Returns the default workflow to use when estimating this property
-        by reweighting existing data.
+    def default_reweighting_schema(existing_schema=None):
+        """Returns the default calculation schema to use when estimating
+        this property by reweighting existing data.
 
         Parameters
         ----------
-        options: WorkflowOptions
-            The default options to use when setting up the estimation workflow.
+        existing_schema: ReweightingSchema, optional
+            An existing schema whose settings to use. If set,
+            the schema's `workflow_schema` will be overwritten
+            by this method.
 
         Returns
         -------
-        WorkflowSchema
+        ReweightingSchema
             The schema to follow when estimating this property.
         """
+
+        calculation_schema = ReweightingSchema()
+
+        if existing_schema is not None:
+
+            assert isinstance(existing_schema, ReweightingSchema)
+            calculation_schema = copy.deepcopy(existing_schema)
 
         # Set up a replicator that will re-run the component reweighting workflow for each
         # component in the system.
@@ -806,7 +798,7 @@ class ExcessMolarVolume(PhysicalProperty):
             full_gradient_group,
             full_gradient_source,
         ) = ExcessMolarVolume._get_reweighting_protocols(
-            "_full", gradient_replicator.id, full_data_replicator_id, options=options
+            "_full", gradient_replicator.id, full_data_replicator_id
         )
 
         # Set up the protocols which will reweight data for each component.
@@ -827,7 +819,6 @@ class ExcessMolarVolume(PhysicalProperty):
             replicator_id=component_replicator.id,
             weight_by_mole_fraction=True,
             substance_reference=ReplicatorValue(component_replicator.id),
-            options=options,
         )
 
         # Make sure the replicator is only replicating over component data.
@@ -893,4 +884,18 @@ class ExcessMolarVolume(PhysicalProperty):
         schema.gradients_sources = [ProtocolPath("result", combine_gradients.id)]
         schema.final_value_source = ProtocolPath("result", calculate_excess_volume.id)
 
-        return schema
+        calculation_schema.workflow_schema = schema
+        return calculation_schema
+
+
+# Register the properties via the plugin system.
+register_calculation_schema(Density, SimulationLayer, Density.default_simulation_schema)
+register_calculation_schema(
+    Density, ReweightingLayer, Density.default_reweighting_schema
+)
+register_calculation_schema(
+    ExcessMolarVolume, SimulationLayer, ExcessMolarVolume.default_simulation_schema,
+)
+register_calculation_schema(
+    ExcessMolarVolume, ReweightingLayer, ExcessMolarVolume.default_reweighting_schema,
+)

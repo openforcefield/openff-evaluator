@@ -5,7 +5,7 @@ outputs of workflow protocols.
 """
 from enum import Enum
 
-from propertyestimator.attributes import Attribute, UNDEFINED
+from propertyestimator.attributes import UNDEFINED, Attribute
 
 
 class ComparisonBehaviour(Enum):

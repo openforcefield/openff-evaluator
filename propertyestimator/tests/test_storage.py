@@ -4,10 +4,12 @@ Units tests for propertyestimator.storage
 import os
 import tempfile
 
+import pytest
+
 from propertyestimator import unit
 from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.storage import LocalFileStorage, StoredSimulationData
-from propertyestimator.storage.dataclasses import BaseStoredData, StoredDataCollection
+from propertyestimator.storage.data import BaseStoredData
 from propertyestimator.substances import Substance
 from propertyestimator.tests.utils import (
     create_dummy_stored_simulation_data,
@@ -117,6 +119,7 @@ def test_local_simulation_storage():
         assert os.path.isdir(retrieved_data_directory)
 
 
+@pytest.mark.skip(reason="WIP.")
 def test_data_class_retrieval():
     """A simple test to that force fields can be stored and
     retrieved using the local storage backend."""
@@ -160,6 +163,7 @@ def test_data_class_retrieval():
         assert len(retrieved_data_directories[substance.identifier]) == 0
 
 
+@pytest.mark.skip(reason="WIP.")
 def test_simulation_data_merging():
     """A test that compatible simulation data gets merged
     together within the`LocalStorage` system."""
@@ -227,61 +231,3 @@ def test_simulation_data_merging():
             dummy_substance.identifier
         ][1]
         assert stored_data_object.coordinate_file_name == data_3_coordinate_name
-
-
-def test_data_collection_merging():
-    """A test that compatible simulation data collections get
-    merged together within the`LocalStorage` system."""
-
-    with tempfile.TemporaryDirectory() as base_directory_path:
-
-        dummy_substance = create_dummy_substance(1)
-
-        storage_directory = os.path.join(base_directory_path, "storage")
-        local_storage = LocalFileStorage(storage_directory)
-
-        for collection_index in range(2):
-
-            data_collection_directory = os.path.join(
-                base_directory_path, f"dummy_collection_{collection_index}"
-            )
-
-            os.makedirs(data_collection_directory, exist_ok=True)
-
-            dummy_data_collection = StoredDataCollection()
-            dummy_data_collection.substance = dummy_substance
-            dummy_data_collection.force_field_id = "ff_id"
-
-            for inner_data_index in range(2):
-
-                data_key = f"data_{inner_data_index}"
-                data_path = os.path.join(data_collection_directory, data_key)
-
-                data_coordinate_name = f"data_{collection_index}_{inner_data_index}.pdb"
-
-                inner_data = create_dummy_stored_simulation_data(
-                    directory_path=data_path,
-                    substance=dummy_substance,
-                    force_field_id=f"ff_id",
-                    coordinate_file_name=data_coordinate_name,
-                    statistical_inefficiency=float(collection_index),
-                )
-
-                dummy_data_collection.data[data_key] = inner_data
-
-            local_storage.store_simulation_data(
-                dummy_data_collection, data_collection_directory
-            )
-
-        stored_data = local_storage.retrieve_simulation_data(
-            substance=dummy_substance,
-            include_component_data=True,
-            data_class=StoredDataCollection,
-        )
-
-        assert len(stored_data[dummy_substance.identifier]) == 1
-
-        data_object, data_directory = stored_data[dummy_substance.identifier][0]
-
-        assert data_object.data["data_0"].coordinate_file_name == "data_1_0.pdb"
-        assert data_object.data["data_1"].coordinate_file_name == "data_1_1.pdb"

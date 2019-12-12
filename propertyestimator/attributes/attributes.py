@@ -4,7 +4,7 @@ object attributes.
 """
 import copy
 import inspect
-from enum import Enum
+from enum import Enum, IntEnum, IntFlag
 
 from propertyestimator import unit
 from propertyestimator.attributes.typing import is_instance_of_type, is_supported_type
@@ -30,10 +30,10 @@ class UndefinedAttribute:
 
 
 class PlaceholderValue:
-    """A class to act as a place holder for an input value
-    which is not known a priori. This may include a value
-    which will be set by a workflow as the output of an
-    executed protocol.
+    """A class to act as a place holder for an attribute whose value is
+    not known a priori, but will be set later by some specialised code.
+    This may include the input to a protocol which will be set by a
+    workflow as the output of an executed protocol.
     """
 
     def __getstate__(self):
@@ -51,8 +51,36 @@ class AttributeClass(TypedBaseModel):
     attributes with additional metadata.
     """
 
+    def validate(self, attribute_type=None):
+        """Validate the values of the attributes. If `attribute_type`
+        is set, only attributes of that type will be validated.
+
+        Parameters
+        ----------
+        attribute_type: type of Attribute, optional
+            The type of attribute to validate.
+
+        Raises
+        ------
+        ValueError
+        """
+
+        attribute_names = self.get_attributes()
+
+        for name in attribute_names:
+
+            attribute = getattr(self.__class__, name)
+            attribute_value = getattr(self.__class__, name)
+
+            if attribute_type is not None and type(attribute) != attribute_type:
+                continue
+
+            if not attribute.optional and attribute_value == UNDEFINED:
+
+                raise ValueError(f"The required {name} attribute has not been set.")
+
     @classmethod
-    def _get_attributes(cls, attribute_type=None):
+    def get_attributes(cls, attribute_type=None):
         """Returns all attributes of a specific `attribute_type`.
 
         Parameters
@@ -93,15 +121,24 @@ class AttributeClass(TypedBaseModel):
 
     def __getstate__(self):
 
-        attributes = {
-            name: getattr(self, name) for name in self._get_attributes()
-        }
+        attribute_names = self.get_attributes()
+        attributes = {}
+
+        for attribute_name in attribute_names:
+
+            attribute = getattr(self.__class__, attribute_name)
+            attribute_value = getattr(self, attribute_name)
+
+            if attribute.optional and attribute_value == UNDEFINED:
+                continue
+
+            attributes[attribute_name] = attribute_value
 
         return attributes
 
     def __setstate__(self, state):
 
-        attribute_names = self._get_attributes()
+        attribute_names = self.get_attributes()
 
         for name in attribute_names:
 
@@ -110,12 +147,16 @@ class AttributeClass(TypedBaseModel):
             if not attribute.optional and name not in state:
 
                 raise IndexError(
-                    f"The {name} attribute was not present in "
-                    f"the state dictionary."
+                    f"The {name} attribute was not present in " f"the state dictionary."
                 )
+
+            elif attribute.optional and name not in state:
+                state[name] = UNDEFINED
 
             # This should handle type checking.
             setattr(self, name, state[name])
+
+        self.validate()
 
 
 class Attribute:
@@ -219,15 +260,28 @@ class Attribute:
         if not hasattr(instance, self._private_attribute_name):
             # Make sure to only ever pass a copy of the default value to ensure
             # mutable values such as lists don't get set by reference.
+
+            if not callable(self._default_value):
+                value = copy.deepcopy(self._default_value)
+            else:
+                value = copy.deepcopy(self._default_value())
+
             setattr(
-                instance,
-                self._private_attribute_name,
-                copy.deepcopy(self._default_value),
+                instance, self._private_attribute_name, value,
             )
 
         return getattr(instance, self._private_attribute_name)
 
     def __set__(self, instance, value):
+
+        if (
+            isinstance(value, int)
+            and isinstance(self.type_hint, type)
+            and issubclass(self.type_hint, (IntFlag, IntEnum))
+        ):
+            # This is necessary as the json library currently doesn't
+            # support custom serialization of IntFlag or IntEnum.
+            value = self.type_hint(value)
 
         if (
             not is_instance_of_type(value, self.type_hint)

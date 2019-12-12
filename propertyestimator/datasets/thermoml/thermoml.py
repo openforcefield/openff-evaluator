@@ -13,16 +13,14 @@ from xml.etree import ElementTree
 import numpy as np
 
 from propertyestimator import unit
-from propertyestimator.properties import MeasurementSource, PropertyPhase
+from propertyestimator.datasets import MeasurementSource, PropertyPhase
+from propertyestimator.datasets.datasets import PhysicalPropertyDataSet
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.openmm import openmm_quantity_to_pint
 
-from .datasets import PhysicalPropertyDataSet
-from .plugins import registered_thermoml_properties
 
-
-def unit_from_thermoml_string(full_string):
+def _unit_from_thermoml_string(full_string):
     """Extract the unit from a ThermoML property name.
 
     Parameters
@@ -46,7 +44,7 @@ def unit_from_thermoml_string(full_string):
     return unit.Unit(unit_string)
 
 
-def phase_from_thermoml_string(string):
+def _phase_from_thermoml_string(string):
     """Converts a ThermoML string to a PropertyPhase
 
         Parameters
@@ -185,7 +183,7 @@ class _Constraint:
 
         value = float(value_node.text)
         # Determine what the default unit for this variable should be.
-        unit_type = unit_from_thermoml_string(type_node.text)
+        unit_type = _unit_from_thermoml_string(type_node.text)
 
         return_value = cls()
 
@@ -277,7 +275,7 @@ class _VariableDefinition:
 
         return_value = cls()
 
-        return_value.default_unit = unit_from_thermoml_string(type_node.text)
+        return_value.default_unit = _unit_from_thermoml_string(type_node.text)
 
         return_value.index = int(index_node.text)
         return_value.type = _ConstraintType.from_node(type_node)
@@ -518,297 +516,6 @@ class _Compound:
         return return_value
 
 
-class _Property:
-    """A wrapper around a ThermoML Property node.
-    """
-
-    class SoluteStandardState(Enum):
-        """Describes the standard state of a solute.
-        """
-
-        Undefined = ("Undefined",)
-        InfiniteDilutionSolute = ("Infinite dilution solute",)
-        PureCompound = ("Pure compound",)
-        PureLiquidSolute = ("Pure liquid solute",)
-        StandardMolality = ("Standard molality (1 mol/kg) solute",)
-
-        @staticmethod
-        def from_node(node):
-            """Converts an `eStandardState` node a `_Property.SoluteStandardState`.
-
-            Parameters
-            ----------
-            node: xml.etree.Element
-                The xml node to convert.
-
-            Returns
-            ----------
-            _Property.SoluteStandardState
-                The converted state type.
-            """
-
-            try:
-                standard_state = _Property.SoluteStandardState(node.text)
-            except (KeyError, ValueError):
-                standard_state = _Property.SoluteStandardState.Undefined
-
-            if standard_state == _ConstraintType.Undefined:
-
-                logging.debug(
-                    f"{node.tag}->{node.text} is an unsupported "
-                    f"solute standard state type."
-                )
-
-            return standard_state
-
-    def __init__(self, base_type):
-
-        self.thermodynamic_state = None
-        self.phase = PropertyPhase.Undefined
-
-        self.substance = None
-
-        self.value = None
-        self.uncertainty = None
-
-        self.source = None
-
-        self.index = None
-
-        self.type = base_type
-
-        self.solute_standard_state = _Property.SoluteStandardState.Undefined
-        self.solvents = []
-
-        self.target_compound_index = None
-
-        self.property_uncertainty_definitions = {}
-        self.combined_uncertainty_definitions = {}
-
-        self.default_unit = None
-
-        self.target_compound_index = None
-
-    @staticmethod
-    def extract_uncertainty_definitions(
-        node,
-        namespace,
-        property_uncertainty_definitions,
-        combined_uncertainty_definitions,
-    ):
-
-        """Extract any property or combined uncertainties from a property xml node.
-
-        Parameters
-        ----------
-        node: Element
-            The xml node to convert.
-        namespace: dict of str and str
-            The xml namespace.
-        property_uncertainty_definitions: list(_PropertyUncertainty)
-            A list of the extracted property uncertainties.
-        combined_uncertainty_definitions: list(_PropertyUncertainty)
-            A list of the extracted combined property uncertainties.
-        """
-
-        property_nodes = node.findall("ThermoML:CombinedUncertainty", namespace)
-
-        for property_node in property_nodes:
-
-            if property_node is None:
-                continue
-
-            uncertainty_definition = _CombinedUncertainty.from_xml(
-                property_node, namespace
-            )
-
-            if uncertainty_definition is None:
-                continue
-
-            combined_uncertainty_definitions[
-                uncertainty_definition.index
-            ] = uncertainty_definition
-
-        property_nodes = node.findall("ThermoML:PropUncertainty", namespace)
-
-        for property_node in property_nodes:
-
-            if property_node is None:
-                continue
-
-            uncertainty_definition = _PropertyUncertainty.from_xml(
-                property_node, namespace
-            )
-
-            if uncertainty_definition is None:
-                continue
-
-            property_uncertainty_definitions[
-                uncertainty_definition.index
-            ] = uncertainty_definition
-
-    @classmethod
-    def from_xml_node(cls, node, namespace, parent_phases):
-        """Creates a _Property from an xml node.
-
-        Parameters
-        ----------
-        node: Element
-            The xml node to convert.
-        namespace: dict of str and str
-            The xml namespace.
-        parent_phases: PropertyPhase
-            The phases specfied in the parent PureOrMixtureData node.
-
-        Returns
-        ----------
-        _Compound
-            The created property.
-        """
-
-        # Gather up all possible identifiers
-        index_node = node.find("ThermoML:nPropNumber", namespace)
-
-        property_index = int(index_node.text)
-
-        phase_node = node.find("./ThermoML:PropPhaseID//ThermoML:ePropPhase", namespace)
-        phase = PropertyPhase.Undefined | parent_phases
-
-        if phase_node is not None:
-            phase |= phase_from_thermoml_string(phase_node.text)
-
-        reference_phase_node = node.find(
-            "./ThermoML:RefPhaseID//ThermoML:eRefPhase", namespace
-        )
-
-        if reference_phase_node is not None:
-            phase |= phase_from_thermoml_string(reference_phase_node.text)
-
-        if phase == PropertyPhase.Undefined:
-
-            logging.debug(
-                f"A property was measured in an unsupported phase "
-                f"({phase_node.text}) and will be skipped."
-            )
-
-            return None
-
-        property_group_node = node.find(
-            "./ThermoML:Property-MethodID//ThermoML:PropertyGroup//*", namespace
-        )
-
-        property_name_node = property_group_node.find("./ThermoML:ePropName", namespace)
-        method_name_node = property_group_node.find("./ThermoML:eMethodName", namespace)
-
-        if method_name_node is None:
-            method_name_node = property_group_node.find(
-                "./ThermoML:sMethodName", namespace
-            )
-
-        if method_name_node is None or property_name_node is None:
-            raise RuntimeError("A property does not have a name / method entry.")
-
-        if property_name_node.text not in registered_thermoml_properties:
-
-            logging.debug(
-                f"An unsupported property was found "
-                f"({property_name_node.text}) and will be skipped."
-            )
-
-            return None
-
-        registered_plugin = registered_thermoml_properties[property_name_node.text]
-
-        if (registered_plugin.supported_phases & phase) != phase:
-
-            logging.debug(
-                f"The {property_name_node.text} property is currently only supported "
-                f"when measured in the {str(registered_plugin.supported_phases)} phase, "
-                f"and not the {str(phase)} phase."
-            )
-
-            return None
-
-        return_value = cls(registered_plugin.class_type)
-
-        return_value.index = property_index
-        return_value.phase = phase
-
-        return_value.default_unit = unit_from_thermoml_string(property_name_node.text)
-
-        return_value.type = registered_plugin.class_type
-        return_value.method_name = method_name_node.text
-
-        property_uncertainty_definitions = {}
-        combined_uncertainty_definitions = {}
-
-        cls.extract_uncertainty_definitions(
-            node,
-            namespace,
-            property_uncertainty_definitions,
-            combined_uncertainty_definitions,
-        )
-
-        return_value.combined_uncertainty_definitions = combined_uncertainty_definitions
-        return_value.property_uncertainty_definitions = property_uncertainty_definitions
-
-        solvent_index_nodes = node.findall(
-            "./ThermoML:Solvent//ThermoML:nOrgNum", namespace
-        )
-
-        if solvent_index_nodes is not None:
-            for solvent_index_node in solvent_index_nodes:
-                return_value.solvents.append(int(solvent_index_node.text))
-
-        # The solute standard state appears to describe which a solute should
-        # be present in only trace amounts. It only seems to be relevant for
-        # activity based properties.
-        standard_state_node = node.find("./ThermoML:eStandardState", namespace)
-
-        if standard_state_node is not None:
-            return_value.solute_standard_state = _Property.SoluteStandardState.from_node(
-                standard_state_node
-            )
-
-        # Property->Property-MethodID->RegNum describes which compound is referred
-        # to if the property is based on one of the compounds e.g. the activity
-        # coefficient of compound 2.
-        target_compound_node = node.find(
-            "./ThermoML:Property-MethodID/ThermoML:RegNum/ThermoML:nOrgNum", namespace
-        )
-
-        if target_compound_node is not None:
-            return_value.target_compound_index = int(target_compound_node.text)
-
-        return return_value
-
-    def set_value(self, value, uncertainty):
-        """Set the value and uncertainty of this property, adding units if necessary.
-
-        Parameters
-        ----------
-        value: float or unit.Quantity
-            The value of the property
-        uncertainty: float or unit.Quantity, optional
-            The uncertainty in the value.
-        """
-        value_quantity = value
-
-        if not isinstance(value_quantity, unit.Quantity):
-            value_quantity = value * self.default_unit
-
-        self.value = value_quantity
-
-        if uncertainty is not None:
-
-            uncertainty_quantity = uncertainty
-
-            if not isinstance(uncertainty_quantity, unit.Quantity):
-                uncertainty_quantity = uncertainty * self.default_unit
-
-            self.uncertainty = uncertainty_quantity
-
-
 class _PureOrMixtureData:
     """A wrapper around a ThermoML PureOrMixtureData node.
     """
@@ -878,7 +585,7 @@ class _PureOrMixtureData:
 
         Returns
         ----------
-        dict of int and _Property
+        dict of int and ThermoMLProperty
             The extracted property definitions with keys of their
             assigned indices.
         """
@@ -888,7 +595,7 @@ class _PureOrMixtureData:
 
         for property_node in property_nodes:
 
-            property_definition = _Property.from_xml_node(
+            property_definition = ThermoMLProperty.from_xml_node(
                 property_node, namespace, parent_phases
             )
 
@@ -1034,7 +741,7 @@ class _PureOrMixtureData:
             The xml node to read.
         namespace: dict of str and str
             The xml namespace.
-        property_definition: _Property
+        property_definition: ThermoMLProperty
             The property to which this uncertainty is attached.
 
         Returns
@@ -1493,7 +1200,7 @@ class _PureOrMixtureData:
 
         Parameters
         ----------
-        thermoml_property: _Property
+        thermoml_property: ThermoMLProperty
             The property to which this mixture belongs.
         constraints: list of _Constraint
             The ThermoML constraints.
@@ -1763,7 +1470,7 @@ class _PureOrMixtureData:
             The xml node to read.
         namespace: dict of str and str
             The xml namespace.
-        property_definitions: dict of int and _Property
+        property_definitions: dict of int and ThermoMLProperty
             The extracted property definitions.
         global_constraints: dict of int and _Constraint
             The extracted constraints.
@@ -1774,7 +1481,7 @@ class _PureOrMixtureData:
 
         Returns
         ----------
-        list of _Property
+        list of ThermoMLProperty
             The extracted measured properties.
         """
 
@@ -1922,7 +1629,7 @@ class _PureOrMixtureData:
 
         Returns
         ----------
-        list of _Property
+        list of ThermoMLProperty
             A list of extracted properties.
         """
 
@@ -1948,7 +1655,7 @@ class _PureOrMixtureData:
 
         for phase_node in phase_nodes:
 
-            phase = phase_from_thermoml_string(phase_node.text)
+            phase = _phase_from_thermoml_string(phase_node.text)
 
             if phase == PropertyPhase.Undefined:
 
@@ -2014,6 +1721,298 @@ class _PureOrMixtureData:
         return measured_properties
 
 
+class ThermoMLProperty:
+    """A wrapper around a ThermoML Property node.
+    """
+
+    class SoluteStandardState(Enum):
+        """Describes the standard state of a solute.
+        """
+
+        Undefined = ("Undefined",)
+        InfiniteDilutionSolute = ("Infinite dilution solute",)
+        PureCompound = ("Pure compound",)
+        PureLiquidSolute = ("Pure liquid solute",)
+        StandardMolality = ("Standard molality (1 mol/kg) solute",)
+
+        @staticmethod
+        def from_node(node):
+            """Converts an `eStandardState` node a `ThermoMLProperty.SoluteStandardState`.
+
+            Parameters
+            ----------
+            node: xml.etree.Element
+                The xml node to convert.
+
+            Returns
+            ----------
+            ThermoMLProperty.SoluteStandardState
+                The converted state type.
+            """
+
+            try:
+                standard_state = ThermoMLProperty.SoluteStandardState(node.text)
+            except (KeyError, ValueError):
+                standard_state = ThermoMLProperty.SoluteStandardState.Undefined
+
+            if standard_state == _ConstraintType.Undefined:
+
+                logging.debug(
+                    f"{node.tag}->{node.text} is an unsupported "
+                    f"solute standard state type."
+                )
+
+            return standard_state
+
+    def __init__(self, type_string):
+
+        self.type_string = type_string
+
+        self.thermodynamic_state = None
+        self.phase = PropertyPhase.Undefined
+
+        self.substance = None
+
+        self.value = None
+        self.uncertainty = None
+
+        self.source = None
+
+        self.index = None
+
+        self.solute_standard_state = ThermoMLProperty.SoluteStandardState.Undefined
+        self.solvents = []
+
+        self.target_compound_index = None
+
+        self.property_uncertainty_definitions = {}
+        self.combined_uncertainty_definitions = {}
+
+        self.default_unit = None
+
+        self.target_compound_index = None
+
+    @staticmethod
+    def extract_uncertainty_definitions(
+        node,
+        namespace,
+        property_uncertainty_definitions,
+        combined_uncertainty_definitions,
+    ):
+
+        """Extract any property or combined uncertainties from a property xml node.
+
+        Parameters
+        ----------
+        node: Element
+            The xml node to convert.
+        namespace: dict of str and str
+            The xml namespace.
+        property_uncertainty_definitions: list(_PropertyUncertainty)
+            A list of the extracted property uncertainties.
+        combined_uncertainty_definitions: list(_PropertyUncertainty)
+            A list of the extracted combined property uncertainties.
+        """
+
+        property_nodes = node.findall("ThermoML:CombinedUncertainty", namespace)
+
+        for property_node in property_nodes:
+
+            if property_node is None:
+                continue
+
+            uncertainty_definition = _CombinedUncertainty.from_xml(
+                property_node, namespace
+            )
+
+            if uncertainty_definition is None:
+                continue
+
+            combined_uncertainty_definitions[
+                uncertainty_definition.index
+            ] = uncertainty_definition
+
+        property_nodes = node.findall("ThermoML:PropUncertainty", namespace)
+
+        for property_node in property_nodes:
+
+            if property_node is None:
+                continue
+
+            uncertainty_definition = _PropertyUncertainty.from_xml(
+                property_node, namespace
+            )
+
+            if uncertainty_definition is None:
+                continue
+
+            property_uncertainty_definitions[
+                uncertainty_definition.index
+            ] = uncertainty_definition
+
+    @classmethod
+    def from_xml_node(cls, node, namespace, parent_phases):
+        """Creates a ThermoMLProperty from an xml node.
+
+        Parameters
+        ----------
+        node: Element
+            The xml node to convert.
+        namespace: dict of str and str
+            The xml namespace.
+        parent_phases: PropertyPhase
+            The phases specfied in the parent PureOrMixtureData node.
+
+        Returns
+        ----------
+        _Compound
+            The created property.
+        """
+
+        # Gather up all possible identifiers
+        index_node = node.find("ThermoML:nPropNumber", namespace)
+
+        property_index = int(index_node.text)
+
+        phase_node = node.find("./ThermoML:PropPhaseID//ThermoML:ePropPhase", namespace)
+        phase = PropertyPhase.Undefined | parent_phases
+
+        if phase_node is not None:
+            phase |= _phase_from_thermoml_string(phase_node.text)
+
+        reference_phase_node = node.find(
+            "./ThermoML:RefPhaseID//ThermoML:eRefPhase", namespace
+        )
+
+        if reference_phase_node is not None:
+            phase |= _phase_from_thermoml_string(reference_phase_node.text)
+
+        if phase == PropertyPhase.Undefined:
+
+            logging.debug(
+                f"A property was measured in an unsupported phase "
+                f"({phase_node.text}) and will be skipped."
+            )
+
+            return None
+
+        property_group_node = node.find(
+            "./ThermoML:Property-MethodID//ThermoML:PropertyGroup//*", namespace
+        )
+
+        property_name_node = property_group_node.find("./ThermoML:ePropName", namespace)
+        method_name_node = property_group_node.find("./ThermoML:eMethodName", namespace)
+
+        if method_name_node is None:
+            method_name_node = property_group_node.find(
+                "./ThermoML:sMethodName", namespace
+            )
+
+        if method_name_node is None or property_name_node is None:
+            raise RuntimeError("A property does not have a name / method entry.")
+
+        if property_name_node.text not in ThermoMLDataSet.registered_properties:
+
+            logging.debug(
+                f"An unsupported property was found "
+                f"({property_name_node.text}) and will be skipped."
+            )
+
+            return None
+
+        registered_plugin = ThermoMLDataSet.registered_properties[
+            property_name_node.text
+        ]
+
+        if (registered_plugin.supported_phases & phase) != phase:
+
+            logging.debug(
+                f"The {property_name_node.text} property is currently only supported "
+                f"when measured in the {str(registered_plugin.supported_phases)} phase, "
+                f"and not the {str(phase)} phase."
+            )
+
+            return None
+
+        return_value = cls(property_name_node.text)
+
+        return_value.index = property_index
+        return_value.phase = phase
+
+        return_value.default_unit = _unit_from_thermoml_string(property_name_node.text)
+
+        return_value.method_name = method_name_node.text
+
+        property_uncertainty_definitions = {}
+        combined_uncertainty_definitions = {}
+
+        cls.extract_uncertainty_definitions(
+            node,
+            namespace,
+            property_uncertainty_definitions,
+            combined_uncertainty_definitions,
+        )
+
+        return_value.combined_uncertainty_definitions = combined_uncertainty_definitions
+        return_value.property_uncertainty_definitions = property_uncertainty_definitions
+
+        solvent_index_nodes = node.findall(
+            "./ThermoML:Solvent//ThermoML:nOrgNum", namespace
+        )
+
+        if solvent_index_nodes is not None:
+            for solvent_index_node in solvent_index_nodes:
+                return_value.solvents.append(int(solvent_index_node.text))
+
+        # The solute standard state appears to describe which a solute should
+        # be present in only trace amounts. It only seems to be relevant for
+        # activity based properties.
+        standard_state_node = node.find("./ThermoML:eStandardState", namespace)
+
+        if standard_state_node is not None:
+            return_value.solute_standard_state = ThermoMLProperty.SoluteStandardState.from_node(
+                standard_state_node
+            )
+
+        # Property->Property-MethodID->RegNum describes which compound is referred
+        # to if the property is based on one of the compounds e.g. the activity
+        # coefficient of compound 2.
+        target_compound_node = node.find(
+            "./ThermoML:Property-MethodID/ThermoML:RegNum/ThermoML:nOrgNum", namespace
+        )
+
+        if target_compound_node is not None:
+            return_value.target_compound_index = int(target_compound_node.text)
+
+        return return_value
+
+    def set_value(self, value, uncertainty):
+        """Set the value and uncertainty of this property, adding units if necessary.
+
+        Parameters
+        ----------
+        value: float or unit.Quantity
+            The value of the property
+        uncertainty: float or unit.Quantity, optional
+            The uncertainty in the value.
+        """
+        value_quantity = value
+
+        if not isinstance(value_quantity, unit.Quantity):
+            value_quantity = value * self.default_unit
+
+        self.value = value_quantity
+
+        if uncertainty is not None:
+
+            uncertainty_quantity = uncertainty
+
+            if not isinstance(uncertainty_quantity, unit.Quantity):
+                uncertainty_quantity = uncertainty * self.default_unit
+
+            self.uncertainty = uncertainty_quantity
+
+
 class ThermoMLDataSet(PhysicalPropertyDataSet):
     """A dataset of physical property measurements created from a ThermoML dataset.
 
@@ -2031,6 +2030,8 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
     >>> dataset = ThermoMLDataSet.from_doi(*thermoml_keys)
 
     """
+
+    registered_properties = {}
 
     def __init__(self):
         """Constructs a new ThermoMLDataSet object."""
@@ -2256,26 +2257,14 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
                 if substance_id not in return_value._properties:
                     return_value._properties[substance_id] = []
 
-                if measured_property.type is None:
-                    raise ValueError(
-                        "An unexepected property type managed to slip through the cracks."
-                    )
+                registered_plugin = ThermoMLDataSet.registered_properties[
+                    measured_property.type_string
+                ]
 
-                final_property = measured_property.type()
-
-                final_property.value = measured_property.value
-                final_property.uncertainty = measured_property.uncertainty
-
-                final_property.phase = measured_property.phase
-
-                final_property.thermodynamic_state = (
-                    measured_property.thermodynamic_state
+                mapped_property = registered_plugin.conversion_function(
+                    measured_property
                 )
-                final_property.substance = measured_property.substance
-
-                final_property.source = source
-
-                return_value._properties[substance_id].append(final_property)
+                return_value._properties[substance_id].append(mapped_property)
 
         return_value._sources.append(source)
 

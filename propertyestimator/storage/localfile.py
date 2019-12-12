@@ -6,7 +6,7 @@ import shutil
 from os import makedirs, path
 
 from propertyestimator.storage import StoredSimulationData
-from propertyestimator.storage.dataclasses import BaseStoredData
+from propertyestimator.storage.data import BaseStoredData
 from propertyestimator.substances import Substance
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 

@@ -126,7 +126,7 @@ Data Set API
     :toctree: api/generated/
 
     ThermoMLDataSet
-    register_thermoml_property
+    thermoml_property
 
 Calculation Layers API
 ----------------------
@@ -136,7 +136,7 @@ Calculation Layers API
     :nosignatures:
     :toctree: api/generated/
 
-    PropertyCalculationLayer
+    CalculationLayer
     register_calculation_layer
 
 **Built-in Calculation Layers**

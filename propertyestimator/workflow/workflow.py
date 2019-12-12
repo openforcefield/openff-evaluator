@@ -14,12 +14,9 @@ from math import sqrt
 from os import makedirs, path
 
 from propertyestimator import unit
+from propertyestimator.attributes import UNDEFINED
 from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource
-from propertyestimator.storage.dataclasses import (
-    BaseStoredData,
-    StoredDataCollection,
-    StoredSimulationData,
-)
+from propertyestimator.storage.data import BaseStoredData, StoredSimulationData
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
@@ -970,7 +967,8 @@ class Workflow:
         }
 
         # Include the properties metadata
-        global_metadata.update(physical_property.metadata)
+        if physical_property.metadata != UNDEFINED:
+            global_metadata.update(physical_property.metadata)
 
         return global_metadata
 
@@ -1676,8 +1674,6 @@ class WorkflowGraph:
 
         if type(output_to_store) == WorkflowSimulationDataToStore:
             stored_object = StoredSimulationData()
-        elif type(output_to_store) == WorkflowDataCollectionToStore:
-            stored_object = StoredDataCollection()
 
         if output_to_store.substance is None:
             stored_object.substance = physical_property.substance

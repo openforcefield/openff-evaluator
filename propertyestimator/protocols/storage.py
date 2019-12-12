@@ -7,7 +7,6 @@ from os import path
 from typing import Union
 
 from propertyestimator.attributes import UNDEFINED
-from propertyestimator.storage.dataclasses import StoredDataCollection
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
@@ -21,6 +20,8 @@ from propertyestimator.workflow.protocols import BaseProtocol
 class UnpackStoredDataCollection(BaseProtocol):
     """Loads a `StoredDataCollection` object from disk,
     and makes its inner data objects easily accessible to other protocols.
+
+    TODO: Delete this.
     """
 
     input_data_path = InputAttribute(
@@ -80,13 +81,13 @@ class UnpackStoredDataCollection(BaseProtocol):
         with open(data_object_path, "r") as file:
             data_object = json.load(file, cls=TypedJSONDecoder)
 
-        if not isinstance(data_object, StoredDataCollection):
-
-            return PropertyEstimatorException(
-                directory=directory,
-                message=f"The data object must be a `StoredDataCollection` "
-                f"and not a {type(data_object)}",
-            )
+        # if not isinstance(data_object, StoredDataCollection):
+        #
+        #     return PropertyEstimatorException(
+        #         directory=directory,
+        #         message=f"The data object must be a `StoredDataCollection` "
+        #         f"and not a {type(data_object)}",
+        #     )
 
         self.collection_data_paths = {}
 
