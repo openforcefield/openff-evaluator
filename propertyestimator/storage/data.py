@@ -160,7 +160,7 @@ class StoredSimulationData(BaseStoredData):
         if type(stored_data_1) != type(stored_data_2):
             return False
 
-        attribute_names = stored_data_1.__class__._get_attributes(StorageAttribute)
+        attribute_names = stored_data_1.__class__.get_attributes(StorageAttribute)
 
         for name in attribute_names:
 

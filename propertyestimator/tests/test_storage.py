@@ -4,6 +4,8 @@ Units tests for propertyestimator.storage
 import os
 import tempfile
 
+import pytest
+
 from propertyestimator import unit
 from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.storage import LocalFileStorage, StoredSimulationData
@@ -117,6 +119,7 @@ def test_local_simulation_storage():
         assert os.path.isdir(retrieved_data_directory)
 
 
+@pytest.mark.skip(reason="WIP.")
 def test_data_class_retrieval():
     """A simple test to that force fields can be stored and
     retrieved using the local storage backend."""
@@ -160,6 +163,7 @@ def test_data_class_retrieval():
         assert len(retrieved_data_directories[substance.identifier]) == 0
 
 
+@pytest.mark.skip(reason="WIP.")
 def test_simulation_data_merging():
     """A test that compatible simulation data gets merged
     together within the`LocalStorage` system."""

@@ -14,6 +14,7 @@ from math import sqrt
 from os import makedirs, path
 
 from propertyestimator import unit
+from propertyestimator.attributes import UNDEFINED
 from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource
 from propertyestimator.storage.data import BaseStoredData, StoredSimulationData
 from propertyestimator.utils import graph
@@ -966,7 +967,8 @@ class Workflow:
         }
 
         # Include the properties metadata
-        global_metadata.update(physical_property.metadata)
+        if physical_property.metadata != UNDEFINED:
+            global_metadata.update(physical_property.metadata)
 
         return global_metadata
 

@@ -23,7 +23,7 @@ class BaseDataQuery(AttributeClass, abc.ABC):
         correctly set.
         """
 
-        attribute_names = self._get_attributes(Attribute)
+        attribute_names = self.get_attributes(Attribute)
 
         for name in attribute_names:
 

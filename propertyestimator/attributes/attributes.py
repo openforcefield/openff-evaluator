@@ -65,7 +65,7 @@ class AttributeClass(TypedBaseModel):
         ValueError
         """
 
-        attribute_names = self._get_attributes()
+        attribute_names = self.get_attributes()
 
         for name in attribute_names:
 
@@ -80,7 +80,7 @@ class AttributeClass(TypedBaseModel):
                 raise ValueError(f"The required {name} attribute has not been set.")
 
     @classmethod
-    def _get_attributes(cls, attribute_type=None):
+    def get_attributes(cls, attribute_type=None):
         """Returns all attributes of a specific `attribute_type`.
 
         Parameters
@@ -121,13 +121,24 @@ class AttributeClass(TypedBaseModel):
 
     def __getstate__(self):
 
-        attributes = {name: getattr(self, name) for name in self._get_attributes()}
+        attribute_names = self.get_attributes()
+        attributes = {}
+
+        for attribute_name in attribute_names:
+
+            attribute = getattr(self.__class__, attribute_name)
+            attribute_value = getattr(self, attribute_name)
+
+            if attribute.optional and attribute_value == UNDEFINED:
+                continue
+
+            attributes[attribute_name] = attribute_value
 
         return attributes
 
     def __setstate__(self, state):
 
-        attribute_names = self._get_attributes()
+        attribute_names = self.get_attributes()
 
         for name in attribute_names:
 
@@ -138,6 +149,9 @@ class AttributeClass(TypedBaseModel):
                 raise IndexError(
                     f"The {name} attribute was not present in " f"the state dictionary."
                 )
+
+            elif attribute.optional and name not in state:
+                state[name] = UNDEFINED
 
             # This should handle type checking.
             setattr(self, name, state[name])
@@ -260,7 +274,11 @@ class Attribute:
 
     def __set__(self, instance, value):
 
-        if isinstance(value, int) and issubclass(self.type_hint, (IntFlag, IntEnum)):
+        if (
+            isinstance(value, int)
+            and isinstance(self.type_hint, type)
+            and issubclass(self.type_hint, (IntFlag, IntEnum))
+        ):
             # This is necessary as the json library currently doesn't
             # support custom serialization of IntFlag or IntEnum.
             value = self.type_hint(value)

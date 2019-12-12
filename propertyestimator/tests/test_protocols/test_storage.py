@@ -5,10 +5,7 @@ import json
 import os
 import tempfile
 
-from propertyestimator.protocols.storage import (
-    UnpackStoredDataCollection,
-    UnpackStoredSimulationData,
-)
+from propertyestimator.protocols.storage import UnpackStoredSimulationData
 from propertyestimator.tests.utils import (
     build_tip3p_smirnoff_force_field,
     create_dummy_stored_simulation_data,
