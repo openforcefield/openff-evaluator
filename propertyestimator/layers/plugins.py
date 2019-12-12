@@ -37,7 +37,7 @@ def register_calculation_layer(layer_class):
         The calculation layer to register.
     """
     assert issubclass(layer_class, CalculationLayer)
-    assert isinstance(layer_class.required_schema_type(), CalculationLayerSchema)
+    assert issubclass(layer_class.required_schema_type(), CalculationLayerSchema)
 
     if layer_class.__name__ in registered_calculation_layers:
         raise ValueError(f"The {layer_class} layer is already registered.")
@@ -57,14 +57,14 @@ def register_calculation_schema(property_class, layer_class, schema):
         specified `calculation_layer` and `property_class`.
     layer_class: type of CalculationLayer
         The calculation layer to associate the schema with.
-    schema: CalculationLayerSchema
-        A function which returns the workflow schema for a
-        given set of workflow options.
+    schema: CalculationLayerSchema or Callable[[CalculationLayerSchema], CalculationLayerSchema]
+        Either the calculation schema to use, or a function which
+        will create the schema from an existing CalculationLayerSchema.
     """
 
     assert issubclass(property_class, PhysicalProperty)
     assert issubclass(layer_class, CalculationLayer)
-    assert isinstance(schema, CalculationLayerSchema)
+    assert isinstance(schema, CalculationLayerSchema) or callable(schema)
 
     assert property_class != PhysicalProperty
     assert layer_class != CalculationLayer

@@ -5,9 +5,11 @@ import copy
 from collections import namedtuple
 
 from propertyestimator import unit
-from propertyestimator.datasets.properties import PhysicalProperty, PropertyPhase
-from propertyestimator.datasets.thermoml.plugins import register_thermoml_property
-from propertyestimator.layers.plugins import register_estimable_property
+from propertyestimator.datasets import PhysicalProperty, PropertyPhase
+from propertyestimator.datasets.thermoml.plugins import thermoml_property
+from propertyestimator.layers import register_calculation_schema
+from propertyestimator.layers.reweighting import ReweightingLayer, ReweightingSchema
+from propertyestimator.layers.simulation import SimulationLayer, SimulationSchema
 from propertyestimator.protocols import (
     analysis,
     groups,
@@ -20,8 +22,6 @@ from propertyestimator.protocols.utils import (
     generate_base_simulation_protocols,
     generate_gradient_protocol_group,
 )
-from propertyestimator.storage import StoredSimulationData
-from propertyestimator.storage.dataclasses import StoredDataCollection
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
@@ -34,9 +34,8 @@ from propertyestimator.workflow.schemas import (
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
-@register_estimable_property()
-@register_thermoml_property(
-    thermoml_string="Excess molar enthalpy (molar enthalpy of mixing), kJ/mol",
+@thermoml_property(
+    "Excess molar enthalpy (molar enthalpy of mixing), kJ/mol",
     supported_phases=PropertyPhase.Liquid,
 )
 class EnthalpyOfMixing(PhysicalProperty):
@@ -52,24 +51,6 @@ class EnthalpyOfMixing(PhysicalProperty):
         "subsample_trajectory "
         "subsample_statistics ",
     )
-
-    @property
-    def multi_component_property(self):
-        return True
-
-    @property
-    def required_data_class(self):
-        return StoredSimulationData
-
-    @staticmethod
-    def get_default_workflow_schema(calculation_layer, options=None):
-
-        if calculation_layer == "SimulationLayer":
-            return EnthalpyOfMixing.get_default_simulation_workflow_schema(options)
-        elif calculation_layer == "ReweightingLayer":
-            return EnthalpyOfMixing.get_default_reweighting_workflow_schema(options)
-
-        return None
 
     @staticmethod
     def _get_simulation_protocols(
@@ -281,7 +262,6 @@ class EnthalpyOfMixing(PhysicalProperty):
         replicator_id=None,
         weight_by_mole_fraction=False,
         substance_reference=None,
-        options=None,
     ):
 
         """Returns the set of protocols which when combined in a workflow
@@ -306,8 +286,6 @@ class EnthalpyOfMixing(PhysicalProperty):
         substance_reference: ProtocolPath or PlaceholderValue, optional
             An optional protocol path (or replicator reference) to the substance
             whose enthalpy is being estimated.
-        options: WorkflowOptions
-            The options to use when setting up the workflows.
 
         Returns
         -------
@@ -348,7 +326,6 @@ class EnthalpyOfMixing(PhysicalProperty):
         (protocols, data_replicator) = generate_base_reweighting_protocols(
             analysis_protocol=extract_enthalpy,
             mbar_protocol=reweight_enthalpy,
-            workflow_options=options,
             replicator_id=data_replicator_id,
             id_suffix=id_suffix,
         )
@@ -460,20 +437,29 @@ class EnthalpyOfMixing(PhysicalProperty):
         )
 
     @staticmethod
-    def get_default_simulation_workflow_schema(options=None):
-        """Returns the default workflow to use when estimating this property
-        from direct simulations.
+    def default_simulation_schema(existing_schema=None):
+        """Returns the default calculation schema to use when estimating
+        this class of property from direct simulations.
 
         Parameters
         ----------
-        options: WorkflowOptions
-            The default options to use when setting up the estimation workflow.
+        existing_schema: SimulationSchema, optional
+            An existing schema whose settings to use. If set,
+            the schema's `workflow_schema` will be overwritten
+            by this method.
 
         Returns
         -------
-        WorkflowSchema
+        SimulationSchema
             The schema to follow when estimating this property.
         """
+
+        calculation_schema = SimulationSchema()
+
+        if existing_schema is not None:
+
+            assert isinstance(existing_schema, SimulationSchema)
+            calculation_schema = copy.deepcopy(existing_schema)
 
         # Define the id of the replicator which will clone the gradient protocols
         # for each gradient key to be estimated.
@@ -488,7 +474,7 @@ class EnthalpyOfMixing(PhysicalProperty):
             full_system_gradient_replicator,
             full_system_gradient,
         ) = EnthalpyOfMixing._get_simulation_protocols(
-            "_full", gradient_replicator_id, options=options
+            "_full", gradient_replicator_id, options=calculation_schema.workflow_options
         )
 
         # Set up a general workflow for calculating the enthalpy of one of the system components.
@@ -515,7 +501,7 @@ class EnthalpyOfMixing(PhysicalProperty):
             weight_by_mole_fraction=True,
             component_substance_reference=component_substance,
             full_substance_reference=full_substance,
-            options=options,
+            options=calculation_schema.workflow_options,
         )
 
         # Finally, set up the protocols which will be responsible for adding together
@@ -594,23 +580,33 @@ class EnthalpyOfMixing(PhysicalProperty):
             f"component_$({component_replicator_id})": component_output,
         }
 
-        return schema
+        calculation_schema.workflow_schema = schema
+        return calculation_schema
 
     @staticmethod
-    def get_default_reweighting_workflow_schema(options=None):
-        """Returns the default workflow to use when estimating this property
-        by reweighting existing data.
+    def default_reweighting_schema(existing_schema=None):
+        """Returns the default calculation schema to use when estimating
+        this property by reweighting existing data.
 
         Parameters
         ----------
-        options: WorkflowOptions
-            The default options to use when setting up the estimation workflow.
+        existing_schema: ReweightingSchema, optional
+            An existing schema whose settings to use. If set,
+            the schema's `workflow_schema` will be overwritten
+            by this method.
 
         Returns
         -------
-        WorkflowSchema
+        ReweightingSchema
             The schema to follow when estimating this property.
         """
+
+        calculation_schema = ReweightingSchema()
+
+        if existing_schema is not None:
+
+            assert isinstance(existing_schema, ReweightingSchema)
+            calculation_schema = copy.deepcopy(existing_schema)
 
         # Set up a replicator that will re-run the component reweighting workflow for each
         # component in the system.
@@ -632,7 +628,7 @@ class EnthalpyOfMixing(PhysicalProperty):
             full_gradient_group,
             full_gradient_source,
         ) = EnthalpyOfMixing._get_reweighting_protocols(
-            "_full", gradient_replicator.id, full_data_replicator_id, options=options
+            "_full", gradient_replicator.id, full_data_replicator_id
         )
 
         # Set up the protocols which will reweight data for each component.
@@ -653,7 +649,6 @@ class EnthalpyOfMixing(PhysicalProperty):
             replicator_id=component_replicator.id,
             weight_by_mole_fraction=True,
             substance_reference=ReplicatorValue(component_replicator.id),
-            options=options,
         )
 
         # Make sure the replicator is only replicating over component data.
@@ -717,58 +712,41 @@ class EnthalpyOfMixing(PhysicalProperty):
         schema.gradients_sources = [ProtocolPath("result", combine_gradients.id)]
         schema.final_value_source = ProtocolPath("result", calculate_excess_enthalpy.id)
 
-        return schema
+        calculation_schema.workflow_schema = schema
+        return calculation_schema
 
 
-@register_estimable_property()
-@register_thermoml_property(
+@thermoml_property(
     "Molar enthalpy of vaporization or sublimation, kJ/mol",
     supported_phases=PropertyPhase.Liquid | PropertyPhase.Gas,
 )
 class EnthalpyOfVaporization(PhysicalProperty):
     """A class representation of an enthalpy of vaporization property"""
 
-    @property
-    def multi_component_property(self):
-        """Returns whether this property is dependant on properties of the
-        full mixed substance, or whether it is also dependant on the properties
-        of the individual components also.
-        """
-        return False
-
-    @property
-    def required_data_class(self):
-        return StoredDataCollection
-
     @staticmethod
-    def get_default_workflow_schema(calculation_layer, options=None):
-
-        if calculation_layer == "SimulationLayer":
-            return EnthalpyOfVaporization.get_default_simulation_workflow_schema(
-                options
-            )
-        elif calculation_layer == "ReweightingLayer":
-            return EnthalpyOfVaporization.get_default_reweighting_workflow_schema(
-                options
-            )
-
-        return None
-
-    @staticmethod
-    def get_default_simulation_workflow_schema(options=None):
-        """Returns the default workflow to use when estimating this property
-        from direct simulations.
+    def default_simulation_schema(existing_schema=None):
+        """Returns the default calculation schema to use when estimating
+        this class of property from direct simulations.
 
         Parameters
         ----------
-        options: WorkflowOptions
-            The default options to use when setting up the estimation workflow.
+        existing_schema: SimulationSchema, optional
+            An existing schema whose settings to use. If set,
+            the schema's `workflow_schema` will be overwritten
+            by this method.
 
         Returns
         -------
-        WorkflowSchema
+        SimulationSchema
             The schema to follow when estimating this property.
         """
+
+        calculation_schema = SimulationSchema()
+
+        if existing_schema is not None:
+
+            assert isinstance(existing_schema, SimulationSchema)
+            calculation_schema = copy.deepcopy(existing_schema)
 
         # Define the number of molecules for the liquid phase
         number_of_liquid_molecules = 1000
@@ -789,7 +767,10 @@ class EnthalpyOfVaporization(PhysicalProperty):
             liquid_value_source,
             liquid_output_to_store,
         ) = generate_base_simulation_protocols(
-            extract_liquid_energy, options, "_liquid", converge_uncertainty
+            extract_liquid_energy,
+            calculation_schema.workflow_options,
+            "_liquid",
+            converge_uncertainty,
         )
 
         # Make sure the number of molecules in the liquid is consistent.
@@ -804,7 +785,10 @@ class EnthalpyOfVaporization(PhysicalProperty):
             gas_value_source,
             gas_output_to_store,
         ) = generate_base_simulation_protocols(
-            extract_gas_energy, options, "_gas", converge_uncertainty
+            extract_gas_energy,
+            calculation_schema.workflow_options,
+            "_gas",
+            converge_uncertainty,
         )
 
         # Create only a single molecule in vacuum
@@ -855,7 +839,10 @@ class EnthalpyOfVaporization(PhysicalProperty):
             energy_of_vaporization, ideal_volume, enthalpy_of_vaporization
         )
 
-        if options.convergence_mode != WorkflowOptions.ConvergenceMode.NoChecks:
+        if (
+            calculation_schema.workflow_options.convergence_mode
+            != WorkflowOptions.ConvergenceMode.NoChecks
+        ):
 
             condition = groups.ConditionalGroup.Condition()
             condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
@@ -999,23 +986,33 @@ class EnthalpyOfVaporization(PhysicalProperty):
             "result", converge_uncertainty.id, enthalpy_of_vaporization.id
         )
 
-        return schema
+        calculation_schema.workflow_schema = schema
+        return calculation_schema
 
     @staticmethod
-    def get_default_reweighting_workflow_schema(options):
-        """Returns the default workflow to use when estimating this property
-        by reweighting existing data.
+    def default_reweighting_schema(existing_schema=None):
+        """Returns the default calculation schema to use when estimating
+        this property by reweighting existing data.
 
         Parameters
         ----------
-        options: WorkflowOptions
-            The default options to use when setting up the estimation workflow.
+        existing_schema: ReweightingSchema, optional
+            An existing schema whose settings to use. If set,
+            the schema's `workflow_schema` will be overwritten
+            by this method.
 
         Returns
         -------
-        WorkflowSchema
+        ReweightingSchema
             The schema to follow when estimating this property.
         """
+
+        calculation_schema = ReweightingSchema()
+
+        if existing_schema is not None:
+
+            assert isinstance(existing_schema, ReweightingSchema)
+            calculation_schema = copy.deepcopy(existing_schema)
 
         # Set up the data replicator (we use the same one for the gas and liquid phase)
         data_replicator = ProtocolReplicator("data_replicator")
@@ -1046,7 +1043,6 @@ class EnthalpyOfVaporization(PhysicalProperty):
         liquid_protocols, _ = generate_base_reweighting_protocols(
             extract_liquid_energy,
             reweight_liquid_energy,
-            options,
             id_suffix="_liquid",
             replicator_id=data_replicator.id,
         )
@@ -1083,7 +1079,6 @@ class EnthalpyOfVaporization(PhysicalProperty):
         gas_protocols, _ = generate_base_reweighting_protocols(
             extract_gas_energy,
             reweight_gas_energy,
-            options,
             id_suffix="_gas",
             replicator_id=data_replicator.id,
         )
@@ -1225,4 +1220,24 @@ class EnthalpyOfVaporization(PhysicalProperty):
         schema.gradients_sources = [ProtocolPath("result", combine_gradients.id)]
         schema.final_value_source = ProtocolPath("result", enthalpy_of_vaporization.id)
 
-        return schema
+        calculation_schema.workflow_schema = schema
+        return calculation_schema
+
+
+# Register the properties via the plugin system.
+register_calculation_schema(
+    EnthalpyOfMixing, SimulationLayer, EnthalpyOfMixing.default_simulation_schema
+)
+register_calculation_schema(
+    EnthalpyOfMixing, ReweightingLayer, EnthalpyOfMixing.default_reweighting_schema
+)
+register_calculation_schema(
+    EnthalpyOfVaporization,
+    SimulationLayer,
+    EnthalpyOfVaporization.default_simulation_schema,
+)
+register_calculation_schema(
+    EnthalpyOfVaporization,
+    ReweightingLayer,
+    EnthalpyOfVaporization.default_reweighting_schema,
+)

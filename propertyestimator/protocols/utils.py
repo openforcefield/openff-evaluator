@@ -57,11 +57,7 @@ BaseSimulationProtocols = namedtuple(
 
 
 def generate_base_reweighting_protocols(
-    analysis_protocol,
-    mbar_protocol,
-    workflow_options,
-    replicator_id="data_repl",
-    id_suffix="",
+    analysis_protocol, mbar_protocol, replicator_id="data_repl", id_suffix="",
 ):
     """Constructs a set of protocols which, when combined in a workflow schema,
     may be executed to reweight a set of existing data to estimate a particular
@@ -77,8 +73,6 @@ def generate_base_reweighting_protocols(
         A template mbar reweighting protocol, which has it's reference
         observables already set. This method will automatically set the
         reduced potentials on this object.
-    workflow_options: WorkflowOptions
-        The options being used to generate a workflow.
     replicator_id: str
         The id to use for the data replicator.
     id_suffix: str

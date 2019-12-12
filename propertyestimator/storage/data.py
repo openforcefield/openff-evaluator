@@ -3,8 +3,8 @@ A collection of classes representing data stored by a storage backend.
 """
 import abc
 
-from propertyestimator.attributes import UNDEFINED, AttributeClass
-from propertyestimator.properties import PropertyPhase
+from propertyestimator.attributes import AttributeClass
+from propertyestimator.datasets import PropertyPhase
 from propertyestimator.storage.attributes import ComparisonBehaviour, StorageAttribute
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState

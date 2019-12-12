@@ -25,7 +25,7 @@ class CalculationLayerResult:
     ----------
     property_id: str
         The unique id of the original physical property that this
-        calculation layer attempts to estimate.
+        calculation layer attempted to estimate.
     calculated_property: PhysicalProperty, optional
         The property which was estimated by this layer. The will
         be `None` if the layer could not estimate the property.
@@ -75,19 +75,33 @@ class CalculationLayerSchema(AttributeClass):
         docstring="The absolute uncertainty that the property should "
         "be estimated to within. This attribute is mutually exclusive "
         "with the `relative_uncertainty_fraction` attribute.",
-        type_hint=unit.Quantiy,
+        type_hint=unit.Quantity,
         default_value=UNDEFINED,
         optional=True,
     )
     relative_uncertainty_fraction = Attribute(
         docstring="The relative uncertainty that the property should "
-        "be estimated to within, i.e `target=relative_uncertainty_fraction * "
-        "measured_property.uncertainty`. This attribute is mutually exclusive "
-        "with the `absolute_uncertainty` attribute.",
+        "be estimated to within, i.e `relative_uncertainty_fraction * "
+        "measured_property.uncertainty`. This attribute is mutually "
+        "exclusive with the `absolute_uncertainty` attribute.",
         type_hint=float,
-        default_value=1.0,
+        default_value=UNDEFINED,
         optional=True,
     )
+
+    def validate(self, attribute_type=None):
+
+        if (
+            self.absolute_uncertainty != UNDEFINED
+            and self.relative_uncertainty_fraction != UNDEFINED
+        ):
+
+            raise ValueError(
+                "Only one of `absolute_uncertainty` and `relative_uncertainty_fraction` "
+                "can be set."
+            )
+
+        super(CalculationLayerSchema, self).validate(attribute_type)
 
 
 class CalculationLayer(abc.ABC):

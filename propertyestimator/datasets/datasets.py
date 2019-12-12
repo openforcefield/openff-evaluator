@@ -129,17 +129,23 @@ class PhysicalProperty(AttributeClass):
         source: Source
             The source of this property.
         """
-        self.thermodynamic_state = thermodynamic_state
-        self.phase = phase
+        if thermodynamic_state is not None:
+            self.thermodynamic_state = thermodynamic_state
+        if phase is not None:
+            self.phase = phase
 
-        self.substance = substance
+        if substance is not None:
+            self.substance = substance
 
-        self.value = value
-        self.uncertainty = uncertainty
+        if value is not None:
+            self.value = value
+        if uncertainty is not None:
+            self.uncertainty = uncertainty
 
         self.gradients = []
 
-        self.source = source
+        if source is not None:
+            self.source = source
 
     def __setstate__(self, state):
 

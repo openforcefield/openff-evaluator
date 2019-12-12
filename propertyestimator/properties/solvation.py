@@ -2,9 +2,12 @@
 A collection of physical property definitions relating to
 solvation free energies.
 """
+import copy
+
 from propertyestimator import unit
-from propertyestimator.layers.plugins import register_estimable_property
-from propertyestimator.properties import PhysicalProperty
+from propertyestimator.datasets import PhysicalProperty
+from propertyestimator.layers import register_calculation_schema
+from propertyestimator.layers.simulation import SimulationLayer, SimulationSchema
 from propertyestimator.protocols import (
     coordinates,
     forcefield,
@@ -20,34 +23,33 @@ from propertyestimator.workflow.schemas import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
 
-@register_estimable_property()
 class SolvationFreeEnergy(PhysicalProperty):
     """A class representation of a solvation free energy property."""
 
     @staticmethod
-    def get_default_workflow_schema(calculation_layer, options=None):
-
-        if calculation_layer == "SimulationLayer":
-            # Currently reweighting is not supported.
-            return SolvationFreeEnergy.get_default_simulation_workflow_schema(options)
-
-        return None
-
-    @staticmethod
-    def get_default_simulation_workflow_schema(options=None):
-        """Returns the default workflow to use when estimating this property
-        from direct simulations.
+    def default_simulation_schema(existing_schema=None):
+        """Returns the default calculation schema to use when estimating
+        this class of property from direct simulations.
 
         Parameters
         ----------
-        options: WorkflowOptions
-            The default options to use when setting up the estimation workflow.
+        existing_schema: SimulationSchema, optional
+            An existing schema whose settings to use. If set,
+            the schema's `workflow_schema` will be overwritten
+            by this method.
 
         Returns
         -------
-        WorkflowSchema
+        SimulationSchema
             The schema to follow when estimating this property.
         """
+
+        calculation_schema = SimulationSchema()
+
+        if existing_schema is not None:
+
+            assert isinstance(existing_schema, SimulationSchema)
+            calculation_schema = copy.deepcopy(existing_schema)
 
         # Setup the fully solvated systems.
         build_full_coordinates = coordinates.BuildCoordinatesPackmol(
@@ -150,7 +152,10 @@ class SolvationFreeEnergy(PhysicalProperty):
         conditional_group = groups.ConditionalGroup(f"conditional_group")
         conditional_group.max_iterations = 20
 
-        if options.convergence_mode != WorkflowOptions.ConvergenceMode.NoChecks:
+        if (
+            calculation_schema.workflow_options.convergence_mode
+            != WorkflowOptions.ConvergenceMode.NoChecks
+        ):
 
             condition = groups.ConditionalGroup.Condition()
             condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
@@ -192,4 +197,12 @@ class SolvationFreeEnergy(PhysicalProperty):
         schema.final_value_source = ProtocolPath(
             "estimated_free_energy", conditional_group.id, run_yank.id
         )
-        return schema
+
+        calculation_schema.workflow_schema = schema
+        return calculation_schema
+
+
+# Register the properties via the plugin system.
+register_calculation_schema(
+    SolvationFreeEnergy, SimulationLayer, SolvationFreeEnergy.default_simulation_schema
+)

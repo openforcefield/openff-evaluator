@@ -11,8 +11,8 @@ from tornado.iostream import StreamClosedError
 from tornado.tcpclient import TCPClient
 
 from propertyestimator.forcefield import SmirnoffForceFieldSource
-from propertyestimator.layers import ReweightingLayer, SimulationLayer
-from propertyestimator.layers.plugins import registered_properties
+from propertyestimator.layers.reweighting import ReweightingLayer
+from propertyestimator.layers.simulation import SimulationLayer
 from propertyestimator.utils.serialization import TypedBaseModel
 from propertyestimator.utils.tcp import (
     PropertyEstimatorMessageTypes,
@@ -324,7 +324,7 @@ class PropertyEstimatorClient:
     options:
 
     >>> # Load in the data set of properties which will be used for comparisons
-    >>> from propertyestimator.datasets import ThermoMLDataSet
+    >>> from propertyestimator.datasets.thermoml import ThermoMLDataSet
     >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
     >>> # Filter the dataset to only include densities measured between 130-260 K
     >>> from propertyestimator.properties import Density
@@ -355,7 +355,8 @@ class PropertyEstimatorClient:
     The calculations layers which will be used to estimate the properties can be
     controlled for example like so:
 
-    >>> from propertyestimator.layers import ReweightingLayer, SimulationLayer
+    >>> from propertyestimator.layers.reweighting import ReweightingLayer
+    >>> from propertyestimator.layers.simulation import SimulationLayer
     >>>
     >>> options = PropertyEstimatorOptions(allowed_calculation_layers = [ReweightingLayer,
     >>>                                                                  SimulationLayer])
@@ -393,7 +394,7 @@ class PropertyEstimatorClient:
     bond length parameter for the [#6:1]-[#8:2] chemical environment, and the bond
     angle parameter for the [*:1]-[#8:2]-[*:3] chemical environment:
 
-    >>> from propertyestimator.properties import ParameterGradientKey
+    >>> from propertyestimator.forcefield import ParameterGradientKey
     >>>
     >>> parameter_gradient_keys = [
     >>>     ParameterGradientKey('Bonds', '[#6:1]-[#8:2]', 'length')

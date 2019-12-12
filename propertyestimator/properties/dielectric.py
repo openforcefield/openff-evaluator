@@ -10,28 +10,29 @@ from simtk.openmm import XmlSerializer
 
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
-from propertyestimator.datasets.thermoml.plugins import register_thermoml_property
-from propertyestimator.layers.plugins import register_estimable_property
-from propertyestimator.properties import PhysicalProperty, PropertyPhase
+from propertyestimator.datasets import PhysicalProperty, PropertyPhase
+from propertyestimator.datasets.thermoml.plugins import thermoml_property
+from propertyestimator.layers import register_calculation_schema
+from propertyestimator.layers.reweighting import ReweightingLayer, ReweightingSchema
+from propertyestimator.layers.simulation import SimulationLayer, SimulationSchema
 from propertyestimator.protocols import analysis, reweighting
 from propertyestimator.protocols.utils import (
     generate_base_reweighting_protocols,
     generate_base_simulation_protocols,
     generate_gradient_protocol_group,
 )
-from propertyestimator.storage import StoredSimulationData
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import timeseries
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import bootstrap
-from propertyestimator.workflow import plugins
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
+from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.schemas import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
 
-@plugins.register_calculation_protocol()
+@register_calculation_protocol()
 class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
     """Extracts the average dielectric constant from a simulation trajectory.
     """
@@ -220,7 +221,7 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
         return self._get_output_dictionary()
 
 
-@plugins.register_calculation_protocol()
+@register_calculation_protocol()
 class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
     """Reweights a set of dipole moments (`reference_observables`) and volumes
     (`reference_volumes`) using MBAR, and then combines these to yeild the reweighted
@@ -368,47 +369,36 @@ class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
         return self._get_output_dictionary()
 
 
-@register_estimable_property()
-@register_thermoml_property(
-    thermoml_string="Relative permittivity at zero frequency",
-    supported_phases=PropertyPhase.Liquid,
+@thermoml_property(
+    "Relative permittivity at zero frequency", supported_phases=PropertyPhase.Liquid,
 )
 class DielectricConstant(PhysicalProperty):
     """A class representation of a dielectric property"""
 
-    @property
-    def multi_component_property(self):
-        return False
-
-    @property
-    def required_data_class(self):
-        return StoredSimulationData
-
     @staticmethod
-    def get_default_workflow_schema(calculation_layer, options=None):
-
-        if calculation_layer == "SimulationLayer":
-            return DielectricConstant.get_default_simulation_workflow_schema(options)
-        elif calculation_layer == "ReweightingLayer":
-            return DielectricConstant.get_default_reweighting_workflow_schema(options)
-
-        return None
-
-    @staticmethod
-    def get_default_simulation_workflow_schema(options=None):
-        """Returns the default workflow to use when estimating this property
-        from direct simulations.
+    def default_simulation_schema(existing_schema=None):
+        """Returns the default calculation schema to use when estimating
+        this class of property from direct simulations.
 
         Parameters
         ----------
-        options: WorkflowOptions
-            The default options to use when setting up the estimation workflow.
+        existing_schema: SimulationSchema, optional
+            An existing schema whose settings to use. If set,
+            the schema's `workflow_schema` will be overwritten
+            by this method.
 
         Returns
         -------
-        WorkflowSchema
+        SimulationSchema
             The schema to follow when estimating this property.
         """
+
+        calculation_schema = SimulationSchema()
+
+        if existing_schema is not None:
+
+            assert isinstance(existing_schema, SimulationSchema)
+            calculation_schema = copy.deepcopy(existing_schema)
 
         # Define the protocol which will extract the average dielectric constant
         # from the results of a simulation.
@@ -419,7 +409,7 @@ class DielectricConstant(PhysicalProperty):
 
         # Define the protocols which will run the simulation itself.
         protocols, value_source, output_to_store = generate_base_simulation_protocols(
-            extract_dielectric, options
+            extract_dielectric, calculation_schema.workflow_options
         )
 
         # Make sure the input of the analysis protcol is properly hooked up.
@@ -499,23 +489,33 @@ class DielectricConstant(PhysicalProperty):
         schema.gradients_sources = [gradient_source]
         schema.final_value_source = value_source
 
-        return schema
+        calculation_schema.workflow_schema = schema
+        return calculation_schema
 
     @staticmethod
-    def get_default_reweighting_workflow_schema(options=None):
-        """Returns the default workflow to use when estimating this property
-        by reweighting existing data.
+    def default_reweighting_schema(existing_schema=None):
+        """Returns the default calculation schema to use when estimating
+        this property by reweighting existing data.
 
         Parameters
         ----------
-        options: WorkflowOptions
-            The default options to use when setting up the estimation workflow.
+        existing_schema: ReweightingSchema, optional
+            An existing schema whose settings to use. If set,
+            the schema's `workflow_schema` will be overwritten
+            by this method.
 
         Returns
         -------
-        WorkflowSchema
+        ReweightingSchema
             The schema to follow when estimating this property.
         """
+
+        calculation_schema = ReweightingSchema()
+
+        if existing_schema is not None:
+
+            assert isinstance(existing_schema, ReweightingSchema)
+            calculation_schema = copy.deepcopy(existing_schema)
 
         data_replicator_id = "data_replicator"
 
@@ -540,7 +540,7 @@ class DielectricConstant(PhysicalProperty):
         reweight_dielectric.bootstrap_iterations = 200
 
         protocols, data_replicator = generate_base_reweighting_protocols(
-            extract_dielectric, reweight_dielectric, options, data_replicator_id
+            extract_dielectric, reweight_dielectric, data_replicator_id
         )
 
         # Make sure input is taken from the correct protocol outputs.
@@ -591,4 +591,14 @@ class DielectricConstant(PhysicalProperty):
         schema.gradients_sources = [gradient_source]
         schema.final_value_source = ProtocolPath("value", protocols.mbar_protocol.id)
 
-        return schema
+        calculation_schema.workflow_schema = schema
+        return calculation_schema
+
+
+# Register the properties via the plugin system.
+register_calculation_schema(
+    DielectricConstant, SimulationLayer, DielectricConstant.default_simulation_schema
+)
+register_calculation_schema(
+    DielectricConstant, ReweightingLayer, DielectricConstant.default_reweighting_schema
+)

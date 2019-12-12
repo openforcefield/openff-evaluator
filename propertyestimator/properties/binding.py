@@ -1,52 +1,43 @@
 """
 A collection of density physical property definitions.
 """
+import copy
 
-from propertyestimator.layers.plugins import register_estimable_property
-from propertyestimator.properties import PhysicalProperty
+from propertyestimator.datasets import PhysicalProperty
+from propertyestimator.layers.simulation import SimulationSchema
 from propertyestimator.protocols import coordinates, forcefield, miscellaneous, yank
 from propertyestimator.substances import Substance
 from propertyestimator.workflow.schemas import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
 
-@register_estimable_property()
 class HostGuestBindingAffinity(PhysicalProperty):
     """A class representation of a host-guest binding affinity property"""
 
-    @property
-    def multi_component_property(self):
-        """Returns whether this property is dependant on properties of the
-        full mixed substance, or whether it is also dependant on the properties
-        of the individual components also.
-        """
-        return False
-
     @staticmethod
-    def get_default_workflow_schema(calculation_layer, options=None):
-
-        if calculation_layer == "SimulationLayer":
-            return HostGuestBindingAffinity.get_default_simulation_workflow_schema(
-                options
-            )
-
-        return None
-
-    @staticmethod
-    def get_default_simulation_workflow_schema(options=None):
-        """Returns the default workflow to use when estimating this property
-        from direct simulations.
+    def default_simulation_schema(existing_schema=None):
+        """Returns the default calculation schema to use when estimating
+        this class of property from direct simulations.
 
         Parameters
         ----------
-        options: WorkflowOptions
-            The default options to use when setting up the estimation workflow.
+        existing_schema: SimulationSchema, optional
+            An existing schema whose settings to use. If set,
+            the schema's `workflow_schema` will be overwritten
+            by this method.
 
         Returns
         -------
-        WorkflowSchema
+        SimulationSchema
             The schema to follow when estimating this property.
         """
+
+        calculation_schema = SimulationSchema()
+
+        if existing_schema is not None:
+
+            assert isinstance(existing_schema, SimulationSchema)
+            calculation_schema = copy.deepcopy(existing_schema)
 
         schema = WorkflowSchema(property_type=HostGuestBindingAffinity.__name__)
         schema.id = "{}{}".format(HostGuestBindingAffinity.__name__, "Schema")
@@ -212,4 +203,5 @@ class HostGuestBindingAffinity(PhysicalProperty):
         #
         # schema.outputs_to_store = {'full_system': output_to_store}
 
-        return schema
+        calculation_schema.workflow_schema = schema
+        return calculation_schema

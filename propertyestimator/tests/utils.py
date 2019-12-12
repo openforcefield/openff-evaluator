@@ -9,14 +9,12 @@ from propertyestimator.backends import (
     DaskLSFBackend,
     QueueWorkerResources,
 )
-from propertyestimator.datasets import PhysicalPropertyDataSet
+from propertyestimator.datasets import PhysicalPropertyDataSet, PropertyPhase, CalculationSource
 from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.properties import (
-    CalculationSource,
     Density,
     DielectricConstant,
     EnthalpyOfMixing,
-    PropertyPhase,
 )
 from propertyestimator.protocols import coordinates, groups, simulation
 from propertyestimator.storage import LocalFileStorage, StoredSimulationData

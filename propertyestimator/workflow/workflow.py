@@ -15,9 +15,8 @@ from os import makedirs, path
 
 from propertyestimator import unit
 from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource
-from propertyestimator.storage.dataclasses import (
+from propertyestimator.storage.data import (
     BaseStoredData,
-    StoredDataCollection,
     StoredSimulationData,
 )
 from propertyestimator.utils import graph
@@ -1676,8 +1675,6 @@ class WorkflowGraph:
 
         if type(output_to_store) == WorkflowSimulationDataToStore:
             stored_object = StoredSimulationData()
-        elif type(output_to_store) == WorkflowDataCollectionToStore:
-            stored_object = StoredDataCollection()
 
         if output_to_store.substance is None:
             stored_object.substance = physical_property.substance

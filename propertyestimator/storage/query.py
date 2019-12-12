@@ -5,7 +5,7 @@ data which matches a set of criteria.
 import abc
 
 from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
-from propertyestimator.properties import PropertyPhase
+from propertyestimator.datasets import PropertyPhase
 from propertyestimator.storage import StoredSimulationData
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState

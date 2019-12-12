@@ -1,5 +1,6 @@
+from .provenance import CalculationSource, MeasurementSource, Source   # isort:skip
 from .datasets import PhysicalProperty, PhysicalPropertyDataSet, PropertyPhase
-from .provenance import CalculationSource, MeasurementSource, Source
+
 
 __all__ = [
     PropertyPhase,

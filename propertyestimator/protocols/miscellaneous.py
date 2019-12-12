@@ -8,7 +8,7 @@ import numpy as np
 
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
-from propertyestimator.properties import ParameterGradient
+from propertyestimator.forcefield import ParameterGradient
 from propertyestimator.substances import Substance
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.quantities import EstimatedQuantity

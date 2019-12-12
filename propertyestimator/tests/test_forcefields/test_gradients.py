@@ -1,34 +1,3 @@
-"""
-Units tests for propertyestimator.layers.simulation
-"""
-import json
-
-import numpy as np
-import pytest
-
-from propertyestimator import unit
-from propertyestimator.properties import ParameterGradient, ParameterGradientKey
-from propertyestimator.properties.density import Density
-from propertyestimator.tests.utils import create_dummy_property
-from propertyestimator.utils.serialization import TypedJSONEncoder
-
-
-def test_physical_property_state_methods():
-
-    dummy_property = create_dummy_property(Density)
-    property_state = dummy_property.__getstate__()
-
-    recreated_property = Density()
-    recreated_property.__setstate__(property_state)
-
-    recreated_state = recreated_property.__getstate__()
-
-    original_json = json.dumps(property_state, cls=TypedJSONEncoder)
-    recreated_json = json.dumps(recreated_state, cls=TypedJSONEncoder)
-
-    assert original_json == recreated_json
-
-
 def test_gradient_addition():
 
     gradient_a = ParameterGradient(

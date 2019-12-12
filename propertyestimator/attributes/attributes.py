@@ -51,6 +51,34 @@ class AttributeClass(TypedBaseModel):
     attributes with additional metadata.
     """
 
+    def validate(self, attribute_type=None):
+        """Validate the values of the attributes. If `attribute_type`
+        is set, only attributes of that type will be validated.
+
+        Parameters
+        ----------
+        attribute_type: type of Attribute, optional
+            The type of attribute to validate.
+
+        Raises
+        ------
+        ValueError
+        """
+
+        attribute_names = self._get_attributes()
+
+        for name in attribute_names:
+
+            attribute = getattr(self.__class__, name)
+            attribute_value = getattr(self.__class__, name)
+
+            if attribute_type is not None and type(attribute) != attribute_type:
+                continue
+
+            if not attribute.optional and attribute_value == UNDEFINED:
+
+                raise ValueError(f"The required {name} attribute has not been set.")
+
     @classmethod
     def _get_attributes(cls, attribute_type=None):
         """Returns all attributes of a specific `attribute_type`.
@@ -113,6 +141,8 @@ class AttributeClass(TypedBaseModel):
 
             # This should handle type checking.
             setattr(self, name, state[name])
+
+        self.validate()
 
 
 class Attribute:
