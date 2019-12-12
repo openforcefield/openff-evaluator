@@ -7,6 +7,7 @@ from os import path
 from typing import Union
 
 from propertyestimator.attributes import UNDEFINED
+from propertyestimator.storage import StoredSimulationData
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException
@@ -95,6 +96,14 @@ class UnpackStoredSimulationData(BaseProtocol):
 
         with open(data_object_path, "r") as file:
             data_object = json.load(file, cls=TypedJSONDecoder)
+
+        if not isinstance(data_object, StoredSimulationData):
+
+            return PropertyEstimatorException(
+                directory=directory,
+                message=f"The data path must point to a `StoredSimulationData` "
+                f"object, and not a {data_object.__class__.__name__}",
+            )
 
         self.substance = data_object.substance
         self.total_number_of_molecules = data_object.total_number_of_molecules

@@ -3,7 +3,7 @@
 at states which have not previously been simulated directly, but where
 simulations at similar states have been run.
 """
-from propertyestimator.attributes import UNDEFINED, Attribute
+from propertyestimator.attributes import Attribute
 from propertyestimator.layers import calculation_layer
 from propertyestimator.layers.workflow import (
     WorkflowCalculationLayer,
@@ -22,7 +22,6 @@ class ReweightingSchema(WorkflowCalculationSchema):
         docstring="The query to use when retrieving cached simulation data"
         "from the storage backend.",
         type_hint=SimulationDataQuery,
-        default_value=UNDEFINED,
     )
 
 

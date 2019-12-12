@@ -70,7 +70,7 @@ class AttributeClass(TypedBaseModel):
         for name in attribute_names:
 
             attribute = getattr(self.__class__, name)
-            attribute_value = getattr(self.__class__, name)
+            attribute_value = getattr(self, name)
 
             if attribute_type is not None and type(attribute) != attribute_type:
                 continue

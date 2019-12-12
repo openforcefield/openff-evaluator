@@ -16,14 +16,12 @@ from propertyestimator.protocols import (
     simulation,
     storage,
 )
+from propertyestimator.storage import StoredSimulationData
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow import WorkflowOptions
 from propertyestimator.workflow.plugins import available_protocols
-from propertyestimator.workflow.schemas import (
-    ProtocolReplicator,
-    WorkflowSimulationDataToStore,
-)
+from propertyestimator.workflow.schemas import ProtocolReplicator
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 BaseReweightingProtocols = namedtuple(
@@ -331,7 +329,7 @@ def generate_base_simulation_protocols(
     ProtocolPath
         A reference to the final value of the estimated observable
         and its uncertainty (an `EstimatedQuantity`).
-    WorkflowSimulationDataToStore
+    StoredSimulationData
         An object which describes the default data from a simulation to store,
         such as the uncorrelated statistics and configurations.
     """
@@ -479,7 +477,7 @@ def generate_base_simulation_protocols(
     extract_uncorrelated_statistics.input_statistics_path = statistics_path
 
     # Build the object which defines which pieces of simulation data to store.
-    output_to_store = WorkflowSimulationDataToStore()
+    output_to_store = StoredSimulationData()
 
     output_to_store.total_number_of_molecules = ProtocolPath(
         "output_number_of_molecules", build_coordinates.id

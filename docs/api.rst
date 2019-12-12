@@ -226,9 +226,6 @@ Workflow API
     ProtocolSchema
     ProtocolGroupSchema
     ProtocolReplicator
-    WorkflowOutputToStore
-    WorkflowSimulationDataToStore
-    WorkflowDataCollectionToStore
 
 **Base Protocol API**
 

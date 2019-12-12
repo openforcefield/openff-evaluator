@@ -188,7 +188,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             "estimated_free_energy", yank_protocol.id
         )
 
-        # output_to_store = WorkflowOutputToStore()
+        # output_to_store = StoredSimulationData()
         #
         # output_to_store.trajectory_file_path = ProtocolPath('output_trajectory_path',
         #                                                     extract_uncorrelated_trajectory.id)

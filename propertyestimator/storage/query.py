@@ -4,7 +4,7 @@ data which matches a set of criteria.
 """
 import abc
 
-from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
+from propertyestimator.attributes import Attribute, AttributeClass
 from propertyestimator.datasets import PropertyPhase
 from propertyestimator.storage import StoredSimulationData
 from propertyestimator.substances import Substance
@@ -16,24 +16,17 @@ class BaseDataQuery(AttributeClass, abc.ABC):
     a `StorageBackend`.
     """
 
-    _data_class = None
+    @classmethod
+    @abc.abstractmethod
+    def supported_data_classes(cls):
+        """Returns the types of data classes that this
+        query can be applied to.
 
-    def _validate(self):
-        """Validates that all of the query attributes are
-        correctly set.
+        Returns
+        -------
+        list of type of BaseStoredData
         """
-
-        attribute_names = self.get_attributes(Attribute)
-
-        for name in attribute_names:
-
-            attribute = getattr(self.__class__, name)
-
-            if attribute.optional:
-                continue
-
-            attribute_value = getattr(self, name)
-            assert attribute_value != UNDEFINED
+        raise NotImplementedError()
 
 
 class SimulationDataQuery(BaseDataQuery):
@@ -42,10 +35,12 @@ class SimulationDataQuery(BaseDataQuery):
     of criteria.
     """
 
-    _data_class = StoredSimulationData
+    @classmethod
+    def supported_data_classes(cls):
+        return [StoredSimulationData]
 
     substance = Attribute(
-        docstring="The substance that the data should have been " "measured for.",
+        docstring="The substance that the data should have been measured for.",
         type_hint=Substance,
         optional=False,
     )
@@ -62,12 +57,12 @@ class SimulationDataQuery(BaseDataQuery):
     )
 
     source_calculation_id = Attribute(
-        docstring="The server id of the calculation which yielded " "this data.",
+        docstring="The server id of the calculation which yielded this data.",
         type_hint=str,
         optional=True,
     )
     force_field_id = Attribute(
-        docstring="The id of the force field parameters used to " "generate the data.",
+        docstring="The id of the force field parameters used to generate the data.",
         type_hint=str,
         optional=True,
     )
