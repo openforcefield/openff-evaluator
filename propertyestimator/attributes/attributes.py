@@ -4,6 +4,7 @@ object attributes.
 """
 import copy
 import inspect
+from collections.abc import Iterable, Mapping
 from enum import Enum, IntEnum, IntFlag
 
 from propertyestimator import unit
@@ -76,8 +77,29 @@ class AttributeClass(TypedBaseModel):
                 continue
 
             if not attribute.optional and attribute_value == UNDEFINED:
-
                 raise ValueError(f"The required {name} attribute has not been set.")
+
+            iterable_values = []
+
+            if isinstance(attribute_value, AttributeClass):
+                attribute_value.validate(attribute_type)
+
+            elif isinstance(attribute_value, Mapping):
+
+                iterable_values = (
+                    attribute_value[x]
+                    for x in attribute_value
+                    if isinstance(attribute_value[x], AttributeClass)
+                )
+
+            elif isinstance(attribute_value, Iterable):
+
+                iterable_values = (
+                    x for x in attribute_value if isinstance(x, AttributeClass)
+                )
+
+            for value in iterable_values:
+                value.validate()
 
     @classmethod
     def get_attributes(cls, attribute_type=None):

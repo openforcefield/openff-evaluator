@@ -56,9 +56,6 @@ class ReweightingSchema(WorkflowCalculationSchema):
             isinstance(x, SimulationDataQuery) for x in self.storage_queries.values()
         )
 
-        for query in self.storage_queries.values():
-            query.validate()
-
 
 @calculation_layer()
 class ReweightingLayer(WorkflowCalculationLayer):
