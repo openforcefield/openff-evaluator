@@ -106,7 +106,7 @@ class UnpackStoredSimulationData(BaseProtocol):
             )
 
         self.substance = data_object.substance
-        self.total_number_of_molecules = data_object.total_number_of_molecules
+        self.total_number_of_molecules = data_object.number_of_molecules
 
         self.thermodynamic_state = data_object.thermodynamic_state
 

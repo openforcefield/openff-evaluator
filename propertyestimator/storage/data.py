@@ -2,9 +2,11 @@
 A collection of classes representing data stored by a storage backend.
 """
 import abc
+import hashlib
 
 from propertyestimator.attributes import AttributeClass
 from propertyestimator.datasets import PropertyPhase
+from propertyestimator.forcefield import ForceFieldSource
 from propertyestimator.storage.attributes import (
     ComparisonBehaviour,
     FilePath,
@@ -18,7 +20,7 @@ class BaseStoredData(AttributeClass, abc.ABC):
     """A base representation of cached data to be stored by
     a storage backend.
 
-    The expectation is that stored data will exist in storage
+    The expectation is that stored data may exist in storage
     as two parts:
 
         1) A JSON serialized representation of this class (or
@@ -32,28 +34,72 @@ class BaseStoredData(AttributeClass, abc.ABC):
            files which do not easily lend themselves to be
            serialized within a JSON object, whose files are referenced
            by their file name by the data object.
+
+    The ancillary directory-like structure is not required if the
+    data may be suitably stored in the data object itself.
     """
 
-    @staticmethod
+    @classmethod
     @abc.abstractmethod
-    def are_compatible(stored_data_1, stored_data_2):
-        """Checks whether two pieces of data contain the same
-        amount of compatible information.
-
-        Parameters
-        ----------
-        stored_data_1: BaseStoredData
-            The first piece of data to compare.
-        stored_data_2: BaseStoredData
-            The second piece of data to compare.
+    def has_ancillary_data(cls):
+        """Returns whether this data object requires an
+        accompanying data directory-like structure.
 
         Returns
         -------
         bool
-            Returns `True` if the data contains the same amount of
-            information, or `False` otherwise.
+            True if this class requires an accompanying
+            data directory-like structure.
         """
         raise NotImplementedError()
+
+
+class HashableStoredData(BaseStoredData, abc.ABC):
+    """Represents a class of data objects which can be
+    compared directly solely by their hash values.
+    """
+
+    def __eq__(self, other):
+        return type(self) == type(other) and hash(self) == hash(other)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    @abc.abstractmethod
+    def __hash__(self):
+        raise NotImplementedError
+
+
+class MergeableStoredData(BaseStoredData, abc.ABC):
+    """Represents a class of data objects which may
+    contain redundant data and can be merged into a
+    single object in such cases.
+    """
+
+    @staticmethod
+    def are_compatible(stored_data_1, stored_data_2):
+
+        if type(stored_data_1) != type(stored_data_2):
+            return False
+
+        attribute_names = stored_data_1.__class__.get_attributes(StorageAttribute)
+
+        for name in attribute_names:
+
+            attribute = getattr(stored_data_1.__class__, name)
+
+            if attribute.comparison_behavior == ComparisonBehaviour.Ignore:
+                continue
+
+            value_1 = getattr(stored_data_1, name)
+            value_2 = getattr(stored_data_2, name)
+
+            if value_1 == value_2:
+                continue
+
+            return False
+
+        return True
 
     @staticmethod
     @abc.abstractmethod
@@ -78,7 +124,7 @@ class BaseStoredData(AttributeClass, abc.ABC):
         raise NotImplementedError()
 
 
-class StoredSimulationData(BaseStoredData):
+class StoredSimulationData(MergeableStoredData):
     """A representation of data which has been cached
     from a single previous simulation.
 
@@ -152,36 +198,12 @@ class StoredSimulationData(BaseStoredData):
         comparison_behavior=ComparisonBehaviour.Ignore,
     )
 
-    total_number_of_molecules = StorageAttribute(
+    number_of_molecules = StorageAttribute(
         docstring="The total number of molecules in the system.", type_hint=int,
     )
 
-    @staticmethod
-    def are_compatible(stored_data_1, stored_data_2):
-
-        assert isinstance(stored_data_1, StoredSimulationData)
-        assert isinstance(stored_data_2, StoredSimulationData)
-
-        if type(stored_data_1) != type(stored_data_2):
-            return False
-
-        attribute_names = stored_data_1.__class__.get_attributes(StorageAttribute)
-
-        for name in attribute_names:
-
-            attribute = getattr(stored_data_1.__class__, name)
-
-            if attribute.comparison_behavior == ComparisonBehaviour.Ignore:
-                continue
-
-            value_1 = getattr(stored_data_1, name)
-            value_2 = getattr(stored_data_2, name)
-
-            if value_1 == value_2:
-                continue
-
-            return False
-
+    @classmethod
+    def has_ancillary_data(cls):
         return True
 
     @staticmethod
@@ -208,3 +230,22 @@ class StoredSimulationData(BaseStoredData):
             return stored_data_1
 
         return stored_data_2
+
+
+class ForceFieldData(HashableStoredData):
+    """A data container for force field objects which
+    will be saved to disk.
+    """
+
+    force_field_source = StorageAttribute(
+        docstring="The force field source object.", type_hint=ForceFieldSource,
+    )
+
+    @classmethod
+    def has_ancillary_data(cls):
+        return False
+
+    def __hash__(self):
+
+        force_field_string = self.force_field_source.json()
+        return hashlib.sha256(force_field_string.encode()).hexdigest()

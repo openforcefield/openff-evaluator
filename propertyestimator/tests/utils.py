@@ -287,7 +287,7 @@ def create_dummy_stored_simulation_data(
     data.statistics_file_name = statistics_file_name
     data.statistical_inefficiency = statistical_inefficiency
 
-    data.total_number_of_molecules = number_of_molecules
+    data.number_of_molecules = number_of_molecules
 
     return data
 

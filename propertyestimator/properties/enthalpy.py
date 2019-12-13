@@ -772,7 +772,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         gas_data_query = SimulationDataQuery()
         gas_data_query.property_phase = PropertyPhase.Gas
-        gas_data_query.total_number_of_molecules = 1
+        gas_data_query.number_of_molecules = 1
 
         return {
             "liquid_data": liquid_data_query,

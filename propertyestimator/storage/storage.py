@@ -1,59 +1,89 @@
 """
 Defines the base API for the property estimator storage backend.
 """
+import abc
+from collections import defaultdict
+from typing import Dict
 
-import hashlib
-import uuid
-from os import path
+from propertyestimator.storage.attributes import StorageAttribute
+from propertyestimator.storage.data import (
+    BaseStoredData,
+    HashableStoredData,
+    MergeableStoredData,
+)
 
-from propertyestimator.forcefield import ForceFieldSource
-from propertyestimator.storage.data import BaseStoredData, StoredSimulationData
-from propertyestimator.utils.string import sanitize_smiles_file_name
 
-
-class StorageBackend:
+class StorageBackend(abc.ABC):
     """An abstract base representation of how the property estimator will
     interact with and store simulation data.
-
-    Notes
-    -----
-    Any inheriting class must provide an implementation for the
-    `store_object`, `retrieve_object` and `has_object` methods
     """
+
+    class _ObjectKeyData(BaseStoredData):
+        """An object which keeps track of the items in
+        the storage system.
+        """
+
+        object_keys = StorageAttribute(
+            docstring="The unique keys of the objects stored in a `StorageBackend`.",
+            type_hint=dict,
+        )
+
+        @classmethod
+        def has_ancillary_data(cls):
+            return False
 
     def __init__(self):
         """Constructs a new StorageBackend object.
         """
-        self._stored_object_keys = set()
-        self._stored_object_keys_file = "internal_object_keys"
+        self._stored_object_keys = None
+        self._stored_object_keys_id = "object_keys"
 
-        # Store a map between the unique id of a force field,
-        # and its hash value for easy comparision of force fields.
-        self._force_field_id_map = {}
-        self._force_field_id_map_file = "internal_force_field_map"
-
-        self._simulation_data_by_substance = {}
-        self._simulation_data_by_substance_file = "internal_simulation_data_map"
+        # Store a map between the unique id of a stored object,
+        # and its hash value for easy comparision.
+        self._object_hashes: Dict[int, str] = dict()
 
         self._load_stored_object_keys()
-        self._load_force_field_hashes()
-        self._load_simulation_data_map()
 
     def _load_stored_object_keys(self):
-        """Load the unique key to each object stored in the storage system.
+        """Load the unique key to each object stored in the
+        storage system.
         """
-        stored_object_keys = self._retrieve_object(self._stored_object_keys_file)
+        keys_object = self.retrieve_object(self._stored_object_keys_id)
+        assert isinstance(keys_object, StorageBackend._ObjectKeyData)
 
-        if stored_object_keys is None:
-            stored_object_keys = set()
+        stored_object_keys = {}
+        all_object_keys = set()
 
-        for unique_key in stored_object_keys:
+        if keys_object is not None:
+            stored_object_keys = keys_object.object_keys
 
-            if not self._has_object(unique_key):
-                # The stored entry key does not exist in the system, so skip the entry.
-                continue
+        for data_type in stored_object_keys:
 
-            self._stored_object_keys.add(unique_key)
+            for unique_key in stored_object_keys[data_type]:
+
+                if not self._has_object(unique_key):
+                    # The stored entry key does not exist in the system,
+                    # so skip the entry. This may happen when the local
+                    # file do not exist on disk any more for example.
+                    continue
+
+                if unique_key in all_object_keys:
+
+                    raise IndexError(
+                        "Two objects with the same unique key have been found."
+                    )
+
+                stored_object = self.retrieve_object(unique_key)
+
+                # Make sure the data matches the expected type and is valid.
+                assert stored_object.__class__.__name__ == data_type
+                stored_object.validate()
+
+                if isinstance(stored_object, HashableStoredData):
+                    self._object_hashes[hash(stored_object)] = unique_key
+
+                self._stored_object_keys[data_type].add(unique_key)
+                all_object_keys.add(unique_key)
 
         # Store a fresh copy of the key dictionary so that only entries
         # that exist in the system actually referenced.
@@ -62,30 +92,84 @@ class StorageBackend:
     def _save_stored_object_keys(self):
         """Save the unique key of each of the objects stored in the storage system.
         """
-        self._store_object(self._stored_object_keys_file, self._stored_object_keys)
+        keys_object = StorageBackend._ObjectKeyData()
+        keys_object.object_keys = self._stored_object_keys
 
-    def _store_object(self, storage_key, object_to_store):
-        """Store an object in the estimators storage system.
+        self.store_object(self._stored_object_keys_id, keys_object)
+
+    @abc.abstractmethod
+    def store_object(self, storage_key, object_to_store, ancillary_data_path=None):
+        """Store an object in the storage system, returning the key
+        of the stored object. This may be different to `storage_key`
+        depending on whether the same or a similar object was already
+        present in the system.
 
         Parameters
         ----------
         storage_key: str
-            A unique key that describes where the object will be stored in
-             the storage system.
-        object_to_store: Any
-            The object to store. The object must be pickle serializable.
+            A unique key to associate with the stored object.
+        object_to_store: BaseStoredData
+            The object to store.
+        ancillary_data_path: str, optional
+            The data path to the ancillary directory-like
+            data to store alongside the object if the data
+            type requires one.
+
+        Returns
+        -------
+        str
+            The unique key assigned to the stored object.
         """
 
         if object_to_store is None:
             raise ValueError("The object to store cannot be None.")
 
-        if storage_key in self._stored_object_keys:
-            return
+        # Make sure the object is a supported type.
+        if not isinstance(object_to_store, BaseStoredData):
+
+            raise ValueError(
+                "Only objects inheriting from `BaseStoredData` can "
+                "be stored in the storage system."
+            )
+
+        # Make sure we have ancillary data if required.
+        if (
+            object_to_store.__class__.has_ancillary_data()
+            and ancillary_data_path is None
+        ):
+            raise ValueError("This object requires ancillary data.")
+
+        # Make sure the key in unique.
+        if any(
+            (
+                storage_key in self._stored_object_keys[data_type]
+                for data_type in self._stored_object_keys
+            )
+        ):
+
+            raise IndexError(
+                f"An object with the key {storage_key} already "
+                f"exists in the system."
+            )
+
+        # Check whether the exact same object already exists within
+        # the storage system based on its hash.
+        if (
+            isinstance(object_to_store, HashableStoredData)
+            and hash(object_to_store) in self._object_hashes
+        ):
+            return self._object_hashes[hash(object_to_store)]
+
+        # Check whether a similar piece of data already exists in the
+        # storage system, and decide which to keep.
+        elif isinstance(object_to_store, MergeableStoredData):
+            raise NotImplementedError()
 
         self._stored_object_keys.add(storage_key)
         self._save_stored_object_keys()
 
-    def _retrieve_object(self, storage_key):
+    @abc.abstractmethod
+    def retrieve_object(self, storage_key, expected_type=None):
         """Retrieves a stored object for the estimators storage system.
 
         Parameters
@@ -93,14 +177,20 @@ class StorageBackend:
         storage_key: str
             A unique key that describes where the stored object can be found
             within the storage system.
+        expected_type: type of BaseStoredData, optional
+            The expected data type. An exception is raised if
+            the retrieved data doesn't match the type.
 
         Returns
         -------
-        Any, optional
+        BaseStoredData, optional
             The stored object if the object key is found, otherwise None.
+        str, optional
+            The path to the ancillary data if present.
         """
         raise NotImplementedError()
 
+    @abc.abstractmethod
     def _has_object(self, storage_key):
         """Check whether an object with the specified key exists in the
         storage system.
@@ -117,314 +207,59 @@ class StorageBackend:
         """
         raise NotImplementedError()
 
-    def _load_force_field_hashes(self):
-        """Load the unique id and hash keys of each of the force fields which
-         have been stored in the force field directory (``self._force_field_root``).
-        """
-        force_field_id_map = self._retrieve_object(self._force_field_id_map_file)
-
-        if force_field_id_map is None:
-            force_field_id_map = {}
-
-        for unique_id in force_field_id_map:
-
-            force_field_key = "force_field_{}".format(unique_id)
-
-            if not self._has_object(force_field_key):
-                # The force field file does not exist, so skip the entry.
-                continue
-
-            self._force_field_id_map[unique_id] = force_field_id_map[unique_id]
-
-        # Store a fresh copy of the hashes so that only force fields that
-        # exist are actually referenced.
-        self._save_force_field_hashes()
-
-    def _save_force_field_hashes(self):
-        """Save the unique id and force field hash key dictionary.
-        """
-        self._store_object(self._force_field_id_map_file, self._force_field_id_map)
-
-    @staticmethod
-    def _force_field_to_hash(force_field):
-        """Converts a ForceFieldSource object to a hash
-        string.
+    def has_object(self, hashable_object):
+        """Checks whether a given hashable object exists in the
+        storage system.
 
         Parameters
         ----------
-        force_field: ForceFieldSource
-            The force field to hash.
-
-        Returns
-        -------
-        str
-            The hash key of the force field.
-        """
-        force_field_string = force_field.json()
-        return hashlib.sha256(force_field_string.encode()).hexdigest()
-
-    def has_force_field(self, force_field):
-        """Checks whether the force field has been previously
-        stored in the force field directory.
-
-        Parameters
-        ----------
-        force_field: ForceFieldSource
-            The force field to check for.
+        hashable_object: HashableStoredData
+            The object to check for.
 
         Returns
         -------
         str, optional
-            None if the force field has not been cached, otherwise
-            the unique id of the cached force field.
+            The unique key of the object is in the system, `None` otherwise.
+        """
+        hash_key = hash(hashable_object)
+        return self._object_hashes.get(hash_key, None)
+
+    def query(self, data_query):
+        """Query the storage backend for data matching the
+        query criteria.
+
+        Parameters
+        ----------
+        data_query: BaseDataQuery
+            The query to perform.
+
+        Returns
+        -------
+        dict of tuple and list of BaseStoredData
+            The data that matches the query, partitioned
+            by the query returned category.
         """
 
-        hash_string = self._force_field_to_hash(force_field)
+        data_class = data_query.supported_data_class()
+        results = defaultdict(list)
 
-        for unique_id in self._force_field_id_map:
+        if len(self._stored_object_keys.get(data_class.__name__, [])) == 0:
+            # Exit early of there are no objects of the correct type.
+            return results
 
-            existing_hash = self._force_field_id_map[unique_id]
+        for unique_key in self._stored_object_keys[data_class.__name__]:
 
-            if hash_string != existing_hash:
+            if not self._has_object(unique_key):
+                # Make sure the object is still in the system.
                 continue
 
-            force_field_key = "force_field_{}".format(unique_id)
+            stored_object = self.retrieve_object(unique_key, data_class)
 
-            if not self._has_object(force_field_key):
-                # For some reason the force field got deleted..
+            matches = data_query.apply(stored_object)
+
+            if matches is None:
                 continue
 
-            return unique_id
+            results[matches].append(stored_object)
 
-        return None
-
-    def retrieve_force_field(self, unique_id):
-        """Retrieves a force field from storage, if it exists.
-
-        Parameters
-        ----------
-        unique_id: str
-            The unique id of the force field to retrieve
-
-        Returns
-        -------
-        ForceFieldSource, optional
-            The force field if present in the storage system with the given key, otherwise None.
-        """
-        force_field_key = "force_field_{}".format(unique_id)
-        force_field_source = self._retrieve_object(force_field_key)
-
-        if force_field_source is None:
-
-            raise KeyError(
-                f"The force field with id {unique_id} does not exist "
-                f"in the storage system."
-            )
-
-        if not isinstance(force_field_source, ForceFieldSource):
-            raise ValueError(f"The stored force field is invalid.")
-
-        return force_field_source
-
-    def store_force_field(self, force_field):
-        """Store the force field in the cached force field
-        directory.
-
-        Parameters
-        ----------
-        force_field: ForceFieldSource
-            The force field to store.
-
-        Returns
-        -------
-        str
-            The unique id of the stored force field.
-        """
-
-        unique_id = str(uuid.uuid4())
-
-        # Be extra cautious and mash sure there wasn't
-        # a hash collision.
-        while unique_id in self._force_field_id_map:
-            unique_id = str(uuid.uuid4())
-
-        hash_string = self._force_field_to_hash(force_field)
-        force_field_key = "force_field_{}".format(unique_id)
-
-        # We make sure to strip the cosmetic attributes from the stored FF as these should
-        # not affect the science of the FF, and aren't currently consumed by the estimator.
-        self._store_object(force_field_key, force_field)
-
-        # Make sure to hash the force field for easy access.
-        if (
-            unique_id not in self._force_field_id_map
-            or hash_string != self._force_field_id_map[unique_id]
-        ):
-
-            self._force_field_id_map[unique_id] = hash_string
-            self._save_force_field_hashes()
-
-        return unique_id
-
-    def _load_simulation_data_map(self):
-        """Load the dictionary which tracks which stored simulation data
-        was calculated for a specific substance.
-        """
-        _simulation_data_by_substance = self._retrieve_object(
-            self._simulation_data_by_substance_file
-        )
-
-        if _simulation_data_by_substance is None:
-            _simulation_data_by_substance = {}
-
-        for substance_id in _simulation_data_by_substance:
-
-            self._simulation_data_by_substance[substance_id] = []
-
-            for unique_id in _simulation_data_by_substance[substance_id]:
-
-                data_object, data_directory = self.retrieve_simulation_data_by_id(
-                    unique_id
-                )
-
-                if data_object is None or not path.isdir(data_directory):
-                    # The stored data does not exist, so skip the entry.
-                    continue
-
-                self._simulation_data_by_substance[substance_id].append(unique_id)
-
-        # Store a fresh copy of the hashes so that only data that
-        # exists is actually referenced.
-        self._save_simulation_data_map()
-
-    def _save_simulation_data_map(self):
-        """Save the unique id and simulation data key by substance dictionary.
-        """
-        self._store_object(
-            self._simulation_data_by_substance_file, self._simulation_data_by_substance
-        )
-
-    def retrieve_simulation_data_by_id(self, unique_id):
-        """Attempts to retrieve a storage piece of simulation data
-        from it's unique id.
-
-        Parameters
-        ----------
-        unique_id: str
-            The unique id assigned to the data.
-
-        Returns
-        -------
-        BaseStoredData
-            The stored data object.
-        str
-            The path to the data's corresponding directory.
-        """
-        raise NotImplementedError()
-
-    def retrieve_simulation_data(
-        self, substance, include_component_data=True, data_class=StoredSimulationData
-    ):
-
-        """Retrieves any data that has been stored for a given substance.
-
-        Parameters
-        ----------
-        substance: Substance
-            The substance to check for.
-        include_component_data: bool
-            If the substance if a mixture where has multiple components and `include_component_data`
-            is True, data will be returned for both the mixed system, and for the individual
-            components, otherwise only data for the mixed system will be returned.
-        data_class: subclass of BaseStoredData
-            The type of data to retrieve.
-
-        Returns
-        -------
-        dict of str and tuple of BaseStoredData and str
-            A dictionary of the stored data objects and their corresponding directory paths
-            partitioned by substance id.
-        """
-        raise NotImplementedError()
-
-    def store_simulation_data(self, data_object, data_directory):
-        """Store the simulation data.
-
-        Notes
-        -----
-        If the storage system already contains equivalent information (i.e data stored
-        for the same substance, thermodynamic state and parameter set) then the
-        data will be merged according to the data objects `merge` method.
-
-        Parameters
-        ----------
-        data_object: BaseStoredData
-            The data object being stored.
-        data_directory: str
-            The directory which stores files associated with
-            the data object such as trajectory files.
-
-        Returns
-        -------
-        str
-            The unique id of the stored data.
-        """
-
-        if not path.isdir(data_directory):
-
-            raise ValueError(
-                f"The {data_directory} data directory either could"
-                f" not be found or is invalid."
-            )
-
-        if not isinstance(data_object, BaseStoredData):
-            raise ValueError(
-                "The data object must inherit from the `BaseStoredData` class."
-            )
-
-        if data_object.substance is None:
-            raise ValueError("The data object must have a valid substance.")
-
-        substance_id = data_object.substance.identifier
-
-        existing_data_key = None
-        data_to_store = None
-
-        if substance_id in self._simulation_data_by_substance:
-
-            # Check if any existing stored data is compatible with the
-            # new data we are trying to store
-            for stored_data_key in self._simulation_data_by_substance[substance_id]:
-
-                stored_data = self._retrieve_object(stored_data_key)
-
-                if not stored_data.can_merge(data_object):
-                    continue
-
-                data_to_store = stored_data.merge(stored_data, data_object)
-                existing_data_key = stored_data_key
-
-                break
-
-        if existing_data_key is None:
-
-            sanitized_id = sanitize_smiles_file_name(substance_id)
-            existing_data_key = "{}_{}".format(sanitized_id, uuid.uuid4())
-            data_to_store = data_object
-
-        self._store_object(existing_data_key, data_to_store)
-
-        # Store the unique id assigned to the data in the master
-        # list of ids if not already present.
-        if (
-            substance_id not in self._simulation_data_by_substance
-            or existing_data_key not in self._simulation_data_by_substance[substance_id]
-        ):
-
-            if substance_id not in self._simulation_data_by_substance:
-                self._simulation_data_by_substance[substance_id] = []
-
-            self._simulation_data_by_substance[substance_id].append(existing_data_key)
-            self._save_simulation_data_map()
-
-        return existing_data_key
+        return results
