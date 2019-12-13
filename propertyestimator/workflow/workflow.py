@@ -17,8 +17,7 @@ from shutil import copy as file_copy
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource
-from propertyestimator.storage.attributes import StorageAttribute
-from propertyestimator.storage.data import FilePath
+from propertyestimator.storage.attributes import FilePath, StorageAttribute
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder

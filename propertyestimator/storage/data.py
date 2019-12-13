@@ -5,14 +5,13 @@ import abc
 
 from propertyestimator.attributes import AttributeClass
 from propertyestimator.datasets import PropertyPhase
-from propertyestimator.storage.attributes import ComparisonBehaviour, StorageAttribute
+from propertyestimator.storage.attributes import (
+    ComparisonBehaviour,
+    FilePath,
+    StorageAttribute,
+)
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
-
-
-class FilePath(str):
-    """Represents a string file path.
-    """
 
 
 class BaseStoredData(AttributeClass, abc.ABC):

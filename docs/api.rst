@@ -200,7 +200,6 @@ Storage Backends API
 
     BaseStoredData
     StoredSimulationData
-    StoredDataCollection
 
 Workflow API
 ------------
@@ -346,10 +345,7 @@ Built-in Workflow Protocols
     :nosignatures:
     :toctree: api/generated/
 
-
-    UnpackStoredDataCollection
     UnpackStoredSimulationData
-
 
 **Miscellaneous**
 

@@ -246,6 +246,8 @@ def create_dummy_stored_simulation_data(
     trajectory_file_name="trajectory.dcd",
     statistics_file_name="statistics.csv",
     statistical_inefficiency=1.0,
+    phase=PropertyPhase.Liquid,
+    number_of_molecules=1,
 ):
 
     """Creates a dummy `StoredSimulationData` object and
@@ -261,6 +263,8 @@ def create_dummy_stored_simulation_data(
     trajectory_file_name
     statistics_file_name
     statistical_inefficiency
+    phase
+    number_of_molecules
 
     Returns
     -------
@@ -275,6 +279,7 @@ def create_dummy_stored_simulation_data(
     data.substance = substance
     data.force_field_id = force_field_id
     data.thermodynamic_state = ThermodynamicState(1.0 * unit.kelvin)
+    data.property_phase = phase
 
     data.coordinate_file_name = coordinate_file_name
     data.trajectory_file_name = trajectory_file_name
@@ -282,7 +287,7 @@ def create_dummy_stored_simulation_data(
     data.statistics_file_name = statistics_file_name
     data.statistical_inefficiency = statistical_inefficiency
 
-    data.total_number_of_molecules = 1
+    data.total_number_of_molecules = number_of_molecules
 
     return data
 

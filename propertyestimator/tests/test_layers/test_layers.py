@@ -80,6 +80,14 @@ class DummyCalculationLayer(CalculationLayer):
 
         dummy_stored_object = StoredSimulationData()
         dummy_stored_object.substance = physical_property.substance
+        dummy_stored_object.thermodynamic_state = physical_property.thermodynamic_state
+        dummy_stored_object.property_phase = physical_property.phase
+        dummy_stored_object.force_field_id = ""
+        dummy_stored_object.coordinate_file_name = ""
+        dummy_stored_object.trajectory_file_name = ""
+        dummy_stored_object.statistics_file_name = ""
+        dummy_stored_object.statistical_inefficiency = 1.0
+        dummy_stored_object.total_number_of_molecules = 10
 
         dummy_stored_object_path = path.join(layer_directory, "good_dummy_data.json")
 
