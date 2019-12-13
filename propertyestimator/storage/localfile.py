@@ -29,15 +29,15 @@ class LocalFileStorage(StorageBackend):
 
         super().__init__()
 
-    def store_object(self, storage_key, object_to_store, ancillary_data_path=None):
+    def store_object(self, object_to_store, storage_key=None, ancillary_data_path=None):
 
         unique_id = super(LocalFileStorage, self).store_object(
-            storage_key, object_to_store, ancillary_data_path
+            object_to_store, storage_key, ancillary_data_path
         )
 
         # Handle the case where the object is already in the
         # storage system.
-        if unique_id != storage_key:
+        if unique_id != storage_key and storage_key is not None:
             return unique_id
 
         file_path = path.join(self._root_directory, f"{unique_id}.json")

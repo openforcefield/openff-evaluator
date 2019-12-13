@@ -248,4 +248,4 @@ class ForceFieldData(HashableStoredData):
     def __hash__(self):
 
         force_field_string = self.force_field_source.json()
-        return hashlib.sha256(force_field_string.encode()).hexdigest()
+        return hash(force_field_string.encode())

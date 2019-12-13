@@ -2,12 +2,14 @@
 Defines the base API for the property estimator storage backend.
 """
 import abc
+import uuid
 from collections import defaultdict
 from typing import Dict
 
-from propertyestimator.storage.attributes import StorageAttribute
+from propertyestimator.attributes import Attribute
 from propertyestimator.storage.data import (
     BaseStoredData,
+    ForceFieldData,
     HashableStoredData,
     MergeableStoredData,
 )
@@ -23,9 +25,10 @@ class StorageBackend(abc.ABC):
         the storage system.
         """
 
-        object_keys = StorageAttribute(
+        object_keys = Attribute(
             docstring="The unique keys of the objects stored in a `StorageBackend`.",
             type_hint=dict,
+            default_value=dict()
         )
 
         @classmethod
@@ -49,13 +52,18 @@ class StorageBackend(abc.ABC):
         storage system.
         """
         keys_object = self.retrieve_object(self._stored_object_keys_id)
+
+        if keys_object is None:
+            keys_object = StorageBackend._ObjectKeyData()
+        else:
+            keys_object = keys_object[0]
+
         assert isinstance(keys_object, StorageBackend._ObjectKeyData)
 
-        stored_object_keys = {}
-        all_object_keys = set()
+        stored_object_keys = keys_object.object_keys
+        self._stored_object_keys = defaultdict(list)
 
-        if keys_object is not None:
-            stored_object_keys = keys_object.object_keys
+        all_object_keys = set()
 
         for data_type in stored_object_keys:
 
@@ -69,11 +77,11 @@ class StorageBackend(abc.ABC):
 
                 if unique_key in all_object_keys:
 
-                    raise IndexError(
+                    raise KeyError(
                         "Two objects with the same unique key have been found."
                     )
 
-                stored_object = self.retrieve_object(unique_key)
+                stored_object, _ = self.retrieve_object(unique_key)
 
                 # Make sure the data matches the expected type and is valid.
                 assert stored_object.__class__.__name__ == data_type
@@ -82,7 +90,7 @@ class StorageBackend(abc.ABC):
                 if isinstance(stored_object, HashableStoredData):
                     self._object_hashes[hash(stored_object)] = unique_key
 
-                self._stored_object_keys[data_type].add(unique_key)
+                self._stored_object_keys[data_type].append(unique_key)
                 all_object_keys.add(unique_key)
 
         # Store a fresh copy of the key dictionary so that only entries
@@ -95,10 +103,10 @@ class StorageBackend(abc.ABC):
         keys_object = StorageBackend._ObjectKeyData()
         keys_object.object_keys = self._stored_object_keys
 
-        self.store_object(self._stored_object_keys_id, keys_object)
+        self.store_object(keys_object, self._stored_object_keys_id)
 
     @abc.abstractmethod
-    def store_object(self, storage_key, object_to_store, ancillary_data_path=None):
+    def store_object(self, object_to_store, storage_key=None, ancillary_data_path=None):
         """Store an object in the storage system, returning the key
         of the stored object. This may be different to `storage_key`
         depending on whether the same or a similar object was already
@@ -106,10 +114,11 @@ class StorageBackend(abc.ABC):
 
         Parameters
         ----------
-        storage_key: str
-            A unique key to associate with the stored object.
         object_to_store: BaseStoredData
             The object to store.
+        storage_key: str, optional
+            A unique key to associate with the stored object. If `None`,
+            one will be randomly generated
         ancillary_data_path: str, optional
             The data path to the ancillary directory-like
             data to store alongside the object if the data
@@ -121,8 +130,15 @@ class StorageBackend(abc.ABC):
             The unique key assigned to the stored object.
         """
 
+        if storage_key is None:
+
+            while storage_key is None or self._has_object(storage_key):
+                storage_key = str(uuid.uuid4()).replace('-', '')
+
         if object_to_store is None:
             raise ValueError("The object to store cannot be None.")
+
+        object_to_store.validate()
 
         # Make sure the object is a supported type.
         if not isinstance(object_to_store, BaseStoredData):
@@ -147,7 +163,7 @@ class StorageBackend(abc.ABC):
             )
         ):
 
-            raise IndexError(
+            raise KeyError(
                 f"An object with the key {storage_key} already "
                 f"exists in the system."
             )
@@ -165,8 +181,30 @@ class StorageBackend(abc.ABC):
         elif isinstance(object_to_store, MergeableStoredData):
             raise NotImplementedError()
 
-        self._stored_object_keys.add(storage_key)
-        self._save_stored_object_keys()
+        if not isinstance(object_to_store, StorageBackend._ObjectKeyData):
+
+            self._stored_object_keys[object_to_store.__class__.__name__].append(storage_key)
+            self._save_stored_object_keys()
+
+        return storage_key
+
+    def store_force_field(self, force_field):
+        """A convenience method for storing `ForceFieldSource` objects.
+
+        Parameters
+        ----------
+        force_field: ForceFieldSource
+            The force field to store.
+
+        Returns
+        -------
+        str
+            The unique id of the stored force field.
+        """
+        force_field_data = ForceFieldData()
+        force_field_data.force_field_source = force_field
+
+        return self.store_object(force_field_data)
 
     @abc.abstractmethod
     def retrieve_object(self, storage_key, expected_type=None):
@@ -189,6 +227,30 @@ class StorageBackend(abc.ABC):
             The path to the ancillary data if present.
         """
         raise NotImplementedError()
+
+    def retrieve_force_field(self, storage_key):
+        """A convenience method for retrieving `ForceFieldSource` objects.
+
+        Parameters
+        ----------
+        storage_key: str
+            The key of the force field to retrieve.
+
+        Returns
+        -------
+        ForceFieldSource
+            The retrieved force field source.
+        """
+        force_field_data, _ = self.retrieve_object(storage_key, ForceFieldData)
+
+        if force_field_data is None:
+
+            raise KeyError(
+                f"The force field with id {storage_key} does not exist "
+                f"in the storage system."
+            )
+
+        return force_field_data.force_field_source
 
     @abc.abstractmethod
     def _has_object(self, storage_key):
@@ -219,10 +281,29 @@ class StorageBackend(abc.ABC):
         Returns
         -------
         str, optional
-            The unique key of the object is in the system, `None` otherwise.
+            The unique key of the object if it is in the system, `None` otherwise.
         """
         hash_key = hash(hashable_object)
         return self._object_hashes.get(hash_key, None)
+
+    def has_force_field(self, force_field):
+        """A convenience method for checking whether the specified
+        `ForceFieldSource` object is stored in the backend.
+
+        Parameters
+        ----------
+        force_field: ForceFieldSource
+            The force field to look for.
+
+        Returns
+        -------
+        str, optional
+            The unique key of the object if it is in the system, `None` otherwise.
+        """
+        force_field_data = ForceFieldData()
+        force_field_data.force_field_source = force_field
+
+        return self.has_object(force_field_data)
 
     def query(self, data_query):
         """Query the storage backend for data matching the
