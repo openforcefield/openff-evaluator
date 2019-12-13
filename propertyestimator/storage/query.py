@@ -4,11 +4,9 @@ data which matches a set of criteria.
 """
 import abc
 
-from propertyestimator.attributes import Attribute, AttributeClass
+from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
 from propertyestimator.datasets import PropertyPhase
 from propertyestimator.storage import StoredSimulationData
-from propertyestimator.substances import Substance
-from propertyestimator.thermodynamics import ThermodynamicState
 
 
 class BaseDataQuery(AttributeClass, abc.ABC):
@@ -29,6 +27,43 @@ class BaseDataQuery(AttributeClass, abc.ABC):
         raise NotImplementedError()
 
 
+class SubstanceQuery(AttributeClass, abc.ABC):
+    """A query which focuses on finding data which was
+    collected for substances with specific traits, e.g
+    which contains both a solute and solvent, or only a
+    solvent etc.
+    """
+
+    components_only = Attribute(
+        docstring="Optionally apply this query to each component "
+        "in the substance of interest.",
+        type_hint=bool,
+        default_value=False,
+    )
+
+    component_roles = Attribute(
+        docstring="Returns data for only the subset of a substance "
+        "which has the requested roles.",
+        type_hint=list,
+        optional=True,
+    )
+
+    def validate(self, attribute_type=None):
+
+        super(SubstanceQuery, self).validate(attribute_type)
+
+        if (
+            self.components_only
+            and self.component_roles != UNDEFINED
+            and len(self.components_only) > 0
+        ):
+
+            raise ValueError(
+                "The `component_roles` attribute cannot be used when "
+                "the `components_only` attribute is `True`."
+            )
+
+
 class SimulationDataQuery(BaseDataQuery):
     """A class used to query a `StorageBackend` for
     `StoredSimulationData` which meet the specified set
@@ -39,31 +74,15 @@ class SimulationDataQuery(BaseDataQuery):
     def supported_data_classes(cls):
         return [StoredSimulationData]
 
-    substance = Attribute(
-        docstring="The substance that the data should have been measured for.",
-        type_hint=Substance,
-        optional=False,
+    substance_query = Attribute(
+        docstring="The a query for the substance that the data should have "
+        "been measured for.",
+        type_hint=SubstanceQuery,
+        optional=True,
     )
     property_phase = Attribute(
         docstring="The phase of the substance (e.g. liquid, gas).",
         type_hint=PropertyPhase,
-        optional=False,
-    )
-
-    thermodynamic_state = Attribute(
-        docstring="The state at which the data should have been collected.",
-        type_hint=ThermodynamicState,
-        optional=True,
-    )
-
-    source_calculation_id = Attribute(
-        docstring="The server id of the calculation which yielded this data.",
-        type_hint=str,
-        optional=True,
-    )
-    force_field_id = Attribute(
-        docstring="The id of the force field parameters used to generate the data.",
-        type_hint=str,
         optional=True,
     )
 

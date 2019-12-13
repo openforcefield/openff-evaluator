@@ -114,12 +114,13 @@ class StoredSimulationData(BaseStoredData):
         docstring="The server id of the calculation which yielded this data.",
         type_hint=str,
         comparison_behavior=ComparisonBehaviour.Ignore,
+        optional=True,
     )
-
     provenance = StorageAttribute(
         docstring="Provenance information about how this data was generated.",
         type_hint=dict,
         comparison_behavior=ComparisonBehaviour.Ignore,
+        optional=True,
     )
 
     force_field_id = StorageAttribute(

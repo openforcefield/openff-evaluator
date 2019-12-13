@@ -4,6 +4,7 @@ at states which have not previously been simulated directly, but where
 simulations at similar states have been run.
 """
 from propertyestimator.attributes import Attribute
+from propertyestimator.datasets import PropertyPhase
 from propertyestimator.layers import calculation_layer
 from propertyestimator.layers.workflow import (
     WorkflowCalculationLayer,
@@ -12,17 +13,51 @@ from propertyestimator.layers.workflow import (
 from propertyestimator.storage.query import SimulationDataQuery
 
 
+def default_storage_query():
+    """Return the default query to use when retrieving cached simulation
+     data from the storage backend.
+
+    Currently this query will search for data for the full substance of
+    interest in the liquid phase.
+
+    Returns
+    -------
+    dict of str and SimulationDataQuery
+        A single query with a key of `"full_system_data"`.
+    """
+
+    query = SimulationDataQuery()
+    query.property_phase = PropertyPhase.Liquid
+
+    return {"full_system_data": query}
+
+
 class ReweightingSchema(WorkflowCalculationSchema):
     """A schema which encodes the options and the workflow schema
     that the `SimulationLayer` should use when estimating a given class
     of physical properties using the built-in workflow framework.
     """
 
-    storage_query = Attribute(
-        docstring="The query to use when retrieving cached simulation data"
-        "from the storage backend.",
-        type_hint=SimulationDataQuery,
+    storage_queries = Attribute(
+        docstring="The queries to perform when retrieving data for each "
+        "of the components in the system from the storage backend. The "
+        "keys of this dictionary will correspond to the metadata keys made "
+        "available to the workflow system.",
+        type_hint=dict,
+        default_value=default_storage_query(),
     )
+
+    def validate(self, attribute_type=None):
+        super(ReweightingSchema, self).validate(attribute_type)
+
+        assert len(self.storage_queries) > 0
+
+        assert all(
+            isinstance(x, SimulationDataQuery) for x in self.storage_queries.values()
+        )
+
+        for query in self.storage_queries.values():
+            query.validate()
 
 
 @calculation_layer()

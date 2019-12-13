@@ -1619,12 +1619,12 @@ class WorkflowGraph:
                 continue
 
             attribute_value = results_by_id[attribute_value]
+
+            if isinstance(attribute.type_hint, FilePath):
+                file_copy(attribute_value, data_directory)
+                attribute_value = path.basename(attribute_value)
+
             setattr(output_to_store, attribute_name, attribute_value)
-
-            if not isinstance(attribute.type_hint, FilePath):
-                continue
-
-            file_copy(attribute_value, data_directory)
 
         with open(data_object_path, "w") as file:
             json.dump(output_to_store, file, cls=TypedJSONEncoder)

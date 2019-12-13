@@ -6,6 +6,7 @@ from collections import namedtuple
 
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
+from propertyestimator.datasets import PropertyPhase
 from propertyestimator.protocols import (
     analysis,
     coordinates,
@@ -405,14 +406,11 @@ def generate_base_simulation_protocols(
         ):
 
             condition = groups.ConditionalGroup.Condition()
-
+            condition.right_hand_value = ProtocolPath("target_uncertainty", "global")
+            condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
             condition.left_hand_value = ProtocolPath(
                 "value.uncertainty", conditional_group.id, analysis_protocol.id
             )
-
-            condition.right_hand_value = ProtocolPath("target_uncertainty", "global")
-
-            condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
 
             conditional_group.add_condition(condition)
 
@@ -479,18 +477,23 @@ def generate_base_simulation_protocols(
     # Build the object which defines which pieces of simulation data to store.
     output_to_store = StoredSimulationData()
 
+    output_to_store.thermodynamic_state = ProtocolPath("thermodynamic_state", "global")
+    output_to_store.property_phase = PropertyPhase.Liquid
+
+    output_to_store.force_field_id = ProtocolPath("force_field_path", "global")
+
     output_to_store.total_number_of_molecules = ProtocolPath(
         "output_number_of_molecules", build_coordinates.id
     )
     output_to_store.substance = ProtocolPath("output_substance", build_coordinates.id)
     output_to_store.statistical_inefficiency = statistical_inefficiency
-    output_to_store.statistics_file_path = ProtocolPath(
+    output_to_store.statistics_file_name = ProtocolPath(
         "output_statistics_path", extract_uncorrelated_statistics.id
     )
-    output_to_store.trajectory_file_path = ProtocolPath(
+    output_to_store.trajectory_file_name = ProtocolPath(
         "output_trajectory_path", extract_uncorrelated_trajectory.id
     )
-    output_to_store.coordinate_file_path = coordinate_file
+    output_to_store.coordinate_file_name = coordinate_file
 
     # Define where the final values come from.
     final_value_source = ProtocolPath(

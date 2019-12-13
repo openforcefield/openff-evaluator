@@ -743,6 +743,8 @@ class WorkflowSchema(TypedBaseModel):
                 "in the outputs_to_store dictionary at this time."
             )
 
+        output_to_store.validate()
+
         for attribute_name in output_to_store.get_attributes(StorageAttribute):
 
             attribute_value = getattr(output_to_store, attribute_name)
