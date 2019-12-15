@@ -212,6 +212,12 @@ class ForceFieldData(HashableStoredData):
 
         return ForceFieldQuery.from_data_object(self)
 
+    def __eq__(self, other):
+        return super(ForceFieldData, self).__eq__(other)
+
+    def __ne__(self, other):
+        return super(ForceFieldData, self).__ne__(other)
+
     def __hash__(self):
 
         force_field_string = self.force_field_source.json()
