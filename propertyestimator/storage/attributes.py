@@ -9,6 +9,8 @@ class FilePath(str):
     """Represents a string file path.
     """
 
+    pass
+
 
 class StorageAttribute(Attribute):
     """A descriptor used to mark attributes of a class as those
@@ -19,6 +21,21 @@ class StorageAttribute(Attribute):
         self, docstring, type_hint, optional=False,
     ):
         super().__init__(docstring, type_hint, UNDEFINED, optional)
+
+    def __set__(self, instance, value):
+
+        # Handle the special case of turning strings
+        # into file path objects for convenience.
+        if (
+            isinstance(value, str)
+            and isinstance(self.type_hint, type)
+            and issubclass(self.type_hint, FilePath)
+        ):
+            # This is necessary as the json library currently doesn't
+            # support custom serialization of IntFlag or IntEnum.
+            value = FilePath(value)
+
+        super(StorageAttribute, self).__set__(instance, value)
 
 
 class QueryAttribute(Attribute):

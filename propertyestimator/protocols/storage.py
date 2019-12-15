@@ -7,7 +7,7 @@ from os import path
 from typing import Union
 
 from propertyestimator.attributes import UNDEFINED
-from propertyestimator.storage import StoredSimulationData
+from propertyestimator.storage.data import StoredSimulationData
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import PropertyEstimatorException

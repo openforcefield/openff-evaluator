@@ -1,5 +1,6 @@
 import os
 import shutil
+import uuid
 from enum import Enum
 
 from propertyestimator import server, unit
@@ -17,7 +18,8 @@ from propertyestimator.datasets import (
 from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.properties import Density, DielectricConstant, EnthalpyOfMixing
 from propertyestimator.protocols import coordinates, groups, simulation
-from propertyestimator.storage import LocalFileStorage, StoredSimulationData
+from propertyestimator.storage import LocalFileStorage
+from propertyestimator.storage.data import StoredSimulationData
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import get_data_filename
@@ -238,7 +240,7 @@ def create_dummy_property(property_class):
     return dummy_property
 
 
-def create_dummy_stored_simulation_data(
+def create_dummy_simulation_data(
     directory_path,
     substance,
     force_field_id="dummy_ff_id",
@@ -288,6 +290,8 @@ def create_dummy_stored_simulation_data(
     data.statistical_inefficiency = statistical_inefficiency
 
     data.number_of_molecules = number_of_molecules
+
+    data.source_calculation_id = str(uuid.uuid4())
 
     return data
 

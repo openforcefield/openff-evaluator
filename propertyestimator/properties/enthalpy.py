@@ -5,6 +5,7 @@ import copy
 from collections import namedtuple
 
 from propertyestimator import unit
+from propertyestimator.attributes import PlaceholderValue
 from propertyestimator.datasets import PhysicalProperty, PropertyPhase
 from propertyestimator.datasets.thermoml.plugins import thermoml_property
 from propertyestimator.layers import register_calculation_schema
@@ -444,6 +445,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         """
 
         mixture_data_query = SimulationDataQuery()
+        mixture_data_query.substance = PlaceholderValue()
         mixture_data_query.property_phase = PropertyPhase.Liquid
 
         # Set up a query which will return the data of each
@@ -453,6 +455,7 @@ class EnthalpyOfMixing(PhysicalProperty):
 
         component_data_query = SimulationDataQuery()
         component_data_query.property_phase = PropertyPhase.Liquid
+        component_data_query.substance = PlaceholderValue()
         component_data_query.substance_query = component_query
 
         return {

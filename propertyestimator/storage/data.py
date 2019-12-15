@@ -112,10 +112,6 @@ class StoredSimulationData(BaseStoredData):
         docstring="The server id of the calculation which yielded this data.",
         type_hint=str,
     )
-    provenance = StorageAttribute(
-        docstring="Provenance information about how this data was generated.",
-        type_hint=dict,
-    )
 
     force_field_id = StorageAttribute(
         docstring="The id of the force field parameters used to generate the data.",

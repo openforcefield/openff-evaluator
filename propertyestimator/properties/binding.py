@@ -188,20 +188,5 @@ class HostGuestBindingAffinity(PhysicalProperty):
             "estimated_free_energy", yank_protocol.id
         )
 
-        # output_to_store = StoredSimulationData()
-        #
-        # output_to_store.trajectory_file_path = ProtocolPath('output_trajectory_path',
-        #                                                     extract_uncorrelated_trajectory.id)
-        # output_to_store.coordinate_file_path = ProtocolPath('output_coordinate_file',
-        #                                                     converge_uncertainty.id, npt_production.id)
-        #
-        # output_to_store.statistics_file_path = ProtocolPath('output_statistics_path',
-        #                                                     extract_uncorrelated_statistics.id)
-        #
-        # output_to_store.statistical_inefficiency = ProtocolPath('statistical_inefficiency', converge_uncertainty.id,
-        #                                                                                     extract_density.id)
-        #
-        # schema.outputs_to_store = {'full_system': output_to_store}
-
         calculation_schema.workflow_schema = schema
         return calculation_schema

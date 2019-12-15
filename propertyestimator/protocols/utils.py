@@ -5,7 +5,7 @@ import copy
 from collections import namedtuple
 
 from propertyestimator import unit
-from propertyestimator.attributes import UNDEFINED
+from propertyestimator.attributes import UNDEFINED, PlaceholderValue
 from propertyestimator.datasets import PropertyPhase
 from propertyestimator.protocols import (
     analysis,
@@ -17,7 +17,7 @@ from propertyestimator.protocols import (
     simulation,
     storage,
 )
-from propertyestimator.storage import StoredSimulationData
+from propertyestimator.storage.data import StoredSimulationData
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow import WorkflowOptions
@@ -480,9 +480,9 @@ def generate_base_simulation_protocols(
     output_to_store.thermodynamic_state = ProtocolPath("thermodynamic_state", "global")
     output_to_store.property_phase = PropertyPhase.Liquid
 
-    output_to_store.force_field_id = ProtocolPath("force_field_path", "global")
+    output_to_store.force_field_id = PlaceholderValue()
 
-    output_to_store.total_number_of_molecules = ProtocolPath(
+    output_to_store.number_of_molecules = ProtocolPath(
         "output_number_of_molecules", build_coordinates.id
     )
     output_to_store.substance = ProtocolPath("output_substance", build_coordinates.id)
@@ -494,6 +494,8 @@ def generate_base_simulation_protocols(
         "output_trajectory_path", extract_uncorrelated_trajectory.id
     )
     output_to_store.coordinate_file_name = coordinate_file
+
+    output_to_store.source_calculation_id = PlaceholderValue()
 
     # Define where the final values come from.
     final_value_source = ProtocolPath(

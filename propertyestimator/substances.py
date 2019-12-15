@@ -567,6 +567,9 @@ class Substance(TypedBaseModel):
     def __str__(self):
         return self.identifier
 
+    def __repr__(self):
+        return f"<Substance {str(self)}>"
+
     def __hash__(self):
 
         sorted_component_identifiers = [
