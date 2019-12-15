@@ -6,8 +6,11 @@ import abc
 
 from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
 from propertyestimator.datasets import PropertyPhase
-from propertyestimator.storage import StoredSimulationData
+from propertyestimator.forcefield import ForceFieldSource
+from propertyestimator.storage.attributes import QueryAttribute
+from propertyestimator.storage.data import ForceFieldData, StoredSimulationData
 from propertyestimator.substances import Substance
+from propertyestimator.thermodynamics import ThermodynamicState
 
 
 class BaseDataQuery(AttributeClass, abc.ABC):
@@ -17,8 +20,8 @@ class BaseDataQuery(AttributeClass, abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def supported_data_class(cls):
-        """Returns the type of data class that this
+    def data_class(cls):
+        """The type of data class that this
         query can be applied to.
 
         Returns
@@ -27,7 +30,6 @@ class BaseDataQuery(AttributeClass, abc.ABC):
         """
         raise NotImplementedError()
 
-    @abc.abstractmethod
     def apply(self, data_object):
         """Apply this query to a data object.
 
@@ -42,7 +44,59 @@ class BaseDataQuery(AttributeClass, abc.ABC):
             The values of the matched parameters of the data
             object fully matched this query, otherwise `None`.
         """
-        raise NotImplementedError()
+
+        if not isinstance(data_object, self.data_class()):
+            return False
+
+        matches = []
+
+        for attribute_name in self.get_attributes(QueryAttribute):
+
+            attribute = getattr(self.__class__, attribute_name)
+
+            if not hasattr(data_object, attribute_name) or attribute.custom_match:
+                continue
+
+            query_value = getattr(self, attribute_name)
+
+            if query_value == UNDEFINED:
+                continue
+
+            data_value = getattr(data_object, attribute_name)
+
+            matches.append(None if data_value != query_value else data_value)
+
+        if any(x is None for x in matches):
+            return None
+
+        return tuple(matches)
+
+    @classmethod
+    def from_data_object(cls, data_object):
+        """Returns the query which would match this data
+        object.
+
+        Parameters
+        ----------
+        data_object: BaseStoredData
+            The data object to construct the query for.
+
+        Returns
+        -------
+        cls
+            The query which would match this data object.
+        """
+        query = cls()
+
+        for attribute_name in cls.get_attributes():
+
+            if not hasattr(data_object, attribute_name):
+                continue
+
+            attribute_value = getattr(data_object, attribute_name)
+            setattr(query, attribute_name, attribute_value)
+
+        return query
 
 
 class SubstanceQuery(AttributeClass, abc.ABC):
@@ -59,7 +113,7 @@ class SubstanceQuery(AttributeClass, abc.ABC):
         default_value=False,
     )
 
-    # component_roles = Attribute(
+    # component_roles = QueryAttribute(
     #     docstring="Returns data for only the subset of a substance "
     #     "which has the requested roles.",
     #     type_hint=list,
@@ -82,6 +136,22 @@ class SubstanceQuery(AttributeClass, abc.ABC):
         #     )
 
 
+class ForceFieldQuery(BaseDataQuery):
+    """A class used to query a `StorageBackend` for
+    `ForceFieldData` which meet the specified criteria.
+    """
+
+    @classmethod
+    def data_class(cls):
+        return ForceFieldData
+
+    force_field_source = QueryAttribute(
+        docstring="The force field source to query for.",
+        type_hint=ForceFieldSource,
+        optional=True,
+    )
+
+
 class SimulationDataQuery(BaseDataQuery):
     """A class used to query a `StorageBackend` for
     `StoredSimulationData` which meet the specified set
@@ -89,30 +159,49 @@ class SimulationDataQuery(BaseDataQuery):
     """
 
     @classmethod
-    def supported_data_class(cls):
+    def data_class(cls):
         return StoredSimulationData
 
-    substance: Substance = Attribute(
+    substance = QueryAttribute(
         docstring="The substance which the data should have been collected "
         "for. Data for a subset of this substance can be queried for by "
         "using the `substance_query` attribute",
         type_hint=Substance,
         optional=True,
+        custom_match=True,
     )
-    substance_query: SubstanceQuery = Attribute(
+    substance_query = QueryAttribute(
         docstring="The subset of the `substance` to query for. This option "
         "can only be used when the `substance` attribute is set.",
         type_hint=SubstanceQuery,
         optional=True,
+        custom_match=True,
     )
 
-    property_phase = Attribute(
+    thermodynamic_state = QueryAttribute(
+        docstring="The state at which the data should have been collected.",
+        type_hint=ThermodynamicState,
+        optional=True,
+    )
+    property_phase = QueryAttribute(
         docstring="The phase of the substance (e.g. liquid, gas).",
         type_hint=PropertyPhase,
         optional=True,
     )
 
-    number_of_molecules = Attribute(
+    source_calculation_id = QueryAttribute(
+        docstring="The server id which should have generated this data.",
+        type_hint=str,
+        optional=True,
+    )
+    force_field_id = QueryAttribute(
+        docstring="The id of the force field parameters which used to "
+        "generate the data.",
+        type_hint=str,
+        optional=True,
+    )
+
+    number_of_molecules = QueryAttribute(
         docstring="The total number of molecules in the system.",
         type_hint=int,
         optional=True,
@@ -173,34 +262,19 @@ class SimulationDataQuery(BaseDataQuery):
 
         return None
 
-    def apply(self, data_object):
-
-        if not isinstance(data_object, StoredSimulationData):
-            return False
+    def apply(self, data_object, attributes_to_ignore=None):
 
         matches = []
 
-        # Check the substance
+        # Apply a custom match behaviour for the substance
+        # attribute.
         if self.substance != UNDEFINED:
             matches.append(self._match_substance(data_object))
 
-        # Check the phase.
-        if self.property_phase != UNDEFINED:
+        base_matches = super(SimulationDataQuery, self).apply(data_object)
+        base_matches = [] if base_matches is None else base_matches
 
-            matches.append(
-                None
-                if data_object.property_phase != self.property_phase
-                else self.property_phase
-            )
-
-        # Check the molecule count.
-        if self.number_of_molecules != UNDEFINED:
-
-            matches.append(
-                None
-                if data_object.number_of_molecules != self.number_of_molecules
-                else self.number_of_molecules
-            )
+        matches = [*matches, *base_matches]
 
         if any(x is None for x in matches):
             return None
@@ -208,6 +282,7 @@ class SimulationDataQuery(BaseDataQuery):
         return tuple(matches)
 
     def validate(self, attribute_type=None):
+
         super(SimulationDataQuery, self).validate(attribute_type)
 
         if self.substance_query != UNDEFINED and self.substance == UNDEFINED:

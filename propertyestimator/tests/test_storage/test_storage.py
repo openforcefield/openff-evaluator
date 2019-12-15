@@ -7,8 +7,9 @@ import pytest
 
 from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.storage import LocalFileStorage
-from propertyestimator.storage.attributes import StorageAttribute
+from propertyestimator.storage.attributes import QueryAttribute, StorageAttribute
 from propertyestimator.storage.data import BaseStoredData, HashableStoredData
+from propertyestimator.storage.query import BaseDataQuery
 
 
 class SimpleData(BaseStoredData):
@@ -19,6 +20,17 @@ class SimpleData(BaseStoredData):
     def has_ancillary_data(cls):
         return False
 
+    def to_storage_query(self):
+        return SimpleDataQuery.from_data_object(self)
+
+
+class SimpleDataQuery(BaseDataQuery):
+    @classmethod
+    def data_class(cls):
+        return SimpleData
+
+    some_attribute = QueryAttribute(docstring="", type_hint=int)
+
 
 class HashableData(HashableStoredData):
 
@@ -27,6 +39,9 @@ class HashableData(HashableStoredData):
     @classmethod
     def has_ancillary_data(cls):
         return False
+
+    def to_storage_query(self):
+        raise NotImplementedError()
 
     def __hash__(self):
         return hash(self.some_attribute)
@@ -50,13 +65,15 @@ def test_simple_store_and_retrieve(data_class):
         storage_object.some_attribute = 10
         storage_key = local_storage.store_object(storage_object)
 
-        retrieved_object = local_storage.retrieve_object(storage_key)[0]
+        retrieved_object, _ = local_storage.retrieve_object(storage_key)
 
         assert retrieved_object is not None
         assert storage_object.json() == retrieved_object.json()
 
-        # local_storage_new = LocalFileStorage(temporary_directory)
-        # assert local_storage_new.has_object(force_field_source)
+        # Ensure that the same key is returned when storing duplicate
+        # data
+        new_storage_key = local_storage.store_object(storage_object)
+        assert storage_key == new_storage_key
 
 
 def test_force_field_storage():
@@ -82,7 +99,7 @@ def test_force_field_storage():
         new_force_field_id = local_storage_new.store_force_field(force_field_source)
         assert new_force_field_id == force_field_id
 
-#
+
 # def test_local_simulation_storage():
 #     """A simple test to that force fields can be stored and
 #     retrieved using the local storage backend."""

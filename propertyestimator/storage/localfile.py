@@ -24,24 +24,17 @@ class LocalFileStorage(StorageBackend):
 
         self._root_directory = root_directory
 
-        if not path.isdir(root_directory):
+        if not path.isdir(root_directory) and len(root_directory) > 0:
             makedirs(root_directory)
 
         super().__init__()
 
-    def store_object(self, object_to_store, storage_key=None, ancillary_data_path=None):
+    def _store_object(
+        self, object_to_store, storage_key=None, ancillary_data_path=None
+    ):
 
-        unique_id = super(LocalFileStorage, self).store_object(
-            object_to_store, storage_key, ancillary_data_path
-        )
-
-        # Handle the case where the object is already in the
-        # storage system.
-        if unique_id != storage_key and storage_key is not None:
-            return unique_id
-
-        file_path = path.join(self._root_directory, f"{unique_id}.json")
-        directory_path = path.join(self._root_directory, f"{unique_id}")
+        file_path = path.join(self._root_directory, f"{storage_key}.json")
+        directory_path = path.join(self._root_directory, f"{storage_key}")
 
         with open(file_path, "w") as file:
             json.dump(object_to_store, file, cls=TypedJSONEncoder)
@@ -53,12 +46,10 @@ class LocalFileStorage(StorageBackend):
 
             shutil.move(ancillary_data_path, directory_path)
 
-        return unique_id
+    def _retrieve_object(self, storage_key, expected_type=None):
 
-    def retrieve_object(self, storage_key, expected_type=None):
-
-        if not self._has_object(storage_key):
-            return None
+        if not self._object_exists(storage_key):
+            return None, None
 
         file_path = path.join(self._root_directory, f"{storage_key}.json")
         directory_path = None
@@ -82,7 +73,7 @@ class LocalFileStorage(StorageBackend):
 
         return loaded_object, directory_path
 
-    def _has_object(self, storage_key):
+    def _object_exists(self, storage_key):
 
         file_path = path.join(self._root_directory, f"{storage_key}.json")
 
