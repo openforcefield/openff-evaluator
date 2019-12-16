@@ -1545,24 +1545,13 @@ class WorkflowGraph:
 
             for output_to_store in outputs_to_store.values():
 
-                if isinstance(output_to_store.substance, ProtocolPath):
-                    substance_id = results_by_id[output_to_store.substance].identifier
-
-                else:
-
-                    substance_id = (
-                        property_to_return.substance.identifier
-                        if output_to_store.substance is None
-                        else output_to_store.substance.identifier
-                    )
-
-                sanitized_id = sanitize_smiles_file_name(substance_id)
+                unique_id = str(uuid.uuid4()).replace("-", "")
 
                 data_object_path = path.join(
-                    directory, f"results_{property_to_return.id}_{sanitized_id}.json"
+                    directory, f"results_{property_to_return.id}{unique_id}.json"
                 )
                 data_directory = path.join(
-                    directory, f"results_{property_to_return.id}_{sanitized_id}"
+                    directory, f"results_{property_to_return.id}{unique_id}"
                 )
 
                 WorkflowGraph._store_output_data(
