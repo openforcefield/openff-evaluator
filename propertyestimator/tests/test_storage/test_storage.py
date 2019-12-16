@@ -166,7 +166,7 @@ def test_simulation_data_query():
 
             results = storage.query(substance_query)
             assert results is not None and len(results) == 1
-            assert len(next(iter(results.values()))[0]) == 2
+            assert len(next(iter(results.values()))[0]) == 3
 
         component_query = SimulationDataQuery()
         component_query.substance = substance_full
