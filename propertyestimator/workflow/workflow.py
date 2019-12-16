@@ -21,10 +21,7 @@ from propertyestimator.storage.attributes import FilePath, StorageAttribute
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
-from propertyestimator.utils.string import (
-    extract_variable_index_and_name,
-    sanitize_smiles_file_name,
-)
+from propertyestimator.utils.string import extract_variable_index_and_name
 from propertyestimator.utils.utils import SubhookedABCMeta, get_nested_attribute
 from propertyestimator.workflow.protocols import BaseProtocol
 from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSchema
@@ -1555,10 +1552,7 @@ class WorkflowGraph:
                 )
 
                 WorkflowGraph._store_output_data(
-                    data_object_path,
-                    data_directory,
-                    output_to_store,
-                    results_by_id,
+                    data_object_path, data_directory, output_to_store, results_by_id,
                 )
 
                 return_object.data_to_store.append((data_object_path, data_directory))

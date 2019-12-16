@@ -644,10 +644,6 @@ class PropertyEstimatorClient:
 
             for calculation_layer in options.allowed_calculation_layers:
 
-                calculation_layer_class = registered_calculation_layers[
-                    calculation_layer
-                ]
-
                 if (
                     calculation_layer not in registered_calculation_schemas
                     or property_type

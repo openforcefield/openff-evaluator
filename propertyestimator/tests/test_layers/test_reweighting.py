@@ -7,14 +7,14 @@ from propertyestimator.layers import registered_calculation_schemas
 from propertyestimator.layers.reweighting import ReweightingLayer
 from propertyestimator.properties import (
     Density,
+    DielectricConstant,
     EnthalpyOfMixing,
     EnthalpyOfVaporization,
-    DielectricConstant, ExcessMolarVolume)
+    ExcessMolarVolume,
+)
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.substances import Substance
-from propertyestimator.tests.utils import (
-    create_dummy_simulation_data,
-)
+from propertyestimator.tests.utils import create_dummy_simulation_data
 
 
 def test_storage_retrieval():
@@ -45,7 +45,7 @@ def test_storage_retrieval():
         EnthalpyOfVaporization(substance=methanol),
         # Property with a multi-phase query.
         EnthalpyOfMixing(substance=mixture),
-        ExcessMolarVolume(substance=mixture)
+        ExcessMolarVolume(substance=mixture),
     ]
     expected_data_per_property = {
         Density: {"full_system_data": [(methanol, PropertyPhase.Liquid, 1000)]},
@@ -54,25 +54,25 @@ def test_storage_retrieval():
         },
         EnthalpyOfVaporization: {
             "liquid_data": [(methanol, PropertyPhase.Liquid, 1000)],
-            "gas_data": [(methanol, PropertyPhase.Gas, 1)]
+            "gas_data": [(methanol, PropertyPhase.Gas, 1)],
         },
         EnthalpyOfMixing: {
             "full_system_data": [(mixture, PropertyPhase.Liquid, 1000)],
             "component_data": [
                 [(methane, PropertyPhase.Liquid, 1000)],
                 [(methanol, PropertyPhase.Liquid, 1000)],
-            ]
+            ],
         },
         ExcessMolarVolume: {
             "full_system_data": [(mixture, PropertyPhase.Liquid, 1000)],
             "component_data": [
                 [(methane, PropertyPhase.Liquid, 1000)],
                 [(methanol, PropertyPhase.Liquid, 1000)],
-            ]
+            ],
         },
     }
 
-    force_field = SmirnoffForceFieldSource.from_path('smirnoff99Frosst-1.1.0.offxml')
+    force_field = SmirnoffForceFieldSource.from_path("smirnoff99Frosst-1.1.0.offxml")
 
     with tempfile.TemporaryDirectory() as base_directory:
 
@@ -124,14 +124,16 @@ def test_storage_retrieval():
 
                 if isinstance(stored_metadata[0], list):
                     # Flatten any lists of lists.
-                    stored_metadata = [item for sublist in stored_metadata for item in sublist]
-                    expected_metadata = [item for sublist in expected_metadata for item in sublist]
+                    stored_metadata = [
+                        item for sublist in stored_metadata for item in sublist
+                    ]
+                    expected_metadata = [
+                        item for sublist in expected_metadata for item in sublist
+                    ]
 
                 metadata_storage_keys = [
                     os.path.basename(x) for x, _, _ in stored_metadata
                 ]
-                expected_storage_keys = [
-                    storage_keys[x] for x in expected_metadata
-                ]
+                expected_storage_keys = [storage_keys[x] for x in expected_metadata]
 
                 assert sorted(metadata_storage_keys) == sorted(expected_storage_keys)

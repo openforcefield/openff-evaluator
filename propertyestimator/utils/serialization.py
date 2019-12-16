@@ -471,7 +471,7 @@ class TypedBaseModel(ABC):
 
         if file_path is not None:
 
-            with open(file_path, 'w') as file:
+            with open(file_path, "w") as file:
                 json.dump(self, file, cls=TypedJSONEncoder)
 
         return json_string
@@ -490,7 +490,7 @@ class TypedBaseModel(ABC):
         cls
             The parsed class.
         """
-        with open(file_path, 'r') as file:
+        with open(file_path, "r") as file:
             return cls.parse_json(file.read())
 
     @classmethod

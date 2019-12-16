@@ -129,14 +129,18 @@ class ReweightingLayer(WorkflowCalculationLayer):
                 for storage_key, data_object, data_directory in query_list:
 
                     object_path = os.path.join(working_directory, f"{storage_key}")
-                    force_field_path = os.path.join(working_directory, f"{data_object.force_field_id}")
+                    force_field_path = os.path.join(
+                        working_directory, f"{data_object.force_field_id}"
+                    )
 
                     # Save a local copy of the data object file.
                     if not os.path.isfile(object_path):
                         data_object.json(object_path)
 
                     required_force_field_keys.add(data_object.force_field_id)
-                    query_data_tuples.append((object_path, data_directory, force_field_path))
+                    query_data_tuples.append(
+                        (object_path, data_directory, force_field_path)
+                    )
 
                 stored_data_tuples.append(query_data_tuples)
 
