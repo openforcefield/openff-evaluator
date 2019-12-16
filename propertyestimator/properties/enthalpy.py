@@ -771,9 +771,11 @@ class EnthalpyOfVaporization(PhysicalProperty):
         """
 
         liquid_data_query = SimulationDataQuery()
+        liquid_data_query.substance = PlaceholderValue()
         liquid_data_query.property_phase = PropertyPhase.Liquid
 
         gas_data_query = SimulationDataQuery()
+        gas_data_query.substance = PlaceholderValue()
         gas_data_query.property_phase = PropertyPhase.Gas
         gas_data_query.number_of_molecules = 1
 

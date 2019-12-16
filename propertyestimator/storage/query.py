@@ -46,7 +46,7 @@ class BaseDataQuery(AttributeClass, abc.ABC):
         """
 
         if not isinstance(data_object, self.data_class()):
-            return False
+            return None
 
         matches = []
 
@@ -272,11 +272,11 @@ class SimulationDataQuery(BaseDataQuery):
             matches.append(self._match_substance(data_object))
 
         base_matches = super(SimulationDataQuery, self).apply(data_object)
-        base_matches = [] if base_matches is None else base_matches
+        base_matches = [None] if base_matches is None else base_matches
 
         matches = [*matches, *base_matches]
 
-        if any(x is None for x in matches):
+        if len(matches) == 0 or any(x is None for x in matches):
             return None
 
         return tuple(matches)

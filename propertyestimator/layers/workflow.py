@@ -47,8 +47,10 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
 
         Returns
         -------
-        dict of str and Any
+        dict of str and Any, optional
             The global metadata to make available to a workflow.
+            Returns `None` if the required metadata could not be
+            found / assembled.
         """
 
         global_metadata = Workflow.generate_default_metadata(
@@ -117,6 +119,12 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
                 storage_backend,
                 schema,
             )
+
+            if global_metadata is None:
+                # Make sure we have metadata returned for this
+                # property, e.g. we have data to reweight if
+                # required.
+                continue
 
             workflow = Workflow(physical_property, global_metadata)
             workflow.schema = schema
