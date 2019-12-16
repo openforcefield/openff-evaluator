@@ -2,6 +2,7 @@ import os
 import tempfile
 
 from propertyestimator.datasets import PropertyPhase
+from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.layers import registered_calculation_schemas
 from propertyestimator.layers.reweighting import ReweightingLayer
 from propertyestimator.properties import (
@@ -71,11 +72,15 @@ def test_storage_retrieval():
         },
     }
 
+    force_field = SmirnoffForceFieldSource.from_path('smirnoff99Frosst-1.1.0.offxml')
+
     with tempfile.TemporaryDirectory() as base_directory:
 
         # Create a storage backend with some dummy data.
         backend_directory = os.path.join(base_directory, "storage_dir")
         storage_backend = LocalFileStorage(backend_directory)
+
+        force_field_id = storage_backend.store_force_field(force_field)
 
         for substance, phase, n_mol in data_to_store:
 
@@ -83,6 +88,7 @@ def test_storage_retrieval():
             data = create_dummy_simulation_data(
                 data_directory,
                 substance=substance,
+                force_field_id=force_field_id,
                 phase=phase,
                 number_of_molecules=n_mol,
             )
@@ -100,7 +106,7 @@ def test_storage_retrieval():
 
             # noinspection PyProtectedMember
             metadata = ReweightingLayer._get_workflow_metadata(
-                physical_property, "", [], storage_backend, schema,
+                base_directory, physical_property, "", [], storage_backend, schema,
             )
 
             assert metadata is not None
@@ -122,7 +128,7 @@ def test_storage_retrieval():
                     expected_metadata = [item for sublist in expected_metadata for item in sublist]
 
                 metadata_storage_keys = [
-                    storage_key for storage_key, _ in stored_metadata
+                    os.path.basename(x) for x, _, _ in stored_metadata
                 ]
                 expected_storage_keys = [
                     storage_keys[x] for x in expected_metadata

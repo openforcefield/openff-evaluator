@@ -454,8 +454,13 @@ class TypedBaseModel(ABC):
     output.
     """
 
-    def json(self):
+    def json(self, file_path=None):
         """Creates a JSON representation of this class.
+
+        Parameters
+        ----------
+        file_path: str, optional
+            The (optional) file path to save the JSON file to.
 
         Returns
         -------
@@ -463,7 +468,30 @@ class TypedBaseModel(ABC):
             The JSON representation of this class.
         """
         json_string = json.dumps(self, cls=TypedJSONEncoder)
+
+        if file_path is not None:
+
+            with open(file_path, 'w') as file:
+                json.dump(self, file, cls=TypedJSONEncoder)
+
         return json_string
+
+    @classmethod
+    def from_json(cls, file_path):
+        """Create this object from a JSON file.
+
+        Parameters
+        ----------
+        file_path: str
+            The path to load the JSON from.
+
+        Returns
+        -------
+        cls
+            The parsed class.
+        """
+        with open(file_path, 'r') as file:
+            return cls.parse_json(file.read())
 
     @classmethod
     def parse_json(cls, string_contents, encoding="utf8"):

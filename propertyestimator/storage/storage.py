@@ -367,7 +367,7 @@ class StorageBackend(abc.ABC):
                 "same piece of data. This should not be possible."
             )
 
-        storage_key, _ = next(iter(query_results.values()))[0]
+        storage_key, _, _ = next(iter(query_results.values()))[0]
         return storage_key
 
     def has_object(self, storage_object):
@@ -418,9 +418,10 @@ class StorageBackend(abc.ABC):
 
         Returns
         -------
-        dict of tuple and list of tuple of str and str
-            The data that matches the query partitioned
-            by the matched values..
+        dict of tuple and list of tuple of str, BaseStoredData and str
+            The data that matches the query partitioned by the
+            matched values. The list values take the form
+            (storage_key, data_object, data_directory_path).
         """
 
         data_class = data_query.data_class()
@@ -445,7 +446,7 @@ class StorageBackend(abc.ABC):
             if matches is None:
                 continue
 
-            results[matches].append((unique_key, stored_directory))
+            results[matches].append((unique_key, stored_object, stored_directory))
 
         return results
 

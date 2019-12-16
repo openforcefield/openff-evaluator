@@ -1569,7 +1569,7 @@ class WorkflowGraph:
                     data_object_path,
                     data_directory,
                     output_to_store,
-                    property_to_return,
+                    results_by_id,
                 )
 
                 return_object.data_to_store.append((data_object_path, data_directory))
@@ -1619,7 +1619,7 @@ class WorkflowGraph:
 
             attribute_value = results_by_id[attribute_value]
 
-            if isinstance(attribute.type_hint, FilePath):
+            if issubclass(attribute.type_hint, FilePath):
                 file_copy(attribute_value, data_directory)
                 attribute_value = path.basename(attribute_value)
 

@@ -4,6 +4,7 @@ at states which have not previously been simulated directly, but where
 simulations at similar states have been run.
 """
 import copy
+import os
 
 from propertyestimator.attributes import Attribute, PlaceholderValue
 from propertyestimator.datasets import PropertyPhase
@@ -74,6 +75,7 @@ class ReweightingLayer(WorkflowCalculationLayer):
 
     @staticmethod
     def _get_workflow_metadata(
+        working_directory,
         physical_property,
         force_field_path,
         parameter_gradient_keys,
@@ -88,6 +90,7 @@ class ReweightingLayer(WorkflowCalculationLayer):
         """
 
         global_metadata = WorkflowCalculationLayer._get_workflow_metadata(
+            working_directory,
             physical_property,
             force_field_path,
             parameter_gradient_keys,
@@ -98,6 +101,8 @@ class ReweightingLayer(WorkflowCalculationLayer):
         template_queries = calculation_schema.storage_queries
 
         # Apply the storage queries
+        required_force_field_keys = set()
+
         for key in template_queries:
 
             query = copy.deepcopy(template_queries[key])
@@ -114,12 +119,43 @@ class ReweightingLayer(WorkflowCalculationLayer):
                 # with this property.
                 return None
 
-            # Add the results to the meta data.
-            results_list = [results for results in query_results.values()]
+            # Save a local copy of the data object file.
+            stored_data_tuples = []
 
-            if len(results_list) == 1:
-                results_list = results_list[0]
+            for query_list in query_results.values():
 
-            global_metadata[key] = results_list
+                query_data_tuples = []
+
+                for storage_key, data_object, data_directory in query_list:
+
+                    object_path = os.path.join(working_directory, f"{storage_key}")
+                    force_field_path = os.path.join(working_directory, f"{data_object.force_field_id}")
+
+                    # Save a local copy of the data object file.
+                    if not os.path.isfile(object_path):
+                        data_object.json(object_path)
+
+                    required_force_field_keys.add(data_object.force_field_id)
+                    query_data_tuples.append((object_path, data_directory, force_field_path))
+
+                stored_data_tuples.append(query_data_tuples)
+
+            # Add the results to the metadata.
+            if len(stored_data_tuples) == 1:
+                stored_data_tuples = stored_data_tuples[0]
+
+            global_metadata[key] = stored_data_tuples
+
+        # Make a local copy of the required force fields
+        for force_field_id in required_force_field_keys:
+
+            force_field_path = os.path.join(working_directory, force_field_id)
+
+            if not os.path.isfile(force_field_path):
+
+                existing_force_field = storage_backend.retrieve_force_field(
+                    force_field_id
+                )
+                existing_force_field.json(force_field_path)
 
         return global_metadata
