@@ -1,6 +1,5 @@
 import os
 import tempfile
-from typing import Iterable
 
 from propertyestimator.datasets import PropertyPhase
 from propertyestimator.layers import registered_calculation_schemas
@@ -53,8 +52,8 @@ def test_storage_retrieval():
             "full_system_data": [(methane, PropertyPhase.Liquid, 1000)]
         },
         EnthalpyOfVaporization: {
-            "liquid_data": [(methane, PropertyPhase.Liquid, 1000)],
-            "gas_data": [(methane, PropertyPhase.Gas, 1)]
+            "liquid_data": [(methanol, PropertyPhase.Liquid, 1000)],
+            "gas_data": [(methanol, PropertyPhase.Gas, 1)]
         },
         EnthalpyOfMixing: {
             "full_system_data": [(mixture, PropertyPhase.Liquid, 1000)],
@@ -99,7 +98,7 @@ def test_storage_retrieval():
             if callable(schema):
                 schema = schema()
 
-            # noinspection PyTypeChecker
+            # noinspection PyProtectedMember
             metadata = ReweightingLayer._get_workflow_metadata(
                 physical_property, "", [], storage_backend, schema,
             )
@@ -112,12 +111,21 @@ def test_storage_retrieval():
 
                 assert data_key in metadata
 
-                data_list = metadata[data_key]
-                assert len(data_list) >= 1
+                stored_metadata = metadata[data_key]
+                expected_metadata = expected_data_list[data_key]
 
-                if not isinstance(data_list[0], list):
-                    data_list[0] = [data_list[0]]
+                assert len(stored_metadata) == len(expected_metadata)
 
-                for expected_data in expected_data_list[data_key]:
+                if isinstance(stored_metadata[0], list):
+                    # Flatten any lists of lists.
+                    stored_metadata = [item for sublist in stored_metadata for item in sublist]
+                    expected_metadata = [item for sublist in expected_metadata for item in sublist]
 
-                    expected_storage_key = storage_keys[expected_data]
+                metadata_storage_keys = [
+                    storage_key for storage_key, _ in stored_metadata
+                ]
+                expected_storage_keys = [
+                    storage_keys[x] for x in expected_metadata
+                ]
+
+                assert sorted(metadata_storage_keys) == sorted(expected_storage_keys)
