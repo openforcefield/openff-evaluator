@@ -371,12 +371,6 @@ class BaseMBARProtocol(BaseProtocol):
 
     def execute(self, directory, available_resources):
 
-        if isinstance(self.reference_reduced_potentials, str):
-            self.reference_reduced_potentials = [self.reference_reduced_potentials]
-
-        if isinstance(self.target_reduced_potentials, str):
-            self.target_reduced_potentials = [self.target_reduced_potentials]
-
         if len(self._reference_observables) == 0:
 
             return PropertyEstimatorException(
@@ -423,7 +417,13 @@ class BaseMBARProtocol(BaseProtocol):
             The target reduced potentials array with dtype=double and
             shape=(1,)
         """
+        
+        if isinstance(self.reference_reduced_potentials, str):
+            self.reference_reduced_potentials = [self.reference_reduced_potentials]
 
+        if isinstance(self.target_reduced_potentials, str):
+            self.target_reduced_potentials = [self.target_reduced_potentials]
+        
         reference_reduced_potentials = []
         target_reduced_potentials = []
 
