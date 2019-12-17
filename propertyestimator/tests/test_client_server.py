@@ -14,7 +14,7 @@ from propertyestimator.layers import (
     calculation_layer,
 )
 from propertyestimator.properties import Density
-from propertyestimator.server import PropertyEstimatorServer
+from propertyestimator.server.server import PropertyEstimatorServer
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.tests.utils import create_dummy_property
 from propertyestimator.utils.exceptions import PropertyEstimatorException

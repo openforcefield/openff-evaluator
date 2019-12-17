@@ -10,7 +10,7 @@ from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.properties import PropertyPhase, MeasurementSource
 from propertyestimator.properties.solvation import SolvationFreeEnergy
 from propertyestimator.protocols.groups import ConditionalGroup
-from propertyestimator.server import PropertyEstimatorServer
+from propertyestimator.server.server import PropertyEstimatorServer
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState

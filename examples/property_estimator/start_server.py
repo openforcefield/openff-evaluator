@@ -10,7 +10,7 @@ from propertyestimator.backends import (
     DaskLSFBackend,
     QueueWorkerResources,
 )
-from propertyestimator.server import PropertyEstimatorServer
+from propertyestimator.server.server import PropertyEstimatorServer
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.utils import setup_timestamp_logging
 

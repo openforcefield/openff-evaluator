@@ -1,5 +1,6 @@
 """
-Property calculator 'server' side API.
+The core functionality of the 'server' side of the
+evaluator framework.
 """
 import copy
 import json
@@ -26,26 +27,18 @@ from propertyestimator.utils.tcp import (
 )
 
 
-class PropertyEstimatorServer(TCPServer):
-    """The object responsible for coordinating all properties estimations to to
-    be ran using the property estimator, in addition to deciding at which fidelity
-    a property will be calculated.
+class EvaluatorServer(TCPServer):
+    """The object responsible for coordinating all properties estimations to
+    be ran using the property estimator.
 
-    It acts as a server, which receives submitted jobs from clients
-    launched via the property estimator.
-
-    Warnings
-    --------
-    This class is still heavily under development and is subject to rapid changes.
-
-    Notes
-    -----
-    Methods to handle the TCP messages are based on the StackOverflow response from
-    A. Jesse Jiryu Davis: https://stackoverflow.com/a/40257248
+    This server is responsible for receiving estimation requests from the client,
+    determining which calculation layer to use to launch the request, and
+    distributing that estimation across the available compute resources.
 
     Examples
     --------
-    Setting up a general server instance using a dask LocalCluster backend:
+    Setting up a general server instance using a dask based calculation backend,
+    and a local file storage backend:
 
     >>> # Create the backend which will be responsible for distributing the calculations
     >>> from propertyestimator.backends import DaskLocalCluster, ComputeResources
@@ -57,8 +50,8 @@ class PropertyEstimatorServer(TCPServer):
     >>> storage_backend = LocalFileStorage()
     >>>
     >>> # Create the server to which all estimation requests will be submitted
-    >>> from propertyestimator.server import PropertyEstimatorServer
-    >>> property_server = PropertyEstimatorServer(calculation_backend, storage_backend)
+    >>> from propertyestimator.server import EvaluatorServer
+    >>> property_server = EvaluatorServer(calculation_backend, storage_backend)
     >>>
     >>> # Instruct the server to listen for incoming requests
     >>> property_server.start_listening_loop()
