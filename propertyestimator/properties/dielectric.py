@@ -23,7 +23,7 @@ from propertyestimator.protocols.utils import (
 )
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import timeseries
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import bootstrap
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
@@ -298,12 +298,12 @@ class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
         logging.info("Reweighting dielectric: {}".format(self.id))
 
         if len(self.reference_dipole_moments) == 0:
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory, message="There were no dipole moments to reweight."
             )
 
         if len(self.reference_volumes) == 0:
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory, message="There were no volumes to reweight."
             )
 
@@ -311,14 +311,14 @@ class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
             self.reference_dipole_moments[0], unit.Quantity
         ) or not isinstance(self.reference_volumes[0], unit.Quantity):
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="The reference observables should be "
                 "a list of unit.Quantity wrapped ndarray's.",
             )
 
         if len(self.reference_dipole_moments) != len(self.reference_volumes):
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="The number of reference dipoles does "
                 "not match the number of reference volumes.",
@@ -331,7 +331,7 @@ class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
             if len(reference_dipoles) == len(reference_volumes):
                 continue
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="The number of reference dipoles does "
                 "not match the number of reference volumes.",
@@ -355,7 +355,7 @@ class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
             )
         else:
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="Dielectric constant can only be reweighted in conjunction "
                 "with bootstrapped uncertainties.",

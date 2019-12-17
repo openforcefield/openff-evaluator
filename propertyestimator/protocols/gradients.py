@@ -21,7 +21,7 @@ from propertyestimator.forcefield import (
 )
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.openmm import (
     disable_pbc,
     openmm_quantity_to_pint,
@@ -330,7 +330,7 @@ class GradientReducedPotentials(BaseProtocol):
 
         if not isinstance(force_field_source, SmirnoffForceFieldSource):
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory,
                 "Only SMIRNOFF force fields are supported by " "this protocol.",
             )
@@ -461,7 +461,7 @@ class CentralDifferenceGradient(BaseProtocol):
 
         if self.forward_parameter_value < self.reverse_parameter_value:
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 f"The forward parameter value ({self.forward_parameter_value}) must "
                 f"be larger than the reverse value ({self.reverse_parameter_value})."
             )

@@ -13,7 +13,7 @@ from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.substances import Substance
 from propertyestimator.utils import create_molecule_from_smiles, packmol
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import register_calculation_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
@@ -98,7 +98,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
             The list of openeye molecules.
         list of int
             The number of each molecule which should be added to the system.
-        PropertyEstimatorException, optional
+        EvaluatorException, optional
             None if no exceptions occurred, otherwise the exception.
         """
 
@@ -113,7 +113,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
                 return (
                     None,
                     None,
-                    PropertyEstimatorException(
+                    EvaluatorException(
                         directory=directory,
                         message=f"{component} could not be converted " f"to a Molecule",
                     ),
@@ -135,7 +135,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
             return (
                 None,
                 None,
-                PropertyEstimatorException(
+                EvaluatorException(
                     directory=directory,
                     message=f"The number of molecules to create "
                     f"({sum(number_of_molecules)}) is greater "
@@ -257,7 +257,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
 
         if self.substance is None:
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory, message="The substance input is non-optional"
             )
 
@@ -286,7 +286,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
 
         if topology is None or positions is None:
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory, message="Packmol failed to complete."
             )
 
@@ -318,12 +318,12 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
         )
 
         if self.substance is None:
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory, message="The substance input is non-optional"
             )
 
         if self.solute_coordinate_file is None:
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="The solute coordinate file input is non-optional",
             )
@@ -349,7 +349,7 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
         )
 
         if topology is None or positions is None:
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory, message="Packmol failed to complete."
             )
 
@@ -479,7 +479,7 @@ class BuildDockedCoordinates(BaseProtocol):
             != Substance.ComponentRole.Ligand
         ):
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="The ligand substance must contain a single ligand component.",
             )
@@ -508,7 +508,7 @@ class BuildDockedCoordinates(BaseProtocol):
 
         if status != oedocking.OEDockingReturnCode_Success:
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="The ligand could not be successfully docked",
             )

@@ -12,7 +12,7 @@ from scipy.special import logsumexp
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.openmm import (
     disable_pbc,
     pint_quantity_to_openmm,
@@ -62,7 +62,7 @@ class ConcatenateTrajectories(BaseProtocol):
 
         if len(self.input_coordinate_paths) != len(self.input_trajectory_paths):
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="There should be the same number of "
                 "coordinate and trajectory paths.",
@@ -70,7 +70,7 @@ class ConcatenateTrajectories(BaseProtocol):
 
         if len(self.input_trajectory_paths) == 0:
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="No trajectories were " "given to concatenate.",
             )
@@ -119,7 +119,7 @@ class ConcatenateStatistics(BaseProtocol):
 
         if len(self.input_statistics_paths) == 0:
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="No statistics arrays were " "given to concatenate.",
             )
@@ -373,13 +373,13 @@ class BaseMBARProtocol(BaseProtocol):
 
         if len(self._reference_observables) == 0:
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory, message="There were no observables to reweight."
             )
 
         if not isinstance(self._reference_observables[0], unit.Quantity):
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="The reference_observables input should be"
                 "a list of unit.Quantity wrapped ndarray's.",
@@ -417,13 +417,13 @@ class BaseMBARProtocol(BaseProtocol):
             The target reduced potentials array with dtype=double and
             shape=(1,)
         """
-        
+
         if isinstance(self.reference_reduced_potentials, str):
             self.reference_reduced_potentials = [self.reference_reduced_potentials]
 
         if isinstance(self.target_reduced_potentials, str):
             self.target_reduced_potentials = [self.target_reduced_potentials]
-        
+
         reference_reduced_potentials = []
         target_reduced_potentials = []
 
@@ -472,7 +472,7 @@ class BaseMBARProtocol(BaseProtocol):
 
         Returns
         -------
-        PropertyEstimatorException, optional
+        EvaluatorException, optional
             None if the method executed normally, otherwise the exception that was raised.
         """
 
@@ -495,7 +495,7 @@ class BaseMBARProtocol(BaseProtocol):
 
         if self.effective_samples < self.required_effective_samples:
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 message=f"{self.id}: There was not enough effective samples "
                 f"to reweight - {self.effective_samples} < "
                 f"{self.required_effective_samples}"
@@ -559,7 +559,7 @@ class BaseMBARProtocol(BaseProtocol):
 
         if self.effective_samples < self.required_effective_samples:
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 message=f"{self.id}: There was not enough effective samples "
                 f"to reweight - {self.effective_samples} < "
                 f"{self.required_effective_samples}"
@@ -826,12 +826,10 @@ class ReweightStatistics(BaseMBARProtocol):
             self.statistics_paths = [self.statistics_paths]
 
         if self.statistics_paths is None or len(self.statistics_paths) == 0:
-            return PropertyEstimatorException(
-                directory, "No statistics paths were provided."
-            )
+            return EvaluatorException(directory, "No statistics paths were provided.")
 
         if len(self.frame_counts) > 0 and len(self.statistics_paths) != 1:
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory,
                 "The frame counts input can only be used when only"
                 "a single path is passed to the `statistics_paths`"
@@ -839,7 +837,7 @@ class ReweightStatistics(BaseMBARProtocol):
             )
 
         if self.statistics_type == ObservableType.KineticEnergy:
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory, f"Kinetic energies cannot be reweighted."
             )
 
@@ -858,7 +856,7 @@ class ReweightStatistics(BaseMBARProtocol):
             for frame_count in self.frame_counts:
 
                 if frame_count <= 0:
-                    return PropertyEstimatorException(
+                    return EvaluatorException(
                         directory, "The frame counts must be > 0."
                     )
 

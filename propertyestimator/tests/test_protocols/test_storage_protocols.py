@@ -11,7 +11,7 @@ from propertyestimator.tests.utils import (
     create_dummy_simulation_data,
     create_dummy_substance,
 )
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.serialization import TypedJSONEncoder
 
 
@@ -52,4 +52,4 @@ def test_unpack_stored_simulation_data():
         )
 
         result = unpack_stored_data.execute(directory, None)
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)

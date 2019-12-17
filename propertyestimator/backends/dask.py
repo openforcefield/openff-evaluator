@@ -191,7 +191,7 @@ class BaseDaskBackend(PropertyEstimatorBackend):
         -------
         Any
             Returns the output of the function without modification, unless
-            an uncaught exception is raised in which case a PropertyEstimatorException
+            an uncaught exception is raised in which case a EvaluatorException
             is returned.
         """
         raise NotImplementedError()
@@ -281,7 +281,7 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
         # jobs restarting because of workers being killed (due to
         # wall-clock time limits mainly) do not get terminated. This
         # should mostly be safe as we most wrap genuinely thrown
-        # exceptions up as PropertyEstimatorExceptions and return these
+        # exceptions up as EvaluatorExceptions and return these
         # gracefully (such that the task won't be marked as failed by
         # dask).
         dask.config.set({"distributed.scheduler.allowed-failures": 500})

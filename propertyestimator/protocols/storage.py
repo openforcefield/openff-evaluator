@@ -10,7 +10,7 @@ from propertyestimator.attributes import UNDEFINED
 from propertyestimator.storage.data import StoredSimulationData
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import register_calculation_protocol
@@ -67,7 +67,7 @@ class UnpackStoredSimulationData(BaseProtocol):
 
         if len(self.simulation_data_path) != 3:
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="The simulation data path should be a tuple "
                 "of a path to the data object, directory, and a path "
@@ -80,7 +80,7 @@ class UnpackStoredSimulationData(BaseProtocol):
 
         if not path.isdir(data_directory):
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="The path to the data directory"
                 "is invalid: {}".format(data_directory),
@@ -88,7 +88,7 @@ class UnpackStoredSimulationData(BaseProtocol):
 
         if not path.isfile(force_field_path):
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="The path to the force field"
                 "is invalid: {}".format(force_field_path),
@@ -99,7 +99,7 @@ class UnpackStoredSimulationData(BaseProtocol):
 
         if not isinstance(data_object, StoredSimulationData):
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message=f"The data path must point to a `StoredSimulationData` "
                 f"object, and not a {data_object.__class__.__name__}",

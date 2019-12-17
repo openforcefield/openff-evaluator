@@ -16,7 +16,7 @@ from propertyestimator.attributes import UNDEFINED
 from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.openmm import (
     disable_pbc,
     openmm_quantity_to_pint,
@@ -493,7 +493,7 @@ class BaseYankProtocol(BaseProtocol):
             process.join()
 
             if error is not None:
-                return PropertyEstimatorException(directory, error)
+                return EvaluatorException(directory, error)
 
         self.estimated_free_energy = EstimatedQuantity(
             openmm_quantity_to_pint(free_energy),
@@ -688,7 +688,7 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
             directory, available_resources
         )
 
-        if isinstance(result, PropertyEstimatorException):
+        if isinstance(result, EvaluatorException):
             return result
 
         if self.setup_only:
@@ -940,11 +940,11 @@ class SolvationYankProtocol(BaseYankProtocol):
         ]
 
         if len(solute_components) != 1:
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory, "There must only be a single component marked as a solute."
             )
         if len(solvent_1_components) == 0 and len(solvent_2_components) == 0:
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory, "At least one of the solvents must not be vacuum."
             )
 
@@ -996,7 +996,7 @@ class SolvationYankProtocol(BaseYankProtocol):
             directory, available_resources
         )
 
-        if isinstance(result, PropertyEstimatorException):
+        if isinstance(result, EvaluatorException):
             return result
 
         if self.setup_only:

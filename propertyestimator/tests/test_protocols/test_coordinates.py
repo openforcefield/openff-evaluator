@@ -14,7 +14,7 @@ from propertyestimator.protocols.coordinates import (
 )
 from propertyestimator.substances import Substance
 from propertyestimator.utils import get_data_filename
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 
 
 def _build_input_output_substances():
@@ -88,7 +88,7 @@ def test_build_coordinates_packmol(input_substance, expected):
 
     with tempfile.TemporaryDirectory() as directory:
         assert not isinstance(
-            build_coordinates.execute(directory, None), PropertyEstimatorException
+            build_coordinates.execute(directory, None), EvaluatorException
         )
 
     assert build_coordinates.output_substance == expected

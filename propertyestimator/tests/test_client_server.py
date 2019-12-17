@@ -17,7 +17,7 @@ from propertyestimator.properties import Density
 from propertyestimator.server.server import EvaluatorServer
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.tests.utils import create_dummy_property
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 
 
 @calculation_layer()
@@ -88,4 +88,4 @@ def test_estimate_request():
         )
         result = request.results(synchronous=True, polling_interval=0)
 
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)

@@ -16,7 +16,7 @@ from simtk.openmm import app
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.thermodynamics import Ensemble, ThermodynamicState
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.openmm import (
     disable_pbc,
     pint_quantity_to_openmm,
@@ -308,7 +308,7 @@ class RunOpenMMSimulation(BaseProtocol):
 
         if openmm_temperature is None:
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="A temperature must be set to perform "
                 "a simulation in any ensemble",
@@ -316,14 +316,14 @@ class RunOpenMMSimulation(BaseProtocol):
 
         if Ensemble(self.ensemble) == Ensemble.NPT and openmm_pressure is None:
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="A pressure must be set to perform an NPT simulation",
             )
 
         if Ensemble(self.ensemble) == Ensemble.NPT and self.enable_pbc is False:
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="PBC must be enabled when running in the NPT ensemble.",
             )
@@ -366,7 +366,7 @@ class RunOpenMMSimulation(BaseProtocol):
         # Run the simulation.
         result = self._simulate(directory, self._context, self._integrator)
 
-        if isinstance(result, PropertyEstimatorException):
+        if isinstance(result, EvaluatorException):
             return result
 
         # Set the output paths.
@@ -833,7 +833,7 @@ class RunOpenMMSimulation(BaseProtocol):
                 f"{traceback.format_exception(None, e, e.__traceback__)}"
             )
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message=f"The simulation failed unexpectedly: "
                 f"{formatted_exception}",

@@ -20,7 +20,7 @@ from propertyestimator.protocols.miscellaneous import (
     WeightByMoleFraction,
 )
 from propertyestimator.substances import Substance
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 
 
@@ -53,7 +53,7 @@ def test_add_values_protocol(values):
 
         result = add_quantities.execute(temporary_directory, ComputeResources())
 
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
         assert add_quantities.result == reduce(operator.add, values)
 
 
@@ -87,7 +87,7 @@ def test_subtract_values_protocol(values):
 
         result = sub_quantities.execute(temporary_directory, ComputeResources())
 
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
         assert sub_quantities.result == values[1] - values[0]
 
 
@@ -116,7 +116,7 @@ def test_multiply_values_protocol(value, multiplier):
 
         result = multiply_quantities.execute(temporary_directory, ComputeResources())
 
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
         assert multiply_quantities.result == value * multiplier
 
 
@@ -145,7 +145,7 @@ def test_divide_values_protocol(value, divisor):
 
         result = divide_quantities.execute(temporary_directory, ComputeResources())
 
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
         assert divide_quantities.result == value / divisor
 
 
@@ -180,7 +180,7 @@ def test_weight_by_mole_fraction_protocol(component_smiles, value):
 
         result = weight_protocol.execute(temporary_directory, ComputeResources())
 
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
         assert weight_protocol.weighted_value == value * mole_fraction
 
 

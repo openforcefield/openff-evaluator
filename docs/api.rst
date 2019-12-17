@@ -13,7 +13,7 @@ Client Side API
 
     EvaluatorClient
     RequestOptions
-    PropertyEstimatorSubmission
+    _Submission
     RequestResult
     ConnectionOptions
 

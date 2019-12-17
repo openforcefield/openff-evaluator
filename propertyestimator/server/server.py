@@ -12,14 +12,10 @@ from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
 from tornado.tcpserver import TCPServer
 
-from propertyestimator.client import (
-    PropertyEstimatorSubmission,
-    RequestOptions,
-    RequestResult,
-)
+from propertyestimator.client import RequestOptions, RequestResult
 from propertyestimator.layers import registered_calculation_layers
-from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.serialization import TypedBaseModel
+from propertyestimator.utils.exceptions import EvaluatorException
+from propertyestimator.utils.serialization import TypedBaseModel, TypedJSONEncoder
 from propertyestimator.utils.tcp import (
     PropertyEstimatorMessageTypes,
     pack_int,
@@ -207,7 +203,7 @@ class EvaluatorServer(TCPServer):
         json_model = encoded_json.decode()
 
         # TODO: Add exception handling so the server can gracefully reject bad json.
-        client_data_model = PropertyEstimatorSubmission.parse_json(json_model)
+        client_data_model = _Submission.parse_json(json_model)
 
         client_request_id = str(uuid.uuid4())
 
@@ -237,8 +233,8 @@ class EvaluatorServer(TCPServer):
             self._schedule_server_request(server_requests[request_id])
 
     async def _handle_job_query(self, stream, message_length):
-        """An asynchronous routine for handling the receiving and processing
-        of job queries from a client
+        """An asynchronous routine for handling the receiving and
+        processing of request status queries from a client
 
         Parameters
         ----------
@@ -253,26 +249,29 @@ class EvaluatorServer(TCPServer):
         client_request_id = encoded_request_id.decode()
 
         response = None
+        error = None
 
         if client_request_id not in self._server_request_ids_per_client_id:
 
-            response = PropertyEstimatorException(
+            error = EvaluatorException(
                 directory="",
-                message=f"The {client_request_id} request id was not found "
+                message=f"The request id ({client_request_id}) was not found "
                 f"on the server.",
             )
 
         else:
             response = self._query_client_request_status(client_request_id)
 
-        encoded_response = response.json().encode()
+        response_json = json.dumps((response, error), cls=TypedJSONEncoder)
+
+        encoded_response = response_json.encode()
         length = pack_int(len(encoded_response))
 
         await stream.write(length + encoded_response)
 
     async def handle_stream(self, stream, address):
         """A routine to handle incoming requests from
-        a property estimator TCP client.
+        a TCP client.
 
         Notes
         -----
@@ -287,7 +286,6 @@ class EvaluatorServer(TCPServer):
         address: str
             The address from which the request came.
         """
-        # logging.info("Incoming connection from {}".format(address))
 
         try:
             while True:
@@ -299,16 +297,11 @@ class EvaluatorServer(TCPServer):
                 packed_message_length = await stream.read_bytes(4)
                 message_length = unpack_int(packed_message_length)[0]
 
-                # logging.info('Introductory packet recieved: {} {}'.format(message_type_int, message_length))
-
                 message_type = None
 
                 try:
                     message_type = PropertyEstimatorMessageTypes(message_type_int)
-                    # logging.info('Message type: {}'.format(message_type))
-
                 except ValueError as e:
-
                     logging.info("Bad message type recieved: {}".format(e))
 
                     # Discard the unrecognised message.
@@ -323,51 +316,8 @@ class EvaluatorServer(TCPServer):
                     await self._handle_job_query(stream, message_length)
 
         except StreamClosedError:
-
             # Handle client disconnections gracefully.
-            # logging.info("Lost connection to {}:{} : {}.".format(address, self._port, e))
             pass
-
-    def _find_server_estimation_request(self, request):
-        """Checks whether the server is currently, or has previously completed
-        a request to estimate a set of properties for a particular substance
-        using the same force field parameters and estimation options.
-
-        Parameters
-        ----------
-        request: EvaluatorServer.ServerEstimationRequest
-            The request to check for.
-
-        Returns
-        -------
-        str, optional
-            The id of the existing request if one exists, otherwise None.
-        """
-
-        cached_request_id = request.id
-
-        for existing_id in self._queued_calculations:
-
-            request.id = existing_id
-
-            if request.json() != self._queued_calculations[existing_id].json():
-                continue
-
-            request.id = cached_request_id
-            return existing_id
-
-        for existing_id in self._finished_calculations:
-
-            request.id = existing_id
-
-            if request.json() != self._finished_calculations[existing_id].json():
-                continue
-
-            request.id = cached_request_id
-            return existing_id
-
-        request.id = cached_request_id
-        return None
 
     def _prepare_server_requests(self, client_data_model, client_request_id):
         """Turns a client estimation submission request into a form more useful
@@ -376,7 +326,7 @@ class EvaluatorServer(TCPServer):
 
         Parameters
         ----------
-        client_data_model: PropertyEstimatorSubmission
+        client_data_model: _Submission
             The client data model.
         client_request_id: str
             The id that was assigned to the client request.
@@ -497,14 +447,14 @@ class EvaluatorServer(TCPServer):
 
                 if len(server_request.queued_properties) > 0:
 
-                    return PropertyEstimatorException(
+                    return EvaluatorException(
                         message=f"An internal error occurred - the {server_request_id} "
                         f"was prematurely marked us finished."
                     )
 
             else:
 
-                return PropertyEstimatorException(
+                return EvaluatorException(
                     message=f"An internal error occurred - the {server_request_id} "
                     f"request was not found on the server."
                 )
@@ -589,7 +539,7 @@ class EvaluatorServer(TCPServer):
         if current_layer_type not in registered_calculation_layers:
 
             # Kill all remaining properties if we reach an unsupported calculation layer.
-            error_object = PropertyEstimatorException(
+            error_object = EvaluatorException(
                 message=f"The {current_layer_type} layer is not "
                 f"supported by / available on the server."
             )

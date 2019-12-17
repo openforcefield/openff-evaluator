@@ -17,7 +17,7 @@ from propertyestimator.protocols.yank import (
 from propertyestimator.substances import Substance
 from propertyestimator.tests.utils import build_tip3p_smirnoff_force_field
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.utils import temporarily_change_directory
 
 
@@ -106,7 +106,7 @@ def test_ligand_receptor_yank_protocol():
             run_yank.force_field_path = force_field_path
 
             result = run_yank.execute("", ComputeResources())
-            assert not isinstance(result, PropertyEstimatorException)
+            assert not isinstance(result, EvaluatorException)
 
 
 @pytest.mark.parametrize("solvent_smiles", ["O", "C(Cl)Cl"])
@@ -181,4 +181,4 @@ def test_solvation_yank_protocol(solvent_smiles):
             run_yank.steric_lambdas_2 = [1.00]
 
             result = run_yank.execute("", ComputeResources())
-            assert not isinstance(result, PropertyEstimatorException)
+            assert not isinstance(result, EvaluatorException)

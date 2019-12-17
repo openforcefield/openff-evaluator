@@ -4,6 +4,8 @@ Property estimator client side API.
 
 import json
 import logging
+import traceback
+import typing
 from collections import defaultdict
 from time import sleep
 
@@ -11,12 +13,16 @@ from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
 from tornado.tcpclient import TCPClient
 
+from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
+from propertyestimator.datasets import PhysicalPropertyDataSet
 from propertyestimator.forcefield import SmirnoffForceFieldSource
-from propertyestimator.layers import registered_calculation_schemas
-from propertyestimator.layers.reweighting import ReweightingLayer
-from propertyestimator.layers.simulation import SimulationLayer
+from propertyestimator.layers import (
+    registered_calculation_layers,
+    registered_calculation_schemas,
+)
 from propertyestimator.layers.workflow import WorkflowCalculationSchema
-from propertyestimator.utils.serialization import TypedBaseModel
+from propertyestimator.utils.exceptions import EvaluatorException
+from propertyestimator.utils.serialization import TypedBaseModel, TypedJSONDecoder
 from propertyestimator.utils.tcp import (
     PropertyEstimatorMessageTypes,
     pack_int,
@@ -24,290 +30,191 @@ from propertyestimator.utils.tcp import (
 )
 
 
-class RequestOptions(TypedBaseModel):
-    """Represents the options options that can be passed to the
-    property estimation server backend.
-
-    Warnings
-    --------
-    * This class is still heavily under development and is subject to rapid changes.
-
-    Attributes
-    ----------
-    allowed_calculation_layers: list of str or list of class
-        A list of allowed calculation layers. The order of the layers in the list is the order
-        that the calculator will attempt to execute the layers in.
-    workflow_schemas: dict of str and dict of str and WorkflowSchema
-        A dictionary of the WorkflowSchema which will be used to calculate any properties.
-        The dictionary key represents the type of property the schema will calculate. The
-        dictionary will be automatically populated with defaults if no entries are added.
-    workflow_options: dict of str and dict of str and WorkflowOptions, optional
-        The set of options which will be used when setting up the default estimation
-        workflows, where the string key here is the property for which the options apply.
-        As an example, the target (relative or absolute) uncertainty of each property may be set
-        using these options.
-
-        If None, a set of defaults will be applied when the properties are sent to a server for
-        estimation. The current set of defaults will ensure that properties are estimated with an
-        uncertainty which is less than or equal to the experimental uncertainty of a property.
-    allow_protocol_merging: bool, default = True
-        If true, allows individual identical steps in a property estimation workflow to be merged.
+class ConnectionOptions(AttributeClass):
+    """The options to use when connecting to an `EvaluatorServer`
     """
 
-    def __init__(self, allowed_calculation_layers=None, allow_protocol_merging=True):
-        """Constructs a new RequestOptions object.
+    server_address = Attribute(
+        docstring="The address of the server to connect to.",
+        type_hint=str,
+        default_value="localhost",
+    )
+    server_port = Attribute(
+        docstring="The port of the server to connect to.",
+        type_hint=int,
+        default_value=8000,
+    )
+
+
+class Request(AttributeClass):
+    """An estimation request which has been sent to a `EvaluatorServer`
+    instance.
+
+    This object can be used to query and retrieve the results of the
+    request when finished, or be stored to retrieve the request at some
+    point in the future."""
+
+    id = Attribute(
+        docstring="The unique id assigned to this request by the server.", type_hint=str
+    )
+    connection_options = Attribute(
+        docstring="The options used to connect to the server handling the request.",
+        type_hint=ConnectionOptions,
+    )
+
+    def __init__(self, client=None):
+        """
+        Parameters
+        ----------
+        client: EvaluatorClient, optional
+            The client which submitted this request.
+        """
+
+        if client is not None:
+
+            self.connection_options = ConnectionOptions()
+            self.connection_options.server_address = client.server_address
+            self.connection_options.server_port = client.server_port
+
+        self._client = client
+
+    def results(self, synchronous=False, polling_interval=5):
+        """Attempt to retrieve the results of the request from the
+        server.
+
+        If the method is run synchronously it will block the main
+        thread either all of the requested properties have been
+        estimated, or an exception is returned.
 
         Parameters
         ----------
-        allowed_calculation_layers: list of str or list of class
-            A list of allowed calculation layers. The order of the layers in the list is the order
-            that the calculator will attempt to execute the layers in.
+        synchronous: bool
+            If `True`, this method will block the main thread until
+            the server either returns a result or an error.
+        polling_interval: int
+            If running synchronously, this is the time interval (seconds)
+            between checking if the calculation has finished. This will
+            be ignored if running asynchronously.
 
-            If None, all registered calculation layers are set as allowed.
-        allow_protocol_merging: bool, default = True
-            If true, allows individual identical steps in a property estimation workflow to be merged.
+        Returns
+        -------
+        RequestResult, optional
+            Returns the current results of the request. This may
+            be `None` if any unexpected exceptions occurred while
+            retrieving the estimate.
+        EvaluatorException, optional
+            The exception raised will trying to retrieve the result
+            if any.
         """
+        if (
+            self._client is None
+            or self._client.server_address != self._client.server_address
+            or self._client.server_port != self._client.server_port
+        ):
 
-        if allowed_calculation_layers is None:
+            self.validate()
+            self._client = EvaluatorClient(self.connection_options)
 
-            self.allowed_calculation_layers = [
-                ReweightingLayer.__name__,
-                SimulationLayer.__name__,
-            ]
+        return self._client.retrieve_results(self.id, synchronous, polling_interval)
 
-        else:
+    def __str__(self):
+        return f"Request id={self.id}"
 
-            self.allowed_calculation_layers = []
-
-            for allowed_layer in allowed_calculation_layers:
-
-                if isinstance(allowed_layer, str):
-                    self.allowed_calculation_layers.append(allowed_layer)
-                else:
-                    self.allowed_calculation_layers.append(allowed_layer.__name__)
-
-        self.workflow_schemas = None
-        self.workflow_options = None
-
-        self.allow_protocol_merging = allow_protocol_merging
-
-    def __getstate__(self):
-
-        return {
-            "allowed_calculation_layers": self.allowed_calculation_layers,
-            "workflow_schemas": self.workflow_schemas,
-            "workflow_options": self.workflow_options,
-            "allow_protocol_merging": self.allow_protocol_merging,
-        }
-
-    def __setstate__(self, state):
-
-        self.allowed_calculation_layers = state["allowed_calculation_layers"]
-
-        self.workflow_schemas = state["workflow_schemas"]
-        self.workflow_options = state["workflow_options"]
-
-        self.allow_protocol_merging = state["allow_protocol_merging"]
+    def __repr__(self):
+        return f"<{str(self)}>"
 
 
-class PropertyEstimatorSubmission(TypedBaseModel):
-    """Represents a set of properties to be estimated by the server backend,
-    the parameters which will be used to estimate them, and options about
-    how the properties will be estimated.
-
-    Warnings
-    --------
-    This class is still heavily under development and is subject to rapid changes.
-
-    Attributes
-    ----------
-    properties: list of PhysicalProperty
-        The list of physical properties to estimate.
-    options: RequestOptions
-        The options which control how the `properties` are estimated.
-    force_field_source: ForceFieldSource
-        The source of the force field parameters used during the calculations.
+class RequestOptions(AttributeClass):
+    """The options to use when requesting a set of physical
+    properties be estimated by the server.
     """
 
-    def __init__(
-        self,
-        properties=None,
-        force_field_source=None,
-        options=None,
-        parameter_gradient_keys=None,
-    ):
-        """Constructs a new PropertyEstimatorSubmission object.
+    calculation_layers = Attribute(
+        docstring="The calculation layers which may be used to "
+        "estimate the set of physical properties.",
+        type_hint=list,
+        default_value=["ReweightingLayer", "SimulationLayer"],
+    )
+    calculation_schemas = Attribute(
+        docstring="The schemas that each calculation layer should "
+        "use when estimating the set of physical properties. The "
+        "dictionary should be of the form [property_type][layer_type].",
+        type_hint=dict,
+        optional=True,
+    )
 
-        Parameters
-        ----------
-        properties: list of PhysicalProperty
-            The list of physical properties to estimate.
-        options: RequestOptions
-            The options which control how the `properties` are estimated.
-        force_field_source: ForceFieldSource
-            The source of the force field parameters used during the calculations.
-        parameter_gradient_keys: list of ParameterGradientKey
-            A list of references to all of the parameters which all observables
-            should be differentiated with respect to.
-        """
-        self.properties = properties or []
-        self.options = options
+    def validate(self, attribute_type=None):
 
-        self.force_field_source = force_field_source
+        super(RequestOptions, self).validate()
 
-        self.parameter_gradient_keys = (
-            [] if parameter_gradient_keys is None else parameter_gradient_keys
+        assert all(isinstance(x, str) for x in self.calculation_layers)
+        assert all(x in registered_calculation_layers for x in self.calculation_layers)
+
+        if self.calculation_schemas != UNDEFINED:
+
+            for property_type in self.calculation_layers:
+
+                assert isinstance(self.calculation_layers[property_type], dict)
+
+                for layer_type in self.calculation_layers[property_type]:
+
+                    assert layer_type in self.calculation_layers
+                    calculation_layer = registered_calculation_layers[layer_type]
+
+                    schemas = self.calculation_layers[property_type][layer_type]
+                    required_type = calculation_layer.required_schema_type()
+                    assert all(isinstance(x, required_type) for x in schemas)
+
+
+class RequestResult(AttributeClass):
+    """The current results of an estimation request - these
+    results may be partial if the server hasn't yet completed
+    the request.
+    """
+
+    queued_properties = Attribute(
+        docstring="The set of properties which have yet to be, or "
+        "are currently being estimated.",
+        type_hint=typing.Union[PhysicalPropertyDataSet, None],
+        default_value=None,
+    )
+
+    estimated_properties = Attribute(
+        docstring="The set of properties which have been successfully estimated.",
+        type_hint=typing.Union[PhysicalPropertyDataSet, None],
+        default_value=None,
+    )
+    unsuccessful_properties = Attribute(
+        docstring="The set of properties which could not be successfully estimated.",
+        type_hint=typing.Union[PhysicalPropertyDataSet, None],
+        default_value=None,
+    )
+
+    exceptions = Attribute(
+        docstring="The set of properties which have yet to be, or "
+        "are currently being estimated.",
+        type_hint=list,
+        default_value=[],
+    )
+
+    def validate(self, attribute_type=None):
+
+        super(RequestResult, self).validate()
+
+        assert all((isinstance(x, EvaluatorException) for x in self.exceptions))
+        assert (
+            self.queued_properties is not None
+            or self.estimated_properties is not None
+            or self.unsuccessful_properties is not None
         )
-
-    def __getstate__(self):
-
-        return {
-            "properties": self.properties,
-            "options": self.options,
-            "force_field_source": self.force_field_source,
-            "parameter_gradient_keys": self.parameter_gradient_keys,
-        }
-
-    def __setstate__(self, state):
-
-        self.properties = state["properties"]
-        self.options = state["options"]
-
-        self.force_field_source = state["force_field_source"]
-        self.parameter_gradient_keys = state["parameter_gradient_keys"]
-
-
-class RequestResult(TypedBaseModel):
-    """Represents the results of attempting to estimate a set of physical
-    properties using the property estimator server backend.
-
-    Warnings
-    --------
-    This class is still heavily under development and is subject to rapid changes.
-
-    Attributes
-    ----------
-    id: str
-        The unique id assigned to this result set by the server.
-    queued_properties: dict of str and PhysicalProperty
-        A dictionary of the properties which have yet to be estimated by
-        the server.
-    estimated_properties: dict of str and PhysicalProperty
-        A dictionary of the properties which were successfully estimated, where
-        the dictionary key is the unique id of the property being estimated.
-    unsuccessful_properties: dict of str and PhysicalProperty
-        A dictionary of the properties which could not be estimated by the server.
-    exceptions: list of PropertyEstimatorException
-        A list of the exceptions that were raised when unsuccessfully carrying out this
-        estimation request.
-    """
-
-    def __init__(self, result_id=""):
-        """Constructs a new RequestResult object.
-
-        Parameters
-        ----------
-        result_id: str
-            The unique id assigned to this result set by the server.
-        """
-
-        self.id = result_id
-
-        self.queued_properties = {}
-
-        self.estimated_properties = {}
-        self.unsuccessful_properties = {}
-
-        self.exceptions = []
-
-    def __getstate__(self):
-
-        return {
-            "id:": self.id,
-            "queued_properties": self.queued_properties,
-            "estimated_properties": self.estimated_properties,
-            "unsuccessful_properties": self.unsuccessful_properties,
-            "exceptions": self.exceptions,
-        }
-
-    def __setstate__(self, state):
-
-        self.id = state["id:"]
-
-        self.queued_properties = state["queued_properties"]
-
-        self.estimated_properties = state["estimated_properties"]
-        self.unsuccessful_properties = state["unsuccessful_properties"]
-
-        self.exceptions = state["exceptions"]
-
-
-class ConnectionOptions(TypedBaseModel):
-    """The set of options to use when connecting to a
-    `EvaluatorServer`
-
-    Attributes
-    ----------
-    server_address: str
-        The address of the server to connect to.
-    server_port: int
-        The port number that the server is listening on.
-
-    Warnings
-    --------
-    This class is still heavily under development and is subject to rapid changes.
-    """
-
-    server_address: str = "localhost"
-    server_port: int = 8000
-
-    def __init__(self, server_address="localhost", server_port=8000):
-        """Constructs a new ConnectionOptions object.
-
-        Parameters
-        ----------
-        server_address: str
-            The address of the server to connect to.
-        server_port: int
-            The port number that the server is listening on.
-        """
-
-        self.server_address = server_address
-        self.server_port = server_port
-
-    def __getstate__(self):
-
-        return {
-            "server_address": self.server_address,
-            "server_port": self.server_port,
-        }
-
-    def __setstate__(self, state):
-
-        self.server_address = state["server_address"]
-        self.server_port = state["server_port"]
 
 
 class EvaluatorClient:
-    """The EvaluatorClient is the main object that users of the
-    property estimator will interface with. It is responsible for requesting
-    that a EvaluatorServer estimates a set of physical properties,
-    as well as querying for when those properties have been estimated.
-
-    The EvaluatorClient supports two main workflows: one where
-    a EvaluatorServer lives on a remote supercomputing cluster
-    where all of the expensive calculations will be run, and one where
-    the users local machine acts as both the server and the client, and
-    all calculations will be performed locally.
-
-    Warnings
-    --------
-    While the API of this class in now close to being final, the internals and implementation
-    are still heavily under development and is subject to rapid changes.
+    """The object responsible for connecting to, and submitting
+    physical property estimation requests to an `EvaluatorServer`.
 
     Examples
     --------
-
     Setting up the client instance:
 
     >>> from propertyestimator.client import EvaluatorClient
@@ -410,141 +317,25 @@ class EvaluatorClient:
 
     @property
     def server_address(self):
+        """str: The address of the server that this client is connected to."""
         return self._connection_options.server_address
 
     @property
     def server_port(self):
+        """int: The port of the server that this client is connected to."""
         return self._connection_options.server_port
 
-    class Request:
-        """An object representation of a estimation request which has
-        been sent to a `EvaluatorServer` instance. This object
-        can be used to query and retrieve the results of the request, or
-        be stored to retrieve the request at some point in the future."""
-
-        @property
-        def id(self):
-            """str: The id of the submitted request."""
-            return self._id
-
-        @property
-        def server_address(self):
-            """str: The address of the server that the request was sent to."""
-            return self._server_address
-
-        @property
-        def server_port(self):
-            """The port that the server is listening on."""
-            return self._server_port
-
-        def __init__(self, request_id, connection_options, client=None):
-            """Constructs a new Request object.
-
-            Parameters
-            ----------
-            request_id: str
-                The id of the submitted request.
-            connection_options: ConnectionOptions
-                The options that were used to connect to the server that the request was sent to.
-            client: EvaluatorClient, optional
-                The client that was used to submit the request.
-            """
-            self._id = request_id
-
-            self._server_address = connection_options.server_address
-            self._server_port = connection_options.server_port
-
-            self._client = client
-
-            if client is None:
-
-                connection_options = ConnectionOptions(
-                    server_address=connection_options.server_address,
-                    server_port=connection_options.server_port,
-                )
-
-                self._client = EvaluatorClient(connection_options)
-
-        def __str__(self):
-
-            return "EstimateRequest id: {} server_address: {} server_port: {}".format(
-                self._id, self._server_address, self._server_port
-            )
-
-        def __repr__(self):
-            return "<EstimateRequest id: {} server_address: {} server_port: {}>".format(
-                self._id, self._server_address, self._server_port
-            )
-
-        def json(self):
-            """Returns a JSON representation of the `Request` object.
-
-            Returns
-            -------
-            str:
-                The JSON representation of the `Request` object.
-            """
-
-            return json.dumps(
-                {"id": self._id, "server_address": self._id, "server_port": self._id}
-            )
-
-        @classmethod
-        def from_json(cls, json_string):
-            """Creates a new `Request` object from a JSON representation.
-
-            Parameters
-            ----------
-            json_string: str
-                The JSON representation of the `Request` object.
-
-            Returns
-            -------
-            str:
-                The created `Request` object.
-            """
-            json_dict = json.loads(json_string)
-
-            return cls(
-                json_dict["id"], json_dict["server_address"], json_dict["server_port"]
-            )
-
-        def results(self, synchronous=False, polling_interval=5):
-            """Retrieve the results of an estimate request.
-
-            Parameters
-            ----------
-            synchronous: bool
-                If true, this method will block the main thread until the server
-                either returns a result or an error.
-            polling_interval: int
-                If running synchronously, this is the time interval (seconds) between
-                checking if the calculation has finished.
-
-            Returns
-            -------
-            RequestResult or PropertyEstimatorException:
-                Returns either the results of the requested estimate, or any
-                exceptions which were raised.
-
-                If the method is run synchronously then this method will block the main
-                thread until all of the requested properties have been estimated, or
-                an exception is returned.
-            """
-            return self._client._retrieve_estimate(
-                self._id, synchronous, polling_interval
-            )
-
-    def __init__(self, connection_options=ConnectionOptions()):
-        """Constructs a new EvaluatorClient object.
-
+    def __init__(self, connection_options=None):
+        """
         Parameters
         ----------
-        connection_options: ConnectionOptions
-            The options used when connecting to the calculation server.
+        connection_options: ConnectionOptions, optional
+            The options used when connecting to the calculation
+            server. If `None`, default options are used.
         """
 
-        self._connection_options = connection_options
+        if connection_options is None:
+            connection_options = ConnectionOptions()
 
         if connection_options.server_address is None:
 
@@ -553,6 +344,7 @@ class EvaluatorClient:
                 "these calculations must be given."
             )
 
+        self._connection_options = connection_options
         self._tcp_client = TCPClient()
 
     def request_estimate(
@@ -562,25 +354,26 @@ class EvaluatorClient:
         options=None,
         parameter_gradient_keys=None,
     ):
-        """Requests that a EvaluatorServer attempt to estimate the
-        provided property set using the supplied force field and estimator options.
+        """Submits a request for the `EvaluatorServer` to attempt to estimate
+        the data set of physical properties using the specified force field
+        parameters according to the provided options.
 
         Parameters
         ----------
         property_set : PhysicalPropertyDataSet
-            The set of properties to attempt to estimate.
+            The set of properties to estimate.
         force_field_source : ForceFieldSource or openforcefield.typing.engines.smirnoff.ForceField
-            The source of the force field parameters to use for the calculations.
+            The force field parameters to estimate the properties using.
         options : RequestOptions, optional
-            A set of estimator options. If None, default options
+            A set of estimator options. If `None` default options
             will be used.
         parameter_gradient_keys: list of ParameterGradientKey, optional
-            A list of references to all of the parameters which all observables
-            should be differentiated with respect to.
+            A list of the parameters that the physical properties should
+            be differentiated with respect to.
 
         Returns
         -------
-        EvaluatorClient.Request
+        Request
             An object which will provide access the the results of the request.
         """
         from openforcefield.typing.engines import smirnoff
@@ -704,7 +497,7 @@ class EvaluatorClient:
                     calculation_schema.workflow_options.protocol_replacements
                 )
 
-        submission = PropertyEstimatorSubmission(
+        submission = _Submission(
             properties=properties_list,
             force_field_source=force_field_source,
             options=options,
@@ -721,37 +514,38 @@ class EvaluatorClient:
 
         return request_object
 
-    def _retrieve_estimate(self, request_id, synchronous=False, polling_interval=5):
-        """A method to retrieve the status of a requested estimate from the server.
+    def retrieve_results(self, request_id, synchronous=False, polling_interval=5):
+        """Retrieves the current results of a request from the server.
 
         Parameters
         ----------
         request_id: str
-            The id of the estimate request which was returned by the server
-            upon making the request.
+            The server assigned id of the request.
         synchronous: bool
             If true, this method will block the main thread until the server
             either returns a result or an error.
-        polling_interval: int
-            If running synchronously, this is the time interval (seconds) between
-            checking if the calculation has finished.
+        polling_interval: float
+            If running synchronously, this is the time interval (seconds)
+            between checking if the request has completed.
 
         Returns
         -------
-        RequestResult or PropertyEstimatorException:
-            Returns either the results of the requested estimate, or any
-            exceptions which were raised.
-
-            If the method is run synchronously then this method will block the main
-            thread until all of the requested properties have been estimated, or
-            an exception is returned.
+        RequestResult, optional
+            Returns the current results of the request. This may
+            be `None` if any unexpected exceptions occurred while
+            retrieving the estimate.
+        EvaluatorException, optional
+            The exception raised will trying to retrieve the result,
+            if any.
         """
 
         # If running asynchronously, just return whatever the server
         # sends back.
+
         if synchronous is False:
+
             return IOLoop.current().run_sync(
-                lambda: self._send_query_server(request_id)
+                lambda: self._send_query_to_server(request_id)
             )
 
         assert polling_interval >= 0
@@ -765,7 +559,7 @@ class EvaluatorClient:
                 sleep(polling_interval)
 
             response = IOLoop.current().run_sync(
-                lambda: self._send_query_server(request_id)
+                lambda: self._send_query_to_server(request_id)
             )
 
             if (
@@ -791,7 +585,7 @@ class EvaluatorClient:
 
         Parameters
         ----------
-        submission: PropertyEstimatorSubmission
+        submission: _Submission
             The jobs to submit.
 
         Returns
@@ -808,31 +602,15 @@ class EvaluatorClient:
         try:
 
             # Attempt to establish a connection to the server.
-            logging.info(
-                "Attempting Connection to {}:{}".format(
-                    self._connection_options.server_address,
-                    self._connection_options.server_port,
-                )
-            )
-
             stream = await self._tcp_client.connect(
                 self._connection_options.server_address,
                 self._connection_options.server_port,
             )
 
-            logging.info(
-                "Connected to {}:{}".format(
-                    self._connection_options.server_address,
-                    self._connection_options.server_port,
-                )
-            )
-
             stream.set_nodelay(True)
 
             # Encode the submission json into an encoded
-            # packet ready to submit to the server. The
-            # Length of the packet is encoded in the first
-            # four bytes.
+            # packet ready to submit to the server.
             message_type = pack_int(PropertyEstimatorMessageTypes.Submission)
 
             encoded_json = submission.json().encode()
@@ -840,27 +618,17 @@ class EvaluatorClient:
 
             await stream.write(message_type + length + encoded_json)
 
-            logging.info(
-                "Sent calculations to {}:{}. Waiting for a response from"
-                " the server...".format(
-                    self._connection_options.server_address,
-                    self._connection_options.server_port,
-                )
-            )
-
-            # Wait for confirmation that the server has submitted
-            # the jobs. The first four bytes of the response should
-            # be the length of the message being sent.
+            # Wait for confirmation that the server has received
+            # the jobs.
             header = await stream.read_bytes(4)
             length = unpack_int(header)[0]
 
             # Decode the response from the server. If everything
-            # went well, this should be a list of ids of the submitted
+            # went well, this should be the id of the submitted
             # calculations.
             encoded_json = await stream.read_bytes(length)
             request_id = json.loads(encoded_json.decode())
 
-            logging.info("Received job id from server: {}".format(request_id))
             stream.close()
             self._tcp_client.close()
 
@@ -868,18 +636,18 @@ class EvaluatorClient:
 
             # Handle no connections to the server gracefully.
             logging.info(
-                "Error connecting to {}:{} : {}. Please ensure the server is running and"
-                "that the server address / port is correct.".format(
-                    self._connection_options.server_address,
-                    self._connection_options.server_port,
-                    e,
-                )
+                f"Error connecting to {self.server_address}:{self.server_port}. "
+                f"Please ensure the server is running and that the server address "
+                f"/ port is correct."
             )
+
+            formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+            logging.info(formatted_exception)
 
         # Return the ids of the submitted jobs.
         return request_id
 
-    async def _send_query_server(self, request_id):
+    async def _send_query_to_server(self, request_id):
         """Attempts to connect to the calculation server, and
         submit the requested calculations.
 
@@ -946,8 +714,76 @@ class EvaluatorClient:
                 )
             )
 
-        if server_response is not None:
-            server_response = TypedBaseModel.parse_json(server_response)
+        response, error = None
 
-        # Return the ids of the submitted jobs.
-        return server_response
+        if server_response is not None:
+            response, error = json.loads(server_response, cls=TypedJSONDecoder)
+
+        return response, error
+
+
+class _Submission(TypedBaseModel):
+    """Represents a set of properties to be estimated by the server backend,
+    the parameters which will be used to estimate them, and options about
+    how the properties will be estimated.
+
+    Warnings
+    --------
+    This class is still heavily under development and is subject to rapid changes.
+
+    Attributes
+    ----------
+    properties: list of PhysicalProperty
+        The list of physical properties to estimate.
+    options: RequestOptions
+        The options which control how the `properties` are estimated.
+    force_field_source: ForceFieldSource
+        The source of the force field parameters used during the calculations.
+    """
+
+    def __init__(
+        self,
+        properties=None,
+        force_field_source=None,
+        options=None,
+        parameter_gradient_keys=None,
+    ):
+        """Constructs a new _Submission object.
+
+        Parameters
+        ----------
+        properties: list of PhysicalProperty
+            The list of physical properties to estimate.
+        options: RequestOptions
+            The options which control how the `properties` are estimated.
+        force_field_source: ForceFieldSource
+            The source of the force field parameters used during the calculations.
+        parameter_gradient_keys: list of ParameterGradientKey
+            A list of references to all of the parameters which all observables
+            should be differentiated with respect to.
+        """
+        self.properties = properties or []
+        self.options = options
+
+        self.force_field_source = force_field_source
+
+        self.parameter_gradient_keys = (
+            [] if parameter_gradient_keys is None else parameter_gradient_keys
+        )
+
+    def __getstate__(self):
+
+        return {
+            "properties": self.properties,
+            "options": self.options,
+            "force_field_source": self.force_field_source,
+            "parameter_gradient_keys": self.parameter_gradient_keys,
+        }
+
+    def __setstate__(self, state):
+
+        self.properties = state["properties"]
+        self.options = state["options"]
+
+        self.force_field_source = state["force_field_source"]
+        self.parameter_gradient_keys = state["parameter_gradient_keys"]

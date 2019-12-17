@@ -16,7 +16,7 @@ from propertyestimator.server.server import EvaluatorServer
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.storage.data import StoredSimulationData
 from propertyestimator.tests.utils import create_dummy_property
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from propertyestimator.utils.utils import temporarily_change_directory
 
@@ -112,7 +112,7 @@ class DummyCalculationLayer(CalculationLayer):
         return_object = CalculationLayerResult()
         return_object.property_id = physical_property.id
 
-        return_object.exception = PropertyEstimatorException(
+        return_object.exception = EvaluatorException(
             directory="", message="Failure Message"
         )
 
@@ -197,7 +197,7 @@ def test_serialize_layer_result():
     dummy_result.property_id = str(uuid.uuid4())
 
     dummy_result.calculated_property = create_dummy_property(Density)
-    dummy_result.exception = PropertyEstimatorException()
+    dummy_result.exception = EvaluatorException()
 
     dummy_result.data_to_store = [("dummy_object_path", "dummy_directory")]
 

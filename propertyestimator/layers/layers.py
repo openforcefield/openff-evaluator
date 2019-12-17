@@ -15,7 +15,7 @@ from propertyestimator.attributes import (
     PlaceholderValue,
 )
 from propertyestimator.storage.data import StoredSimulationData
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder
 
 
@@ -35,7 +35,7 @@ class CalculationLayerResult:
     calculated_property: PhysicalProperty, optional
         The property which was estimated by this layer. The will
         be `None` if the layer could not estimate the property.
-    exception: PropertyEstimatorException, optional
+    exception: EvaluatorException, optional
         The exception which was raised when estimating the property
         of interest, if any.
     data_to_store: list of tuple of str and str
@@ -332,7 +332,7 @@ class CalculationLayer(abc.ABC):
 
             formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
-            exception = PropertyEstimatorException(
+            exception = EvaluatorException(
                 message="An unhandled internal exception "
                 "occurred: {}".format(formatted_exception)
             )

@@ -5,7 +5,7 @@ from propertyestimator import unit
 from propertyestimator.protocols.groups import ConditionalGroup, ProtocolGroup
 from propertyestimator.protocols.miscellaneous import AddValues
 from propertyestimator.tests.test_workflow.utils import DummyInputOutputProtocol
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.workflow.utils import ProtocolPath
 
 
@@ -26,7 +26,7 @@ def test_protocol_group():
         protocol_group.add_protocols(value_protocol_a, value_protocol_b)
         result = protocol_group.execute(directory, None)
 
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
         assert (
             protocol_group.get_value(ProtocolPath("output_value", value_protocol_b.id))
             == initial_value
@@ -59,7 +59,7 @@ def test_conditional_protocol_group():
 
         result = protocol_group.execute(directory, None)
 
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
         assert (
             protocol_group.get_value(ProtocolPath("result", add_values.id))
             == 4 * unit.kelvin
@@ -93,7 +93,7 @@ def test_conditional_protocol_group_fail():
 
         result = protocol_group.execute(directory, None)
 
-        assert isinstance(result, PropertyEstimatorException)
+        assert isinstance(result, EvaluatorException)
 
 
 def test_conditional_group_self_reference():
@@ -130,7 +130,5 @@ def test_conditional_group_self_reference():
 
     with tempfile.TemporaryDirectory() as directory:
 
-        assert not isinstance(
-            dummy_group.execute(directory, None), PropertyEstimatorException
-        )
+        assert not isinstance(dummy_group.execute(directory, None), EvaluatorException)
         assert dummy_protocol.output_value == criteria + 1
