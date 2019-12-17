@@ -5,7 +5,7 @@ import tempfile
 from os import path
 
 from propertyestimator.backends import ComputeResources, DaskLocalCluster
-from propertyestimator.client import PropertyEstimatorClient, PropertyEstimatorOptions
+from propertyestimator.client import EvaluatorClient, RequestOptions
 from propertyestimator.datasets import PhysicalPropertyDataSet
 from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.layers import (
@@ -14,7 +14,7 @@ from propertyestimator.layers import (
     calculation_layer,
 )
 from propertyestimator.properties import Density
-from propertyestimator.server.server import PropertyEstimatorServer
+from propertyestimator.server.server import EvaluatorServer
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.tests.utils import create_dummy_property
 from propertyestimator.utils.exceptions import PropertyEstimatorException
@@ -76,14 +76,12 @@ def test_estimate_request():
         calculation_backend = DaskLocalCluster(1, ComputeResources())
         storage_backend = LocalFileStorage(storage_directory)
 
-        PropertyEstimatorServer(
+        EvaluatorServer(
             calculation_backend, storage_backend, working_directory=working_directory
         )
 
-        property_estimator = PropertyEstimatorClient()
-        options = PropertyEstimatorOptions(
-            allowed_calculation_layers=[TestCalculationLayer]
-        )
+        property_estimator = EvaluatorClient()
+        options = RequestOptions(allowed_calculation_layers=[TestCalculationLayer])
 
         request = property_estimator.request_estimate(
             dummy_data_set, force_field_source, options

@@ -11,10 +11,10 @@ Client Side API
     :nosignatures:
     :toctree: api/generated/
 
-    PropertyEstimatorClient
-    PropertyEstimatorOptions
+    EvaluatorClient
+    RequestOptions
     PropertyEstimatorSubmission
-    PropertyEstimatorResult
+    RequestResult
     ConnectionOptions
 
 **Force Field Sources**
@@ -48,7 +48,7 @@ Server Side API
     :nosignatures:
     :toctree: api/generated/
 
-    PropertyEstimatorServer
+    EvaluatorServer
 
 Physical Property API
 ---------------------

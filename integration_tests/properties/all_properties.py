@@ -1,7 +1,7 @@
 import json
 
 from propertyestimator import client
-from propertyestimator.client import PropertyEstimatorOptions
+from propertyestimator.client import RequestOptions
 from propertyestimator.datasets import PhysicalPropertyDataSet
 from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.properties import ParameterGradientKey
@@ -38,9 +38,9 @@ def main(base_output_file_name='results', property_types=None):
     setup_server(backend_type=BackendType.LocalGPU, max_number_of_workers=1, port=8005)
 
     # Request the estimates.
-    property_estimator = client.PropertyEstimatorClient(client.ConnectionOptions(server_port=8005))
+    property_estimator = client.EvaluatorClient(client.ConnectionOptions(server_port=8005))
 
-    options = PropertyEstimatorOptions()
+    options = RequestOptions()
     options.allowed_calculation_layers = ['SimulationLayer']
 
     options.workflow_options = {}

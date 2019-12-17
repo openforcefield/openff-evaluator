@@ -23,7 +23,7 @@ def main():
     force_field_source = SmirnoffForceFieldSource.from_object(smirnoff_force_field)
 
     # Create the client object.
-    property_estimator = client.PropertyEstimatorClient()
+    property_estimator = client.EvaluatorClient()
     # Submit the request to a running server.
     request = property_estimator.request_estimate(data_set, force_field_source)
 

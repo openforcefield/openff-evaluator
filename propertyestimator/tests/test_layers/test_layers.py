@@ -4,7 +4,7 @@ import uuid
 from os import makedirs, path
 
 from propertyestimator.backends import DaskLocalCluster
-from propertyestimator.client import PropertyEstimatorOptions
+from propertyestimator.client import RequestOptions
 from propertyestimator.layers import (
     CalculationLayer,
     CalculationLayerSchema,
@@ -12,7 +12,7 @@ from propertyestimator.layers import (
 )
 from propertyestimator.layers.layers import CalculationLayerResult
 from propertyestimator.properties import Density
-from propertyestimator.server.server import PropertyEstimatorServer
+from propertyestimator.server.server import EvaluatorServer
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.storage.data import StoredSimulationData
 from propertyestimator.tests.utils import create_dummy_property
@@ -148,9 +148,9 @@ def test_base_layer():
         create_dummy_property(Density),
     ]
 
-    dummy_options = PropertyEstimatorOptions()
+    dummy_options = RequestOptions()
 
-    request = PropertyEstimatorServer.ServerEstimationRequest(
+    request = EvaluatorServer.ServerEstimationRequest(
         estimation_id=str(uuid.uuid4()),
         queued_properties=properties_to_estimate,
         options=dummy_options,

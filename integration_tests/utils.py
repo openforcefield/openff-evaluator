@@ -99,7 +99,7 @@ def setup_server(backend_type=BackendType.LocalCPU, max_number_of_workers=1,
     storage_backend = LocalFileStorage(storage_directory)
 
     # Spin up the server object.
-    server.PropertyEstimatorServer(calculation_backend=calculation_backend,
+    server.EvaluatorServer(calculation_backend=calculation_backend,
                                    storage_backend=storage_backend,
                                    port=port,
                                    working_directory=working_directory)

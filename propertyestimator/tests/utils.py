@@ -115,7 +115,7 @@ def setup_server(
 
     storage_backend = LocalFileStorage(storage_directory)
 
-    server.PropertyEstimatorServer(
+    server.EvaluatorServer(
         calculation_backend=calculation_backend,
         storage_backend=storage_backend,
         port=port,

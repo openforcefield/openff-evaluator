@@ -10,7 +10,7 @@ from propertyestimator.backends import (
     DaskLSFBackend,
     QueueWorkerResources,
 )
-from propertyestimator.server.server import PropertyEstimatorServer
+from propertyestimator.server.server import EvaluatorServer
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.utils import setup_timestamp_logging
 
@@ -35,7 +35,7 @@ def setup_server(backend_type=BackendType.LocalCPU, max_number_of_workers=1):
 
     Returns
     -------
-    PropertyEstimatorServer
+    EvaluatorServer
         The server object.
     """
 
@@ -129,7 +129,7 @@ def setup_server(backend_type=BackendType.LocalCPU, max_number_of_workers=1):
     storage_backend = LocalFileStorage(storage_directory)
 
     # Set up the server itself.
-    server = PropertyEstimatorServer(
+    server = EvaluatorServer(
         calculation_backend=calculation_backend,
         storage_backend=storage_backend,
         working_directory=working_directory,

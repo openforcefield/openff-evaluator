@@ -4,13 +4,13 @@ from distributed import Adaptive
 
 from propertyestimator import client, unit
 from propertyestimator.backends import QueueWorkerResources, DaskLSFBackend
-from propertyestimator.client import PropertyEstimatorOptions
+from propertyestimator.client import RequestOptions
 from propertyestimator.datasets import PhysicalPropertyDataSet
 from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.properties import PropertyPhase, MeasurementSource
 from propertyestimator.properties.solvation import SolvationFreeEnergy
 from propertyestimator.protocols.groups import ConditionalGroup
-from propertyestimator.server.server import PropertyEstimatorServer
+from propertyestimator.server.server import EvaluatorServer
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
@@ -165,15 +165,15 @@ def main():
     storage_backend = LocalFileStorage(storage_directory)
 
     # Spin up the server object.
-    PropertyEstimatorServer(calculation_backend=calculation_backend,
+    EvaluatorServer(calculation_backend=calculation_backend,
                             storage_backend=storage_backend,
                             port=8005,
                             working_directory=working_directory)
 
     # Request the estimates.
-    property_estimator = client.PropertyEstimatorClient(client.ConnectionOptions(server_port=8005))
+    property_estimator = client.EvaluatorClient(client.ConnectionOptions(server_port=8005))
 
-    options = PropertyEstimatorOptions()
+    options = RequestOptions()
     options.allowed_calculation_layers = ['SimulationLayer']
 
     workflow_options = WorkflowOptions(WorkflowOptions.ConvergenceMode.NoChecks)

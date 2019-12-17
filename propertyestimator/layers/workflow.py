@@ -93,7 +93,7 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         parameter_gradient_keys: list of ParameterGradientKey
             A list of references to all of the parameters which all observables
             should be differentiated with respect to.
-        options: PropertyEstimatorOptions
+        options: RequestOptions
             The options to run the workflows with.
         """
         workflow_graph = WorkflowGraph(working_directory)

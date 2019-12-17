@@ -13,7 +13,7 @@ The ``propertyestimator`` currently exists as two key components:
 Creating an Estimator Server
 ----------------------------
 
-The ``PropertyEstimatorServer`` class creates objects that handle property estimation of all of the properties in a
+The ``EvaluatorServer`` class creates objects that handle property estimation of all of the properties in a
 dataset given a set.
 
 Create the file ``run_server.py``. Tell server to log to file in case of failure::
@@ -46,7 +46,7 @@ Set up storage the storage backend which will cache any generated simulation dat
 Start the server running::
 
     # Create a server instance.
-    property_server = server.PropertyEstimatorServer(calculation_backend,
+    property_server = server.EvaluatorServer(calculation_backend,
                                                      storage_backend,
                                                      working_directory=working_directory)
 
@@ -75,7 +75,7 @@ use in the calculations::
 Create the client object and use it to send the estimation request to the server::
 
     # Create the client object.
-    property_estimator = client.PropertyEstimatorClient()
+    property_estimator = client.EvaluatorClient()
     # Submit the request to a running server.
     result = property_estimator.request_estimate(data_set, force_field_source)
 

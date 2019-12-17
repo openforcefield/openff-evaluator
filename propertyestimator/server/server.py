@@ -13,9 +13,9 @@ from tornado.iostream import StreamClosedError
 from tornado.tcpserver import TCPServer
 
 from propertyestimator.client import (
-    PropertyEstimatorOptions,
-    PropertyEstimatorResult,
     PropertyEstimatorSubmission,
+    RequestOptions,
+    RequestResult,
 )
 from propertyestimator.layers import registered_calculation_layers
 from propertyestimator.utils.exceptions import PropertyEstimatorException
@@ -79,7 +79,7 @@ class EvaluatorServer(TCPServer):
                 A unique id assigned to this estimation request.
             queued_properties: list of PhysicalProperty, optional
                 A list of physical properties waiting to be estimated.
-            options: PropertyEstimatorOptions, optional
+            options: RequestOptions, optional
                 The options used to estimate the properties.
             force_field_id: str
                 The unique server side id of the force field parameters used to estimate the properties.
@@ -137,7 +137,7 @@ class EvaluatorServer(TCPServer):
         port=8000,
         working_directory="working-data",
     ):
-        """Constructs a new PropertyEstimatorServer object.
+        """Constructs a new EvaluatorServer object.
 
         Parameters
         ----------
@@ -335,7 +335,7 @@ class EvaluatorServer(TCPServer):
 
         Parameters
         ----------
-        request: PropertyEstimatorServer.ServerEstimationRequest
+        request: EvaluatorServer.ServerEstimationRequest
             The request to check for.
 
         Returns
@@ -383,7 +383,7 @@ class EvaluatorServer(TCPServer):
 
         Returns
         -------
-        dict of str and PropertyEstimatorServer.ServerEstimationRequest
+        dict of str and EvaluatorServer.ServerEstimationRequest
             A list of the requests to be calculated by the server.
         list of str
             The ids of the requests which haven't already been launched by
@@ -426,9 +426,7 @@ class EvaluatorServer(TCPServer):
 
             properties_to_estimate = properties_by_substance[substance_identifier]
 
-            options_copy = PropertyEstimatorOptions.parse_json(
-                client_data_model.options.json()
-            )
+            options_copy = RequestOptions.parse_json(client_data_model.options.json())
 
             parameter_gradient_keys = copy.deepcopy(
                 client_data_model.parameter_gradient_keys
@@ -478,11 +476,11 @@ class EvaluatorServer(TCPServer):
 
         Returns
         -------
-        PropertyEstimatorResult
+        RequestResult
             The current results of the client request.
         """
 
-        request_results = PropertyEstimatorResult(result_id=client_request_id)
+        request_results = RequestResult(result_id=client_request_id)
 
         for server_request_id in self._server_request_ids_per_client_id[
             client_request_id
@@ -556,7 +554,7 @@ class EvaluatorServer(TCPServer):
 
         Parameters
         ----------
-        server_request : PropertyEstimatorServer.ServerEstimationRequest
+        server_request : EvaluatorServer.ServerEstimationRequest
             The object containing instructions about which calculations
             should be performed.
         """

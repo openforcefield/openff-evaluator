@@ -148,7 +148,7 @@ class CalculationLayer(abc.ABC):
             The backend to the submit the calculations to.
         storage_backend: StorageBackend
             The backend used to store / retrieve data from previous calculations.
-        server_request: PropertyEstimatorServer.ServerEstimationRequest
+        server_request: EvaluatorServer.ServerEstimationRequest
             The request object which spawned the awaited results.
         callback: function
             The function to call when the backend returns the results (or an error).
@@ -178,7 +178,7 @@ class CalculationLayer(abc.ABC):
 
         Parameters
         ----------
-        server_request: PropertyEstimatorServer.ServerEstimationRequest
+        server_request: EvaluatorServer.ServerEstimationRequest
             The request which generated the cached data.
         returned_output: CalculationLayerResult
             The layer result which contains the cached data.
@@ -223,7 +223,7 @@ class CalculationLayer(abc.ABC):
         ----------
         results_future: distributed.Future
             The future object which will hold the results.
-        server_request: PropertyEstimatorServer.ServerEstimationRequest
+        server_request: EvaluatorServer.ServerEstimationRequest
             The request object which spawned the awaited results.
         storage_backend: StorageBackend
             The backend used to store / retrieve data from previous calculations.
@@ -362,7 +362,7 @@ class CalculationLayer(abc.ABC):
             The backend used to store / retrieve data from previous calculations.
         layer_directory: str
             The local directory in which to store all local, temporary calculation data from this layer.
-        data_model: PropertyEstimatorServer.ServerEstimationRequest
+        data_model: EvaluatorServer.ServerEstimationRequest
             The data model encoding the proposed calculation.
         callback: function
             The function to call when the backend returns the results (or an error).

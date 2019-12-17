@@ -24,7 +24,7 @@ from propertyestimator.utils.tcp import (
 )
 
 
-class PropertyEstimatorOptions(TypedBaseModel):
+class RequestOptions(TypedBaseModel):
     """Represents the options options that can be passed to the
     property estimation server backend.
 
@@ -55,7 +55,7 @@ class PropertyEstimatorOptions(TypedBaseModel):
     """
 
     def __init__(self, allowed_calculation_layers=None, allow_protocol_merging=True):
-        """Constructs a new PropertyEstimatorOptions object.
+        """Constructs a new RequestOptions object.
 
         Parameters
         ----------
@@ -123,7 +123,7 @@ class PropertyEstimatorSubmission(TypedBaseModel):
     ----------
     properties: list of PhysicalProperty
         The list of physical properties to estimate.
-    options: PropertyEstimatorOptions
+    options: RequestOptions
         The options which control how the `properties` are estimated.
     force_field_source: ForceFieldSource
         The source of the force field parameters used during the calculations.
@@ -142,7 +142,7 @@ class PropertyEstimatorSubmission(TypedBaseModel):
         ----------
         properties: list of PhysicalProperty
             The list of physical properties to estimate.
-        options: PropertyEstimatorOptions
+        options: RequestOptions
             The options which control how the `properties` are estimated.
         force_field_source: ForceFieldSource
             The source of the force field parameters used during the calculations.
@@ -177,7 +177,7 @@ class PropertyEstimatorSubmission(TypedBaseModel):
         self.parameter_gradient_keys = state["parameter_gradient_keys"]
 
 
-class PropertyEstimatorResult(TypedBaseModel):
+class RequestResult(TypedBaseModel):
     """Represents the results of attempting to estimate a set of physical
     properties using the property estimator server backend.
 
@@ -203,7 +203,7 @@ class PropertyEstimatorResult(TypedBaseModel):
     """
 
     def __init__(self, result_id=""):
-        """Constructs a new PropertyEstimatorResult object.
+        """Constructs a new RequestResult object.
 
         Parameters
         ----------
@@ -244,7 +244,7 @@ class PropertyEstimatorResult(TypedBaseModel):
 
 class ConnectionOptions(TypedBaseModel):
     """The set of options to use when connecting to a
-    `PropertyEstimatorServer`
+    `EvaluatorServer`
 
     Attributes
     ----------
@@ -288,14 +288,14 @@ class ConnectionOptions(TypedBaseModel):
         self.server_port = state["server_port"]
 
 
-class PropertyEstimatorClient:
-    """The PropertyEstimatorClient is the main object that users of the
+class EvaluatorClient:
+    """The EvaluatorClient is the main object that users of the
     property estimator will interface with. It is responsible for requesting
-    that a PropertyEstimatorServer estimates a set of physical properties,
+    that a EvaluatorServer estimates a set of physical properties,
     as well as querying for when those properties have been estimated.
 
-    The PropertyEstimatorClient supports two main workflows: one where
-    a PropertyEstimatorServer lives on a remote supercomputing cluster
+    The EvaluatorClient supports two main workflows: one where
+    a EvaluatorServer lives on a remote supercomputing cluster
     where all of the expensive calculations will be run, and one where
     the users local machine acts as both the server and the client, and
     all calculations will be performed locally.
@@ -310,17 +310,17 @@ class PropertyEstimatorClient:
 
     Setting up the client instance:
 
-    >>> from propertyestimator.client import PropertyEstimatorClient
-    >>> property_estimator = PropertyEstimatorClient()
+    >>> from propertyestimator.client import EvaluatorClient
+    >>> property_estimator = EvaluatorClient()
 
-    If the PropertyEstimatorServer is not running on the local machine, you will
+    If the EvaluatorServer is not running on the local machine, you will
     need to specify its address and the port that it is listening on:
 
     >>> from propertyestimator.client import ConnectionOptions
     >>>
     >>> connection_options = ConnectionOptions(server_address='server_address',
     >>>                                                         server_port=8000)
-    >>> property_estimator = PropertyEstimatorClient(connection_options)
+    >>> property_estimator = EvaluatorClient(connection_options)
 
     To asynchronously submit a request to the running server using the default estimator
     options:
@@ -353,7 +353,7 @@ class PropertyEstimatorClient:
     >>> results = request.results(synchronous=True)
 
     How the property set will be estimated can easily be controlled by passing a
-    PropertyEstimatorOptions object to the estimate commands.
+    RequestOptions object to the estimate commands.
 
     The calculations layers which will be used to estimate the properties can be
     controlled for example like so:
@@ -361,7 +361,7 @@ class PropertyEstimatorClient:
     >>> from propertyestimator.layers.reweighting import ReweightingLayer
     >>> from propertyestimator.layers.simulation import SimulationLayer
     >>>
-    >>> options = PropertyEstimatorOptions(allowed_calculation_layers = [ReweightingLayer,
+    >>> options = RequestOptions(allowed_calculation_layers = [ReweightingLayer,
     >>>                                                                  SimulationLayer])
     >>>
     >>> request = property_estimator.request_estimate(data_set, force_field_source, options)
@@ -418,7 +418,7 @@ class PropertyEstimatorClient:
 
     class Request:
         """An object representation of a estimation request which has
-        been sent to a `PropertyEstimatorServer` instance. This object
+        been sent to a `EvaluatorServer` instance. This object
         can be used to query and retrieve the results of the request, or
         be stored to retrieve the request at some point in the future."""
 
@@ -446,7 +446,7 @@ class PropertyEstimatorClient:
                 The id of the submitted request.
             connection_options: ConnectionOptions
                 The options that were used to connect to the server that the request was sent to.
-            client: PropertyEstimatorClient, optional
+            client: EvaluatorClient, optional
                 The client that was used to submit the request.
             """
             self._id = request_id
@@ -463,7 +463,7 @@ class PropertyEstimatorClient:
                     server_port=connection_options.server_port,
                 )
 
-                self._client = PropertyEstimatorClient(connection_options)
+                self._client = EvaluatorClient(connection_options)
 
         def __str__(self):
 
@@ -523,7 +523,7 @@ class PropertyEstimatorClient:
 
             Returns
             -------
-            PropertyEstimatorResult or PropertyEstimatorException:
+            RequestResult or PropertyEstimatorException:
                 Returns either the results of the requested estimate, or any
                 exceptions which were raised.
 
@@ -536,7 +536,7 @@ class PropertyEstimatorClient:
             )
 
     def __init__(self, connection_options=ConnectionOptions()):
-        """Constructs a new PropertyEstimatorClient object.
+        """Constructs a new EvaluatorClient object.
 
         Parameters
         ----------
@@ -562,7 +562,7 @@ class PropertyEstimatorClient:
         options=None,
         parameter_gradient_keys=None,
     ):
-        """Requests that a PropertyEstimatorServer attempt to estimate the
+        """Requests that a EvaluatorServer attempt to estimate the
         provided property set using the supplied force field and estimator options.
 
         Parameters
@@ -571,7 +571,7 @@ class PropertyEstimatorClient:
             The set of properties to attempt to estimate.
         force_field_source : ForceFieldSource or openforcefield.typing.engines.smirnoff.ForceField
             The source of the force field parameters to use for the calculations.
-        options : PropertyEstimatorOptions, optional
+        options : RequestOptions, optional
             A set of estimator options. If None, default options
             will be used.
         parameter_gradient_keys: list of ParameterGradientKey, optional
@@ -580,7 +580,7 @@ class PropertyEstimatorClient:
 
         Returns
         -------
-        PropertyEstimatorClient.Request
+        EvaluatorClient.Request
             An object which will provide access the the results of the request.
         """
         from openforcefield.typing.engines import smirnoff
@@ -593,7 +593,7 @@ class PropertyEstimatorClient:
             )
 
         if options is None:
-            options = PropertyEstimatorOptions()
+            options = RequestOptions()
 
         if isinstance(force_field_source, smirnoff.ForceField):
             # Handle conversion of the force field object for
@@ -715,7 +715,7 @@ class PropertyEstimatorClient:
             lambda: self._send_calculations_to_server(submission)
         )
 
-        request_object = PropertyEstimatorClient.Request(
+        request_object = EvaluatorClient.Request(
             request_id, self._connection_options, self
         )
 
@@ -738,7 +738,7 @@ class PropertyEstimatorClient:
 
         Returns
         -------
-        PropertyEstimatorResult or PropertyEstimatorException:
+        RequestResult or PropertyEstimatorException:
             Returns either the results of the requested estimate, or any
             exceptions which were raised.
 
@@ -769,7 +769,7 @@ class PropertyEstimatorClient:
             )
 
             if (
-                isinstance(response, PropertyEstimatorResult)
+                isinstance(response, RequestResult)
                 and len(response.queued_properties) > 0
             ):
                 continue
