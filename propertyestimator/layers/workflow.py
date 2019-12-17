@@ -23,6 +23,7 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
 
     @staticmethod
     def _get_workflow_metadata(
+        working_directory,
         physical_property,
         force_field_path,
         parameter_gradient_keys,
@@ -33,6 +34,9 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
 
         Parameters
         ----------
+        working_directory: str
+            The local directory in which to store all local,
+            temporary calculation data from this workflow.
         physical_property : PhysicalProperty
             The property that the workflow will estimate.
         force_field_path : str
@@ -47,8 +51,10 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
 
         Returns
         -------
-        dict of str and Any
+        dict of str and Any, optional
             The global metadata to make available to a workflow.
+            Returns `None` if the required metadata could not be
+            found / assembled.
         """
 
         global_metadata = Workflow.generate_default_metadata(
@@ -99,18 +105,19 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
             # Make sure a schema has been defined for this class of property
             # and this layer.
             if (
-                property_type not in options.calculation_schemas
-                or cls.__name__ not in options.calculation_schemas[property_type]
+                property_type not in options.workflow_schemas
+                or cls.__name__ not in options.workflow_schemas[property_type]
             ):
                 continue
 
-            schema = options.calculation_schemas[property_type][cls.__name__]
+            schema = options.workflow_schemas[property_type][cls.__name__]
 
             # Make sure the calculation schema is the correct type for this layer.
             assert isinstance(schema, WorkflowCalculationSchema)
             assert isinstance(schema, cls.required_schema_type())
 
             global_metadata = cls._get_workflow_metadata(
+                working_directory,
                 physical_property,
                 force_field_path,
                 parameter_gradient_keys,
@@ -118,8 +125,14 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
                 schema,
             )
 
+            if global_metadata is None:
+                # Make sure we have metadata returned for this
+                # property, e.g. we have data to reweight if
+                # required.
+                continue
+
             workflow = Workflow(physical_property, global_metadata)
-            workflow.schema = schema
+            workflow.schema = schema.workflow_schema
 
             workflow.physical_property.source = CalculationSource(
                 fidelity=cls.__name__, provenance={}

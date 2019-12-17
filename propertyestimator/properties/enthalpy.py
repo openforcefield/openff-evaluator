@@ -5,32 +5,24 @@ import copy
 from collections import namedtuple
 
 from propertyestimator import unit
+from propertyestimator.attributes import PlaceholderValue
 from propertyestimator.datasets import PhysicalProperty, PropertyPhase
 from propertyestimator.datasets.thermoml.plugins import thermoml_property
 from propertyestimator.layers import register_calculation_schema
 from propertyestimator.layers.reweighting import ReweightingLayer, ReweightingSchema
 from propertyestimator.layers.simulation import SimulationLayer, SimulationSchema
-from propertyestimator.protocols import (
-    analysis,
-    groups,
-    miscellaneous,
-    reweighting,
-    storage,
-)
+from propertyestimator.protocols import analysis, groups, miscellaneous, reweighting
 from propertyestimator.protocols.utils import (
     generate_base_reweighting_protocols,
     generate_base_simulation_protocols,
     generate_gradient_protocol_group,
 )
+from propertyestimator.storage.query import SimulationDataQuery, SubstanceQuery
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow import WorkflowOptions
-from propertyestimator.workflow.schemas import (
-    ProtocolReplicator,
-    WorkflowDataCollectionToStore,
-    WorkflowSchema,
-)
+from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
@@ -437,6 +429,41 @@ class EnthalpyOfMixing(PhysicalProperty):
         )
 
     @staticmethod
+    def _default_reweighting_storage_query():
+        """Returns the default storage queries to use when
+        retrieving cached simulation data to reweight.
+
+        This will include one query (with the key `"full_system_data"`)
+        to return data for the full mixture system, and another query
+        (with the key `"component_data"`) which will include data for
+        each pure component in the system.
+
+        Returns
+        -------
+        dict of str and SimulationDataQuery
+            The dictionary of queries.
+        """
+
+        mixture_data_query = SimulationDataQuery()
+        mixture_data_query.substance = PlaceholderValue()
+        mixture_data_query.property_phase = PropertyPhase.Liquid
+
+        # Set up a query which will return the data of each
+        # individual component in the system.
+        component_query = SubstanceQuery()
+        component_query.components_only = True
+
+        component_data_query = SimulationDataQuery()
+        component_data_query.property_phase = PropertyPhase.Liquid
+        component_data_query.substance = PlaceholderValue()
+        component_data_query.substance_query = component_query
+
+        return {
+            "full_system_data": mixture_data_query,
+            "component_data": component_data_query,
+        }
+
+    @staticmethod
     def default_simulation_schema(existing_schema=None):
         """Returns the default calculation schema to use when estimating
         this class of property from direct simulations.
@@ -608,6 +635,11 @@ class EnthalpyOfMixing(PhysicalProperty):
             assert isinstance(existing_schema, ReweightingSchema)
             calculation_schema = copy.deepcopy(existing_schema)
 
+        # Set up the storage queries
+        calculation_schema.storage_queries = (
+            EnthalpyOfMixing._default_reweighting_storage_query()
+        )
+
         # Set up a replicator that will re-run the component reweighting workflow for each
         # component in the system.
         component_replicator = ProtocolReplicator(replicator_id="component_replicator")
@@ -724,6 +756,35 @@ class EnthalpyOfVaporization(PhysicalProperty):
     """A class representation of an enthalpy of vaporization property"""
 
     @staticmethod
+    def _default_reweighting_storage_query():
+        """Returns the default storage queries to use when
+        retrieving cached simulation data to reweight.
+
+        This will include one query for the liquid data (with the
+        key `"liquid_data"`) and one for the gas data (with the key
+        `"gas_data"`).
+
+        Returns
+        -------
+        dict of str and SimulationDataQuery
+            The dictionary of queries.
+        """
+
+        liquid_data_query = SimulationDataQuery()
+        liquid_data_query.substance = PlaceholderValue()
+        liquid_data_query.property_phase = PropertyPhase.Liquid
+
+        gas_data_query = SimulationDataQuery()
+        gas_data_query.substance = PlaceholderValue()
+        gas_data_query.property_phase = PropertyPhase.Gas
+        gas_data_query.number_of_molecules = 1
+
+        return {
+            "liquid_data": liquid_data_query,
+            "gas_data": gas_data_query,
+        }
+
+    @staticmethod
     def default_simulation_schema(existing_schema=None):
         """Returns the default calculation schema to use when estimating
         this class of property from direct simulations.
@@ -775,6 +836,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         # Make sure the number of molecules in the liquid is consistent.
         liquid_protocols.build_coordinates.max_molecules = number_of_liquid_molecules
+        liquid_output_to_store.property_phase = PropertyPhase.Liquid
 
         # Define the protocols to perform the simulation in the gas phase.
         extract_gas_energy = analysis.ExtractAverageStatistic("extract_gas_energy")
@@ -793,6 +855,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         # Create only a single molecule in vacuum
         gas_protocols.build_coordinates.max_molecules = 1
+        gas_output_to_store.property_phase = PropertyPhase.Gas
 
         # Run the gas phase simulations in the NVT ensemble
         gas_protocols.energy_minimisation.enable_pbc = False
@@ -974,12 +1037,10 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         schema.replicators = [gradient_replicator]
 
-        data_to_store = WorkflowDataCollectionToStore()
-
-        data_to_store.data["liquid"] = liquid_output_to_store
-        data_to_store.data["gas"] = gas_output_to_store
-
-        schema.outputs_to_store = {"full_system_data": data_to_store}
+        schema.outputs_to_store = {
+            "liquid_data": liquid_output_to_store,
+            "gas_data": gas_output_to_store,
+        }
 
         schema.gradients_sources = [ProtocolPath("result", combine_gradients.id)]
         schema.final_value_source = ProtocolPath(
@@ -1014,24 +1075,27 @@ class EnthalpyOfVaporization(PhysicalProperty):
             assert isinstance(existing_schema, ReweightingSchema)
             calculation_schema = copy.deepcopy(existing_schema)
 
-        # Set up the data replicator (we use the same one for the gas and liquid phase)
-        data_replicator = ProtocolReplicator("data_replicator")
-        data_replicator.template_values = ProtocolPath("full_system_data", "global")
+        # Set up the storage queries
+        calculation_schema.storage_queries = (
+            EnthalpyOfVaporization._default_reweighting_storage_query()
+        )
+
+        # Set up the data replicators
+        liquid_data_replicator = ProtocolReplicator("liquid_data_replicator")
+        liquid_data_replicator.template_values = ProtocolPath("liquid_data", "global")
+
+        gas_data_replicator = ProtocolReplicator("gas_data_replicator")
+        gas_data_replicator.template_values = ProtocolPath("gas_data", "global")
+
         # Set up the gradient replicator
         gradient_replicator = ProtocolReplicator("gradient_replicator")
         gradient_replicator.template_values = ProtocolPath(
             "parameter_gradient_keys", "global"
         )
 
-        # Set up a protocol to extract both the liquid and gas phase data
-        unpack_data_collection = storage.UnpackStoredDataCollection(
-            f"unpack_data_collection_" f"{data_replicator.placeholder_id}"
-        )
-        unpack_data_collection.input_data_path = ReplicatorValue(data_replicator.id)
-
         # Set up a protocol to extract the liquid phase energy from the existing data.
         extract_liquid_energy = analysis.ExtractAverageStatistic(
-            f"extract_liquid_energy_" f"{data_replicator.placeholder_id}"
+            f"extract_liquid_energy_" f"{liquid_data_replicator.placeholder_id}"
         )
         extract_liquid_energy.statistics_type = ObservableType.PotentialEnergy
 
@@ -1044,18 +1108,14 @@ class EnthalpyOfVaporization(PhysicalProperty):
             extract_liquid_energy,
             reweight_liquid_energy,
             id_suffix="_liquid",
-            replicator_id=data_replicator.id,
-        )
-
-        liquid_protocols.unpack_stored_data.simulation_data_path = ProtocolPath(
-            "collection_data_paths[liquid]", unpack_data_collection.id
+            replicator_id=liquid_data_replicator.id,
         )
 
         # Extract the number of liquid phase molecules from the first data collection.
         number_of_liquid_molecules = ProtocolPath(
             "total_number_of_molecules",
             liquid_protocols.unpack_stored_data.id.replace(
-                data_replicator.placeholder_id, "0"
+                liquid_data_replicator.placeholder_id, "0"
             ),
         )
 
@@ -1069,7 +1129,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         # Set up a protocol to extract the gas phase energy from the existing data.
         extract_gas_energy = analysis.ExtractAverageStatistic(
-            "extract_gas_energy_" f"{data_replicator.placeholder_id}"
+            "extract_gas_energy_" f"{gas_data_replicator.placeholder_id}"
         )
         extract_gas_energy.statistics_type = ObservableType.PotentialEnergy
 
@@ -1080,20 +1140,12 @@ class EnthalpyOfVaporization(PhysicalProperty):
             extract_gas_energy,
             reweight_gas_energy,
             id_suffix="_gas",
-            replicator_id=data_replicator.id,
+            replicator_id=gas_data_replicator.id,
         )
 
         # Turn of PBC for the gas phase.
         gas_protocols.reduced_reference_potential.enable_pbc = False
         gas_protocols.reduced_target_potential.enable_pbc = False
-
-        gas_protocols.unpack_stored_data.simulation_data_path = ProtocolPath(
-            "collection_data_paths[gas]", unpack_data_collection.id
-        )
-
-        extract_gas_energy.statistics_path = ProtocolPath(
-            "statistics_file_path", gas_protocols.unpack_stored_data.id
-        )
 
         # Combine the values to estimate the final enthalpy of vaporization
         energy_of_vaporization = miscellaneous.SubtractValues("energy_of_vaporization")
@@ -1194,8 +1246,6 @@ class EnthalpyOfVaporization(PhysicalProperty):
         schema = WorkflowSchema(property_type=EnthalpyOfVaporization.__name__)
         schema.id = "{}{}".format(EnthalpyOfVaporization.__name__, "Schema")
 
-        schema.protocols[unpack_data_collection.id] = unpack_data_collection.schema
-
         schema.protocols.update(
             {protocol.id: protocol.schema for protocol in liquid_protocols}
         )
@@ -1215,7 +1265,11 @@ class EnthalpyOfVaporization(PhysicalProperty):
         schema.protocols[divide_liquid_gradient.id] = divide_liquid_gradient.schema
         schema.protocols[combine_gradients.id] = combine_gradients.schema
 
-        schema.replicators = [data_replicator, gradient_replicator]
+        schema.replicators = [
+            liquid_data_replicator,
+            gas_data_replicator,
+            gradient_replicator,
+        ]
 
         schema.gradients_sources = [ProtocolPath("result", combine_gradients.id)]
         schema.final_value_source = ProtocolPath("result", enthalpy_of_vaporization.id)

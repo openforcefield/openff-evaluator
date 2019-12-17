@@ -5,12 +5,9 @@ import json
 import shutil
 from os import makedirs, path
 
-from propertyestimator.storage import StoredSimulationData
+from propertyestimator.storage import StorageBackend
 from propertyestimator.storage.data import BaseStoredData
-from propertyestimator.substances import Substance
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
-
-from .storage import StorageBackend
 
 
 class LocalFileStorage(StorageBackend):
@@ -27,128 +24,60 @@ class LocalFileStorage(StorageBackend):
 
         self._root_directory = root_directory
 
-        if not path.isdir(root_directory):
+        if not path.isdir(root_directory) and len(root_directory) > 0:
             makedirs(root_directory)
 
         super().__init__()
 
-    def _store_object(self, storage_key, object_to_store):
+    def _store_object(
+        self, object_to_store, storage_key=None, ancillary_data_path=None
+    ):
 
-        file_path = path.join(self._root_directory, storage_key)
-
-        # If the object to store is a simple string we write that
-        # directly, otherwise we try and JSONify the object.
-        if not isinstance(object_to_store, str):
-            object_to_store = json.dumps(object_to_store, cls=TypedJSONEncoder)
+        file_path = path.join(self._root_directory, f"{storage_key}.json")
+        directory_path = path.join(self._root_directory, f"{storage_key}")
 
         with open(file_path, "w") as file:
-            file.write(object_to_store)
+            json.dump(object_to_store, file, cls=TypedJSONEncoder)
 
-        super(LocalFileStorage, self)._store_object(storage_key, object_to_store)
+        if object_to_store.has_ancillary_data():
 
-    def _retrieve_object(self, storage_key):
+            if path.isdir(directory_path):
+                shutil.rmtree(directory_path, ignore_errors=True)
 
-        if not self._has_object(storage_key):
-            return None
+            shutil.move(ancillary_data_path, directory_path)
 
-        file_path = path.join(self._root_directory, storage_key)
+    def _retrieve_object(self, storage_key, expected_type=None):
+
+        if not self._object_exists(storage_key):
+            return None, None
+
+        file_path = path.join(self._root_directory, f"{storage_key}.json")
+        directory_path = None
 
         with open(file_path, "r") as file:
-            loaded_object_string = file.read()
+            loaded_object = json.load(file, cls=TypedJSONDecoder)
 
-        try:
-            loaded_object = json.loads(loaded_object_string, cls=TypedJSONDecoder)
-        except json.JSONDecodeError:
-            loaded_object = loaded_object_string
+        # Make sure the data has the correct type.
+        if expected_type is not None and not isinstance(loaded_object, expected_type):
 
-        return loaded_object
+            raise ValueError(
+                f"The retrieve object is of type {loaded_object.__class__.__name__} and not "
+                f"{expected_type.__name__} as expected."
+            )
 
-    def _has_object(self, storage_key):
+        assert isinstance(loaded_object, BaseStoredData)
 
-        file_path = path.join(self._root_directory, storage_key)
+        # Check whether there is a data directory
+        if loaded_object.has_ancillary_data():
+            directory_path = path.join(self._root_directory, f"{storage_key}")
+
+        return loaded_object, directory_path
+
+    def _object_exists(self, storage_key):
+
+        file_path = path.join(self._root_directory, f"{storage_key}.json")
 
         if not path.isfile(file_path):
             return False
 
         return True
-
-    def store_simulation_data(self, data_object, data_directory):
-
-        unique_id = super(LocalFileStorage, self).store_simulation_data(
-            data_object, data_directory
-        )
-
-        storage_directory_path = path.join(self._root_directory, f"{unique_id}_data")
-
-        if path.isdir(storage_directory_path):
-            shutil.rmtree(storage_directory_path, ignore_errors=True)
-
-        shutil.move(data_directory, storage_directory_path)
-        return unique_id
-
-    def retrieve_simulation_data_by_id(self, unique_id):
-        """Attempts to retrieve a storage piece of simulation data
-        from it's unique id.
-
-        Parameters
-        ----------
-        unique_id: str
-            The unique id assigned to the data.
-
-        Returns
-        -------
-        BaseStoredData
-            The stored data object.
-        str
-            The path to the data's corresponding directory.
-        """
-        stored_object = self._retrieve_object(unique_id)
-
-        # Make sure the stored object is a valid object.
-        if not isinstance(stored_object, BaseStoredData):
-            return None, None
-
-        data_directory = path.join(self._root_directory, f"{unique_id}_data")
-        return stored_object, data_directory
-
-    def retrieve_simulation_data(
-        self, substance, include_component_data=True, data_class=StoredSimulationData
-    ):
-
-        substance_ids = {substance.identifier}
-
-        # Find the substance identifiers of the substance components if
-        # we should include component data.
-        if isinstance(substance, Substance) and include_component_data is True:
-
-            for component in substance.components:
-
-                component_substance = Substance()
-                component_substance.add_component(component, Substance.MoleFraction())
-
-                substance_ids.add(component_substance.identifier)
-
-        return_data = {}
-
-        for substance_id in substance_ids:
-
-            if substance_id not in self._simulation_data_by_substance:
-                continue
-
-            return_data[substance_id] = []
-
-            for data_key in self._simulation_data_by_substance[substance_id]:
-
-                data_object, data_directory = self.retrieve_simulation_data_by_id(
-                    data_key
-                )
-
-                if data_object is None:
-                    continue
-
-                if not isinstance(data_object, data_class):
-                    continue
-
-                return_data[substance_id].append((data_object, data_directory))
-
-        return return_data

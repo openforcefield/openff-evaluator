@@ -172,8 +172,8 @@ Calculation Backends API
     DaskLocalCluster
     DaskLSFBackend
 
-Storage Backends API
---------------------
+Storage API
+-----------
 
 .. currentmodule:: propertyestimator.storage
 .. autosummary::
@@ -193,14 +193,40 @@ Storage Backends API
 
 **Data Classes**
 
-.. currentmodule:: propertyestimator.storage.dataclasses
+.. currentmodule:: propertyestimator.storage.data
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
     BaseStoredData
+    HashableStoredData
+    ForceFieldData
+    ReplaceableData
     StoredSimulationData
-    StoredDataCollection
+
+**Data Queries**
+
+.. currentmodule:: propertyestimator.storage.query
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    BaseDataQuery
+    SubstanceQuery
+    ForceFieldQuery
+    SimulationDataQuery
+
+**Attributes**
+
+.. currentmodule:: propertyestimator.storage.attributes
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    FilePath
+    StorageAttribute
+    QueryAttribute
+
 
 Workflow API
 ------------
@@ -226,9 +252,6 @@ Workflow API
     ProtocolSchema
     ProtocolGroupSchema
     ProtocolReplicator
-    WorkflowOutputToStore
-    WorkflowSimulationDataToStore
-    WorkflowDataCollectionToStore
 
 **Base Protocol API**
 
@@ -349,10 +372,7 @@ Built-in Workflow Protocols
     :nosignatures:
     :toctree: api/generated/
 
-
-    UnpackStoredDataCollection
     UnpackStoredSimulationData
-
 
 **Miscellaneous**
 

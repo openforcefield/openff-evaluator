@@ -13,7 +13,8 @@ from propertyestimator.layers import (
 from propertyestimator.layers.layers import CalculationLayerResult
 from propertyestimator.properties import Density
 from propertyestimator.server import PropertyEstimatorServer
-from propertyestimator.storage import LocalFileStorage, StoredSimulationData
+from propertyestimator.storage import LocalFileStorage
+from propertyestimator.storage.data import StoredSimulationData
 from propertyestimator.tests.utils import create_dummy_property
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
@@ -80,6 +81,15 @@ class DummyCalculationLayer(CalculationLayer):
 
         dummy_stored_object = StoredSimulationData()
         dummy_stored_object.substance = physical_property.substance
+        dummy_stored_object.thermodynamic_state = physical_property.thermodynamic_state
+        dummy_stored_object.property_phase = physical_property.phase
+        dummy_stored_object.force_field_id = ""
+        dummy_stored_object.coordinate_file_name = ""
+        dummy_stored_object.trajectory_file_name = ""
+        dummy_stored_object.statistics_file_name = ""
+        dummy_stored_object.statistical_inefficiency = 1.0
+        dummy_stored_object.number_of_molecules = 10
+        dummy_stored_object.source_calculation_id = ""
 
         dummy_stored_object_path = path.join(layer_directory, "good_dummy_data.json")
 

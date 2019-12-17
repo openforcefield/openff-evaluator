@@ -6,7 +6,9 @@ import abc
 
 from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
 from propertyestimator.datasets import PropertyPhase
-from propertyestimator.storage import StoredSimulationData
+from propertyestimator.forcefield import ForceFieldSource
+from propertyestimator.storage.attributes import QueryAttribute
+from propertyestimator.storage.data import ForceFieldData, StoredSimulationData
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 
@@ -16,24 +18,138 @@ class BaseDataQuery(AttributeClass, abc.ABC):
     a `StorageBackend`.
     """
 
-    _data_class = None
+    @classmethod
+    @abc.abstractmethod
+    def data_class(cls):
+        """The type of data class that this
+        query can be applied to.
 
-    def _validate(self):
-        """Validates that all of the query attributes are
-        correctly set.
+        Returns
+        -------
+        type of BaseStoredData
+        """
+        raise NotImplementedError()
+
+    def apply(self, data_object):
+        """Apply this query to a data object.
+
+        Parameters
+        ----------
+        data_object: BaseStoredData
+            The data object to apply the query to.
+
+        Returns
+        -------
+        tuple of Any, optional
+            The values of the matched parameters of the data
+            object fully matched this query, otherwise `None`.
         """
 
-        attribute_names = self.get_attributes(Attribute)
+        if not isinstance(data_object, self.data_class()):
+            return None
 
-        for name in attribute_names:
+        matches = []
 
-            attribute = getattr(self.__class__, name)
+        for attribute_name in self.get_attributes(QueryAttribute):
 
-            if attribute.optional:
+            attribute = getattr(self.__class__, attribute_name)
+
+            if not hasattr(data_object, attribute_name) or attribute.custom_match:
                 continue
 
-            attribute_value = getattr(self, name)
-            assert attribute_value != UNDEFINED
+            query_value = getattr(self, attribute_name)
+
+            if query_value == UNDEFINED:
+                continue
+
+            data_value = getattr(data_object, attribute_name)
+
+            matches.append(None if data_value != query_value else data_value)
+
+        if any(x is None for x in matches):
+            return None
+
+        return tuple(matches)
+
+    @classmethod
+    def from_data_object(cls, data_object):
+        """Returns the query which would match this data
+        object.
+
+        Parameters
+        ----------
+        data_object: BaseStoredData
+            The data object to construct the query for.
+
+        Returns
+        -------
+        cls
+            The query which would match this data object.
+        """
+        query = cls()
+
+        for attribute_name in cls.get_attributes():
+
+            if not hasattr(data_object, attribute_name):
+                continue
+
+            attribute_value = getattr(data_object, attribute_name)
+            setattr(query, attribute_name, attribute_value)
+
+        return query
+
+
+class SubstanceQuery(AttributeClass, abc.ABC):
+    """A query which focuses on finding data which was
+    collected for substances with specific traits, e.g
+    which contains both a solute and solvent, or only a
+    solvent etc.
+    """
+
+    components_only = Attribute(
+        docstring="Only match pure data which was collected for "
+        "one of the components in the query substance.",
+        type_hint=bool,
+        default_value=False,
+    )
+
+    # component_roles = QueryAttribute(
+    #     docstring="Returns data for only the subset of a substance "
+    #     "which has the requested roles.",
+    #     type_hint=list,
+    #     optional=True,
+    # )
+
+    def validate(self, attribute_type=None):
+
+        super(SubstanceQuery, self).validate(attribute_type)
+
+        # if (
+        #     self.components_only
+        #     and self.component_roles != UNDEFINED
+        #     and len(self.components_only) > 0
+        # ):
+        #
+        #     raise ValueError(
+        #         "The `component_roles` attribute cannot be used when "
+        #         "the `components_only` attribute is `True`."
+        #     )
+
+
+class ForceFieldQuery(BaseDataQuery):
+    """A class used to query a `StorageBackend` for
+    `ForceFieldData` which meet the specified criteria.
+    """
+
+    @classmethod
+    def data_class(cls):
+        return ForceFieldData
+
+    force_field_source = QueryAttribute(
+        docstring="The force field source to query for.",
+        type_hint=ForceFieldSource,
+        optional=True,
+    )
 
 
 class SimulationDataQuery(BaseDataQuery):
@@ -42,38 +158,136 @@ class SimulationDataQuery(BaseDataQuery):
     of criteria.
     """
 
-    _data_class = StoredSimulationData
+    @classmethod
+    def data_class(cls):
+        return StoredSimulationData
 
-    substance = Attribute(
-        docstring="The substance that the data should have been " "measured for.",
+    substance = QueryAttribute(
+        docstring="The substance which the data should have been collected "
+        "for. Data for a subset of this substance can be queried for by "
+        "using the `substance_query` attribute",
         type_hint=Substance,
-        optional=False,
+        optional=True,
+        custom_match=True,
     )
-    property_phase = Attribute(
-        docstring="The phase of the substance (e.g. liquid, gas).",
-        type_hint=PropertyPhase,
-        optional=False,
+    substance_query = QueryAttribute(
+        docstring="The subset of the `substance` to query for. This option "
+        "can only be used when the `substance` attribute is set.",
+        type_hint=SubstanceQuery,
+        optional=True,
+        custom_match=True,
     )
 
-    thermodynamic_state = Attribute(
+    thermodynamic_state = QueryAttribute(
         docstring="The state at which the data should have been collected.",
         type_hint=ThermodynamicState,
         optional=True,
     )
-
-    source_calculation_id = Attribute(
-        docstring="The server id of the calculation which yielded " "this data.",
-        type_hint=str,
-        optional=True,
-    )
-    force_field_id = Attribute(
-        docstring="The id of the force field parameters used to " "generate the data.",
-        type_hint=str,
+    property_phase = QueryAttribute(
+        docstring="The phase of the substance (e.g. liquid, gas).",
+        type_hint=PropertyPhase,
         optional=True,
     )
 
-    total_number_of_molecules = Attribute(
+    source_calculation_id = QueryAttribute(
+        docstring="The server id which should have generated this data.",
+        type_hint=str,
+        optional=True,
+    )
+    force_field_id = QueryAttribute(
+        docstring="The id of the force field parameters which used to "
+        "generate the data.",
+        type_hint=str,
+        optional=True,
+    )
+
+    number_of_molecules = QueryAttribute(
         docstring="The total number of molecules in the system.",
         type_hint=int,
         optional=True,
     )
+
+    def _match_substance(self, data_object):
+        """Attempt to match the substance (or a subset of it).
+
+        Parameters
+        ----------
+        data_object: StoredSimulationData
+            The data object to match against.
+
+        Returns
+        -------
+        Substance, optional
+            The matched substance if a match is made, otherwise
+            `None`.
+        """
+        if self.substance == UNDEFINED:
+            return None
+
+        data_substance: Substance = data_object.substance
+
+        if self.substance_query == UNDEFINED:
+            return None if self.substance != data_substance else self.substance
+
+        # Handle the sub-substance match.
+        if self.substance_query.components_only:
+
+            if data_substance.number_of_components != 1:
+                # We are only interested in pure data.
+                return None
+
+            for component in self.substance.components:
+
+                if component.smiles != data_substance.components[0].smiles:
+                    continue
+
+                # Make sure the amount type matches up i.e either both
+                # are defined in mole fraction, or both as an exact amount.
+                data_amount = next(iter(data_substance.get_amounts(component.smiles)))
+                query_amount = next(iter(self.substance.get_amounts(component.smiles)))
+
+                if type(data_amount) != type(query_amount):
+                    continue
+
+                if (
+                    isinstance(data_amount, Substance.ExactAmount)
+                    and data_amount != query_amount
+                ):
+                    # Make sure there is the same amount if we are
+                    # dealing with exact amounts.
+                    continue
+
+                # A match was found.
+                return data_substance
+
+        return None
+
+    def apply(self, data_object, attributes_to_ignore=None):
+
+        matches = []
+
+        # Apply a custom match behaviour for the substance
+        # attribute.
+        if self.substance != UNDEFINED:
+            matches.append(self._match_substance(data_object))
+
+        base_matches = super(SimulationDataQuery, self).apply(data_object)
+        base_matches = [None] if base_matches is None else base_matches
+
+        matches = [*matches, *base_matches]
+
+        if len(matches) == 0 or any(x is None for x in matches):
+            return None
+
+        return tuple(matches)
+
+    def validate(self, attribute_type=None):
+
+        super(SimulationDataQuery, self).validate(attribute_type)
+
+        if self.substance_query != UNDEFINED and self.substance == UNDEFINED:
+
+            raise ValueError(
+                "The `substance_query` can only be used when the "
+                "`substance` attribute is set."
+            )

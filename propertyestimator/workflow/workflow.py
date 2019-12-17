@@ -12,26 +12,19 @@ import uuid
 from enum import Enum
 from math import sqrt
 from os import makedirs, path
+from shutil import copy as file_copy
 
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource
-from propertyestimator.storage.data import BaseStoredData, StoredSimulationData
+from propertyestimator.storage.attributes import FilePath, StorageAttribute
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
-from propertyestimator.utils.string import (
-    extract_variable_index_and_name,
-    sanitize_smiles_file_name,
-)
+from propertyestimator.utils.string import extract_variable_index_and_name
 from propertyestimator.utils.utils import SubhookedABCMeta, get_nested_attribute
 from propertyestimator.workflow.protocols import BaseProtocol
-from propertyestimator.workflow.schemas import (
-    ProtocolReplicator,
-    WorkflowDataCollectionToStore,
-    WorkflowSchema,
-    WorkflowSimulationDataToStore,
-)
+from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
@@ -162,7 +155,7 @@ class Workflow:
             The property which this workflow aims to calculate.
         global_metadata: dict of str and Any
             A dictionary of the global metadata available to each
-            of the workflow properties.
+            of the workflow protocols.
         workflow_uuid: str, optional
             An optional uuid to assign to this workflow. If none is provided,
             one will be chosen at random.
@@ -254,6 +247,7 @@ class Workflow:
         self.outputs_to_store = {}
 
         for label in schema.outputs_to_store:
+
             self._append_uuid_to_output_to_store(schema.outputs_to_store[label])
             self.outputs_to_store[label] = self._build_output_to_store(
                 schema.outputs_to_store[label]
@@ -265,44 +259,39 @@ class Workflow:
 
         Parameters
         ----------
-        output_to_store: WorkflowOutputToStore
+        output_to_store: BaseStoredData
             The output to store to append the uuid to.
         """
 
-        for attribute_key in output_to_store.__getstate__():
+        for attribute_name in output_to_store.get_attributes(StorageAttribute):
 
-            attribute_value = getattr(output_to_store, attribute_key)
+            attribute_value = getattr(output_to_store, attribute_name)
 
             if not isinstance(attribute_value, ProtocolPath):
                 continue
 
             attribute_value.append_uuid(self.uuid)
 
-        if isinstance(output_to_store, WorkflowDataCollectionToStore):
-
-            for inner_data in output_to_store.data.values():
-                self._append_uuid_to_output_to_store(inner_data)
-
     def _build_output_to_store(self, output_to_store_schema):
-        """Builds a WorkflowOutputToStore object from the
-        an entry defined in the schema.
+        """Sets the inputs of a `BaseStoredData` object which
+        are taken from the global metadata.
 
         Parameters
         ----------
-        output_to_store_schema: WorkflowOutputToStore
-            The entry defined in the workflow schema.
+        output_to_store_schema: BaseStoredData
+            The output to set the inputs of.
 
         Returns
         -------
-        WorkflowOutputToStore
+        BaseStoredData
             The built object with all of its inputs correctly set.
         """
 
         output_to_store = copy.deepcopy(output_to_store_schema)
 
-        for attribute_key in output_to_store.__getstate__():
+        for attribute_name in output_to_store.get_attributes(StorageAttribute):
 
-            attribute_value = getattr(output_to_store, attribute_key)
+            attribute_value = getattr(output_to_store, attribute_name)
 
             if (
                 not isinstance(attribute_value, ProtocolPath)
@@ -313,17 +302,7 @@ class Workflow:
             attribute_value = get_nested_attribute(
                 self.global_metadata, attribute_value.property_name
             )
-            setattr(output_to_store, attribute_key, attribute_value)
-
-        # Make sure to also up any child data objects.
-        if isinstance(output_to_store, WorkflowDataCollectionToStore):
-
-            for child_data_label in output_to_store.data:
-
-                child_data = self._build_output_to_store(
-                    output_to_store.data[child_data_label]
-                )
-                output_to_store.data[child_data_label] = child_data
+            setattr(output_to_store, attribute_name, attribute_value)
 
         return output_to_store
 
@@ -504,7 +483,8 @@ class Workflow:
         # Replicate any replicators.
         self._apply_replicator_to_replicators(replicator, schema, template_values)
 
-    def _apply_replicator_to_outputs(self, replicator, schema, template_values):
+    @staticmethod
+    def _apply_replicator_to_outputs(replicator, schema, template_values):
         """Applies a replicator to a schema outputs to store.
 
         Parameters
@@ -517,21 +497,9 @@ class Workflow:
             The values being applied by the replicator.
         """
 
-        outputs_to_replicate = []
-
-        for output_label in schema.outputs_to_store:
-
-            if output_label.find(replicator.id) < 0:
-                continue
-
-            if isinstance(
-                schema.outputs_to_store[output_label], WorkflowDataCollectionToStore
-            ):
-                raise NotImplementedError(
-                    "`WorkflowDataCollectionToStore` cannot currently be replicated."
-                )
-
-            outputs_to_replicate.append(output_label)
+        outputs_to_replicate = [
+            label for label in schema.outputs_to_store if label.find(replicator.id) >= 0
+        ]
 
         # Check to see if there are any outputs to store pointing to
         # protocols which are being replicated.
@@ -546,9 +514,11 @@ class Workflow:
                 )
                 replicated_output = copy.deepcopy(output_to_replicate)
 
-                for attribute_key in replicated_output.__getstate__():
+                for attribute_name in replicated_output.get_attributes(
+                    StorageAttribute
+                ):
 
-                    attribute_value = getattr(replicated_output, attribute_key)
+                    attribute_value = getattr(replicated_output, attribute_name)
 
                     if isinstance(attribute_value, ProtocolPath):
 
@@ -571,7 +541,7 @@ class Workflow:
 
                         attribute_value = template_value
 
-                    setattr(replicated_output, attribute_key, attribute_value)
+                    setattr(replicated_output, attribute_name, attribute_value)
 
                 schema.outputs_to_store[replicated_label] = replicated_output
 
@@ -714,15 +684,18 @@ class Workflow:
             new_protocol_id = new_protocol.id
 
         if new_protocol_id in self.protocols:
+
             raise ValueError(
                 "A protocol with the same id already exists in this workflow."
             )
 
         for protocol_id in self.protocols:
+
             protocol = self.protocols[protocol_id]
             protocol.replace_protocol(old_protocol_id, new_protocol_id)
 
         if old_protocol_id in self.protocols and isinstance(new_protocol, BaseProtocol):
+
             self.protocols.pop(old_protocol_id)
             self.protocols[new_protocol_id] = new_protocol
 
@@ -743,6 +716,7 @@ class Workflow:
                 self.dependants_graph[protocol_id][index] = dependant_id
 
         if old_protocol_id in self.dependants_graph:
+
             self.dependants_graph[new_protocol_id] = self.dependants_graph.pop(
                 old_protocol_id
             )
@@ -757,28 +731,14 @@ class Workflow:
 
             output_to_store = self.outputs_to_store[output_label]
 
-            for attribute_key in output_to_store.__getstate__():
+            for attribute_name in output_to_store.get_attributes(StorageAttribute):
 
-                attribute_value = getattr(output_to_store, attribute_key)
+                attribute_value = getattr(output_to_store, attribute_name)
 
                 if not isinstance(attribute_value, ProtocolPath):
                     continue
 
                 attribute_value.replace_protocol(old_protocol_id, new_protocol_id)
-
-            if not isinstance(output_to_store, WorkflowDataCollectionToStore):
-                continue
-
-            for inner_data in output_to_store.data.values():
-
-                for attribute_key in inner_data.__getstate__():
-
-                    attribute_value = getattr(inner_data, attribute_key)
-
-                    if not isinstance(attribute_value, ProtocolPath):
-                        continue
-
-                    attribute_value.replace_protocol(old_protocol_id, new_protocol_id)
 
     @staticmethod
     def _find_relevant_gradient_keys(
@@ -1204,9 +1164,9 @@ class WorkflowGraph:
 
                 output_to_store = workflow.outputs_to_store[output_label]
 
-                for attribute_key in output_to_store.__getstate__():
+                for attribute_name in output_to_store.get_attributes(StorageAttribute):
 
-                    attribute_value = getattr(output_to_store, attribute_key)
+                    attribute_value = getattr(output_to_store, attribute_name)
 
                     if not isinstance(attribute_value, ProtocolPath):
                         continue
@@ -1214,22 +1174,6 @@ class WorkflowGraph:
                     final_futures.append(
                         submitted_futures[attribute_value.start_protocol]
                     )
-
-                if not isinstance(output_to_store, WorkflowDataCollectionToStore):
-                    continue
-
-                for inner_data in output_to_store.data.values():
-
-                    for attribute_key in inner_data.__getstate__():
-
-                        attribute_value = getattr(inner_data, attribute_key)
-
-                        if not isinstance(attribute_value, ProtocolPath):
-                            continue
-
-                        final_futures.append(
-                            submitted_futures[attribute_value.start_protocol]
-                        )
 
             if len(final_futures) == 0:
                 final_futures = [submitted_futures[key] for key in submitted_futures]
@@ -1598,32 +1542,17 @@ class WorkflowGraph:
 
             for output_to_store in outputs_to_store.values():
 
-                if isinstance(output_to_store.substance, ProtocolPath):
-                    substance_id = results_by_id[output_to_store.substance].identifier
-
-                else:
-
-                    substance_id = (
-                        property_to_return.substance.identifier
-                        if output_to_store.substance is None
-                        else output_to_store.substance.identifier
-                    )
-
-                sanitized_id = sanitize_smiles_file_name(substance_id)
+                unique_id = str(uuid.uuid4()).replace("-", "")
 
                 data_object_path = path.join(
-                    directory, f"results_{property_to_return.id}_{sanitized_id}.json"
+                    directory, f"results_{property_to_return.id}{unique_id}.json"
                 )
                 data_directory = path.join(
-                    directory, f"results_{property_to_return.id}_{sanitized_id}"
+                    directory, f"results_{property_to_return.id}{unique_id}"
                 )
 
                 WorkflowGraph._store_output_data(
-                    data_object_path,
-                    data_directory,
-                    output_to_store,
-                    property_to_return,
-                    results_by_id,
+                    data_object_path, data_directory, output_to_store, results_by_id,
                 )
 
                 return_object.data_to_store.append((data_object_path, data_directory))
@@ -1641,11 +1570,7 @@ class WorkflowGraph:
 
     @staticmethod
     def _store_output_data(
-        data_object_path,
-        data_directory,
-        output_to_store,
-        physical_property,
-        results_by_id,
+        data_object_path, data_directory, output_to_store, results_by_id,
     ):
 
         """Collects all of the simulation to store, and saves it into a directory
@@ -1657,11 +1582,8 @@ class WorkflowGraph:
             The file path to serialize the data object to.
         data_directory: str
             The path of the directory to store ancillary data in.
-        output_to_store: WorkflowOutputToStore
+        output_to_store: BaseStoredData
             An object which contains `ProtocolPath`s pointing to the
-            data to store.
-        physical_property: PhysicalProperty
-            The property which was estimated while generating the
             data to store.
         results_by_id: dict of ProtocolPath and any
             The results of the protocols which formed the property
@@ -1670,105 +1592,21 @@ class WorkflowGraph:
 
         makedirs(data_directory, exist_ok=True)
 
-        stored_object = BaseStoredData()
+        for attribute_name in output_to_store.get_attributes(StorageAttribute):
 
-        if type(output_to_store) == WorkflowSimulationDataToStore:
-            stored_object = StoredSimulationData()
+            attribute = getattr(output_to_store.__class__, attribute_name)
+            attribute_value = getattr(output_to_store, attribute_name)
 
-        if output_to_store.substance is None:
-            stored_object.substance = physical_property.substance
-        elif isinstance(output_to_store.substance, ProtocolPath):
-            stored_object.substance = results_by_id[output_to_store.substance]
-        else:
-            stored_object.substance = output_to_store.substance
+            if not isinstance(attribute_value, ProtocolPath):
+                continue
 
-        stored_object.thermodynamic_state = physical_property.thermodynamic_state
-        stored_object.provenance = physical_property.source
-        stored_object.source_calculation_id = physical_property.id
+            attribute_value = results_by_id[attribute_value]
 
-        if isinstance(output_to_store, WorkflowSimulationDataToStore):
+            if issubclass(attribute.type_hint, FilePath):
+                file_copy(attribute_value, data_directory)
+                attribute_value = path.basename(attribute_value)
 
-            WorkflowGraph._store_simulation_data(
-                stored_object, data_directory, output_to_store, results_by_id
-            )
-
-        elif isinstance(output_to_store, WorkflowDataCollectionToStore):
-
-            for data_key in output_to_store.data:
-
-                inner_data_object = StoredSimulationData()
-                inner_data_object.substance = stored_object.substance
-                inner_data_object.thermodynamic_state = (
-                    stored_object.thermodynamic_state
-                )
-                inner_data_object.source_calculation_id = (
-                    stored_object.source_calculation_id
-                )
-
-                inner_data_directory = path.join(data_directory, data_key)
-
-                makedirs(inner_data_directory, exist_ok=True)
-
-                WorkflowGraph._store_simulation_data(
-                    inner_data_object,
-                    inner_data_directory,
-                    output_to_store.data[data_key],
-                    results_by_id,
-                )
-
-                stored_object.data[data_key] = inner_data_object
+            setattr(output_to_store, attribute_name, attribute_value)
 
         with open(data_object_path, "w") as file:
-            json.dump(stored_object, file, cls=TypedJSONEncoder)
-
-    @staticmethod
-    def _store_simulation_data(
-        data_object, data_directory, output_to_store, results_by_id
-    ):
-        """Collects all of the simulation to store, and saves it into a directory
-        whose path will be passed to the storage backend to process.
-
-        Parameters
-        ----------
-        data_object: StoredSimulationData
-            The data object which is to be stored.
-        data_directory: str
-            The path of the directory to store ancillary data in.
-        output_to_store: WorkflowSimulationDataToStore
-            An object which contains `ProtocolPath`s pointing to the
-            data to store.
-        results_by_id: dict of ProtocolPath and any
-            The results of the protocols which formed the property
-            estimation workflow.
-        """
-        from shutil import copy as file_copy
-
-        data_object.total_number_of_molecules = results_by_id[
-            output_to_store.total_number_of_molecules
-        ]
-
-        # Copy the files into the directory to store.
-        _, coordinate_file_name = path.split(
-            results_by_id[output_to_store.coordinate_file_path]
-        )
-        _, trajectory_file_name = path.split(
-            results_by_id[output_to_store.trajectory_file_path]
-        )
-
-        _, statistics_file_name = path.split(
-            results_by_id[output_to_store.statistics_file_path]
-        )
-
-        file_copy(results_by_id[output_to_store.coordinate_file_path], data_directory)
-        file_copy(results_by_id[output_to_store.trajectory_file_path], data_directory)
-
-        file_copy(results_by_id[output_to_store.statistics_file_path], data_directory)
-
-        data_object.coordinate_file_name = coordinate_file_name
-        data_object.trajectory_file_name = trajectory_file_name
-
-        data_object.statistics_file_name = statistics_file_name
-
-        data_object.statistical_inefficiency = results_by_id[
-            output_to_store.statistical_inefficiency
-        ]
+            json.dump(output_to_store, file, cls=TypedJSONEncoder)

@@ -12,10 +12,7 @@ from tornado.iostream import StreamClosedError
 from tornado.tcpclient import TCPClient
 
 from propertyestimator.forcefield import SmirnoffForceFieldSource
-from propertyestimator.layers import (
-    registered_calculation_layers,
-    registered_calculation_schemas,
-)
+from propertyestimator.layers import registered_calculation_schemas
 from propertyestimator.layers.reweighting import ReweightingLayer
 from propertyestimator.layers.simulation import SimulationLayer
 from propertyestimator.layers.workflow import WorkflowCalculationSchema
@@ -89,8 +86,8 @@ class PropertyEstimatorOptions(TypedBaseModel):
                 else:
                     self.allowed_calculation_layers.append(allowed_layer.__name__)
 
-        self.workflow_schemas = {}
-        self.workflow_options = {}
+        self.workflow_schemas = None
+        self.workflow_options = None
 
         self.allow_protocol_merging = allow_protocol_merging
 
@@ -632,6 +629,8 @@ class PropertyEstimatorClient:
 
         if options.workflow_options is None:
             options.workflow_options = defaultdict(dict)
+        if options.workflow_schemas is None:
+            options.workflow_schemas = defaultdict(dict)
 
         properties_without_schemas = {*property_types}
 
@@ -641,10 +640,6 @@ class PropertyEstimatorClient:
         for property_type in property_types:
 
             for calculation_layer in options.allowed_calculation_layers:
-
-                calculation_layer_class = registered_calculation_layers[
-                    calculation_layer
-                ]
 
                 if (
                     calculation_layer not in registered_calculation_schemas
@@ -662,17 +657,8 @@ class PropertyEstimatorClient:
                 # Set a default schema with default options if none have been
                 # provided.
                 if (
-                    calculation_layer not in options.workflow_options[property_type]
-                    or options.workflow_options[property_type][calculation_layer]
-                    is None
-                ):
-
-                    options.workflow_options[property_type][
-                        calculation_layer
-                    ] = calculation_layer_class.required_schema_type()()
-
-                if (
-                    calculation_layer not in options.workflow_schemas[property_type]
+                    property_type not in options.workflow_options
+                    or calculation_layer not in options.workflow_schemas[property_type]
                     or options.workflow_schemas[property_type][calculation_layer]
                     is None
                 ):
@@ -687,6 +673,21 @@ class PropertyEstimatorClient:
                     options.workflow_schemas[property_type][
                         calculation_layer
                     ] = default_schema
+
+                if (
+                    property_type not in options.workflow_options
+                    or calculation_layer not in options.workflow_options[property_type]
+                    or options.workflow_options[property_type][calculation_layer]
+                    is None
+                ):
+
+                    workflow_options = options.workflow_schemas[property_type][
+                        calculation_layer
+                    ].workflow_options
+
+                    options.workflow_options[property_type][
+                        calculation_layer
+                    ] = workflow_options
 
                 calculation_schema = options.workflow_schemas[property_type][
                     calculation_layer

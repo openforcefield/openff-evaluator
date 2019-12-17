@@ -8,7 +8,13 @@ import traceback
 from os import path
 
 from propertyestimator import unit
-from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
+from propertyestimator.attributes import (
+    UNDEFINED,
+    Attribute,
+    AttributeClass,
+    PlaceholderValue,
+)
+from propertyestimator.storage.data import StoredSimulationData
 from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder
 
@@ -186,6 +192,7 @@ class CalculationLayer(abc.ABC):
 
             # Make sure the data directory / file to store actually exists
             if not path.isdir(data_directory_path) or not path.isfile(data_object_path):
+
                 logging.info(
                     f"Invalid data directory ({data_directory_path}) / "
                     f"file ({data_object_path})"
@@ -197,10 +204,14 @@ class CalculationLayer(abc.ABC):
 
                 data_object = json.load(file, cls=TypedJSONDecoder)
 
-                if data_object.force_field_id is None:
-                    data_object.force_field_id = server_request.force_field_id
+                if isinstance(data_object, StoredSimulationData):
 
-            storage_backend.store_simulation_data(data_object, data_directory_path)
+                    if isinstance(data_object.force_field_id, PlaceholderValue):
+                        data_object.force_field_id = server_request.force_field_id
+                    if isinstance(data_object.source_calculation_id, PlaceholderValue):
+                        data_object.source_calculation_id = server_request.id
+
+            storage_backend.store_object(data_object, data_directory_path)
 
     @staticmethod
     def _process_results(results_future, server_request, storage_backend, callback):

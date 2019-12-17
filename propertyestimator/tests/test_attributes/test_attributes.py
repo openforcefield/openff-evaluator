@@ -5,20 +5,28 @@ import json
 
 import pytest
 
-from propertyestimator.attributes import UNDEFINED, AttributeClass
+from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 
 
 class AttributeObject(AttributeClass):
 
-    required_input = InputAttribute("", str, "Hello World", optional=False)
+    required_input = InputAttribute("", str, UNDEFINED, optional=False)
     optional_input = InputAttribute("", int, UNDEFINED, optional=True)
 
     some_output = OutputAttribute("", int)
 
     def __init__(self):
         self.some_output = 5
+
+
+class NestedAttributeObject(AttributeClass):
+
+    some_value = Attribute("", AttributeObject)
+
+    some_list = Attribute("", list, UNDEFINED, optional=True)
+    some_dict = Attribute("", dict, UNDEFINED, optional=True)
 
 
 def test_undefined_singleton():
@@ -80,3 +88,34 @@ def test_state_methods():
     assert new_object.required_input == some_object.required_input
     assert new_object.optional_input == some_object.optional_input
     assert new_object.some_output == some_object.some_output
+
+
+def test_nested_validation():
+
+    nested_object = NestedAttributeObject()
+    nested_object.some_value = AttributeObject()
+
+    # Should fail
+    with pytest.raises(ValueError):
+        nested_object.validate()
+
+    nested_object.some_value.required_input = ""
+    nested_object.validate()
+
+    nested_object.some_list = [AttributeObject()]
+
+    # Should fail
+    with pytest.raises(ValueError):
+        nested_object.validate()
+
+    nested_object.some_list[0].required_input = ""
+    nested_object.validate()
+
+    nested_object.some_dict = {"x": AttributeObject()}
+
+    # Should fail
+    with pytest.raises(ValueError):
+        nested_object.validate()
+
+    nested_object.some_dict["x"].required_input = ""
+    nested_object.validate()

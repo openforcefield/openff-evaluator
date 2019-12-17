@@ -8,7 +8,7 @@ import tempfile
 from propertyestimator.protocols.storage import UnpackStoredSimulationData
 from propertyestimator.tests.utils import (
     build_tip3p_smirnoff_force_field,
-    create_dummy_stored_simulation_data,
+    create_dummy_simulation_data,
     create_dummy_substance,
 )
 from propertyestimator.utils.exceptions import PropertyEstimatorException
@@ -33,7 +33,7 @@ def test_unpack_stored_simulation_data():
 
         data_coordinate_name = "data_1.pdb"
 
-        data_object = create_dummy_stored_simulation_data(
+        data_object = create_dummy_simulation_data(
             directory_path=dummy_directory_path,
             substance=dummy_substance,
             force_field_id="ff_id_1",

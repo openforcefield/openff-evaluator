@@ -9,7 +9,7 @@
         "metadata": {},
         "phase": 2,
         "source": {
-          "@type": "propertyestimator.properties.properties.MeasurementSource",
+          "@type": "propertyestimator.datasets.provenance.MeasurementSource",
           "doi": "",
           "reference": "www.engineeringtoolbox.com for densities and Dortmund Data Bank for heat of vaporization"
         },
@@ -69,7 +69,7 @@
         "metadata": {},
         "phase": 6,
         "source": {
-          "@type": "propertyestimator.properties.properties.MeasurementSource",
+          "@type": "propertyestimator.datasets.provenance.MeasurementSource",
           "doi": "",
           "reference": "www.engineeringtoolbox.com for densities and Dortmund Data Bank for heat of vaporization"
         },
@@ -129,7 +129,7 @@
         "metadata": {},
         "phase": 6,
         "source": {
-          "@type": "propertyestimator.properties.properties.MeasurementSource",
+          "@type": "propertyestimator.datasets.provenance.MeasurementSource",
           "doi": "",
           "reference": "https://depts.washington.edu/eooptic/linkfiles/dielectric_chart%5B1%5D.pdf"
         },

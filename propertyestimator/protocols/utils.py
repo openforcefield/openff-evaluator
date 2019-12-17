@@ -5,7 +5,8 @@ import copy
 from collections import namedtuple
 
 from propertyestimator import unit
-from propertyestimator.attributes import UNDEFINED
+from propertyestimator.attributes import UNDEFINED, PlaceholderValue
+from propertyestimator.datasets import PropertyPhase
 from propertyestimator.protocols import (
     analysis,
     coordinates,
@@ -16,14 +17,12 @@ from propertyestimator.protocols import (
     simulation,
     storage,
 )
+from propertyestimator.storage.data import StoredSimulationData
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow import WorkflowOptions
 from propertyestimator.workflow.plugins import available_protocols
-from propertyestimator.workflow.schemas import (
-    ProtocolReplicator,
-    WorkflowSimulationDataToStore,
-)
+from propertyestimator.workflow.schemas import ProtocolReplicator
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 BaseReweightingProtocols = namedtuple(
@@ -331,7 +330,7 @@ def generate_base_simulation_protocols(
     ProtocolPath
         A reference to the final value of the estimated observable
         and its uncertainty (an `EstimatedQuantity`).
-    WorkflowSimulationDataToStore
+    StoredSimulationData
         An object which describes the default data from a simulation to store,
         such as the uncorrelated statistics and configurations.
     """
@@ -407,14 +406,11 @@ def generate_base_simulation_protocols(
         ):
 
             condition = groups.ConditionalGroup.Condition()
-
+            condition.right_hand_value = ProtocolPath("target_uncertainty", "global")
+            condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
             condition.left_hand_value = ProtocolPath(
                 "value.uncertainty", conditional_group.id, analysis_protocol.id
             )
-
-            condition.right_hand_value = ProtocolPath("target_uncertainty", "global")
-
-            condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
 
             conditional_group.add_condition(condition)
 
@@ -479,20 +475,27 @@ def generate_base_simulation_protocols(
     extract_uncorrelated_statistics.input_statistics_path = statistics_path
 
     # Build the object which defines which pieces of simulation data to store.
-    output_to_store = WorkflowSimulationDataToStore()
+    output_to_store = StoredSimulationData()
 
-    output_to_store.total_number_of_molecules = ProtocolPath(
+    output_to_store.thermodynamic_state = ProtocolPath("thermodynamic_state", "global")
+    output_to_store.property_phase = PropertyPhase.Liquid
+
+    output_to_store.force_field_id = PlaceholderValue()
+
+    output_to_store.number_of_molecules = ProtocolPath(
         "output_number_of_molecules", build_coordinates.id
     )
     output_to_store.substance = ProtocolPath("output_substance", build_coordinates.id)
     output_to_store.statistical_inefficiency = statistical_inefficiency
-    output_to_store.statistics_file_path = ProtocolPath(
+    output_to_store.statistics_file_name = ProtocolPath(
         "output_statistics_path", extract_uncorrelated_statistics.id
     )
-    output_to_store.trajectory_file_path = ProtocolPath(
+    output_to_store.trajectory_file_name = ProtocolPath(
         "output_trajectory_path", extract_uncorrelated_trajectory.id
     )
-    output_to_store.coordinate_file_path = coordinate_file
+    output_to_store.coordinate_file_name = coordinate_file
+
+    output_to_store.source_calculation_id = PlaceholderValue()
 
     # Define where the final values come from.
     final_value_source = ProtocolPath(

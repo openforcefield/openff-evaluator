@@ -4,6 +4,7 @@ A collection of density physical property definitions.
 import copy
 
 from propertyestimator import unit
+from propertyestimator.attributes import PlaceholderValue
 from propertyestimator.datasets import PhysicalProperty, PropertyPhase
 from propertyestimator.datasets.thermoml import thermoml_property
 from propertyestimator.layers import register_calculation_schema
@@ -15,6 +16,7 @@ from propertyestimator.protocols.utils import (
     generate_base_simulation_protocols,
     generate_gradient_protocol_group,
 )
+from propertyestimator.storage.query import SimulationDataQuery, SubstanceQuery
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow import WorkflowOptions
@@ -603,6 +605,41 @@ class ExcessMolarVolume(PhysicalProperty):
         )
 
     @staticmethod
+    def _default_reweighting_storage_query():
+        """Returns the default storage queries to use when
+        retrieving cached simulation data to reweight.
+
+        This will include one query (with the key `"full_system_data"`)
+        to return data for the full mixture system, and another query
+        (with the key `"component_data"`) which will include data for
+        each pure component in the system.
+
+        Returns
+        -------
+        dict of str and SimulationDataQuery
+            The dictionary of queries.
+        """
+
+        mixture_data_query = SimulationDataQuery()
+        mixture_data_query.substance = PlaceholderValue()
+        mixture_data_query.property_phase = PropertyPhase.Liquid
+
+        # Set up a query which will return the data of each
+        # individual component in the system.
+        component_query = SubstanceQuery()
+        component_query.components_only = True
+
+        component_data_query = SimulationDataQuery()
+        component_data_query.property_phase = PropertyPhase.Liquid
+        component_data_query.substance = PlaceholderValue()
+        component_data_query.substance_query = component_query
+
+        return {
+            "full_system_data": mixture_data_query,
+            "component_data": component_data_query,
+        }
+
+    @staticmethod
     def default_simulation_schema(existing_schema=None):
         """Returns the default calculation schema to use when estimating
         this class of property from direct simulations.
@@ -777,6 +814,11 @@ class ExcessMolarVolume(PhysicalProperty):
 
             assert isinstance(existing_schema, ReweightingSchema)
             calculation_schema = copy.deepcopy(existing_schema)
+
+        # Set up the storage queries
+        calculation_schema.storage_queries = (
+            ExcessMolarVolume._default_reweighting_storage_query()
+        )
 
         # Set up a replicator that will re-run the component reweighting workflow for each
         # component in the system.
