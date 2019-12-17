@@ -289,9 +289,12 @@ def create_dummy_simulation_data(
     data.trajectory_file_name = trajectory_file_name
     data.statistics_file_name = statistics_file_name
 
-    os.mknod(os.path.join(directory_path, coordinate_file_name))
-    os.mknod(os.path.join(directory_path, trajectory_file_name))
-    os.mknod(os.path.join(directory_path, statistics_file_name))
+    with open(os.path.join(directory_path, coordinate_file_name), "w") as file:
+        file.write("")
+    with open(os.path.join(directory_path, trajectory_file_name), "w") as file:
+        file.write("")
+    with open(os.path.join(directory_path, statistics_file_name), "w") as file:
+        file.write("")
 
     data.statistical_inefficiency = statistical_inefficiency
 
