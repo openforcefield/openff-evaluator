@@ -12,10 +12,7 @@ from tornado.iostream import StreamClosedError
 from tornado.tcpclient import TCPClient
 
 from propertyestimator.forcefield import SmirnoffForceFieldSource
-from propertyestimator.layers import (
-    registered_calculation_layers,
-    registered_calculation_schemas,
-)
+from propertyestimator.layers import registered_calculation_schemas
 from propertyestimator.layers.reweighting import ReweightingLayer
 from propertyestimator.layers.simulation import SimulationLayer
 from propertyestimator.layers.workflow import WorkflowCalculationSchema

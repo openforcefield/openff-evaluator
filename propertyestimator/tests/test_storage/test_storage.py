@@ -127,6 +127,9 @@ def test_simulation_data_storage():
         storage = LocalFileStorage(backend_directory)
         storage_key = storage.store_object(data_object, data_directory)
 
+        # Regenerate the data directory.
+        os.makedirs(data_directory, exist_ok=True)
+
         assert storage.has_object(data_object)
         assert storage_key == storage.store_object(data_object, data_directory)
 
@@ -166,7 +169,7 @@ def test_simulation_data_query():
 
             results = storage.query(substance_query)
             assert results is not None and len(results) == 1
-            assert len(next(iter(results.values()))[0]) == 2
+            assert len(next(iter(results.values()))[0]) == 3
 
         component_query = SimulationDataQuery()
         component_query.substance = substance_full
@@ -177,70 +180,77 @@ def test_simulation_data_query():
         assert results is not None and len(results) == 2
 
 
-def test_duplicate_simulation_data_storage():
-    # TODO: Implement.
-    pytest.skip("Not yet implemented.")
+@pytest.mark.parametrize("reverse_order", [True, False])
+def test_duplicate_simulation_data_storage(reverse_order):
 
-    # with tempfile.TemporaryDirectory() as base_directory_path:
-    #
-    # dummy_substance = create_dummy_substance(1)
-    #
-    # dummy_data_path_1 = os.path.join(base_directory_path, "data_1")
-    # data_1_coordinate_name = "data_1.pdb"
-    #
-    # dummy_data_1 = create_dummy_simulation_data(
-    #     directory_path=dummy_data_path_1,
-    #     substance=dummy_substance,
-    #     force_field_id="ff_id_1",
-    #     coordinate_file_name=data_1_coordinate_name,
-    #     statistical_inefficiency=1.0,
-    # )
-    #
-    # dummy_data_path_2 = os.path.join(base_directory_path, "data_2")
-    # data_2_coordinate_name = "data_2.pdb"
-    #
-    # dummy_data_2 = create_dummy_simulation_data(
-    #     directory_path=dummy_data_path_2,
-    #     substance=dummy_substance,
-    #     force_field_id="ff_id_1",
-    #     coordinate_file_name=data_2_coordinate_name,
-    #     statistical_inefficiency=2.0,
-    # )
-    #
-    # storage_directory = os.path.join(base_directory_path, "storage")
-    # local_storage = LocalFileStorage(storage_directory)
-    #
-    # local_storage.store_simulation_data(dummy_data_1, dummy_data_path_1)
-    # local_storage.store_simulation_data(dummy_data_2, dummy_data_path_2)
-    #
-    # stored_data = local_storage.retrieve_simulation_data(dummy_substance)
-    #
-    # assert len(stored_data[dummy_substance.identifier]) == 1
-    #
-    # # Make sure the correct data got retained.
-    # stored_data_object, stored_data_directory = stored_data[
-    #     dummy_substance.identifier
-    # ][0]
-    # assert stored_data_object.coordinate_file_name == data_2_coordinate_name
-    #
-    # dummy_data_path_3 = os.path.join(base_directory_path, "data_3")
-    # data_3_coordinate_name = "data_3.pdb"
-    #
-    # dummy_data_3 = create_dummy_simulation_data(
-    #     directory_path=dummy_data_path_3,
-    #     substance=dummy_substance,
-    #     force_field_id="ff_id_2",
-    #     coordinate_file_name=data_3_coordinate_name,
-    #     statistical_inefficiency=3.0,
-    # )
-    #
-    # local_storage.store_simulation_data(dummy_data_3, dummy_data_path_3)
-    #
-    # stored_data = local_storage.retrieve_simulation_data(dummy_substance)
-    # assert len(stored_data[dummy_substance.identifier]) == 2
-    #
-    # # Make sure the correct data got retained.
-    # stored_data_object, stored_data_directory = stored_data[
-    #     dummy_substance.identifier
-    # ][1]
-    # assert stored_data_object.coordinate_file_name == data_3_coordinate_name
+    substance = Substance.from_components("CO")
+
+    with tempfile.TemporaryDirectory() as base_directory_path:
+
+        storage_directory = os.path.join(base_directory_path, "storage")
+        local_storage = LocalFileStorage(storage_directory)
+
+        # Construct some data to store with increasing
+        # statistical inefficiencies.
+        data_to_store = []
+
+        for index in range(3):
+
+            data_directory = os.path.join(base_directory_path, f"data_{index}")
+            coordinate_name = f"data_{index}.pdb"
+
+            data_object = create_dummy_simulation_data(
+                directory_path=data_directory,
+                substance=substance,
+                force_field_id="ff_id_1",
+                coordinate_file_name=coordinate_name,
+                statistical_inefficiency=float(index),
+                calculation_id="id",
+            )
+            data_to_store.append((data_object, data_directory))
+
+        # Keep a track of the storage keys.
+        all_storage_keys = set()
+
+        iterator = enumerate(data_to_store)
+
+        if reverse_order:
+            iterator = reversed(list(iterator))
+
+        # Store the data
+        for index, data in iterator:
+
+            data_object, data_directory = data
+
+            storage_key = local_storage.store_object(data_object, data_directory)
+            all_storage_keys.add(storage_key)
+
+            retrieved_object, stored_directory = local_storage.retrieve_object(
+                storage_key
+            )
+
+            # Handle the case where we haven't reversed the order of
+            # the data to store. Here only the first object in the list
+            # should be stored an never replaced as it has the lowest
+            # statistical inefficiency.
+            if not reverse_order:
+                expected_index = 0
+            # Handle the case where we have reversed the order of
+            # the data to store. Here only the each new piece of
+            # data should replace the last, as it will have a lower
+            # statistical inefficiency.
+            else:
+                expected_index = index
+
+            assert retrieved_object.json() == data_to_store[expected_index][0].json()
+
+            # Make sure the directory has been correctly overwritten / retained
+            # depending on the data order.
+            coordinate_path = os.path.join(
+                stored_directory, f"data_{expected_index}.pdb"
+            )
+            assert os.path.isfile(coordinate_path)
+
+        # Make sure all pieces of data got assigned the same key if
+        # reverse order.
+        assert len(all_storage_keys) == 1

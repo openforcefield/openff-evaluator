@@ -250,6 +250,7 @@ def create_dummy_simulation_data(
     statistical_inefficiency=1.0,
     phase=PropertyPhase.Liquid,
     number_of_molecules=1,
+    calculation_id=None,
 ):
 
     """Creates a dummy `StoredSimulationData` object and
@@ -267,6 +268,7 @@ def create_dummy_simulation_data(
     statistical_inefficiency
     phase
     number_of_molecules
+    calculation_id
 
     Returns
     -------
@@ -285,13 +287,20 @@ def create_dummy_simulation_data(
 
     data.coordinate_file_name = coordinate_file_name
     data.trajectory_file_name = trajectory_file_name
-
     data.statistics_file_name = statistics_file_name
+
+    os.mknod(os.path.join(directory_path, coordinate_file_name))
+    os.mknod(os.path.join(directory_path, trajectory_file_name))
+    os.mknod(os.path.join(directory_path, statistics_file_name))
+
     data.statistical_inefficiency = statistical_inefficiency
 
     data.number_of_molecules = number_of_molecules
 
-    data.source_calculation_id = str(uuid.uuid4())
+    if calculation_id is None:
+        calculation_id = str(uuid.uuid4())
+
+    data.source_calculation_id = calculation_id
 
     return data
 

@@ -12,6 +12,7 @@ from propertyestimator.storage.data import (
     BaseStoredData,
     ForceFieldData,
     HashableStoredData,
+    ReplaceableData,
 )
 
 
@@ -164,6 +165,10 @@ class StorageBackend(abc.ABC):
         has already been performed, and that this method is called under
         a thread lock.
 
+        Notes
+        -----
+        This method should overwrite any existing data with the same key.
+
         Parameters
         ----------
         object_to_store: BaseStoredData
@@ -224,11 +229,37 @@ class StorageBackend(abc.ABC):
         storage_key = self.has_object(object_to_store)
 
         if storage_key is not None:
-            return storage_key
 
-        # Generate a unique id for this object.
-        while storage_key is None or not self._is_key_unique(storage_key):
-            storage_key = str(uuid.uuid4()).replace("-", "")
+            if not isinstance(object_to_store, ReplaceableData):
+                # Handle the case where the existing data
+                # should be returned, rather than storing
+                # the passed object.
+                return storage_key
+
+            existing_object, _ = self.retrieve_object(storage_key, ReplaceableData)
+
+            # noinspection PyTypeChecker
+            object_to_store = object_to_store.most_information(
+                existing_object, object_to_store
+            )
+
+            if object_to_store is None:
+
+                raise ValueError(
+                    "Something went wrong when trying to "
+                    "determine whether the object trying to "
+                    "be stored is redundant."
+                )
+
+            elif object_to_store == existing_object:
+                # Don't try to re-store the existing object.
+                return storage_key
+
+        else:
+
+            # Generate a unique id for this object.
+            while storage_key is None or not self._is_key_unique(storage_key):
+                storage_key = str(uuid.uuid4()).replace("-", "")
 
         # Hash this object if appropriate
         if isinstance(object_to_store, HashableStoredData):

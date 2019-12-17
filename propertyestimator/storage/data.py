@@ -77,7 +77,89 @@ class HashableStoredData(BaseStoredData, abc.ABC):
         raise NotImplementedError
 
 
-class StoredSimulationData(BaseStoredData):
+class ForceFieldData(HashableStoredData):
+    """A data container for force field objects which
+    will be saved to disk.
+    """
+
+    force_field_source = StorageAttribute(
+        docstring="The force field source object.", type_hint=ForceFieldSource,
+    )
+
+    @classmethod
+    def has_ancillary_data(cls):
+        return False
+
+    def to_storage_query(self):
+        """
+        Returns
+        -------
+        SimulationDataQuery
+            The storage query which would match this
+            data object.
+        """
+        from .query import ForceFieldQuery
+
+        return ForceFieldQuery.from_data_object(self)
+
+    def __eq__(self, other):
+        return super(ForceFieldData, self).__eq__(other)
+
+    def __ne__(self, other):
+        return super(ForceFieldData, self).__ne__(other)
+
+    def __hash__(self):
+
+        force_field_string = self.force_field_source.json()
+        return hash(force_field_string.encode())
+
+
+class ReplaceableData(BaseStoredData, abc.ABC):
+    """Represents a piece of stored data which can be
+    replaced in a `StorageBackend` by another piece of
+    data of the same type.
+
+    This may be the case for example when attempting to
+    store a piece of `StoredSimulationData`, but another
+    piece of data measured from the same calculation and
+    for the same system already exists in the system, but
+    stores less configurations.
+    """
+
+    @classmethod
+    @abc.abstractmethod
+    def most_information(cls, stored_data_1, stored_data_2):
+        """Returns the data object with the highest information
+        content.
+
+        Parameters
+        ----------
+        stored_data_1: ReplaceableData
+            The first piece of data to compare.
+        stored_data_2: ReplaceableData
+            The second piece of data to compare.
+
+        Returns
+        -------
+        ReplaceableData, optional
+            The data object with the highest information
+            content, or `None` if the two pieces of information
+            are incompatible with one another.
+        """
+
+        assert isinstance(stored_data_1, ReplaceableData)
+        assert type(stored_data_1) == type(stored_data_2)
+
+        # Make sure the two objects are compatible.
+        data_query = stored_data_1.to_storage_query()
+
+        if data_query.apply(stored_data_2) is None:
+            return None
+
+        return stored_data_1
+
+
+class StoredSimulationData(ReplaceableData):
     """A representation of data which has been cached
     from a single previous simulation.
 
@@ -147,24 +229,29 @@ class StoredSimulationData(BaseStoredData):
     def has_ancillary_data(cls):
         return True
 
-    @staticmethod
-    def most_information(stored_data_1, stored_data_2):
+    @classmethod
+    def most_information(cls, stored_data_1, stored_data_2):
         """Returns the data object with the lowest
         `statistical_inefficiency`.
+
+        Parameters
+        ----------
+        stored_data_1: StoredSimulationData
+            The first piece of data to compare.
+        stored_data_2: StoredSimulationData
+            The second piece of data to compare.
+
+        Returns
+        -------
+        StoredSimulationData
         """
-
-        assert isinstance(stored_data_1, StoredSimulationData)
-        assert isinstance(stored_data_2, StoredSimulationData)
-
-        # Make sure the two objects can actually be merged.
-        data_query = stored_data_1.to_storage_query()
-
-        if data_query.apply(stored_data_2) is None:
-
-            raise ValueError(
-                "The two pieces of data are incompatible and cannot "
-                "be merged into one."
+        if (
+            super(StoredSimulationData, cls).most_information(
+                stored_data_1, stored_data_2
             )
+            is None
+        ):
+            return None
 
         if (
             stored_data_1.statistical_inefficiency
@@ -185,40 +272,3 @@ class StoredSimulationData(BaseStoredData):
         from .query import SimulationDataQuery
 
         return SimulationDataQuery.from_data_object(self)
-
-
-class ForceFieldData(HashableStoredData):
-    """A data container for force field objects which
-    will be saved to disk.
-    """
-
-    force_field_source = StorageAttribute(
-        docstring="The force field source object.", type_hint=ForceFieldSource,
-    )
-
-    @classmethod
-    def has_ancillary_data(cls):
-        return False
-
-    def to_storage_query(self):
-        """
-        Returns
-        -------
-        SimulationDataQuery
-            The storage query which would match this
-            data object.
-        """
-        from .query import ForceFieldQuery
-
-        return ForceFieldQuery.from_data_object(self)
-
-    def __eq__(self, other):
-        return super(ForceFieldData, self).__eq__(other)
-
-    def __ne__(self, other):
-        return super(ForceFieldData, self).__ne__(other)
-
-    def __hash__(self):
-
-        force_field_string = self.force_field_source.json()
-        return hash(force_field_string.encode())
