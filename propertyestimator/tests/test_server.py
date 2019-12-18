@@ -1,5 +1,5 @@
 """
-Units tests for propertyestimator.client and server
+Units tests for the propertyestimator.server module.
 """
 import tempfile
 from os import path
@@ -81,7 +81,9 @@ def test_estimate_request():
         )
 
         property_estimator = EvaluatorClient()
-        options = RequestOptions(allowed_calculation_layers=[TestCalculationLayer])
+
+        options = RequestOptions()
+        options.calculation_layers = ["TestCalculationLayer"]
 
         request = property_estimator.request_estimate(
             dummy_data_set, force_field_source, options
