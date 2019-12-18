@@ -1094,7 +1094,7 @@ class WorkflowGraph:
 
         Parameters
         ----------
-        backend: PropertyEstimatorBackend
+        backend: CalculationBackend
             The backend to execute the graph on.
         include_uncertainty_check: bool
             If true, the uncertainty of each estimated property will be checked to

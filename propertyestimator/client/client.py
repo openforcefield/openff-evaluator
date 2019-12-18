@@ -5,7 +5,6 @@ Property estimator client side API.
 import json
 import logging
 import traceback
-import typing
 from collections import defaultdict
 from time import sleep
 
@@ -178,19 +177,19 @@ class RequestResult(AttributeClass):
     queued_properties = Attribute(
         docstring="The set of properties which have yet to be, or "
         "are currently being estimated.",
-        type_hint=typing.Union[PhysicalPropertyDataSet, None],
-        default_value=None,
+        type_hint=PhysicalPropertyDataSet,
+        default_value=PhysicalPropertyDataSet(),
     )
 
     estimated_properties = Attribute(
         docstring="The set of properties which have been successfully estimated.",
-        type_hint=typing.Union[PhysicalPropertyDataSet, None],
-        default_value=None,
+        type_hint=PhysicalPropertyDataSet,
+        default_value=PhysicalPropertyDataSet(),
     )
     unsuccessful_properties = Attribute(
         docstring="The set of properties which could not be successfully estimated.",
-        type_hint=typing.Union[PhysicalPropertyDataSet, None],
-        default_value=None,
+        type_hint=PhysicalPropertyDataSet,
+        default_value=PhysicalPropertyDataSet(),
     )
 
     exceptions = Attribute(
@@ -201,15 +200,8 @@ class RequestResult(AttributeClass):
     )
 
     def validate(self, attribute_type=None):
-
         super(RequestResult, self).validate(attribute_type)
-
         assert all((isinstance(x, EvaluatorException) for x in self.exceptions))
-        assert (
-            self.queued_properties is not None
-            or self.estimated_properties is not None
-            or self.unsuccessful_properties is not None
-        )
 
 
 class EvaluatorClient:
@@ -507,6 +499,8 @@ class EvaluatorClient:
         Request
             An object which will provide access to the
             results of this request.
+        EvaluatorException, optional
+            Any exceptions raised while attempting the submit the request.
         """
         from openforcefield.typing.engines import smirnoff
 
@@ -545,7 +539,7 @@ class EvaluatorClient:
         submission.validate()
 
         # Send the submission to the server.
-        request_id = IOLoop.current().run_sync(
+        request_id, error = IOLoop.current().run_sync(
             lambda: self._send_calculations_to_server(submission)
         )
 
@@ -553,7 +547,7 @@ class EvaluatorClient:
         request_object = Request(self)
         request_object.id = request_id
 
-        return request_object
+        return request_object, error
 
     def retrieve_results(self, request_id, synchronous=False, polling_interval=5):
         """Retrieves the current results of a request from the server.
@@ -592,6 +586,8 @@ class EvaluatorClient:
         assert polling_interval >= 0
 
         response = None
+        error = None
+
         should_run = True
 
         while should_run:
@@ -599,7 +595,7 @@ class EvaluatorClient:
             if polling_interval > 0:
                 sleep(polling_interval)
 
-            response = IOLoop.current().run_sync(
+            response, error = IOLoop.current().run_sync(
                 lambda: self._send_query_to_server(request_id)
             )
 
@@ -612,7 +608,7 @@ class EvaluatorClient:
             logging.info(f"The server has completed request {request_id}.")
             should_run = False
 
-        return response
+        return response, error
 
     async def _send_calculations_to_server(self, submission):
         """Attempts to connect to the calculation server, and
@@ -637,6 +633,8 @@ class EvaluatorClient:
            has completed.
 
            Returns None if the calculation could not be submitted.
+        EvaluatorException, optional
+            Any exceptions raised while attempting the submit the request.
         """
         request_id = None
 
@@ -668,7 +666,7 @@ class EvaluatorClient:
             # went well, this should be the id of the submitted
             # calculations.
             encoded_json = await stream.read_bytes(length)
-            request_id = json.loads(encoded_json.decode())
+            request_id, error = json.loads(encoded_json.decode(), cls=TypedJSONDecoder)
 
             stream.close()
             self._tcp_client.close()
@@ -683,10 +681,10 @@ class EvaluatorClient:
             )
 
             formatted_exception = traceback.format_exception(None, e, e.__traceback__)
-            logging.info(formatted_exception)
+            error = EvaluatorException(message=formatted_exception)
 
         # Return the ids of the submitted jobs.
-        return request_id
+        return request_id, error
 
     async def _send_query_to_server(self, request_id):
         """Attempts to connect to the calculation server, and

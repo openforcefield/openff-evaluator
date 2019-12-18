@@ -214,20 +214,23 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
         self._sources.extend(data_set.sources)
 
-    def add_property(self, physical_property):
+    def add_properties(self, *physical_properties):
         """Adds a physical property to the data set.
 
         Parameters
         ----------
-        physical_property: PhysicalProperty
+        physical_properties: tuple of PhysicalProperty
             The physical property to add.
         """
-        if physical_property.substance.identifier not in self._properties:
-            self._properties[physical_property.substance.identifier] = []
 
-        self._properties[physical_property.substance.identifier].append(
-            physical_property
-        )
+        for physical_property in physical_properties:
+
+            if physical_property.substance.identifier not in self._properties:
+                self._properties[physical_property.substance.identifier] = []
+
+            self._properties[physical_property.substance.identifier].append(
+                physical_property
+            )
 
     def filter_by_function(self, filter_function):
         """Filter the data set using a given filter function.

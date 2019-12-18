@@ -5,4 +5,4 @@ import pytest
 
 
 def test_default_options():
-    pytest.skip('TODO')
+    pytest.skip("TODO")

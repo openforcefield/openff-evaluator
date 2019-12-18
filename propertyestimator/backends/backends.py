@@ -197,7 +197,7 @@ class QueueWorkerResources(ComputeResources):
         return not self.__eq__(other)
 
 
-class PropertyEstimatorBackend:
+class CalculationBackend:
     """An abstract base representation of a property estimator backend. A backend is
     responsible for coordinating, distributing and running calculations on the
     available hardware. This may range from a single machine to a multinode cluster,
@@ -209,18 +209,21 @@ class PropertyEstimatorBackend:
     `start`, `stop`, and `submit_task` method.
     """
 
-    def __init__(self, number_of_workers=1, resources_per_worker=ComputeResources()):
+    def __init__(self, number_of_workers=1, resources_per_worker=None):
 
-        """Constructs a new PropertyEstimatorBackend object.
+        """Constructs a new CalculationBackend object.
 
         Parameters
         ----------
         number_of_workers : int
             The number of works to run the calculations on. One worker
             can perform a single task (e.g run a simulation) at once.
-        resources_per_worker: ComputeResources
+        resources_per_worker: ComputeResources, optional
             The number of resources to request per worker.
         """
+
+        if resources_per_worker is None:
+            resources_per_worker = ComputeResources()
 
         self._number_of_workers = number_of_workers
         self._resources_per_worker = resources_per_worker

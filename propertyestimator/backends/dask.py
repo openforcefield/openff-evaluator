@@ -15,7 +15,7 @@ from distributed import get_worker
 
 from propertyestimator import unit
 
-from .backends import ComputeResources, PropertyEstimatorBackend, QueueWorkerResources
+from .backends import CalculationBackend, ComputeResources, QueueWorkerResources
 
 
 class _Multiprocessor:
@@ -142,7 +142,7 @@ class _Multiprocessor:
         return return_value
 
 
-class BaseDaskBackend(PropertyEstimatorBackend):
+class BaseDaskBackend(CalculationBackend):
     """A base `dask` backend class, which implements functionality
     which is common to all other `dask` based backends.
     """

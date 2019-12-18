@@ -5,22 +5,96 @@ evaluator framework.
 import copy
 import json
 import logging
+import os
+import traceback
 import uuid
-from os import makedirs, path
 
 from tornado.ioloop import IOLoop
 from tornado.iostream import StreamClosedError
 from tornado.tcpserver import TCPServer
 
-from propertyestimator.client import RequestOptions, RequestResult
+from propertyestimator.attributes import Attribute, AttributeClass
+from propertyestimator.client import EvaluatorClient, RequestOptions, RequestResult
+from propertyestimator.datasets import PhysicalProperty
+from propertyestimator.forcefield import ParameterGradientKey
 from propertyestimator.layers import registered_calculation_layers
 from propertyestimator.utils.exceptions import EvaluatorException
-from propertyestimator.utils.serialization import TypedBaseModel, TypedJSONEncoder
+from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from propertyestimator.utils.tcp import (
     PropertyEstimatorMessageTypes,
     pack_int,
     unpack_int,
 )
+
+
+class _Batch(AttributeClass):
+    """Represents a batch of physical properties which are
+    being estimated by the server for a given set of force
+    field parameters.
+
+    The expectation is that this object will be passed between
+    calculation layers, whereby each layer will attempt to
+    estimate each of the `queued_properties`. Those properties
+    which can be estimated will be moved to the `estimated_properties`
+    set, while those that couldn't will remain in the `queued_properties`
+    set ready for the next layer.
+    """
+
+    id = Attribute(
+        docstring="The unique id of this batch.",
+        type_hint=str,
+        default_value=lambda: str(uuid.uuid4()).replace("-", ""),
+    )
+
+    force_field_id = Attribute(
+        docstring="The id of the force field being used to estimate"
+        "this batch of properties.",
+        type_hint=str,
+    )
+    options = Attribute(
+        docstring="The options being used to estimate this batch.",
+        type_hint=RequestOptions,
+    )
+    parameter_gradient_keys = Attribute(
+        docstring="The parameters that this batch of physical properties "
+        "should be differentiated with respect to.",
+        type_hint=list,
+    )
+
+    queued_properties = Attribute(
+        docstring="The set of properties which have yet to be estimated.",
+        type_hint=list,
+        default_value=[],
+    )
+    estimated_properties = Attribute(
+        docstring="The set of properties which have been successfully estimated.",
+        type_hint=list,
+        default_value=[],
+    )
+    unsuccessful_properties = Attribute(
+        docstring="The set of properties which have been could not be estimated.",
+        type_hint=list,
+        default_value=[],
+    )
+    exceptions = Attribute(
+        docstring="The set of properties which have yet to be, or "
+        "are currently being estimated.",
+        type_hint=list,
+        default_value=[],
+    )
+
+    def validate(self, attribute_type=None):
+        super(_Batch, self).validate(attribute_type)
+
+        assert all(isinstance(x, PhysicalProperty) for x in self.queued_properties)
+        assert all(isinstance(x, PhysicalProperty) for x in self.estimated_properties)
+        assert all(
+            isinstance(x, PhysicalProperty) for x in self.unsuccessful_properties
+        )
+        assert all(isinstance(x, EvaluatorException) for x in self.exceptions)
+        assert all(
+            isinstance(x, ParameterGradientKey) for x in self.parameter_gradient_keys
+        )
 
 
 class EvaluatorServer(TCPServer):
@@ -30,6 +104,13 @@ class EvaluatorServer(TCPServer):
     This server is responsible for receiving estimation requests from the client,
     determining which calculation layer to use to launch the request, and
     distributing that estimation across the available compute resources.
+
+    Notes
+    -----
+    Every client request is split into logical chunk batches. This enables batches
+    of related properties (e.g. all properties for CO) to be estimated in one go
+    (or one task graph in the case of workflow based layers) and returned when ready,
+    rather than waiting for the full data set to complete.
 
     Examples
     --------
@@ -53,79 +134,6 @@ class EvaluatorServer(TCPServer):
     >>> property_server.start_listening_loop()
     """
 
-    class ServerEstimationRequest(TypedBaseModel):
-        """Represents a request for the server to estimate a set of properties. Such requests
-        are expected to only estimate properties for a single system (e.g. fixed components
-        in a fixed ratio)
-        """
-
-        def __init__(
-            self,
-            estimation_id="",
-            queued_properties=None,
-            options=None,
-            force_field_id=None,
-            parameter_gradient_keys=None,
-        ):
-            """Constructs a new ServerEstimationRequest object.
-
-            Parameters
-            ----------
-            estimation_id: str
-                A unique id assigned to this estimation request.
-            queued_properties: list of PhysicalProperty, optional
-                A list of physical properties waiting to be estimated.
-            options: RequestOptions, optional
-                The options used to estimate the properties.
-            force_field_id: str
-                The unique server side id of the force field parameters used to estimate the properties.
-            parameter_gradient_keys: list of ParameterGradientKey
-                A list of references to all of the parameters which all observables
-                should be differentiated with respect to.
-            """
-            self.id = estimation_id
-
-            self.queued_properties = queued_properties or []
-
-            self.estimated_properties = {}
-            self.unsuccessful_properties = {}
-
-            self.exceptions = []
-
-            self.options = options
-
-            self.force_field_id = force_field_id
-
-            self.parameter_gradient_keys = parameter_gradient_keys
-
-        def __getstate__(self):
-            return {
-                "id": self.id,
-                "queued_properties": self.queued_properties,
-                "estimated_properties": self.estimated_properties,
-                "unsuccessful_properties": self.unsuccessful_properties,
-                "exceptions": self.exceptions,
-                "options": self.options,
-                "force_field_id": self.force_field_id,
-                "parameter_gradient_keys": self.parameter_gradient_keys,
-            }
-
-        def __setstate__(self, state):
-            self.id = state["id"]
-
-            self.queued_properties = state["queued_properties"]
-
-            self.estimated_properties = state["estimated_properties"]
-            self.unsuccessful_properties = state["unsuccessful_properties"]
-
-            self.exceptions = state["exceptions"]
-
-            self.options = state["options"]
-
-            self.force_field_id = state["force_field_id"]
-
-            self.parameter_gradient_keys = state["parameter_gradient_keys"]
-
     def __init__(
         self,
         calculation_backend,
@@ -137,7 +145,7 @@ class EvaluatorServer(TCPServer):
 
         Parameters
         ----------
-        calculation_backend: PropertyEstimatorBackend
+        calculation_backend: CalculationBackend
             The backend to use for executing calculations.
         storage_backend: StorageBackend
             The backend to use for storing information from any calculations.
@@ -155,21 +163,12 @@ class EvaluatorServer(TCPServer):
         self._port = port
 
         self._working_directory = working_directory
+        os.makedirs(self._working_directory, exist_ok=True)
 
-        if not path.isdir(self._working_directory):
-            makedirs(self._working_directory)
+        self._queued_batches = {}
+        self._finished_batches = {}
 
-        self._queued_calculations = {}
-        self._finished_calculations = {}
-
-        # Each client request id (i.e an id relating to a client requesting
-        # that an entire data set of properties is estimated) is matched to
-        # a set of server set request ids.
-        #
-        # The main difference is that on the server, a request to estimate
-        # an entire data set is split into multiple requests to estimate
-        # properties per substance.
-        self._server_request_ids_per_client_id = {}
+        self._batch_ids_per_client_id = {}
 
         super().__init__()
 
@@ -202,35 +201,52 @@ class EvaluatorServer(TCPServer):
         encoded_json = await stream.read_bytes(message_length)
         json_model = encoded_json.decode()
 
-        # TODO: Add exception handling so the server can gracefully reject bad json.
-        client_data_model = _Submission.parse_json(json_model)
+        request_id = None
+        error = None
 
-        client_request_id = str(uuid.uuid4())
+        try:
 
-        while client_request_id in self._server_request_ids_per_client_id:
-            client_request_id = str(uuid.uuid4())
+            # noinspection PyProtectedMember
+            submission = EvaluatorClient._Submission.parse_json(json_model)
+            submission.validate()
 
-        self._server_request_ids_per_client_id[client_request_id] = []
+        except Exception as e:
 
-        # Pass the ids of the submitted requests back to the
-        # client.
-        encoded_job_ids = json.dumps(client_request_id).encode()
-        length = pack_int(len(encoded_job_ids))
+            formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
-        await stream.write(length + encoded_job_ids)
+            error = EvaluatorException(
+                message=f"An exception occured when parsing "
+                f"the submission: {formatted_exception}"
+            )
 
-        logging.info(
-            "Request id sent to the client ({}): {}".format(address, client_request_id)
-        )
+            submission = None
 
-        server_requests, request_ids_to_launch = self._prepare_server_requests(
-            client_data_model, client_request_id
-        )
+        if error is None:
 
-        # Keep track of which server request ids belong to which client
-        # request id.
-        for request_id in request_ids_to_launch:
-            self._schedule_server_request(server_requests[request_id])
+            while request_id is None or request_id in self._batch_ids_per_client_id:
+                request_id = str(uuid.uuid4()).replace("-", "")
+
+            self._batch_ids_per_client_id[request_id] = []
+
+        # Pass the id of the submitted requests back to the client
+        # as well as any error which may have occured.
+        return_packet = json.dumps((request_id, error), cls=TypedJSONDecoder)
+
+        encoded_return_packet = return_packet.encode()
+        length = pack_int(len(encoded_return_packet))
+
+        await stream.write(length + encoded_return_packet)
+
+        if error is not None:
+            # Exit early if there is an error.
+            return
+
+        # Batch the request into more managable chunks.
+        batches = self._prepare_batches(submission, request_id)
+
+        # Launch the batches
+        for batch in batches:
+            self._launch_batch(batch)
 
     async def _handle_job_query(self, stream, message_length):
         """An asynchronous routine for handling the receiving and
@@ -251,7 +267,7 @@ class EvaluatorServer(TCPServer):
         response = None
         error = None
 
-        if client_request_id not in self._server_request_ids_per_client_id:
+        if client_request_id not in self._batch_ids_per_client_id:
 
             error = EvaluatorException(
                 directory="",
@@ -260,7 +276,7 @@ class EvaluatorServer(TCPServer):
             )
 
         else:
-            response = self._query_client_request_status(client_request_id)
+            response = self._query_request_status(client_request_id)
 
         response_json = json.dumps((response, error), cls=TypedJSONEncoder)
 
@@ -297,8 +313,6 @@ class EvaluatorServer(TCPServer):
                 packed_message_length = await stream.read_bytes(4)
                 message_length = unpack_int(packed_message_length)[0]
 
-                message_type = None
-
                 try:
                     message_type = PropertyEstimatorMessageTypes(message_type_int)
                 except ValueError as e:
@@ -319,249 +333,161 @@ class EvaluatorServer(TCPServer):
             # Handle client disconnections gracefully.
             pass
 
-    def _prepare_server_requests(self, client_data_model, client_request_id):
-        """Turns a client estimation submission request into a form more useful
-        to the server, namely a list of properties to estimate separated by
-        system composition.
-
-        Parameters
-        ----------
-        client_data_model: _Submission
-            The client data model.
-        client_request_id: str
-            The id that was assigned to the client request.
-
-        Returns
-        -------
-        dict of str and EvaluatorServer.ServerEstimationRequest
-            A list of the requests to be calculated by the server.
-        list of str
-            The ids of the requests which haven't already been launched by
-            the server.
-        """
-
-        force_field_source = client_data_model.force_field_source
-        force_field_id = self._storage_backend.has_force_field(force_field_source)
-
-        if force_field_id is None:
-            force_field_id = self._storage_backend.store_force_field(force_field_source)
-
-        server_requests = {}
-
-        # Split the full list of properties into lists partitioned by
-        # substance.
-        properties_by_substance = {}
-
-        for physical_property in client_data_model.properties:
-
-            if physical_property.substance.identifier not in properties_by_substance:
-                properties_by_substance[physical_property.substance.identifier] = []
-
-            properties_by_substance[physical_property.substance.identifier].append(
-                physical_property
-            )
-
-        for substance_identifier in properties_by_substance:
-
-            calculation_id = str(uuid.uuid4())
-
-            # Make sure we don't somehow generate the same uuid
-            # twice (although this is very unlikely to ever happen).
-            while (
-                calculation_id in self._queued_calculations
-                or calculation_id in self._finished_calculations
-            ):
-
-                calculation_id = str(uuid.uuid4())
-
-            properties_to_estimate = properties_by_substance[substance_identifier]
-
-            options_copy = RequestOptions.parse_json(client_data_model.options.json())
-
-            parameter_gradient_keys = copy.deepcopy(
-                client_data_model.parameter_gradient_keys
-            )
-
-            request = self.ServerEstimationRequest(
-                estimation_id=calculation_id,
-                queued_properties=properties_to_estimate,
-                options=options_copy,
-                force_field_id=force_field_id,
-                parameter_gradient_keys=parameter_gradient_keys,
-            )
-
-            server_requests[calculation_id] = request
-
-        request_ids_to_launch = []
-
-        # Make sure this request is not already in the queue / has
-        # already been completed, and if not add it to the list of
-        # things to be queued.
-        for server_request_id in server_requests:
-
-            server_request = server_requests[server_request_id]
-            existing_id = self._find_server_estimation_request(server_request)
-
-            if existing_id is None:
-
-                request_ids_to_launch.append(server_request_id)
-                existing_id = server_request_id
-
-                self._queued_calculations[server_request_id] = server_request
-
-            self._server_request_ids_per_client_id[client_request_id].append(
-                existing_id
-            )
-
-        return server_requests, request_ids_to_launch
-
-    def _query_client_request_status(self, client_request_id):
-        """Queries the current status of a client request by querying
-        the state of the individual server requests it was split into.
+    def _query_request_status(self, client_request_id):
+        """Queries the the current state of an estimation request
+        and stores it in a `RequestResult`.
 
         Parameters
         ----------
         client_request_id: str
-            The id of the client request to query.
+            The id of the request to query.
 
         Returns
         -------
         RequestResult
-            The current results of the client request.
+            The state of the request.
         """
 
-        request_results = RequestResult(result_id=client_request_id)
+        request_results = RequestResult()
 
-        for server_request_id in self._server_request_ids_per_client_id[
-            client_request_id
-        ]:
+        for batch_id in self._batch_ids_per_client_id[client_request_id]:
 
-            server_request = None
+            # Find the batch.
+            if batch_id in self._queued_batches:
+                batch = self._queued_batches[batch_id]
 
-            if server_request_id in self._queued_calculations:
-                server_request = self._queued_calculations[server_request_id]
+            elif batch_id in self._finished_batches:
 
-            elif server_request_id in self._finished_calculations:
+                batch = self._finished_batches[batch_id]
 
-                server_request = self._finished_calculations[server_request_id]
-
-                if len(server_request.queued_properties) > 0:
+                if len(batch.queued_properties) > 0:
 
                     return EvaluatorException(
-                        message=f"An internal error occurred - the {server_request_id} "
-                        f"was prematurely marked us finished."
+                        message=f"An internal error occurred - the {batch_id} "
+                        f"batch was prematurely marked us finished."
                     )
 
             else:
 
                 return EvaluatorException(
-                    message=f"An internal error occurred - the {server_request_id} "
+                    message=f"An internal error occurred - the {batch_id} "
                     f"request was not found on the server."
                 )
 
-            for physical_property in server_request.queued_properties:
-
-                substance_id = physical_property.substance.identifier
-
-                if substance_id not in request_results.queued_properties:
-                    request_results.queued_properties[substance_id] = []
-
-                request_results.queued_properties[substance_id].append(
-                    physical_property
-                )
-
-            for substance_id in server_request.unsuccessful_properties:
-
-                physical_property = server_request.unsuccessful_properties[substance_id]
-
-                if substance_id not in request_results.unsuccessful_properties:
-                    request_results.unsuccessful_properties[substance_id] = []
-
-                request_results.unsuccessful_properties[substance_id].append(
-                    physical_property
-                )
-
-            for substance_id in server_request.estimated_properties:
-
-                physical_properties = server_request.estimated_properties[substance_id]
-
-                if substance_id not in request_results.estimated_properties:
-                    request_results.estimated_properties[substance_id] = []
-
-                request_results.estimated_properties[substance_id].extend(
-                    physical_properties
-                )
-
-            request_results.exceptions.extend(server_request.exceptions)
+            request_results.queued_properties.add_properties(batch.queued_properties)
+            request_results.unsuccessful_properties.add_properties(
+                batch.unsuccessful_properties
+            )
+            request_results.estimated_properties.add_properties(
+                batch.estimated_properties
+            )
+            request_results.exceptions.extend(batch.exceptions)
 
         return request_results
 
-    def _schedule_server_request(self, server_request):
-        """Schedules the estimation of the requested properties.
+    def _prepare_batches(self, submission, request_id):
+        """Turns an estimation request into chunked batches to
+        calculate separately.
+
+        This enables batches of related properties (e.g. all properties
+        for CO) to be estimated in one go (or one task graph in the case
+        of workflow based layers) and returned when ready, rather than waiting
+        for the full data set to complete.
+
+        Parameters
+        ----------
+        submission: EvaluatorClient._Submission
+            The full request submission.
+        request_id: str
+            The id that was assigned to the request.
+
+        Returns
+        -------
+        list of _Batch
+            A list of the batches to launch.
+        """
+
+        force_field_source = submission.force_field_source
+        force_field_id = self._storage_backend.store_force_field(force_field_source)
+
+        batches = []
+
+        # Batch properties to be estimated for the same substance
+        # into one chunk
+        for substance_identifier in submission.dataset.properties:
+
+            batch = _Batch()
+            batch.force_field_id = force_field_id
+
+            # Make sure we don't somehow generate the same uuid
+            # twice (although this is very unlikely to ever happen).
+            while (
+                batch.id in self._queued_batches or batch.id in self._finished_batches
+            ):
+
+                batch.id = str(uuid.uuid4()).replace("-", "")
+
+            batch.queued_properties = submission.dataset.properties[
+                substance_identifier
+            ]
+            batch.options = RequestOptions.parse_json(submission.options.json())
+
+            batch.parameter_gradient_keys = copy.deepcopy(
+                submission.parameter_gradient_keys
+            )
+
+            batches.append(batch)
+            self._batch_ids_per_client_id[request_id].append(batch.id)
+
+        return batches
+
+    def _launch_batch(self, batch):
+        """Launch a batch of properties to estimate.
 
         This method will recursively cascade through all allowed calculation
         layers or until all properties have been calculated.
 
         Parameters
         ----------
-        server_request : EvaluatorServer.ServerEstimationRequest
-            The object containing instructions about which calculations
-            should be performed.
+        batch : _Batch
+            The batch to launch.
         """
 
         if (
-            len(server_request.options.allowed_calculation_layers) == 0
-            or len(server_request.queued_properties) == 0
+            len(batch.options.calculation_layers) == 0
+            or len(batch.queued_properties) == 0
         ):
 
             # Move any remaining properties to the unsuccessful list.
-            for physical_property in server_request.queued_properties:
+            batch.unsuccessful_properties = [*batch.queued_properties]
+            batch.queued_properties = []
 
-                substance_id = physical_property.substance.identifier
+            self._queued_batches.pop(batch.id)
+            self._finished_batches[batch.id] = batch
 
-                if substance_id not in server_request.unsuccessful_properties:
-                    server_request.unsuccessful_properties[substance_id] = []
-
-                server_request.unsuccessful_properties[substance_id].append(
-                    physical_property
-                )
-
-                server_request.queued_properties = []
-
-            self._queued_calculations.pop(server_request.id)
-            self._finished_calculations[server_request.id] = server_request
-
-            logging.info(f"Finished server request {server_request.id}")
+            logging.info(f"Finished server request {batch.id}")
             return
 
-        current_layer_type = server_request.options.allowed_calculation_layers.pop(0)
+        current_layer_type = batch.options.calculation_layers.pop(0)
 
         if current_layer_type not in registered_calculation_layers:
 
-            # Kill all remaining properties if we reach an unsupported calculation layer.
+            # Add an exception if we reach an unsupported calculation layer.
             error_object = EvaluatorException(
                 message=f"The {current_layer_type} layer is not "
                 f"supported by / available on the server."
             )
 
-            server_request.exceptions.append(error_object)
-
-            server_request.options.allowed_calculation_layers.append(current_layer_type)
-            server_request.queued_properties = []
-
-            self._schedule_server_request(server_request)
+            batch.exceptions.append(error_object)
+            self._launch_batch(batch)
             return
 
-        logging.info(
-            f"Launching server request {server_request.id} using the {current_layer_type} layer"
-        )
+        logging.info(f"Launching batch {batch.id} using the {current_layer_type} layer")
 
-        layer_directory = path.join(
-            self._working_directory, current_layer_type, server_request.id
+        layer_directory = os.path.join(
+            self._working_directory, current_layer_type, batch.id
         )
-
-        if not path.isdir(layer_directory):
-            makedirs(layer_directory)
+        os.makedirs(layer_directory, exist_ok=True)
 
         current_layer = registered_calculation_layers[current_layer_type]
 
@@ -569,8 +495,8 @@ class EvaluatorServer(TCPServer):
             self._calculation_backend,
             self._storage_backend,
             layer_directory,
-            server_request,
-            self._schedule_server_request,
+            batch,
+            self._launch_batch,
         )
 
     def start_listening_loop(self):
