@@ -15,14 +15,17 @@ from tornado.tcpclient import TCPClient
 
 from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
 from propertyestimator.datasets import PhysicalPropertyDataSet
-from propertyestimator.forcefield import SmirnoffForceFieldSource
+from propertyestimator.forcefield import (
+    ForceFieldSource,
+    ParameterGradientKey,
+    SmirnoffForceFieldSource,
+)
 from propertyestimator.layers import (
     registered_calculation_layers,
     registered_calculation_schemas,
 )
-from propertyestimator.layers.workflow import WorkflowCalculationSchema
 from propertyestimator.utils.exceptions import EvaluatorException
-from propertyestimator.utils.serialization import TypedBaseModel, TypedJSONDecoder
+from propertyestimator.utils.serialization import TypedJSONDecoder
 from propertyestimator.utils.tcp import (
     PropertyEstimatorMessageTypes,
     pack_int,
@@ -145,7 +148,7 @@ class RequestOptions(AttributeClass):
 
     def validate(self, attribute_type=None):
 
-        super(RequestOptions, self).validate()
+        super(RequestOptions, self).validate(attribute_type)
 
         assert all(isinstance(x, str) for x in self.calculation_layers)
         assert all(x in registered_calculation_layers for x in self.calculation_layers)
@@ -199,7 +202,7 @@ class RequestResult(AttributeClass):
 
     def validate(self, attribute_type=None):
 
-        super(RequestResult, self).validate()
+        super(RequestResult, self).validate(attribute_type)
 
         assert all((isinstance(x, EvaluatorException) for x in self.exceptions))
         assert (
@@ -315,6 +318,36 @@ class EvaluatorClient:
     >>>
     """
 
+    class _Submission(AttributeClass):
+        """The data packet encoding an estimation request which will be sent to
+        the server.
+        """
+
+        dataset = Attribute(
+            docstring="The set of properties to estimate.",
+            type_hint=PhysicalPropertyDataSet,
+        )
+        options = Attribute(
+            docstring="The options to use when estimating the dataset.",
+            type_hint=RequestOptions,
+        )
+        force_field_source = Attribute(
+            docstring="The force field parameters to estimate the dataset using.",
+            type_hint=ForceFieldSource,
+        )
+        parameter_gradient_keys = Attribute(
+            docstring="A list of the parameters that the physical properties "
+            "should be differentiated with respect to.",
+            type_hint=list,
+        )
+
+        def validate(self, attribute_type=None):
+            super(EvaluatorClient._Submission, self).validate(attribute_type)
+            assert all(
+                isinstance(x, ParameterGradientKey)
+                for x in self.parameter_gradient_keys
+            )
+
     @property
     def server_address(self):
         """str: The address of the server that this client is connected to."""
@@ -347,6 +380,104 @@ class EvaluatorClient:
         self._connection_options = connection_options
         self._tcp_client = TCPClient()
 
+    @staticmethod
+    def default_request_options(data_set):
+        """Returns the default `RequestOptions` options used
+        to estimate a set of properties if `None` are provided.
+
+        Parameters
+        ----------
+        data_set: PhysicalPropertyDataSet
+            The data set which would be estimated.
+
+        Returns
+        -------
+        RequestOptions
+            The default options.
+        """
+        options = RequestOptions()
+        EvaluatorClient._populate_request_options(options, data_set)
+
+        return options
+
+    @staticmethod
+    def _populate_request_options(options, data_set):
+        """Populates any missing attributes of a `RequestOptions`
+        object with default values registered via the plug-in
+        system.
+
+        Parameters
+        ----------
+        options: RequestOptions
+            The object to populate with defaults.
+        data_set: PhysicalPropertyDataSet
+            The data set to be estimated using the options.
+        """
+
+        property_types = set()
+
+        # Retrieve the types of properties in the data set.
+        for property_list in data_set.properties.values():
+            property_types.add(x.__class__.__name__ for x in property_list)
+
+        if options.calculation_schemas == UNDEFINED:
+            options.calculation_schemas = defaultdict(dict)
+
+        properties_without_schemas = {*property_types}
+
+        # Assign default calculation schemas in the cases where the user
+        # hasn't provided one.
+        for calculation_layer in options.calculation_layers:
+
+            for property_type in property_types:
+
+                # Check if the user has already provided a schema.
+                existing_schema = options.calculation_schemas.get(
+                    property_type, {}
+                ).get(calculation_layer, None)
+
+                if existing_schema is not None:
+                    continue
+
+                # Check if this layer has any registered schemas.
+                if calculation_layer not in registered_calculation_schemas:
+                    continue
+
+                default_layer_schemas = registered_calculation_schemas[
+                    calculation_layer
+                ]
+
+                # Check if this property type has any registered schemas for
+                # the given calculation layer.
+                if property_type not in default_layer_schemas:
+                    continue
+
+                # noinspection PyTypeChecker
+                default_schema = default_layer_schemas[property_type]
+
+                if callable(default_schema):
+                    default_schema = default_schema()
+
+                # Mark this property as having at least one registered
+                # calculation schema.
+                if property_type in properties_without_schemas:
+                    properties_without_schemas.remove(property_type)
+
+                options.calculation_schemas[property_type][
+                    calculation_layer
+                ] = default_schema
+
+        # Make sure all property types have at least one registered
+        # calculation schema.
+        if len(properties_without_schemas) >= 1:
+
+            type_string = ", ".join(properties_without_schemas)
+
+            raise ValueError(
+                f"No calculation schema could be found for "
+                f"the {type_string} properties."
+            )
+
     def request_estimate(
         self,
         property_set,
@@ -366,7 +497,7 @@ class EvaluatorClient:
             The force field parameters to estimate the properties using.
         options : RequestOptions, optional
             A set of estimator options. If `None` default options
-            will be used.
+            will be used (see `default_request_options`).
         parameter_gradient_keys: list of ParameterGradientKey, optional
             A list of the parameters that the physical properties should
             be differentiated with respect to.
@@ -374,7 +505,8 @@ class EvaluatorClient:
         Returns
         -------
         Request
-            An object which will provide access the the results of the request.
+            An object which will provide access to the
+            results of this request.
         """
         from openforcefield.typing.engines import smirnoff
 
@@ -385,132 +517,41 @@ class EvaluatorClient:
                 "present to compute physical properties."
             )
 
-        if options is None:
-            options = RequestOptions()
-
+        # Handle the conversion of a SMIRNOFF force field object
+        # for backwards compatibility.
         if isinstance(force_field_source, smirnoff.ForceField):
-            # Handle conversion of the force field object for
-            # backwards compatibility.
+
             force_field_source = SmirnoffForceFieldSource.from_object(
                 force_field_source
             )
 
-        if len(options.allowed_calculation_layers) == 0:
-            raise ValueError("A submission contains no allowed calculation layers.")
+        # Fill in any missing options with default values
+        if options is None:
+            options = self.default_request_options(property_set)
+        else:
+            self._populate_request_options(options, property_set)
 
-        properties_list = []
-        property_types = set()
+        # Make sure the options are valid.
+        options.validate()
 
-        # Refactor the properties into a list, and extract the types
-        # of properties to be estimated (e.g 'Denisty', 'DielectricConstant').
-        for substance_tag in property_set.properties:
+        # Build the submission object.
+        submission = EvaluatorClient._Submission()
+        submission.dataset = property_set
+        submission.force_field_source = force_field_source
+        submission.options = options
+        submission.parameter_gradient_keys = parameter_gradient_keys
 
-            for physical_property in property_set.properties[substance_tag]:
+        # Ensure the submission is valid.
+        submission.validate()
 
-                properties_list.append(physical_property)
-                property_types.add(physical_property.__class__.__name__)
-
-        # type_name = type(physical_property).__name__
-        #
-        # if type_name not in registered_properties:
-        #     raise ValueError(
-        #         f"The property estimator does not support {type_name} properties."
-        #     )
-        #
-        # if type_name in property_types:
-        #     continue
-
-        if options.workflow_options is None:
-            options.workflow_options = defaultdict(dict)
-        if options.workflow_schemas is None:
-            options.workflow_schemas = defaultdict(dict)
-
-        properties_without_schemas = {*property_types}
-
-        # Assign default calculation schemas in the cases where the user
-        # hasn't provided one, and validate all of the schemas to be used
-        # in the estimation.
-        for property_type in property_types:
-
-            for calculation_layer in options.allowed_calculation_layers:
-
-                if (
-                    calculation_layer not in registered_calculation_schemas
-                    or property_type
-                    not in registered_calculation_schemas[calculation_layer]
-                ):
-                    continue
-
-                if property_type in properties_without_schemas:
-                    # Mark this property as having at least one registered
-                    # calculation schema.
-                    properties_without_schemas.remove(property_type)
-
-                # TODO: When refactoring the main data models clean-up this mess.
-                # Set a default schema with default options if none have been
-                # provided.
-                if (
-                    property_type not in options.workflow_options
-                    or calculation_layer not in options.workflow_schemas[property_type]
-                    or options.workflow_schemas[property_type][calculation_layer]
-                    is None
-                ):
-
-                    default_schema = registered_calculation_schemas[calculation_layer][
-                        property_type
-                    ]
-
-                    if callable(default_schema):
-                        default_schema = default_schema()
-
-                    options.workflow_schemas[property_type][
-                        calculation_layer
-                    ] = default_schema
-
-                if (
-                    property_type not in options.workflow_options
-                    or calculation_layer not in options.workflow_options[property_type]
-                    or options.workflow_options[property_type][calculation_layer]
-                    is None
-                ):
-
-                    workflow_options = options.workflow_schemas[property_type][
-                        calculation_layer
-                    ].workflow_options
-
-                    options.workflow_options[property_type][
-                        calculation_layer
-                    ] = workflow_options
-
-                calculation_schema = options.workflow_schemas[property_type][
-                    calculation_layer
-                ]
-                calculation_schema.validate()
-
-                if not isinstance(calculation_schema, WorkflowCalculationSchema):
-                    continue
-
-                # Handle the cases where some protocol types should be replaced with
-                # others.
-                # TODO: Fix.
-                calculation_schema.workflow_schema.replace_protocol_types(
-                    calculation_schema.workflow_options.protocol_replacements
-                )
-
-        submission = _Submission(
-            properties=properties_list,
-            force_field_source=force_field_source,
-            options=options,
-            parameter_gradient_keys=parameter_gradient_keys,
-        )
-
+        # Send the submission to the server.
         request_id = IOLoop.current().run_sync(
             lambda: self._send_calculations_to_server(submission)
         )
 
-        request_object = EvaluatorClient.Request(
-            request_id, self._connection_options, self
-        )
+        # Build the object which represents this request.
+        request_object = Request(self)
+        request_object.id = request_id
 
         return request_object
 
@@ -720,70 +761,3 @@ class EvaluatorClient:
             response, error = json.loads(server_response, cls=TypedJSONDecoder)
 
         return response, error
-
-
-class _Submission(TypedBaseModel):
-    """Represents a set of properties to be estimated by the server backend,
-    the parameters which will be used to estimate them, and options about
-    how the properties will be estimated.
-
-    Warnings
-    --------
-    This class is still heavily under development and is subject to rapid changes.
-
-    Attributes
-    ----------
-    properties: list of PhysicalProperty
-        The list of physical properties to estimate.
-    options: RequestOptions
-        The options which control how the `properties` are estimated.
-    force_field_source: ForceFieldSource
-        The source of the force field parameters used during the calculations.
-    """
-
-    def __init__(
-        self,
-        properties=None,
-        force_field_source=None,
-        options=None,
-        parameter_gradient_keys=None,
-    ):
-        """Constructs a new _Submission object.
-
-        Parameters
-        ----------
-        properties: list of PhysicalProperty
-            The list of physical properties to estimate.
-        options: RequestOptions
-            The options which control how the `properties` are estimated.
-        force_field_source: ForceFieldSource
-            The source of the force field parameters used during the calculations.
-        parameter_gradient_keys: list of ParameterGradientKey
-            A list of references to all of the parameters which all observables
-            should be differentiated with respect to.
-        """
-        self.properties = properties or []
-        self.options = options
-
-        self.force_field_source = force_field_source
-
-        self.parameter_gradient_keys = (
-            [] if parameter_gradient_keys is None else parameter_gradient_keys
-        )
-
-    def __getstate__(self):
-
-        return {
-            "properties": self.properties,
-            "options": self.options,
-            "force_field_source": self.force_field_source,
-            "parameter_gradient_keys": self.parameter_gradient_keys,
-        }
-
-    def __setstate__(self, state):
-
-        self.properties = state["properties"]
-        self.options = state["options"]
-
-        self.force_field_source = state["force_field_source"]
-        self.parameter_gradient_keys = state["parameter_gradient_keys"]
