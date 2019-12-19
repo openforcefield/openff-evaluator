@@ -164,9 +164,7 @@ class EvaluatorServer:
         self._stopped = True
 
         # Initialize the internal components.
-        assert calculation_backend is not None and storage_backend is not None
-        assert calculation_backend.started
-
+        assert calculation_backend is not None and calculation_backend.started
         self._calculation_backend = calculation_backend
 
         if storage_backend is None:

@@ -15,7 +15,6 @@ from propertyestimator.properties import (
     ExcessMolarVolume,
 )
 from propertyestimator.server import EvaluatorServer
-from propertyestimator.storage import LocalFileStorage
 from propertyestimator.tests.utils import create_dummy_property
 
 
@@ -52,37 +51,30 @@ def test_submission():
     with tempfile.TemporaryDirectory() as directory:
 
         calculation_backend = DaskLocalCluster()
-        calculation_backend.start()
 
-        storage_backend = LocalFileStorage(directory)
+        with calculation_backend:
 
-        # Spin up a server instance.
-        server = EvaluatorServer(
-            calculation_backend=calculation_backend,
-            storage_backend=storage_backend,
-            working_directory=directory,
-        )
+            # Spin up a server instance.
+            server = EvaluatorServer(
+                calculation_backend=calculation_backend,
+                working_directory=directory,
+            )
 
-        server.start(asynchronous=True)
+            with server:
 
-        # Connect a client.
-        client = EvaluatorClient()
+                # Connect a client.
+                client = EvaluatorClient()
 
-        # Submit an empty data set.
-        force_field_path = "smirnoff99Frosst-1.1.0.offxml"
-        force_field_source = SmirnoffForceFieldSource.from_path(force_field_path)
+                # Submit an empty data set.
+                force_field_path = "smirnoff99Frosst-1.1.0.offxml"
+                force_field_source = SmirnoffForceFieldSource.from_path(force_field_path)
 
-        request, error = client.request_estimate(
-            PhysicalPropertyDataSet(), force_field_source
-        )
-        assert error is None
-        assert isinstance(request, Request)
+                request, error = client.request_estimate(
+                    PhysicalPropertyDataSet(), force_field_source
+                )
+                assert error is None
+                assert isinstance(request, Request)
 
-        result, error = request.results(polling_interval=0.01)
-        assert error is None
-        assert isinstance(result, RequestResult)
-
-        server.stop()
-
-
-test_submission()
+                result, error = request.results(polling_interval=0.01)
+                assert error is None
+                assert isinstance(result, RequestResult)
