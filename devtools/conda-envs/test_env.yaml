@@ -36,3 +36,4 @@ dependencies:
   - pyyaml
   - requests
   - requests-mock # For testing http requests.
+  - frozendict

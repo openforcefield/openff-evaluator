@@ -12,7 +12,7 @@ from simtk.openmm.app import element
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
 from propertyestimator.datasets import CalculationSource, MeasurementSource, Source
-from propertyestimator.substances import Substance
+from propertyestimator.substances import MoleFraction, Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import create_molecule_from_smiles
 from propertyestimator.utils.serialization import TypedBaseModel
@@ -569,7 +569,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
                     amount = next(
                         iter(physical_property.substance.get_amounts(component))
                     )
-                    assert isinstance(amount, Substance.MoleFraction)
+                    assert isinstance(amount, MoleFraction)
 
                     components.append((component.smiles, amount.value))
 

@@ -20,7 +20,7 @@ from propertyestimator.properties import Density, DielectricConstant, EnthalpyOf
 from propertyestimator.protocols import coordinates, groups, simulation
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.storage.data import StoredSimulationData
-from propertyestimator.substances import Substance
+from propertyestimator.substances import Component, MoleFraction, Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import get_data_filename
 from propertyestimator.workflow import WorkflowOptions
@@ -196,9 +196,7 @@ def create_dummy_substance(number_of_components, elements=None):
 
         smiles_pattern = "".join(elements * (index + 1))
 
-        substance.add_component(
-            Substance.Component(smiles_pattern), Substance.MoleFraction(mole_fraction)
-        )
+        substance.add_component(Component(smiles_pattern), MoleFraction(mole_fraction))
 
     return substance
 

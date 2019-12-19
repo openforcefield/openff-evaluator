@@ -78,10 +78,10 @@ def _create_data_set():
     """
 
     butan_1_ol = Substance()
-    butan_1_ol.add_component(Substance.Component('CCCCO', role=Substance.ComponentRole.Solute),
-                             Substance.ExactAmount(1))
-    butan_1_ol.add_component(Substance.Component('O', role=Substance.ComponentRole.Solvent),
-                             Substance.MoleFraction(1.0))
+    butan_1_ol.add_component(Component('CCCCO', role=Component.Role.Solute),
+                             ExactAmount(1))
+    butan_1_ol.add_component(Component('O', role=Component.Role.Solvent),
+                             MoleFraction(1.0))
 
     butan_1_ol_property = SolvationFreeEnergy(thermodynamic_state=ThermodynamicState(298.15*unit.kelvin,
                                                                                      1.0*unit.atmosphere),
@@ -92,10 +92,10 @@ def _create_data_set():
                                               source=MeasurementSource(doi=' 10.1021/ct050097l'))
 
     methyl_propanoate = Substance()
-    methyl_propanoate.add_component(Substance.Component('CCC(=O)OC', role=Substance.ComponentRole.Solute),
-                                    Substance.ExactAmount(1))
-    methyl_propanoate.add_component(Substance.Component('O', role=Substance.ComponentRole.Solvent),
-                                    Substance.MoleFraction(1.0))
+    methyl_propanoate.add_component(Component('CCC(=O)OC', role=Component.Role.Solute),
+                                    ExactAmount(1))
+    methyl_propanoate.add_component(Component('O', role=Component.Role.Solvent),
+                                    MoleFraction(1.0))
 
     methyl_propanoate_property = SolvationFreeEnergy(thermodynamic_state=ThermodynamicState(298.15*unit.kelvin,
                                                                                             1.0*unit.atmosphere),
@@ -106,10 +106,10 @@ def _create_data_set():
                                                      source=MeasurementSource(doi=' 10.1021/ct050097l'))
 
     benzamide = Substance()
-    benzamide.add_component(Substance.Component('c1ccc(cc1)C(=O)N', role=Substance.ComponentRole.Solute),
-                            Substance.ExactAmount(1))
-    benzamide.add_component(Substance.Component('O', role=Substance.ComponentRole.Solvent),
-                            Substance.MoleFraction(1.0))
+    benzamide.add_component(Component('c1ccc(cc1)C(=O)N', role=Component.Role.Solute),
+                            ExactAmount(1))
+    benzamide.add_component(Component('O', role=Component.Role.Solvent),
+                            MoleFraction(1.0))
 
     benzamide_property = SolvationFreeEnergy(thermodynamic_state=ThermodynamicState(298.15*unit.kelvin,
                                                                                     1.0*unit.atmosphere),

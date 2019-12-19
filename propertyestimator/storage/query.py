@@ -249,10 +249,7 @@ class SimulationDataQuery(BaseDataQuery):
                 if type(data_amount) != type(query_amount):
                     continue
 
-                if (
-                    isinstance(data_amount, Substance.ExactAmount)
-                    and data_amount != query_amount
-                ):
+                if isinstance(data_amount, ExactAmount) and data_amount != query_amount:
                     # Make sure there is the same amount if we are
                     # dealing with exact amounts.
                     continue

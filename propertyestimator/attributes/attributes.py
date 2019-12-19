@@ -141,6 +141,25 @@ class AttributeClass(TypedBaseModel):
 
         return attribute_names
 
+    def _set_value(self, attribute_name, value):
+        """Set the value of an attribute, by-passing
+        the read-only checks.
+
+        Parameters
+        ----------
+        attribute_name: str
+            The name of the attribute.
+        value: Any
+            The value to set.
+        """
+        attribute = getattr(self.__class__, attribute_name)
+
+        # This should handle type checking. We use the private
+        # set value method rather than setattr to handle read-only
+        # attributes.
+        # noinspection PyProtectedMember
+        attribute._set_value(self, attribute_name, value)
+
     def __getstate__(self):
 
         attribute_names = self.get_attributes()
@@ -175,8 +194,7 @@ class AttributeClass(TypedBaseModel):
             elif attribute.optional and name not in state:
                 state[name] = UNDEFINED
 
-            # This should handle type checking.
-            setattr(self, name, state[name])
+            self._set_value(name, state[name])
 
         self.validate()
 
@@ -196,7 +214,14 @@ class Attribute:
     attribute on the object and populate it with the default value.
     """
 
-    def __init__(self, docstring, type_hint, default_value=UNDEFINED, optional=False):
+    def __init__(
+        self,
+        docstring,
+        type_hint,
+        default_value=UNDEFINED,
+        optional=False,
+        read_only=False,
+    ):
         """Initializes a new Attribute object.
 
         Parameters
@@ -214,6 +239,8 @@ class Attribute:
         optional: bool
             Defines whether this is an optional input of a class. If true,
             the `default_value` should be set to `UNDEFINED`.
+        read_only: bool
+            Defines whether this attribute is read-only.
         """
 
         if not is_supported_type(type_hint):
@@ -262,12 +289,44 @@ class Attribute:
             )
 
         self.optional = optional
+        self.read_only = read_only
+
+        if self.optional and self.read_only:
+
+            raise ValueError("An attribute cannot be both optional and read-only")
 
         if optional is True:
             docstring = f"{docstring} This attribute is *optional*."
 
+        if read_only:
+            docstring = f"{docstring} This attribute is *read-only*."
+
         self.__doc__ = docstring
         self.type_hint = type_hint
+
+    def _set_value(self, instance, value):
+
+        if (
+            isinstance(value, int)
+            and isinstance(self.type_hint, type)
+            and issubclass(self.type_hint, (IntFlag, IntEnum))
+        ):
+            # This is necessary as the json library currently doesn't
+            # support custom serialization of IntFlag or IntEnum.
+            value = self.type_hint(value)
+
+        if (
+            not is_instance_of_type(value, self.type_hint)
+            and not isinstance(value, PlaceholderValue)
+            and not value == UNDEFINED
+        ):
+
+            raise ValueError(
+                f"The {self._private_attribute_name[1:]} attribute can only accept "
+                f"values of type {self.type_hint}"
+            )
+
+        setattr(instance, self._private_attribute_name, value)
 
     def __set_name__(self, owner, name):
         self._private_attribute_name = "_" + name
@@ -296,24 +355,7 @@ class Attribute:
 
     def __set__(self, instance, value):
 
-        if (
-            isinstance(value, int)
-            and isinstance(self.type_hint, type)
-            and issubclass(self.type_hint, (IntFlag, IntEnum))
-        ):
-            # This is necessary as the json library currently doesn't
-            # support custom serialization of IntFlag or IntEnum.
-            value = self.type_hint(value)
+        if self.read_only:
+            raise ValueError("This attribute is read-only.")
 
-        if (
-            not is_instance_of_type(value, self.type_hint)
-            and not isinstance(value, PlaceholderValue)
-            and not value == UNDEFINED
-        ):
-
-            raise ValueError(
-                f"The {self._private_attribute_name[1:]} attribute can only accept "
-                f"values of type {self.type_hint}"
-            )
-
-        setattr(instance, self._private_attribute_name, value)
+        self._set_value(instance, value)

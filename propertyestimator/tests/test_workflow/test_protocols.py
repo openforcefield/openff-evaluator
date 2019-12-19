@@ -143,11 +143,7 @@ def test_base_simulation_protocols():
     energy minimise and perform simulation are able to work together without
     raising an exception."""
 
-    water_substance = Substance()
-    water_substance.add_component(
-        Substance.Component(smiles="O"), Substance.MoleFraction()
-    )
-
+    water_substance = Substance.from_components("O")
     thermodynamic_state = ThermodynamicState(298 * unit.kelvin, 1 * unit.atmosphere)
 
     with tempfile.TemporaryDirectory() as temporary_directory:

@@ -19,7 +19,7 @@ from propertyestimator.protocols.miscellaneous import (
     SubtractValues,
     WeightByMoleFraction,
 )
-from propertyestimator.substances import Substance
+from propertyestimator.substances import Component, ExactAmount, MoleFraction, Substance
 from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 
@@ -187,10 +187,10 @@ def test_weight_by_mole_fraction_protocol(component_smiles, value):
 @pytest.mark.parametrize(
     "filter_role",
     [
-        Substance.ComponentRole.Solute,
-        Substance.ComponentRole.Solvent,
-        Substance.ComponentRole.Ligand,
-        Substance.ComponentRole.Receptor,
+        Component.Role.Solute,
+        Component.Role.Solvent,
+        Component.Role.Ligand,
+        Component.Role.Receptor,
     ],
 )
 def test_substance_filtering_protocol(filter_role):
@@ -201,23 +201,19 @@ def test_substance_filtering_protocol(filter_role):
         test_substance = Substance()
 
         test_substance.add_component(
-            Substance.Component("C", role=Substance.ComponentRole.Solute),
-            Substance.ExactAmount(1),
+            Component("C", role=Component.Role.Solute), ExactAmount(1),
         )
 
         test_substance.add_component(
-            Substance.Component("CC", role=Substance.ComponentRole.Ligand),
-            Substance.ExactAmount(1),
+            Component("CC", role=Component.Role.Ligand), ExactAmount(1),
         )
 
         test_substance.add_component(
-            Substance.Component("CCC", role=Substance.ComponentRole.Receptor),
-            Substance.ExactAmount(1),
+            Component("CCC", role=Component.Role.Receptor), ExactAmount(1),
         )
 
         test_substance.add_component(
-            Substance.Component("O", role=Substance.ComponentRole.Solvent),
-            Substance.MoleFraction(1.0),
+            Component("O", role=Component.Role.Solvent), MoleFraction(1.0),
         )
 
         return test_substance

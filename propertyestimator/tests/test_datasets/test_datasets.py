@@ -15,7 +15,7 @@ from propertyestimator.properties import (
     EnthalpyOfMixing,
     ExcessMolarVolume,
 )
-from propertyestimator.substances import Substance
+from propertyestimator.substances import Component, MoleFraction, Substance
 from propertyestimator.tests.utils import (
     create_dummy_property,
     create_filterable_data_set,
@@ -266,14 +266,10 @@ def test_filter_by_smiles():
     measured properties contain."""
 
     methanol_substance = Substance()
-    methanol_substance.add_component(
-        Substance.Component("CO"), Substance.MoleFraction(1.0)
-    )
+    methanol_substance.add_component(Component("CO"), MoleFraction(1.0))
 
     ethanol_substance = Substance()
-    ethanol_substance.add_component(
-        Substance.Component("CCO"), Substance.MoleFraction(1.0)
-    )
+    ethanol_substance.add_component(Component("CCO"), MoleFraction(1.0))
 
     property_a = create_dummy_property(Density)
     property_a.substance = methanol_substance

@@ -14,7 +14,7 @@ import yaml
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.forcefield import SmirnoffForceFieldSource
-from propertyestimator.substances import Substance
+from propertyestimator.substances import Component, Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.openmm import (
@@ -113,7 +113,7 @@ class BaseYankProtocol(BaseProtocol):
         coordinate_path: str
             The path to the coordinates which describe the systems
             topology.
-        role: Substance.ComponentRole
+        role: Component.Role, optional
             The role of the component to identify.
 
         Returns
@@ -125,7 +125,7 @@ class BaseYankProtocol(BaseProtocol):
         from simtk.openmm import app
         from openforcefield.topology import Molecule, Topology
 
-        if role == Substance.ComponentRole.Undefined:
+        if role is None:
             return "all"
 
         unique_molecules = [
@@ -190,7 +190,7 @@ class BaseYankProtocol(BaseProtocol):
         coordinate_path: str
             The path to the coordinates which describe the systems
             topology.
-        role: Substance.ComponentRole
+        role: Component.Role, optional
             The role of the component to identify.
 
         Returns
@@ -826,13 +826,13 @@ class SolvationYankProtocol(BaseYankProtocol):
         solvent_1_dsl = self._get_dsl_from_role(
             [self.solute, self.solvent_1],
             self.solvent_1_coordinates,
-            Substance.ComponentRole.Solvent,
+            Component.Role.Solvent,
         )
 
         solvent_2_dsl = self._get_dsl_from_role(
             [self.solute, self.solvent_2],
             self.solvent_2_coordinates,
-            Substance.ComponentRole.Solvent,
+            Component.Role.Solvent,
         )
 
         full_solvent_dsl_components = []
@@ -924,19 +924,19 @@ class SolvationYankProtocol(BaseYankProtocol):
         solute_components = [
             component
             for component in self.solute.components
-            if component.role == Substance.ComponentRole.Solute
+            if component.role == Component.Role.Solute
         ]
 
         solvent_1_components = [
             component
             for component in self.solvent_1.components
-            if component.role == Substance.ComponentRole.Solvent
+            if component.role == Component.Role.Solvent
         ]
 
         solvent_2_components = [
             component
             for component in self.solvent_2.components
-            if component.role == Substance.ComponentRole.Solvent
+            if component.role == Component.Role.Solvent
         ]
 
         if len(solute_components) != 1:

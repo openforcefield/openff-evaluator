@@ -11,7 +11,7 @@ from simtk.openmm import app
 
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
-from propertyestimator.substances import Substance
+from propertyestimator.substances import Component, ExactAmount, MoleFraction, Substance
 from propertyestimator.utils import create_molecule_from_smiles, packmol
 from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
@@ -173,7 +173,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
             exact_amounts = [
                 amount
                 for amount in self.substance.get_amounts(component)
-                if isinstance(amount, Substance.ExactAmount)
+                if isinstance(amount, ExactAmount)
             ]
 
             if len(exact_amounts) == 0:
@@ -191,7 +191,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
             mole_fractions = [
                 amount
                 for amount in self.substance.get_amounts(component)
-                if isinstance(amount, Substance.MoleFraction)
+                if isinstance(amount, MoleFraction)
             ]
 
             if len(mole_fractions) == 0:
@@ -203,7 +203,7 @@ class BuildCoordinatesPackmol(BaseProtocol):
                 molecule_count -= new_amounts[component][0].value
 
             new_mole_fraction = molecule_count / total_number_of_molecules
-            new_amounts[component].append(Substance.MoleFraction(new_mole_fraction))
+            new_amounts[component].append(MoleFraction(new_mole_fraction))
 
             total_mole_fraction += new_mole_fraction
             number_of_new_mole_fractions += 1
@@ -475,8 +475,7 @@ class BuildDockedCoordinates(BaseProtocol):
 
         if (
             len(self.ligand_substance.components) != 1
-            or self.ligand_substance.components[0].role
-            != Substance.ComponentRole.Ligand
+            or self.ligand_substance.components[0].role != Component.Role.Ligand
         ):
 
             return EvaluatorException(

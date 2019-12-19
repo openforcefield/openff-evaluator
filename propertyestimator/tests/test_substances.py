@@ -3,15 +3,15 @@ Units tests for propertyestimator.substances
 """
 import numpy as np
 
-from propertyestimator.substances import Substance
+from propertyestimator.substances import Component, ExactAmount, MoleFraction, Substance
 
 
 def test_add_mole_fractions():
 
     substance = Substance()
 
-    substance.add_component(Substance.Component("C"), Substance.MoleFraction(0.5))
-    substance.add_component(Substance.Component("C"), Substance.MoleFraction(0.5))
+    substance.add_component(Component("C"), MoleFraction(0.5))
+    substance.add_component(Component("C"), MoleFraction(0.5))
 
     assert substance.number_of_components == 1
 
@@ -21,7 +21,7 @@ def test_add_mole_fractions():
 
     amount = next(iter(amounts))
 
-    assert isinstance(amount, Substance.MoleFraction)
+    assert isinstance(amount, MoleFraction)
     assert np.isclose(amount.value, 1.0)
 
 
@@ -29,11 +29,11 @@ def test_multiple_amounts():
 
     substance = Substance()
 
-    substance.add_component(Substance.Component("[Na+]"), Substance.MoleFraction(0.75))
-    substance.add_component(Substance.Component("[Na+]"), Substance.ExactAmount(1))
+    substance.add_component(Component("[Na+]"), MoleFraction(0.75))
+    substance.add_component(Component("[Na+]"), ExactAmount(1))
 
-    substance.add_component(Substance.Component("[Cl-]"), Substance.MoleFraction(0.25))
-    substance.add_component(Substance.Component("[Cl-]"), Substance.ExactAmount(1))
+    substance.add_component(Component("[Cl-]"), MoleFraction(0.25))
+    substance.add_component(Component("[Cl-]"), ExactAmount(1))
 
     assert substance.number_of_components == 2
 
