@@ -4,13 +4,10 @@ Property estimator client side API.
 
 import json
 import logging
+import socket
 import traceback
 from collections import defaultdict
 from time import sleep
-
-from tornado.ioloop import IOLoop
-from tornado.iostream import StreamClosedError
-from tornado.tcpclient import TCPClient
 
 from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
 from propertyestimator.datasets import PhysicalPropertyDataSet
@@ -28,6 +25,7 @@ from propertyestimator.utils.serialization import TypedJSONDecoder
 from propertyestimator.utils.tcp import (
     PropertyEstimatorMessageTypes,
     pack_int,
+    recvall,
     unpack_int,
 )
 
@@ -93,7 +91,7 @@ class Request(AttributeClass):
         synchronous: bool
             If `True`, this method will block the main thread until
             the server either returns a result or an error.
-        polling_interval: int
+        polling_interval: float
             If running synchronously, this is the time interval (seconds)
             between checking if the calculation has finished. This will
             be ignored if running asynchronously.
@@ -154,18 +152,18 @@ class RequestOptions(AttributeClass):
 
         if self.calculation_schemas != UNDEFINED:
 
-            for property_type in self.calculation_layers:
+            for property_type in self.calculation_schemas:
 
-                assert isinstance(self.calculation_layers[property_type], dict)
+                assert isinstance(self.calculation_schemas[property_type], dict)
 
-                for layer_type in self.calculation_layers[property_type]:
+                for layer_type in self.calculation_schemas[property_type]:
 
                     assert layer_type in self.calculation_layers
                     calculation_layer = registered_calculation_layers[layer_type]
 
-                    schemas = self.calculation_layers[property_type][layer_type]
+                    schema = self.calculation_schemas[property_type][layer_type]
                     required_type = calculation_layer.required_schema_type()
-                    assert all(isinstance(x, required_type) for x in schemas)
+                    assert isinstance(schema, required_type)
 
 
 class RequestResult(AttributeClass):
@@ -370,7 +368,6 @@ class EvaluatorClient:
             )
 
         self._connection_options = connection_options
-        self._tcp_client = TCPClient()
 
     @staticmethod
     def default_request_options(data_set):
@@ -410,12 +407,12 @@ class EvaluatorClient:
 
         # Retrieve the types of properties in the data set.
         for property_list in data_set.properties.values():
-            property_types.add(x.__class__.__name__ for x in property_list)
+            property_types.update([x.__class__.__name__ for x in property_list])
 
         if options.calculation_schemas == UNDEFINED:
             options.calculation_schemas = defaultdict(dict)
 
-        properties_without_schemas = {*property_types}
+        properties_without_schemas = set(property_types)
 
         # Assign default calculation schemas in the cases where the user
         # hasn't provided one.
@@ -511,6 +508,9 @@ class EvaluatorClient:
                 "present to compute physical properties."
             )
 
+        if parameter_gradient_keys is None:
+            parameter_gradient_keys = []
+
         # Handle the conversion of a SMIRNOFF force field object
         # for backwards compatibility.
         if isinstance(force_field_source, smirnoff.ForceField):
@@ -539,13 +539,14 @@ class EvaluatorClient:
         submission.validate()
 
         # Send the submission to the server.
-        request_id, error = IOLoop.current().run_sync(
-            lambda: self._send_calculations_to_server(submission)
-        )
+        request_id, error = self._send_calculations_to_server(submission)
 
         # Build the object which represents this request.
-        request_object = Request(self)
-        request_object.id = request_id
+        request_object = None
+
+        if error is None:
+            request_object = Request(self)
+            request_object.id = request_id
 
         return request_object, error
 
@@ -578,10 +579,7 @@ class EvaluatorClient:
         # sends back.
 
         if synchronous is False:
-
-            return IOLoop.current().run_sync(
-                lambda: self._send_query_to_server(request_id)
-            )
+            return self._send_query_to_server(request_id)
 
         assert polling_interval >= 0
 
@@ -595,9 +593,7 @@ class EvaluatorClient:
             if polling_interval > 0:
                 sleep(polling_interval)
 
-            response, error = IOLoop.current().run_sync(
-                lambda: self._send_query_to_server(request_id)
-            )
+            response, error = self._send_query_to_server(request_id)
 
             if (
                 isinstance(response, RequestResult)
@@ -610,15 +606,9 @@ class EvaluatorClient:
 
         return response, error
 
-    async def _send_calculations_to_server(self, submission):
+    def _send_calculations_to_server(self, submission):
         """Attempts to connect to the calculation server, and
         submit the requested calculations.
-
-        Notes
-        -----
-
-        This method is based on the StackOverflow response from
-        A. Jesse Jiryu Davis: https://stackoverflow.com/a/40257248
 
         Parameters
         ----------
@@ -636,17 +626,19 @@ class EvaluatorClient:
         EvaluatorException, optional
             Any exceptions raised while attempting the submit the request.
         """
+
+        # Attempt to establish a connection to the server.
+        connection_settings = (
+            self._connection_options.server_address,
+            self._connection_options.server_port,
+        )
+
+        connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        connection.connect(connection_settings)
+
         request_id = None
 
         try:
-
-            # Attempt to establish a connection to the server.
-            stream = await self._tcp_client.connect(
-                self._connection_options.server_address,
-                self._connection_options.server_port,
-            )
-
-            stream.set_nodelay(True)
 
             # Encode the submission json into an encoded
             # packet ready to submit to the server.
@@ -655,46 +647,35 @@ class EvaluatorClient:
             encoded_json = submission.json().encode()
             length = pack_int(len(encoded_json))
 
-            await stream.write(message_type + length + encoded_json)
+            connection.sendall(message_type + length + encoded_json)
 
             # Wait for confirmation that the server has received
             # the jobs.
-            header = await stream.read_bytes(4)
+            header = recvall(connection, 4)
             length = unpack_int(header)[0]
 
             # Decode the response from the server. If everything
             # went well, this should be the id of the submitted
             # calculations.
-            encoded_json = await stream.read_bytes(length)
+            encoded_json = recvall(connection, length)
             request_id, error = json.loads(encoded_json.decode(), cls=TypedJSONDecoder)
 
-            stream.close()
-            self._tcp_client.close()
+        except Exception as e:
 
-        except StreamClosedError as e:
+            trace = traceback.format_exception(None, e, e.__traceback__)
+            error = EvaluatorException(message=trace)
 
-            # Handle no connections to the server gracefully.
-            logging.info(
-                f"Error connecting to {self.server_address}:{self.server_port}. "
-                f"Please ensure the server is running and that the server address "
-                f"/ port is correct."
-            )
+        finally:
 
-            formatted_exception = traceback.format_exception(None, e, e.__traceback__)
-            error = EvaluatorException(message=formatted_exception)
+            if connection is not None:
+                connection.close()
 
         # Return the ids of the submitted jobs.
         return request_id, error
 
-    async def _send_query_to_server(self, request_id):
+    def _send_query_to_server(self, request_id):
         """Attempts to connect to the calculation server, and
         submit the requested calculations.
-
-        Notes
-        -----
-
-        This method is based on the StackOverflow response from
-        A. Jesse Jiryu Davis: https://stackoverflow.com/a/40257248
 
         Parameters
         ----------
@@ -709,15 +690,16 @@ class EvaluatorClient:
         """
         server_response = None
 
+        # Attempt to establish a connection to the server.
+        connection_settings = (
+            self._connection_options.server_address,
+            self._connection_options.server_port,
+        )
+
+        connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        connection.connect(connection_settings)
+
         try:
-
-            # Attempt to establish a connection to the server.
-            stream = await self._tcp_client.connect(
-                self._connection_options.server_address,
-                self._connection_options.server_port,
-            )
-
-            stream.set_nodelay(True)
 
             # Encode the request id into the message.
             message_type = pack_int(PropertyEstimatorMessageTypes.Query)
@@ -725,35 +707,26 @@ class EvaluatorClient:
             encoded_request_id = request_id.encode()
             length = pack_int(len(encoded_request_id))
 
-            await stream.write(message_type + length + encoded_request_id)
+            connection.sendall(message_type + length + encoded_request_id)
 
             # Wait for the server response.
-            header = await stream.read_bytes(4)
+            header = recvall(connection, 4)
             length = unpack_int(header)[0]
 
             # Decode the response from the server. If everything
             # went well, this should be the finished calculation.
             if length > 0:
 
-                encoded_json = await stream.read_bytes(length)
+                encoded_json = recvall(connection, length)
                 server_response = encoded_json.decode()
 
-            stream.close()
-            self._tcp_client.close()
+        finally:
 
-        except StreamClosedError as e:
+            if connection is not None:
+                connection.close()
 
-            # Handle no connections to the server gracefully.
-            logging.info(
-                "Error connecting to {}:{} : {}. Please ensure the server is running and"
-                "that the server address / port is correct.".format(
-                    self._connection_options.server_address,
-                    self._connection_options.server_port,
-                    e,
-                )
-            )
-
-        response, error = None
+        response = None
+        error = None
 
         if server_response is not None:
             response, error = json.loads(server_response, cls=TypedJSONDecoder)

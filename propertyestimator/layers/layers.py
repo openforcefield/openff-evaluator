@@ -315,12 +315,7 @@ class CalculationLayer(abc.ABC):
                 for match in matches:
                     batch.queued_properties.remove(match)
 
-                substance_id = returned_output.calculated_property.substance.identifier
-
-                if substance_id not in batch.estimated_properties:
-                    batch.estimated_properties[substance_id] = []
-
-                batch.estimated_properties[substance_id].append(
+                batch.estimated_properties.append(
                     returned_output.calculated_property
                 )
 

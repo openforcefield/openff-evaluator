@@ -12,7 +12,7 @@ from propertyestimator.layers import (
 )
 from propertyestimator.layers.layers import CalculationLayerResult
 from propertyestimator.properties import Density
-from propertyestimator.server.server import EvaluatorServer
+from propertyestimator.server import server
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.storage.data import StoredSimulationData
 from propertyestimator.tests.utils import create_dummy_property
@@ -150,12 +150,10 @@ def test_base_layer():
 
     dummy_options = RequestOptions()
 
-    request = EvaluatorServer.ServerEstimationRequest(
-        estimation_id=str(uuid.uuid4()),
-        queued_properties=properties_to_estimate,
-        options=dummy_options,
-        force_field_id="",
-    )
+    batch = server._Batch()
+    batch.queued_properties = properties_to_estimate
+    batch.options = dummy_options
+    batch.force_field_id = ""
 
     with tempfile.TemporaryDirectory() as temporary_directory:
 
@@ -182,7 +180,7 @@ def test_base_layer():
                 test_backend,
                 test_storage,
                 layer_directory,
-                request,
+                batch,
                 dummy_callback,
                 True,
             )

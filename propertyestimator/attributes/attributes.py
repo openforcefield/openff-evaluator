@@ -63,7 +63,7 @@ class AttributeClass(TypedBaseModel):
 
         Raises
         ------
-        ValueError
+        ValueError or AssertionError
         """
 
         attribute_names = self.get_attributes()

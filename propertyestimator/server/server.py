@@ -6,12 +6,11 @@ import copy
 import json
 import logging
 import os
+import select
+import socket
+import threading
 import traceback
 import uuid
-
-from tornado.ioloop import IOLoop
-from tornado.iostream import StreamClosedError
-from tornado.tcpserver import TCPServer
 
 from propertyestimator.attributes import Attribute, AttributeClass
 from propertyestimator.client import EvaluatorClient, RequestOptions, RequestResult
@@ -19,10 +18,11 @@ from propertyestimator.datasets import PhysicalProperty
 from propertyestimator.forcefield import ParameterGradientKey
 from propertyestimator.layers import registered_calculation_layers
 from propertyestimator.utils.exceptions import EvaluatorException
-from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
+from propertyestimator.utils.serialization import TypedJSONEncoder
 from propertyestimator.utils.tcp import (
     PropertyEstimatorMessageTypes,
     pack_int,
+    recvall,
     unpack_int,
 )
 
@@ -97,7 +97,7 @@ class _Batch(AttributeClass):
         )
 
 
-class EvaluatorServer(TCPServer):
+class EvaluatorServer:
     """The object responsible for coordinating all properties estimations to
     be ran using the property estimator.
 
@@ -131,7 +131,7 @@ class EvaluatorServer(TCPServer):
     >>> property_server = EvaluatorServer(calculation_backend, storage_backend)
     >>>
     >>> # Instruct the server to listen for incoming requests
-    >>> property_server.start_listening_loop()
+    >>> property_server.start()
     """
 
     def __init__(
@@ -155,12 +155,21 @@ class EvaluatorServer(TCPServer):
             The local directory in which to store all local, temporary calculation data.
         """
 
+        # Initialize the main 'server' attributes.
+        self._port = port
+
+        self._server_thread = None
+        self._socket = None
+
+        self._started = False
+        self._stopped = True
+
+        # Initialize the internal components.
         assert calculation_backend is not None and storage_backend is not None
+        assert calculation_backend.started
 
         self._calculation_backend = calculation_backend
         self._storage_backend = storage_backend
-
-        self._port = port
 
         self._working_directory = working_directory
         os.makedirs(self._working_directory, exist_ok=True)
@@ -169,169 +178,6 @@ class EvaluatorServer(TCPServer):
         self._finished_batches = {}
 
         self._batch_ids_per_client_id = {}
-
-        super().__init__()
-
-        self.bind(self._port)
-        self.start(1)
-
-        calculation_backend.start()
-
-    async def _handle_job_submission(self, stream, address, message_length):
-        """An asynchronous routine for handling the receiving and processing
-        of job submissions from a client.
-
-        Parameters
-        ----------
-        stream: IOStream
-            An IO stream used to pass messages between the
-            server and client.
-        address: str
-            The address from which the request came.
-        message_length: int
-            The length of the message being received.
-        """
-
-        logging.info("Received estimation request from {}".format(address))
-
-        # Read the incoming request from the server. The first four bytes
-        # of the response should be the length of the message being sent.
-
-        # Decode the client submission json.
-        encoded_json = await stream.read_bytes(message_length)
-        json_model = encoded_json.decode()
-
-        request_id = None
-        error = None
-
-        try:
-
-            # noinspection PyProtectedMember
-            submission = EvaluatorClient._Submission.parse_json(json_model)
-            submission.validate()
-
-        except Exception as e:
-
-            formatted_exception = traceback.format_exception(None, e, e.__traceback__)
-
-            error = EvaluatorException(
-                message=f"An exception occured when parsing "
-                f"the submission: {formatted_exception}"
-            )
-
-            submission = None
-
-        if error is None:
-
-            while request_id is None or request_id in self._batch_ids_per_client_id:
-                request_id = str(uuid.uuid4()).replace("-", "")
-
-            self._batch_ids_per_client_id[request_id] = []
-
-        # Pass the id of the submitted requests back to the client
-        # as well as any error which may have occured.
-        return_packet = json.dumps((request_id, error), cls=TypedJSONDecoder)
-
-        encoded_return_packet = return_packet.encode()
-        length = pack_int(len(encoded_return_packet))
-
-        await stream.write(length + encoded_return_packet)
-
-        if error is not None:
-            # Exit early if there is an error.
-            return
-
-        # Batch the request into more managable chunks.
-        batches = self._prepare_batches(submission, request_id)
-
-        # Launch the batches
-        for batch in batches:
-            self._launch_batch(batch)
-
-    async def _handle_job_query(self, stream, message_length):
-        """An asynchronous routine for handling the receiving and
-        processing of request status queries from a client
-
-        Parameters
-        ----------
-        stream: IOStream
-            An IO stream used to pass messages between the
-            server and client.
-        message_length: int
-            The length of the message being received.
-        """
-
-        encoded_request_id = await stream.read_bytes(message_length)
-        client_request_id = encoded_request_id.decode()
-
-        response = None
-        error = None
-
-        if client_request_id not in self._batch_ids_per_client_id:
-
-            error = EvaluatorException(
-                directory="",
-                message=f"The request id ({client_request_id}) was not found "
-                f"on the server.",
-            )
-
-        else:
-            response = self._query_request_status(client_request_id)
-
-        response_json = json.dumps((response, error), cls=TypedJSONEncoder)
-
-        encoded_response = response_json.encode()
-        length = pack_int(len(encoded_response))
-
-        await stream.write(length + encoded_response)
-
-    async def handle_stream(self, stream, address):
-        """A routine to handle incoming requests from
-        a TCP client.
-
-        Notes
-        -----
-        This method is based on the StackOverflow response from
-        A. Jesse Jiryu Davis: https://stackoverflow.com/a/40257248
-
-        Parameters
-        ----------
-        stream: IOStream
-            An IO stream used to pass messages between the
-            server and client.
-        address: str
-            The address from which the request came.
-        """
-
-        try:
-            while True:
-
-                # Receive an introductory message with the message type.
-                packed_message_type = await stream.read_bytes(4)
-                message_type_int = unpack_int(packed_message_type)[0]
-
-                packed_message_length = await stream.read_bytes(4)
-                message_length = unpack_int(packed_message_length)[0]
-
-                try:
-                    message_type = PropertyEstimatorMessageTypes(message_type_int)
-                except ValueError as e:
-                    logging.info("Bad message type recieved: {}".format(e))
-
-                    # Discard the unrecognised message.
-                    if message_length > 0:
-                        await stream.read_bytes(message_length)
-
-                    continue
-
-                if message_type is PropertyEstimatorMessageTypes.Submission:
-                    await self._handle_job_submission(stream, address, message_length)
-                elif message_type is PropertyEstimatorMessageTypes.Query:
-                    await self._handle_job_query(stream, message_length)
-
-        except StreamClosedError:
-            # Handle client disconnections gracefully.
-            pass
 
     def _query_request_status(self, client_request_id):
         """Queries the the current state of an estimation request
@@ -499,14 +345,211 @@ class EvaluatorServer(TCPServer):
             self._launch_batch,
         )
 
-    def start_listening_loop(self):
-        """Starts the main (blocking) server IOLoop which will run until
-        the user kills the process.
+    def _handle_job_submission(self, connection, address, message_length):
+        """An asynchronous routine for handling the receiving and processing
+        of job submissions from a client.
+
+        Parameters
+        ----------
+        connection:
+            An IO stream used to pass messages between the
+            server and client.
+        address: str
+            The address from which the request came.
+        message_length: int
+            The length of the message being received.
         """
-        logging.info("Server listening at port {}".format(self._port))
+
+        logging.info("Received estimation request from {}".format(address))
+
+        # Read the incoming request from the server. The first four bytes
+        # of the response should be the length of the message being sent.
+
+        # Decode the client submission json.
+        encoded_json = recvall(connection, message_length)
+        json_model = encoded_json.decode()
+
+        request_id = None
+        error = None
 
         try:
-            IOLoop.current().start()
+
+            # noinspection PyProtectedMember
+            submission = EvaluatorClient._Submission.parse_json(json_model)
+            submission.validate()
+
+        except Exception as e:
+
+            formatted_exception = traceback.format_exception(None, e, e.__traceback__)
+
+            error = EvaluatorException(
+                message=f"An exception occured when parsing "
+                f"the submission: {formatted_exception}"
+            )
+
+            submission = None
+
+        if error is None:
+
+            while request_id is None or request_id in self._batch_ids_per_client_id:
+                request_id = str(uuid.uuid4()).replace("-", "")
+
+            self._batch_ids_per_client_id[request_id] = []
+
+        # Pass the id of the submitted requests back to the client
+        # as well as any error which may have occurred.
+        return_packet = json.dumps((request_id, error), cls=TypedJSONEncoder)
+
+        encoded_return_packet = return_packet.encode()
+        length = pack_int(len(encoded_return_packet))
+
+        connection.sendall(length + encoded_return_packet)
+
+        if error is not None:
+            # Exit early if there is an error.
+            return
+
+        # Batch the request into more managable chunks.
+        batches = self._prepare_batches(submission, request_id)
+
+        # Launch the batches
+        for batch in batches:
+            self._launch_batch(batch)
+
+    def _handle_job_query(self, connection, message_length):
+        """An asynchronous routine for handling the receiving and
+        processing of request status queries from a client
+
+        Parameters
+        ----------
+        connection:
+            An IO stream used to pass messages between the
+            server and client.
+        message_length: int
+            The length of the message being received.
+        """
+
+        encoded_request_id = recvall(connection, message_length)
+        client_request_id = encoded_request_id.decode()
+
+        response = None
+        error = None
+
+        if client_request_id not in self._batch_ids_per_client_id:
+
+            error = EvaluatorException(
+                directory="",
+                message=f"The request id ({client_request_id}) was not found "
+                f"on the server.",
+            )
+
+        else:
+            response = self._query_request_status(client_request_id)
+
+        response_json = json.dumps((response, error), cls=TypedJSONEncoder)
+
+        encoded_response = response_json.encode()
+        length = pack_int(len(encoded_response))
+
+        connection.sendall(length + encoded_response)
+
+    def _handle_stream(self, connection, address):
+        """A routine to handle incoming requests from
+        a TCP client.
+        """
+
+        # Receive an introductory message with the message type.
+        packed_message_type = recvall(connection, 4)
+        message_type_int = unpack_int(packed_message_type)[0]
+
+        packed_message_length = recvall(connection, 4)
+        message_length = unpack_int(packed_message_length)[0]
+
+        try:
+            message_type = PropertyEstimatorMessageTypes(message_type_int)
+        except ValueError as e:
+
+            trace = traceback.format_exception(None, e, e.__traceback__)
+            logging.info(f"Bad message type received: {trace}")
+
+            # Discard the unrecognised message.
+            if message_length > 0:
+                recvall(connection, message_length)
+
+            return
+
+        if message_type is PropertyEstimatorMessageTypes.Submission:
+            self._handle_job_submission(connection, address, message_length)
+        elif message_type is PropertyEstimatorMessageTypes.Query:
+            self._handle_job_query(connection, message_length)
+
+    def _handle_connections(self):
+        """Handles incoming client TCP connections.
+        """
+        to_read = [self._socket]
+
+        try:
+
+            while not self._stopped:
+
+                ready, _, _ = select.select(to_read, [], [], 0.1)
+
+                for data in ready:
+
+                    if data == self._socket:
+                        connection, address = self._socket.accept()
+                        to_read.append(connection)
+
+                    else:
+
+                        connection = data
+                        self._handle_stream(connection, connection.getpeername())
+                        connection.close()
+
+                        to_read.remove(data)
+
+        except Exception as e:
+
+            trace = traceback.format_exception(None, e, e.__traceback__)
+            logging.info(f"Fatal error in the main server loop: {trace}")
+
+    def start(self, asynchronous=False):
+        """Instructs the server to begin listening for incoming
+        requests from any `EvaluatorClients`.
+
+        Parameters
+        ----------
+        asynchronous: bool
+            If `True` the server will run on a separate thread in the background,
+            returning control back to the main thread. Otherwise, this function
+            will block the main thread until this server is killed.
+        """
+
+        if self._started:
+            raise RuntimeError("The server has already been started.")
+
+        logging.info("Server listening at port {}".format(self._port))
+        self._started = True
+        self._stopped = False
+
+        # Create the TCP socket
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._socket.bind(("localhost", self._port))
+        self._socket.listen(128)
+
+        try:
+
+            if asynchronous:
+
+                self._server_thread = threading.Thread(
+                    target=self._handle_connections, daemon=True
+                )
+                self._server_thread.start()
+
+            else:
+                self._handle_connections()
+
         except KeyboardInterrupt:
             self.stop()
 
@@ -514,5 +557,18 @@ class EvaluatorServer(TCPServer):
         """Stops the property calculation server and it's
         provided backend.
         """
-        self._calculation_backend.stop()
-        IOLoop.current().stop()
+        if not self._started:
+            raise ValueError("The server has not yet been started.")
+
+        self._stopped = True
+        self._started = False
+
+        if self._server_thread is not None:
+
+            self._server_thread.join()
+            self._server_thread = None
+
+        if self._socket is not None:
+
+            self._socket.close()
+            self._socket = None

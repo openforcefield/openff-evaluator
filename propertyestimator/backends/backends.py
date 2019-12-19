@@ -1,6 +1,7 @@
 """
 Defines the base API for the property estimator task calculation backend.
 """
+import abc
 import re
 from enum import Enum
 
@@ -197,17 +198,22 @@ class QueueWorkerResources(ComputeResources):
         return not self.__eq__(other)
 
 
-class CalculationBackend:
+class CalculationBackend(abc.ABC):
     """An abstract base representation of a property estimator backend. A backend is
     responsible for coordinating, distributing and running calculations on the
     available hardware. This may range from a single machine to a multinode cluster,
-    but *not* accross multiple cluster or physical locations.
+    but *not* across multiple cluster or physical locations.
 
     Notes
     -----
     All estimator backend classes must inherit from this class, and must implement the
     `start`, `stop`, and `submit_task` method.
     """
+
+    @property
+    def started(self):
+        """bool: Returns whether this backend has been started yet."""
+        return self._started
 
     def __init__(self, number_of_workers=1, resources_per_worker=None):
 
@@ -228,27 +234,22 @@ class CalculationBackend:
         self._number_of_workers = number_of_workers
         self._resources_per_worker = resources_per_worker
 
-    def _get_worker_resources_dict(self):
-        """Get dict representation of the resources requested
-        by a worker.
-
-        Returns
-        -------
-        dict of str and int
-        """
-        return {
-            "number_of_threads": self._resources_per_worker.number_of_threads,
-            "number_of_gpus": self._resources_per_worker.number_of_gpus,
-        }
+        self._started = False
 
     def start(self):
         """Start the calculation backend."""
-        pass
 
+        if self._started:
+            raise RuntimeError("The backend has already been started.")
+
+        self._started = True
+
+    @abc.abstractmethod
     def stop(self):
         """Stop the calculation backend."""
-        pass
+        raise NotImplementedError()
 
+    @abc.abstractmethod
     def submit_task(self, function, *args, **kwargs):
         """Submit a task to the compute resources
         managed by this backend.
@@ -264,4 +265,4 @@ class CalculationBackend:
             Returns a future object which will eventually point to the results
             of the submitted task.
         """
-        pass
+        raise NotImplementedError()

@@ -1,6 +1,7 @@
 """
 A collection of property estimator compute backends which use dask as the distribution engine.
 """
+import abc
 import importlib
 import logging
 import multiprocessing
@@ -142,7 +143,7 @@ class _Multiprocessor:
         return return_value
 
 
-class BaseDaskBackend(CalculationBackend):
+class BaseDaskBackend(CalculationBackend, abc.ABC):
     """A base `dask` backend class, which implements functionality
     which is common to all other `dask` based backends.
     """
@@ -159,6 +160,8 @@ class BaseDaskBackend(CalculationBackend):
         self.stop()
 
     def start(self):
+
+        super(BaseDaskBackend, self).start()
         self._client = distributed.Client(self._cluster)
 
     def stop(self):
