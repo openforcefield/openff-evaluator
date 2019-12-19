@@ -315,9 +315,7 @@ class CalculationLayer(abc.ABC):
                 for match in matches:
                     batch.queued_properties.remove(match)
 
-                batch.estimated_properties.append(
-                    returned_output.calculated_property
-                )
+                batch.estimated_properties.append(returned_output.calculated_property)
 
         except Exception as e:
 
@@ -341,7 +339,7 @@ class CalculationLayer(abc.ABC):
         calculation_backend,
         storage_backend,
         layer_directory,
-        data_model,
+        batch,
         callback,
         synchronous=False,
     ):
@@ -354,9 +352,10 @@ class CalculationLayer(abc.ABC):
         storage_backend: StorageBackend
             The backend used to store / retrieve data from previous calculations.
         layer_directory: str
-            The local directory in which to store all local, temporary calculation data from this layer.
-        data_model: _Batch
-            The data model encoding the proposed calculation.
+            The directory in which to store all temporary calculation data from this
+            layer.
+        batch: _Batch
+            The batch of properties to estimate with the layer.
         callback: function
             The function to call when the backend returns the results (or an error).
         synchronous: bool

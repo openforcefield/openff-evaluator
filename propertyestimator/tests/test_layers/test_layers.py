@@ -37,7 +37,7 @@ class DummyCalculationLayer(CalculationLayer):
         calculation_backend,
         storage_backend,
         layer_directory,
-        data_model,
+        batch,
         callback,
         synchronous=False,
     ):
@@ -46,29 +46,24 @@ class DummyCalculationLayer(CalculationLayer):
             # Fake a success.
             calculation_backend.submit_task(
                 DummyCalculationLayer.process_successful_property,
-                data_model.queued_properties[0],
+                batch.queued_properties[0],
                 layer_directory,
             ),
             # Fake a failure.
             calculation_backend.submit_task(
                 DummyCalculationLayer.process_failed_property,
-                data_model.queued_properties[1],
+                batch.queued_properties[1],
             ),
             # Cause an exception.
             calculation_backend.submit_task(
                 DummyCalculationLayer.return_bad_result,
-                data_model.queued_properties[0],
+                batch.queued_properties[0],
                 layer_directory,
             ),
         ]
 
         CalculationLayer._await_results(
-            calculation_backend,
-            storage_backend,
-            data_model,
-            callback,
-            futures,
-            synchronous,
+            calculation_backend, storage_backend, batch, callback, futures, synchronous,
         )
 
     @staticmethod

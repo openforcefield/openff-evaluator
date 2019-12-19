@@ -148,16 +148,14 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         calculation_backend,
         storage_backend,
         layer_directory,
-        data_model,
+        batch,
         callback,
         synchronous=False,
     ):
 
         # Store a temporary copy of the force field for protocols to easily access.
-        force_field_source = storage_backend.retrieve_force_field(
-            data_model.force_field_id
-        )
-        force_field_path = os.path.join(layer_directory, data_model.force_field_id)
+        force_field_source = storage_backend.retrieve_force_field(batch.force_field_id)
+        force_field_path = os.path.join(layer_directory, batch.force_field_id)
 
         with open(force_field_path, "w") as file:
             file.write(force_field_source.json())
@@ -165,21 +163,16 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         workflow_graph = cls._build_workflow_graph(
             layer_directory,
             storage_backend,
-            data_model.queued_properties,
+            batch.queued_properties,
             force_field_path,
-            data_model.parameter_gradient_keys,
-            data_model.options,
+            batch.parameter_gradient_keys,
+            batch.options,
         )
 
         futures = workflow_graph.submit(calculation_backend)
 
         CalculationLayer._await_results(
-            calculation_backend,
-            storage_backend,
-            data_model,
-            callback,
-            futures,
-            synchronous,
+            calculation_backend, storage_backend, batch, callback, futures, synchronous,
         )
 
 
