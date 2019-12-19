@@ -193,6 +193,9 @@ class EvaluatorServer:
         -------
         RequestResult
             The state of the request.
+        EvaluatorException, optional
+            The exception raised while retrieving the status,
+            if any.
         """
 
         request_results = RequestResult()
@@ -209,28 +212,28 @@ class EvaluatorServer:
 
                 if len(batch.queued_properties) > 0:
 
-                    return EvaluatorException(
+                    return None, EvaluatorException(
                         message=f"An internal error occurred - the {batch_id} "
                         f"batch was prematurely marked us finished."
                     )
 
             else:
 
-                return EvaluatorException(
+                return None, EvaluatorException(
                     message=f"An internal error occurred - the {batch_id} "
                     f"request was not found on the server."
                 )
 
-            request_results.queued_properties.add_properties(batch.queued_properties)
+            request_results.queued_properties.add_properties(*batch.queued_properties)
             request_results.unsuccessful_properties.add_properties(
-                batch.unsuccessful_properties
+                *batch.unsuccessful_properties
             )
             request_results.estimated_properties.add_properties(
-                batch.estimated_properties
+                *batch.estimated_properties
             )
             request_results.exceptions.extend(batch.exceptions)
 
-        return request_results
+        return request_results, None
 
     def _prepare_batches(self, submission, request_id):
         """Turns an estimation request into chunked batches to
@@ -284,6 +287,8 @@ class EvaluatorServer:
             )
 
             batches.append(batch)
+
+            self._queued_batches[batch.id] = batch
             self._batch_ids_per_client_id[request_id].append(batch.id)
 
         return batches
@@ -434,7 +439,6 @@ class EvaluatorServer:
         client_request_id = encoded_request_id.decode()
 
         response = None
-        error = None
 
         if client_request_id not in self._batch_ids_per_client_id:
 
@@ -445,7 +449,7 @@ class EvaluatorServer:
             )
 
         else:
-            response = self._query_request_status(client_request_id)
+            response, error = self._query_request_status(client_request_id)
 
         response_json = json.dumps((response, error), cls=TypedJSONEncoder)
 
@@ -509,10 +513,8 @@ class EvaluatorServer:
 
                         to_read.remove(data)
 
-        except Exception as e:
-
-            trace = traceback.format_exception(None, e, e.__traceback__)
-            logging.info(f"Fatal error in the main server loop: {trace}")
+        except:
+            logging.exception(f"Fatal error in the main server loop")
 
     def start(self, asynchronous=False):
         """Instructs the server to begin listening for incoming

@@ -105,12 +105,12 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
             # Make sure a schema has been defined for this class of property
             # and this layer.
             if (
-                property_type not in options.workflow_schemas
-                or cls.__name__ not in options.workflow_schemas[property_type]
+                property_type not in options.calculation_schemas
+                or cls.__name__ not in options.calculation_schemas[property_type]
             ):
                 continue
 
-            schema = options.workflow_schemas[property_type][cls.__name__]
+            schema = options.calculation_schemas[property_type][cls.__name__]
 
             # Make sure the calculation schema is the correct type for this layer.
             assert isinstance(schema, WorkflowCalculationSchema)

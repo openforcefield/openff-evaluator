@@ -647,6 +647,9 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         data_frame = pandas.DataFrame(data_rows, columns=data_columns)
         return data_frame
 
+    def __len__(self):
+        return self.number_of_properties
+
     def __getstate__(self):
 
         return {"properties": self._properties, "sources": self._sources}
