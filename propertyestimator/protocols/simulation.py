@@ -304,6 +304,7 @@ class RunOpenMMSimulation(BaseProtocol):
         pressure = (
             None if self.ensemble == Ensemble.NVT else self.thermodynamic_state.pressure
         )
+
         openmm_pressure = pint_quantity_to_openmm(pressure)
 
         if openmm_temperature is None:

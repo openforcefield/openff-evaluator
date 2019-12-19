@@ -10,7 +10,7 @@ import pandas
 from simtk.openmm.app import element
 
 from propertyestimator import unit
-from propertyestimator.attributes import Attribute, AttributeClass
+from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
 from propertyestimator.datasets import CalculationSource, MeasurementSource, Source
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
@@ -377,7 +377,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
         def filter_function(x):
 
-            if x.thermodynamic_state.pressure is None:
+            if x.thermodynamic_state.pressure == UNDEFINED:
                 return True
 
             return min_pressure <= x.thermodynamic_state.pressure <= max_pressure
@@ -550,7 +550,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
                 )
                 pressure = None
 
-                if physical_property.thermodynamic_state.pressure is not None:
+                if physical_property.thermodynamic_state.pressure != UNDEFINED:
                     pressure = physical_property.thermodynamic_state.pressure.to(
                         unit.kilopascal
                     )

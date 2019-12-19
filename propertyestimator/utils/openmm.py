@@ -8,6 +8,7 @@ from simtk import openmm
 from simtk import unit as simtk_unit
 
 from propertyestimator import unit
+from propertyestimator.attributes.attributes import UndefinedAttribute
 
 
 def setup_platform_with_resources(compute_resources, high_precision=False):
@@ -133,7 +134,7 @@ def openmm_quantity_to_pint(openmm_quantity):
         The converted quantity.
     """
 
-    if openmm_quantity is None:
+    if openmm_quantity is None or isinstance(openmm_quantity, UndefinedAttribute):
         return None
 
     assert isinstance(openmm_quantity, simtk_unit.Quantity)
@@ -169,7 +170,7 @@ def openmm_unit_to_pint(openmm_unit):
     """
     from openforcefield.utils import unit_to_string
 
-    if openmm_unit is None:
+    if openmm_unit is None or isinstance(openmm_unit, UndefinedAttribute):
         return None
 
     assert isinstance(openmm_unit, simtk_unit.Unit)
@@ -224,7 +225,7 @@ def pint_quantity_to_openmm(pint_quantity):
         The converted quantity.
     """
 
-    if pint_quantity is None:
+    if pint_quantity is None or isinstance(pint_quantity, UndefinedAttribute):
         return None
 
     assert isinstance(pint_quantity, unit.Quantity)
@@ -257,7 +258,7 @@ def pint_unit_to_openmm(pint_unit):
     """
     from openforcefield.utils import string_to_unit
 
-    if pint_unit is None:
+    if pint_unit is None or isinstance(pint_unit, UndefinedAttribute):
         return None
 
     assert isinstance(pint_unit, unit.Unit)
