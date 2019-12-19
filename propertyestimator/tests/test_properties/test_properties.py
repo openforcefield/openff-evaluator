@@ -116,8 +116,7 @@ def test_workflow_schema_merging(calculation_layer, property_type):
 
 def test_density_dielectric_merging():
 
-    substance = Substance()
-    substance.add_component(Component(smiles="C"), MoleFraction())
+    substance = Substance.from_components("C")
 
     density = propertyestimator.properties.Density(
         thermodynamic_state=ThermodynamicState(

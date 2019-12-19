@@ -158,7 +158,7 @@ class AttributeClass(TypedBaseModel):
         # set value method rather than setattr to handle read-only
         # attributes.
         # noinspection PyProtectedMember
-        attribute._set_value(self, attribute_name, value)
+        attribute._set_value(self, value)
 
     def __getstate__(self):
 
@@ -312,7 +312,16 @@ class Attribute:
             and issubclass(self.type_hint, (IntFlag, IntEnum))
         ):
             # This is necessary as the json library currently doesn't
-            # support custom serialization of IntFlag or IntEnum.
+            # support custom serialization of IntFlag, IntEnum.
+            value = self.type_hint(value)
+
+        if (
+            isinstance(value, list)
+            and isinstance(self.type_hint, type)
+            and issubclass(self.type_hint, tuple)
+        ):
+            # Automate the list -> tuple conversion to get
+            # around serialization issues.
             value = self.type_hint(value)
 
         if (

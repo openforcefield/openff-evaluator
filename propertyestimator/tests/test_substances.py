@@ -15,7 +15,7 @@ def test_add_mole_fractions():
 
     assert substance.number_of_components == 1
 
-    amounts = substance.get_amounts("C")
+    amounts = substance.get_amounts(substance.components[0])
 
     assert len(amounts) == 1
 
@@ -29,16 +29,19 @@ def test_multiple_amounts():
 
     substance = Substance()
 
-    substance.add_component(Component("[Na+]"), MoleFraction(0.75))
-    substance.add_component(Component("[Na+]"), ExactAmount(1))
+    sodium = Component("[Na+]")
+    chloride = Component("[Cl-]")
 
-    substance.add_component(Component("[Cl-]"), MoleFraction(0.25))
-    substance.add_component(Component("[Cl-]"), ExactAmount(1))
+    substance.add_component(sodium, MoleFraction(0.75))
+    substance.add_component(sodium, ExactAmount(1))
+
+    substance.add_component(chloride, MoleFraction(0.25))
+    substance.add_component(chloride, ExactAmount(1))
 
     assert substance.number_of_components == 2
 
-    sodium_amounts = substance.get_amounts("[Na+]")
-    chlorine_amounts = substance.get_amounts("[Cl-]")
+    sodium_amounts = substance.get_amounts(sodium)
+    chlorine_amounts = substance.get_amounts(chloride)
 
     assert len(sodium_amounts) == 2
     assert len(chlorine_amounts) == 2
@@ -47,5 +50,5 @@ def test_multiple_amounts():
 
     assert len(molecule_counts) == 2
 
-    assert molecule_counts["[Na+]"] == 4
-    assert molecule_counts["[Cl-]"] == 2
+    assert molecule_counts[sodium.identifier] == 4
+    assert molecule_counts[chloride.identifier] == 2

@@ -2,7 +2,6 @@
 An API for defining and creating substances.
 """
 import numpy as np
-from frozendict import frozendict
 
 from propertyestimator import unit
 from propertyestimator.attributes import Attribute, AttributeClass
@@ -49,8 +48,8 @@ class Substance(AttributeClass):
     )
     amounts = Attribute(
         docstring="the amounts of the component in this substance",
-        type_hint=frozendict,
-        default_value=frozendict(),
+        type_hint=dict,
+        default_value=dict(),
         read_only=True,
     )
 
@@ -206,7 +205,7 @@ class Substance(AttributeClass):
         amounts = dict(self.amounts)
         amounts[component.identifier] = tuple(remaining_amounts)
 
-        self._set_value("amounts", frozendict(amounts))
+        self._set_value("amounts", amounts)
 
     def get_amounts(self, component):
         """Returns the amounts of the component in this substance.
@@ -319,6 +318,18 @@ class Substance(AttributeClass):
 
     def __ne__(self, other):
         return not (self == other)
+
+    def __setstate__(self, state):
+        # Handle the list -> tuple conversion manually.
+
+        assert "amounts" in state
+
+        for key in state["amounts"]:
+
+            assert isinstance(state["amounts"][key], (list, tuple))
+            state["amounts"][key] = tuple(state["amounts"][key])
+
+        super(Substance, self).__setstate__(state)
 
     def validate(self, attribute_type=None):
         super(Substance, self).validate(attribute_type)
