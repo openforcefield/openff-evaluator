@@ -41,7 +41,7 @@ def main(base_output_file_name='results', property_types=None):
     property_estimator = client.EvaluatorClient(client.ConnectionOptions(server_port=8005))
 
     options = RequestOptions()
-    options.allowed_calculation_layers = ['SimulationLayer']
+    options.calculation_layers = ['SimulationLayer']
 
     options.workflow_options = {}
 
@@ -74,7 +74,7 @@ def main(base_output_file_name='results', property_types=None):
         file.write(json_results.encode('utf-8'))
 
     # Attempt to reweight the cached data.
-    options.allowed_calculation_layers = ['ReweightingLayer']
+    options.calculation_layers = ['ReweightingLayer']
 
     request = property_estimator.request_estimate(property_set=data_set,
                                                   force_field_source=force_field_source,

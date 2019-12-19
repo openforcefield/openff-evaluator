@@ -119,7 +119,8 @@ class EvaluatorServer:
 
     >>> # Create the backend which will be responsible for distributing the calculations
     >>> from propertyestimator.backends import DaskLocalCluster, ComputeResources
-    >>> calculation_backend = DaskLocalCluster(1)
+    >>> calculation_backend = DaskLocalCluster()
+    >>> calculation_backend.start()
     >>>
     >>> # Calculate the backend which will be responsible for storing and retrieving
     >>> # the data from previous calculations
@@ -131,6 +132,7 @@ class EvaluatorServer:
     >>> property_server = EvaluatorServer(calculation_backend, storage_backend)
     >>>
     >>> # Instruct the server to listen for incoming requests
+    >>> # This command will run until killed.
     >>> property_server.start()
     """
 

@@ -174,7 +174,7 @@ def main():
     property_estimator = client.EvaluatorClient(client.ConnectionOptions(server_port=8005))
 
     options = RequestOptions()
-    options.allowed_calculation_layers = ['SimulationLayer']
+    options.calculation_layers = ['SimulationLayer']
 
     workflow_options = WorkflowOptions(WorkflowOptions.ConvergenceMode.NoChecks)
 

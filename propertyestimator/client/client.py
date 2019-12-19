@@ -208,39 +208,44 @@ class EvaluatorClient:
 
     Examples
     --------
-    Setting up the client instance:
+    These examples assume that an `EvaluatorServer` has been set up
+    and is running (either synchronously or asynchronously). This
+    server can be connect to be creating an `EvaluatorClient`:
 
     >>> from propertyestimator.client import EvaluatorClient
     >>> property_estimator = EvaluatorClient()
 
-    If the EvaluatorServer is not running on the local machine, you will
+    If the `EvaluatorServer` is not running on the local machine, you will
     need to specify its address and the port that it is listening on:
 
     >>> from propertyestimator.client import ConnectionOptions
     >>>
     >>> connection_options = ConnectionOptions(server_address='server_address',
-    >>>                                                         server_port=8000)
+    >>>                                        server_port=8000)
     >>> property_estimator = EvaluatorClient(connection_options)
 
-    To asynchronously submit a request to the running server using the default estimator
-    options:
+    To asynchronously submit a request to the running server using the default
+    estimation options:
 
     >>> # Load in the data set of properties which will be used for comparisons
     >>> from propertyestimator.datasets.thermoml import ThermoMLDataSet
     >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
+    >>>
     >>> # Filter the dataset to only include densities measured between 130-260 K
     >>> from propertyestimator import unit
     >>> from propertyestimator.properties import Density
     >>>
     >>> data_set.filter_by_property_types(Density)
-    >>> data_set.filter_by_temperature(min_temperature=130*unit.kelvin, max_temperature=260*unit.kelvin)
+    >>> data_set.filter_by_temperature(
+    >>>     min_temperature=130*unit.kelvin,
+    >>>     max_temperature=260*unit.kelvin
+    >>> )
     >>>
     >>> # Load in the force field parameters
-    >>> from openforcefield.typing.engines import smirnoff
     >>> from propertyestimator.forcefield import SmirnoffForceFieldSource
-    >>> smirnoff_force_field = smirnoff.ForceField('smirnoff99Frosst-1.1.0.offxml')
-    >>> force_field_source = SmirnoffForceFieldSource.from_object(smirnoff_force_field)
+    >>> force_field_source = SmirnoffForceFieldSource.from_path('smirnoff99Frosst-1.1.0.offxml')
     >>>
+    >>> # Submit the estimation request to a running server.
     >>> request = property_estimator.request_estimate(data_set, force_field_source)
 
     The status of the request can be asynchronously queried by calling
@@ -253,7 +258,7 @@ class EvaluatorClient:
     >>> results = request.results(synchronous=True)
 
     How the property set will be estimated can easily be controlled by passing a
-    RequestOptions object to the estimate commands.
+    `RequestOptions` object to the estimate commands.
 
     The calculations layers which will be used to estimate the properties can be
     controlled for example like so:
@@ -261,35 +266,35 @@ class EvaluatorClient:
     >>> from propertyestimator.layers.reweighting import ReweightingLayer
     >>> from propertyestimator.layers.simulation import SimulationLayer
     >>>
-    >>> options = RequestOptions(allowed_calculation_layers = [ReweightingLayer,
-    >>>                                                                  SimulationLayer])
+    >>> options = RequestOptions(calculation_layers=[
+    >>>     "ReweightingLayer",
+    >>>     "SimulationLayer"
+    >>> ])
     >>>
     >>> request = property_estimator.request_estimate(data_set, force_field_source, options)
 
     Options for how properties should be estimated can be set on a per property, and per layer
-    basis. For example, the relative uncertainty that properties should estimated to within by
-    the SimulationLayer can be set as:
+    basis by providing a calculation schema to the options object.
 
-    >>> from propertyestimator.workflow import WorkflowOptions
+    >>> from propertyestimator.properties import DielectricConstant
     >>>
-    >>> workflow_options = WorkflowOptions(WorkflowOptions.ConvergenceMode.RelativeUncertainty,
-    >>>                                    relative_uncertainty_fraction=0.1)
-    >>> options.workflow_options = {
-    >>>     'Density': {'SimulationLayer': workflow_options},
-    >>>     'Dielectric': {'SimulationLayer': workflow_options}
-    >>> }
-
-    Or alternatively, as absolute uncertainty tolerance can be set as:
-
-    >>> density_options = WorkflowOptions(WorkflowOptions.ConvergenceMode.AbsoluteUncertainty,
-    >>>                                   absolute_uncertainty=0.0002 * unit.gram / unit.milliliter)
-    >>> dielectric_options = WorkflowOptions(WorkflowOptions.ConvergenceMode.AbsoluteUncertainty,
-    >>>                                      absolute_uncertainty=0.02 * unit.dimensionless)
+    >>> # Generate a schema to use when estimating densities directly
+    >>> # from simulations.
+    >>> density_simulation_schema = Density.default_simulation_schema()
+    >>> # Generate a schema to use when estimating dielectric constants
+    >>> # from cached simulation data.
+    >>> dielectric_reweighting_schema = DielectricConstant.default_reweighting_schema()
     >>>
     >>> options.workflow_options = {
-    >>>     'Density': {'SimulationLayer': density_options},
-    >>>     'Dielectric': {'SimulationLayer': dielectric_options}
+    >>>     'Density': {'SimulationLayer': density_simulation_schema},
+    >>>     'Dielectric': {'SimulationLayer': dielectric_reweighting_schema}
     >>> }
+    >>>
+    >>> property_estimator.request_estimate(
+    >>>     data_set,
+    >>>     force_field_source,
+    >>>     options,
+    >>> )
 
     The gradients of the observables of interest with respect to a number of chosen
     parameters can be requested by passing a `parameter_gradient_keys` parameter.
@@ -304,8 +309,12 @@ class EvaluatorClient:
     >>>     ParameterGradientKey('Angles', '[*:1]-[#8:2]-[*:3]', 'angle')
     >>> ]
     >>>
-    >>> request = property_estimator.request_estimate(data_set, force_field_source, options, parameter_gradient_keys)
-    >>>
+    >>> property_estimator.request_estimate(
+    >>>     data_set,
+    >>>     force_field_source,
+    >>>     options,
+    >>>     parameter_gradient_keys
+    >>> )
     """
 
     class _Submission(AttributeClass):

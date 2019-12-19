@@ -33,7 +33,7 @@ def main():
     property_estimator = client.EvaluatorClient(client.ConnectionOptions(server_port=8000))
 
     options = RequestOptions()
-    options.allowed_calculation_layers = ['SimulationLayer']
+    options.calculation_layers = ['SimulationLayer']
 
     options.workflow_options = {
         'Density': {
@@ -64,7 +64,7 @@ def main():
         file.write(json_results.encode('utf-8'))
 
     # Attempt to reweight the cached data.
-    options.allowed_calculation_layers = ['ReweightingLayer']
+    options.calculation_layers = ['ReweightingLayer']
 
     request = property_estimator.request_estimate(property_set=data_set,
                                                   force_field_source=force_field_source,
