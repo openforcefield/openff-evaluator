@@ -156,9 +156,6 @@ class BaseDaskBackend(CalculationBackend, abc.ABC):
         self._cluster = None
         self._client = None
 
-    def __del__(self):
-        self.stop()
-
     def start(self):
 
         super(BaseDaskBackend, self).start()

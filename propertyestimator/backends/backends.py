@@ -269,3 +269,8 @@ class CalculationBackend(abc.ABC):
 
     def __exit__(self, *args):
         self.stop()
+
+    def __del__(self):
+
+        if self._started:
+            self.stop()
