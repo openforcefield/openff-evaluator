@@ -169,7 +169,9 @@ def test_weight_by_mole_fraction_protocol(component_smiles, value):
     full_substance = Substance.from_components("C", "CC", "CCC")
     component = Substance.from_components(component_smiles)
 
-    mole_fraction = next(iter(full_substance.get_amounts(component.identifier))).value
+    mole_fraction = next(
+        iter(full_substance.get_amounts(component.components[0].identifier))
+    ).value
 
     with tempfile.TemporaryDirectory() as temporary_directory:
 

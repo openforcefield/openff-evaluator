@@ -11,7 +11,7 @@ from propertyestimator import unit
 from propertyestimator.datasets import PropertyPhase
 from propertyestimator.layers import registered_calculation_schemas
 from propertyestimator.layers.workflow import WorkflowCalculationSchema
-from propertyestimator.substances import Component, MoleFraction, Substance
+from propertyestimator.substances import Substance
 from propertyestimator.tests.test_workflow.utils import create_dummy_metadata
 from propertyestimator.tests.utils import create_dummy_property
 from propertyestimator.thermodynamics import ThermodynamicState

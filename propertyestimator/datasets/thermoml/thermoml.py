@@ -2264,6 +2264,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
                 mapped_property = registered_plugin.conversion_function(
                     measured_property
                 )
+                mapped_property.source = source
                 return_value._properties[substance_id].append(mapped_property)
 
         return_value._sources.append(source)
