@@ -1,7 +1,7 @@
 """
 Property estimator client side API.
 """
-
+import copy
 import json
 import logging
 import socket
@@ -44,6 +44,21 @@ class ConnectionOptions(AttributeClass):
         type_hint=int,
         default_value=8000,
     )
+
+    def __init__(self, server_address=None, server_port=None):
+        """
+
+        Parameters
+        ----------
+        server_address: str
+            The address of the server to connect to.
+        server_port: int
+            The port of the server to connect to.
+        """
+        if server_address is not None:
+            self.server_address = server_address
+        if server_port is not None:
+            self.server_port = server_port
 
 
 class Request(AttributeClass):
@@ -532,6 +547,7 @@ class EvaluatorClient:
         if options is None:
             options = self.default_request_options(property_set)
         else:
+            options = copy.deepcopy(options)
             self._populate_request_options(options, property_set)
 
         # Make sure the options are valid.

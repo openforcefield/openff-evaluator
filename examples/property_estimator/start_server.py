@@ -2,7 +2,7 @@
 import argparse
 import logging
 
-from propertyestimator.backends import DaskLocalCluster, ComputeResources
+from propertyestimator.backends import ComputeResources, DaskLocalCluster
 from propertyestimator.server import EvaluatorServer
 from propertyestimator.utils import setup_timestamp_logging
 
@@ -33,8 +33,7 @@ def validate_inputs(n_workers, cpus_per_worker, gpus_per_worker):
     if 0 < gpus_per_worker != cpus_per_worker:
 
         raise ValueError(
-            "The number of GPUs per worker must match the number of "
-            "CPUs per worker."
+            "The number of GPUs per worker must match the number of CPUs per worker."
         )
 
 
@@ -61,8 +60,7 @@ def main(n_workers, cpus_per_worker, gpus_per_worker):
 
     # Set up a backend to run the calculations on with the requested resources.
     worker_resources = ComputeResources(
-        number_of_threads=cpus_per_worker,
-        number_of_gpus=gpus_per_worker,
+        number_of_threads=cpus_per_worker, number_of_gpus=gpus_per_worker,
     )
 
     calculation_backend = DaskLocalCluster(

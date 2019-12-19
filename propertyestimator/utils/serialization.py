@@ -454,20 +454,32 @@ class TypedBaseModel(ABC):
     output.
     """
 
-    def json(self, file_path=None):
+    def json(self, file_path=None, format=False):
         """Creates a JSON representation of this class.
 
         Parameters
         ----------
         file_path: str, optional
             The (optional) file path to save the JSON file to.
+        format: bool
+            Whether to format the JSON or not.
 
         Returns
         -------
         str
             The JSON representation of this class.
         """
-        json_string = json.dumps(self, cls=TypedJSONEncoder)
+        if format:
+            json_string = json.dumps(
+                self,
+                sort_keys=True,
+                indent=2,
+                separators=(",", ": "),
+                cls=TypedJSONEncoder,
+            )
+
+        else:
+            json_string = json.dumps(self, cls=TypedJSONEncoder)
 
         if file_path is not None:
 

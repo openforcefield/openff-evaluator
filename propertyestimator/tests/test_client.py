@@ -56,8 +56,7 @@ def test_submission():
 
             # Spin up a server instance.
             server = EvaluatorServer(
-                calculation_backend=calculation_backend,
-                working_directory=directory,
+                calculation_backend=calculation_backend, working_directory=directory,
             )
 
             with server:
@@ -67,7 +66,9 @@ def test_submission():
 
                 # Submit an empty data set.
                 force_field_path = "smirnoff99Frosst-1.1.0.offxml"
-                force_field_source = SmirnoffForceFieldSource.from_path(force_field_path)
+                force_field_source = SmirnoffForceFieldSource.from_path(
+                    force_field_path
+                )
 
                 request, error = client.request_estimate(
                     PhysicalPropertyDataSet(), force_field_source

@@ -43,7 +43,10 @@ class ComputeResources:
         return self._gpu_device_indices
 
     def __init__(
-        self, number_of_threads=1, number_of_gpus=0, preferred_gpu_toolkit=GPUToolkit.CUDA
+        self,
+        number_of_threads=1,
+        number_of_gpus=0,
+        preferred_gpu_toolkit=GPUToolkit.CUDA,
     ):
         """Constructs a new ComputeResources object.
 

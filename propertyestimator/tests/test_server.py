@@ -17,8 +17,7 @@ def test_server_spin_up():
         with calculation_backend:
 
             server = EvaluatorServer(
-                calculation_backend=calculation_backend,
-                working_directory=directory,
+                calculation_backend=calculation_backend, working_directory=directory,
             )
 
             with server:
