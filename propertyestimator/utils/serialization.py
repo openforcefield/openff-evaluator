@@ -484,7 +484,7 @@ class TypedBaseModel(ABC):
         if file_path is not None:
 
             with open(file_path, "w") as file:
-                json.dump(self, file, cls=TypedJSONEncoder)
+                file.write(json_string)
 
         return json_string
 

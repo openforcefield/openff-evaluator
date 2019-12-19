@@ -212,16 +212,22 @@ class EvaluatorServer:
 
                 if len(batch.queued_properties) > 0:
 
-                    return None, EvaluatorException(
-                        message=f"An internal error occurred - the {batch_id} "
-                        f"batch was prematurely marked us finished."
+                    return (
+                        None,
+                        EvaluatorException(
+                            message=f"An internal error occurred - the {batch_id} "
+                            f"batch was prematurely marked us finished."
+                        ),
                     )
 
             else:
 
-                return None, EvaluatorException(
-                    message=f"An internal error occurred - the {batch_id} "
-                    f"request was not found on the server."
+                return (
+                    None,
+                    EvaluatorException(
+                        message=f"An internal error occurred - the {batch_id} "
+                        f"request was not found on the server."
+                    ),
                 )
 
             request_results.queued_properties.add_properties(*batch.queued_properties)
@@ -513,7 +519,7 @@ class EvaluatorServer:
 
                         to_read.remove(data)
 
-        except:
+        except Exception:
             logging.exception(f"Fatal error in the main server loop")
 
     def start(self, asynchronous=False):
