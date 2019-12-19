@@ -9,11 +9,8 @@ from propertyestimator import unit
 
 
 class ComputeResources:
-    """An object which stores how many of each type of computational resource
-    (threads or gpu's) is available to a calculation worker.
-
-    TODO: The use of the terminology here is questionable, and is used interchangable
-          with process which may lead to some confusion.
+    """An object which stores how many of each type of computational
+    resource (threads or gpu's) is available to a calculation worker.
     """
 
     class GPUToolkit(Enum):
@@ -46,7 +43,7 @@ class ComputeResources:
         return self._gpu_device_indices
 
     def __init__(
-        self, number_of_threads=1, number_of_gpus=0, preferred_gpu_toolkit=None
+        self, number_of_threads=1, number_of_gpus=0, preferred_gpu_toolkit=GPUToolkit.CUDA
     ):
         """Constructs a new ComputeResources object.
 
@@ -266,3 +263,9 @@ class CalculationBackend(abc.ABC):
             of the submitted task.
         """
         raise NotImplementedError()
+
+    def __enter__(self):
+        self.start()
+
+    def __exit__(self, *args):
+        self.stop()

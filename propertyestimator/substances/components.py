@@ -8,8 +8,8 @@ from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
 
 
 class Component(AttributeClass):
-    """Defines a single component in a system, as well as properties
-    such as it's relative proportion in the system.
+    """Defines a single component in a chemical system, as well
+    as it's role within the system (if any).
     """
 
     class Role(Enum):

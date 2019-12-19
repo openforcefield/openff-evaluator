@@ -17,6 +17,7 @@ from propertyestimator.client import EvaluatorClient, RequestOptions, RequestRes
 from propertyestimator.datasets import PhysicalProperty
 from propertyestimator.forcefield import ParameterGradientKey
 from propertyestimator.layers import registered_calculation_layers
+from propertyestimator.storage import LocalFileStorage
 from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.serialization import TypedJSONEncoder
 from propertyestimator.utils.tcp import (
@@ -122,14 +123,9 @@ class EvaluatorServer:
     >>> calculation_backend = DaskLocalCluster()
     >>> calculation_backend.start()
     >>>
-    >>> # Calculate the backend which will be responsible for storing and retrieving
-    >>> # the data from previous calculations
-    >>> from propertyestimator.storage import LocalFileStorage
-    >>> storage_backend = LocalFileStorage()
-    >>>
     >>> # Create the server to which all estimation requests will be submitted
     >>> from propertyestimator.server import EvaluatorServer
-    >>> property_server = EvaluatorServer(calculation_backend, storage_backend)
+    >>> property_server = EvaluatorServer(calculation_backend)
     >>>
     >>> # Instruct the server to listen for incoming requests
     >>> # This command will run until killed.
@@ -139,7 +135,7 @@ class EvaluatorServer:
     def __init__(
         self,
         calculation_backend,
-        storage_backend,
+        storage_backend=None,
         port=8000,
         working_directory="working-data",
     ):
@@ -149,8 +145,9 @@ class EvaluatorServer:
         ----------
         calculation_backend: CalculationBackend
             The backend to use for executing calculations.
-        storage_backend: StorageBackend
+        storage_backend: StorageBackend, optional
             The backend to use for storing information from any calculations.
+            If `None`, a default `LocalFileStorage` backend will be used.
         port: int
             The port on which to listen for incoming client requests.
         working_directory: str
@@ -171,6 +168,10 @@ class EvaluatorServer:
         assert calculation_backend.started
 
         self._calculation_backend = calculation_backend
+
+        if storage_backend is None:
+            storage_backend = LocalFileStorage()
+
         self._storage_backend = storage_backend
 
         self._working_directory = working_directory
@@ -574,3 +575,9 @@ class EvaluatorServer:
 
             self._socket.close()
             self._socket = None
+
+    def __enter__(self):
+        self.start(asynchronous=True)
+
+    def __exit__(self, *args):
+        self.stop()
