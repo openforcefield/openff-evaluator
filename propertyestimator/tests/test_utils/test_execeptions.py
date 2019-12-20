@@ -7,9 +7,7 @@ from propertyestimator.utils import exceptions
 def test_estimator_exceptions():
     """Test estimator, json based exceptions."""
 
-    estimator_exception = exceptions.EvaluatorException(
-        message="dummy_message"
-    )
+    estimator_exception = exceptions.EvaluatorException(message="dummy_message")
 
     exception_state = estimator_exception.__getstate__()
 

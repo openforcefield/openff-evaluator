@@ -1057,17 +1057,17 @@ class BuildTLeapSystem(BuildSystemProtocol):
 
             with open("leap.log", "r") as file:
 
-                if not re.search(
+                if re.search(
                     "ERROR|WARNING|Warning|duplicate|FATAL|Could|Fatal|Error",
                     file.read(),
                 ):
-                    return (
-                        os.path.join(directory, prmtop_file_name),
-                        os.path.join(directory, rst7_file_name),
-                        None,
-                    )
 
-            raise RuntimeError(f"tleap failed to execute.")
+                    raise RuntimeError(f"tleap failed to execute.")
+
+        return (
+            os.path.join(directory, prmtop_file_name),
+            os.path.join(directory, rst7_file_name),
+        )
 
     def execute(self, directory, available_resources):
 
@@ -1123,7 +1123,7 @@ class BuildTLeapSystem(BuildSystemProtocol):
                 self._topology_molecule_to_mol2(
                     topology_molecule, initial_mol2_path, self.charge_backend
                 )
-                prmtop_path = self._run_tleap(
+                prmtop_path, _ = self._run_tleap(
                     force_field_source, initial_mol2_name, component_directory
                 )
 

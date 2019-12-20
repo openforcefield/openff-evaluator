@@ -15,6 +15,7 @@ def register_workflow_protocol(protocol_class):
     in workflows.
     """
     from propertyestimator.workflow.protocols import BaseProtocol
+
     assert issubclass(protocol_class, BaseProtocol)
 
     if protocol_class.__name__ in registered_workflow_protocols:
