@@ -10,9 +10,9 @@ import pandas
 from simtk.openmm.app import element
 
 from propertyestimator import unit
-from propertyestimator.attributes import Attribute, AttributeClass
+from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
 from propertyestimator.datasets import CalculationSource, MeasurementSource, Source
-from propertyestimator.substances import Substance
+from propertyestimator.substances import MoleFraction, Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import create_molecule_from_smiles
 from propertyestimator.utils.serialization import TypedBaseModel
@@ -214,20 +214,23 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
         self._sources.extend(data_set.sources)
 
-    def add_property(self, physical_property):
+    def add_properties(self, *physical_properties):
         """Adds a physical property to the data set.
 
         Parameters
         ----------
-        physical_property: PhysicalProperty
+        physical_properties: tuple of PhysicalProperty
             The physical property to add.
         """
-        if physical_property.substance.identifier not in self._properties:
-            self._properties[physical_property.substance.identifier] = []
 
-        self._properties[physical_property.substance.identifier].append(
-            physical_property
-        )
+        for physical_property in physical_properties:
+
+            if physical_property.substance.identifier not in self._properties:
+                self._properties[physical_property.substance.identifier] = []
+
+            self._properties[physical_property.substance.identifier].append(
+                physical_property
+            )
 
     def filter_by_function(self, filter_function):
         """Filter the data set using a given filter function.
@@ -374,7 +377,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
         def filter_function(x):
 
-            if x.thermodynamic_state.pressure is None:
+            if x.thermodynamic_state.pressure == UNDEFINED:
                 return True
 
             return min_pressure <= x.thermodynamic_state.pressure <= max_pressure
@@ -547,7 +550,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
                 )
                 pressure = None
 
-                if physical_property.thermodynamic_state.pressure is not None:
+                if physical_property.thermodynamic_state.pressure != UNDEFINED:
                     pressure = physical_property.thermodynamic_state.pressure.to(
                         unit.kilopascal
                     )
@@ -566,7 +569,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
                     amount = next(
                         iter(physical_property.substance.get_amounts(component))
                     )
-                    assert isinstance(amount, Substance.MoleFraction)
+                    assert isinstance(amount, MoleFraction)
 
                     components.append((component.smiles, amount.value))
 
@@ -643,6 +646,9 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
         data_frame = pandas.DataFrame(data_rows, columns=data_columns)
         return data_frame
+
+    def __len__(self):
+        return self.number_of_properties
 
     def __getstate__(self):
 

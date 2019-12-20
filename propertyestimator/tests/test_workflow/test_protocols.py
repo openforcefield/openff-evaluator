@@ -25,7 +25,7 @@ from propertyestimator.substances import Substance
 from propertyestimator.tests.test_workflow.utils import DummyInputOutputProtocol
 from propertyestimator.tests.utils import build_tip3p_smirnoff_force_field
 from propertyestimator.thermodynamics import Ensemble, ThermodynamicState
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow.plugins import available_protocols
@@ -143,11 +143,7 @@ def test_base_simulation_protocols():
     energy minimise and perform simulation are able to work together without
     raising an exception."""
 
-    water_substance = Substance()
-    water_substance.add_component(
-        Substance.Component(smiles="O"), Substance.MoleFraction()
-    )
-
+    water_substance = Substance.from_components("O")
     thermodynamic_state = ThermodynamicState(298 * unit.kelvin, 1 * unit.atmosphere)
 
     with tempfile.TemporaryDirectory() as temporary_directory:
@@ -169,7 +165,7 @@ def test_base_simulation_protocols():
 
         # Build the coordinates, creating a file called output.pdb
         result = build_coordinates.execute(temporary_directory, None)
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
 
         # Assign some smirnoff force field parameters to the
         # coordinates
@@ -183,7 +179,7 @@ def test_base_simulation_protocols():
         assign_force_field_parameters.substance = water_substance
 
         result = assign_force_field_parameters.execute(temporary_directory, None)
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
 
         # Do a simple energy minimisation
         print("Performing energy minimisation.")
@@ -195,7 +191,7 @@ def test_base_simulation_protocols():
         energy_minimisation.system_path = assign_force_field_parameters.system_path
 
         result = energy_minimisation.execute(temporary_directory, ComputeResources())
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
 
         npt_equilibration = RunOpenMMSimulation("npt_equilibration")
 
@@ -212,7 +208,7 @@ def test_base_simulation_protocols():
         npt_equilibration.system_path = assign_force_field_parameters.system_path
 
         result = npt_equilibration.execute(temporary_directory, ComputeResources())
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
 
         extract_density = ExtractAverageStatistic("extract_density")
 
@@ -222,7 +218,7 @@ def test_base_simulation_protocols():
         )
 
         result = extract_density.execute(temporary_directory, ComputeResources())
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
 
         extract_dielectric = ExtractAverageDielectric("extract_dielectric")
 
@@ -237,7 +233,7 @@ def test_base_simulation_protocols():
         extract_dielectric.system_path = assign_force_field_parameters.system_path
 
         result = extract_dielectric.execute(temporary_directory, ComputeResources())
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
 
         extract_uncorrelated_trajectory = ExtractUncorrelatedTrajectoryData(
             "extract_traj"
@@ -259,7 +255,7 @@ def test_base_simulation_protocols():
         result = extract_uncorrelated_trajectory.execute(
             temporary_directory, ComputeResources()
         )
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
 
         extract_uncorrelated_statistics = ExtractUncorrelatedStatisticsData(
             "extract_stats"
@@ -278,4 +274,4 @@ def test_base_simulation_protocols():
         result = extract_uncorrelated_statistics.execute(
             temporary_directory, ComputeResources()
         )
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)

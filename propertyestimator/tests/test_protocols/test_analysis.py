@@ -7,7 +7,7 @@ from propertyestimator.protocols.analysis import (
     ExtractUncorrelatedTrajectoryData,
 )
 from propertyestimator.utils import get_data_filename
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.statistics import ObservableType, StatisticsArray
 
 
@@ -22,7 +22,7 @@ def test_extract_average_statistic():
         extract_protocol.statistics_type = ObservableType.PotentialEnergy
 
         result = extract_protocol.execute(temporary_directory, ComputeResources())
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
 
 
 def test_extract_uncorrelated_trajectory_data():
@@ -43,7 +43,7 @@ def test_extract_uncorrelated_trajectory_data():
         extract_protocol.statistical_inefficiency = 2.0
 
         result = extract_protocol.execute(temporary_directory, ComputeResources())
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
 
         final_trajectory = mdtraj.load(
             extract_protocol.output_trajectory_path, top=coordinate_path
@@ -67,7 +67,7 @@ def test_extract_uncorrelated_statistics_data():
         extract_protocol.equilibration_index = 2
         extract_protocol.statistical_inefficiency = 2.0
         result = extract_protocol.execute(temporary_directory, ComputeResources())
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
 
         final_array = StatisticsArray.from_pandas_csv(
             extract_protocol.output_statistics_path

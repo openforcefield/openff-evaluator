@@ -11,34 +11,11 @@ Client Side API
     :nosignatures:
     :toctree: api/generated/
 
-    PropertyEstimatorClient
-    PropertyEstimatorOptions
-    PropertyEstimatorSubmission
-    PropertyEstimatorResult
     ConnectionOptions
-
-**Force Field Sources**
-
-.. currentmodule:: propertyestimator.forcefield
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    ForceFieldSource
-    SmirnoffForceFieldSource
-    TLeapForceFieldSource
-    LigParGenForceFieldSource
-
-**Gradient Estimation**
-
-.. currentmodule:: propertyestimator.properties
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    ParameterGradientKey
-    ParameterGradient
-
+    EvaluatorClient
+    Request
+    RequestOptions
+    RequestResult
 
 Server Side API
 ---------------
@@ -48,7 +25,7 @@ Server Side API
     :nosignatures:
     :toctree: api/generated/
 
-    PropertyEstimatorServer
+    EvaluatorServer
 
 Physical Property API
 ---------------------
@@ -128,6 +105,30 @@ Data Set API
     ThermoMLDataSet
     thermoml_property
 
+Force Field API
+---------------
+
+.. currentmodule:: propertyestimator.forcefield
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    ForceFieldSource
+    SmirnoffForceFieldSource
+    TLeapForceFieldSource
+    LigParGenForceFieldSource
+
+**Gradient Estimation**
+
+.. currentmodule:: propertyestimator.properties
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    ParameterGradientKey
+    ParameterGradient
+
+
 Calculation Layers API
 ----------------------
 
@@ -157,7 +158,7 @@ Calculation Backends API
     :nosignatures:
     :toctree: api/generated/
 
-    PropertyEstimatorBackend
+    CalculationBackend
     ComputeResources
     QueueWorkerResources
 

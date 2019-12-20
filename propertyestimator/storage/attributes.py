@@ -22,7 +22,7 @@ class StorageAttribute(Attribute):
     ):
         super().__init__(docstring, type_hint, UNDEFINED, optional)
 
-    def __set__(self, instance, value):
+    def _set_value(self, instance, value):
 
         # Handle the special case of turning strings
         # into file path objects for convenience.
@@ -35,7 +35,7 @@ class StorageAttribute(Attribute):
             # support custom serialization of IntFlag or IntEnum.
             value = FilePath(value)
 
-        super(StorageAttribute, self).__set__(instance, value)
+        super(StorageAttribute, self)._set_value(instance, value)
 
 
 class QueryAttribute(Attribute):

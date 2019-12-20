@@ -23,7 +23,7 @@ from propertyestimator.forcefield import (
     TLeapForceFieldSource,
 )
 from propertyestimator.substances import Substance
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.openmm import pint_quantity_to_openmm
 from propertyestimator.utils.utils import (
     get_data_filename,
@@ -358,14 +358,14 @@ class BuildSmirnoffSystem(BaseBuildSystemProtocol):
 
         except Exception as e:
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="{} could not load the ForceFieldSource: {}".format(self.id, e),
             )
 
         if not isinstance(force_field_source, SmirnoffForceFieldSource):
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="Only SMIRNOFF force fields are supported by this " "protocol.",
             )
@@ -390,7 +390,7 @@ class BuildSmirnoffSystem(BaseBuildSystemProtocol):
 
             if molecule is None:
 
-                return PropertyEstimatorException(
+                return EvaluatorException(
                     directory=directory,
                     message="{} could not be converted to a Molecule".format(component),
                 )
@@ -410,7 +410,7 @@ class BuildSmirnoffSystem(BaseBuildSystemProtocol):
 
         if system is None:
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="Failed to create a system from the"
                 "provided topology and molecules",
@@ -658,7 +658,7 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
 
         if not isinstance(force_field_source, LigParGenForceFieldSource):
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="Only LigParGen force field sources are supported by this "
                 "protocol.",
@@ -701,7 +701,7 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
                 break
 
             if reference_topology_molecule is None or topology_molecule is None:
-                return PropertyEstimatorException(
+                return EvaluatorException(
                     "A topology molecule could not be matched to its reference."
                 )
 
@@ -948,7 +948,7 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
             The file path to the `prmtop` file.
         str
             The file path to the `rst7` file.
-        PropertyEstimatorException, optional
+        EvaluatorException, optional
             Any errors which were raised.
         """
 
@@ -963,7 +963,7 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
                 return (
                     None,
                     None,
-                    PropertyEstimatorException(
+                    EvaluatorException(
                         directory,
                         f"The {force_field_source.leap_source} source "
                         f"is currently unsupported. Only the "
@@ -1014,7 +1014,7 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
                 return (
                     None,
                     None,
-                    PropertyEstimatorException(
+                    EvaluatorException(
                         directory,
                         f"antechamber failed to assign atom types to "
                         f"the input mol2 file "
@@ -1059,7 +1059,7 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
                     return (
                         None,
                         None,
-                        PropertyEstimatorException(
+                        EvaluatorException(
                             directory,
                             f"parmchk2 failed to assign missing {amber_type} "
                             f"parameters to the antechamber created mol2 file "
@@ -1108,7 +1108,7 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
                 return (
                     None,
                     None,
-                    PropertyEstimatorException(directory, f"tleap failed to execute."),
+                    EvaluatorException(directory, f"tleap failed to execute."),
                 )
 
             with open("leap.log", "r") as file:
@@ -1126,7 +1126,7 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
             return (
                 None,
                 None,
-                PropertyEstimatorException(directory, f"tleap failed to execute."),
+                EvaluatorException(directory, f"tleap failed to execute."),
             )
 
     def execute(self, directory, available_resources):
@@ -1142,7 +1142,7 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
 
         if not isinstance(force_field_source, TLeapForceFieldSource):
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="Only TLeap force field sources are supported by this "
                 "protocol.",

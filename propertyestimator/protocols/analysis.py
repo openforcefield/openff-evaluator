@@ -11,7 +11,7 @@ import numpy as np
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.utils import statistics, timeseries
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import StatisticsArray, bootstrap
 from propertyestimator.workflow.attributes import (
@@ -105,7 +105,7 @@ class AverageTrajectoryProperty(AveragePropertyProtocol):
 
         if self.trajectory_path is None:
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="The AverageTrajectoryProperty protocol "
                 "requires a previously calculated trajectory",
@@ -149,7 +149,7 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
 
         if self.statistics_path is None:
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="The ExtractAverageStatistic protocol "
                 "requires a previously calculated statistics file",
@@ -161,7 +161,7 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
 
         if self.statistics_type not in self._statistics:
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message=f"The {self.statistics_path} statistics file contains no "
                 f"data of type {self.statistics_type}.",
@@ -290,7 +290,7 @@ class ExtractUncorrelatedTrajectoryData(ExtractUncorrelatedData):
 
         if self.input_trajectory_path is None:
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="The ExtractUncorrelatedTrajectoryData protocol "
                 "requires a previously calculated trajectory",
@@ -365,7 +365,7 @@ class ExtractUncorrelatedStatisticsData(ExtractUncorrelatedData):
 
         if self.input_statistics_path is None:
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message="The ExtractUncorrelatedStatisticsData protocol "
                 "requires a previously calculated statisitics file",

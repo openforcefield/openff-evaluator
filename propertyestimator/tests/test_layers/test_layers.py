@@ -4,7 +4,7 @@ import uuid
 from os import makedirs, path
 
 from propertyestimator.backends import DaskLocalCluster
-from propertyestimator.client import PropertyEstimatorOptions
+from propertyestimator.client import RequestOptions
 from propertyestimator.layers import (
     CalculationLayer,
     CalculationLayerSchema,
@@ -12,11 +12,11 @@ from propertyestimator.layers import (
 )
 from propertyestimator.layers.layers import CalculationLayerResult
 from propertyestimator.properties import Density
-from propertyestimator.server import PropertyEstimatorServer
+from propertyestimator.server import server
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.storage.data import StoredSimulationData
 from propertyestimator.tests.utils import create_dummy_property
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from propertyestimator.utils.utils import temporarily_change_directory
 
@@ -37,7 +37,7 @@ class DummyCalculationLayer(CalculationLayer):
         calculation_backend,
         storage_backend,
         layer_directory,
-        data_model,
+        batch,
         callback,
         synchronous=False,
     ):
@@ -46,29 +46,24 @@ class DummyCalculationLayer(CalculationLayer):
             # Fake a success.
             calculation_backend.submit_task(
                 DummyCalculationLayer.process_successful_property,
-                data_model.queued_properties[0],
+                batch.queued_properties[0],
                 layer_directory,
             ),
             # Fake a failure.
             calculation_backend.submit_task(
                 DummyCalculationLayer.process_failed_property,
-                data_model.queued_properties[1],
+                batch.queued_properties[1],
             ),
             # Cause an exception.
             calculation_backend.submit_task(
                 DummyCalculationLayer.return_bad_result,
-                data_model.queued_properties[0],
+                batch.queued_properties[0],
                 layer_directory,
             ),
         ]
 
         CalculationLayer._await_results(
-            calculation_backend,
-            storage_backend,
-            data_model,
-            callback,
-            futures,
-            synchronous,
+            calculation_backend, storage_backend, batch, callback, futures, synchronous,
         )
 
     @staticmethod
@@ -112,7 +107,7 @@ class DummyCalculationLayer(CalculationLayer):
         return_object = CalculationLayerResult()
         return_object.property_id = physical_property.id
 
-        return_object.exception = PropertyEstimatorException(
+        return_object.exception = EvaluatorException(
             directory="", message="Failure Message"
         )
 
@@ -148,14 +143,12 @@ def test_base_layer():
         create_dummy_property(Density),
     ]
 
-    dummy_options = PropertyEstimatorOptions()
+    dummy_options = RequestOptions()
 
-    request = PropertyEstimatorServer.ServerEstimationRequest(
-        estimation_id=str(uuid.uuid4()),
-        queued_properties=properties_to_estimate,
-        options=dummy_options,
-        force_field_id="",
-    )
+    batch = server._Batch()
+    batch.queued_properties = properties_to_estimate
+    batch.options = dummy_options
+    batch.force_field_id = ""
 
     with tempfile.TemporaryDirectory() as temporary_directory:
 
@@ -182,7 +175,7 @@ def test_base_layer():
                 test_backend,
                 test_storage,
                 layer_directory,
-                request,
+                batch,
                 dummy_callback,
                 True,
             )
@@ -197,7 +190,7 @@ def test_serialize_layer_result():
     dummy_result.property_id = str(uuid.uuid4())
 
     dummy_result.calculated_property = create_dummy_property(Density)
-    dummy_result.exception = PropertyEstimatorException()
+    dummy_result.exception = EvaluatorException()
 
     dummy_result.data_to_store = [("dummy_object_path", "dummy_directory")]
 

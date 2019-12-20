@@ -13,7 +13,7 @@ class XmlNodeMissingException(Exception):
         super().__init__(message)
 
 
-class PropertyEstimatorException(TypedBaseModel):
+class EvaluatorException(TypedBaseModel):
     """A json serializable object wrapper containing information about
     a failed property calculation.
 
@@ -21,7 +21,7 @@ class PropertyEstimatorException(TypedBaseModel):
     """
 
     def __init__(self, directory="", message=""):
-        """Constructs a new PropertyEstimatorException object.
+        """Constructs a new EvaluatorException object.
 
         Parameters
         ----------

@@ -15,7 +15,7 @@ from propertyestimator.attributes import (
     PlaceholderValue,
 )
 from propertyestimator.storage.data import StoredSimulationData
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder
 
 
@@ -35,7 +35,7 @@ class CalculationLayerResult:
     calculated_property: PhysicalProperty, optional
         The property which was estimated by this layer. The will
         be `None` if the layer could not estimate the property.
-    exception: PropertyEstimatorException, optional
+    exception: EvaluatorException, optional
         The exception which was raised when estimating the property
         of interest, if any.
     data_to_store: list of tuple of str and str
@@ -134,7 +134,7 @@ class CalculationLayer(abc.ABC):
     def _await_results(
         calculation_backend,
         storage_backend,
-        server_request,
+        batch,
         callback,
         submitted_futures,
         synchronous=False,
@@ -144,11 +144,11 @@ class CalculationLayer(abc.ABC):
 
         Parameters
         ----------
-        calculation_backend: PropertyEstimatorBackend
+        calculation_backend: CalculationBackend
             The backend to the submit the calculations to.
         storage_backend: StorageBackend
             The backend used to store / retrieve data from previous calculations.
-        server_request: PropertyEstimatorServer.ServerEstimationRequest
+        batch: _Batch
             The request object which spawned the awaited results.
         callback: function
             The function to call when the backend returns the results (or an error).
@@ -159,12 +159,12 @@ class CalculationLayer(abc.ABC):
         """
 
         callback_future = calculation_backend.submit_task(
-            return_args, *submitted_futures, key=f"return_{server_request.id}"
+            return_args, *submitted_futures, key=f"return_{batch.id}"
         )
 
         def callback_wrapper(results_future):
             CalculationLayer._process_results(
-                results_future, server_request, storage_backend, callback
+                results_future, batch, storage_backend, callback
             )
 
         if synchronous:
@@ -173,12 +173,12 @@ class CalculationLayer(abc.ABC):
             callback_future.add_done_callback(callback_wrapper)
 
     @staticmethod
-    def _store_cached_output(server_request, returned_output, storage_backend):
+    def _store_cached_output(batch, returned_output, storage_backend):
         """Stores any cached pieces of simulation data using a storage backend.
 
         Parameters
         ----------
-        server_request: PropertyEstimatorServer.ServerEstimationRequest
+        batch: _Batch
             The request which generated the cached data.
         returned_output: CalculationLayerResult
             The layer result which contains the cached data.
@@ -207,14 +207,14 @@ class CalculationLayer(abc.ABC):
                 if isinstance(data_object, StoredSimulationData):
 
                     if isinstance(data_object.force_field_id, PlaceholderValue):
-                        data_object.force_field_id = server_request.force_field_id
+                        data_object.force_field_id = batch.force_field_id
                     if isinstance(data_object.source_calculation_id, PlaceholderValue):
-                        data_object.source_calculation_id = server_request.id
+                        data_object.source_calculation_id = batch.id
 
             storage_backend.store_object(data_object, data_directory_path)
 
     @staticmethod
-    def _process_results(results_future, server_request, storage_backend, callback):
+    def _process_results(results_future, batch, storage_backend, callback):
         """Processes the results of a calculation layer, updates the server request,
         then passes it back to the callback ready for propagation to the next layer
         in the stack.
@@ -223,8 +223,8 @@ class CalculationLayer(abc.ABC):
         ----------
         results_future: distributed.Future
             The future object which will hold the results.
-        server_request: PropertyEstimatorServer.ServerEstimationRequest
-            The request object which spawned the awaited results.
+        batch: _Batch
+            The batch which spawned the awaited results.
         storage_backend: StorageBackend
             The backend used to store / retrieve data from previous calculations.
         callback: function
@@ -255,7 +255,7 @@ class CalculationLayer(abc.ABC):
 
                 if returned_output.exception is not None:
                     # If an exception was raised, make sure to add it to the list.
-                    server_request.exceptions.append(returned_output.exception)
+                    batch.exceptions.append(returned_output.exception)
 
                     logging.info(
                         f"An exception was raised: "
@@ -273,12 +273,12 @@ class CalculationLayer(abc.ABC):
                     ):
 
                         CalculationLayer._store_cached_output(
-                            server_request, returned_output, storage_backend
+                            batch, returned_output, storage_backend
                         )
 
                 matches = [
                     x
-                    for x in server_request.queued_properties
+                    for x in batch.queued_properties
                     if x.id == returned_output.property_id
                 ]
 
@@ -313,33 +313,24 @@ class CalculationLayer(abc.ABC):
                     continue
 
                 for match in matches:
-                    server_request.queued_properties.remove(match)
+                    batch.queued_properties.remove(match)
 
-                substance_id = returned_output.calculated_property.substance.identifier
-
-                if substance_id not in server_request.estimated_properties:
-                    server_request.estimated_properties[substance_id] = []
-
-                server_request.estimated_properties[substance_id].append(
-                    returned_output.calculated_property
-                )
+                batch.estimated_properties.append(returned_output.calculated_property)
 
         except Exception as e:
 
-            logging.info(
-                f"Error processing layer results for request {server_request.id}"
-            )
+            logging.info(f"Error processing layer results for request {batch.id}")
 
             formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
-            exception = PropertyEstimatorException(
+            exception = EvaluatorException(
                 message="An unhandled internal exception "
                 "occurred: {}".format(formatted_exception)
             )
 
-            server_request.exceptions.append(exception)
+            batch.exceptions.append(exception)
 
-        callback(server_request)
+        callback(batch)
 
     @classmethod
     @abc.abstractmethod
@@ -348,7 +339,7 @@ class CalculationLayer(abc.ABC):
         calculation_backend,
         storage_backend,
         layer_directory,
-        data_model,
+        batch,
         callback,
         synchronous=False,
     ):
@@ -356,14 +347,15 @@ class CalculationLayer(abc.ABC):
 
         Parameters
         ----------
-        calculation_backend: PropertyEstimatorBackend
+        calculation_backend: CalculationBackend
             The backend to the submit the calculations to.
         storage_backend: StorageBackend
             The backend used to store / retrieve data from previous calculations.
         layer_directory: str
-            The local directory in which to store all local, temporary calculation data from this layer.
-        data_model: PropertyEstimatorServer.ServerEstimationRequest
-            The data model encoding the proposed calculation.
+            The directory in which to store all temporary calculation data from this
+            layer.
+        batch: _Batch
+            The batch of properties to estimate with the layer.
         callback: function
             The function to call when the backend returns the results (or an error).
         synchronous: bool

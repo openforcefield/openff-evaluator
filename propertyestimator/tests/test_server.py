@@ -1,0 +1,108 @@
+"""
+Units tests for the propertyestimator.server module.
+"""
+import tempfile
+from time import sleep
+
+from propertyestimator.backends import DaskLocalCluster
+from propertyestimator.client import RequestOptions
+from propertyestimator.datasets import PhysicalPropertyDataSet
+from propertyestimator.layers import calculation_layer, CalculationLayer, CalculationLayerSchema
+from propertyestimator.layers.layers import CalculationLayerResult
+from propertyestimator.properties import Density
+from propertyestimator.server.server import _Batch, EvaluatorServer
+from propertyestimator.tests.utils import create_dummy_property
+
+
+@calculation_layer()
+class QuickCalculationLayer(CalculationLayer):
+    """A dummy calculation layer class to test out the base
+    calculation layer methods.
+    """
+
+    @classmethod
+    def required_schema_type(cls):
+        return CalculationLayerSchema
+
+    @classmethod
+    def schedule_calculation(
+        cls,
+        calculation_backend,
+        storage_backend,
+        layer_directory,
+        batch,
+        callback,
+        synchronous=False,
+    ):
+
+        futures = [
+            calculation_backend.submit_task(
+                QuickCalculationLayer.process_property,
+                batch.queued_properties[0],
+            ),
+        ]
+
+        CalculationLayer._await_results(
+            calculation_backend, storage_backend, batch, callback, futures, synchronous,
+        )
+
+    @staticmethod
+    def process_property(physical_property, **_):
+        """Return a result as if the property had been successfully estimated.
+        """
+        return_object = CalculationLayerResult()
+        return_object.property_id = physical_property.id
+        return_object.calculated_property = physical_property
+
+        return return_object
+
+
+def test_server_spin_up():
+
+    with tempfile.TemporaryDirectory() as directory:
+
+        calculation_backend = DaskLocalCluster()
+
+        with calculation_backend:
+
+            server = EvaluatorServer(
+                calculation_backend=calculation_backend, working_directory=directory,
+            )
+
+            with server:
+                sleep(0.5)
+
+
+def test_launch_batch():
+
+    # Set up a dummy data set
+    data_set = PhysicalPropertyDataSet()
+    data_set.add_properties(
+        create_dummy_property(Density),
+        create_dummy_property(Density)
+    )
+
+    batch = _Batch()
+    batch.force_field_id = ""
+    batch.options = RequestOptions()
+    batch.options.calculation_layers = ["QuickCalculationLayer"]
+    batch.parameter_gradient_keys = []
+    batch.queued_properties = next(iter(data_set.properties.values()))
+    batch.validate()
+
+    with tempfile.TemporaryDirectory() as directory:
+
+        with DaskLocalCluster() as calculation_backend:
+
+            server = EvaluatorServer(
+                calculation_backend=calculation_backend, working_directory=directory,
+            )
+
+            server._queued_batches[batch.id] = batch
+            server._launch_batch(batch)
+
+            while len(batch.queued_properties) > 0:
+                sleep(0.01)
+
+            assert len(batch.estimated_properties) == 1
+            assert len(batch.unsuccessful_properties) == 1

@@ -16,7 +16,7 @@ def test_xml_exceptions():
 def test_estimator_exceptions():
     """Test estimator, json based exceptions."""
 
-    estimator_exception = exceptions.PropertyEstimatorException(
+    estimator_exception = exceptions.EvaluatorException(
         directory="dummy_dir", message="dummy_message"
     )
 
@@ -25,7 +25,7 @@ def test_estimator_exceptions():
     assert len(exception_state) == 2
     assert "directory" in exception_state and "message" in exception_state
 
-    recreated_exception = exceptions.PropertyEstimatorException()
+    recreated_exception = exceptions.EvaluatorException()
     recreated_exception.__setstate__(exception_state)
 
     assert estimator_exception.directory == recreated_exception.directory

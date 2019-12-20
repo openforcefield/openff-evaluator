@@ -22,7 +22,7 @@ from propertyestimator.protocols.forcefield import (
 )
 from propertyestimator.substances import Substance
 from propertyestimator.tests.utils import build_tip3p_smirnoff_force_field
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.utils import get_data_filename
 
 
@@ -48,7 +48,7 @@ def test_build_smirnoff_system():
         assign_parameters.substance = substance
         result = assign_parameters.execute(directory, None)
 
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
         assert path.isfile(assign_parameters.system_path)
 
 
@@ -74,7 +74,7 @@ def test_build_tleap_system():
         assign_parameters.substance = substance
         result = assign_parameters.execute(directory, None)
 
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
         assert path.isfile(assign_parameters.system_path)
 
 
@@ -171,7 +171,7 @@ phase2="3.141592653589793" phase3="0.00" phase4="3.141592653589793"/>
         assign_parameters.substance = substance
         result = assign_parameters.execute(directory, None)
 
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
         assert path.isfile(assign_parameters.system_path)
 
 

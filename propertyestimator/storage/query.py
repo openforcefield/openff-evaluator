@@ -9,7 +9,7 @@ from propertyestimator.datasets import PropertyPhase
 from propertyestimator.forcefield import ForceFieldSource
 from propertyestimator.storage.attributes import QueryAttribute
 from propertyestimator.storage.data import ForceFieldData, StoredSimulationData
-from propertyestimator.substances import Substance
+from propertyestimator.substances import ExactAmount, Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 
 
@@ -243,16 +243,17 @@ class SimulationDataQuery(BaseDataQuery):
 
                 # Make sure the amount type matches up i.e either both
                 # are defined in mole fraction, or both as an exact amount.
-                data_amount = next(iter(data_substance.get_amounts(component.smiles)))
-                query_amount = next(iter(self.substance.get_amounts(component.smiles)))
+                data_amount = next(
+                    iter(data_substance.get_amounts(component.identifier))
+                )
+                query_amount = next(
+                    iter(self.substance.get_amounts(component.identifier))
+                )
 
                 if type(data_amount) != type(query_amount):
                     continue
 
-                if (
-                    isinstance(data_amount, Substance.ExactAmount)
-                    and data_amount != query_amount
-                ):
+                if isinstance(data_amount, ExactAmount) and data_amount != query_amount:
                     # Make sure there is the same amount if we are
                     # dealing with exact amounts.
                     continue

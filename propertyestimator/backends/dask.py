@@ -1,6 +1,7 @@
 """
 A collection of property estimator compute backends which use dask as the distribution engine.
 """
+import abc
 import importlib
 import logging
 import multiprocessing
@@ -15,7 +16,7 @@ from distributed import get_worker
 
 from propertyestimator import unit
 
-from .backends import ComputeResources, PropertyEstimatorBackend, QueueWorkerResources
+from .backends import CalculationBackend, ComputeResources, QueueWorkerResources
 
 
 class _Multiprocessor:
@@ -142,7 +143,7 @@ class _Multiprocessor:
         return return_value
 
 
-class BaseDaskBackend(PropertyEstimatorBackend):
+class BaseDaskBackend(CalculationBackend, abc.ABC):
     """A base `dask` backend class, which implements functionality
     which is common to all other `dask` based backends.
     """
@@ -155,10 +156,9 @@ class BaseDaskBackend(PropertyEstimatorBackend):
         self._cluster = None
         self._client = None
 
-    def __del__(self):
-        self.stop()
-
     def start(self):
+
+        super(BaseDaskBackend, self).start()
         self._client = distributed.Client(self._cluster)
 
     def stop(self):
@@ -191,7 +191,7 @@ class BaseDaskBackend(PropertyEstimatorBackend):
         -------
         Any
             Returns the output of the function without modification, unless
-            an uncaught exception is raised in which case a PropertyEstimatorException
+            an uncaught exception is raised in which case a EvaluatorException
             is returned.
         """
         raise NotImplementedError()
@@ -281,7 +281,7 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
         # jobs restarting because of workers being killed (due to
         # wall-clock time limits mainly) do not get terminated. This
         # should mostly be safe as we most wrap genuinely thrown
-        # exceptions up as PropertyEstimatorExceptions and return these
+        # exceptions up as EvaluatorExceptions and return these
         # gracefully (such that the task won't be marked as failed by
         # dask).
         dask.config.set({"distributed.scheduler.allowed-failures": 500})

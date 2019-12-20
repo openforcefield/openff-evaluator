@@ -270,7 +270,10 @@ class StorageBackend(abc.ABC):
             self._store_object(object_to_store, storage_key, ancillary_data_path)
 
         # Register the key in the storage system.
-        if not isinstance(object_to_store, StorageBackend._ObjectKeyData):
+        if (
+            not isinstance(object_to_store, StorageBackend._ObjectKeyData)
+            and storage_key not in self._stored_object_keys[object_class.__name__]
+        ):
 
             self._stored_object_keys[object_class.__name__].append(storage_key)
             self._save_stored_object_keys()

@@ -9,8 +9,8 @@ import numpy as np
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.forcefield import ParameterGradient
-from propertyestimator.substances import Substance
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.substances import Component, MoleFraction, Substance
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import register_calculation_protocol
@@ -41,13 +41,13 @@ class AddValues(BaseProtocol):
     def execute(self, directory, available_resources):
 
         if len(self.values) < 1:
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory, "There were no gradients to add together"
             )
 
         if not all(isinstance(x, type(self.values[0])) for x in self.values):
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory,
                 f"All values to add together must be "
                 f'the same type ({" ".join(map(str, self.values))}).',
@@ -226,7 +226,7 @@ class WeightByMoleFraction(BaseProtocol):
 
         if len(amounts) != 1:
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message=f"More than one type of amount was defined for component "
                 f"{main_component}. Only a single mole fraction must be "
@@ -235,9 +235,9 @@ class WeightByMoleFraction(BaseProtocol):
 
         amount = next(iter(amounts))
 
-        if not isinstance(amount, Substance.MoleFraction):
+        if not isinstance(amount, MoleFraction):
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message=f"The component {main_component} was given as an "
                 f"exact amount, and not a mole fraction",
@@ -261,7 +261,7 @@ class FilterSubstanceByRole(BaseProtocol):
 
     component_role = InputAttribute(
         docstring="The role to filter substance components against.",
-        type_hint=Substance.ComponentRole,
+        type_hint=Component.Role,
         default_value=UNDEFINED,
     )
 
@@ -293,7 +293,7 @@ class FilterSubstanceByRole(BaseProtocol):
 
             for amount in amounts:
 
-                if not isinstance(amount, Substance.MoleFraction):
+                if not isinstance(amount, MoleFraction):
                     continue
 
                 total_mole_fraction += amount.value
@@ -302,7 +302,7 @@ class FilterSubstanceByRole(BaseProtocol):
             filtered_components
         ):
 
-            return PropertyEstimatorException(
+            return EvaluatorException(
                 directory=directory,
                 message=f"The filtered substance does not contain the expected "
                 f"number of components ({self.expected_components}) - "
@@ -321,10 +321,8 @@ class FilterSubstanceByRole(BaseProtocol):
 
             for amount in amounts:
 
-                if isinstance(amount, Substance.MoleFraction):
-                    amount = Substance.MoleFraction(
-                        amount.value * inverse_mole_fraction
-                    )
+                if isinstance(amount, MoleFraction):
+                    amount = MoleFraction(amount.value * inverse_mole_fraction)
 
                 self.filtered_substance.add_component(component, amount)
 

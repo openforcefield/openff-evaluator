@@ -16,7 +16,7 @@ from propertyestimator.protocols import (
     simulation,
     yank,
 )
-from propertyestimator.substances import Substance
+from propertyestimator.substances import Component, Substance
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.workflow import WorkflowOptions
 from propertyestimator.workflow.schemas import WorkflowSchema
@@ -100,11 +100,11 @@ class SolvationFreeEnergy(PhysicalProperty):
         # vacuum phase simulations).
         filter_solvent = miscellaneous.FilterSubstanceByRole("filter_solvent")
         filter_solvent.input_substance = ProtocolPath("substance", "global")
-        filter_solvent.component_role = Substance.ComponentRole.Solvent
+        filter_solvent.component_role = Component.Role.Solvent
 
         filter_solute = miscellaneous.FilterSubstanceByRole("filter_solute")
         filter_solute.input_substance = ProtocolPath("substance", "global")
-        filter_solute.component_role = Substance.ComponentRole.Solute
+        filter_solute.component_role = Component.Role.Solute
 
         # Setup the solute in vacuum system.
         build_vacuum_coordinates = coordinates.BuildCoordinatesPackmol(

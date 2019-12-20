@@ -16,41 +16,33 @@
         "substance": {
           "@type": "propertyestimator.substances.Substance",
           "amounts": {
-            "C(CO)CO": {
-              "@type": "builtins.frozenset",
-              "value": [
-                {
-                  "@type": "propertyestimator.substances.Substance->MoleFraction",
-                  "value": 0.74
-                }
-              ]
-            },
-            "O": {
-              "@type": "builtins.frozenset",
-              "value": [
-                {
-                  "@type": "propertyestimator.substances.Substance->MoleFraction",
-                  "value": 0.26
-                }
-              ]
-            }
+            "C(CO)CO{solv}": [
+              {
+                "@type": "propertyestimator.substances.MoleFraction",
+                "value": 0.74
+              }
+            ],
+            "O{solv}": [
+              {
+                "@type": "propertyestimator.substances.MoleFraction",
+                "value": 0.26
+              }
+            ]
           },
           "components": [
             {
-              "@type": "propertyestimator.substances.Substance->Component",
-              "label": "O",
+              "@type": "propertyestimator.substances.Component",
               "role": {
-                "@type": "propertyestimator.substances.Substance->ComponentRole",
-                "value": "Solvent"
+                "@type": "propertyestimator.substances.Component->Role",
+                "value": "solv"
               },
               "smiles": "O"
             },
             {
-              "@type": "propertyestimator.substances.Substance->Component",
-              "label": "C(CO)CO",
+              "@type": "propertyestimator.substances.Component",
               "role": {
-                "@type": "propertyestimator.substances.Substance->ComponentRole",
-                "value": "Solvent"
+                "@type": "propertyestimator.substances.Component->Role",
+                "value": "solv"
               },
               "smiles": "C(CO)CO"
             }
@@ -96,41 +88,33 @@
         "substance": {
           "@type": "propertyestimator.substances.Substance",
           "amounts": {
-            "C(CO)O": {
-              "@type": "builtins.frozenset",
-              "value": [
-                {
-                  "@type": "propertyestimator.substances.Substance->MoleFraction",
-                  "value": 0.42
-                }
-              ]
-            },
-            "CO": {
-              "@type": "builtins.frozenset",
-              "value": [
-                {
-                  "@type": "propertyestimator.substances.Substance->MoleFraction",
-                  "value": 0.58
-                }
-              ]
-            }
+            "C(CO)O{solv}": [
+              {
+                "@type": "propertyestimator.substances.MoleFraction",
+                "value": 0.42
+              }
+            ],
+            "CO{solv}": [
+              {
+                "@type": "propertyestimator.substances.MoleFraction",
+                "value": 0.58
+              }
+            ]
           },
           "components": [
             {
-              "@type": "propertyestimator.substances.Substance->Component",
-              "label": "C(CO)O",
+              "@type": "propertyestimator.substances.Component",
               "role": {
-                "@type": "propertyestimator.substances.Substance->ComponentRole",
-                "value": "Solvent"
+                "@type": "propertyestimator.substances.Component->Role",
+                "value": "solv"
               },
               "smiles": "C(CO)O"
             },
             {
-              "@type": "propertyestimator.substances.Substance->Component",
-              "label": "CO",
+              "@type": "propertyestimator.substances.Component",
               "role": {
-                "@type": "propertyestimator.substances.Substance->ComponentRole",
-                "value": "Solvent"
+                "@type": "propertyestimator.substances.Component->Role",
+                "value": "solv"
               },
               "smiles": "CO"
             }

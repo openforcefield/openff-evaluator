@@ -16,23 +16,19 @@
         "substance": {
           "@type": "propertyestimator.substances.Substance",
           "amounts": {
-            "CCO": {
-              "@type": "builtins.frozenset",
-              "value": [
-                {
-                  "@type": "propertyestimator.substances.Substance->MoleFraction",
-                  "value": 1.0
-                }
-              ]
-            }
+            "CCO{solv}": [
+              {
+                "@type": "propertyestimator.substances.MoleFraction",
+                "value": 1.0
+              }
+            ]
           },
           "components": [
             {
-              "@type": "propertyestimator.substances.Substance->Component",
-              "label": "CCO",
+              "@type": "propertyestimator.substances.Component",
               "role": {
-                "@type": "propertyestimator.substances.Substance->ComponentRole",
-                "value": "Solvent"
+                "@type": "propertyestimator.substances.Component->Role",
+                "value": "solv"
               },
               "smiles": "CCO"
             }
@@ -76,23 +72,19 @@
         "substance": {
           "@type": "propertyestimator.substances.Substance",
           "amounts": {
-            "CCO": {
-              "@type": "builtins.frozenset",
-              "value": [
-                {
-                  "@type": "propertyestimator.substances.Substance->MoleFraction",
-                  "value": 1.0
-                }
-              ]
-            }
+            "CCO{solv}": [
+              {
+                "@type": "propertyestimator.substances.MoleFraction",
+                "value": 1.0
+              }
+            ]
           },
           "components": [
             {
-              "@type": "propertyestimator.substances.Substance->Component",
-              "label": "CCO",
+              "@type": "propertyestimator.substances.Component",
               "role": {
-                "@type": "propertyestimator.substances.Substance->ComponentRole",
-                "value": "Solvent"
+                "@type": "propertyestimator.substances.Component->Role",
+                "value": "solv"
               },
               "smiles": "CCO"
             }
@@ -136,23 +128,19 @@
         "substance": {
           "@type": "propertyestimator.substances.Substance",
           "amounts": {
-            "CCO": {
-              "@type": "builtins.frozenset",
-              "value": [
-                {
-                  "@type": "propertyestimator.substances.Substance->MoleFraction",
-                  "value": 1.0
-                }
-              ]
-            }
+            "CCO{solv}": [
+              {
+                "@type": "propertyestimator.substances.MoleFraction",
+                "value": 1.0
+              }
+            ]
           },
           "components": [
             {
-              "@type": "propertyestimator.substances.Substance->Component",
-              "label": "CCO",
+              "@type": "propertyestimator.substances.Component",
               "role": {
-                "@type": "propertyestimator.substances.Substance->ComponentRole",
-                "value": "Solvent"
+                "@type": "propertyestimator.substances.Component->Role",
+                "value": "solv"
               },
               "smiles": "CCO"
             }

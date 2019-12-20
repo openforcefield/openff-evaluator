@@ -93,7 +93,7 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         parameter_gradient_keys: list of ParameterGradientKey
             A list of references to all of the parameters which all observables
             should be differentiated with respect to.
-        options: PropertyEstimatorOptions
+        options: RequestOptions
             The options to run the workflows with.
         """
         workflow_graph = WorkflowGraph(working_directory)
@@ -105,12 +105,12 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
             # Make sure a schema has been defined for this class of property
             # and this layer.
             if (
-                property_type not in options.workflow_schemas
-                or cls.__name__ not in options.workflow_schemas[property_type]
+                property_type not in options.calculation_schemas
+                or cls.__name__ not in options.calculation_schemas[property_type]
             ):
                 continue
 
-            schema = options.workflow_schemas[property_type][cls.__name__]
+            schema = options.calculation_schemas[property_type][cls.__name__]
 
             # Make sure the calculation schema is the correct type for this layer.
             assert isinstance(schema, WorkflowCalculationSchema)
@@ -148,16 +148,14 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         calculation_backend,
         storage_backend,
         layer_directory,
-        data_model,
+        batch,
         callback,
         synchronous=False,
     ):
 
         # Store a temporary copy of the force field for protocols to easily access.
-        force_field_source = storage_backend.retrieve_force_field(
-            data_model.force_field_id
-        )
-        force_field_path = os.path.join(layer_directory, data_model.force_field_id)
+        force_field_source = storage_backend.retrieve_force_field(batch.force_field_id)
+        force_field_path = os.path.join(layer_directory, batch.force_field_id)
 
         with open(force_field_path, "w") as file:
             file.write(force_field_source.json())
@@ -165,21 +163,16 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         workflow_graph = cls._build_workflow_graph(
             layer_directory,
             storage_backend,
-            data_model.queued_properties,
+            batch.queued_properties,
             force_field_path,
-            data_model.parameter_gradient_keys,
-            data_model.options,
+            batch.parameter_gradient_keys,
+            batch.options,
         )
 
         futures = workflow_graph.submit(calculation_backend)
 
         CalculationLayer._await_results(
-            calculation_backend,
-            storage_backend,
-            data_model,
-            callback,
-            futures,
-            synchronous,
+            calculation_backend, storage_backend, batch, callback, futures, synchronous,
         )
 
 

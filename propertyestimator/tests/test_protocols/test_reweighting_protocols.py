@@ -18,7 +18,7 @@ from propertyestimator.substances import Substance
 from propertyestimator.tests.utils import build_tip3p_smirnoff_force_field
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import get_data_filename
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.statistics import ObservableType, StatisticsArray
 
 
@@ -38,7 +38,7 @@ def test_concatenate_trajectories():
         concatenate_protocol.input_trajectory_paths = [trajectory_path, trajectory_path]
 
         result = concatenate_protocol.execute(temporary_directory, ComputeResources())
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
 
         final_trajectory = mdtraj.load(
             concatenate_protocol.output_trajectory_path, top=coordinate_path
@@ -57,7 +57,7 @@ def test_concatenate_statistics():
         concatenate_protocol.input_statistics_paths = [statistics_path, statistics_path]
 
         result = concatenate_protocol.execute(temporary_directory, ComputeResources())
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
 
         final_array = StatisticsArray.from_pandas_csv(
             concatenate_protocol.output_statistics_path
@@ -106,7 +106,7 @@ def test_calculate_reduced_potential_openmm():
 
         result = reduced_potentials.execute(directory, ComputeResources())
 
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)
         assert path.isfile(reduced_potentials.statistics_file_path)
 
         final_array = StatisticsArray.from_pandas_csv(
@@ -144,4 +144,4 @@ def test_reweight_statistics():
         reweight_protocol.required_effective_samples = 0
 
         result = reweight_protocol.execute(directory, ComputeResources())
-        assert not isinstance(result, PropertyEstimatorException)
+        assert not isinstance(result, EvaluatorException)

@@ -19,7 +19,7 @@ from propertyestimator.attributes import UNDEFINED
 from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource
 from propertyestimator.storage.attributes import FilePath, StorageAttribute
 from propertyestimator.utils import graph
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from propertyestimator.utils.string import extract_variable_index_and_name
 from propertyestimator.utils.utils import SubhookedABCMeta, get_nested_attribute
@@ -863,9 +863,7 @@ class Workflow:
 
         for component in physical_property.substance.components:
 
-            component_substance = Substance()
-            component_substance.add_component(component, Substance.MoleFraction())
-
+            component_substance = Substance.from_components(component)
             components.append(component_substance)
 
         if workflow_options is None:
@@ -1094,7 +1092,7 @@ class WorkflowGraph:
 
         Parameters
         ----------
-        backend: PropertyEstimatorBackend
+        backend: CalculationBackend
             The backend to execute the graph on.
         include_uncertainty_check: bool
             If true, the uncertainty of each estimated property will be checked to
@@ -1284,7 +1282,7 @@ class WorkflowGraph:
                         None, e, e.__traceback__
                     )
 
-                    exception = PropertyEstimatorException(
+                    exception = EvaluatorException(
                         directory,
                         f"Could not load the output dictionary of {parent_id} "
                         f"({previous_output_path}): {formatted_exception}",
@@ -1296,7 +1294,7 @@ class WorkflowGraph:
 
                     return protocol_schema.id, output_dictionary_path
 
-                if isinstance(parent_output, PropertyEstimatorException):
+                if isinstance(parent_output, EvaluatorException):
                     return protocol_schema.id, previous_output_path
 
                 for output_path, output_value in parent_output.items():
@@ -1390,7 +1388,7 @@ class WorkflowGraph:
                     None, e, e.__traceback__
                 )
 
-                exception = PropertyEstimatorException(
+                exception = EvaluatorException(
                     directory=directory,
                     message=f"Could not save the output dictionary of {protocol.id} "
                     f"({output_dictionary_path}): {formatted_exception}",
@@ -1407,7 +1405,7 @@ class WorkflowGraph:
             # Except the unexcepted...
             formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
-            exception = PropertyEstimatorException(
+            exception = EvaluatorException(
                 directory=directory,
                 message="An unhandled exception "
                 "occurred: {}".format(formatted_exception),
@@ -1481,7 +1479,7 @@ class WorkflowGraph:
                         None, e, e.__traceback__
                     )
 
-                    exception = PropertyEstimatorException(
+                    exception = EvaluatorException(
                         message=f"Could not load the output dictionary of "
                         f"{protocol_id} ({protocol_result_path}): "
                         f"{formatted_exception}"
@@ -1492,7 +1490,7 @@ class WorkflowGraph:
 
                 # Make sure none of the protocols failed and we actually have a value
                 # and uncertainty.
-                if isinstance(protocol_results, PropertyEstimatorException):
+                if isinstance(protocol_results, EvaluatorException):
 
                     return_object.exception = protocol_results
                     return return_object
@@ -1561,7 +1559,7 @@ class WorkflowGraph:
 
             formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
-            return_object.exception = PropertyEstimatorException(
+            return_object.exception = EvaluatorException(
                 directory=directory,
                 message=f"An unhandled exception " f"occurred: {formatted_exception}",
             )

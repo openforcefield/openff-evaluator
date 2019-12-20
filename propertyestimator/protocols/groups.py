@@ -15,7 +15,7 @@ from os import makedirs, path
 
 from propertyestimator import unit
 from propertyestimator.utils import graph
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.workflow.attributes import (
     InequalityMergeBehaviour,
     InputAttribute,
@@ -343,7 +343,7 @@ class ProtocolGroup(BaseProtocol):
                 working_directory, available_resources
             )
 
-            if isinstance(return_value, PropertyEstimatorException):
+            if isinstance(return_value, EvaluatorException):
                 return return_value
 
             for output_path in return_value:
@@ -939,7 +939,7 @@ class ConditionalGroup(ProtocolGroup):
                 directory, available_resources
             )
 
-            if isinstance(return_value, PropertyEstimatorException):
+            if isinstance(return_value, EvaluatorException):
                 # Exit on exceptions.
                 return return_value
 
@@ -960,7 +960,7 @@ class ConditionalGroup(ProtocolGroup):
 
             if self.current_iteration >= self.max_iterations:
 
-                return PropertyEstimatorException(
+                return EvaluatorException(
                     directory=directory,
                     message=f"Conditional while loop failed to converge: {self.id}",
                 )

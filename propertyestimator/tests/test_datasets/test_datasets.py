@@ -15,7 +15,7 @@ from propertyestimator.properties import (
     EnthalpyOfMixing,
     ExcessMolarVolume,
 )
-from propertyestimator.substances import Substance
+from propertyestimator.substances import Component, MoleFraction, Substance
 from propertyestimator.tests.utils import (
     create_dummy_property,
     create_filterable_data_set,
@@ -52,7 +52,7 @@ def test_serialization():
     """A test to ensure that data sets are JSON serializable."""
 
     data_set = PhysicalPropertyDataSet()
-    data_set.add_property(create_dummy_property(Density))
+    data_set.add_properties(create_dummy_property(Density))
 
     data_set_json = data_set.json()
 
@@ -97,8 +97,8 @@ def test_to_pandas():
             source=source,
         )
 
-        data_set.add_property(density_property)
-        data_set.add_property(dielectric_property)
+        data_set.add_properties(density_property)
+        data_set.add_properties(dielectric_property)
 
     for temperature in [298 * unit.kelvin, 300 * unit.kelvin, 302 * unit.kelvin]:
 
@@ -124,8 +124,8 @@ def test_to_pandas():
             source=source,
         )
 
-        data_set.add_property(enthalpy_property)
-        data_set.add_property(excess_property)
+        data_set.add_properties(enthalpy_property)
+        data_set.add_properties(excess_property)
 
     data_set_pandas = data_set.to_pandas()
 
@@ -266,14 +266,10 @@ def test_filter_by_smiles():
     measured properties contain."""
 
     methanol_substance = Substance()
-    methanol_substance.add_component(
-        Substance.Component("CO"), Substance.MoleFraction(1.0)
-    )
+    methanol_substance.add_component(Component("CO"), MoleFraction(1.0))
 
     ethanol_substance = Substance()
-    ethanol_substance.add_component(
-        Substance.Component("CCO"), Substance.MoleFraction(1.0)
-    )
+    ethanol_substance.add_component(Component("CCO"), MoleFraction(1.0))
 
     property_a = create_dummy_property(Density)
     property_a.substance = methanol_substance

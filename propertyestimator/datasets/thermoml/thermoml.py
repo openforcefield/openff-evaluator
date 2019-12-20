@@ -15,7 +15,7 @@ import numpy as np
 from propertyestimator import unit
 from propertyestimator.datasets import MeasurementSource, PropertyPhase
 from propertyestimator.datasets.datasets import PhysicalPropertyDataSet
-from propertyestimator.substances import Substance
+from propertyestimator.substances import Component, MoleFraction, Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.openmm import openmm_quantity_to_pint
 
@@ -1445,8 +1445,8 @@ class _PureOrMixtureData:
                 continue
 
             substance.add_component(
-                component=Substance.Component(smiles=compound.smiles),
-                amount=Substance.MoleFraction(mole_fractions[compound_index]),
+                component=Component(smiles=compound.smiles),
+                amount=MoleFraction(mole_fractions[compound_index]),
             )
 
         return substance
@@ -2264,6 +2264,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
                 mapped_property = registered_plugin.conversion_function(
                     measured_property
                 )
+                mapped_property.source = source
                 return_value._properties[substance_id].append(mapped_property)
 
         return_value._sources.append(source)
