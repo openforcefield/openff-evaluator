@@ -476,6 +476,13 @@ class EvaluatorClient:
 
         properties_without_schemas = set(property_types)
 
+        for property_type in options.calculation_schemas:
+
+            if property_type not in properties_without_schemas:
+                continue
+
+            properties_without_schemas.remove(property_type)
+
         # Assign default calculation schemas in the cases where the user
         # hasn't provided one.
         for calculation_layer in options.calculation_layers:
