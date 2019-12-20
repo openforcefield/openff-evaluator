@@ -28,18 +28,18 @@ from propertyestimator.thermodynamics import Ensemble, ThermodynamicState
 from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
-from propertyestimator.workflow.plugins import available_protocols
+from propertyestimator.workflow.plugins import registered_workflow_protocols
 from propertyestimator.workflow.utils import ProtocolPath
 
 
-@pytest.mark.parametrize("available_protocol", available_protocols)
+@pytest.mark.parametrize("available_protocol", registered_workflow_protocols)
 def test_default_protocol_schemas(available_protocol):
     """A simple test to ensure that each available protocol
     can both create, and be created from a schema."""
-    protocol = available_protocols[available_protocol]("dummy_id")
+    protocol = registered_workflow_protocols[available_protocol]("dummy_id")
     protocol_schema = protocol.schema
 
-    recreated_protocol = available_protocols[available_protocol]("dummy_id")
+    recreated_protocol = registered_workflow_protocols[available_protocol]("dummy_id")
     recreated_protocol.schema = protocol_schema
 
     assert protocol.schema.json() == recreated_protocol.schema.json()

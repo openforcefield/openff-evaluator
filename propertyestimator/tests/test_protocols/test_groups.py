@@ -1,6 +1,7 @@
 import random
 import tempfile
 
+import pytest
 from propertyestimator import unit
 from propertyestimator.protocols.groups import ConditionalGroup, ProtocolGroup
 from propertyestimator.protocols.miscellaneous import AddValues
@@ -91,9 +92,8 @@ def test_conditional_protocol_group_fail():
         protocol_group.max_iterations = 10
         protocol_group.add_protocols(value_protocol_a, add_values)
 
-        result = protocol_group.execute(directory, None)
-
-        assert isinstance(result, EvaluatorException)
+        with pytest.raises(RuntimeError):
+            protocol_group.execute(directory, None)
 
 
 def test_conditional_group_self_reference():

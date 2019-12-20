@@ -1,5 +1,5 @@
 """
-An API for allowing new properties to be estimated.
+An API for registering new calculation layers.
 
 Attributes
 ----------

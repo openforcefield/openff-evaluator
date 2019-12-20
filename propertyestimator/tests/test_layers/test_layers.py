@@ -106,10 +106,7 @@ class DummyCalculationLayer(CalculationLayer):
 
         return_object = CalculationLayerResult()
         return_object.property_id = physical_property.id
-
-        return_object.exception = EvaluatorException(
-            directory="", message="Failure Message"
-        )
+        return_object.exception = EvaluatorException(message="Failure Message")
 
         return return_object
 

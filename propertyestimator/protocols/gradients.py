@@ -2,7 +2,6 @@
 A collection of protocols for reweighting cached simulation data.
 """
 import copy
-import logging
 import re
 import typing
 from os import path
@@ -21,7 +20,6 @@ from propertyestimator.forcefield import (
 )
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.openmm import (
     disable_pbc,
     openmm_quantity_to_pint,
@@ -31,11 +29,11 @@ from propertyestimator.utils.openmm import (
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType, StatisticsArray
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
-from propertyestimator.workflow.plugins import register_calculation_protocol
+from propertyestimator.workflow.plugins import workflow_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
 
-@register_calculation_protocol()
+@workflow_protocol()
 class GradientReducedPotentials(BaseProtocol):
     """A protocol to estimates the the reduced potential of the configurations
     of a trajectory using reverse and forward perturbed simulation parameters for
@@ -318,21 +316,15 @@ class GradientReducedPotentials(BaseProtocol):
     def execute(self, directory, available_resources):
 
         import mdtraj
-
         from openforcefield.topology import Molecule, Topology
-
-        logging.info(
-            f"Calculating the reduced gradient potentials for {self.parameter_key}: {self._id}"
-        )
 
         with open(self.force_field_path) as file:
             force_field_source = ForceFieldSource.parse_json(file.read())
 
         if not isinstance(force_field_source, SmirnoffForceFieldSource):
 
-            return EvaluatorException(
-                directory,
-                "Only SMIRNOFF force fields are supported by " "this protocol.",
+            raise ValueError(
+                "Only SMIRNOFF force fields are supported by this protocol.",
             )
 
         # Load in the inputs
@@ -405,12 +397,10 @@ class GradientReducedPotentials(BaseProtocol):
             energy_corrections,
         )
 
-        logging.info(f"Finished calculating the reduced gradient potentials.")
-
         return self._get_output_dictionary()
 
 
-@register_calculation_protocol()
+@workflow_protocol()
 class CentralDifferenceGradient(BaseProtocol):
     """A protocol which employs the central diference method
     to estimate the gradient of an observable A, such that
@@ -461,7 +451,7 @@ class CentralDifferenceGradient(BaseProtocol):
 
         if self.forward_parameter_value < self.reverse_parameter_value:
 
-            return EvaluatorException(
+            raise ValueError(
                 f"The forward parameter value ({self.forward_parameter_value}) must "
                 f"be larger than the reverse value ({self.reverse_parameter_value})."
             )

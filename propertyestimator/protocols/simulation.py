@@ -6,7 +6,6 @@ import json
 import logging
 import os
 import re
-import traceback
 
 import pandas as pd
 from simtk import openmm
@@ -16,7 +15,6 @@ from simtk.openmm import app
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.thermodynamics import Ensemble, ThermodynamicState
-from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.openmm import (
     disable_pbc,
     pint_quantity_to_openmm,
@@ -29,11 +27,11 @@ from propertyestimator.workflow.attributes import (
     InputAttribute,
     OutputAttribute,
 )
-from propertyestimator.workflow.plugins import register_calculation_protocol
+from propertyestimator.workflow.plugins import workflow_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
 
-@register_calculation_protocol()
+@workflow_protocol()
 class RunEnergyMinimisation(BaseProtocol):
     """A protocol to minimise the potential energy of a system.
     """
@@ -72,8 +70,6 @@ class RunEnergyMinimisation(BaseProtocol):
     )
 
     def execute(self, directory, available_resources):
-
-        logging.info("Minimising energy: " + self.id)
 
         platform = setup_platform_with_resources(available_resources)
 
@@ -120,12 +116,10 @@ class RunEnergyMinimisation(BaseProtocol):
         with open(self.output_coordinate_file, "w+") as minimised_file:
             app.PDBFile.writeFile(simulation.topology, positions, minimised_file)
 
-        logging.info("Energy minimised: " + self.id)
-
         return self._get_output_dictionary()
 
 
-@register_calculation_protocol()
+@workflow_protocol()
 class RunOpenMMSimulation(BaseProtocol):
     """Performs a molecular dynamics simulation in a given ensemble using
     an OpenMM backend.
@@ -309,32 +303,15 @@ class RunOpenMMSimulation(BaseProtocol):
 
         if openmm_temperature is None:
 
-            return EvaluatorException(
-                directory=directory,
-                message="A temperature must be set to perform "
-                "a simulation in any ensemble",
+            raise ValueError(
+                "A temperature must be set to perform a simulation in any ensemble"
             )
 
         if Ensemble(self.ensemble) == Ensemble.NPT and openmm_pressure is None:
-
-            return EvaluatorException(
-                directory=directory,
-                message="A pressure must be set to perform an NPT simulation",
-            )
+            raise ValueError("A pressure must be set to perform an NPT simulation")
 
         if Ensemble(self.ensemble) == Ensemble.NPT and self.enable_pbc is False:
-
-            return EvaluatorException(
-                directory=directory,
-                message="PBC must be enabled when running in the NPT ensemble.",
-            )
-
-        logging.info(
-            "Performing a simulation in the "
-            + str(self.ensemble)
-            + " ensemble: "
-            + self.id
-        )
+            raise ValueError("PBC must be enabled when running in the NPT ensemble.")
 
         # Set up the internal file paths
         self._checkpoint_path = os.path.join(directory, "checkpoint.json")
@@ -365,10 +342,7 @@ class RunOpenMMSimulation(BaseProtocol):
                 )
 
         # Run the simulation.
-        result = self._simulate(directory, self._context, self._integrator)
-
-        if isinstance(result, EvaluatorException):
-            return result
+        self._simulate(directory, self._context, self._integrator)
 
         # Set the output paths.
         self.trajectory_file_path = self._local_trajectory_path
@@ -461,7 +435,7 @@ class RunOpenMMSimulation(BaseProtocol):
             if box_vectors is None:
 
                 raise ValueError(
-                    "The input file must contain box vectors " "when running with PBC."
+                    "The input file must contain box vectors when running with PBC."
                 )
 
             context.setPeriodicBoxVectors(*box_vectors)
@@ -563,6 +537,7 @@ class RunOpenMMSimulation(BaseProtocol):
         # Parse the internal mdtraj distance unit. While private access is
         # undesirable, this is never publicly defined and I believe this
         # route to be preferable over hard coding this unit here.
+        # noinspection PyProtectedMember
         base_distance_unit = mdtraj.Trajectory._distance_unit
 
         # Get an accurate measurement of the length of the trajectory
@@ -760,7 +735,7 @@ class RunOpenMMSimulation(BaseProtocol):
         current_step = self._resume_from_checkpoint(context)
 
         if current_step == total_number_of_steps:
-            return None
+            return
 
         # Build the reporters which we will use to report the state
         # of the simulation.
@@ -795,50 +770,36 @@ class RunOpenMMSimulation(BaseProtocol):
         # Perform the simulation.
         checkpoint_counter = 0
 
-        try:
+        while current_step < total_number_of_steps:
 
-            while current_step < total_number_of_steps:
+            steps_to_take = min(
+                self.output_frequency, total_number_of_steps - current_step
+            )
+            integrator.step(steps_to_take)
 
-                steps_to_take = min(
-                    self.output_frequency, total_number_of_steps - current_step
-                )
-                integrator.step(steps_to_take)
+            current_step += steps_to_take
 
-                current_step += steps_to_take
-
-                state = context.getState(
-                    getPositions=True,
-                    getEnergy=True,
-                    getVelocities=False,
-                    getForces=False,
-                    getParameters=False,
-                    enforcePeriodicBox=self.enable_pbc,
-                )
-
-                simulation.currentStep = current_step
-
-                # Write out the current state using the reporters.
-                dcd_reporter.report(simulation, state)
-                statistics_reporter.report(simulation, state)
-
-                if checkpoint_counter >= self.checkpoint_frequency:
-                    # Save to the checkpoint file if needed.
-                    self._write_checkpoint_file(current_step, context)
-                    checkpoint_counter = 0
-
-                checkpoint_counter += 1
-
-        except Exception as e:
-
-            formatted_exception = (
-                f"{traceback.format_exception(None, e, e.__traceback__)}"
+            state = context.getState(
+                getPositions=True,
+                getEnergy=True,
+                getVelocities=False,
+                getForces=False,
+                getParameters=False,
+                enforcePeriodicBox=self.enable_pbc,
             )
 
-            return EvaluatorException(
-                directory=directory,
-                message=f"The simulation failed unexpectedly: "
-                f"{formatted_exception}",
-            )
+            simulation.currentStep = current_step
+
+            # Write out the current state using the reporters.
+            dcd_reporter.report(simulation, state)
+            statistics_reporter.report(simulation, state)
+
+            if checkpoint_counter >= self.checkpoint_frequency:
+                # Save to the checkpoint file if needed.
+                self._write_checkpoint_file(current_step, context)
+                checkpoint_counter = 0
+
+            checkpoint_counter += 1
 
         # Save out the final positions.
         self._write_checkpoint_file(current_step, context)
@@ -852,8 +813,3 @@ class RunOpenMMSimulation(BaseProtocol):
 
         with open(self.output_coordinate_file, "w+") as configuration_file:
             app.PDBFile.writeFile(topology, positions, configuration_file)
-
-        logging.info(
-            f"Simulation performed in the {str(self.ensemble)} ensemble: {self._id}"
-        )
-        return None

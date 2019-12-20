@@ -1,7 +1,6 @@
 """
 A collection of general utilities.
 """
-import abc
 import contextlib
 import copy
 import logging
@@ -343,40 +342,3 @@ def temporarily_change_directory(file_path):
         yield
     finally:
         os.chdir(prev_dir)
-
-
-class SubhookedABCMeta(metaclass=abc.ABCMeta):
-    """Abstract class with an implementation of __subclasshook__.
-    The __subclasshook__ method checks that the instance implement the
-    abstract properties and methods defined by the abstract class. This
-    allow classes to implement an abstraction without explicitly
-    subclassing it.
-
-    Notes
-    -----
-    This class is an extension of the SubhookedABCMeta class from
-    `openmmtools`
-
-    Examples
-    --------
-    >>> class MyInterface(SubhookedABCMeta):
-    ...     @abc.abstractmethod
-    ...     def my_method(self): pass
-    >>> class Implementation(object):
-    ...     def my_method(self): return True
-    >>> isinstance(Implementation(), MyInterface)
-    True
-    """
-
-    # Populated by the metaclass, defined here to help IDEs only
-    __abstractmethods__ = frozenset()
-
-    @classmethod
-    def __subclasshook__(cls, subclass):
-
-        for abstract_method in cls.__abstractmethods__:
-
-            if not any(abstract_method in C.__dict__ for C in subclass.__mro__):
-                return False
-
-        return True

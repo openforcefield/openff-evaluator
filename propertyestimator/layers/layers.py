@@ -259,7 +259,6 @@ class CalculationLayer(abc.ABC):
 
                     logging.info(
                         f"An exception was raised: "
-                        f"{returned_output.exception.directory} - "
                         f"{returned_output.exception.message}"
                     )
 

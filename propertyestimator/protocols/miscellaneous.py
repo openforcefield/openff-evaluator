@@ -10,14 +10,13 @@ from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.forcefield import ParameterGradient
 from propertyestimator.substances import Component, MoleFraction, Substance
-from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
-from propertyestimator.workflow.plugins import register_calculation_protocol
+from propertyestimator.workflow.plugins import workflow_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
 
-@register_calculation_protocol()
+@workflow_protocol()
 class AddValues(BaseProtocol):
     """A protocol to add together a list of values.
 
@@ -41,16 +40,14 @@ class AddValues(BaseProtocol):
     def execute(self, directory, available_resources):
 
         if len(self.values) < 1:
-            return EvaluatorException(
-                directory, "There were no gradients to add together"
-            )
+            raise ValueError("There were no values to add together")
 
         if not all(isinstance(x, type(self.values[0])) for x in self.values):
 
-            return EvaluatorException(
-                directory,
-                f"All values to add together must be "
-                f'the same type ({" ".join(map(str, self.values))}).',
+            types = " ".join(map(str, self.values))
+
+            raise ValueError(
+                f"All of the values to add together must be the same type ({types})."
             )
 
         self.result = self.values[0]
@@ -61,7 +58,7 @@ class AddValues(BaseProtocol):
         return self._get_output_dictionary()
 
 
-@register_calculation_protocol()
+@workflow_protocol()
 class SubtractValues(BaseProtocol):
     """A protocol to subtract one value from another such that:
 
@@ -96,7 +93,7 @@ class SubtractValues(BaseProtocol):
         return self._get_output_dictionary()
 
 
-@register_calculation_protocol()
+@workflow_protocol()
 class MultiplyValue(BaseProtocol):
     """A protocol which multiplies a value by a specified scalar
     """
@@ -138,7 +135,7 @@ class MultiplyValue(BaseProtocol):
         return self._get_output_dictionary()
 
 
-@register_calculation_protocol()
+@workflow_protocol()
 class DivideValue(BaseProtocol):
     """A protocol which divides a value by a specified scalar
     """
@@ -169,7 +166,7 @@ class DivideValue(BaseProtocol):
         return self._get_output_dictionary()
 
 
-@register_calculation_protocol()
+@workflow_protocol()
 class WeightByMoleFraction(BaseProtocol):
     """Multiplies a value by the mole fraction of a component
     in a `Substance`.
@@ -226,28 +223,25 @@ class WeightByMoleFraction(BaseProtocol):
 
         if len(amounts) != 1:
 
-            return EvaluatorException(
-                directory=directory,
-                message=f"More than one type of amount was defined for component "
-                f"{main_component}. Only a single mole fraction must be "
-                f"defined.",
+            raise ValueError(
+                f"More than one type of amount was defined for component "
+                f"{main_component}. Only a single mole fraction must be defined.",
             )
 
         amount = next(iter(amounts))
 
         if not isinstance(amount, MoleFraction):
 
-            return EvaluatorException(
-                directory=directory,
-                message=f"The component {main_component} was given as an "
-                f"exact amount, and not a mole fraction",
+            raise ValueError(
+                f"The component {main_component} was given as an exact amount, and "
+                f"not a mole fraction"
             )
 
         self.weighted_value = self._weight_values(amount.value)
         return self._get_output_dictionary()
 
 
-@register_calculation_protocol()
+@workflow_protocol()
 class FilterSubstanceByRole(BaseProtocol):
     """A protocol which takes a substance as input, and returns a substance which only
     contains components whose role match a given criteria.
@@ -302,11 +296,9 @@ class FilterSubstanceByRole(BaseProtocol):
             filtered_components
         ):
 
-            return EvaluatorException(
-                directory=directory,
-                message=f"The filtered substance does not contain the expected "
-                f"number of components ({self.expected_components}) - "
-                f"{filtered_components}",
+            raise ValueError(
+                f"The filtered substance does not contain the expected number of "
+                f"components ({self.expected_components}) - {filtered_components}",
             )
 
         inverse_mole_fraction = (

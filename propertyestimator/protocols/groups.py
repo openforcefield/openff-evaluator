@@ -15,21 +15,20 @@ from os import makedirs, path
 
 from propertyestimator import unit
 from propertyestimator.utils import graph
-from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.workflow.attributes import (
     InequalityMergeBehaviour,
     InputAttribute,
     OutputAttribute,
 )
 from propertyestimator.workflow.plugins import (
-    available_protocols,
-    register_calculation_protocol,
+    registered_workflow_protocols,
+    workflow_protocol,
 )
 from propertyestimator.workflow.protocols import BaseProtocol, ProtocolPath
 from propertyestimator.workflow.schemas import ProtocolGroupSchema
 
 
-@register_calculation_protocol()
+@workflow_protocol()
 class ProtocolGroup(BaseProtocol):
     """A collection of protocols to be executed in one batch.
 
@@ -132,7 +131,9 @@ class ProtocolGroup(BaseProtocol):
                 continue
 
             # Recreate the protocol from scratch.
-            protocol = available_protocols[protocol_schema.type](protocol_schema.id)
+            protocol = registered_workflow_protocols[protocol_schema.type](
+                protocol_schema.id
+            )
             protocol.schema = protocol_schema
 
             protocols_to_create.append(protocol)
@@ -342,9 +343,6 @@ class ProtocolGroup(BaseProtocol):
             return_value = protocol_to_execute.execute(
                 working_directory, available_resources
             )
-
-            if isinstance(return_value, EvaluatorException):
-                return return_value
 
             for output_path in return_value:
 
@@ -699,7 +697,7 @@ class ProtocolGroup(BaseProtocol):
         return replication_map
 
 
-@register_calculation_protocol()
+@workflow_protocol()
 class ConditionalGroup(ProtocolGroup):
     """A collection of protocols which are to execute until
     a given condition is met.
@@ -939,10 +937,6 @@ class ConditionalGroup(ProtocolGroup):
                 directory, available_resources
             )
 
-            if isinstance(return_value, EvaluatorException):
-                # Exit on exceptions.
-                return return_value
-
             conditions_met = True
 
             for condition in self._conditions:
@@ -960,17 +954,13 @@ class ConditionalGroup(ProtocolGroup):
 
             if self.current_iteration >= self.max_iterations:
 
-                return EvaluatorException(
-                    directory=directory,
-                    message=f"Conditional while loop failed to converge: {self.id}",
+                raise RuntimeError(
+                    f"Conditional while loop failed to converge: {self.id}"
                 )
 
             logging.info(
                 f"Conditional criteria not yet met after {self.current_iteration} iterations"
             )
-
-    def can_merge(self, other, path_replacements=None):
-        return super(ConditionalGroup, self).can_merge(other, path_replacements)
 
     def merge(self, other):
         """Merges another ProtocolGroup with this one. The id

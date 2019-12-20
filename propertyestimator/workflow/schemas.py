@@ -11,7 +11,7 @@ from propertyestimator.storage.data import BaseStoredData
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedBaseModel
 from propertyestimator.workflow.attributes import InputAttribute
-from propertyestimator.workflow.plugins import available_protocols
+from propertyestimator.workflow.plugins import registered_workflow_protocols
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
@@ -257,7 +257,7 @@ class ProtocolReplicator(TypedBaseModel):
                 self.placeholder_id, str(index)
             )
 
-            replicated_protocol = available_protocols[protocol_schema.type](
+            replicated_protocol = registered_workflow_protocols[protocol_schema.type](
                 protocol_schema.id
             )
             replicated_protocol.schema = protocol_schema
@@ -608,10 +608,12 @@ class WorkflowSchema(TypedBaseModel):
             if protocol_schema.type not in protocol_replacements:
                 continue
 
-            protocol = available_protocols[protocol_schema.type](protocol_schema.id)
+            protocol = registered_workflow_protocols[protocol_schema.type](
+                protocol_schema.id
+            )
             protocol.schema = protocol_schema
 
-            new_protocol = available_protocols[
+            new_protocol = registered_workflow_protocols[
                 protocol_replacements[protocol_schema.type]
             ](protocol_schema.id)
 
@@ -693,7 +695,9 @@ class WorkflowSchema(TypedBaseModel):
 
         protocol_schema = self.protocols[self.final_value_source.start_protocol]
 
-        protocol_object = available_protocols[protocol_schema.type](protocol_schema.id)
+        protocol_object = registered_workflow_protocols[protocol_schema.type](
+            protocol_schema.id
+        )
         protocol_object.schema = protocol_schema
 
         protocol_object.get_value(self.final_value_source)
@@ -714,7 +718,7 @@ class WorkflowSchema(TypedBaseModel):
 
             protocol_schema = self.protocols[gradient_source.start_protocol]
 
-            protocol_object = available_protocols[protocol_schema.type](
+            protocol_object = registered_workflow_protocols[protocol_schema.type](
                 protocol_schema.id
             )
             protocol_object.schema = protocol_schema
@@ -787,7 +791,7 @@ class WorkflowSchema(TypedBaseModel):
 
             protocol_schema = self.protocols[attribute_value.start_protocol]
 
-            protocol_object = available_protocols[protocol_schema.type](
+            protocol_object = registered_workflow_protocols[protocol_schema.type](
                 protocol_schema.id
             )
             protocol_object.schema = protocol_schema
@@ -817,7 +821,7 @@ class WorkflowSchema(TypedBaseModel):
 
             protocol_schema = self.protocols[protocol_id]
 
-            protocol_object = available_protocols[protocol_schema.type](
+            protocol_object = registered_workflow_protocols[protocol_schema.type](
                 protocol_schema.id
             )
             protocol_object.schema = protocol_schema
@@ -865,7 +869,7 @@ class WorkflowSchema(TypedBaseModel):
                         value_reference.start_protocol
                     ]
 
-                    other_protocol_object = available_protocols[
+                    other_protocol_object = registered_workflow_protocols[
                         other_protocol_schema.type
                     ](other_protocol_schema.id)
                     other_protocol_object.schema = other_protocol_schema

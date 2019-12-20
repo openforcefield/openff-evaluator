@@ -1,7 +1,7 @@
 """
 A collection of protocols for reweighting cached simulation data.
 """
-
+import abc
 import typing
 from os import path
 
@@ -12,7 +12,6 @@ from scipy.special import logsumexp
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.openmm import (
     disable_pbc,
     pint_quantity_to_openmm,
@@ -25,11 +24,11 @@ from propertyestimator.utils.statistics import (
     bootstrap,
 )
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
-from propertyestimator.workflow.plugins import register_calculation_protocol
+from propertyestimator.workflow.plugins import workflow_protocol
 from propertyestimator.workflow.protocols import BaseProtocol
 
 
-@register_calculation_protocol()
+@workflow_protocol()
 class ConcatenateTrajectories(BaseProtocol):
     """A protocol which concatenates multiple trajectories into
     a single one.
@@ -62,18 +61,12 @@ class ConcatenateTrajectories(BaseProtocol):
 
         if len(self.input_coordinate_paths) != len(self.input_trajectory_paths):
 
-            return EvaluatorException(
-                directory=directory,
-                message="There should be the same number of "
-                "coordinate and trajectory paths.",
+            raise ValueError(
+                "There should be the same number of coordinate and trajectory paths."
             )
 
         if len(self.input_trajectory_paths) == 0:
-
-            return EvaluatorException(
-                directory=directory,
-                message="No trajectories were " "given to concatenate.",
-            )
+            raise ValueError("No trajectories were given to concatenate.")
 
         trajectories = []
 
@@ -99,7 +92,7 @@ class ConcatenateTrajectories(BaseProtocol):
         return self._get_output_dictionary()
 
 
-@register_calculation_protocol()
+@workflow_protocol()
 class ConcatenateStatistics(BaseProtocol):
     """A protocol which concatenates multiple trajectories into
     a single one.
@@ -118,11 +111,7 @@ class ConcatenateStatistics(BaseProtocol):
     def execute(self, directory, available_resources):
 
         if len(self.input_statistics_paths) == 0:
-
-            return EvaluatorException(
-                directory=directory,
-                message="No statistics arrays were " "given to concatenate.",
-            )
+            raise ValueError("No statistics arrays were given to concatenate.")
 
         arrays = [
             StatisticsArray.from_pandas_csv(file_path)
@@ -140,7 +129,7 @@ class ConcatenateStatistics(BaseProtocol):
         return self._get_output_dictionary()
 
 
-@register_calculation_protocol()
+@workflow_protocol()
 class CalculateReducedPotentialOpenMM(BaseProtocol):
     """Calculates the reduced potential for a given
     set of configurations.
@@ -218,8 +207,8 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
             self.trajectory_file_path, self.coordinate_file_path
         )
 
-        with open(self.system_path, "rb") as file:
-            system = XmlSerializer.deserialize(file.read().decode())
+        with open(self.system_path, "r") as file:
+            system = XmlSerializer.deserialize(file.read())
 
         temperature = pint_quantity_to_openmm(self.thermodynamic_state.temperature)
         pressure = pint_quantity_to_openmm(self.thermodynamic_state.pressure)
@@ -306,8 +295,7 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         return self._get_output_dictionary()
 
 
-@register_calculation_protocol()
-class BaseMBARProtocol(BaseProtocol):
+class BaseMBARProtocol(BaseProtocol, abc.ABC):
     """Reweights a set of observables using MBAR to calculate
     the average value of the observables at a different state
     than they were originally measured.
@@ -372,35 +360,24 @@ class BaseMBARProtocol(BaseProtocol):
     def execute(self, directory, available_resources):
 
         if len(self._reference_observables) == 0:
-
-            return EvaluatorException(
-                directory=directory, message="There were no observables to reweight."
-            )
+            raise ValueError("There were no observables to reweight.")
 
         if not isinstance(self._reference_observables[0], unit.Quantity):
 
-            return EvaluatorException(
-                directory=directory,
-                message="The reference_observables input should be"
-                "a list of unit.Quantity wrapped ndarray's.",
+            raise ValueError(
+                "The reference_observables input should be a list of unit.Quantity "
+                "wrapped ndarray's.",
             )
 
         observables = self._prepare_observables_array(self._reference_observables)
         observable_unit = self._reference_observables[0].units
 
         if self.bootstrap_uncertainties:
-            error = self._execute_with_bootstrapping(
-                observable_unit, observables=observables
-            )
+            self._execute_with_bootstrapping(observable_unit, observables=observables)
         else:
-            error = self._execute_without_bootstrapping(
+            self._execute_without_bootstrapping(
                 observable_unit, observables=observables
             )
-
-        if error is not None:
-
-            error.directory = directory
-            return error
 
         return self._get_output_dictionary()
 
@@ -469,11 +446,6 @@ class BaseMBARProtocol(BaseProtocol):
             The expected unit of the reweighted observable.
         observables: dict of str and numpy.ndarray
             The observables to reweight which have been stripped of their units.
-
-        Returns
-        -------
-        EvaluatorException, optional
-            None if the method executed normally, otherwise the exception that was raised.
         """
 
         (
@@ -495,10 +467,9 @@ class BaseMBARProtocol(BaseProtocol):
 
         if self.effective_samples < self.required_effective_samples:
 
-            return EvaluatorException(
-                message=f"{self.id}: There was not enough effective samples "
-                f"to reweight - {self.effective_samples} < "
-                f"{self.required_effective_samples}"
+            raise ValueError(
+                f"There was not enough effective samples to reweight - "
+                f"{self.effective_samples} < {self.required_effective_samples}"
             )
 
         # Transpose the observables ready for bootstrapping.
@@ -559,10 +530,9 @@ class BaseMBARProtocol(BaseProtocol):
 
         if self.effective_samples < self.required_effective_samples:
 
-            return EvaluatorException(
-                message=f"{self.id}: There was not enough effective samples "
-                f"to reweight - {self.effective_samples} < "
-                f"{self.required_effective_samples}"
+            raise ValueError(
+                f"There was not enough effective samples to reweight - "
+                f"{self.effective_samples} < {self.required_effective_samples}"
             )
 
         self.value = EstimatedQuantity(
@@ -792,7 +762,7 @@ class BaseMBARProtocol(BaseProtocol):
         return values, uncertainties, effective_samples
 
 
-@register_calculation_protocol()
+@workflow_protocol()
 class ReweightStatistics(BaseMBARProtocol):
     """Reweights a set of observables from a `StatisticsArray` using MBAR.
     """
@@ -826,20 +796,17 @@ class ReweightStatistics(BaseMBARProtocol):
             self.statistics_paths = [self.statistics_paths]
 
         if self.statistics_paths is None or len(self.statistics_paths) == 0:
-            return EvaluatorException(directory, "No statistics paths were provided.")
+            return ValueError("No statistics paths were provided.")
 
         if len(self.frame_counts) > 0 and len(self.statistics_paths) != 1:
-            return EvaluatorException(
-                directory,
-                "The frame counts input can only be used when only"
-                "a single path is passed to the `statistics_paths`"
-                "input.",
+
+            raise ValueError(
+                "The frame counts input can only be used when only a single "
+                "path is passed to the `statistics_paths` input.",
             )
 
         if self.statistics_type == ObservableType.KineticEnergy:
-            return EvaluatorException(
-                directory, f"Kinetic energies cannot be reweighted."
-            )
+            raise ValueError(f"Kinetic energies cannot be reweighted.")
 
         statistics_arrays = [
             StatisticsArray.from_pandas_csv(file_path)
@@ -856,9 +823,7 @@ class ReweightStatistics(BaseMBARProtocol):
             for frame_count in self.frame_counts:
 
                 if frame_count <= 0:
-                    return EvaluatorException(
-                        directory, "The frame counts must be > 0."
-                    )
+                    raise ValueError("The frame counts must be > 0.")
 
                 observables = statistics_array[self.statistics_type][
                     current_index : current_index + frame_count

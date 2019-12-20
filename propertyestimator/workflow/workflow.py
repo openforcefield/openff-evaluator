@@ -1,13 +1,11 @@
 """
 Defines the core workflow object and execution graph.
 """
-import abc
 import copy
 import json
 import logging
 import math
 import time
-import traceback
 import uuid
 from enum import Enum
 from math import sqrt
@@ -22,21 +20,11 @@ from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from propertyestimator.utils.string import extract_variable_index_and_name
-from propertyestimator.utils.utils import SubhookedABCMeta, get_nested_attribute
+from propertyestimator.utils.utils import get_nested_attribute
+from propertyestimator.workflow.exceptions import WorkflowException
 from propertyestimator.workflow.protocols import BaseProtocol
 from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
-
-
-class IWorkflowProperty(SubhookedABCMeta):
-    """Defines the interface a property must implement to be estimable
-    by a workflow.
-    """
-
-    @staticmethod
-    @abc.abstractmethod
-    def get_default_workflow_schema(calculation_layer, options):
-        pass
 
 
 class WorkflowOptions:
@@ -314,7 +302,7 @@ class Workflow:
         schema: WorkflowSchema
             The schema to use when creating the protocols
         """
-        from propertyestimator.workflow.plugins import available_protocols
+        from propertyestimator.workflow.plugins import registered_workflow_protocols
 
         self._apply_replicators(schema)
 
@@ -322,7 +310,9 @@ class Workflow:
 
             protocol_schema = schema.protocols[protocol_name]
 
-            protocol = available_protocols[protocol_schema.type](protocol_schema.id)
+            protocol = registered_workflow_protocols[protocol_schema.type](
+                protocol_schema.id
+            )
             protocol.schema = protocol_schema
 
             # Try to set global properties on each of the protocols
@@ -429,7 +419,7 @@ class Workflow:
             be created.
         """
 
-        from propertyestimator.workflow.plugins import available_protocols
+        from propertyestimator.workflow.plugins import registered_workflow_protocols
 
         # Get the list of values which will be passed to the newly created protocols.
         template_values = self._get_template_values(replicator)
@@ -439,7 +429,7 @@ class Workflow:
 
         for protocol_id, protocol_schema in schema.protocols.items():
 
-            protocol = available_protocols[protocol_schema.type](schema.id)
+            protocol = registered_workflow_protocols[protocol_schema.type](schema.id)
             protocol.schema = protocol_schema
             protocols[protocol_id] = protocol
 
@@ -1244,7 +1234,7 @@ class WorkflowGraph:
             A dictionary which contains the outputs of the executed protocol.
         """
 
-        from propertyestimator.workflow.plugins import available_protocols
+        from propertyestimator.workflow.plugins import registered_workflow_protocols
         from propertyestimator.workflow import protocols
 
         protocol_schema = protocols.ProtocolSchema.parse_json(protocol_schema_json)
@@ -1278,15 +1268,7 @@ class WorkflowGraph:
 
                 except json.JSONDecodeError as e:
 
-                    formatted_exception = traceback.format_exception(
-                        None, e, e.__traceback__
-                    )
-
-                    exception = EvaluatorException(
-                        directory,
-                        f"Could not load the output dictionary of {parent_id} "
-                        f"({previous_output_path}): {formatted_exception}",
-                    )
+                    exception = EvaluatorException.from_exception(e)
 
                     WorkflowGraph._save_protocol_output(
                         output_dictionary_path, exception
@@ -1313,7 +1295,9 @@ class WorkflowGraph:
 
             # Recreate the protocol on the backend to bypass the need for static methods
             # and awkward args and kwargs syntax.
-            protocol = available_protocols[protocol_schema.type](protocol_schema.id)
+            protocol = registered_workflow_protocols[protocol_schema.type](
+                protocol_schema.id
+            )
             protocol.schema = protocol_schema
 
             # Pass the outputs of previously executed protocols as input to the
@@ -1384,16 +1368,7 @@ class WorkflowGraph:
 
             except TypeError as e:
 
-                formatted_exception = traceback.format_exception(
-                    None, e, e.__traceback__
-                )
-
-                exception = EvaluatorException(
-                    directory=directory,
-                    message=f"Could not save the output dictionary of {protocol.id} "
-                    f"({output_dictionary_path}): {formatted_exception}",
-                )
-
+                exception = EvaluatorException.from_exception(e)
                 WorkflowGraph._save_protocol_output(output_dictionary_path, exception)
 
             return protocol.id, output_dictionary_path
@@ -1402,14 +1377,8 @@ class WorkflowGraph:
 
             logging.info(f"Protocol failed to execute: {protocol_schema.id}")
 
-            # Except the unexcepted...
-            formatted_exception = traceback.format_exception(None, e, e.__traceback__)
-
-            exception = EvaluatorException(
-                directory=directory,
-                message="An unhandled exception "
-                "occurred: {}".format(formatted_exception),
-            )
+            exception = WorkflowException.from_exception(e)
+            exception.protocol_id = protocol_schema.id
 
             WorkflowGraph._save_protocol_output(output_dictionary_path, exception)
             return protocol_schema.id, output_dictionary_path
@@ -1475,17 +1444,7 @@ class WorkflowGraph:
 
                 except json.JSONDecodeError as e:
 
-                    formatted_exception = traceback.format_exception(
-                        None, e, e.__traceback__
-                    )
-
-                    exception = EvaluatorException(
-                        message=f"Could not load the output dictionary of "
-                        f"{protocol_id} ({protocol_result_path}): "
-                        f"{formatted_exception}"
-                    )
-
-                    return_object.exception = exception
+                    return_object.exception = EvaluatorException.from_exception(e)
                     return return_object
 
                 # Make sure none of the protocols failed and we actually have a value
@@ -1556,13 +1515,7 @@ class WorkflowGraph:
                 return_object.data_to_store.append((data_object_path, data_directory))
 
         except Exception as e:
-
-            formatted_exception = traceback.format_exception(None, e, e.__traceback__)
-
-            return_object.exception = EvaluatorException(
-                directory=directory,
-                message=f"An unhandled exception " f"occurred: {formatted_exception}",
-            )
+            return_object.exception = EvaluatorException.from_exception(e)
 
         return return_object
 
