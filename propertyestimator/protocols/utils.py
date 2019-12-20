@@ -388,7 +388,7 @@ def generate_base_simulation_protocols(
     )
     production_simulation.ensemble = Ensemble.NPT
     production_simulation.steps_per_iteration = 1000000
-    production_simulation.output_frequency = 3000
+    production_simulation.output_frequency = 2000
     production_simulation.timestep = 2.0 * unit.femtosecond
     production_simulation.thermodynamic_state = ProtocolPath(
         "thermodynamic_state", "global"

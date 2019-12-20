@@ -801,7 +801,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
     def default_simulation_schema(
         absolute_tolerance=UNDEFINED,
         relative_tolerance=UNDEFINED,
-        n_liquid_molecules=1000,
+        n_molecules=1000,
     ):
         """Returns the default calculation schema to use when estimating
         this class of property from direct simulations.
@@ -815,7 +815,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
             The tolerance (as a fraction of the properties
             reported uncertainty) to estimate the
             property to within.
-        n_liquid_molecules: int
+        n_molecules: int
             The number of molecules to use in the simulation.
 
         Returns
@@ -837,7 +837,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
             "extract_liquid_energy"
         )
         extract_liquid_energy.statistics_type = ObservableType.PotentialEnergy
-        extract_liquid_energy.divisor = n_liquid_molecules
+        extract_liquid_energy.divisor = n_molecules
 
         (
             liquid_protocols,
@@ -851,7 +851,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
         )
 
         # Make sure the number of molecules in the liquid is consistent.
-        liquid_protocols.build_coordinates.max_molecules = n_liquid_molecules
+        liquid_protocols.build_coordinates.max_molecules = n_molecules
         liquid_output_to_store.property_phase = PropertyPhase.Liquid
 
         # Define the protocols to perform the simulation in the gas phase.
@@ -1013,7 +1013,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
             "scale_liquid_gradient_$(repl)"
         )
         scale_liquid_gradient.value = liquid_gradient_source
-        scale_liquid_gradient.divisor = n_liquid_molecules
+        scale_liquid_gradient.divisor = n_molecules
 
         combine_gradients = miscellaneous.SubtractValues("combine_gradients_$(repl)")
         combine_gradients.value_b = gas_gradient_source
