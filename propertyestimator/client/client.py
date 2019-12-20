@@ -184,17 +184,17 @@ class RequestOptions(AttributeClass):
         assert type(schema) == calculation_layer.required_schema_type()
 
         if isinstance(property_type, type):
-            property_type = property_type.__class__.__name__
+            property_type = property_type.__name__
+
+        if self.calculation_schemas == UNDEFINED:
+            self.calculation_schemas = {}
 
         if property_type not in self.calculation_schemas:
             self.calculation_schemas[property_type] = {}
-        if (
-            calculation_layer
-            not in self.calculation_schemas[property_type][calculation_layer]
-        ):
-            self.calculation_schemas[property_type][calculation_layer] = {}
+        if layer_type not in self.calculation_schemas[property_type]:
+            self.calculation_schemas[property_type][layer_type] = {}
 
-        self.calculation_schemas[property_type][calculation_layer] = schema
+        self.calculation_schemas[property_type][layer_type] = schema
 
     def validate(self, attribute_type=None):
 

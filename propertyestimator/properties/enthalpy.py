@@ -799,9 +799,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
     @staticmethod
     def default_simulation_schema(
-        absolute_tolerance=UNDEFINED,
-        relative_tolerance=UNDEFINED,
-        n_molecules=1000,
+        absolute_tolerance=UNDEFINED, relative_tolerance=UNDEFINED, n_molecules=1000,
     ):
         """Returns the default calculation schema to use when estimating
         this class of property from direct simulations.
