@@ -584,6 +584,7 @@ class EvaluatorServer:
 
     def __enter__(self):
         self.start(asynchronous=True)
+        return self
 
     def __exit__(self, *args):
         self.stop()
