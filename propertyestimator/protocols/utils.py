@@ -599,7 +599,7 @@ def generate_gradient_protocol_group(
 
     assert isinstance(template_reweighting_protocol, reweighting.BaseMBARProtocol)
     assert template_reweighting_protocol.reference_reduced_potentials is not None
-    assert template_reweighting_protocol.reference_reduced_potentials is not UNDEFINED
+    assert template_reweighting_protocol.reference_reduced_potentials != UNDEFINED
 
     id_suffix = f"_$({replicator_id}){id_suffix}"
 

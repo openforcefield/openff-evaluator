@@ -30,11 +30,11 @@ from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType, StatisticsArray
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import workflow_protocol
-from propertyestimator.workflow.protocols import BaseProtocol
+from propertyestimator.workflow.protocols import WorkflowProtocol
 
 
 @workflow_protocol()
-class GradientReducedPotentials(BaseProtocol):
+class GradientReducedPotentials(WorkflowProtocol):
     """A protocol to estimates the the reduced potential of the configurations
     of a trajectory using reverse and forward perturbed simulation parameters for
     use with estimating reweighted gradients using the central difference method.
@@ -401,7 +401,7 @@ class GradientReducedPotentials(BaseProtocol):
 
 
 @workflow_protocol()
-class CentralDifferenceGradient(BaseProtocol):
+class CentralDifferenceGradient(WorkflowProtocol):
     """A protocol which employs the central diference method
     to estimate the gradient of an observable A, such that
 

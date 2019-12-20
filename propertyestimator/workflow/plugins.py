@@ -3,7 +3,7 @@ An API for registering new workflow protocols.
 
 Attributes
 ----------
-registered_workflow_protocols: dict of str and type of BaseProtocol
+registered_workflow_protocols: dict of str and type of WorkflowProtocol
     The workflow protocols which have been registered as being
     available to use in property estimations.
 """
@@ -14,9 +14,9 @@ def register_workflow_protocol(protocol_class):
     """Registers a class as being a protocol which may be included
     in workflows.
     """
-    from propertyestimator.workflow.protocols import BaseProtocol
+    from propertyestimator.workflow.protocols import WorkflowProtocol
 
-    assert issubclass(protocol_class, BaseProtocol)
+    assert issubclass(protocol_class, WorkflowProtocol)
 
     if protocol_class.__name__ in registered_workflow_protocols:
         raise ValueError(f"The {protocol_class} protocol is already registered.")

@@ -25,11 +25,11 @@ from propertyestimator.utils.statistics import (
 )
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import workflow_protocol
-from propertyestimator.workflow.protocols import BaseProtocol
+from propertyestimator.workflow.protocols import WorkflowProtocol
 
 
 @workflow_protocol()
-class ConcatenateTrajectories(BaseProtocol):
+class ConcatenateTrajectories(WorkflowProtocol):
     """A protocol which concatenates multiple trajectories into
     a single one.
     """
@@ -93,7 +93,7 @@ class ConcatenateTrajectories(BaseProtocol):
 
 
 @workflow_protocol()
-class ConcatenateStatistics(BaseProtocol):
+class ConcatenateStatistics(WorkflowProtocol):
     """A protocol which concatenates multiple trajectories into
     a single one.
     """
@@ -130,7 +130,7 @@ class ConcatenateStatistics(BaseProtocol):
 
 
 @workflow_protocol()
-class CalculateReducedPotentialOpenMM(BaseProtocol):
+class CalculateReducedPotentialOpenMM(WorkflowProtocol):
     """Calculates the reduced potential for a given
     set of configurations.
     """
@@ -295,7 +295,7 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         return self._get_output_dictionary()
 
 
-class BaseMBARProtocol(BaseProtocol, abc.ABC):
+class BaseMBARProtocol(WorkflowProtocol, abc.ABC):
     """Reweights a set of observables using MBAR to calculate
     the average value of the observables at a different state
     than they were originally measured.

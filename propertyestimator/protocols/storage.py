@@ -13,11 +13,11 @@ from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.serialization import TypedJSONDecoder
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import workflow_protocol
-from propertyestimator.workflow.protocols import BaseProtocol
+from propertyestimator.workflow.protocols import WorkflowProtocol
 
 
 @workflow_protocol()
-class UnpackStoredSimulationData(BaseProtocol):
+class UnpackStoredSimulationData(WorkflowProtocol):
     """Loads a `StoredSimulationData` object from disk,
     and makes its attributes easily accessible to other protocols.
     """

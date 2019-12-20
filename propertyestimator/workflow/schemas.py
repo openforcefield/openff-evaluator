@@ -128,7 +128,7 @@ class ProtocolReplicator(TypedBaseModel):
 
         Parameters
         ----------
-        protocols: dict of str and BaseProtocol
+        protocols: dict of str and WorkflowProtocol
             The protocols to apply the replicator to.
         template_values: list of Any
             A list of the values which will be inserted
@@ -159,7 +159,7 @@ class ProtocolReplicator(TypedBaseModel):
 
         Returns
         -------
-        dict of str and BaseProtocol
+        dict of str and WorkflowProtocol
             The replicated protocols.
         dict of ProtocolPath and list of tuple of ProtocolPath and int
             A dictionary of references to all of the protocols which have
@@ -324,7 +324,7 @@ class ProtocolReplicator(TypedBaseModel):
 
         Parameters
         ----------
-        protocols: dict of str and BaseProtocol
+        protocols: dict of str and WorkflowProtocol
             The protocols which have had this replicator applied
             to them.
         replication_map: dict of ProtocolPath and list of tuple of ProtocolPath and int

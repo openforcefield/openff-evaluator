@@ -31,10 +31,10 @@ from propertyestimator.utils.utils import (
 )
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import workflow_protocol
-from propertyestimator.workflow.protocols import BaseProtocol
+from propertyestimator.workflow.protocols import WorkflowProtocol
 
 
-class BuildSystemProtocol(BaseProtocol, abc.ABC):
+class BuildSystemProtocol(WorkflowProtocol, abc.ABC):
     """The base for any protocol whose role is to apply a set of
     force field parameters to a given system.
     """

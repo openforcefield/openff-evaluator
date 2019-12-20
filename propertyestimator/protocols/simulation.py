@@ -28,11 +28,11 @@ from propertyestimator.workflow.attributes import (
     OutputAttribute,
 )
 from propertyestimator.workflow.plugins import workflow_protocol
-from propertyestimator.workflow.protocols import BaseProtocol
+from propertyestimator.workflow.protocols import WorkflowProtocol
 
 
 @workflow_protocol()
-class RunEnergyMinimisation(BaseProtocol):
+class RunEnergyMinimisation(WorkflowProtocol):
     """A protocol to minimise the potential energy of a system.
     """
 
@@ -120,7 +120,7 @@ class RunEnergyMinimisation(BaseProtocol):
 
 
 @workflow_protocol()
-class RunOpenMMSimulation(BaseProtocol):
+class RunOpenMMSimulation(WorkflowProtocol):
     """Performs a molecular dynamics simulation in a given ensemble using
     an OpenMM backend.
     """

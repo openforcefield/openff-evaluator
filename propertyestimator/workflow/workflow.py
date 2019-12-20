@@ -22,7 +22,7 @@ from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEnc
 from propertyestimator.utils.string import extract_variable_index_and_name
 from propertyestimator.utils.utils import get_nested_attribute
 from propertyestimator.workflow.exceptions import WorkflowException
-from propertyestimator.workflow.protocols import BaseProtocol
+from propertyestimator.workflow.protocols import WorkflowProtocol
 from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
@@ -659,18 +659,18 @@ class Workflow:
 
         Parameters
         ----------
-        old_protocol : protocols.BaseProtocol or str
+        old_protocol : protocols.WorkflowProtocol or str
             The protocol (or its id) to replace.
-        new_protocol : protocols.BaseProtocol or str
+        new_protocol : protocols.WorkflowProtocol or str
             The new protocol (or its id) to use.
         """
 
         old_protocol_id = old_protocol
         new_protocol_id = new_protocol
 
-        if isinstance(old_protocol, BaseProtocol):
+        if isinstance(old_protocol, WorkflowProtocol):
             old_protocol_id = old_protocol.id
-        if isinstance(new_protocol, BaseProtocol):
+        if isinstance(new_protocol, WorkflowProtocol):
             new_protocol_id = new_protocol.id
 
         if new_protocol_id in self.protocols:
@@ -684,7 +684,9 @@ class Workflow:
             protocol = self.protocols[protocol_id]
             protocol.replace_protocol(old_protocol_id, new_protocol_id)
 
-        if old_protocol_id in self.protocols and isinstance(new_protocol, BaseProtocol):
+        if old_protocol_id in self.protocols and isinstance(
+            new_protocol, WorkflowProtocol
+        ):
 
             self.protocols.pop(old_protocol_id)
             self.protocols[new_protocol_id] = new_protocol

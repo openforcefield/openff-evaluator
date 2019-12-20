@@ -2,7 +2,7 @@
 A collection of specialized workflow building blocks, which when chained together,
 form a larger property estimation workflow.
 """
-
+import abc
 import copy
 
 from propertyestimator.attributes import PlaceholderValue
@@ -18,7 +18,7 @@ from propertyestimator.workflow.schemas import ProtocolSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
 
-class BaseProtocol:
+class WorkflowProtocol(abc.ABC):
     """The base class for a protocol which would form one
     step of a larger property calculation workflow.
 
@@ -348,7 +348,7 @@ class BaseProtocol:
 
         Parameters
         ----------
-        other : :obj:`BaseProtocol`
+        other : :obj:`WorkflowProtocol`
             The protocol to compare against.
         path_replacements: list of tuple of str, optional
             Replacements to make in any value reference protocol paths
@@ -423,7 +423,7 @@ class BaseProtocol:
         return True
 
     def merge(self, other):
-        """Merges another BaseProtocol with this one. The id
+        """Merges another WorkflowProtocol with this one. The id
         of this protocol will remain unchanged.
 
         It is assumed that can_merge has already returned that
@@ -431,7 +431,7 @@ class BaseProtocol:
 
         Parameters
         ----------
-        other: BaseProtocol
+        other: WorkflowProtocol
             The protocol to merge into this one.
 
         Returns

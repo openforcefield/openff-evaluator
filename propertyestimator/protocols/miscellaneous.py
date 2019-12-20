@@ -13,11 +13,11 @@ from propertyestimator.substances import Component, MoleFraction, Substance
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import workflow_protocol
-from propertyestimator.workflow.protocols import BaseProtocol
+from propertyestimator.workflow.protocols import WorkflowProtocol
 
 
 @workflow_protocol()
-class AddValues(BaseProtocol):
+class AddValues(WorkflowProtocol):
     """A protocol to add together a list of values.
 
     Notes
@@ -59,7 +59,7 @@ class AddValues(BaseProtocol):
 
 
 @workflow_protocol()
-class SubtractValues(BaseProtocol):
+class SubtractValues(WorkflowProtocol):
     """A protocol to subtract one value from another such that:
 
     `result = value_b - value_a`
@@ -94,7 +94,7 @@ class SubtractValues(BaseProtocol):
 
 
 @workflow_protocol()
-class MultiplyValue(BaseProtocol):
+class MultiplyValue(WorkflowProtocol):
     """A protocol which multiplies a value by a specified scalar
     """
 
@@ -136,7 +136,7 @@ class MultiplyValue(BaseProtocol):
 
 
 @workflow_protocol()
-class DivideValue(BaseProtocol):
+class DivideValue(WorkflowProtocol):
     """A protocol which divides a value by a specified scalar
     """
 
@@ -167,7 +167,7 @@ class DivideValue(BaseProtocol):
 
 
 @workflow_protocol()
-class WeightByMoleFraction(BaseProtocol):
+class WeightByMoleFraction(WorkflowProtocol):
     """Multiplies a value by the mole fraction of a component
     in a `Substance`.
     """
@@ -242,7 +242,7 @@ class WeightByMoleFraction(BaseProtocol):
 
 
 @workflow_protocol()
-class FilterSubstanceByRole(BaseProtocol):
+class FilterSubstanceByRole(WorkflowProtocol):
     """A protocol which takes a substance as input, and returns a substance which only
     contains components whose role match a given criteria.
     """

@@ -24,12 +24,12 @@ from propertyestimator.workflow.plugins import (
     registered_workflow_protocols,
     workflow_protocol,
 )
-from propertyestimator.workflow.protocols import BaseProtocol, ProtocolPath
+from propertyestimator.workflow.protocols import ProtocolPath, WorkflowProtocol
 from propertyestimator.workflow.schemas import ProtocolGroupSchema
 
 
 @workflow_protocol()
-class ProtocolGroup(BaseProtocol):
+class ProtocolGroup(WorkflowProtocol):
     """A collection of protocols to be executed in one batch.
 
     This may be used for example to cluster together multiple protocols
@@ -67,7 +67,7 @@ class ProtocolGroup(BaseProtocol):
 
     @property
     def protocols(self):
-        """Dict[str, BaseProtocol]: A dictionary of the protocols in this groups, where the dictionary
+        """Dict[str, WorkflowProtocol]: A dictionary of the protocols in this groups, where the dictionary
                                     key is the protocol id, and the value the protocol itself."""
         return self._protocols
 

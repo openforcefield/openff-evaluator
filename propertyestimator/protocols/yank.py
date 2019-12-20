@@ -30,10 +30,10 @@ from propertyestimator.workflow.attributes import (
     OutputAttribute,
 )
 from propertyestimator.workflow.plugins import workflow_protocol
-from propertyestimator.workflow.protocols import BaseProtocol
+from propertyestimator.workflow.protocols import WorkflowProtocol
 
 
-class BaseYankProtocol(BaseProtocol, abc.ABC):
+class BaseYankProtocol(WorkflowProtocol, abc.ABC):
     """An abstract base class for protocols which will performs a set of
     alchemical free energy simulations using the YANK framework.
     """

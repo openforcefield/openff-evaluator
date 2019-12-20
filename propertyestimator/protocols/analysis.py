@@ -18,10 +18,10 @@ from propertyestimator.workflow.attributes import (
     OutputAttribute,
 )
 from propertyestimator.workflow.plugins import workflow_protocol
-from propertyestimator.workflow.protocols import BaseProtocol
+from propertyestimator.workflow.protocols import WorkflowProtocol
 
 
-class AveragePropertyProtocol(BaseProtocol, abc.ABC):
+class AveragePropertyProtocol(WorkflowProtocol, abc.ABC):
     """An abstract base class for protocols which will calculate the
     average of a property and its uncertainty via bootstrapping.
     """
@@ -172,7 +172,7 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
         return self._get_output_dictionary()
 
 
-class ExtractUncorrelatedData(BaseProtocol, abc.ABC):
+class ExtractUncorrelatedData(WorkflowProtocol, abc.ABC):
     """An abstract base class for protocols which will subsample
     a data set, yielding only equilibrated, uncorrelated data.
     """
