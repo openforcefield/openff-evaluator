@@ -5,7 +5,7 @@ import copy
 from collections import namedtuple
 
 from propertyestimator import unit
-from propertyestimator.attributes import PlaceholderValue
+from propertyestimator.attributes import UNDEFINED, PlaceholderValue
 from propertyestimator.datasets import PhysicalProperty, PropertyPhase
 from propertyestimator.datasets.thermoml.plugins import thermoml_property
 from propertyestimator.layers import register_calculation_schema
@@ -53,6 +53,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         component_substance_reference=None,
         full_substance_reference=None,
         options=None,
+        n_molecules=1000,
     ):
 
         """Returns the set of protocols which when combined in a workflow
@@ -81,6 +82,8 @@ class EnthalpyOfMixing(PhysicalProperty):
             `weight_by_mole_fraction` is `True`.
         options: WorkflowOptions
             The options to use when setting up the workflows.
+        n_molecules: int
+            The number of molecules to use in the simulation.
 
         Returns
         -------
@@ -126,7 +129,9 @@ class EnthalpyOfMixing(PhysicalProperty):
             simulation_protocols,
             value_source,
             output_to_store,
-        ) = generate_base_simulation_protocols(extract_enthalpy, options, id_suffix)
+        ) = generate_base_simulation_protocols(
+            extract_enthalpy, options, id_suffix, n_molecules=n_molecules
+        )
 
         number_of_molecules = ProtocolPath(
             "output_number_of_molecules", simulation_protocols.build_coordinates.id
@@ -464,16 +469,23 @@ class EnthalpyOfMixing(PhysicalProperty):
         }
 
     @staticmethod
-    def default_simulation_schema(existing_schema=None):
+    def default_simulation_schema(
+        absolute_tolerance=UNDEFINED, relative_tolerance=UNDEFINED, n_molecules=1000
+    ):
         """Returns the default calculation schema to use when estimating
         this class of property from direct simulations.
 
         Parameters
         ----------
-        existing_schema: SimulationSchema, optional
-            An existing schema whose settings to use. If set,
-            the schema's `workflow_schema` will be overwritten
-            by this method.
+        absolute_tolerance: unit.Quantity, optional
+            The absolute tolerance to estimate
+            the property to within.
+        relative_tolerance: float
+            The tolerance (as a fraction of the properties
+            reported uncertainty) to estimate the
+            property to within.
+        n_molecules: int
+            The number of molecules to use in the simulation.
 
         Returns
         -------
@@ -482,11 +494,8 @@ class EnthalpyOfMixing(PhysicalProperty):
         """
 
         calculation_schema = SimulationSchema()
-
-        if existing_schema is not None:
-
-            assert isinstance(existing_schema, SimulationSchema)
-            calculation_schema = copy.deepcopy(existing_schema)
+        calculation_schema.absolute_uncertainty = absolute_tolerance
+        calculation_schema.relative_uncertainty_fraction = relative_tolerance
 
         # Define the id of the replicator which will clone the gradient protocols
         # for each gradient key to be estimated.
@@ -501,7 +510,10 @@ class EnthalpyOfMixing(PhysicalProperty):
             full_system_gradient_replicator,
             full_system_gradient,
         ) = EnthalpyOfMixing._get_simulation_protocols(
-            "_full", gradient_replicator_id, options=calculation_schema.workflow_options
+            "_full",
+            gradient_replicator_id,
+            options=calculation_schema.workflow_options,
+            n_molecules=n_molecules,
         )
 
         # Set up a general workflow for calculating the enthalpy of one of the system components.
@@ -529,6 +541,7 @@ class EnthalpyOfMixing(PhysicalProperty):
             component_substance_reference=component_substance,
             full_substance_reference=full_substance,
             options=calculation_schema.workflow_options,
+            n_molecules=n_molecules,
         )
 
         # Finally, set up the protocols which will be responsible for adding together
@@ -785,16 +798,25 @@ class EnthalpyOfVaporization(PhysicalProperty):
         }
 
     @staticmethod
-    def default_simulation_schema(existing_schema=None):
+    def default_simulation_schema(
+        absolute_tolerance=UNDEFINED,
+        relative_tolerance=UNDEFINED,
+        n_liquid_molecules=1000,
+    ):
         """Returns the default calculation schema to use when estimating
         this class of property from direct simulations.
 
         Parameters
         ----------
-        existing_schema: SimulationSchema, optional
-            An existing schema whose settings to use. If set,
-            the schema's `workflow_schema` will be overwritten
-            by this method.
+        absolute_tolerance: unit.Quantity, optional
+            The absolute tolerance to estimate
+            the property to within.
+        relative_tolerance: float
+            The tolerance (as a fraction of the properties
+            reported uncertainty) to estimate the
+            property to within.
+        n_liquid_molecules: int
+            The number of molecules to use in the simulation.
 
         Returns
         -------
@@ -803,14 +825,8 @@ class EnthalpyOfVaporization(PhysicalProperty):
         """
 
         calculation_schema = SimulationSchema()
-
-        if existing_schema is not None:
-
-            assert isinstance(existing_schema, SimulationSchema)
-            calculation_schema = copy.deepcopy(existing_schema)
-
-        # Define the number of molecules for the liquid phase
-        number_of_liquid_molecules = 1000
+        calculation_schema.absolute_uncertainty = absolute_tolerance
+        calculation_schema.relative_uncertainty_fraction = relative_tolerance
 
         # Define a custom conditional group.
         converge_uncertainty = groups.ConditionalGroup(f"converge_uncertainty")
@@ -821,7 +837,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
             "extract_liquid_energy"
         )
         extract_liquid_energy.statistics_type = ObservableType.PotentialEnergy
-        extract_liquid_energy.divisor = number_of_liquid_molecules
+        extract_liquid_energy.divisor = n_liquid_molecules
 
         (
             liquid_protocols,
@@ -835,7 +851,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
         )
 
         # Make sure the number of molecules in the liquid is consistent.
-        liquid_protocols.build_coordinates.max_molecules = number_of_liquid_molecules
+        liquid_protocols.build_coordinates.max_molecules = n_liquid_molecules
         liquid_output_to_store.property_phase = PropertyPhase.Liquid
 
         # Define the protocols to perform the simulation in the gas phase.
@@ -997,7 +1013,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
             "scale_liquid_gradient_$(repl)"
         )
         scale_liquid_gradient.value = liquid_gradient_source
-        scale_liquid_gradient.divisor = number_of_liquid_molecules
+        scale_liquid_gradient.divisor = n_liquid_molecules
 
         combine_gradients = miscellaneous.SubtractValues("combine_gradients_$(repl)")
         combine_gradients.value_b = gas_gradient_source

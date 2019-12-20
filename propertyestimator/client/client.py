@@ -146,7 +146,9 @@ class RequestOptions(AttributeClass):
 
     calculation_layers = Attribute(
         docstring="The calculation layers which may be used to "
-        "estimate the set of physical properties.",
+        "estimate the set of physical properties. The order in which "
+        "the layers appears in this list determines the order in which "
+        "the layers will attempt to estimate the data set.",
         type_hint=list,
         default_value=["ReweightingLayer", "SimulationLayer"],
     )
@@ -157,6 +159,42 @@ class RequestOptions(AttributeClass):
         type_hint=dict,
         optional=True,
     )
+
+    def add_schema(self, layer_type, property_type, schema):
+        """A convenience function for adding a calculation schema
+        to the schema dictionary.
+
+        Parameters
+        ----------
+        layer_type: str or type of CalculationLayer
+            The layer to associate the schema with.
+        property_type: str or type of PhysicalProperty
+            The class of property to associate the schema
+            with.
+        schema: CalculationSchema
+            The schema to add.
+        """
+
+        # Validate the schema.
+        schema.validate()
+
+        # Make sure the schema is compatible with the layer.
+        assert layer_type in registered_calculation_layers
+        calculation_layer = registered_calculation_layers[layer_type]
+        assert type(schema) == calculation_layer.required_schema_type()
+
+        if isinstance(property_type, type):
+            property_type = property_type.__class__.__name__
+
+        if property_type not in self.calculation_schemas:
+            self.calculation_schemas[property_type] = {}
+        if (
+            calculation_layer
+            not in self.calculation_schemas[property_type][calculation_layer]
+        ):
+            self.calculation_schemas[property_type][calculation_layer] = {}
+
+        self.calculation_schemas[property_type][calculation_layer] = schema
 
     def validate(self, attribute_type=None):
 

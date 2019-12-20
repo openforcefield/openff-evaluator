@@ -376,16 +376,23 @@ class DielectricConstant(PhysicalProperty):
     """A class representation of a dielectric property"""
 
     @staticmethod
-    def default_simulation_schema(existing_schema=None):
+    def default_simulation_schema(
+        absolute_tolerance=UNDEFINED, relative_tolerance=UNDEFINED, n_molecules=1000
+    ):
         """Returns the default calculation schema to use when estimating
         this class of property from direct simulations.
 
         Parameters
         ----------
-        existing_schema: SimulationSchema, optional
-            An existing schema whose settings to use. If set,
-            the schema's `workflow_schema` will be overwritten
-            by this method.
+        absolute_tolerance: unit.Quantity, optional
+            The absolute tolerance to estimate
+            the property to within.
+        relative_tolerance: float
+            The tolerance (as a fraction of the properties
+            reported uncertainty) to estimate the
+            property to within.
+        n_molecules: int
+            The number of molecules to use in the simulation.
 
         Returns
         -------
@@ -394,11 +401,8 @@ class DielectricConstant(PhysicalProperty):
         """
 
         calculation_schema = SimulationSchema()
-
-        if existing_schema is not None:
-
-            assert isinstance(existing_schema, SimulationSchema)
-            calculation_schema = copy.deepcopy(existing_schema)
+        calculation_schema.absolute_uncertainty = absolute_tolerance
+        calculation_schema.relative_uncertainty_fraction = relative_tolerance
 
         # Define the protocol which will extract the average dielectric constant
         # from the results of a simulation.
@@ -409,7 +413,9 @@ class DielectricConstant(PhysicalProperty):
 
         # Define the protocols which will run the simulation itself.
         protocols, value_source, output_to_store = generate_base_simulation_protocols(
-            extract_dielectric, calculation_schema.workflow_options
+            extract_dielectric,
+            calculation_schema.workflow_options,
+            n_molecules=n_molecules,
         )
 
         # Make sure the input of the analysis protcol is properly hooked up.

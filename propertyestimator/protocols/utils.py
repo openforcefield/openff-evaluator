@@ -272,7 +272,11 @@ def generate_base_reweighting_protocols(
 
 
 def generate_base_simulation_protocols(
-    analysis_protocol, workflow_options, id_suffix="", conditional_group=None
+    analysis_protocol,
+    workflow_options,
+    id_suffix="",
+    conditional_group=None,
+    n_molecules=1000,
 ):
     """Constructs a set of protocols which, when combined in a workflow schema,
     may be executed to run a single simulation to estimate a particular
@@ -322,6 +326,8 @@ def generate_base_simulation_protocols(
         manually add the convergence conditions to this group.
         If `None`, a default group with uncertainty convergence
         conditions is automatically constructed.
+    n_molecules: int
+        The number of molecules to use in the workflow.
 
     Returns
     -------
@@ -341,7 +347,7 @@ def generate_base_simulation_protocols(
         f"build_coordinates{id_suffix}"
     )
     build_coordinates.substance = ProtocolPath("substance", "global")
-    build_coordinates.max_molecules = 1000
+    build_coordinates.max_molecules = n_molecules
 
     assign_parameters = forcefield.BuildSmirnoffSystem(f"assign_parameters{id_suffix}")
     assign_parameters.force_field_path = ProtocolPath("force_field_path", "global")
