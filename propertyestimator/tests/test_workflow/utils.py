@@ -7,7 +7,7 @@ from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import Workflow
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import workflow_protocol
-from propertyestimator.workflow.protocols import WorkflowProtocol
+from propertyestimator.workflow.protocols import Protocol
 
 
 def create_dummy_metadata(dummy_property, calculation_layer):
@@ -43,7 +43,7 @@ def create_dummy_metadata(dummy_property, calculation_layer):
 
 
 @workflow_protocol()
-class DummyReplicableProtocol(WorkflowProtocol):
+class DummyReplicableProtocol(Protocol):
 
     replicated_value_a = InputAttribute(
         docstring="", type_hint=Union[str, int, float], default_value=UNDEFINED
@@ -55,7 +55,7 @@ class DummyReplicableProtocol(WorkflowProtocol):
 
 
 @workflow_protocol()
-class DummyInputOutputProtocol(WorkflowProtocol):
+class DummyInputOutputProtocol(Protocol):
 
     input_value = InputAttribute(
         docstring="A dummy input.",

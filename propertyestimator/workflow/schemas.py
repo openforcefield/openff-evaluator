@@ -3,7 +3,7 @@ A collection of schemas which represent elements of a property calculation workf
 """
 import re
 
-from propertyestimator.attributes import UNDEFINED
+from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
 from propertyestimator.attributes.typing import is_type_subclass_of_type
 from propertyestimator.forcefield import ParameterGradient
 from propertyestimator.storage.attributes import StorageAttribute
@@ -15,28 +15,32 @@ from propertyestimator.workflow.plugins import registered_workflow_protocols
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
-class ProtocolSchema(TypedBaseModel):
+class ProtocolSchema(AttributeClass):
     """A json serializable representation of a workflow protocol.
     """
 
-    def __init__(self):
-        """Constructs a new ProtocolSchema object.
-        """
-        self.id = None
-        self.type = None
+    id = Attribute(
+        docstring="The unique id associated with the protocol.",
+        type_hint=str,
+        read_only=True,
+    )
+    type = Attribute(
+        docstring="The type of protocol associated with this schema.",
+        type_hint=str,
+        read_only=True,
+    )
 
-        self.inputs = {}
+    inputs = Attribute(
+        docstring="The inputs to the protocol.", type_hint=dict, read_only=True
+    )
 
-    def __getstate__(self):
-
-        return {"id": self.id, "type": self.type, "inputs": self.inputs}
-
-    def __setstate__(self, state):
-
-        self.id = state["id"]
-        self.type = state["type"]
-
-        self.inputs = state["inputs"]
+    def __init__(self, unique_id=None, protocol_type=None, inputs=None):
+        if unique_id is not None:
+            self.id = unique_id
+        if protocol_type is not None:
+            self.type = protocol_type
+        if inputs is not None:
+            self.inputs = inputs
 
 
 class ProtocolGroupSchema(ProtocolSchema):
@@ -44,24 +48,19 @@ class ProtocolGroupSchema(ProtocolSchema):
     group.
     """
 
-    def __init__(self):
-        """Constructs a new ProtocolGroupSchema object.
-        """
-        super().__init__()
+    protocol_schemas = Attribute(
+        docstring="The schemas of the protocols within this group.",
+        type_hint=dict,
+        read_only=True,
+    )
 
-        self.grouped_protocol_schemas = []
+    def validate(self, attribute_type=None):
+        super(ProtocolGroupSchema, self).validate(attribute_type)
 
-    def __getstate__(self):
+        for key, value in self.protocol_schemas:
 
-        state = super(ProtocolGroupSchema, self).__getstate__()
-        state.update({"grouped_protocol_schemas": self.grouped_protocol_schemas})
-
-        return state
-
-    def __setstate__(self, state):
-
-        super(ProtocolGroupSchema, self).__setstate__(state)
-        self.grouped_protocol_schemas = state["grouped_protocol_schemas"]
+            assert isinstance(key, str)
+            assert isinstance(value, ProtocolSchema)
 
 
 class ProtocolReplicator(TypedBaseModel):
@@ -128,7 +127,7 @@ class ProtocolReplicator(TypedBaseModel):
 
         Parameters
         ----------
-        protocols: dict of str and WorkflowProtocol
+        protocols: dict of str and Protocol
             The protocols to apply the replicator to.
         template_values: list of Any
             A list of the values which will be inserted
@@ -159,7 +158,7 @@ class ProtocolReplicator(TypedBaseModel):
 
         Returns
         -------
-        dict of str and WorkflowProtocol
+        dict of str and Protocol
             The replicated protocols.
         dict of ProtocolPath and list of tuple of ProtocolPath and int
             A dictionary of references to all of the protocols which have
@@ -324,7 +323,7 @@ class ProtocolReplicator(TypedBaseModel):
 
         Parameters
         ----------
-        protocols: dict of str and WorkflowProtocol
+        protocols: dict of str and Protocol
             The protocols which have had this replicator applied
             to them.
         replication_map: dict of ProtocolPath and list of tuple of ProtocolPath and int
@@ -491,7 +490,7 @@ class WorkflowSchema(TypedBaseModel):
 
             protocols_to_replicate.extend(
                 self._find_protocols_to_be_replicated(
-                    replicator, protocol.grouped_protocol_schemas
+                    replicator, protocol.protocol_schemas
                 )
             )
 
@@ -599,7 +598,7 @@ class WorkflowSchema(TypedBaseModel):
         if protocol_group_schema is None:
             protocol_schemas = self.protocols
         else:
-            protocol_schemas = protocol_group_schema.grouped_protocol_schemas
+            protocol_schemas = protocol_group_schema.protocol_schemas
 
         for protocol_schema_key in protocol_schemas:
 

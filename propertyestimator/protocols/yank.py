@@ -30,10 +30,10 @@ from propertyestimator.workflow.attributes import (
     OutputAttribute,
 )
 from propertyestimator.workflow.plugins import workflow_protocol
-from propertyestimator.workflow.protocols import WorkflowProtocol
+from propertyestimator.workflow.protocols import Protocol
 
 
-class BaseYankProtocol(WorkflowProtocol, abc.ABC):
+class BaseYankProtocol(Protocol, abc.ABC):
     """An abstract base class for protocols which will performs a set of
     alchemical free energy simulations using the YANK framework.
     """
@@ -495,7 +495,7 @@ class BaseYankProtocol(WorkflowProtocol, abc.ABC):
         self.estimated_free_energy = EstimatedQuantity(
             openmm_quantity_to_pint(free_energy),
             openmm_quantity_to_pint(free_energy_uncertainty),
-            self._id,
+            self.id,
         )
 
         return self._get_output_dictionary()

@@ -15,11 +15,11 @@ from propertyestimator.substances import Component, ExactAmount, MoleFraction, S
 from propertyestimator.utils import create_molecule_from_smiles, packmol
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import workflow_protocol
-from propertyestimator.workflow.protocols import WorkflowProtocol
+from propertyestimator.workflow.protocols import Protocol
 
 
 @workflow_protocol()
-class BuildCoordinatesPackmol(WorkflowProtocol):
+class BuildCoordinatesPackmol(Protocol):
     """Creates a set of 3D coordinates with a specified composition
     using the PACKMOL package.
     """
@@ -288,7 +288,7 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
 
 
 @workflow_protocol()
-class BuildDockedCoordinates(WorkflowProtocol):
+class BuildDockedCoordinates(Protocol):
     """Creates a set of coordinates for a ligand bound to some receptor.
 
     Notes
