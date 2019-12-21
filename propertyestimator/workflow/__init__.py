@@ -1,10 +1,10 @@
 from .schemas import ProtocolGroupSchema, ProtocolSchema, WorkflowSchema  # isort:skip
-from .protocols import Protocol  # isort:skip
 from .plugins import (  # isort:skip
     register_workflow_protocol,
     registered_workflow_protocols,
     workflow_protocol,
 )
+from .protocols import Protocol  # isort:skip
 
 from .workflow import Workflow, WorkflowGraph, WorkflowOptions  # isort:skip
 

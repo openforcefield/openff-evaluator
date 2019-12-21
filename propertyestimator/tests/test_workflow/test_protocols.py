@@ -29,6 +29,7 @@ from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow.plugins import registered_workflow_protocols
+from propertyestimator.workflow.protocols import ProtocolGraph
 from propertyestimator.workflow.utils import ProtocolPath
 
 
@@ -275,3 +276,132 @@ def test_base_simulation_protocols():
             temporary_directory, ComputeResources()
         )
         assert not isinstance(result, EvaluatorException)
+
+
+def build_merge(prefix):
+
+    # a - b \
+    #       | - e - f
+    # c - d /
+    protocol_a = DummyInputOutputProtocol(prefix + 'protocol_a')
+    protocol_a.input_value = 1
+    protocol_b = DummyInputOutputProtocol(prefix + 'protocol_b')
+    protocol_b.input_value = ProtocolPath("output_value", protocol_a.id)
+    protocol_c = DummyInputOutputProtocol(prefix + 'protocol_c')
+    protocol_c.input_value = 1
+    protocol_d = DummyInputOutputProtocol(prefix + 'protocol_d')
+    protocol_d.input_value = ProtocolPath("output_value", protocol_c.id)
+    protocol_e = DummyInputOutputProtocol(prefix + 'protocol_e')
+    protocol_e.input_value = [
+        ProtocolPath("output_value", protocol_b.id),
+        ProtocolPath("output_value", protocol_d.id)
+    ]
+    protocol_f = DummyInputOutputProtocol(prefix + 'protocol_f')
+    protocol_f.input_value = ProtocolPath("output_value", protocol_e.id)
+
+    return [
+        protocol_a,
+        protocol_b,
+        protocol_c,
+        protocol_d,
+        protocol_e,
+        protocol_f,
+    ]
+
+
+def build_fork(prefix):
+    #          / i - j
+    # g - h - |
+    #          \ k - l
+    protocol_g = DummyInputOutputProtocol(prefix + 'protocol_g')
+    protocol_g.input_value = 1
+    protocol_h = DummyInputOutputProtocol(prefix + 'protocol_h')
+    protocol_h.input_value = ProtocolPath("output_value", protocol_g.id)
+    protocol_i = DummyInputOutputProtocol(prefix + 'protocol_i')
+    protocol_i.input_value = ProtocolPath("output_value", protocol_h.id)
+    protocol_j = DummyInputOutputProtocol(prefix + 'protocol_j')
+    protocol_j.input_value = ProtocolPath("output_value", protocol_i.id)
+    protocol_k = DummyInputOutputProtocol(prefix + 'protocol_k')
+    protocol_k.input_value = ProtocolPath("output_value", protocol_h.id)
+    protocol_l = DummyInputOutputProtocol(prefix + 'protocol_l')
+    protocol_l.input_value = ProtocolPath("output_value", protocol_k.id)
+
+    return [
+        protocol_g,
+        protocol_h,
+        protocol_i,
+        protocol_j,
+        protocol_k,
+        protocol_l
+    ]
+
+
+def build_easy_graph():
+
+    protocol_a = DummyInputOutputProtocol('protocol_a')
+    protocol_a.input_value = 1
+    protocol_b = DummyInputOutputProtocol('protocol_b')
+    protocol_b.input_value = 1
+
+    return [protocol_a], [protocol_b]
+
+
+def build_medium_graph():
+
+    # a - b \
+    #       | - e - f
+    # c - d /
+    #
+    #          / i - j
+    # g - h - |
+    #          \ k - l
+    return [*build_merge("_a"), *build_fork("_a")], [*build_merge("_b"), *build_fork("_b")]
+
+
+def build_hard_graph():
+
+    # a - b \                    / i - j
+    #       | - e - f - g - h - |
+    # c - d /                   \ k - l
+
+    def build_graph(prefix):
+
+        merger = build_merge(prefix)
+        fork = build_fork(prefix)
+
+        fork[0].input_value = ProtocolPath("output_value", prefix + "protocol_f")
+        return [*merger, *fork]
+
+    return build_graph("a_"), build_graph("b_")
+
+
+@pytest.mark.parametrize("protocols_a, protocols_b", [
+    build_easy_graph(),
+    build_medium_graph(),
+    build_hard_graph()
+])
+def test_protocol_graph_simple(protocols_a, protocols_b):
+
+    # Make sure that the graph can merge simple protocols
+    # when they are added one after the other.
+    protocol_graph = ProtocolGraph()
+    protocol_graph.add_protocols(*protocols_a)
+
+    assert len(protocol_graph.protocols) == len(protocols_a)
+    assert len(protocol_graph.dependants_graph) == len(protocols_a)
+    n_root_protocols = len(protocol_graph.root_protocols)
+
+    protocol_graph.add_protocols(*protocols_b)
+
+    assert len(protocol_graph.protocols) == len(protocols_a)
+    assert len(protocol_graph.dependants_graph) == len(protocols_a)
+    assert len(protocol_graph.root_protocols) == n_root_protocols
+
+    # Currently the graph shouldn't merge with an
+    # addition
+    protocol_graph = ProtocolGraph()
+    protocol_graph.add_protocols(*protocols_a, *protocols_b)
+
+    assert len(protocol_graph.protocols) == len(protocols_a) + len(protocols_b)
+    assert len(protocol_graph.dependants_graph) == len(protocols_a) + len(protocols_b)
+    assert len(protocol_graph.root_protocols) == 2 * n_root_protocols

@@ -9,7 +9,7 @@ from collections import defaultdict
 from propertyestimator.attributes import Attribute, AttributeClass, PlaceholderValue
 from propertyestimator.utils import graph
 from propertyestimator.utils.utils import get_nested_attribute, set_nested_attribute
-from propertyestimator.workflow import registered_workflow_protocols
+from propertyestimator.workflow import registered_workflow_protocols, workflow_protocol
 from propertyestimator.workflow.attributes import (
     InequalityMergeBehaviour,
     InputAttribute,
@@ -668,6 +668,11 @@ class ProtocolGraph:
     """
 
     @property
+    def protocols(self):
+        """dict of str and Protocol: The protocols in this graph."""
+        return self._protocols_by_id
+
+    @property
     def root_protocols(self):
         """list of str: The ids of the protocols in the group which do not
         take input from the other grouped protocols."""
@@ -706,7 +711,7 @@ class ProtocolGraph:
         for protocol_id in protocols:
             dependants_graph[protocol_id] = set()
 
-        for protocol in protocols:
+        for protocol in protocols.values():
 
             for dependency in protocol.dependencies:
 
@@ -729,15 +734,15 @@ class ProtocolGraph:
                 # Add the dependency
                 dependants_graph[dependency.start_protocol].add(protocol.id)
 
+        dependants_graph = {key: list(value) for key, value in dependants_graph.items()}
         return dependants_graph
 
     def _add_protocol(
         self,
         protocol_id,
         protocols_to_add,
-        dependants_graph,
         parent_protocol_ids,
-        path_replacements=None,
+        exclusion_list,
     ):
         """Adds a protocol into the graph.
 
@@ -748,14 +753,11 @@ class ProtocolGraph:
         protocols_to_add: dict of str and Protocol
             A dictionary of all of the protocols currently being
             added to the graph.
-        dependants_graph: str and list of str
-            The dependency graph of the protocols to add.
         parent_protocol_ids : `list` of str
             The ids of the new parents of the node to be inserted. If None,
             the protocol will be added as a new parent node.
-        path_replacements: list of tuple of str, optional
-            Replacements to make in any value reference protocol paths
-            before comparing for equality.
+        exclusion_list: set
+            The protocols which have already been merged.
 
         Returns
         -------
@@ -784,6 +786,8 @@ class ProtocolGraph:
                 if x not in existing_protocols
             )
 
+        existing_protocols = [x for x in existing_protocols if x not in exclusion_list]
+
         protocol_to_insert = protocols_to_add[protocol_id]
         existing_protocol = None
 
@@ -794,9 +798,9 @@ class ProtocolGraph:
             if existing_id in protocols_to_add:
                 continue
 
-            protocol = self._protocols_by_id[protocol_id]
+            protocol = self._protocols_by_id[existing_id]
 
-            if not protocol.can_merge(protocol_to_insert, path_replacements):
+            if not protocol.can_merge(protocol_to_insert):
                 continue
 
             existing_protocol = protocol
@@ -816,7 +820,7 @@ class ProtocolGraph:
 
             for old_id, new_id in merged_ids.items():
 
-                for protocol in protocols_to_add:
+                for protocol in protocols_to_add.values():
                     protocol.replace_protocol(old_id, new_id)
 
         else:
@@ -830,29 +834,17 @@ class ProtocolGraph:
             if len(parent_protocol_ids) == 0:
                 self._root_protocols.append(protocol_id)
 
-        if len(parent_protocol_ids) > 0:
-
-            # Update the dependency graph.
-            for protocol_id in dependants_graph:
-
-                if (
-                    existing_protocol.id not in dependants_graph[protocol_id]
-                    or existing_protocol.id in self._dependants_graph[protocol_id]
-                    or protocol_id in self._dependants_graph[existing_protocol.id]
-                ):
-
-                    continue
-
-                self._dependants_graph[protocol_id].append(existing_protocol.id)
+            for parent_id in parent_protocol_ids:
+                self._dependants_graph[parent_id].append(protocol_id)
 
         return existing_protocol.id, merged_ids
 
-    def add_protocols(self, *protocols, allow_external_dependencies):
+    def add_protocols(self, *protocols, allow_external_dependencies=False):
         """Adds a set of protocols to the graph.
 
         Parameters
         ----------
-        protocols : tuple of Protocol
+        protocols : Protocol
             The protocols to add.
         allow_external_dependencies: bool
             If `False`, an exception will be raised if a protocol
@@ -893,7 +885,9 @@ class ProtocolGraph:
         reduced_graph = copy.deepcopy(dependants_graph)
         graph.apply_transitive_reduction(reduced_graph)
 
-        parent_protocol_ids = defaultdict(set)
+        parent_protocol_ids = defaultdict(list)
+        exclusion_list = set()
+
         # Store a mapping between original and merged protocols.
         merged_ids = {}
 
@@ -901,19 +895,23 @@ class ProtocolGraph:
 
             parent_ids = parent_protocol_ids.get(protocol_id) or []
             inserted_id, new_ids = self._add_protocol(
-                protocol_id, protocols, reduced_graph, parent_ids
+                protocol_id, protocols_by_id, parent_ids, exclusion_list
             )
+
+            # Keep a track of already merged protocols.
+            exclusion_list.add(inserted_id)
 
             # Keep track of any merged protocols
             merged_ids.update(new_ids)
 
             # Update the parent graph
             for dependant in reduced_graph[protocol_id]:
-                parent_protocol_ids[dependant].add(inserted_id)
+                parent_protocol_ids[dependant].append(inserted_id)
 
         return merged_ids
 
 
+@workflow_protocol()
 class ProtocolGroup(Protocol):
     """A group of workflow protocols to be executed in one batch.
 
@@ -1118,12 +1116,19 @@ class ProtocolGroup(Protocol):
         assert isinstance(other, ProtocolGroup)
         merged_ids = super(ProtocolGroup, self).merge(other)
 
+        # Update the protocol ids of the other grouped protocols.
+        for protocol in other.protocols:
+            protocol.replace_protocol(other.id, self.id)
+
+        # Merge the two groups using the inner protocol graph.
         new_merged_ids = self._inner_graph.add_protocols(
             *other.protocols.values(), allow_external_dependencies=True
         )
 
-        # TODO: Fix.
-        raise NotImplementedError()
+        # Replace the original protocol list with the new one.
+        self._protocols = list(self._inner_graph.protocols.values())
+
+        merged_ids.update(new_merged_ids)
         return merged_ids
 
     def _get_next_in_path(self, reference_path):

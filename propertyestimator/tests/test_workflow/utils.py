@@ -89,6 +89,6 @@ class DummyInputOutputProtocol(Protocol):
         ],
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
         self.output_value = self.input_value
         return self._get_output_dictionary()
