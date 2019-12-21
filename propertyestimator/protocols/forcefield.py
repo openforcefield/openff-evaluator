@@ -399,8 +399,6 @@ class BuildSmirnoffSystem(BuildSystemProtocol):
         with open(self.system_path, "w") as file:
             file.write(system_xml)
 
-        return self._get_output_dictionary()
-
 
 @workflow_protocol()
 class BuildLigParGenSystem(BuildSystemProtocol):
@@ -741,8 +739,6 @@ class BuildLigParGenSystem(BuildSystemProtocol):
 
         with open(self.system_path, "w") as file:
             file.write(system_xml)
-
-        return self._get_output_dictionary()
 
 
 @workflow_protocol()
@@ -1179,5 +1175,3 @@ class BuildTLeapSystem(BuildSystemProtocol):
 
         with open(self.system_path, "w") as file:
             file.write(system_xml)
-
-        return self._get_output_dictionary()

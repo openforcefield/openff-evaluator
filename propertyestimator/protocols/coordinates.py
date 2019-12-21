@@ -248,7 +248,6 @@ class BuildCoordinatesPackmol(Protocol):
             raise RuntimeError("Packmol failed to complete.")
 
         self._save_results(directory, topology, positions)
-        return self._get_output_dictionary()
 
 
 @workflow_protocol()
@@ -284,7 +283,6 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
             raise RuntimeError("Packmol failed to complete.")
 
         self._save_results(directory, topology, positions)
-        return self._get_output_dictionary()
 
 
 @workflow_protocol()
@@ -508,5 +506,3 @@ class BuildDockedCoordinates(Protocol):
 
         with open(self.docked_complex_coordinate_path, "w+") as file:
             app.PDBFile.writeFile(complex_topology.to_openmm(), complex_positions, file)
-
-        return self._get_output_dictionary()

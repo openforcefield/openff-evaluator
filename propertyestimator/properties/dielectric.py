@@ -207,8 +207,6 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
             value * unit.dimensionless, uncertainty * unit.dimensionless, self.id
         )
 
-        return self._get_output_dictionary()
-
 
 @workflow_protocol()
 class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
@@ -341,8 +339,6 @@ class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
                 "Dielectric constant can only be reweighted in conjunction "
                 "with bootstrapped uncertainties.",
             )
-
-        return self._get_output_dictionary()
 
 
 @thermoml_property(

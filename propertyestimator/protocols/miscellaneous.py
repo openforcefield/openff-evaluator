@@ -55,8 +55,6 @@ class AddValues(Protocol):
         for value in self.values[1:]:
             self.result += value
 
-        return self._get_output_dictionary()
-
 
 @workflow_protocol()
 class SubtractValues(Protocol):
@@ -88,9 +86,7 @@ class SubtractValues(Protocol):
     )
 
     def _execute(self, directory, available_resources):
-
         self.result = self.value_b - self.value_a
-        return self._get_output_dictionary()
 
 
 @workflow_protocol()
@@ -132,8 +128,6 @@ class MultiplyValue(Protocol):
 
             self.result = self.value * self.multiplier
 
-        return self._get_output_dictionary()
-
 
 @workflow_protocol()
 class DivideValue(Protocol):
@@ -161,9 +155,7 @@ class DivideValue(Protocol):
     )
 
     def _execute(self, directory, available_resources):
-
         self.result = self.value / self.divisor
-        return self._get_output_dictionary()
 
 
 @workflow_protocol()
@@ -238,7 +230,6 @@ class WeightByMoleFraction(Protocol):
             )
 
         self.weighted_value = self._weight_values(amount.value)
-        return self._get_output_dictionary()
 
 
 @workflow_protocol()
@@ -317,5 +308,3 @@ class FilterSubstanceByRole(Protocol):
                     amount = MoleFraction(amount.value * inverse_mole_fraction)
 
                 self.filtered_substance.add_component(component, amount)
-
-        return self._get_output_dictionary()

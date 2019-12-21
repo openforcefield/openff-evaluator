@@ -662,6 +662,11 @@ class Protocol(AttributeClass, abc.ABC):
         self.validate(InputAttribute)
         self._execute(directory, available_resources)
 
+    def validate(self, attribute_type=None):
+
+        # TODO: Don't validate after set state.
+        super(Protocol, self).validate(Attribute)
+        super(Protocol, self).validate(InputAttribute)
 
 class ProtocolGraph:
     """A graph of connected protocols.
@@ -1051,7 +1056,7 @@ class ProtocolGroup(Protocol):
             self._protocols.append(protocol)
 
         self._inner_graph.add_protocols(
-            *self._protocols, allow_external_dependencies=True
+            *protocols, allow_external_dependencies=True
         )
 
     def set_uuid(self, value):

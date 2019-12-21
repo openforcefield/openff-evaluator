@@ -169,8 +169,6 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
             final_value * statistics_unit, final_uncertainty * statistics_unit, self.id
         )
 
-        return self._get_output_dictionary()
-
 
 class ExtractUncorrelatedData(Protocol, abc.ABC):
     """An abstract base class for protocols which will subsample
@@ -293,8 +291,6 @@ class ExtractUncorrelatedTrajectoryData(ExtractUncorrelatedData):
 
         self.number_of_uncorrelated_samples = frame_count
 
-        return self._get_output_dictionary()
-
 
 @workflow_protocol()
 class ExtractUncorrelatedStatisticsData(ExtractUncorrelatedData):
@@ -334,4 +330,3 @@ class ExtractUncorrelatedStatisticsData(ExtractUncorrelatedData):
         uncorrelated_statistics.to_pandas_csv(self.output_statistics_path)
 
         self.number_of_uncorrelated_samples = len(uncorrelated_statistics)
-        return self._get_output_dictionary()

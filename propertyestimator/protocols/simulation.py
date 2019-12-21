@@ -116,8 +116,6 @@ class RunEnergyMinimisation(Protocol):
         with open(self.output_coordinate_file, "w+") as minimised_file:
             app.PDBFile.writeFile(simulation.topology, positions, minimised_file)
 
-        return self._get_output_dictionary()
-
 
 @workflow_protocol()
 class RunOpenMMSimulation(Protocol):
@@ -350,8 +348,6 @@ class RunOpenMMSimulation(Protocol):
 
         # Save out the final statistics in the property estimator format
         self._save_final_statistics(self.statistics_file_path, temperature, pressure)
-
-        return self._get_output_dictionary()
 
     def _setup_simulation_objects(self, temperature, pressure, available_resources):
         """Initializes the objects needed to perform the simulation.

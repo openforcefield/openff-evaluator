@@ -498,8 +498,6 @@ class BaseYankProtocol(Protocol, abc.ABC):
             self.id,
         )
 
-        return self._get_output_dictionary()
-
 
 @workflow_protocol()
 class LigandReceptorYankProtocol(BaseYankProtocol):
@@ -684,7 +682,7 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         super(LigandReceptorYankProtocol, self).execute(directory, available_resources)
 
         if self.setup_only:
-            return self._get_output_dictionary()
+            return
 
         ligand_yank_path = os.path.join(directory, "experiments", "solvent.nc")
         complex_yank_path = os.path.join(directory, "experiments", "complex.nc")
@@ -696,8 +694,6 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         self._extract_trajectory(
             complex_yank_path, self.solvated_complex_trajectory_path
         )
-
-        return self._get_output_dictionary()
 
 
 @workflow_protocol()
@@ -985,7 +981,7 @@ class SolvationYankProtocol(BaseYankProtocol):
         super(SolvationYankProtocol, self).execute(directory, available_resources)
 
         if self.setup_only:
-            return self._get_output_dictionary()
+            return
 
         solvent_1_yank_path = os.path.join(directory, "experiments", "solvent1.nc")
         solvent_2_yank_path = os.path.join(directory, "experiments", "solvent2.nc")
@@ -995,5 +991,3 @@ class SolvationYankProtocol(BaseYankProtocol):
 
         self._extract_trajectory(solvent_1_yank_path, self.solvent_1_trajectory_path)
         self._extract_trajectory(solvent_2_yank_path, self.solvent_2_trajectory_path)
-
-        return self._get_output_dictionary()

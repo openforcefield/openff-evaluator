@@ -116,5 +116,3 @@ class UnpackStoredSimulationData(Protocol):
         )
 
         self.force_field_path = force_field_path
-
-        return self._get_output_dictionary()

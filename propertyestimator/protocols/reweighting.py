@@ -89,8 +89,6 @@ class ConcatenateTrajectories(Protocol):
         self.output_trajectory_path = path.join(directory, "output_trajectory.dcd")
         output_trajectory.save_dcd(self.output_trajectory_path)
 
-        return self._get_output_dictionary()
-
 
 @workflow_protocol()
 class ConcatenateStatistics(Protocol):
@@ -125,8 +123,6 @@ class ConcatenateStatistics(Protocol):
 
         self.output_statistics_path = path.join(directory, "output_statistics.csv")
         output_array.to_pandas_csv(self.output_statistics_path)
-
-        return self._get_output_dictionary()
 
 
 @workflow_protocol()
@@ -292,8 +288,6 @@ class CalculateReducedPotentialOpenMM(Protocol):
         self.statistics_file_path = path.join(directory, "statistics.csv")
         statistics_array.to_pandas_csv(self.statistics_file_path)
 
-        return self._get_output_dictionary()
-
 
 class BaseMBARProtocol(Protocol, abc.ABC):
     """Reweights a set of observables using MBAR to calculate
@@ -378,8 +372,6 @@ class BaseMBARProtocol(Protocol, abc.ABC):
             self._execute_without_bootstrapping(
                 observable_unit, observables=observables
             )
-
-        return self._get_output_dictionary()
 
     def _load_reduced_potentials(self):
         """Loads the target and reference reduced potentials

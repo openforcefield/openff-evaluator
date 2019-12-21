@@ -53,6 +53,9 @@ class DummyReplicableProtocol(Protocol):
     )
     final_value = OutputAttribute(docstring="", type_hint=EstimatedQuantity)
 
+    def _execute(self, directory, available_resources):
+        pass
+
 
 @workflow_protocol()
 class DummyInputOutputProtocol(Protocol):
@@ -91,4 +94,3 @@ class DummyInputOutputProtocol(Protocol):
 
     def _execute(self, directory, available_resources):
         self.output_value = self.input_value
-        return self._get_output_dictionary()

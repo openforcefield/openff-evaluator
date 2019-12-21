@@ -397,8 +397,6 @@ class GradientReducedPotentials(Protocol):
             energy_corrections,
         )
 
-        return self._get_output_dictionary()
-
 
 @workflow_protocol()
 class CentralDifferenceGradient(Protocol):
@@ -470,5 +468,3 @@ class CentralDifferenceGradient(Protocol):
         )
 
         self.gradient = ParameterGradient(self.parameter_key, gradient)
-
-        return self._get_output_dictionary()
