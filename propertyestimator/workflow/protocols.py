@@ -52,7 +52,7 @@ class Protocol(AttributeClass, abc.ABC):
     """
 
     id = Attribute(
-        docstring="The unique id of this protocol.", type_hint=str, read_only=True
+        docstring="The unique id of this protocol.", type_hint=str
     )
     allow_merging = InputAttribute(
         docstring="Defines whether this protocols is allowed "
@@ -118,9 +118,9 @@ class Protocol(AttributeClass, abc.ABC):
         return return_dependencies
 
     def __init__(self, protocol_id):
-        self._set_value("id", protocol_id)
+        self.id = protocol_id
 
-    def _get_schema(self, schema_type=ProtocolSchema):
+    def _get_schema(self, schema_type=ProtocolSchema, *args):
         """Returns the schema representation of this protocol.
 
         Parameters
@@ -139,7 +139,7 @@ class Protocol(AttributeClass, abc.ABC):
         for input_path in self.required_inputs:
 
             if (
-                input_path.protocol_path is not None
+                len(input_path.protocol_path) > 0
                 and input_path.protocol_path != self.id
             ):
                 continue
@@ -148,7 +148,7 @@ class Protocol(AttributeClass, abc.ABC):
             # Changing the schema should NOT change the protocol.
             inputs[input_path.full_path] = copy.deepcopy(self.get_value(input_path))
 
-        schema = ProtocolSchema(self.id, self.__class__.__name__, inputs)
+        schema = schema_type(self.id, self.__class__.__name__, inputs, *args)
         return schema
 
     def _set_schema(self, schema):
@@ -167,7 +167,7 @@ class Protocol(AttributeClass, abc.ABC):
                 f"The schema type {schema.type} does not match this protocol."
             )
 
-        self._set_value("id", schema.id)
+        self.id = schema.id
 
         for input_full_path in schema.inputs:
 
@@ -206,7 +206,7 @@ class Protocol(AttributeClass, abc.ABC):
         if self.id.find(value) >= 0:
             return
 
-        self._set_value("id", graph.append_uuid(self.id, value))
+        self.id = graph.append_uuid(self.id, value)
 
         for input_path in self.required_inputs:
 
@@ -250,7 +250,7 @@ class Protocol(AttributeClass, abc.ABC):
                 value_reference.replace_protocol(old_id, new_id)
 
         if self.id == old_id:
-            self._set_value("id", new_id)
+            self.id = new_id
 
     def _find_inputs_to_merge(self):
         """Returns a list of those inputs which should
@@ -738,11 +738,7 @@ class ProtocolGraph:
         return dependants_graph
 
     def _add_protocol(
-        self,
-        protocol_id,
-        protocols_to_add,
-        parent_protocol_ids,
-        exclusion_list,
+        self, protocol_id, protocols_to_add, parent_protocol_ids, exclusion_list,
     ):
         """Adds a protocol into the graph.
 
@@ -844,7 +840,7 @@ class ProtocolGraph:
 
         Parameters
         ----------
-        protocols : Protocol
+        protocols : tuple of Protocol
             The protocols to add.
         allow_external_dependencies: bool
             If `False`, an exception will be raised if a protocol
@@ -856,7 +852,7 @@ class ProtocolGraph:
             A mapping between the original protocols and protocols which
             were merged over the course of adding the new protocols.
         """
-        conflicting_ids = [x.id for x in protocols if x in self._protocols_by_id]
+        conflicting_ids = [x.id for x in protocols if x.id in self._protocols_by_id]
 
         # Make sure we aren't trying to add protocols with conflicting ids.
         if len(conflicting_ids) > 0:
@@ -948,6 +944,19 @@ class ProtocolGroup(Protocol):
         return required_inputs
 
     @property
+    def dependencies(self):
+        """list of ProtocolPath: A list of pointers to the protocols which this
+        protocol takes input from.
+        """
+        dependencies = super(ProtocolGroup, self).dependencies
+        # Remove child dependencies.
+        dependencies = [
+            x for x in dependencies if x.start_protocol not in self.protocols
+        ]
+
+        return dependencies
+
+    @property
     def outputs(self):
         """dict of ProtocolPath and Any: A dictionary of the outputs of this property."""
 
@@ -990,12 +999,13 @@ class ProtocolGroup(Protocol):
         self._protocols = []
         self._inner_graph = ProtocolGraph()
 
-    def _get_schema(self, schema_type=ProtocolGroupSchema):
+    def _get_schema(self, schema_type=ProtocolGroupSchema, *args):
 
-        schema = super(ProtocolGroup, self)._get_schema(schema_type)
+        protocol_schemas = {x.id: x.schema for x in self._protocols}
 
-        for protocol in self._protocols:
-            schema.protocol_schemas[protocol.id] = protocol.schema
+        schema = super(ProtocolGroup, self)._get_schema(
+            schema_type, protocol_schemas, *args
+        )
 
         return schema
 
@@ -1019,7 +1029,7 @@ class ProtocolGroup(Protocol):
             protocol = Protocol.from_schema(protocol_schema)
             protocols_to_add.append(protocol)
 
-        self.add_protocols(protocols_to_add)
+        self.add_protocols(*protocols_to_add)
 
     def add_protocols(self, *protocols):
         """Add protocols to this group.
@@ -1102,9 +1112,12 @@ class ProtocolGroup(Protocol):
             return False
 
         # Ensure that the starting points in each group can be merged.
-        for self_protocol in self._inner_graph.root_protocols:
-            for other_protocol in other._inner_graph.root_protocols:
-                if self_protocol.can_merge(other_protocol, path_replacements):
+        for self_id in self._inner_graph.root_protocols:
+            for other_id in other._inner_graph.root_protocols:
+
+                if self.protocols[self_id].can_merge(
+                    other.protocols[other_id], path_replacements
+                ):
                     break
             else:
                 return False
@@ -1117,7 +1130,7 @@ class ProtocolGroup(Protocol):
         merged_ids = super(ProtocolGroup, self).merge(other)
 
         # Update the protocol ids of the other grouped protocols.
-        for protocol in other.protocols:
+        for protocol in other.protocols.values():
             protocol.replace_protocol(other.id, self.id)
 
         # Merge the two groups using the inner protocol graph.
@@ -1159,7 +1172,7 @@ class ProtocolGroup(Protocol):
         if target_protocol_id not in self.protocols:
 
             raise ValueError(
-                "The reference path does not target this protocol"
+                "The reference path does not target this protocol "
                 "or any of its children."
             )
 
@@ -1168,7 +1181,7 @@ class ProtocolGroup(Protocol):
     def get_class_attribute(self, reference_path):
 
         if (
-            reference_path.protocol_path is None
+            len(reference_path.protocol_path) == 0
             or reference_path.protocol_path == self.id
         ):
             return super(ProtocolGroup, self).get_class_attribute(reference_path)
@@ -1179,7 +1192,7 @@ class ProtocolGroup(Protocol):
     def get_value(self, reference_path):
 
         if (
-            reference_path.protocol_path is None
+            len(reference_path.protocol_path) == 0
             or reference_path.protocol_path == self.id
         ):
             return super(ProtocolGroup, self).get_value(reference_path)
@@ -1190,7 +1203,7 @@ class ProtocolGroup(Protocol):
     def set_value(self, reference_path, value):
 
         if (
-            reference_path.protocol_path is None
+            len(reference_path.protocol_path) == 0
             or reference_path.protocol_path == self.id
         ):
             return super(ProtocolGroup, self).set_value(reference_path, value)
@@ -1225,6 +1238,7 @@ class ProtocolGroup(Protocol):
 
         # Re-initialize the group using the replicated protocols.
         self._protocols = []
+        self._inner_graph = ProtocolGraph()
         self.add_protocols(*protocols.values())
 
         return replication_map

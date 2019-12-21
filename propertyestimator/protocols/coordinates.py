@@ -224,7 +224,7 @@ class BuildCoordinatesPackmol(Protocol):
 
         logging.info("Coordinates generated: " + self.substance.identifier)
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         molecules, number_of_molecules, exception = self._build_molecule_arrays()
 
@@ -263,7 +263,7 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
         default_value=UNDEFINED,
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         molecules, number_of_molecules, exception = self._build_molecule_arrays()
 
@@ -398,7 +398,7 @@ class BuildDockedCoordinates(Protocol):
 
         return ligand.to_openeye()
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         import mdtraj
         from openeye import oechem, oedocking

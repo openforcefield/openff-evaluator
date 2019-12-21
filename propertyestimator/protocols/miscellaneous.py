@@ -37,7 +37,7 @@ class AddValues(Protocol):
         ],
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         if len(self.values) < 1:
             raise ValueError("There were no values to add together")
@@ -87,7 +87,7 @@ class SubtractValues(Protocol):
         ],
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         self.result = self.value_b - self.value_a
         return self._get_output_dictionary()
@@ -118,7 +118,7 @@ class MultiplyValue(Protocol):
         ],
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         if isinstance(self.value, EstimatedQuantity):
 
@@ -160,7 +160,7 @@ class DivideValue(Protocol):
         ],
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         self.result = self.value / self.divisor
         return self._get_output_dictionary()
@@ -214,7 +214,7 @@ class WeightByMoleFraction(Protocol):
         """
         return self.value * mole_fraction
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         assert len(self.component.components) == 1
 
@@ -271,7 +271,7 @@ class FilterSubstanceByRole(Protocol):
         docstring="The filtered substance.", type_hint=Substance
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         filtered_components = []
         total_mole_fraction = 0.0

@@ -448,7 +448,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
 
         queue.put((free_energy, free_energy_uncertainty, exception))
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         yaml_filename = os.path.join(directory, "yank.yaml")
 
@@ -658,7 +658,7 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
 
         return full_dictionary
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         # Because of quirks in where Yank looks files while doing temporary
         # directory changes, we need to copy the coordinate files locally so
@@ -909,7 +909,7 @@ class SolvationYankProtocol(BaseYankProtocol):
 
         return {"solvation-protocol": protocol_dictionary}
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         from simtk.openmm import XmlSerializer
 

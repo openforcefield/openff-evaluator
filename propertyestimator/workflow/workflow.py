@@ -639,9 +639,7 @@ class Workflow:
             protocol = self.protocols[protocol_id]
             protocol.replace_protocol(old_protocol_id, new_protocol_id)
 
-        if old_protocol_id in self.protocols and isinstance(
-            new_protocol, Protocol
-        ):
+        if old_protocol_id in self.protocols and isinstance(new_protocol, Protocol):
 
             self.protocols.pop(old_protocol_id)
             self.protocols[new_protocol_id] = new_protocol
@@ -916,7 +914,9 @@ class WorkflowGraph:
 
         # Build a dependency graph from the dependants graph so that
         # futures can be passed in the correct place.
-        dependencies = graph.dependants_to_dependencies(self._inner_graph.dependants_graph)
+        dependencies = graph.dependants_to_dependencies(
+            self._inner_graph.dependants_graph
+        )
 
         # TODO: Use ProtocolGraph execution code?
         raise NotImplementedError()

@@ -22,7 +22,6 @@ class ProtocolSchema(AttributeClass):
     id = Attribute(
         docstring="The unique id associated with the protocol.",
         type_hint=str,
-        read_only=True,
     )
     type = Attribute(
         docstring="The type of protocol associated with this schema.",
@@ -36,11 +35,11 @@ class ProtocolSchema(AttributeClass):
 
     def __init__(self, unique_id=None, protocol_type=None, inputs=None):
         if unique_id is not None:
-            self.id = unique_id
+            self._set_value("id", unique_id)
         if protocol_type is not None:
-            self.type = protocol_type
+            self._set_value("type", protocol_type)
         if inputs is not None:
-            self.inputs = inputs
+            self._set_value("inputs", inputs)
 
 
 class ProtocolGroupSchema(ProtocolSchema):
@@ -53,6 +52,14 @@ class ProtocolGroupSchema(ProtocolSchema):
         type_hint=dict,
         read_only=True,
     )
+
+    def __init__(
+        self, unique_id=None, protocol_type=None, inputs=None, protocol_schemas=None
+    ):
+        super(ProtocolGroupSchema, self).__init__(unique_id, protocol_type, inputs)
+
+        if protocol_schemas is not None:
+            self._set_value("protocol_schemas", protocol_schemas)
 
     def validate(self, attribute_type=None):
         super(ProtocolGroupSchema, self).validate(attribute_type)

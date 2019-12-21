@@ -313,7 +313,7 @@ class GradientReducedPotentials(Protocol):
 
         return statistics_array
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         import mdtraj
         from openforcefield.topology import Molecule, Topology
@@ -447,7 +447,7 @@ class CentralDifferenceGradient(Protocol):
         docstring="The estimated gradient", type_hint=ParameterGradient
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         if self.forward_parameter_value < self.reverse_parameter_value:
 

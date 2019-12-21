@@ -230,7 +230,7 @@ class ConditionalGroup(ProtocolGroup):
 
         return current_iteration
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
         """Executes the protocols within this groups
 
         Parameters

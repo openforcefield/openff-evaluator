@@ -11,30 +11,6 @@ from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.workflow.utils import ProtocolPath
 
 
-def test_protocol_group():
-
-    with tempfile.TemporaryDirectory() as directory:
-
-        initial_value = random.random() * unit.kelvin
-
-        protocol_group = ProtocolGroup("protocol_group")
-
-        value_protocol_a = DummyInputOutputProtocol("protocol_a")
-        value_protocol_a.input_value = initial_value
-
-        value_protocol_b = DummyInputOutputProtocol("value_protocol_b")
-        value_protocol_b.input_value = ProtocolPath("output_value", value_protocol_a.id)
-
-        protocol_group.add_protocols(value_protocol_a, value_protocol_b)
-        result = protocol_group.execute(directory, None)
-
-        assert not isinstance(result, EvaluatorException)
-        assert (
-            protocol_group.get_value(ProtocolPath("output_value", value_protocol_b.id))
-            == initial_value
-        )
-
-
 def test_conditional_protocol_group():
 
     with tempfile.TemporaryDirectory() as directory:

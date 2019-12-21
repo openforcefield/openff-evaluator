@@ -168,7 +168,7 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
 
         return dipole_moments, volumes
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         super(ExtractAverageDielectric, self).execute(directory, available_resources)
 
@@ -282,7 +282,7 @@ class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
 
         return dielectric_constant
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         if len(self.reference_dipole_moments) == 0:
             raise ValueError("There were no dipole moments to reweight.")

@@ -62,7 +62,7 @@ class UnpackStoredSimulationData(Protocol):
         type_hint=str,
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         if len(self.simulation_data_path) != 3:
 

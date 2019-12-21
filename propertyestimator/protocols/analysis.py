@@ -124,7 +124,7 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
         super().__init__(protocol_id)
         self._statistics = None
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         self._statistics = statistics.StatisticsArray.from_pandas_csv(
             self.statistics_path
@@ -244,7 +244,7 @@ class ExtractUncorrelatedTrajectoryData(ExtractUncorrelatedData):
 
             yield frame
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         import mdtraj
         from mdtraj.formats.dcd import DCDTrajectoryFile
@@ -312,7 +312,7 @@ class ExtractUncorrelatedStatisticsData(ExtractUncorrelatedData):
         docstring="The file path to the subsampled statistics.", type_hint=str
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         statistics_array = StatisticsArray.from_pandas_csv(self.input_statistics_path)
 

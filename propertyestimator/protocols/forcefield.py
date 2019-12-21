@@ -339,7 +339,7 @@ class BuildSmirnoffSystem(BuildSystemProtocol):
 
         return [sodium, potassium, calcium, chlorine, water]
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         from openforcefield.topology import Molecule, Topology
 
@@ -616,7 +616,7 @@ class BuildLigParGenSystem(BuildSystemProtocol):
                         exception_index, index_a, index_b, charge, sigma_14, epsilon_14
                     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         import mdtraj
         from openforcefield.topology import Molecule, Topology
@@ -1069,7 +1069,7 @@ class BuildTLeapSystem(BuildSystemProtocol):
             os.path.join(directory, rst7_file_name),
         )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         from openforcefield.topology import Molecule, Topology
 

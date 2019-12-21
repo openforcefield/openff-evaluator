@@ -69,7 +69,7 @@ class RunEnergyMinimisation(Protocol):
         docstring="The file path to the minimised coordinates.", type_hint=str
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         platform = setup_platform_with_resources(available_resources)
 
@@ -289,7 +289,7 @@ class RunOpenMMSimulation(Protocol):
         self._context = None
         self._integrator = None
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         # We handle most things in OMM units here.
         temperature = self.thermodynamic_state.temperature

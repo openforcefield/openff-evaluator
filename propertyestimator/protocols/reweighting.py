@@ -55,7 +55,7 @@ class ConcatenateTrajectories(Protocol):
         docstring="The path to the concatenated trajectory.", type_hint=str
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         import mdtraj
 
@@ -108,7 +108,7 @@ class ConcatenateStatistics(Protocol):
         type_hint=str,
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         if len(self.input_statistics_paths) == 0:
             raise ValueError("No statistics arrays were given to concatenate.")
@@ -195,7 +195,7 @@ class CalculateReducedPotentialOpenMM(Protocol):
         type_hint=str,
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         import openmmtools
         import mdtraj
@@ -357,7 +357,7 @@ class BaseMBARProtocol(Protocol, abc.ABC):
         super().__init__(protocol_id)
         self._reference_observables = []
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         if len(self._reference_observables) == 0:
             raise ValueError("There were no observables to reweight.")
@@ -790,7 +790,7 @@ class ReweightStatistics(BaseMBARProtocol):
         optional=True,
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         if isinstance(self.statistics_paths, str):
             self.statistics_paths = [self.statistics_paths]
