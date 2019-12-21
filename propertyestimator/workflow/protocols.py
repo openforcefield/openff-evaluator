@@ -1144,6 +1144,19 @@ class ProtocolGroup(Protocol):
         merged_ids.update(new_merged_ids)
         return merged_ids
 
+    def get_value_references(self, input_path):
+
+        values_references = super(ProtocolGroup, self).get_value_references(input_path)
+
+        for value_reference in values_references.values():
+
+            if value_reference.start_protocol not in self.protocols:
+                continue
+
+            value_reference.prepend_protocol_id(self.id)
+
+        return values_references
+
     def _get_next_in_path(self, reference_path):
         """Returns the id of the next protocol in a protocol path,
         making sure that the targeted protocol is within this group.

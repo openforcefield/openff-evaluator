@@ -71,9 +71,7 @@ def test_build_coordinates_packmol(input_substance, expected):
     build_coordinates.substance = input_substance
 
     with tempfile.TemporaryDirectory() as directory:
-        assert not isinstance(
-            build_coordinates.execute(directory, None), EvaluatorException
-        )
+        build_coordinates.execute(directory, None)
 
     assert build_coordinates.output_substance == expected
 

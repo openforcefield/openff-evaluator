@@ -64,7 +64,7 @@ class ProtocolGroupSchema(ProtocolSchema):
     def validate(self, attribute_type=None):
         super(ProtocolGroupSchema, self).validate(attribute_type)
 
-        for key, value in self.protocol_schemas:
+        for key, value in self.protocol_schemas.items():
 
             assert isinstance(key, str)
             assert isinstance(value, ProtocolSchema)
