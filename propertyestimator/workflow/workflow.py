@@ -22,7 +22,7 @@ from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEnc
 from propertyestimator.utils.string import extract_variable_index_and_name
 from propertyestimator.utils.utils import get_nested_attribute
 from propertyestimator.workflow.exceptions import WorkflowException
-from propertyestimator.workflow.protocols import WorkflowProtocol
+from propertyestimator.workflow.protocols import Protocol, ProtocolGraph
 from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
@@ -157,9 +157,6 @@ class Workflow:
 
         self.protocols = {}
 
-        self.starting_protocols = []
-        self.dependants_graph = {}
-
         self.final_value_source = None
         self.gradients_sources = []
 
@@ -221,7 +218,6 @@ class Workflow:
             self.final_value_source.append_uuid(self.uuid)
 
         self._build_protocols(schema)
-        self._build_dependants_graph()
 
         self.gradients_sources = []
 
@@ -608,47 +604,6 @@ class Workflow:
 
         schema.replicators = replicators
 
-    def _build_dependants_graph(self):
-        """Builds a dictionary of key value pairs where each key represents the id of a
-        protocol to be executed in this workflow, and each value a list ids of protocols
-        which must be ran after the protocol identified by the key.
-        """
-
-        for protocol_name in self.protocols:
-            self.dependants_graph[protocol_name] = []
-
-        for dependant_protocol_name in self.protocols:
-
-            dependant_protocol = self.protocols[dependant_protocol_name]
-
-            for dependency in dependant_protocol.dependencies:
-
-                if dependency.is_global:
-                    # Global inputs are outside the scope of the
-                    # schema dependency graph.
-                    continue
-
-                if (
-                    dependency.start_protocol == dependant_protocol_name
-                    and dependency.start_protocol
-                ):
-                    # Don't add self to the dependency list.
-                    continue
-
-                # Only add a dependency on the protocol at the head of the path,
-                # dependencies on the rest of protocols in the path is then implied.
-                if (
-                    dependant_protocol.id
-                    in self.dependants_graph[dependency.start_protocol]
-                ):
-                    continue
-
-                self.dependants_graph[dependency.start_protocol].append(
-                    dependant_protocol.id
-                )
-
-        self.starting_protocols = graph.find_root_nodes(self.dependants_graph)
-
     def replace_protocol(self, old_protocol, new_protocol):
         """Replaces an existing protocol with a new one, while
         updating all input and local references to point to the
@@ -659,18 +614,18 @@ class Workflow:
 
         Parameters
         ----------
-        old_protocol : protocols.WorkflowProtocol or str
+        old_protocol : protocols.Protocol or str
             The protocol (or its id) to replace.
-        new_protocol : protocols.WorkflowProtocol or str
+        new_protocol : protocols.Protocol or str
             The new protocol (or its id) to use.
         """
 
         old_protocol_id = old_protocol
         new_protocol_id = new_protocol
 
-        if isinstance(old_protocol, WorkflowProtocol):
+        if isinstance(old_protocol, Protocol):
             old_protocol_id = old_protocol.id
-        if isinstance(new_protocol, WorkflowProtocol):
+        if isinstance(new_protocol, Protocol):
             new_protocol_id = new_protocol.id
 
         if new_protocol_id in self.protocols:
@@ -685,33 +640,11 @@ class Workflow:
             protocol.replace_protocol(old_protocol_id, new_protocol_id)
 
         if old_protocol_id in self.protocols and isinstance(
-            new_protocol, WorkflowProtocol
+            new_protocol, Protocol
         ):
 
             self.protocols.pop(old_protocol_id)
             self.protocols[new_protocol_id] = new_protocol
-
-        for index, starting_id in enumerate(self.starting_protocols):
-
-            if starting_id == old_protocol_id:
-                starting_id = new_protocol_id
-
-            self.starting_protocols[index] = starting_id
-
-        for protocol_id in self.dependants_graph:
-
-            for index, dependant_id in enumerate(self.dependants_graph[protocol_id]):
-
-                if dependant_id == old_protocol_id:
-                    dependant_id = new_protocol_id
-
-                self.dependants_graph[protocol_id][index] = dependant_id
-
-        if old_protocol_id in self.dependants_graph:
-
-            self.dependants_graph[new_protocol_id] = self.dependants_graph.pop(
-                old_protocol_id
-            )
 
         if self.final_value_source is not None:
             self.final_value_source.replace_protocol(old_protocol_id, new_protocol_id)
@@ -928,119 +861,10 @@ class WorkflowGraph:
     which will estimate a set of physical properties..
     """
 
-    def __init__(self, root_directory=""):
-        """Constructs a new WorkflowGraph
-
-        Parameters
-        ----------
-        root_directory: str
-            The root directory in which to store all outputs from
-            this graph.
-        """
-        self._protocols_by_id = {}
-
-        self._root_protocol_ids = []
-        self._root_directory = root_directory
-
-        self._dependants_graph = {}
+    def __init__(self):
 
         self._workflows_to_execute = {}
-
-    def _insert_protocol(self, protocol_name, workflow, parent_protocol_ids):
-        """Inserts a protocol into the workflow graph.
-
-        Parameters
-        ----------
-        protocol_name : str
-            The name of the protocol to insert.
-        workflow : Workflow
-            The workflow being inserted.
-        parent_protocol_ids : `list` of str
-            The ids of the new parents of the node to be inserted. If None,
-            the protocol will be added as a new parent node.
-        """
-
-        if protocol_name in self._protocols_by_id:
-
-            raise RuntimeError(
-                "A protocol with id {} has already been "
-                "inserted into the graph.".format(protocol_name)
-            )
-
-        protocols = self._root_protocol_ids if len(parent_protocol_ids) == 0 else []
-
-        for parent_protocol_id in parent_protocol_ids:
-            protocols.extend(
-                x
-                for x in self._dependants_graph[parent_protocol_id]
-                if x not in protocols
-            )
-
-        protocol_to_insert = workflow.protocols[protocol_name]
-        existing_protocol = None
-
-        # Start by checking to see if the starting protocol of the workflow graph is
-        # already present in the full graph.
-        for protocol_id in protocols:
-
-            if protocol_id in workflow.protocols:
-                continue
-
-            protocol = self._protocols_by_id[protocol_id]
-
-            if not protocol.can_merge(protocol_to_insert):
-                continue
-
-            existing_protocol = protocol
-            break
-
-        if existing_protocol is not None:
-
-            # Make a note that the existing protocol should be used in place
-            # of this workflows version.
-            merged_ids = existing_protocol.merge(protocol_to_insert)
-            workflow.replace_protocol(protocol_to_insert, existing_protocol)
-
-            for old_id, new_id in merged_ids.items():
-                workflow.replace_protocol(old_id, new_id)
-
-        else:
-
-            root_directory = self._root_directory
-
-            if len(parent_protocol_ids) == 1:
-
-                parent_protocol = self._protocols_by_id[parent_protocol_ids[0]]
-                root_directory = parent_protocol.directory
-
-            protocol_to_insert.directory = path.join(
-                root_directory, protocol_to_insert.id
-            )
-
-            # Add the protocol as a new protocol in the graph.
-            self._protocols_by_id[protocol_name] = protocol_to_insert
-
-            existing_protocol = self._protocols_by_id[protocol_name]
-            self._dependants_graph[protocol_name] = []
-
-            if len(parent_protocol_ids) == 0:
-                self._root_protocol_ids.append(protocol_name)
-
-        if len(parent_protocol_ids) > 0:
-
-            for protocol_id in workflow.dependants_graph:
-
-                if (
-                    existing_protocol.id not in workflow.dependants_graph[protocol_id]
-                    or existing_protocol.id in self._dependants_graph[protocol_id]
-                    or protocol_id in self._dependants_graph[existing_protocol.id]
-                ):
-
-                    continue
-
-                self._dependants_graph[protocol_id].append(existing_protocol.id)
-
-        return existing_protocol.id
+        self._inner_graph = ProtocolGraph()
 
     def add_workflow(self, workflow):
         """Insert a workflow into the workflow graph.
@@ -1054,43 +878,29 @@ class WorkflowGraph:
         if workflow.uuid in self._workflows_to_execute:
 
             raise ValueError(
-                "A workflow with the uuid ({}) is "
-                "already in the graph.".format(workflow.uuid)
+                f"A workflow with the uuid {workflow.uuid} is already in the graph."
             )
 
         self._workflows_to_execute[workflow.uuid] = workflow
 
-        protocol_execution_order = graph.topological_sort(workflow.dependants_graph)
+        # Add the workflow protocols to the graph.
+        merged_protocol_ids = self._inner_graph.add_protocols(
+            workflow.protocols, allow_external_dependencies=False
+        )
 
-        reduced_protocol_dependants = copy.deepcopy(workflow.dependants_graph)
-        graph.apply_transitive_reduction(reduced_protocol_dependants)
+        # Update the workflow to use the possibly merged protocols
+        # TODO: Fix.
+        raise NotImplementedError()
 
-        parent_protocol_ids = {}
-
-        for protocol_id in protocol_execution_order:
-
-            parent_ids = parent_protocol_ids.get(protocol_id) or []
-            inserted_id = self._insert_protocol(protocol_id, workflow, parent_ids)
-
-            for dependant in reduced_protocol_dependants[protocol_id]:
-
-                if dependant not in parent_protocol_ids:
-                    parent_protocol_ids[dependant] = []
-
-                parent_protocol_ids[dependant].append(inserted_id)
-
-    def submit(self, backend, include_uncertainty_check=True):
+    def submit(self, root_directory, backend):
         """Submits the protocol graph to the backend of choice.
 
         Parameters
         ----------
-        backend: CalculationBackend
+        root_directory: str
+            The directory to execute the graph in.
+        backend: CalculationBackend, optional.
             The backend to execute the graph on.
-        include_uncertainty_check: bool
-            If true, the uncertainty of each estimated property will be checked to
-            ensure it is below the target threshold set in the workflow metadata.
-            If an uncertainty is not included in the workflow metadata, then this
-            parameter will be ignored.
 
         Returns
         -------
@@ -1102,11 +912,14 @@ class WorkflowGraph:
 
         # Determine the ideal order in which to submit the
         # protocols.
-        submission_order = graph.topological_sort(self._dependants_graph)
+        submission_order = graph.topological_sort(self._inner_graph.dependants_graph)
 
         # Build a dependency graph from the dependants graph so that
         # futures can be passed in the correct place.
-        dependencies = graph.dependants_to_dependencies(self._dependants_graph)
+        dependencies = graph.dependants_to_dependencies(self._inner_graph.dependants_graph)
+
+        # TODO: Use ProtocolGraph execution code?
+        raise NotImplementedError()
 
         for node_id in submission_order:
 
@@ -1140,10 +953,13 @@ class WorkflowGraph:
 
             final_futures = []
 
+            # Make sure we keep track of all of the futures which we
+            # will use to populate things such as a final property value
+            # or gradient keys.
             if workflow.final_value_source is not None:
 
                 value_node_id = workflow.final_value_source.start_protocol
-                final_futures = [submitted_futures[value_node_id]]
+                final_futures.append(submitted_futures[value_node_id])
 
             for gradient_source in workflow.gradients_sources:
 
@@ -1168,26 +984,15 @@ class WorkflowGraph:
             if len(final_futures) == 0:
                 final_futures = [submitted_futures[key] for key in submitted_futures]
 
-            target_uncertainty = None
-
-            if (
-                include_uncertainty_check
-                and "target_uncertainty" in workflow.global_metadata
-            ):
-                target_uncertainty = workflow.global_metadata[
-                    "target_uncertainty"
-                ].to_tuple()
-
-            # Gather the values and uncertainties of each property being calculated.
+            # TODO
             value_futures.append(
                 backend.submit_task(
                     WorkflowGraph._gather_results,
-                    self._root_directory,
+                    root_directory,
                     workflow.physical_property,
                     workflow.final_value_source,
                     workflow.gradients_sources,
                     workflow.outputs_to_store,
-                    target_uncertainty,
                     *final_futures,
                 )
             )
