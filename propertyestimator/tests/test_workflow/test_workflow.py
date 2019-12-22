@@ -34,7 +34,7 @@ def test_simple_workflow_graph():
 
     dummy_schema.final_value_source = ProtocolPath("output_value", dummy_protocol_b.id)
 
-    dummy_schema.validate_interfaces()
+    dummy_schema.validate()
 
     dummy_property = create_dummy_property(Density)
 
@@ -88,7 +88,7 @@ def test_simple_workflow_graph_with_groups():
         "output_value", conditional_group.id, dummy_protocol_b.id
     )
 
-    dummy_schema.validate_interfaces()
+    dummy_schema.validate()
 
     dummy_property = create_dummy_property(Density)
 
@@ -126,7 +126,7 @@ def test_nested_input():
     )
     dummy_schema.protocols[quantity_protocol.id] = quantity_protocol.schema
 
-    dummy_schema.validate_interfaces()
+    dummy_schema.validate()
 
     dummy_property = create_dummy_property(Density)
 
@@ -171,7 +171,7 @@ def test_index_replicated_protocol():
         )
         dummy_schema.protocols[indexing_protocol.id] = indexing_protocol.schema
 
-    dummy_schema.validate_interfaces()
+    dummy_schema.validate()
 
     dummy_property = create_dummy_property(Density)
 

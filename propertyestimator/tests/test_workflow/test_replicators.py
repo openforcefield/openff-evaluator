@@ -56,7 +56,7 @@ def test_simple_replicators():
 
     dummy_schema.replicators.append(replicator)
 
-    dummy_schema.validate_interfaces()
+    dummy_schema.validate()
 
     dummy_property = create_dummy_property(Density)
 
@@ -135,7 +135,7 @@ def test_group_replicators():
 
     dummy_schema.replicators.append(replicator)
 
-    dummy_schema.validate_interfaces()
+    dummy_schema.validate()
 
     dummy_property = create_dummy_property(Density)
 
@@ -224,7 +224,7 @@ def test_advanced_group_replicators():
 
     dummy_schema.replicators.append(replicator)
 
-    dummy_schema.validate_interfaces()
+    dummy_schema.validate()
 
     dummy_property = create_dummy_property(Density)
 
@@ -283,7 +283,7 @@ def test_nested_replicators():
 
     dummy_schema.replicators = [replicator_a, replicator_b]
 
-    dummy_schema.validate_interfaces()
+    dummy_schema.validate()
 
     dummy_property = create_dummy_property(Density)
 
@@ -335,7 +335,7 @@ def test_advanced_nested_replicators():
     dummy_schema.protocols[dummy_protocol.id] = dummy_protocol.schema
     dummy_schema.replicators = [replicator_a, replicator_b]
 
-    dummy_schema.validate_interfaces()
+    dummy_schema.validate()
 
     dummy_property = create_dummy_property(Density)
     dummy_metadata = Workflow.generate_default_metadata(

@@ -20,8 +20,7 @@ class ProtocolSchema(AttributeClass):
     """
 
     id = Attribute(
-        docstring="The unique id associated with the protocol.",
-        type_hint=str,
+        docstring="The unique id associated with the protocol.", type_hint=str,
     )
     type = Attribute(
         docstring="The type of protocol associated with this schema.",
@@ -40,6 +39,18 @@ class ProtocolSchema(AttributeClass):
             self._set_value("type", protocol_type)
         if inputs is not None:
             self._set_value("inputs", inputs)
+
+    def to_protocol(self):
+        """Creates a new protocol object from this schema.
+
+        Returns
+        -------
+        Protocol
+            The protocol created from this schema.
+        """
+        from propertyestimator.workflow.protocols import Protocol
+
+        return Protocol.from_schema(self)
 
 
 class ProtocolGroupSchema(ProtocolSchema):
@@ -411,54 +422,100 @@ class ProtocolReplicator(TypedBaseModel):
                     protocol.set_value(source_path, value_source)
 
 
-class WorkflowSchema(TypedBaseModel):
-    """Outlines the workflow which should be followed when calculating
-    a certain property.
+class WorkflowSchema(AttributeClass):
+    """The schematic for a property estimation workflow.
     """
 
-    def __init__(self, property_type=None):
-        """Constructs a new WorkflowSchema object.
+    protocol_schemas = Attribute(
+        docstring="The schemas for the protocols which will make up the workflow.",
+        type_hint=list,
+        default_value=[],
+    )
+    protocol_replicators = Attribute(
+        docstring="A set of replicators which will replicate parts of the workflow.",
+        type_hint=list,
+        optional=True,
+    )
+
+    final_value_source = Attribute(
+        docstring="A reference to which protocol output corresponds to the estimated "
+        "value of the property.",
+        type_hint=ProtocolPath,
+        optional=True,
+    )
+    gradients_sources = Attribute(
+        docstring="A list of references the protcol outputs which correspond to the gradients "
+        "of the estimated property with respect to specified force field parameters.",
+        type_hint=list,
+        optional=True,
+    )
+    outputs_to_store = Attribute(
+        docstring="A collection of data classes to populate ready to be stored by a "
+        "`StorageBackend`.",
+        type_hint=dict,
+        optional=True,
+    )
+
+    def replace_protocol_types(self, protocol_replacements, protocol_group_schema=None):
+        """Replaces protocols with given types with other protocols
+        of specified replacements. This is useful when replacing
+        the default protocols with custom ones, or swapping out base
+        protocols with actual implementations
+
+        Warnings
+        --------
+        This method is NOT fully implemented and is likely to fail in
+        all but a few specific cases. This method should be used with
+        extreme caution.
 
         Parameters
         ----------
-        property_type: str
-            The type of property which this workflow aims to estimate.
+        protocol_replacements: dict of str and str, None
+            A dictionary with keys of the types of protocols which should be replaced
+            with those protocols named by the values.
+        protocol_group_schema: ProtocolGroupSchema
+            The protocol group to apply the replacements to. This
+            is mainly used when applying this method recursively.
         """
-        self.property_type = property_type
-        self.id = None
 
-        self.protocols = {}
-        self.replicators = []
+        if protocol_replacements is None:
+            return
 
-        self.final_value_source = None
-        self.gradients_sources = []
+        if protocol_group_schema is None:
+            protocol_schemas = {x.id: x for x in self.protocol_schemas}
+        else:
+            protocol_schemas = protocol_group_schema.protocol_schemas
 
-        self.outputs_to_store = {}
+        for protocol_schema_key in protocol_schemas:
 
-    def __getstate__(self):
+            protocol_schema = protocol_schemas[protocol_schema_key]
 
-        return {
-            "property_type": self.property_type,
-            "id": self.id,
-            "protocols": self.protocols,
-            "replicators": self.replicators,
-            "final_value_source": self.final_value_source,
-            "gradients_sources": self.gradients_sources,
-            "outputs_to_store": self.outputs_to_store,
-        }
+            if protocol_schema.type not in protocol_replacements:
+                continue
 
-    def __setstate__(self, state):
+            protocol = registered_workflow_protocols[protocol_schema.type](
+                protocol_schema.id
+            )
+            protocol.schema = protocol_schema
 
-        self.property_type = state["property_type"]
-        self.id = state["id"]
+            new_protocol = registered_workflow_protocols[
+                protocol_replacements[protocol_schema.type]
+            ](protocol_schema.id)
 
-        self.protocols = state["protocols"]
-        self.replicators = state["replicators"]
+            for input_path in new_protocol.required_inputs:
 
-        self.final_value_source = state["final_value_source"]
-        self.gradients_sources = state["gradients_sources"]
+                if input_path not in protocol.required_inputs:
+                    continue
 
-        self.outputs_to_store = state["outputs_to_store"]
+                value = protocol.get_value(input_path)
+                new_protocol.set_value(input_path, value)
+
+            protocol_schemas[protocol_schema_key] = new_protocol.schema
+
+            if isinstance(protocol_schemas[protocol_schema_key], ProtocolGroupSchema):
+                self.replace_protocol_types(
+                    protocol_replacements, protocol_schemas[protocol_schema_key]
+                )
 
     def _find_protocols_to_be_replicated(self, replicator, protocols=None):
         """Finds all protocols which have been flagged to be replicated
@@ -479,7 +536,7 @@ class WorkflowSchema(TypedBaseModel):
         """
 
         if protocols is None:
-            protocols = self.protocols
+            protocols = {x.id: x for x in self.protocol_schemas}
 
         if isinstance(protocols, list):
             protocols = {protocol.id: protocol for protocol in protocols}
@@ -521,7 +578,7 @@ class WorkflowSchema(TypedBaseModel):
 
         full_unreplicated_path = str(protocol_path.full_path)
 
-        for replicator in self.replicators:
+        for replicator in self.protocol_replicators:
 
             if replicator.placeholder_id in full_unreplicated_path:
                 continue
@@ -577,75 +634,16 @@ class WorkflowSchema(TypedBaseModel):
 
         return ProtocolPath(property_name, *protocol_ids)
 
-    def replace_protocol_types(self, protocol_replacements, protocol_group_schema=None):
-        """Replaces protocols with given types with other protocols
-        of specified replacements. This is useful when replacing
-        the default protocols with custom ones, or swapping out base
-        protocols with actual implementations
+    def _validate_replicators(self, schemas_by_id):
 
-        Warnings
-        --------
-        This method is NOT fully implemented and is likely to fail in
-        all but a few specific cases. This method should be used with
-        extreme caution.
-
-        Parameters
-        ----------
-        protocol_replacements: dict of str and str, None
-            A dictionary with keys of the types of protocols which should be replaced
-            with those protocols named by the values.
-        protocol_group_schema: ProtocolGroupSchema
-            The protocol group to apply the replacements to. This
-            is mainly used when applying this method recursively.
-        """
-
-        if protocol_replacements is None:
+        if self.protocol_replicators == UNDEFINED:
             return
 
-        if protocol_group_schema is None:
-            protocol_schemas = self.protocols
-        else:
-            protocol_schemas = protocol_group_schema.protocol_schemas
+        assert all(isinstance(x, ProtocolReplicator) for x in self.protocol_replicators)
 
-        for protocol_schema_key in protocol_schemas:
-
-            protocol_schema = protocol_schemas[protocol_schema_key]
-
-            if protocol_schema.type not in protocol_replacements:
-                continue
-
-            protocol = registered_workflow_protocols[protocol_schema.type](
-                protocol_schema.id
-            )
-            protocol.schema = protocol_schema
-
-            new_protocol = registered_workflow_protocols[
-                protocol_replacements[protocol_schema.type]
-            ](protocol_schema.id)
-
-            for input_path in new_protocol.required_inputs:
-
-                if input_path not in protocol.required_inputs:
-                    continue
-
-                value = protocol.get_value(input_path)
-                new_protocol.set_value(input_path, value)
-
-            protocol_schemas[protocol_schema_key] = new_protocol.schema
-
-            if isinstance(protocol_schemas[protocol_schema_key], ProtocolGroupSchema):
-                self.replace_protocol_types(
-                    protocol_replacements, protocol_schemas[protocol_schema_key]
-                )
-
-    def _validate_replicators(self):
-
-        for replicator in self.replicators:
+        for replicator in self.protocol_replicators:
 
             assert replicator.id is not None and len(replicator.id) > 0
-
-            # if len(replicator.protocols_to_replicate) == 0:
-            #     raise ValueError('A replicator does not have any protocols to replicate.')
 
             if not isinstance(replicator.template_values, list) and not isinstance(
                 replicator.template_values, ProtocolPath
@@ -663,17 +661,19 @@ class WorkflowSchema(TypedBaseModel):
                     if not isinstance(template_value, ProtocolPath):
                         continue
 
-                    if template_value.start_protocol not in self.protocols:
+                    if template_value.start_protocol not in schemas_by_id:
+
                         raise ValueError(
-                            "The value source {} does not exist.".format(template_value)
+                            f"The value source {template_value} does not exist."
                         )
 
             elif isinstance(replicator.template_values, ProtocolPath):
 
                 if not replicator.template_values.is_global:
+
                     raise ValueError(
-                        "Template values must either be a constant, or come from the global "
-                        "scope."
+                        "Template values must either be a constant, or come from the "
+                        "global scope."
                     )
 
             if (
@@ -689,23 +689,21 @@ class WorkflowSchema(TypedBaseModel):
                     "a protocol which is being replicated."
                 )
 
-    def _validate_final_value(self):
+    def _validate_final_value(self, schemas_by_id):
 
-        if self.final_value_source is None:
+        if self.final_value_source == UNDEFINED:
             return
 
-        if self.final_value_source.start_protocol not in self.protocols:
+        assert isinstance(self.final_value_source, ProtocolPath)
+
+        if self.final_value_source.start_protocol not in schemas_by_id:
+
             raise ValueError(
-                "The value source {} does not exist.".format(self.final_value_source)
+                f"The value source {self.final_value_source} does not exist."
             )
 
-        protocol_schema = self.protocols[self.final_value_source.start_protocol]
-
-        protocol_object = registered_workflow_protocols[protocol_schema.type](
-            protocol_schema.id
-        )
-        protocol_object.schema = protocol_schema
-
+        protocol_schema = schemas_by_id[self.final_value_source.start_protocol]
+        protocol_object = protocol_schema.to_protocol
         protocol_object.get_value(self.final_value_source)
 
         attribute_type = protocol_object.get_class_attribute(
@@ -713,124 +711,88 @@ class WorkflowSchema(TypedBaseModel):
         ).type_hint
         assert is_type_subclass_of_type(attribute_type, EstimatedQuantity)
 
-    def _validate_gradients(self):
+    def _validate_gradients(self, schemas_by_id):
+
+        if self.gradients_sources == UNDEFINED:
+            return
+
+        assert all(isinstance(x, ProtocolPath) for x in self.gradients_sources)
 
         for gradient_source in self.gradients_sources:
 
-            if gradient_source.start_protocol not in self.protocols:
+            if gradient_source.start_protocol not in schemas_by_id:
+
                 raise ValueError(
-                    "The gradient source {} does not exist.".format(gradient_source)
+                    f"The gradient source {gradient_source} does not exist."
                 )
 
-            protocol_schema = self.protocols[gradient_source.start_protocol]
+            protocol_schema = schemas_by_id[gradient_source.start_protocol]
 
-            protocol_object = registered_workflow_protocols[protocol_schema.type](
-                protocol_schema.id
-            )
-            protocol_object.schema = protocol_schema
-
+            protocol_object = protocol_schema.to_protocol()
             protocol_object.get_value(gradient_source)
 
             attribute_type = protocol_object.get_class_attribute(
                 gradient_source
             ).type_hint
+
             assert is_type_subclass_of_type(attribute_type, ParameterGradient)
 
-    def _validate_output_to_store(self, output_to_store):
-        """Validates that the references of a particular output to store
-        are valid.
-
-        Parameters
-        ----------
-        output_to_store: BaseStoredData
-            The output to store to validate.
-        """
-
-        if not isinstance(output_to_store, BaseStoredData):
-
-            raise ValueError(
-                "Only `BaseStoredData` derived objects are allowed "
-                "in the outputs_to_store dictionary at this time."
-            )
-
-        output_to_store.validate()
-
-        for attribute_name in output_to_store.get_attributes(StorageAttribute):
-
-            attribute_value = getattr(output_to_store, attribute_name)
-
-            if isinstance(attribute_value, ReplicatorValue):
-
-                if len(self.replicators) == 0:
-
-                    raise ValueError(
-                        "An output to store is trying to take its value from a "
-                        "replicator, while this schema has no replicators."
-                    )
-
-                elif (
-                    len(
-                        [
-                            replicator
-                            for replicator in self.replicators
-                            if attribute_value.replicator_id == replicator.id
-                        ]
-                    )
-                    == 0
-                ):
-
-                    raise ValueError(
-                        f"An output to store is trying to take its value from a "
-                        f"replicator {attribute_value.replicator_id} which does not exist."
-                    )
-
-            if (
-                not isinstance(attribute_value, ProtocolPath)
-                or attribute_value.is_global
-            ):
-                continue
-
-            if attribute_value.start_protocol not in self.protocols:
-                raise ValueError(
-                    "The value source {} does not exist.".format(attribute_value)
-                )
-
-            protocol_schema = self.protocols[attribute_value.start_protocol]
-
-            protocol_object = registered_workflow_protocols[protocol_schema.type](
-                protocol_schema.id
-            )
-            protocol_object.schema = protocol_schema
-
-            protocol_object.get_value(attribute_value)
-
-    def _validate_outputs_to_store(self):
+    def _validate_outputs_to_store(self, schemas_by_id):
         """Validates that the references to the outputs to store
         are valid.
         """
+        if self.gradients_sources == UNDEFINED:
+            return
+
+        assert all(isinstance(x, BaseStoredData) for x in self.gradients_sources)
+
         for output_label in self.outputs_to_store:
 
             output_to_store = self.outputs_to_store[output_label]
-            self._validate_output_to_store(output_to_store)
+            output_to_store.validate()
 
-    def validate_interfaces(self):
+            for attribute_name in output_to_store.get_attributes(StorageAttribute):
+
+                attribute_value = getattr(output_to_store, attribute_name)
+
+                if isinstance(attribute_value, ReplicatorValue):
+
+                    matching_replicas = [
+                        x
+                        for x in self.protocol_replicators
+                        if attribute_value.replicator_id == x.id
+                    ]
+
+                    if len(matching_replicas) == 0:
+
+                        raise ValueError(
+                            f"An output to store is trying to take its value from a "
+                            f"replicator {attribute_value.replicator_id} which does "
+                            f"not exist."
+                        )
+
+                if (
+                    not isinstance(attribute_value, ProtocolPath)
+                    or attribute_value.is_global
+                ):
+                    continue
+
+                if attribute_value.start_protocol not in schemas_by_id:
+                    raise ValueError(f"The {attribute_value} source does not exist.")
+
+                protocol_schema = schemas_by_id[attribute_value.start_protocol]
+
+                protocol_object = protocol_schema.to_protocol()
+                protocol_object.get_value(attribute_value)
+
+    def _validate_interfaces(self, schemas_by_id):
         """Validates the flow of the data between protocols, ensuring
         that inputs and outputs correctly match up.
         """
 
-        self._validate_final_value()
-        self._validate_gradients()
-        self._validate_replicators()
-        self._validate_outputs_to_store()
+        for protocol_schema in schemas_by_id.values():
 
-        for protocol_id in self.protocols:
-
-            protocol_schema = self.protocols[protocol_id]
-
-            protocol_object = registered_workflow_protocols[protocol_schema.type](
-                protocol_schema.id
-            )
-            protocol_object.schema = protocol_schema
+            protocol_object = protocol_schema.to_protocol()
 
             for input_path in protocol_object.required_inputs:
 
@@ -844,9 +806,9 @@ class WorkflowSchema(TypedBaseModel):
 
                 if input_value == UNDEFINED and is_optional is False:
 
-                    raise Exception(
-                        "The {} required input of protocol {} in the {} schema was "
-                        "not set.".format(input_path, protocol_id, self.id)
+                    raise ValueError(
+                        f"The {input_path} required input of protocol "
+                        f"{protocol_schema.id} was not set."
                     )
 
             for input_path in protocol_object.required_inputs:
@@ -863,22 +825,17 @@ class WorkflowSchema(TypedBaseModel):
 
                     # Make sure the other protocol whose output we are interested
                     # in actually exists.
-                    if value_reference.start_protocol not in self.protocols:
+                    if value_reference.start_protocol not in schemas_by_id:
 
-                        raise Exception(
-                            f"The {protocol_object.id} protocol of the {self.id} schema "
-                            f"tries to take input from a non-existent "
-                            f"protocol: {value_reference.full_path}"
+                        raise ValueError(
+                            f"The {protocol_object.id} protocol tries to take input "
+                            f"from a non-existent protocol: {value_reference.full_path}"
                         )
 
-                    other_protocol_schema = self.protocols[
+                    other_protocol_schema = schemas_by_id[
                         value_reference.start_protocol
                     ]
-
-                    other_protocol_object = registered_workflow_protocols[
-                        other_protocol_schema.type
-                    ](other_protocol_schema.id)
-                    other_protocol_object.schema = other_protocol_schema
+                    other_protocol_object = other_protocol_schema.to_protocol()
 
                     unnested_value_reference = self._get_unnested_protocol_path(
                         value_reference
@@ -901,14 +858,14 @@ class WorkflowSchema(TypedBaseModel):
 
                     is_replicated_reference = False
 
-                    for replicator in self.replicators:
+                    for replicator in self.protocol_replicators:
 
                         if (
-                            replicator.placeholder_id in protocol_id
+                            replicator.placeholder_id in protocol_schema.id
                             and replicator.placeholder_id
                             in value_reference.protocol_path
                         ) or (
-                            replicator.placeholder_id not in protocol_id
+                            replicator.placeholder_id not in protocol_schema.id
                             and replicator.placeholder_id
                             not in value_reference.protocol_path
                         ):
@@ -935,7 +892,27 @@ class WorkflowSchema(TypedBaseModel):
                         expected_output_type, expected_input_type
                     ):
 
-                        raise Exception(
-                            f"The output type ({expected_output_type}) of {value_reference} does not "
-                            f"match the requested input type ({expected_input_type}) of {source_path}"
+                        raise ValueError(
+                            f"The output type ({expected_output_type}) of "
+                            f"{value_reference} does not match the requested "
+                            f"input type ({expected_input_type}) of {source_path}."
                         )
+
+    def validate(self, attribute_type=None):
+
+        super(WorkflowSchema, self).validate(attribute_type)
+
+        # Do some simple type checking.
+        assert len(self.protocol_schemas) > 0
+        assert all(isinstance(x, ProtocolSchema) for x in self.protocol_schemas)
+
+        schemas_by_id = {x.id: x for x in self.protocol_schemas}
+
+        # Validate the different pieces of data to populate / draw from.
+        self._validate_final_value(schemas_by_id)
+        self._validate_gradients(schemas_by_id)
+        self._validate_replicators(schemas_by_id)
+        self._validate_outputs_to_store(schemas_by_id)
+
+        # Validate the interfaces between protocols
+        self._validate_interfaces(schemas_by_id)

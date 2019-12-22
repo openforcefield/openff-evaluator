@@ -173,8 +173,6 @@ class Workflow:
         schema = WorkflowSchema()
 
         schema.id = self.uuid
-        schema.property_type = type(self.physical_property).__name__
-
         schema.protocols = {}
 
         for protocol_id, protocol in self.protocols.items():

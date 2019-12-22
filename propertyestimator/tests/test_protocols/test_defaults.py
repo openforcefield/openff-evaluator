@@ -1,8 +1,8 @@
 import importlib
+
 import pytest
 
 from propertyestimator.workflow.plugins import registered_workflow_protocols
-
 
 # Load the default protocols.
 protocol_modules = [

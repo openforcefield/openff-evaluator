@@ -241,4 +241,4 @@ class WorkflowCalculationSchema(CalculationLayerSchema):
 
     def validate(self, attribute_type=None):
         super(WorkflowCalculationSchema, self).validate(attribute_type)
-        self.workflow_schema.validate_interfaces()
+        self.workflow_schema.validate()

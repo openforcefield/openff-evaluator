@@ -51,9 +51,7 @@ class Protocol(AttributeClass, abc.ABC):
     calculation workflow from simple, reusable building blocks.
     """
 
-    id = Attribute(
-        docstring="The unique id of this protocol.", type_hint=str
-    )
+    id = Attribute(docstring="The unique id of this protocol.", type_hint=str)
     allow_merging = InputAttribute(
         docstring="Defines whether this protocols is allowed "
         "to merge with other protocols.",
@@ -668,6 +666,7 @@ class Protocol(AttributeClass, abc.ABC):
         super(Protocol, self).validate(Attribute)
         super(Protocol, self).validate(InputAttribute)
 
+
 class ProtocolGraph:
     """A graph of connected protocols.
     """
@@ -1055,9 +1054,7 @@ class ProtocolGroup(Protocol):
 
             self._protocols.append(protocol)
 
-        self._inner_graph.add_protocols(
-            *protocols, allow_external_dependencies=True
-        )
+        self._inner_graph.add_protocols(*protocols, allow_external_dependencies=True)
 
     def set_uuid(self, value):
         """Store the uuid of the calculation this protocol belongs to
