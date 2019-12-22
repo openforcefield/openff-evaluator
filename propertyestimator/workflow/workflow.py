@@ -7,7 +7,6 @@ import logging
 import math
 import time
 import uuid
-from enum import Enum
 from math import sqrt
 from os import makedirs, path
 from shutil import copy as file_copy
@@ -16,6 +15,7 @@ from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource
 from propertyestimator.storage.attributes import FilePath, StorageAttribute
+from propertyestimator.substances import Substance
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
@@ -27,103 +27,15 @@ from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSchem
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
-class WorkflowOptions:
-    """A set of convenience options used when creating
-    estimation workflows.
-    """
-
-    class ConvergenceMode(Enum):
-        """The available options for deciding when a workflow has converged.
-        For now, these options include running until the computed uncertainty
-        of a property is within a relative fraction of the measured uncertainty
-        (`ConvergenceMode.RelativeUncertainty`) or is less than some absolute
-        value (`ConvergenceMode.AbsoluteUncertainty`)."""
-
-        NoChecks = "NoChecks"
-        RelativeUncertainty = "RelativeUncertainty"
-        AbsoluteUncertainty = "AbsoluteUncertainty"
-
-    def __init__(
-        self,
-        convergence_mode=ConvergenceMode.RelativeUncertainty,
-        relative_uncertainty_fraction=1.0,
-        absolute_uncertainty=None,
-        protocol_replacements=None,
-    ):
-        """Constructs a new WorkflowOptions object.
-
-        Parameters
-        ----------
-        convergence_mode: WorkflowOptions.ConvergenceMode
-            The mode which governs how workflows should decide when they have
-            reached convergence.
-        relative_uncertainty_fraction: float, optional
-            If the convergence mode is set to `RelativeUncertainty`, then workflows
-            will by default run simulations until the estimated uncertainty is less
-            than
-
-            `relative_uncertainty_fraction` * property_to_estimate.uncertainty
-        absolute_uncertainty: propertyestimator.unit.Quantity, optional
-            If the convergence mode is set to `AbsoluteUncertainty`, then workflows
-            will by default run simulations until the estimated uncertainty is less
-            than the `absolute_uncertainty`
-        protocol_replacements: dict of str and str, optional
-            A dictionary with keys of the types of protocols which should be replaced
-            with those protocols named by the values.
-        """
-
-        self.convergence_mode = convergence_mode
-
-        self.absolute_uncertainty = absolute_uncertainty
-        self.relative_uncertainty_fraction = relative_uncertainty_fraction
-
-        if (
-            self.convergence_mode is self.ConvergenceMode.RelativeUncertainty
-            and self.relative_uncertainty_fraction is None
-        ):
-
-            raise ValueError(
-                "The relative uncertainty fraction must be set when the convergence "
-                "mode is set to RelativeUncertainty."
-            )
-
-        if (
-            self.convergence_mode is self.ConvergenceMode.AbsoluteUncertainty
-            and self.absolute_uncertainty is None
-        ):
-
-            raise ValueError(
-                "The absolute uncertainty must be set when the convergence "
-                "mode is set to AbsoluteUncertainty."
-            )
-
-        self.protocol_replacements = (
-            protocol_replacements if protocol_replacements is not None else {}
-        )
-
-    def __getstate__(self):
-
-        return {
-            "convergence_mode": self.convergence_mode,
-            "absolute_uncertainty": self.absolute_uncertainty,
-            "relative_uncertainty_fraction": self.relative_uncertainty_fraction,
-            "protocol_replacements": self.protocol_replacements,
-        }
-
-    def __setstate__(self, state):
-
-        self.convergence_mode = state["convergence_mode"]
-
-        self.absolute_uncertainty = state["absolute_uncertainty"]
-        self.relative_uncertainty_fraction = state["relative_uncertainty_fraction"]
-
-        self.protocol_replacements = state["protocol_replacements"]
-
-
 class Workflow:
     """Encapsulates and prepares a workflow which is able to estimate
     a physical property.
     """
+
+    @property
+    def protocols(self):
+        """tuple of Protocol: The protocols in this workflow."""
+        return tuple(self._protocols)
 
     @property
     def schema(self):
@@ -133,34 +45,32 @@ class Workflow:
     def schema(self, value):
         self._set_schema(value)
 
-    def __init__(self, physical_property, global_metadata, workflow_uuid=None):
+    def __init__(self, global_metadata, unique_id=None):
         """
         Constructs a new Workflow object.
 
         Parameters
         ----------
-        physical_property: PhysicalProperty
-            The property which this workflow aims to calculate.
         global_metadata: dict of str and Any
-            A dictionary of the global metadata available to each
-            of the workflow protocols.
-        workflow_uuid: str, optional
-            An optional uuid to assign to this workflow. If none is provided,
+            A dictionary of the metadata which will be made available to each
+            of the workflow protocols through the pseudo "global" scope.
+        unique_id: str, optional
+            A unique identifier to assign to this workflow. This id will be appended
+            to the ids of the protocols of this workflow. If none is provided,
             one will be chosen at random.
         """
-        assert physical_property is not None and global_metadata is not None
+        assert global_metadata is not None
+        self._global_metadata = global_metadata
 
-        self.physical_property = physical_property
-        self.global_metadata = global_metadata
+        if unique_id is None:
+            unique_id = str(uuid.uuid4()).replace("-", "")
 
-        self.uuid = workflow_uuid if workflow_uuid is not None else str(uuid.uuid4())
+        self.uuid = unique_id
 
-        self.protocols = {}
-
-        self.final_value_source = None
-        self.gradients_sources = []
-
-        self.outputs_to_store = {}
+        self._protocols = []
+        self._final_value_source = None
+        self._gradients_sources = []
+        self._outputs_to_store = {}
 
     def _get_schema(self):
         """Returns the schema that describes this workflow.
@@ -173,65 +83,49 @@ class Workflow:
         schema = WorkflowSchema()
 
         schema.id = self.uuid
-        schema.protocols = {}
+        schema.protocol_schemas = {x.id: x.schema for x in self._protocols}
 
-        for protocol_id, protocol in self.protocols.items():
-            schema.protocols[protocol_id] = protocol.schema
+        if self._final_value_source != UNDEFINED:
+            schema.final_value_source = self._final_value_source.copy()
 
-        if self.final_value_source is not None:
-            schema.final_value_source = ProtocolPath.from_string(
-                self.final_value_source.full_path
-            )
-
-        schema.gradients_sources = [
-            ProtocolPath.from_string(source.full_path)
-            for source in self.gradients_sources
-        ]
-
-        schema.outputs_to_store = {}
-
-        for substance_identifier in self.outputs_to_store:
-
-            schema.outputs_to_store[substance_identifier] = copy.deepcopy(
-                self.outputs_to_store[substance_identifier]
-            )
+        schema.gradients_sources = [source.copy() for source in self._gradients_sources]
+        schema.outputs_to_store = copy.deepcopy(self._outputs_to_store)
 
         return schema
 
-    def _set_schema(self, value):
-        """Sets this workflows properties from a `WorkflowSchema`.
+    def _set_schema(self, schema):
+        """Sets this workflow's properties from a `WorkflowSchema`.
 
         Parameters
         ----------
-        value: WorkflowSchema
+        schema: WorkflowSchema
             The schema which outlines this steps in this workflow.
         """
-        schema = WorkflowSchema.parse_json(value.json())
+        # Copy the schema.
+        schema = WorkflowSchema.parse_json(schema.json())
 
-        if schema.final_value_source is not None:
+        if schema.final_value_source != UNDEFINED:
 
-            self.final_value_source = ProtocolPath.from_string(
-                schema.final_value_source.full_path
-            )
-            self.final_value_source.append_uuid(self.uuid)
+            self._final_value_source = schema.final_value_source
+            self._final_value_source.append_uuid(self.uuid)
 
         self._build_protocols(schema)
 
-        self.gradients_sources = []
+        self._gradients_sources = []
 
         for gradient_source in schema.gradients_sources:
 
-            copied_source = ProtocolPath.from_string(gradient_source.full_path)
+            copied_source = gradient_source
             copied_source.append_uuid(self.uuid)
 
-            self.gradients_sources.append(copied_source)
+            self._gradients_sources.append(copied_source)
 
-        self.outputs_to_store = {}
+        self._outputs_to_store = {}
 
         for label in schema.outputs_to_store:
 
             self._append_uuid_to_output_to_store(schema.outputs_to_store[label])
-            self.outputs_to_store[label] = self._build_output_to_store(
+            self._outputs_to_store[label] = self._build_output_to_store(
                 schema.outputs_to_store[label]
             )
 
@@ -254,13 +148,13 @@ class Workflow:
 
             attribute_value.append_uuid(self.uuid)
 
-    def _build_output_to_store(self, output_to_store_schema):
+    def _build_output_to_store(self, output_to_store):
         """Sets the inputs of a `BaseStoredData` object which
         are taken from the global metadata.
 
         Parameters
         ----------
-        output_to_store_schema: BaseStoredData
+        output_to_store: BaseStoredData
             The output to set the inputs of.
 
         Returns
@@ -268,8 +162,6 @@ class Workflow:
         BaseStoredData
             The built object with all of its inputs correctly set.
         """
-
-        output_to_store = copy.deepcopy(output_to_store_schema)
 
         for attribute_name in output_to_store.get_attributes(StorageAttribute):
 
@@ -282,7 +174,7 @@ class Workflow:
                 continue
 
             attribute_value = get_nested_attribute(
-                self.global_metadata, attribute_value.property_name
+                self._global_metadata, attribute_value.property_name
             )
             setattr(output_to_store, attribute_name, attribute_value)
 
@@ -296,18 +188,11 @@ class Workflow:
         schema: WorkflowSchema
             The schema to use when creating the protocols
         """
-        from propertyestimator.workflow.plugins import registered_workflow_protocols
-
         self._apply_replicators(schema)
 
-        for protocol_name in schema.protocols:
+        for protocol_schema in schema.protocol_schemas:
 
-            protocol_schema = schema.protocols[protocol_name]
-
-            protocol = registered_workflow_protocols[protocol_schema.type](
-                protocol_schema.id
-            )
-            protocol.schema = protocol_schema
+            protocol = protocol_schema.to_protocol()
 
             # Try to set global properties on each of the protocols
             for input_path in protocol.required_inputs:
@@ -320,12 +205,12 @@ class Workflow:
                         continue
 
                     value = get_nested_attribute(
-                        self.global_metadata, value_reference.property_name
+                        self._global_metadata, value_reference.property_name
                     )
                     protocol.set_value(source_path, value)
 
             protocol.set_uuid(self.uuid)
-            self.protocols[protocol.id] = protocol
+            self._protocols[protocol.id] = protocol
 
     def _get_template_values(self, replicator):
         """Returns the values which which will be passed to the replicated
@@ -355,7 +240,7 @@ class Workflow:
                 raise invalid_value_error
 
             return get_nested_attribute(
-                self.global_metadata, replicator.template_values.property_name
+                self._global_metadata, replicator.template_values.property_name
             )
 
         elif not isinstance(replicator.template_values, list):
@@ -374,7 +259,7 @@ class Workflow:
                 raise invalid_value_error
 
             evaluated_template_values.append(
-                get_nested_attribute(self.global_metadata, template_value.property_name)
+                get_nested_attribute(self._global_metadata, template_value.property_name)
             )
 
         return evaluated_template_values
@@ -388,14 +273,15 @@ class Workflow:
             The schema to apply the replicators to.
         """
 
-        while len(schema.replicators) > 0:
+        while len(schema.protocol_replicators) > 0:
 
-            replicator = schema.replicators.pop(0)
+            replicator = schema.protocol_replicators.pop(0)
 
             # Apply this replicator
             self._apply_replicator(schema, replicator)
 
             if schema.json().find(replicator.placeholder_id) >= 0:
+
                 raise RuntimeError(
                     f"The {replicator.id} replicator was not fully applied."
                 )
@@ -413,19 +299,16 @@ class Workflow:
             be created.
         """
 
-        from propertyestimator.workflow.plugins import registered_workflow_protocols
-
         # Get the list of values which will be passed to the newly created protocols.
         template_values = self._get_template_values(replicator)
 
         # Replicate the protocols.
         protocols = {}
 
-        for protocol_id, protocol_schema in schema.protocols.items():
+        for protocol_schema in schema.protocol_schemas:
 
-            protocol = registered_workflow_protocols[protocol_schema.type](schema.id)
-            protocol.schema = protocol_schema
-            protocols[protocol_id] = protocol
+            protocol = protocol_schema.to_protocol()
+            protocols[protocol.id] = protocol
 
         replicated_protocols, replication_map = replicator.apply(
             protocols, template_values
@@ -435,10 +318,9 @@ class Workflow:
         )
 
         # Update the schema with the replicated protocols.
-        schema.protocols = {}
-
-        for protocol_id in replicated_protocols:
-            schema.protocols[protocol_id] = replicated_protocols[protocol_id].schema
+        schema.protocol_schemas = [
+            replicated_protocol.schema for replicated_protocol in replicated_protocols
+        ]
 
         # Make sure to correctly replicate gradient sources.
         replicated_gradient_sources = []
@@ -626,31 +508,31 @@ class Workflow:
         if isinstance(new_protocol, Protocol):
             new_protocol_id = new_protocol.id
 
-        if new_protocol_id in self.protocols:
+        if new_protocol_id in self._protocols:
 
             raise ValueError(
                 "A protocol with the same id already exists in this workflow."
             )
 
-        for protocol_id in self.protocols:
+        for protocol_id in self._protocols:
 
-            protocol = self.protocols[protocol_id]
+            protocol = self._protocols[protocol_id]
             protocol.replace_protocol(old_protocol_id, new_protocol_id)
 
-        if old_protocol_id in self.protocols and isinstance(new_protocol, Protocol):
+        if old_protocol_id in self._protocols and isinstance(new_protocol, Protocol):
 
-            self.protocols.pop(old_protocol_id)
-            self.protocols[new_protocol_id] = new_protocol
+            self._protocols.pop(old_protocol_id)
+            self._protocols[new_protocol_id] = new_protocol
 
-        if self.final_value_source is not None:
-            self.final_value_source.replace_protocol(old_protocol_id, new_protocol_id)
+        if self._final_value_source is not None:
+            self._final_value_source.replace_protocol(old_protocol_id, new_protocol_id)
 
-        for gradient_source in self.gradients_sources:
+        for gradient_source in self._gradients_sources:
             gradient_source.replace_protocol(old_protocol_id, new_protocol_id)
 
-        for output_label in self.outputs_to_store:
+        for output_label in self._outputs_to_store:
 
-            output_to_store = self.outputs_to_store[output_label]
+            output_to_store = self._outputs_to_store[output_label]
 
             for attribute_name in output_to_store.get_attributes(StorageAttribute):
 
@@ -738,9 +620,9 @@ class Workflow:
         physical_property,
         force_field_path,
         parameter_gradient_keys=None,
-        workflow_options=None,
+        target_uncertainty=None,
     ):
-        """Generates a default global metadata dictionary.
+        """Generates the default global metadata dictionary.
 
         Parameters
         ----------
@@ -752,8 +634,9 @@ class Workflow:
         parameter_gradient_keys: list of ParameterGradientKey
                 A list of references to all of the parameters which all observables
                 should be differentiated with respect to.
-        workflow_options: WorkflowOptions, optional
-            The options provided when an estimate request was submitted.
+        target_uncertainty: unit.Quantity, optional
+            The uncertainty which the property should be estimated to
+            within.
 
         Returns
         -------
@@ -778,8 +661,6 @@ class Workflow:
                                                                       parameters which all observables
                                                                       should be differentiated with respect to.
         """
-        from propertyestimator.substances import Substance
-
         components = []
 
         for component in physical_property.substance.components:
@@ -787,41 +668,10 @@ class Workflow:
             component_substance = Substance.from_components(component)
             components.append(component_substance)
 
-        if workflow_options is None:
-            workflow_options = WorkflowOptions()
+        if target_uncertainty is None:
+            target_uncertainty = math.inf * physical_property.value.units
 
-        if (
-            workflow_options.convergence_mode
-            == WorkflowOptions.ConvergenceMode.RelativeUncertainty
-        ):
-            target_uncertainty = (
-                physical_property.uncertainty
-                * workflow_options.relative_uncertainty_fraction
-            )
-        elif (
-            workflow_options.convergence_mode
-            == WorkflowOptions.ConvergenceMode.AbsoluteUncertainty
-        ):
-            target_uncertainty = workflow_options.absolute_uncertainty
-        elif (
-            workflow_options.convergence_mode
-            == WorkflowOptions.ConvergenceMode.NoChecks
-        ):
-            target_uncertainty = math.inf
-        else:
-            raise ValueError(
-                "The convergence mode {} is not supported.".format(
-                    workflow_options.convergence_mode
-                )
-            )
-
-        if isinstance(physical_property.uncertainty, unit.Quantity) and not isinstance(
-            target_uncertainty, unit.Quantity
-        ):
-
-            target_uncertainty = (
-                target_uncertainty * physical_property.uncertainty.units
-            )
+        target_uncertainty = target_uncertainty.to(physical_property.value.units)
 
         # +1 comes from inclusion of the full mixture as a possible component.
         per_component_uncertainty = target_uncertainty / sqrt(
@@ -859,8 +709,10 @@ class WorkflowGraph:
 
     def __init__(self):
 
+        super(WorkflowGraph, self).__init__()
+
         self._workflows_to_execute = {}
-        self._inner_graph = ProtocolGraph()
+        self._protocol_graph = ProtocolGraph()
 
     def add_workflow(self, workflow):
         """Insert a workflow into the workflow graph.
@@ -877,16 +729,24 @@ class WorkflowGraph:
                 f"A workflow with the uuid {workflow.uuid} is already in the graph."
             )
 
+        original_protocols = {protocol.id: protocol for protocol in workflow.protocols}
         self._workflows_to_execute[workflow.uuid] = workflow
 
         # Add the workflow protocols to the graph.
-        merged_protocol_ids = self._inner_graph.add_protocols(
-            workflow.protocols, allow_external_dependencies=False
+        merged_protocol_ids = self._protocol_graph.add_protocols(
+            *workflow.protocols, allow_external_dependencies=False
         )
 
+        merged_protcols = {
+            protocol.id: protocol for protocol in self._protocol_graph.protocols
+        }
+
         # Update the workflow to use the possibly merged protocols
-        # TODO: Fix.
-        raise NotImplementedError()
+        for original_id, new_id in merged_protocol_ids.items():
+
+            workflow.replace_protocol(
+                original_protocols[original_id], merged_protcols[new_id]
+            )
 
     def submit(self, root_directory, backend):
         """Submits the protocol graph to the backend of choice.

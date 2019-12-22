@@ -1,5 +1,5 @@
 """
-A collection of schemas which represent elements of a property calculation workflow.
+A collection of schemas which represent elements of a workflow.
 """
 import re
 
@@ -49,7 +49,6 @@ class ProtocolSchema(AttributeClass):
             The protocol created from this schema.
         """
         from propertyestimator.workflow.protocols import Protocol
-
         return Protocol.from_schema(self)
 
 

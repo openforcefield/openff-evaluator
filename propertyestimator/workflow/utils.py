@@ -251,23 +251,9 @@ class ProtocolPath(PlaceholderValue):
         """
         self._full_path = self._full_path.replace(old_id, new_id)
 
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, v):
-
-        if isinstance(v, str):
-            return ProtocolPath.from_string(v)
-        elif isinstance(v, dict):
-
-            path_object = ProtocolPath("", *[])
-            path_object.__setstate__(v)
-
-            v = path_object
-
-        return v
+    def copy(self):
+        """Returns a copy of this path."""
+        return ProtocolPath.from_string(self.full_path)
 
     def __str__(self):
         return self._full_path
