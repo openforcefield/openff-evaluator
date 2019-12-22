@@ -383,12 +383,12 @@ class DielectricConstant(PhysicalProperty):
         )
 
         # Define the protocols which will run the simulation itself.
-        use_target_uncertainty = absolute_tolerance != UNDEFINED or relative_tolerance != UNDEFINED
+        use_target_uncertainty = (
+            absolute_tolerance != UNDEFINED or relative_tolerance != UNDEFINED
+        )
 
         protocols, value_source, output_to_store = generate_base_simulation_protocols(
-            extract_dielectric,
-            use_target_uncertainty,
-            n_molecules=n_molecules,
+            extract_dielectric, use_target_uncertainty, n_molecules=n_molecules,
         )
 
         # Make sure the input of the analysis protcol is properly hooked up.
@@ -472,9 +472,9 @@ class DielectricConstant(PhysicalProperty):
 
     @staticmethod
     def default_reweighting_schema(
-            absolute_tolerance=UNDEFINED,
-            relative_tolerance=UNDEFINED,
-            n_effective_samples=50,
+        absolute_tolerance=UNDEFINED,
+        relative_tolerance=UNDEFINED,
+        n_effective_samples=50,
     ):
         """Returns the default calculation schema to use when estimating
         this property by reweighting existing data.
@@ -567,7 +567,8 @@ class DielectricConstant(PhysicalProperty):
 
         schema = WorkflowSchema()
         schema.protocol_schemas = [
-            *(x.schema for x in protocols), gradient_group.schema
+            *(x.schema for x in protocols),
+            gradient_group.schema,
         ]
         schema.protocol_replicators = [data_replicator, gradient_replicator]
         schema.gradients_sources = [gradient_source]

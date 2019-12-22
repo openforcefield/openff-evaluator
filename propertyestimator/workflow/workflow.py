@@ -23,7 +23,11 @@ from propertyestimator.utils.string import extract_variable_index_and_name
 from propertyestimator.utils.utils import get_nested_attribute
 from propertyestimator.workflow.exceptions import WorkflowException
 from propertyestimator.workflow.protocols import Protocol, ProtocolGraph
-from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSchema, ProtocolSchema
+from propertyestimator.workflow.schemas import (
+    ProtocolReplicator,
+    ProtocolSchema,
+    WorkflowSchema,
+)
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
@@ -260,7 +264,9 @@ class Workflow:
                 raise invalid_value_error
 
             evaluated_template_values.append(
-                get_nested_attribute(self._global_metadata, template_value.property_name)
+                get_nested_attribute(
+                    self._global_metadata, template_value.property_name
+                )
             )
 
         return evaluated_template_values
@@ -369,7 +375,9 @@ class Workflow:
         if schema.outputs_to_store != UNDEFINED:
 
             outputs_to_replicate = [
-                label for label in schema.outputs_to_store if label.find(replicator.id) >= 0
+                label
+                for label in schema.outputs_to_store
+                if label.find(replicator.id) >= 0
             ]
 
         # Check to see if there are any outputs to store pointing to
@@ -705,6 +713,7 @@ class Workflow:
         graph = WorkflowGraph()
         graph.add_workflow(self)
         return graph
+
 
 class WorkflowGraph:
     """A hierarchical structure for storing and submitting the workflows

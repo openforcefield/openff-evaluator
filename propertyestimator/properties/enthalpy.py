@@ -841,10 +841,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
             liquid_value_source,
             liquid_output_to_store,
         ) = generate_base_simulation_protocols(
-            extract_liquid_energy,
-            target_uncertainty,
-            "_liquid",
-            converge_uncertainty,
+            extract_liquid_energy, target_uncertainty, "_liquid", converge_uncertainty,
         )
 
         # Make sure the number of molecules in the liquid is consistent.
@@ -860,10 +857,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
             gas_value_source,
             gas_output_to_store,
         ) = generate_base_simulation_protocols(
-            extract_gas_energy,
-            target_uncertainty,
-            "_gas",
-            converge_uncertainty,
+            extract_gas_energy, target_uncertainty, "_gas", converge_uncertainty,
         )
 
         # Create only a single molecule in vacuum

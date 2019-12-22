@@ -49,6 +49,7 @@ class ProtocolSchema(AttributeClass):
             The protocol created from this schema.
         """
         from propertyestimator.workflow.protocols import Protocol
+
         return Protocol.from_schema(self)
 
 
@@ -743,7 +744,9 @@ class WorkflowSchema(AttributeClass):
         if self.outputs_to_store == UNDEFINED:
             return
 
-        assert all(isinstance(x, BaseStoredData) for x in self.outputs_to_store.values())
+        assert all(
+            isinstance(x, BaseStoredData) for x in self.outputs_to_store.values()
+        )
 
         for output_label in self.outputs_to_store:
 

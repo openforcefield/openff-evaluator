@@ -61,12 +61,12 @@ class Density(PhysicalProperty):
         extract_density.statistics_type = ObservableType.Density
 
         # Define the protocols which will run the simulation itself.
-        use_target_uncertainty = absolute_tolerance != UNDEFINED or relative_tolerance != UNDEFINED
+        use_target_uncertainty = (
+            absolute_tolerance != UNDEFINED or relative_tolerance != UNDEFINED
+        )
 
         protocols, value_source, output_to_store = generate_base_simulation_protocols(
-            extract_density,
-            use_target_uncertainty,
-            n_molecules=n_molecules,
+            extract_density, use_target_uncertainty, n_molecules=n_molecules,
         )
 
         # Set up the gradient calculations
@@ -112,7 +112,7 @@ class Density(PhysicalProperty):
             protocols.converge_uncertainty.schema,
             protocols.extract_uncorrelated_trajectory.schema,
             protocols.extract_uncorrelated_statistics.schema,
-            gradient_group.schema
+            gradient_group.schema,
         ]
 
         schema.protocol_replicators = [gradient_replicator]
@@ -204,7 +204,8 @@ class Density(PhysicalProperty):
 
         schema = WorkflowSchema()
         schema.protocol_schemas = [
-            *(x.schema for x in protocols), gradient_group.schema
+            *(x.schema for x in protocols),
+            gradient_group.schema,
         ]
         schema.protocol_replicators = [data_replicator, gradient_replicator]
         schema.gradients_sources = [gradient_source]

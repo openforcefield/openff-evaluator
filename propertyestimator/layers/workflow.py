@@ -8,11 +8,7 @@ import os
 from propertyestimator.attributes import UNDEFINED, Attribute
 from propertyestimator.datasets import CalculationSource
 from propertyestimator.layers import CalculationLayer, CalculationLayerSchema
-from propertyestimator.workflow import (
-    Workflow,
-    WorkflowGraph,
-    WorkflowSchema,
-)
+from propertyestimator.workflow import Workflow, WorkflowGraph, WorkflowSchema
 
 
 class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
