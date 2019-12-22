@@ -382,7 +382,7 @@ class ProtocolReplicator(TypedBaseModel):
 
                 for source_path, value_reference in replicated_value_references.items():
 
-                    full_source_path = ProtocolPath.from_string(source_path.full_path)
+                    full_source_path = source_path.copy()
                     full_source_path.prepend_protocol_id(protocol_id)
 
                     # If the protocol was not itself replicated by this replicator, its value
@@ -702,7 +702,7 @@ class WorkflowSchema(AttributeClass):
             )
 
         protocol_schema = schemas_by_id[self.final_value_source.start_protocol]
-        protocol_object = protocol_schema.to_protocol
+        protocol_object = protocol_schema.to_protocol()
         protocol_object.get_value(self.final_value_source)
 
         attribute_type = protocol_object.get_class_attribute(
@@ -740,10 +740,10 @@ class WorkflowSchema(AttributeClass):
         """Validates that the references to the outputs to store
         are valid.
         """
-        if self.gradients_sources == UNDEFINED:
+        if self.outputs_to_store == UNDEFINED:
             return
 
-        assert all(isinstance(x, BaseStoredData) for x in self.gradients_sources)
+        assert all(isinstance(x, BaseStoredData) for x in self.outputs_to_store.values())
 
         for output_label in self.outputs_to_store:
 
@@ -824,17 +824,25 @@ class WorkflowSchema(AttributeClass):
 
                     # Make sure the other protocol whose output we are interested
                     # in actually exists.
-                    if value_reference.start_protocol not in schemas_by_id:
+                    if (
+                        value_reference.start_protocol not in schemas_by_id
+                        and value_reference.start_protocol != protocol_object.id
+                    ):
 
                         raise ValueError(
                             f"The {protocol_object.id} protocol tries to take input "
                             f"from a non-existent protocol: {value_reference.full_path}"
                         )
 
-                    other_protocol_schema = schemas_by_id[
-                        value_reference.start_protocol
-                    ]
-                    other_protocol_object = other_protocol_schema.to_protocol()
+                    if value_reference.start_protocol != protocol_object.id:
+
+                        other_protocol_schema = schemas_by_id[
+                            value_reference.start_protocol
+                        ]
+                        other_protocol_object = other_protocol_schema.to_protocol()
+
+                    else:
+                        other_protocol_object = protocol_object
 
                     unnested_value_reference = self._get_unnested_protocol_path(
                         value_reference

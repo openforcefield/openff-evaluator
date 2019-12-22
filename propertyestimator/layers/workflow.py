@@ -11,7 +11,6 @@ from propertyestimator.layers import CalculationLayer, CalculationLayerSchema
 from propertyestimator.workflow import (
     Workflow,
     WorkflowGraph,
-    WorkflowOptions,
     WorkflowSchema,
 )
 
@@ -196,48 +195,6 @@ class WorkflowCalculationSchema(CalculationLayerSchema):
         type_hint=WorkflowSchema,
         default_value=UNDEFINED,
     )
-
-    @property
-    def workflow_options(self):
-        """WorkflowOptions: The workflow options associated with this schema."""
-        return self._get_workflow_options()
-
-    def _get_workflow_options(self):
-        """Returns the workflow options associated with this schema.
-
-        Returns
-        -------
-        WorkflowOptions
-            The workflow options associated with this schema.
-        """
-
-        options = WorkflowOptions(WorkflowOptions.ConvergenceMode.NoChecks)
-
-        if (
-            self.absolute_uncertainty != UNDEFINED
-            and self.relative_uncertainty_fraction != UNDEFINED
-        ):
-            raise ValueError(
-                "Either one of the `absolute_uncertainty` and "
-                "`relative_uncertainty_fraction` attributes must "
-                "be set or neither must be."
-            )
-
-        if self.absolute_uncertainty != UNDEFINED:
-
-            options = WorkflowOptions(
-                WorkflowOptions.ConvergenceMode.AbsoluteUncertainty,
-                absolute_uncertainty=self.absolute_uncertainty,
-            )
-
-        elif self.relative_uncertainty_fraction != UNDEFINED:
-
-            options = WorkflowOptions(
-                WorkflowOptions.ConvergenceMode.RelativeUncertainty,
-                relative_uncertainty_fraction=self.relative_uncertainty_fraction,
-            )
-
-        return options
 
     def validate(self, attribute_type=None):
         super(WorkflowCalculationSchema, self).validate(attribute_type)

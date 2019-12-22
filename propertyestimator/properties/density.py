@@ -19,7 +19,6 @@ from propertyestimator.protocols.utils import (
 from propertyestimator.storage.query import SimulationDataQuery, SubstanceQuery
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
-from propertyestimator.workflow import WorkflowOptions
 from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
@@ -38,12 +37,10 @@ class Density(PhysicalProperty):
         Parameters
         ----------
         absolute_tolerance: unit.Quantity, optional
-            The absolute tolerance to estimate
-            the property to within.
+            The absolute tolerance to estimate the property to within.
         relative_tolerance: float
-            The tolerance (as a fraction of the properties
-            reported uncertainty) to estimate the
-            property to within.
+            The tolerance (as a fraction of the properties reported
+            uncertainty) to estimate the property to within.
         n_molecules: int
             The number of molecules to use in the simulation.
 
@@ -52,10 +49,11 @@ class Density(PhysicalProperty):
         SimulationSchema
             The schema to follow when estimating this property.
         """
+        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
 
         calculation_schema = SimulationSchema()
-        calculation_schema.absolute_uncertainty = absolute_tolerance
-        calculation_schema.relative_uncertainty_fraction = relative_tolerance
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
 
         # Define the protocol which will extract the average density from
         # the results of a simulation.
@@ -63,9 +61,11 @@ class Density(PhysicalProperty):
         extract_density.statistics_type = ObservableType.Density
 
         # Define the protocols which will run the simulation itself.
+        use_target_uncertainty = absolute_tolerance != UNDEFINED or relative_tolerance != UNDEFINED
+
         protocols, value_source, output_to_store = generate_base_simulation_protocols(
             extract_density,
-            calculation_schema.workflow_options,
+            use_target_uncertainty,
             n_molecules=n_molecules,
         )
 
@@ -102,21 +102,20 @@ class Density(PhysicalProperty):
         )
 
         # Build the workflow schema.
-        schema = WorkflowSchema(property_type=Density.__name__)
-        schema.id = "{}{}".format(Density.__name__, "Schema")
+        schema = WorkflowSchema()
 
-        schema.protocols = {
-            protocols.build_coordinates.id: protocols.build_coordinates.schema,
-            protocols.assign_parameters.id: protocols.assign_parameters.schema,
-            protocols.energy_minimisation.id: protocols.energy_minimisation.schema,
-            protocols.equilibration_simulation.id: protocols.equilibration_simulation.schema,
-            protocols.converge_uncertainty.id: protocols.converge_uncertainty.schema,
-            protocols.extract_uncorrelated_trajectory.id: protocols.extract_uncorrelated_trajectory.schema,
-            protocols.extract_uncorrelated_statistics.id: protocols.extract_uncorrelated_statistics.schema,
-            gradient_group.id: gradient_group.schema,
-        }
+        schema.protocol_schemas = [
+            protocols.build_coordinates.schema,
+            protocols.assign_parameters.schema,
+            protocols.energy_minimisation.schema,
+            protocols.equilibration_simulation.schema,
+            protocols.converge_uncertainty.schema,
+            protocols.extract_uncorrelated_trajectory.schema,
+            protocols.extract_uncorrelated_statistics.schema,
+            gradient_group.schema
+        ]
 
-        schema.replicators = [gradient_replicator]
+        schema.protocol_replicators = [gradient_replicator]
 
         schema.outputs_to_store = {"full_system": output_to_store}
 
@@ -127,29 +126,35 @@ class Density(PhysicalProperty):
         return calculation_schema
 
     @staticmethod
-    def default_reweighting_schema(existing_schema=None):
+    def default_reweighting_schema(
+        absolute_tolerance=UNDEFINED,
+        relative_tolerance=UNDEFINED,
+        n_effective_samples=50,
+    ):
         """Returns the default calculation schema to use when estimating
         this property by reweighting existing data.
 
         Parameters
         ----------
-        existing_schema: ReweightingSchema, optional
-            An existing schema whose settings to use. If set,
-            the schema's `workflow_schema` will be overwritten
-            by this method.
+        absolute_tolerance: unit.Quantity, optional
+            The absolute tolerance to estimate the property to within.
+        relative_tolerance: float
+            The tolerance (as a fraction of the properties reported
+            uncertainty) to estimate the property to within.
+        n_effective_samples: int
+            The minimum number of effective samples to require when
+            reweighting the cached simulation data.
 
         Returns
         -------
         ReweightingSchema
             The schema to follow when estimating this property.
         """
+        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
 
         calculation_schema = ReweightingSchema()
-
-        if existing_schema is not None:
-
-            assert isinstance(existing_schema, ReweightingSchema)
-            calculation_schema = copy.deepcopy(existing_schema)
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
 
         data_replicator_id = "data_replicator"
 
@@ -162,6 +167,7 @@ class Density(PhysicalProperty):
 
         reweight_density = reweighting.ReweightStatistics(f"reweight_density")
         reweight_density.statistics_type = ObservableType.Density
+        reweight_density.required_effective_samples = n_effective_samples
 
         protocols, data_replicator = generate_base_reweighting_protocols(
             density_calculation, reweight_density, data_replicator_id
@@ -196,14 +202,11 @@ class Density(PhysicalProperty):
             ),
         )
 
-        schema = WorkflowSchema(property_type=Density.__name__)
-        schema.id = "{}{}".format(Density.__name__, "Schema")
-
-        schema.protocols = {protocol.id: protocol.schema for protocol in protocols}
-        schema.protocols[gradient_group.id] = gradient_group.schema
-
-        schema.replicators = [data_replicator, gradient_replicator]
-
+        schema = WorkflowSchema()
+        schema.protocol_schemas = [
+            *(x.schema for x in protocols), gradient_group.schema
+        ]
+        schema.protocol_replicators = [data_replicator, gradient_replicator]
         schema.gradients_sources = [gradient_source]
         schema.final_value_source = ProtocolPath("value", protocols.mbar_protocol.id)
 
@@ -223,7 +226,7 @@ class ExcessMolarVolume(PhysicalProperty):
         weight_by_mole_fraction=False,
         component_substance_reference=None,
         full_substance_reference=None,
-        options=None,
+        target_uncertainty=None,
         n_molecules=1000,
     ):
 
@@ -251,8 +254,8 @@ class ExcessMolarVolume(PhysicalProperty):
             An optional protocol path (or replicator reference) to the full substance
             whose enthalpy of mixing is being estimated. This cannot be `None` if
             `weight_by_mole_fraction` is `True`.
-        options: WorkflowOptions
-            The options to use when setting up the workflows.
+        target_uncertainty: unit.Quantity
+            The uncertainty to estimate the property to within.
         n_molecules: int
             The number of molecules to use in the simulation.
 
@@ -344,7 +347,7 @@ class ExcessMolarVolume(PhysicalProperty):
                 "weighted_value", conditional_group.id, weight_by_mole_fraction.id
             )
 
-        if options.convergence_mode != WorkflowOptions.ConvergenceMode.NoChecks:
+        if target_uncertainty is not None:
 
             # Make sure the convergence criteria is set to use the per component
             # uncertainty target.
@@ -676,8 +679,8 @@ class ExcessMolarVolume(PhysicalProperty):
         """
 
         calculation_schema = SimulationSchema()
-        calculation_schema.absolute_uncertainty = absolute_tolerance
-        calculation_schema.relative_uncertainty_fraction = relative_tolerance
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
 
         # Define the id of the replicator which will clone the gradient protocols
         # for each gradient key to be estimated.
@@ -954,9 +957,9 @@ register_calculation_schema(Density, SimulationLayer, Density.default_simulation
 register_calculation_schema(
     Density, ReweightingLayer, Density.default_reweighting_schema
 )
-register_calculation_schema(
-    ExcessMolarVolume, SimulationLayer, ExcessMolarVolume.default_simulation_schema,
-)
-register_calculation_schema(
-    ExcessMolarVolume, ReweightingLayer, ExcessMolarVolume.default_reweighting_schema,
-)
+# register_calculation_schema(
+#     ExcessMolarVolume, SimulationLayer, ExcessMolarVolume.default_simulation_schema,
+# )
+# register_calculation_schema(
+#     ExcessMolarVolume, ReweightingLayer, ExcessMolarVolume.default_reweighting_schema,
+# )

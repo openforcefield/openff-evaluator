@@ -20,7 +20,6 @@ from propertyestimator.protocols import (
 from propertyestimator.storage.data import StoredSimulationData
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.statistics import ObservableType
-from propertyestimator.workflow import WorkflowOptions
 from propertyestimator.workflow.plugins import registered_workflow_protocols
 from propertyestimator.workflow.schemas import ProtocolReplicator
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
@@ -273,7 +272,7 @@ def generate_base_reweighting_protocols(
 
 def generate_base_simulation_protocols(
     analysis_protocol,
-    workflow_options,
+    use_target_uncertainty,
     id_suffix="",
     conditional_group=None,
     n_molecules=1000,
@@ -316,8 +315,9 @@ def generate_base_simulation_protocols(
     analysis_protocol: AveragePropertyProtocol
         The protocol which will extract the observable of
         interest from the generated simulation data.
-    workflow_options: WorkflowOptions
-        The options being used to generate a workflow.
+    use_target_uncertainty: bool
+        Whether to run the simulation until the observable is
+        estimated to within the target uncertainty.
     id_suffix: str
         A string suffix to append to each of the protocol ids.
     conditional_group: ProtocolGroup, optional
@@ -406,10 +406,7 @@ def generate_base_simulation_protocols(
         conditional_group = groups.ConditionalGroup(f"conditional_group{id_suffix}")
         conditional_group.max_iterations = 100
 
-        if (
-            workflow_options.convergence_mode
-            != WorkflowOptions.ConvergenceMode.NoChecks
-        ):
+        if use_target_uncertainty:
 
             condition = groups.ConditionalGroup.Condition()
             condition.right_hand_value = ProtocolPath("target_uncertainty", "global")

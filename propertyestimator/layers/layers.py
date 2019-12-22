@@ -77,19 +77,19 @@ class CalculationLayerSchema(AttributeClass):
     should use when estimating a given class of physical properties.
     """
 
-    absolute_uncertainty = Attribute(
+    absolute_tolerance = Attribute(
         docstring="The absolute uncertainty that the property should "
         "be estimated to within. This attribute is mutually exclusive "
-        "with the `relative_uncertainty_fraction` attribute.",
+        "with the `relative_tolerance` attribute.",
         type_hint=unit.Quantity,
         default_value=UNDEFINED,
         optional=True,
     )
-    relative_uncertainty_fraction = Attribute(
+    relative_tolerance = Attribute(
         docstring="The relative uncertainty that the property should "
-        "be estimated to within, i.e `relative_uncertainty_fraction * "
+        "be estimated to within, i.e `relative_tolerance * "
         "measured_property.uncertainty`. This attribute is mutually "
-        "exclusive with the `absolute_uncertainty` attribute.",
+        "exclusive with the `absolute_tolerance` attribute.",
         type_hint=float,
         default_value=UNDEFINED,
         optional=True,
@@ -98,12 +98,12 @@ class CalculationLayerSchema(AttributeClass):
     def validate(self, attribute_type=None):
 
         if (
-            self.absolute_uncertainty != UNDEFINED
-            and self.relative_uncertainty_fraction != UNDEFINED
+            self.absolute_tolerance != UNDEFINED
+            and self.relative_tolerance != UNDEFINED
         ):
 
             raise ValueError(
-                "Only one of `absolute_uncertainty` and `relative_uncertainty_fraction` "
+                "Only one of `absolute_tolerance` and `relative_tolerance` "
                 "can be set."
             )
 

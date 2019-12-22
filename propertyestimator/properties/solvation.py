@@ -2,8 +2,6 @@
 A collection of physical property definitions relating to
 solvation free energies.
 """
-import copy
-
 from propertyestimator import unit
 from propertyestimator.datasets import PhysicalProperty
 from propertyestimator.layers import register_calculation_schema
@@ -18,7 +16,6 @@ from propertyestimator.protocols import (
 )
 from propertyestimator.substances import Component, Substance
 from propertyestimator.thermodynamics import Ensemble
-from propertyestimator.workflow import WorkflowOptions
 from propertyestimator.workflow.schemas import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
@@ -27,16 +24,14 @@ class SolvationFreeEnergy(PhysicalProperty):
     """A class representation of a solvation free energy property."""
 
     @staticmethod
-    def default_simulation_schema(existing_schema=None):
+    def default_simulation_schema(target_uncertainty=None):
         """Returns the default calculation schema to use when estimating
         this class of property from direct simulations.
 
         Parameters
         ----------
-        existing_schema: SimulationSchema, optional
-            An existing schema whose settings to use. If set,
-            the schema's `workflow_schema` will be overwritten
-            by this method.
+        target_uncertainty: unit.Quantity, optional
+            The uncertainty to estimate the property to within.
 
         Returns
         -------
@@ -45,11 +40,6 @@ class SolvationFreeEnergy(PhysicalProperty):
         """
 
         calculation_schema = SimulationSchema()
-
-        if existing_schema is not None:
-
-            assert isinstance(existing_schema, SimulationSchema)
-            calculation_schema = copy.deepcopy(existing_schema)
 
         # Setup the fully solvated systems.
         build_full_coordinates = coordinates.BuildCoordinatesPackmol(
@@ -152,10 +142,7 @@ class SolvationFreeEnergy(PhysicalProperty):
         conditional_group = groups.ConditionalGroup(f"conditional_group")
         conditional_group.max_iterations = 20
 
-        if (
-            calculation_schema.workflow_options.convergence_mode
-            != WorkflowOptions.ConvergenceMode.NoChecks
-        ):
+        if target_uncertainty is not None:
 
             condition = groups.ConditionalGroup.Condition()
             condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
@@ -179,7 +166,7 @@ class SolvationFreeEnergy(PhysicalProperty):
         conditional_group.add_protocols(total_iterations, run_yank)
 
         # Define the full workflow schema.
-        schema = WorkflowSchema(property_type=SolvationFreeEnergy.__name__)
+        schema = WorkflowSchema()
         schema.id = "{}{}".format(SolvationFreeEnergy.__name__, "Schema")
 
         schema.protocols = {
@@ -203,6 +190,6 @@ class SolvationFreeEnergy(PhysicalProperty):
 
 
 # Register the properties via the plugin system.
-register_calculation_schema(
-    SolvationFreeEnergy, SimulationLayer, SolvationFreeEnergy.default_simulation_schema
-)
+# register_calculation_schema(
+#     SolvationFreeEnergy, SimulationLayer, SolvationFreeEnergy.default_simulation_schema
+# )

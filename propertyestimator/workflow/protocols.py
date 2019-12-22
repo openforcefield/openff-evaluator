@@ -212,8 +212,9 @@ class Protocol(AttributeClass, abc.ABC):
 
             value_references = self.get_value_references(input_path)
 
-            for value_reference in value_references.values():
+            for key, value_reference in value_references.items():
                 value_reference.append_uuid(value)
+                self.set_value(key, value_reference)
 
     def replace_protocol(self, old_id, new_id):
         """Finds each input which came from a given protocol
@@ -244,8 +245,9 @@ class Protocol(AttributeClass, abc.ABC):
 
             value_references = self.get_value_references(input_path)
 
-            for value_reference in value_references.values():
+            for key, value_reference in value_references.items():
                 value_reference.replace_protocol(old_id, new_id)
+                self.set_value(key, value_reference)
 
         if self.id == old_id:
             self.id = new_id
@@ -936,7 +938,7 @@ class ProtocolGroup(Protocol):
 
             for input_path in protocol.required_inputs:
 
-                input_path = ProtocolPath.from_string(input_path.full_path)
+                input_path = input_path.copy()
 
                 if input_path.start_protocol != protocol.id:
                     input_path.prepend_protocol_id(protocol.id)
@@ -971,7 +973,7 @@ class ProtocolGroup(Protocol):
             for output_path in protocol.outputs:
 
                 output_value = protocol.get_value(output_path)
-                output_path = ProtocolPath.from_string(output_path.full_path)
+                output_path = output_path.copy()
 
                 if output_path.start_protocol != protocol.id:
                     output_path.prepend_protocol_id(protocol.id)
@@ -1040,7 +1042,7 @@ class ProtocolGroup(Protocol):
 
         Parameters
         ----------
-        protocols: tuple of Protocol
+        protocols: *Protocol
             The protocols to add.
         """
         for protocol in protocols:
@@ -1150,12 +1152,15 @@ class ProtocolGroup(Protocol):
 
         values_references = super(ProtocolGroup, self).get_value_references(input_path)
 
-        for value_reference in values_references.values():
+        for key, value_reference in values_references.items():
 
             if value_reference.start_protocol not in self.protocols:
                 continue
 
+            value_reference = value_reference.copy()
             value_reference.prepend_protocol_id(self.id)
+
+            values_references[key] = value_reference
 
         return values_references
 
@@ -1222,6 +1227,9 @@ class ProtocolGroup(Protocol):
             or reference_path.protocol_path == self.id
         ):
             return super(ProtocolGroup, self).set_value(reference_path, value)
+
+        if isinstance(value, ProtocolPath) and value.start_protocol == self.id:
+            value.pop_next_in_path()
 
         target_protocol_id, truncated_path = self._get_next_in_path(reference_path)
         return self.protocols[target_protocol_id].set_value(truncated_path, value)

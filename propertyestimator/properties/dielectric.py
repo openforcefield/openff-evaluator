@@ -357,12 +357,10 @@ class DielectricConstant(PhysicalProperty):
         Parameters
         ----------
         absolute_tolerance: unit.Quantity, optional
-            The absolute tolerance to estimate
-            the property to within.
+            The absolute tolerance to estimate the property to within.
         relative_tolerance: float
-            The tolerance (as a fraction of the properties
-            reported uncertainty) to estimate the
-            property to within.
+            The tolerance (as a fraction of the properties reported
+            uncertainty) to estimate the property to within.
         n_molecules: int
             The number of molecules to use in the simulation.
 
@@ -371,10 +369,11 @@ class DielectricConstant(PhysicalProperty):
         SimulationSchema
             The schema to follow when estimating this property.
         """
+        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
 
         calculation_schema = SimulationSchema()
-        calculation_schema.absolute_uncertainty = absolute_tolerance
-        calculation_schema.relative_uncertainty_fraction = relative_tolerance
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
 
         # Define the protocol which will extract the average dielectric constant
         # from the results of a simulation.
@@ -384,9 +383,11 @@ class DielectricConstant(PhysicalProperty):
         )
 
         # Define the protocols which will run the simulation itself.
+        use_target_uncertainty = absolute_tolerance != UNDEFINED or relative_tolerance != UNDEFINED
+
         protocols, value_source, output_to_store = generate_base_simulation_protocols(
             extract_dielectric,
-            calculation_schema.workflow_options,
+            use_target_uncertainty,
             n_molecules=n_molecules,
         )
 
@@ -446,21 +447,20 @@ class DielectricConstant(PhysicalProperty):
         )
 
         # Build the workflow schema.
-        schema = WorkflowSchema(property_type=DielectricConstant.__name__)
-        schema.id = "{}{}".format(DielectricConstant.__name__, "Schema")
+        schema = WorkflowSchema()
 
-        schema.protocols = {
-            protocols.build_coordinates.id: protocols.build_coordinates.schema,
-            protocols.assign_parameters.id: protocols.assign_parameters.schema,
-            protocols.energy_minimisation.id: protocols.energy_minimisation.schema,
-            protocols.equilibration_simulation.id: protocols.equilibration_simulation.schema,
-            protocols.converge_uncertainty.id: protocols.converge_uncertainty.schema,
-            protocols.extract_uncorrelated_trajectory.id: protocols.extract_uncorrelated_trajectory.schema,
-            protocols.extract_uncorrelated_statistics.id: protocols.extract_uncorrelated_statistics.schema,
-            gradient_group.id: gradient_group.schema,
-        }
+        schema.protocol_schemas = [
+            protocols.build_coordinates.schema,
+            protocols.assign_parameters.schema,
+            protocols.energy_minimisation.schema,
+            protocols.equilibration_simulation.schema,
+            protocols.converge_uncertainty.schema,
+            protocols.extract_uncorrelated_trajectory.schema,
+            protocols.extract_uncorrelated_statistics.schema,
+            gradient_group.schema,
+        ]
 
-        schema.replicators = [gradient_replicator]
+        schema.protocol_replicators = [gradient_replicator]
 
         schema.outputs_to_store = {"full_system": output_to_store}
 
@@ -471,29 +471,35 @@ class DielectricConstant(PhysicalProperty):
         return calculation_schema
 
     @staticmethod
-    def default_reweighting_schema(existing_schema=None):
+    def default_reweighting_schema(
+            absolute_tolerance=UNDEFINED,
+            relative_tolerance=UNDEFINED,
+            n_effective_samples=50,
+    ):
         """Returns the default calculation schema to use when estimating
         this property by reweighting existing data.
 
         Parameters
         ----------
-        existing_schema: ReweightingSchema, optional
-            An existing schema whose settings to use. If set,
-            the schema's `workflow_schema` will be overwritten
-            by this method.
+        absolute_tolerance: unit.Quantity, optional
+            The absolute tolerance to estimate the property to within.
+        relative_tolerance: float
+            The tolerance (as a fraction of the properties reported
+            uncertainty) to estimate the property to within.
+        n_effective_samples: int
+            The minimum number of effective samples to require when
+            reweighting the cached simulation data.
 
         Returns
         -------
         ReweightingSchema
             The schema to follow when estimating this property.
         """
+        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
 
         calculation_schema = ReweightingSchema()
-
-        if existing_schema is not None:
-
-            assert isinstance(existing_schema, ReweightingSchema)
-            calculation_schema = copy.deepcopy(existing_schema)
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
 
         data_replicator_id = "data_replicator"
 
@@ -516,6 +522,7 @@ class DielectricConstant(PhysicalProperty):
         )
         reweight_dielectric.bootstrap_uncertainties = True
         reweight_dielectric.bootstrap_iterations = 200
+        reweight_dielectric.required_effective_samples = n_effective_samples
 
         protocols, data_replicator = generate_base_reweighting_protocols(
             extract_dielectric, reweight_dielectric, data_replicator_id
@@ -558,14 +565,11 @@ class DielectricConstant(PhysicalProperty):
             ),
         )
 
-        schema = WorkflowSchema(property_type=DielectricConstant.__name__)
-        schema.id = "{}{}".format(DielectricConstant.__name__, "Schema")
-
-        schema.protocols = {protocol.id: protocol.schema for protocol in protocols}
-        schema.protocols[gradient_group.id] = gradient_group.schema
-
-        schema.replicators = [data_replicator, gradient_replicator]
-
+        schema = WorkflowSchema()
+        schema.protocol_schemas = [
+            *(x.schema for x in protocols), gradient_group.schema
+        ]
+        schema.protocol_replicators = [data_replicator, gradient_replicator]
         schema.gradients_sources = [gradient_source]
         schema.final_value_source = ProtocolPath("value", protocols.mbar_protocol.id)
 

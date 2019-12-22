@@ -21,7 +21,6 @@ from propertyestimator.storage.query import SimulationDataQuery, SubstanceQuery
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
-from propertyestimator.workflow import WorkflowOptions
 from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
@@ -52,7 +51,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         weight_by_mole_fraction=False,
         component_substance_reference=None,
         full_substance_reference=None,
-        options=None,
+        target_uncertainty=None,
         n_molecules=1000,
     ):
 
@@ -80,8 +79,8 @@ class EnthalpyOfMixing(PhysicalProperty):
             An optional protocol path (or replicator reference) to the full substance
             whose enthalpy of mixing is being estimated. This cannot be `None` if
             `weight_by_mole_fraction` is `True`.
-        options: WorkflowOptions
-            The options to use when setting up the workflows.
+        target_uncertainty: unit.Quantity
+            The uncertainty to estimate the property to within.
         n_molecules: int
             The number of molecules to use in the simulation.
 
@@ -167,7 +166,7 @@ class EnthalpyOfMixing(PhysicalProperty):
                 "weighted_value", conditional_group.id, weight_by_mole_fraction.id
             )
 
-        if options.convergence_mode != WorkflowOptions.ConvergenceMode.NoChecks:
+        if target_uncertainty is not None:
 
             # Make sure the convergence criteria is set to use the per component
             # uncertainty target.
@@ -494,8 +493,8 @@ class EnthalpyOfMixing(PhysicalProperty):
         """
 
         calculation_schema = SimulationSchema()
-        calculation_schema.absolute_uncertainty = absolute_tolerance
-        calculation_schema.relative_uncertainty_fraction = relative_tolerance
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
 
         # Define the id of the replicator which will clone the gradient protocols
         # for each gradient key to be estimated.
@@ -823,8 +822,8 @@ class EnthalpyOfVaporization(PhysicalProperty):
         """
 
         calculation_schema = SimulationSchema()
-        calculation_schema.absolute_uncertainty = absolute_tolerance
-        calculation_schema.relative_uncertainty_fraction = relative_tolerance
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
 
         # Define a custom conditional group.
         converge_uncertainty = groups.ConditionalGroup(f"converge_uncertainty")
@@ -843,7 +842,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
             liquid_output_to_store,
         ) = generate_base_simulation_protocols(
             extract_liquid_energy,
-            calculation_schema.workflow_options,
+            target_uncertainty,
             "_liquid",
             converge_uncertainty,
         )
@@ -862,7 +861,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
             gas_output_to_store,
         ) = generate_base_simulation_protocols(
             extract_gas_energy,
-            calculation_schema.workflow_options,
+            target_uncertainty,
             "_gas",
             converge_uncertainty,
         )
@@ -1293,19 +1292,19 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
 
 # Register the properties via the plugin system.
-register_calculation_schema(
-    EnthalpyOfMixing, SimulationLayer, EnthalpyOfMixing.default_simulation_schema
-)
-register_calculation_schema(
-    EnthalpyOfMixing, ReweightingLayer, EnthalpyOfMixing.default_reweighting_schema
-)
-register_calculation_schema(
-    EnthalpyOfVaporization,
-    SimulationLayer,
-    EnthalpyOfVaporization.default_simulation_schema,
-)
-register_calculation_schema(
-    EnthalpyOfVaporization,
-    ReweightingLayer,
-    EnthalpyOfVaporization.default_reweighting_schema,
-)
+# register_calculation_schema(
+#     EnthalpyOfMixing, SimulationLayer, EnthalpyOfMixing.default_simulation_schema
+# )
+# register_calculation_schema(
+#     EnthalpyOfMixing, ReweightingLayer, EnthalpyOfMixing.default_reweighting_schema
+# )
+# register_calculation_schema(
+#     EnthalpyOfVaporization,
+#     SimulationLayer,
+#     EnthalpyOfVaporization.default_simulation_schema,
+# )
+# register_calculation_schema(
+#     EnthalpyOfVaporization,
+#     ReweightingLayer,
+#     EnthalpyOfVaporization.default_reweighting_schema,
+# )

@@ -393,38 +393,27 @@ class TypedJSONDecoder(json.JSONDecoder):
 
         elif hasattr(class_type, "__setstate__"):
 
-            try:
+            class_init_signature = inspect.signature(class_type)
 
-                class_init_signature = inspect.signature(class_type)
+            for parameter in class_init_signature.parameters.values():
 
-                for parameter in class_init_signature.parameters.values():
+                if (
+                    parameter.default != inspect.Parameter.empty
+                    or parameter.kind == inspect.Parameter.VAR_KEYWORD
+                    or parameter.kind == inspect.Parameter.VAR_POSITIONAL
+                ):
 
-                    if (
-                        parameter.default != inspect.Parameter.empty
-                        or parameter.kind == inspect.Parameter.VAR_KEYWORD
-                        or parameter.kind == inspect.Parameter.VAR_POSITIONAL
-                    ):
-
-                        continue
-
-                    raise ValueError(
-                        "Cannot deserialize objects which have "
-                        "non-optional arguments {} in the constructor: {}.".format(
-                            parameter.name, class_type
-                        )
-                    )
-
-                deserialized_object = class_type()
-                deserialized_object.__setstate__(object_dictionary)
-
-            except Exception as e:
+                    continue
 
                 raise ValueError(
-                    "{} ({}) could not be deserialized "
-                    "using its __setstate__ method: {}".format(
-                        object_dictionary, type(class_type), e
+                    "Cannot deserialize objects which have "
+                    "non-optional arguments {} in the constructor: {}.".format(
+                        parameter.name, class_type
                     )
                 )
+
+            deserialized_object = class_type()
+            deserialized_object.__setstate__(object_dictionary)
 
         else:
 

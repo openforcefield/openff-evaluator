@@ -23,7 +23,7 @@ from propertyestimator.utils.string import extract_variable_index_and_name
 from propertyestimator.utils.utils import get_nested_attribute
 from propertyestimator.workflow.exceptions import WorkflowException
 from propertyestimator.workflow.protocols import Protocol, ProtocolGraph
-from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSchema
+from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSchema, ProtocolSchema
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
@@ -35,7 +35,7 @@ class Workflow:
     @property
     def protocols(self):
         """tuple of Protocol: The protocols in this workflow."""
-        return tuple(self._protocols)
+        return {x.id: x for x in self._protocols}
 
     @property
     def schema(self):
@@ -113,21 +113,22 @@ class Workflow:
 
         self._gradients_sources = []
 
-        for gradient_source in schema.gradients_sources:
+        if schema.gradients_sources != UNDEFINED:
 
-            copied_source = gradient_source
-            copied_source.append_uuid(self.uuid)
-
-            self._gradients_sources.append(copied_source)
+            for gradient_source in schema.gradients_sources:
+                gradient_source.append_uuid(self.uuid)
+                self._gradients_sources.append(gradient_source)
 
         self._outputs_to_store = {}
 
-        for label in schema.outputs_to_store:
+        if schema.outputs_to_store != UNDEFINED:
 
-            self._append_uuid_to_output_to_store(schema.outputs_to_store[label])
-            self._outputs_to_store[label] = self._build_output_to_store(
-                schema.outputs_to_store[label]
-            )
+            for label in schema.outputs_to_store:
+
+                self._append_uuid_to_output_to_store(schema.outputs_to_store[label])
+                self._outputs_to_store[label] = self._build_output_to_store(
+                    schema.outputs_to_store[label]
+                )
 
     def _append_uuid_to_output_to_store(self, output_to_store):
         """Appends this workflows uuid to all of the protocol paths
@@ -210,7 +211,7 @@ class Workflow:
                     protocol.set_value(source_path, value)
 
             protocol.set_uuid(self.uuid)
-            self._protocols[protocol.id] = protocol
+            self._protocols.append(protocol)
 
     def _get_template_values(self, replicator):
         """Returns the values which which will be passed to the replicated
@@ -319,7 +320,7 @@ class Workflow:
 
         # Update the schema with the replicated protocols.
         schema.protocol_schemas = [
-            replicated_protocol.schema for replicated_protocol in replicated_protocols
+            replicated_protocols[key].schema for key in replicated_protocols
         ]
 
         # Make sure to correctly replicate gradient sources.
@@ -363,9 +364,13 @@ class Workflow:
             The values being applied by the replicator.
         """
 
-        outputs_to_replicate = [
-            label for label in schema.outputs_to_store if label.find(replicator.id) >= 0
-        ]
+        outputs_to_replicate = []
+
+        if schema.outputs_to_store != UNDEFINED:
+
+            outputs_to_replicate = [
+                label for label in schema.outputs_to_store if label.find(replicator.id) >= 0
+            ]
 
         # Check to see if there are any outputs to store pointing to
         # protocols which are being replicated.
@@ -432,7 +437,7 @@ class Workflow:
 
         replicators = []
 
-        for original_replicator in schema.replicators:
+        for original_replicator in schema.protocol_replicators:
 
             # Check whether this replicator will be replicated.
             if replicator.placeholder_id not in original_replicator.id:
@@ -482,7 +487,7 @@ class Workflow:
 
                 replicators.append(new_replicator)
 
-        schema.replicators = replicators
+        schema.protocol_replicators = replicators
 
     def replace_protocol(self, old_protocol, new_protocol):
         """Replaces an existing protocol with a new one, while
@@ -494,41 +499,29 @@ class Workflow:
 
         Parameters
         ----------
-        old_protocol : protocols.Protocol or str
+        old_protocol : Protocol
             The protocol (or its id) to replace.
-        new_protocol : protocols.Protocol or str
+        new_protocol : Protocol
             The new protocol (or its id) to use.
         """
 
-        old_protocol_id = old_protocol
-        new_protocol_id = new_protocol
-
-        if isinstance(old_protocol, Protocol):
-            old_protocol_id = old_protocol.id
-        if isinstance(new_protocol, Protocol):
-            new_protocol_id = new_protocol.id
-
-        if new_protocol_id in self._protocols:
+        if new_protocol.id in self._protocols:
 
             raise ValueError(
                 "A protocol with the same id already exists in this workflow."
             )
 
-        for protocol_id in self._protocols:
+        self._protocols.remove(old_protocol)
+        self._protocols.append(new_protocol)
 
-            protocol = self._protocols[protocol_id]
-            protocol.replace_protocol(old_protocol_id, new_protocol_id)
-
-        if old_protocol_id in self._protocols and isinstance(new_protocol, Protocol):
-
-            self._protocols.pop(old_protocol_id)
-            self._protocols[new_protocol_id] = new_protocol
+        for protocol in self._protocols:
+            protocol.replace_protocol(old_protocol.id, new_protocol.id)
 
         if self._final_value_source is not None:
-            self._final_value_source.replace_protocol(old_protocol_id, new_protocol_id)
+            self._final_value_source.replace_protocol(old_protocol.id, new_protocol.id)
 
         for gradient_source in self._gradients_sources:
-            gradient_source.replace_protocol(old_protocol_id, new_protocol_id)
+            gradient_source.replace_protocol(old_protocol.id, new_protocol.id)
 
         for output_label in self._outputs_to_store:
 
@@ -541,7 +534,7 @@ class Workflow:
                 if not isinstance(attribute_value, ProtocolPath):
                     continue
 
-                attribute_value.replace_protocol(old_protocol_id, new_protocol_id)
+                attribute_value.replace_protocol(old_protocol.id, new_protocol.id)
 
     @staticmethod
     def _find_relevant_gradient_keys(
@@ -701,11 +694,41 @@ class Workflow:
 
         return global_metadata
 
+    def to_graph(self):
+        """Converts this workflow to an executable `WorkflowGraph`.
+
+        Returns
+        -------
+        WorkflowGraph
+            The graph representation of this workflow.
+        """
+        graph = WorkflowGraph()
+        graph.add_workflow(self)
+        return graph
 
 class WorkflowGraph:
     """A hierarchical structure for storing and submitting the workflows
     which will estimate a set of physical properties..
     """
+
+    @property
+    def protocols(self):
+        """dict of str and Protocol: The protocols in this graph."""
+        return self._protocol_graph.protocols
+
+    @property
+    def root_protocols(self):
+        """list of str: The ids of the protocols in the group which do not
+        take input from the other grouped protocols."""
+        return self._protocol_graph.root_protocols
+
+    @property
+    def dependants_graph(self):
+        """dict of str and str: A dictionary of which stores which grouped protocols
+        are dependant on other grouped protocols. Each key in the dictionary is the
+        id of a grouped protocol, and each value is the id of a protocol which depends
+        on the protocol by the key."""
+        return self._protocol_graph.dependants_graph
 
     def __init__(self):
 
@@ -729,23 +752,23 @@ class WorkflowGraph:
                 f"A workflow with the uuid {workflow.uuid} is already in the graph."
             )
 
-        original_protocols = {protocol.id: protocol for protocol in workflow.protocols}
+        original_protocols = [*workflow.protocols.values()]
         self._workflows_to_execute[workflow.uuid] = workflow
 
         # Add the workflow protocols to the graph.
         merged_protocol_ids = self._protocol_graph.add_protocols(
-            *workflow.protocols, allow_external_dependencies=False
+            *original_protocols, allow_external_dependencies=False
         )
-
-        merged_protcols = {
-            protocol.id: protocol for protocol in self._protocol_graph.protocols
-        }
 
         # Update the workflow to use the possibly merged protocols
         for original_id, new_id in merged_protocol_ids.items():
 
+            if original_id not in workflow.protocols:
+                # Skip nested protocols (i.e. those in ProtocolGroup's).
+                continue
+
             workflow.replace_protocol(
-                original_protocols[original_id], merged_protcols[new_id]
+                workflow.protocols[original_id], self._protocol_graph.protocols[new_id]
             )
 
     def submit(self, root_directory, backend):
@@ -898,11 +921,7 @@ class WorkflowGraph:
         dict of str and Any
             A dictionary which contains the outputs of the executed protocol.
         """
-
-        from propertyestimator.workflow.plugins import registered_workflow_protocols
-        from propertyestimator.workflow import protocols
-
-        protocol_schema = protocols.ProtocolSchema.parse_json(protocol_schema_json)
+        protocol_schema = ProtocolSchema.parse_json(protocol_schema_json)
 
         # The path where the output of this protocol will be stored.
         output_dictionary_path = path.join(
@@ -960,10 +979,7 @@ class WorkflowGraph:
 
             # Recreate the protocol on the backend to bypass the need for static methods
             # and awkward args and kwargs syntax.
-            protocol = registered_workflow_protocols[protocol_schema.type](
-                protocol_schema.id
-            )
-            protocol.schema = protocol_schema
+            protocol = protocol_schema.to_protocol()
 
             # Pass the outputs of previously executed protocols as input to the
             # protocol to execute.
