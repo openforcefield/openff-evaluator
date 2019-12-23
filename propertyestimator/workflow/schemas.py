@@ -576,6 +576,9 @@ class WorkflowSchema(AttributeClass):
             The path which should point to only unreplicated protocols
         """
 
+        if self.protocol_replicators == UNDEFINED:
+            return protocol_path.copy()
+
         full_unreplicated_path = str(protocol_path.full_path)
 
         for replicator in self.protocol_replicators:
@@ -867,8 +870,12 @@ class WorkflowSchema(AttributeClass):
                         continue
 
                     is_replicated_reference = False
+                    protocol_replicators = self.protocol_replicators
 
-                    for replicator in self.protocol_replicators:
+                    if protocol_replicators == UNDEFINED:
+                        protocol_replicators = []
+
+                    for replicator in protocol_replicators:
 
                         if (
                             replicator.placeholder_id in protocol_schema.id

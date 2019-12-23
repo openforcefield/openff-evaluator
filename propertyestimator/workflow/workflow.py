@@ -280,6 +280,9 @@ class Workflow:
             The schema to apply the replicators to.
         """
 
+        if schema.protocol_replicators == UNDEFINED:
+            return
+
         while len(schema.protocol_replicators) > 0:
 
             replicator = schema.protocol_replicators.pop(0)

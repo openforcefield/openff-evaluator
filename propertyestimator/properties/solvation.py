@@ -3,6 +3,7 @@ A collection of physical property definitions relating to
 solvation free energies.
 """
 from propertyestimator import unit
+from propertyestimator.attributes import UNDEFINED
 from propertyestimator.datasets import PhysicalProperty
 from propertyestimator.layers import register_calculation_schema
 from propertyestimator.layers.simulation import SimulationLayer, SimulationSchema
@@ -24,29 +25,43 @@ class SolvationFreeEnergy(PhysicalProperty):
     """A class representation of a solvation free energy property."""
 
     @staticmethod
-    def default_simulation_schema(target_uncertainty=None):
+    def default_simulation_schema(
+        absolute_tolerance=UNDEFINED, relative_tolerance=UNDEFINED, n_molecules=2000
+    ):
         """Returns the default calculation schema to use when estimating
         this class of property from direct simulations.
 
         Parameters
         ----------
-        target_uncertainty: unit.Quantity, optional
-            The uncertainty to estimate the property to within.
+        absolute_tolerance: unit.Quantity, optional
+            The absolute tolerance to estimate the property to within.
+        relative_tolerance: float
+            The tolerance (as a fraction of the properties reported
+            uncertainty) to estimate the property to within.
+        n_molecules: int
+            The number of molecules to use in the simulation.
 
         Returns
         -------
         SimulationSchema
             The schema to follow when estimating this property.
         """
+        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
 
         calculation_schema = SimulationSchema()
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
+
+        use_target_uncertainty = (
+            absolute_tolerance != UNDEFINED or relative_tolerance != UNDEFINED
+        )
 
         # Setup the fully solvated systems.
         build_full_coordinates = coordinates.BuildCoordinatesPackmol(
             "build_solvated_coordinates"
         )
         build_full_coordinates.substance = ProtocolPath("substance", "global")
-        build_full_coordinates.max_molecules = 2000
+        build_full_coordinates.max_molecules = n_molecules
 
         assign_full_parameters = forcefield.BuildSmirnoffSystem(
             f"assign_solvated_parameters"
@@ -142,7 +157,7 @@ class SolvationFreeEnergy(PhysicalProperty):
         conditional_group = groups.ConditionalGroup(f"conditional_group")
         conditional_group.max_iterations = 20
 
-        if target_uncertainty is not None:
+        if use_target_uncertainty:
 
             condition = groups.ConditionalGroup.Condition()
             condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
@@ -167,19 +182,18 @@ class SolvationFreeEnergy(PhysicalProperty):
 
         # Define the full workflow schema.
         schema = WorkflowSchema()
-        schema.id = "{}{}".format(SolvationFreeEnergy.__name__, "Schema")
 
-        schema.protocols = {
-            build_full_coordinates.id: build_full_coordinates.schema,
-            assign_full_parameters.id: assign_full_parameters.schema,
-            energy_minimisation.id: energy_minimisation.schema,
-            equilibration_simulation.id: equilibration_simulation.schema,
-            filter_solvent.id: filter_solvent.schema,
-            filter_solute.id: filter_solute.schema,
-            build_vacuum_coordinates.id: build_vacuum_coordinates.schema,
-            assign_vacuum_parameters.id: assign_vacuum_parameters.schema,
-            conditional_group.id: conditional_group.schema,
-        }
+        schema.protocol_schemas = [
+            build_full_coordinates.schema,
+            assign_full_parameters.schema,
+            energy_minimisation.schema,
+            equilibration_simulation.schema,
+            filter_solvent.schema,
+            filter_solute.schema,
+            build_vacuum_coordinates.schema,
+            assign_vacuum_parameters.schema,
+            conditional_group.schema,
+        ]
 
         schema.final_value_source = ProtocolPath(
             "estimated_free_energy", conditional_group.id, run_yank.id
@@ -190,6 +204,6 @@ class SolvationFreeEnergy(PhysicalProperty):
 
 
 # Register the properties via the plugin system.
-# register_calculation_schema(
-#     SolvationFreeEnergy, SimulationLayer, SolvationFreeEnergy.default_simulation_schema
-# )
+register_calculation_schema(
+    SolvationFreeEnergy, SimulationLayer, SolvationFreeEnergy.default_simulation_schema
+)
