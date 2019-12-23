@@ -466,6 +466,9 @@ class ExcessMolarVolume(PhysicalProperty):
         substance_reference: ProtocolPath or PlaceholderValue, optional
             An optional protocol path (or replicator reference) to the substance
             whose molar volume is being estimated.
+        n_effective_samples: int
+            The minimum number of effective samples to require when
+            reweighting the cached simulation data.
 
         Returns
         -------
