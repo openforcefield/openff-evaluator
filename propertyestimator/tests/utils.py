@@ -17,7 +17,6 @@ from propertyestimator.datasets import (
 )
 from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.properties import Density, DielectricConstant, EnthalpyOfMixing
-from propertyestimator.protocols import coordinates, groups, simulation
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.storage.data import StoredSimulationData
 from propertyestimator.substances import Component, MoleFraction, Substance

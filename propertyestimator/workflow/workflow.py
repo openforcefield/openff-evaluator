@@ -22,7 +22,7 @@ from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEnc
 from propertyestimator.utils.string import extract_variable_index_and_name
 from propertyestimator.utils.utils import get_nested_attribute
 from propertyestimator.workflow.exceptions import WorkflowException
-from propertyestimator.workflow.protocols import Protocol, ProtocolGraph
+from propertyestimator.workflow.protocols import ProtocolGraph
 from propertyestimator.workflow.schemas import (
     ProtocolReplicator,
     ProtocolSchema,

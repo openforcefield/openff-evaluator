@@ -4,7 +4,7 @@ import tempfile
 import pytest
 
 from propertyestimator import unit
-from propertyestimator.protocols.groups import ConditionalGroup, ProtocolGroup
+from propertyestimator.protocols.groups import ConditionalGroup
 from propertyestimator.protocols.miscellaneous import AddValues
 from propertyestimator.tests.test_workflow.utils import DummyInputOutputProtocol
 from propertyestimator.utils.exceptions import EvaluatorException

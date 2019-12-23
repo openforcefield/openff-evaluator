@@ -14,7 +14,6 @@ from propertyestimator.protocols.coordinates import (
 )
 from propertyestimator.substances import Component, ExactAmount, MoleFraction, Substance
 from propertyestimator.utils import get_data_filename
-from propertyestimator.utils.exceptions import EvaluatorException
 
 
 def _build_input_output_substances():
