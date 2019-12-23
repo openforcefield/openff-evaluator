@@ -63,7 +63,7 @@ class Workflow:
         self.uuid = unique_id
 
         self._protocols = []
-        self._final_value_source = None
+        self._final_value_source = UNDEFINED
         self._gradients_sources = []
         self._outputs_to_store = {}
 
@@ -78,7 +78,7 @@ class Workflow:
         schema = WorkflowSchema()
 
         schema.id = self.uuid
-        schema.protocol_schemas = {x.id: x.schema for x in self._protocols}
+        schema.protocol_schemas = [copy.deepcopy(x) for x in self._protocols]
 
         if self._final_value_source != UNDEFINED:
             schema.final_value_source = self._final_value_source.copy()
@@ -326,22 +326,24 @@ class Workflow:
         # Make sure to correctly replicate gradient sources.
         replicated_gradient_sources = []
 
-        for gradient_source in schema.gradients_sources:
+        if schema.gradients_sources != UNDEFINED:
 
-            if replicator.placeholder_id not in gradient_source.full_path:
+            for gradient_source in schema.gradients_sources:
 
-                replicated_gradient_sources.append(gradient_source)
-                continue
+                if replicator.placeholder_id not in gradient_source.full_path:
 
-            for index, template_value in enumerate(template_values):
+                    replicated_gradient_sources.append(gradient_source)
+                    continue
 
-                replicated_source = ProtocolPath.from_string(
-                    gradient_source.full_path.replace(
-                        replicator.placeholder_id, str(index)
+                for index, template_value in enumerate(template_values):
+
+                    replicated_source = ProtocolPath.from_string(
+                        gradient_source.full_path.replace(
+                            replicator.placeholder_id, str(index)
+                        )
                     )
-                )
 
-                replicated_gradient_sources.append(replicated_source)
+                    replicated_gradient_sources.append(replicated_source)
 
         schema.gradients_sources = replicated_gradient_sources
 
@@ -519,7 +521,7 @@ class Workflow:
         for protocol in self._protocols:
             protocol.replace_protocol(old_protocol.id, new_protocol.id)
 
-        if self._final_value_source is not None:
+        if self._final_value_source != UNDEFINED:
             self._final_value_source.replace_protocol(old_protocol.id, new_protocol.id)
 
         for gradient_source in self._gradients_sources:

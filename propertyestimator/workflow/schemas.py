@@ -680,7 +680,7 @@ class WorkflowSchema(AttributeClass):
                     )
 
             if (
-                self.final_value_source is not None
+                self.final_value_source != UNDEFINED
                 and self.final_value_source.protocol_path.find(
                     replicator.placeholder_id
                 )

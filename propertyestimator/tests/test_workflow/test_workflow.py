@@ -6,10 +6,8 @@ import tempfile
 from propertyestimator import unit
 from propertyestimator.backends import ComputeResources, DaskLocalCluster
 from propertyestimator.layers.layers import CalculationLayerResult
-from propertyestimator.properties.density import Density
 from propertyestimator.protocols.groups import ConditionalGroup
 from propertyestimator.tests.test_workflow.utils import DummyInputOutputProtocol
-from propertyestimator.tests.utils import create_dummy_property
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import Workflow, WorkflowGraph, WorkflowSchema
@@ -25,31 +23,29 @@ def test_simple_workflow_graph():
         1 * unit.kelvin, 0.1 * unit.kelvin, "dummy_source"
     )
 
-    dummy_schema.protocols[dummy_protocol_a.id] = dummy_protocol_a.schema
-
     dummy_protocol_b = DummyInputOutputProtocol("protocol_b")
     dummy_protocol_b.input_value = ProtocolPath("output_value", dummy_protocol_a.id)
 
-    dummy_schema.protocols[dummy_protocol_b.id] = dummy_protocol_b.schema
+    dummy_schema.protocol_schemas = [dummy_protocol_a.schema, dummy_protocol_b.schema]
 
     dummy_schema.final_value_source = ProtocolPath("output_value", dummy_protocol_b.id)
 
     dummy_schema.validate()
 
-    dummy_property = create_dummy_property(Density)
-
-    dummy_workflow = Workflow(dummy_property, {})
+    dummy_workflow = Workflow({})
     dummy_workflow.schema = dummy_schema
 
     with tempfile.TemporaryDirectory() as temporary_directory:
 
-        workflow_graph = WorkflowGraph(temporary_directory)
+        workflow_graph = WorkflowGraph()
         workflow_graph.add_workflow(dummy_workflow)
 
         dask_local_backend = DaskLocalCluster(1, ComputeResources(1))
         dask_local_backend.start()
 
-        results_futures = workflow_graph.submit(dask_local_backend)
+        results_futures = workflow_graph.execute(
+            temporary_directory, dask_local_backend
+        )
 
         assert len(results_futures) == 1
 
@@ -82,7 +78,7 @@ def test_simple_workflow_graph_with_groups():
 
     conditional_group.add_condition(condition)
 
-    dummy_schema.protocols[conditional_group.id] = conditional_group.schema
+    dummy_schema.protocol_schemas = [conditional_group.schema]
 
     dummy_schema.final_value_source = ProtocolPath(
         "output_value", conditional_group.id, dummy_protocol_b.id
@@ -90,20 +86,20 @@ def test_simple_workflow_graph_with_groups():
 
     dummy_schema.validate()
 
-    dummy_property = create_dummy_property(Density)
-
-    dummy_workflow = Workflow(dummy_property, {})
+    dummy_workflow = Workflow({})
     dummy_workflow.schema = dummy_schema
 
     with tempfile.TemporaryDirectory() as temporary_directory:
 
-        workflow_graph = WorkflowGraph(temporary_directory)
+        workflow_graph = WorkflowGraph()
         workflow_graph.add_workflow(dummy_workflow)
 
         dask_local_backend = DaskLocalCluster(1, ComputeResources(1))
         dask_local_backend.start()
 
-        results_futures = workflow_graph.submit(dask_local_backend)
+        results_futures = workflow_graph.execute(
+            temporary_directory, dask_local_backend
+        )
 
         assert len(results_futures) == 1
 
@@ -118,30 +114,30 @@ def test_nested_input():
 
     dict_protocol = DummyInputOutputProtocol("dict_protocol")
     dict_protocol.input_value = {"a": ThermodynamicState(temperature=1 * unit.kelvin)}
-    dummy_schema.protocols[dict_protocol.id] = dict_protocol.schema
 
     quantity_protocol = DummyInputOutputProtocol("quantity_protocol")
     quantity_protocol.input_value = ProtocolPath(
         "output_value[a].temperature", dict_protocol.id
     )
-    dummy_schema.protocols[quantity_protocol.id] = quantity_protocol.schema
+
+    dummy_schema.protocol_schemas = [dict_protocol.schema, quantity_protocol.schema]
 
     dummy_schema.validate()
 
-    dummy_property = create_dummy_property(Density)
-
-    dummy_workflow = Workflow(dummy_property, {})
+    dummy_workflow = Workflow({})
     dummy_workflow.schema = dummy_schema
 
     with tempfile.TemporaryDirectory() as temporary_directory:
 
-        workflow_graph = WorkflowGraph(temporary_directory)
+        workflow_graph = WorkflowGraph()
         workflow_graph.add_workflow(dummy_workflow)
 
         dask_local_backend = DaskLocalCluster(1, ComputeResources(1))
         dask_local_backend.start()
 
-        results_futures = workflow_graph.submit(dask_local_backend)
+        results_futures = workflow_graph.execute(
+            temporary_directory, dask_local_backend
+        )
 
         assert len(results_futures) == 1
 
@@ -155,13 +151,13 @@ def test_index_replicated_protocol():
 
     dummy_replicator = ProtocolReplicator("dummy_replicator")
     dummy_replicator.template_values = ["a", "b", "c", "d"]
-    dummy_schema.replicators = [dummy_replicator]
+    dummy_schema.protocol_replicators = [dummy_replicator]
 
     replicated_protocol = DummyInputOutputProtocol(
         f"protocol_{dummy_replicator.placeholder_id}"
     )
     replicated_protocol.input_value = ReplicatorValue(dummy_replicator.id)
-    dummy_schema.protocols[replicated_protocol.id] = replicated_protocol.schema
+    dummy_schema.protocol_schemas = [replicated_protocol.schema]
 
     for index in range(len(dummy_replicator.template_values)):
 
@@ -169,11 +165,9 @@ def test_index_replicated_protocol():
         indexing_protocol.input_value = ProtocolPath(
             "output_value", f"protocol_{index}"
         )
-        dummy_schema.protocols[indexing_protocol.id] = indexing_protocol.schema
+        dummy_schema.protocol_schemas.append(indexing_protocol.schema)
 
     dummy_schema.validate()
 
-    dummy_property = create_dummy_property(Density)
-
-    dummy_workflow = Workflow(dummy_property, {})
+    dummy_workflow = Workflow({})
     dummy_workflow.schema = dummy_schema
