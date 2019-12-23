@@ -4,7 +4,6 @@ Defines the base API for defining new property estimator estimation layers.
 import abc
 import json
 import logging
-import traceback
 from os import path
 
 from propertyestimator import unit
@@ -14,10 +13,9 @@ from propertyestimator.attributes import (
     AttributeClass,
     PlaceholderValue,
 )
-from propertyestimator.forcefield import ParameterGradient
+from propertyestimator.datasets import PhysicalProperty
 from propertyestimator.storage.data import StoredSimulationData
 from propertyestimator.utils.exceptions import EvaluatorException
-from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedJSONDecoder
 
 
@@ -30,15 +28,13 @@ class CalculationLayerResult(AttributeClass):
     a `CalculationLayer`.
     """
 
-    value = Attribute(
-        docstring="The estimated value of the property and the uncertainty "
-        "in that value.",
-        type_hint=EstimatedQuantity,
+    physical_property = Attribute(
+        docstring="The estimated property (if the layer was successful).",
+        type_hint=PhysicalProperty,
         optional=True,
     )
-    gradients = Attribute(
-        docstring="The gradients of the estimated value with respect to the "
-        "specified force field parameters.",
+    data_to_store = Attribute(
+        docstring="Paths to the data objects to store.",
         type_hint=list,
         default_value=[],
     )
@@ -50,18 +46,10 @@ class CalculationLayerResult(AttributeClass):
         default_value=[],
     )
 
-    data_to_store = Attribute(
-        docstring="Paths to the data objects to store.",
-        type_hint=list,
-        default_value=[],
-    )
-
     def validate(self, attribute_type=None):
         super(CalculationLayerResult, self).validate(attribute_type)
 
-        assert all(isinstance(x, ParameterGradient) for x in self.gradients)
-
-        assert all(isinstance(x, tuple) for x in self.data_to_store)
+        assert all(isinstance(x, (tuple, list)) for x in self.data_to_store)
         assert all(len(x) == 2 for x in self.data_to_store)
         assert all(all(isinstance(y, str) for y in x) for x in self.data_to_store)
 
@@ -249,23 +237,23 @@ class CalculationLayer(abc.ABC):
                         "a CalculationLayerResult as expected."
                     )
 
-                if returned_output.exception is not None:
-                    # If an exception was raised, make sure to add it to the list.
-                    batch.exceptions.append(returned_output.exception)
+                if len(returned_output.exceptions) > 0:
+
+                    # If exceptions were raised, make sure to add them to the list.
+                    batch.exceptions.extend(returned_output.exceptions)
 
                     logging.info(
-                        f"An exception was raised: "
-                        f"{returned_output.exception.message}"
+                        f"Exceptions were raised while executing batch {batch.id}"
                     )
+
+                    for exception in returned_output.exceptions:
+                        logging.info(str(exception))
 
                 else:
 
                     # Make sure to store any important calculation data if no exceptions
                     # were thrown.
-                    if (
-                        returned_output.data_to_store is not None
-                        and returned_output.calculated_property is not None
-                    ):
+                    if returned_output.data_to_store is not None:
 
                         CalculationLayer._store_cached_output(
                             batch, returned_output, storage_backend
@@ -274,27 +262,29 @@ class CalculationLayer(abc.ABC):
                 matches = [
                     x
                     for x in batch.queued_properties
-                    if x.id == returned_output.property_id
+                    if x.id == returned_output.physical_property.id
                 ]
 
                 if len(matches) > 1:
+
                     raise ValueError(
-                        f"A property id ({returned_output.property_id}) conflict occurred."
+                        f"A property id ({returned_output.physical_property.id}) "
+                        f"conflict occurred."
                     )
 
                 elif len(matches) == 0:
 
                     logging.info(
-                        "A calculation layer returned results for a property not in the "
-                        "queue. This sometimes and expectedly occurs when using queue based "
-                        "calculation backends, but should be investigated."
+                        "A calculation layer returned results for a property not in "
+                        "the queue. This sometimes and expectedly occurs when using "
+                        "queue based calculation backends, but should be investigated."
                     )
 
                     continue
 
-                if returned_output.calculated_property is None:
+                if returned_output.physical_property is None:
 
-                    if returned_output.exception is None:
+                    if len(returned_output.exceptions) == 0:
 
                         logging.info(
                             "A calculation layer did not return an estimated property nor did it "
@@ -304,24 +294,18 @@ class CalculationLayer(abc.ABC):
 
                     continue
 
-                if returned_output.exception is not None:
+                if len(returned_output.exceptions) > 0:
                     continue
 
                 for match in matches:
                     batch.queued_properties.remove(match)
 
-                batch.estimated_properties.append(returned_output.calculated_property)
+                batch.estimated_properties.append(returned_output.physical_property)
 
         except Exception as e:
 
-            logging.info(f"Error processing layer results for request {batch.id}")
-
-            formatted_exception = traceback.format_exception(None, e, e.__traceback__)
-
-            exception = EvaluatorException(
-                message="An unhandled internal exception "
-                "occurred: {}".format(formatted_exception)
-            )
+            logging.exception(f"Error processing layer results for request {batch.id}")
+            exception = EvaluatorException.from_exception(e)
 
             batch.exceptions.append(exception)
 

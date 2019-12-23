@@ -6,7 +6,7 @@ from .plugins import (  # isort:skip
 )
 from .protocols import Protocol, ProtocolGraph, ProtocolGroup  # isort:skip
 
-from .workflow import Workflow, WorkflowGraph  # isort:skip
+from .workflow import Workflow, WorkflowGraph, WorkflowResult  # isort:skip
 
 __all__ = [
     Protocol,
@@ -19,5 +19,6 @@ __all__ = [
     workflow_protocol,
     Workflow,
     WorkflowGraph,
+    WorkflowResult,
     WorkflowSchema,
 ]

@@ -1,6 +1,5 @@
 import json
 import tempfile
-import uuid
 from os import makedirs, path
 
 from propertyestimator.backends import DaskLocalCluster
@@ -92,9 +91,7 @@ class DummyCalculationLayer(CalculationLayer):
             json.dump(dummy_stored_object, file, cls=TypedJSONEncoder)
 
         return_object = CalculationLayerResult()
-        return_object.property_id = physical_property.id
-
-        return_object.calculated_property = physical_property
+        return_object.physical_property = physical_property
         return_object.data_to_store = [(dummy_stored_object_path, dummy_data_directory)]
 
         return return_object
@@ -105,8 +102,8 @@ class DummyCalculationLayer(CalculationLayer):
         """
 
         return_object = CalculationLayerResult()
-        return_object.property_id = physical_property.id
-        return_object.exception = EvaluatorException(message="Failure Message")
+        return_object.physical_property = physical_property
+        return_object.exceptions = [EvaluatorException(message="Failure Message")]
 
         return return_object
 
@@ -125,9 +122,7 @@ class DummyCalculationLayer(CalculationLayer):
             json.dump(dummy_stored_object, file, cls=TypedJSONEncoder)
 
         return_object = CalculationLayerResult()
-        return_object.property_id = physical_property.id
-
-        return_object.calculated_property = physical_property
+        return_object.physical_property = physical_property
         return_object.data_to_store = [(dummy_stored_object_path, dummy_data_directory)]
 
         return return_object
@@ -184,10 +179,8 @@ def test_serialize_layer_result():
 
     dummy_result = CalculationLayerResult()
 
-    dummy_result.property_id = str(uuid.uuid4())
-
-    dummy_result.calculated_property = create_dummy_property(Density)
-    dummy_result.exception = EvaluatorException()
+    dummy_result.physical_property = create_dummy_property(Density)
+    dummy_result.exceptions = [EvaluatorException()]
 
     dummy_result.data_to_store = [("dummy_object_path", "dummy_directory")]
 

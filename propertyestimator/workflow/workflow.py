@@ -9,11 +9,16 @@ from math import sqrt
 from os import makedirs, path
 from shutil import copy as file_copy
 
-from propertyestimator.attributes import UNDEFINED
-from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource
+from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
+from propertyestimator.forcefield import (
+    ForceFieldSource,
+    ParameterGradient,
+    SmirnoffForceFieldSource,
+)
 from propertyestimator.storage.attributes import FilePath, StorageAttribute
 from propertyestimator.substances import Substance
 from propertyestimator.utils.exceptions import EvaluatorException
+from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from propertyestimator.utils.utils import get_nested_attribute
 from propertyestimator.workflow.protocols import ProtocolGraph
@@ -732,6 +737,53 @@ class Workflow:
         return graph
 
 
+class WorkflowResult(AttributeClass):
+    """The result of executing a `Workflow` as part of a
+    `WorkflowGraph`.
+    """
+
+    workflow_id = Attribute(
+        docstring="The id of the workflow associated with this result.", type_hint=str,
+    )
+
+    value = Attribute(
+        docstring="The estimated value of the property and the uncertainty "
+        "in that value.",
+        type_hint=EstimatedQuantity,
+        optional=True,
+    )
+    gradients = Attribute(
+        docstring="The gradients of the estimated value with respect to the "
+        "specified force field parameters.",
+        type_hint=list,
+        default_value=[],
+    )
+
+    exceptions = Attribute(
+        docstring="Any exceptions raised by the layer while estimating the "
+        "property.",
+        type_hint=list,
+        default_value=[],
+    )
+
+    data_to_store = Attribute(
+        docstring="Paths to the data objects to store.",
+        type_hint=list,
+        default_value=[],
+    )
+
+    def validate(self, attribute_type=None):
+        super(WorkflowResult, self).validate(attribute_type)
+
+        assert all(isinstance(x, ParameterGradient) for x in self.gradients)
+
+        assert all(isinstance(x, tuple) for x in self.data_to_store)
+        assert all(len(x) == 2 for x in self.data_to_store)
+        assert all(all(isinstance(y, str) for y in x) for x in self.data_to_store)
+
+        assert all(isinstance(x, EvaluatorException) for x in self.exceptions)
+
+
 class WorkflowGraph:
     """A hierarchical structure for storing and submitting the workflows
     which will estimate a set of physical properties..
@@ -860,6 +912,7 @@ class WorkflowGraph:
                 backend.submit_task(
                     WorkflowGraph._gather_results,
                     root_directory,
+                    workflow.uuid,
                     workflow.final_value_source,
                     workflow.gradients_sources,
                     workflow.outputs_to_store,
@@ -872,6 +925,7 @@ class WorkflowGraph:
     @staticmethod
     def _gather_results(
         directory,
+        workflow_id,
         value_reference,
         gradient_sources,
         outputs_to_store,
@@ -884,6 +938,8 @@ class WorkflowGraph:
         ----------
         directory: str
             The directory to store any working files in.
+        workflow_id: str
+            The id of the workflow associated with this result.
         value_reference: ProtocolPath, optional
             A reference to which property in the output dictionary is the actual value.
         gradient_sources: list of ProtocolPath
@@ -900,9 +956,9 @@ class WorkflowGraph:
             The result of attempting to estimate this property from a workflow graph. `None`
             will be returned if the target uncertainty is set but not met.
         """
-        from propertyestimator.layers import CalculationLayerResult
 
-        return_object = CalculationLayerResult()
+        return_object = WorkflowResult()
+        return_object.workflow_id = workflow_id
 
         try:
 

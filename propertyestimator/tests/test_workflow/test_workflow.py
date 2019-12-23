@@ -5,12 +5,11 @@ import tempfile
 
 from propertyestimator import unit
 from propertyestimator.backends import DaskLocalCluster
-from propertyestimator.layers.layers import CalculationLayerResult
 from propertyestimator.protocols.groups import ConditionalGroup
 from propertyestimator.tests.test_workflow.utils import DummyInputOutputProtocol
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.quantities import EstimatedQuantity
-from propertyestimator.workflow import Workflow, WorkflowSchema
+from propertyestimator.workflow import Workflow, WorkflowResult, WorkflowSchema
 from propertyestimator.workflow.schemas import ProtocolReplicator
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
@@ -43,7 +42,7 @@ def test_simple_workflow_graph():
             assert len(results_futures) == 1
             result = results_futures[0].result()
 
-        assert isinstance(result, CalculationLayerResult)
+        assert isinstance(result, WorkflowResult)
         assert result.value == expected_value
 
 
@@ -88,7 +87,7 @@ def test_workflow_with_groups():
 
             result = results_futures[0].result()
 
-        assert isinstance(result, CalculationLayerResult)
+        assert isinstance(result, WorkflowResult)
         assert result.value == expected_value
 
 
@@ -122,7 +121,7 @@ def test_nested_input():
             assert len(results_futures) == 1
             result = results_futures[0].result()
 
-    assert isinstance(result, CalculationLayerResult)
+    assert isinstance(result, WorkflowResult)
 
 
 def test_index_replicated_protocol():

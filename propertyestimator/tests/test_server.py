@@ -54,7 +54,7 @@ class QuickCalculationLayer(CalculationLayer):
         """Return a result as if the property had been successfully estimated.
         """
         return_object = CalculationLayerResult()
-        return_object.property_id = physical_property.id
+        return_object.physical_property = physical_property
         return_object.calculated_property = physical_property
 
         return return_object
