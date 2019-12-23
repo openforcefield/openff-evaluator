@@ -406,10 +406,8 @@ class TypedJSONDecoder(json.JSONDecoder):
                     continue
 
                 raise ValueError(
-                    "Cannot deserialize objects which have "
-                    "non-optional arguments {} in the constructor: {}.".format(
-                        parameter.name, class_type
-                    )
+                    f"Cannot deserialize objects ({class_type}) which have non-"
+                    f"optional arguments {parameter.name} in the constructor."
                 )
 
             deserialized_object = class_type()

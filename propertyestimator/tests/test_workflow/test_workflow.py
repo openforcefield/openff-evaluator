@@ -74,7 +74,7 @@ def test_simple_workflow_graph_with_groups():
 
     condition = ConditionalGroup.Condition()
     condition.right_hand_value = 2 * unit.kelvin
-    condition.type = ConditionalGroup.ConditionType.LessThan
+    condition.type = ConditionalGroup.Condition.Type.LessThan
 
     condition.left_hand_value = ProtocolPath(
         "output_value.value", conditional_group.id, dummy_protocol_b.id

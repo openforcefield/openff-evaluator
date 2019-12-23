@@ -142,9 +142,9 @@ class ConditionalGroup(ProtocolGroup):
             f"{left_hand_value} {condition.type} {right_hand_value}"
         )
 
-        if condition.type == self.ConditionType.LessThan:
+        if condition.type == self.Condition.Type.LessThan:
             return left_hand_value < right_hand_value
-        elif condition.type == self.ConditionType.GreaterThan:
+        elif condition.type == self.Condition.Type.GreaterThan:
             return left_hand_value > right_hand_value
 
         raise NotImplementedError()
@@ -234,9 +234,7 @@ class ConditionalGroup(ProtocolGroup):
             for protocol, schema in zip(self._protocols, original_schemas):
                 protocol.schema = schema
 
-            return_value = super(ConditionalGroup, self)._execute(
-                directory, available_resources
-            )
+            super(ConditionalGroup, self)._execute(directory, available_resources)
 
             conditions_met = True
 
@@ -251,7 +249,7 @@ class ConditionalGroup(ProtocolGroup):
                 logging.info(
                     f"{self.id} loop finished after {self.current_iteration} iterations"
                 )
-                return return_value
+                return
 
             if self.current_iteration >= self.max_iterations:
                 raise RuntimeError(f"{self.id} failed to converge.")
@@ -307,12 +305,12 @@ class ConditionalGroup(ProtocolGroup):
             The condition to add.
         """
 
-        for condition in self._conditions:
+        for condition in self.conditions:
 
             if condition == condition_to_add:
                 return
 
-        self._conditions.append(condition_to_add)
+        self.conditions.append(condition_to_add)
 
     def get_value_references(self, input_path):
 

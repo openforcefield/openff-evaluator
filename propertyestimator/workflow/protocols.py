@@ -1350,6 +1350,27 @@ class ProtocolGroup(Protocol):
 
     def _execute(self, directory, available_resources):
 
+        # Update the inputs of protocols which require values
+        # from the protocol group itself (i.e. the current
+        # iteration from a conditional group).
+        for required_input in self.required_inputs:
+
+            if required_input.start_protocol != self.id:
+                continue
+
+            value_references = self.get_value_references(required_input)
+
+            if len(value_references) == 0:
+                continue
+
+            for input_path, value_reference in value_references.items():
+
+                if value_reference.protocol_path != self.id:
+                    continue
+
+                value = self.get_value(value_reference)
+                self.set_value(input_path, value)
+
         self._inner_graph.execute(
             directory,
             compute_resources=available_resources,

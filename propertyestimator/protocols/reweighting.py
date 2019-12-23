@@ -831,4 +831,4 @@ class ReweightStatistics(BaseMBARProtocol):
                 observables = statistics_array[self.statistics_type]
                 self._reference_observables.append(observables)
 
-        return super(ReweightStatistics, self).execute(directory, available_resources)
+        return super(ReweightStatistics, self)._execute(directory, available_resources)

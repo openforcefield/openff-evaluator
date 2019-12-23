@@ -170,7 +170,7 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
 
     def _execute(self, directory, available_resources):
 
-        super(ExtractAverageDielectric, self).execute(directory, available_resources)
+        super(ExtractAverageDielectric, self)._execute(directory, available_resources)
 
         # Extract the dipoles
         dipole_moments, volumes = self._extract_dipoles_and_volumes()

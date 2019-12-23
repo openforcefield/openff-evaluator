@@ -927,7 +927,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
         if use_target_uncertainty:
 
             condition = groups.ConditionalGroup.Condition()
-            condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
+            condition.condition_type = groups.ConditionalGroup.Condition.Type.LessThan
 
             condition.left_hand_value = ProtocolPath(
                 "result.uncertainty",

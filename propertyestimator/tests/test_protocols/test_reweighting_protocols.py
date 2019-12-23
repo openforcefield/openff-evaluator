@@ -103,10 +103,8 @@ def test_calculate_reduced_potential_openmm():
             "test/statistics/stats_pandas.csv"
         )
         reduced_potentials.high_precision = False
+        reduced_potentials.execute(directory, ComputeResources())
 
-        result = reduced_potentials.execute(directory, ComputeResources())
-
-        assert not isinstance(result, EvaluatorException)
         assert path.isfile(reduced_potentials.statistics_file_path)
 
         final_array = StatisticsArray.from_pandas_csv(
@@ -142,6 +140,4 @@ def test_reweight_statistics():
         reweight_protocol.target_reduced_potentials = statistics_path
         reweight_protocol.bootstrap_uncertainties = True
         reweight_protocol.required_effective_samples = 0
-
-        result = reweight_protocol.execute(directory, ComputeResources())
-        assert not isinstance(result, EvaluatorException)
+        reweight_protocol.execute(directory, ComputeResources())

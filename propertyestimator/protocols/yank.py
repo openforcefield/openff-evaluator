@@ -679,7 +679,7 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
             os.path.join(directory, self._local_complex_system),
         )
 
-        super(LigandReceptorYankProtocol, self).execute(directory, available_resources)
+        super(LigandReceptorYankProtocol, self)._execute(directory, available_resources)
 
         if self.setup_only:
             return
@@ -978,7 +978,7 @@ class SolvationYankProtocol(BaseYankProtocol):
                 file.write(XmlSerializer.serialize(vacuum_system))
 
         # Set up the yank input file.
-        super(SolvationYankProtocol, self).execute(directory, available_resources)
+        super(SolvationYankProtocol, self)._execute(directory, available_resources)
 
         if self.setup_only:
             return

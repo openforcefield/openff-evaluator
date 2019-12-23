@@ -4,10 +4,10 @@ import tempfile
 import pytest
 
 from propertyestimator import unit
+from propertyestimator.backends import ComputeResources
 from propertyestimator.protocols.groups import ConditionalGroup
 from propertyestimator.protocols.miscellaneous import AddValues
 from propertyestimator.tests.test_workflow.utils import DummyInputOutputProtocol
-from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.workflow.utils import ProtocolPath
 
 
@@ -29,15 +29,14 @@ def test_conditional_protocol_group():
         condition = ConditionalGroup.Condition()
         condition.left_hand_value = ProtocolPath("result", add_values.id)
         condition.right_hand_value = ProtocolPath("output_value", value_protocol_a.id)
-        condition.type = ConditionalGroup.ConditionType.GreaterThan
+        condition.type = ConditionalGroup.Condition.Type.GreaterThan
 
         protocol_group = ConditionalGroup("protocol_group")
         protocol_group.conditions.append(condition)
         protocol_group.add_protocols(value_protocol_a, add_values)
 
-        result = protocol_group.execute(directory, None)
+        protocol_group.execute(directory, ComputeResources())
 
-        assert not isinstance(result, EvaluatorException)
         assert (
             protocol_group.get_value(ProtocolPath("result", add_values.id))
             == 4 * unit.kelvin
@@ -62,7 +61,7 @@ def test_conditional_protocol_group_fail():
         condition = ConditionalGroup.Condition()
         condition.left_hand_value = ProtocolPath("result", add_values.id)
         condition.right_hand_value = ProtocolPath("output_value", value_protocol_a.id)
-        condition.type = ConditionalGroup.ConditionType.LessThan
+        condition.type = ConditionalGroup.Condition.Type.LessThan
 
         protocol_group = ConditionalGroup("protocol_group")
         protocol_group.conditions.append(condition)
@@ -70,7 +69,7 @@ def test_conditional_protocol_group_fail():
         protocol_group.add_protocols(value_protocol_a, add_values)
 
         with pytest.raises(RuntimeError):
-            protocol_group.execute(directory, None)
+            protocol_group.execute(directory, ComputeResources())
 
 
 def test_conditional_group_self_reference():
@@ -81,31 +80,31 @@ def test_conditional_group_self_reference():
     max_iterations = 10
     criteria = random.randint(1, max_iterations - 1)
 
-    dummy_group = ConditionalGroup("conditional_group")
-    dummy_group.max_iterations = max_iterations
+    group = ConditionalGroup("conditional_group")
+    group.max_iterations = max_iterations
 
-    dummy_protocol = DummyInputOutputProtocol("protocol_a")
-    dummy_protocol.input_value = ProtocolPath("current_iteration", dummy_group.id)
+    protocol = DummyInputOutputProtocol("protocol_a")
+    protocol.input_value = ProtocolPath("current_iteration", group.id)
 
-    dummy_condition_1 = ConditionalGroup.Condition()
-    dummy_condition_1.left_hand_value = ProtocolPath(
-        "output_value", dummy_group.id, dummy_protocol.id
+    condition_1 = ConditionalGroup.Condition()
+    condition_1.left_hand_value = ProtocolPath(
+        "output_value", group.id, protocol.id
     )
-    dummy_condition_1.right_hand_value = criteria
-    dummy_condition_1.type = ConditionalGroup.ConditionType.GreaterThan
+    condition_1.right_hand_value = criteria
+    condition_1.type = ConditionalGroup.Condition.Type.GreaterThan
 
-    dummy_condition_2 = ConditionalGroup.Condition()
-    dummy_condition_2.left_hand_value = ProtocolPath(
-        "current_iteration", dummy_group.id
+    condition_2 = ConditionalGroup.Condition()
+    condition_2.left_hand_value = ProtocolPath(
+        "current_iteration", group.id
     )
-    dummy_condition_2.right_hand_value = criteria
-    dummy_condition_2.type = ConditionalGroup.ConditionType.GreaterThan
+    condition_2.right_hand_value = criteria
+    condition_2.type = ConditionalGroup.Condition.Type.GreaterThan
 
-    dummy_group.add_protocols(dummy_protocol)
-    dummy_group.add_condition(dummy_condition_1)
-    dummy_group.add_condition(dummy_condition_2)
+    group.add_protocols(protocol)
+    group.add_condition(condition_1)
+    group.add_condition(condition_2)
 
     with tempfile.TemporaryDirectory() as directory:
 
-        assert not isinstance(dummy_group.execute(directory, None), EvaluatorException)
-        assert dummy_protocol.output_value == criteria + 1
+        group.execute(directory, ComputeResources())
+        assert protocol.output_value == criteria + 1
