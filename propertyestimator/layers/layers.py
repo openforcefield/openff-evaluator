@@ -14,8 +14,10 @@ from propertyestimator.attributes import (
     AttributeClass,
     PlaceholderValue,
 )
+from propertyestimator.forcefield import ParameterGradient
 from propertyestimator.storage.data import StoredSimulationData
 from propertyestimator.utils.exceptions import EvaluatorException
+from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedJSONDecoder
 
 
@@ -23,53 +25,47 @@ def return_args(*args, **_):
     return args
 
 
-class CalculationLayerResult:
-    """The output returned from attempting to calculate a property on
+class CalculationLayerResult(AttributeClass):
+    """The result of attempting to estimate a property using
     a `CalculationLayer`.
-
-    Attributes
-    ----------
-    property_id: str
-        The unique id of the original physical property that this
-        calculation layer attempted to estimate.
-    calculated_property: PhysicalProperty, optional
-        The property which was estimated by this layer. The will
-        be `None` if the layer could not estimate the property.
-    exception: EvaluatorException, optional
-        The exception which was raised when estimating the property
-        of interest, if any.
-    data_to_store: list of tuple of str and str
-        A list of pairs of a path to a JSON serialized `BaseStoredData`
-        object, and the path to the corresponding data directory.
     """
 
-    def __init__(self):
-        """Constructs a new CalculationLayerResult object.
-        """
-        self.property_id = None
+    value = Attribute(
+        docstring="The estimated value of the property and the uncertainty "
+        "in that value.",
+        type_hint=EstimatedQuantity,
+        optional=True,
+    )
+    gradients = Attribute(
+        docstring="The gradients of the estimated value with respect to the "
+        "specified force field parameters.",
+        type_hint=list,
+        default_value=[],
+    )
 
-        self.calculated_property = None
-        self.exception = None
+    exceptions = Attribute(
+        docstring="Any exceptions raised by the layer while estimating the "
+        "property.",
+        type_hint=list,
+        default_value=[],
+    )
 
-        self.data_to_store = []
+    data_to_store = Attribute(
+        docstring="Paths to the data objects to store.",
+        type_hint=list,
+        default_value=[],
+    )
 
-    def __getstate__(self):
+    def validate(self, attribute_type=None):
+        super(CalculationLayerResult, self).validate(attribute_type)
 
-        return {
-            "property_id": self.property_id,
-            "calculated_property": self.calculated_property,
-            "exception": self.exception,
-            "data_to_store": self.data_to_store,
-        }
+        assert all(isinstance(x, ParameterGradient) for x in self.gradients)
 
-    def __setstate__(self, state):
+        assert all(isinstance(x, tuple) for x in self.data_to_store)
+        assert all(len(x) == 2 for x in self.data_to_store)
+        assert all(all(isinstance(y, str) for y in x) for x in self.data_to_store)
 
-        self.property_id = state["property_id"]
-
-        self.calculated_property = state["calculated_property"]
-        self.exception = state["exception"]
-
-        self.data_to_store = state["data_to_store"]
+        assert all(isinstance(x, EvaluatorException) for x in self.exceptions)
 
 
 class CalculationLayerSchema(AttributeClass):

@@ -3,7 +3,6 @@ Defines the core workflow object and execution graph.
 """
 import copy
 import json
-import logging
 import math
 import uuid
 from math import sqrt
@@ -31,6 +30,28 @@ class Workflow:
     def protocols(self):
         """tuple of Protocol: The protocols in this workflow."""
         return {x.id: x for x in self._protocols}
+
+    @property
+    def final_value_source(self):
+        """ProtocolPath: The path to the protocol output which corresponds to the
+        estimated value of the property being estimated.
+        """
+        return self._final_value_source
+
+    @property
+    def gradients_sources(self):
+        """list of ProtocolPath: A list of paths to the protocol outputs which
+        correspond to the gradients of the estimated property with respect to
+        specified force field parameters.
+        """
+        return self._gradients_sources
+
+    @property
+    def outputs_to_store(self):
+        """dict of str and StorageBackend: A collection of data classes to populate
+        ready to be stored by a `StorageBackend`.
+        """
+        return self._outputs_to_store
 
     @property
     def schema(self):
@@ -803,28 +824,34 @@ class WorkflowGraph:
             # Make sure we keep track of all of the futures which we
             # will use to populate things such as a final property value
             # or gradient keys.
-            if workflow.final_value_source is not None:
+            if workflow.final_value_source != UNDEFINED:
 
                 protocol_id = workflow.final_value_source.start_protocol
                 data_futures.append(protocol_outputs[protocol_id])
 
-            for gradient_source in workflow.gradients_sources:
+            if workflow.gradients_sources != UNDEFINED:
 
-                protocol_id = gradient_source.start_protocol
-                data_futures.append(protocol_outputs[protocol_id])
+                for gradient_source in workflow.gradients_sources:
 
-            for output_label, output_to_store in workflow.outputs_to_store.items():
+                    protocol_id = gradient_source.start_protocol
+                    data_futures.append(protocol_outputs[protocol_id])
 
-                for attribute_name in output_to_store.get_attributes(StorageAttribute):
+            if workflow.outputs_to_store != UNDEFINED:
 
-                    attribute_value = getattr(output_to_store, attribute_name)
+                for output_label, output_to_store in workflow.outputs_to_store.items():
 
-                    if not isinstance(attribute_value, ProtocolPath):
-                        continue
+                    for attribute_name in output_to_store.get_attributes(
+                        StorageAttribute
+                    ):
 
-                    data_futures.append(
-                        protocol_outputs[attribute_value.start_protocol]
-                    )
+                        attribute_value = getattr(output_to_store, attribute_name)
+
+                        if not isinstance(attribute_value, ProtocolPath):
+                            continue
+
+                        data_futures.append(
+                            protocol_outputs[attribute_value.start_protocol]
+                        )
 
             if len(data_futures) == 0:
                 data_futures = [*protocol_outputs.values()]
@@ -833,7 +860,6 @@ class WorkflowGraph:
                 backend.submit_task(
                     WorkflowGraph._gather_results,
                     root_directory,
-                    workflow.physical_property,
                     workflow.final_value_source,
                     workflow.gradients_sources,
                     workflow.outputs_to_store,
@@ -846,30 +872,26 @@ class WorkflowGraph:
     @staticmethod
     def _gather_results(
         directory,
-        property_to_return,
         value_reference,
         gradient_sources,
         outputs_to_store,
         *protocol_result_paths,
         **_,
     ):
-        """Gather the value and uncertainty calculated from the submission graph
-        and store them in the property to return.
+        """Gather the data associated with the workflows in this graph.
 
         Parameters
         ----------
         directory: str
             The directory to store any working files in.
-        property_to_return: PhysicalProperty
-            The property to which the value and uncertainty belong.
         value_reference: ProtocolPath, optional
             A reference to which property in the output dictionary is the actual value.
         gradient_sources: list of ProtocolPath
             A list of references to those entries in the output dictionaries which correspond
             to parameter gradients.
-        outputs_to_store: dict of string and WorkflowOutputToStore
+        outputs_to_store: dict of str and WorkflowOutputToStore
             A list of references to data which should be stored on the storage backend.
-        protocol_results: dict of string and str
+        protocol_results: dict of str and str
             The result dictionary of the protocol which calculated the value of the property.
 
         Returns
@@ -878,86 +900,54 @@ class WorkflowGraph:
             The result of attempting to estimate this property from a workflow graph. `None`
             will be returned if the target uncertainty is set but not met.
         """
-        from propertyestimator.layers.layers import CalculationLayerResult
+        from propertyestimator.layers import CalculationLayerResult
 
         return_object = CalculationLayerResult()
-        return_object.property_id = property_to_return.id
 
         try:
+
             results_by_id = {}
 
             for protocol_id, protocol_result_path in protocol_result_paths:
 
-                try:
-
-                    with open(protocol_result_path, "r") as file:
-                        protocol_results = json.load(file, cls=TypedJSONDecoder)
-
-                except json.JSONDecodeError as e:
-
-                    return_object.exception = EvaluatorException.from_exception(e)
-                    return return_object
+                with open(protocol_result_path, "r") as file:
+                    protocol_results = json.load(file, cls=TypedJSONDecoder)
 
                 # Make sure none of the protocols failed and we actually have a value
                 # and uncertainty.
                 if isinstance(protocol_results, EvaluatorException):
 
-                    return_object.exception = protocol_results
+                    return_object.exceptions.append(protocol_results)
                     return return_object
 
-                for output_path, output_value in protocol_results.items():
+                # Store the protocol results in a dictionary, with keys of the
+                # path to the original protocol output.
+                for protocol_path, output_value in protocol_results.items():
 
-                    property_name, protocol_ids = ProtocolPath.to_components(
-                        output_path
-                    )
+                    protocol_path = ProtocolPath.from_string(protocol_path)
 
-                    if len(protocol_ids) == 0 or (
-                        len(protocol_ids) > 0 and protocol_ids[0] != protocol_id
+                    if (
+                        protocol_path.start_protocol is None
+                        or protocol_path.start_protocol != protocol_id
                     ):
-                        protocol_ids.insert(0, protocol_id)
+                        protocol_path.prepend_protocol_id(protocol_id)
 
-                    final_path = ProtocolPath(property_name, *protocol_ids)
-                    results_by_id[final_path] = output_value
+                    results_by_id[protocol_path] = output_value
 
             if value_reference is not None:
-
-                if (
-                    target_uncertainty is not None
-                    and results_by_id[value_reference].uncertainty > target_uncertainty
-                ):
-
-                    logging.info(
-                        "The final uncertainty ({}) was not less than the target threshold ({}).".format(
-                            results_by_id[value_reference].uncertainty,
-                            target_uncertainty,
-                        )
-                    )
-
-                    return None
-
-                property_to_return.value = results_by_id[value_reference].value
-                property_to_return.uncertainty = results_by_id[
-                    value_reference
-                ].uncertainty
+                return_object.value = results_by_id[value_reference]
 
             for gradient_source in gradient_sources:
+                return_object.gradients.append(results_by_id[gradient_source])
 
-                gradient = results_by_id[gradient_source]
-                property_to_return.gradients.append(gradient)
-
-            return_object.calculated_property = property_to_return
             return_object.data_to_store = []
 
             for output_to_store in outputs_to_store.values():
 
                 unique_id = str(uuid.uuid4()).replace("-", "")
 
-                data_object_path = path.join(
-                    directory, f"results_{property_to_return.id}{unique_id}.json"
-                )
-                data_directory = path.join(
-                    directory, f"results_{property_to_return.id}{unique_id}"
-                )
+                data_object_path = path.join(directory, f"data_{unique_id}.json")
+                data_directory = path.join(directory, f"data_{unique_id}")
 
                 WorkflowGraph._store_output_data(
                     data_object_path, data_directory, output_to_store, results_by_id,
@@ -966,7 +956,7 @@ class WorkflowGraph:
                 return_object.data_to_store.append((data_object_path, data_directory))
 
         except Exception as e:
-            return_object.exception = EvaluatorException.from_exception(e)
+            return_object.exceptions.append(EvaluatorException.from_exception(e))
 
         return return_object
 

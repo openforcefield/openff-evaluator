@@ -88,8 +88,6 @@ def test_simple_replicators():
         "output_value", "dummy_1"
     )
 
-    print(dummy_workflow.schema)
-
 
 def test_group_replicators():
 
@@ -345,5 +343,3 @@ def test_advanced_nested_replicators():
 
     assert dummy_workflow.protocols["dummy_1_0"].replicated_value_a == "b"
     assert dummy_workflow.protocols["dummy_1_0"].replicated_value_b == 2
-
-    print(dummy_workflow.schema)
