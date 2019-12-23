@@ -15,7 +15,6 @@ from propertyestimator.substances import Substance
 from propertyestimator.tests.utils import build_tip3p_smirnoff_force_field
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import get_data_filename
-from propertyestimator.utils.exceptions import EvaluatorException
 
 
 @pytest.mark.parametrize("use_subset", [True, False])
@@ -50,9 +49,7 @@ def test_gradient_reduced_potentials(use_subset):
             "vdW", "[#1]-[#8X2H2+0:1]-[#1]", "epsilon"
         )
 
-        result = reduced_potentials.execute(directory, ComputeResources())
-        assert not isinstance(result, EvaluatorException)
-
+        reduced_potentials.execute(directory, ComputeResources())
         assert path.isfile(reduced_potentials.forward_potentials_path)
         assert path.isfile(reduced_potentials.reverse_potentials_path)
 
@@ -76,8 +73,7 @@ def test_central_difference_gradient():
         central_difference.forward_observable_value = forward_observable
         central_difference.forward_parameter_value = forward_parameter
 
-        result = central_difference.execute(directory, ComputeResources())
-        assert not isinstance(result, EvaluatorException)
+        central_difference.execute(directory, ComputeResources())
 
         assert central_difference.gradient.value == (
             (forward_observable - reverse_observable)

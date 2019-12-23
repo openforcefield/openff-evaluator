@@ -87,16 +87,12 @@ def test_conditional_group_self_reference():
     protocol.input_value = ProtocolPath("current_iteration", group.id)
 
     condition_1 = ConditionalGroup.Condition()
-    condition_1.left_hand_value = ProtocolPath(
-        "output_value", group.id, protocol.id
-    )
+    condition_1.left_hand_value = ProtocolPath("output_value", group.id, protocol.id)
     condition_1.right_hand_value = criteria
     condition_1.type = ConditionalGroup.Condition.Type.GreaterThan
 
     condition_2 = ConditionalGroup.Condition()
-    condition_2.left_hand_value = ProtocolPath(
-        "current_iteration", group.id
-    )
+    condition_2.left_hand_value = ProtocolPath("current_iteration", group.id)
     condition_2.right_hand_value = criteria
     condition_2.type = ConditionalGroup.Condition.Type.GreaterThan
 

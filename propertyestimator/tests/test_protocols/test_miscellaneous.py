@@ -20,7 +20,6 @@ from propertyestimator.protocols.miscellaneous import (
     WeightByMoleFraction,
 )
 from propertyestimator.substances import Component, ExactAmount, MoleFraction, Substance
-from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 
 
@@ -51,9 +50,7 @@ def test_add_values_protocol(values):
         add_quantities = AddValues("add")
         add_quantities.values = values
 
-        result = add_quantities.execute(temporary_directory, ComputeResources())
-
-        assert not isinstance(result, EvaluatorException)
+        add_quantities.execute(temporary_directory, ComputeResources())
         assert add_quantities.result == reduce(operator.add, values)
 
 
@@ -85,9 +82,7 @@ def test_subtract_values_protocol(values):
         sub_quantities.value_b = values[1]
         sub_quantities.value_a = values[0]
 
-        result = sub_quantities.execute(temporary_directory, ComputeResources())
-
-        assert not isinstance(result, EvaluatorException)
+        sub_quantities.execute(temporary_directory, ComputeResources())
         assert sub_quantities.result == values[1] - values[0]
 
 
@@ -113,10 +108,7 @@ def test_multiply_values_protocol(value, multiplier):
         multiply_quantities = MultiplyValue("multiply")
         multiply_quantities.value = value
         multiply_quantities.multiplier = multiplier
-
-        result = multiply_quantities.execute(temporary_directory, ComputeResources())
-
-        assert not isinstance(result, EvaluatorException)
+        multiply_quantities.execute(temporary_directory, ComputeResources())
         assert multiply_quantities.result == value * multiplier
 
 
@@ -142,10 +134,7 @@ def test_divide_values_protocol(value, divisor):
         divide_quantities = DivideValue("divide")
         divide_quantities.value = value
         divide_quantities.divisor = divisor
-
-        result = divide_quantities.execute(temporary_directory, ComputeResources())
-
-        assert not isinstance(result, EvaluatorException)
+        divide_quantities.execute(temporary_directory, ComputeResources())
         assert divide_quantities.result == value / divisor
 
 
@@ -179,10 +168,7 @@ def test_weight_by_mole_fraction_protocol(component_smiles, value):
         weight_protocol.value = value
         weight_protocol.full_substance = full_substance
         weight_protocol.component = component
-
-        result = weight_protocol.execute(temporary_directory, ComputeResources())
-
-        assert not isinstance(result, EvaluatorException)
+        weight_protocol.execute(temporary_directory, ComputeResources())
         assert weight_protocol.weighted_value == value * mole_fraction
 
 

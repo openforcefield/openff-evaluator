@@ -17,7 +17,6 @@ from propertyestimator.protocols.simulation import (
 from propertyestimator.substances import Substance
 from propertyestimator.tests.utils import build_tip3p_smirnoff_force_field
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from propertyestimator.utils.statistics import StatisticsArray
 
@@ -55,10 +54,7 @@ def test_run_energy_minimisation():
         energy_minimisation = RunEnergyMinimisation("energy_minimisation")
         energy_minimisation.input_coordinate_file = coordinate_path
         energy_minimisation.system_path = system_path
-
-        result = energy_minimisation.execute(directory, ComputeResources())
-
-        assert not isinstance(result, EvaluatorException)
+        energy_minimisation.execute(directory, ComputeResources())
         assert path.isfile(energy_minimisation.output_coordinate_file)
 
 
@@ -76,10 +72,8 @@ def test_run_openmm_simulation():
         npt_equilibration.thermodynamic_state = thermodynamic_state
         npt_equilibration.input_coordinate_file = coordinate_path
         npt_equilibration.system_path = system_path
+        npt_equilibration.execute(directory, ComputeResources())
 
-        result = npt_equilibration.execute(directory, ComputeResources())
-
-        assert not isinstance(result, EvaluatorException)
         assert path.isfile(npt_equilibration.output_coordinate_file)
         assert path.isfile(npt_equilibration.trajectory_file_path)
         assert path.isfile(npt_equilibration.statistics_file_path)

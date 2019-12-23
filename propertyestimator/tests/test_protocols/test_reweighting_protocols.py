@@ -18,7 +18,6 @@ from propertyestimator.substances import Substance
 from propertyestimator.tests.utils import build_tip3p_smirnoff_force_field
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import get_data_filename
-from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.statistics import ObservableType, StatisticsArray
 
 
@@ -36,9 +35,7 @@ def test_concatenate_trajectories():
         concatenate_protocol = ConcatenateTrajectories("concatenate_protocol")
         concatenate_protocol.input_coordinate_paths = [coordinate_path, coordinate_path]
         concatenate_protocol.input_trajectory_paths = [trajectory_path, trajectory_path]
-
-        result = concatenate_protocol.execute(temporary_directory, ComputeResources())
-        assert not isinstance(result, EvaluatorException)
+        concatenate_protocol.execute(temporary_directory, ComputeResources())
 
         final_trajectory = mdtraj.load(
             concatenate_protocol.output_trajectory_path, top=coordinate_path
@@ -55,9 +52,7 @@ def test_concatenate_statistics():
 
         concatenate_protocol = ConcatenateStatistics("concatenate_protocol")
         concatenate_protocol.input_statistics_paths = [statistics_path, statistics_path]
-
-        result = concatenate_protocol.execute(temporary_directory, ComputeResources())
-        assert not isinstance(result, EvaluatorException)
+        concatenate_protocol.execute(temporary_directory, ComputeResources())
 
         final_array = StatisticsArray.from_pandas_csv(
             concatenate_protocol.output_statistics_path
