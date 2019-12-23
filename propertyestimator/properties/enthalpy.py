@@ -798,7 +798,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
     @staticmethod
     def default_simulation_schema(
-        absolute_tolerance=UNDEFINED, relative_tolerance=UNDEFINED, n_molecules=1000,
+        absolute_tolerance=UNDEFINED, relative_tolerance=UNDEFINED, n_molecules=1000
     ):
         """Returns the default calculation schema to use when estimating
         this class of property from direct simulations.
@@ -806,12 +806,10 @@ class EnthalpyOfVaporization(PhysicalProperty):
         Parameters
         ----------
         absolute_tolerance: unit.Quantity, optional
-            The absolute tolerance to estimate
-            the property to within.
+            The absolute tolerance to estimate the property to within.
         relative_tolerance: float
-            The tolerance (as a fraction of the properties
-            reported uncertainty) to estimate the
-            property to within.
+            The tolerance (as a fraction of the properties reported
+            uncertainty) to estimate the property to within.
         n_molecules: int
             The number of molecules to use in the simulation.
 
@@ -820,10 +818,15 @@ class EnthalpyOfVaporization(PhysicalProperty):
         SimulationSchema
             The schema to follow when estimating this property.
         """
+        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
 
         calculation_schema = SimulationSchema()
         calculation_schema.absolute_tolerance = absolute_tolerance
         calculation_schema.relative_tolerance = relative_tolerance
+
+        use_target_uncertainty = (
+            absolute_tolerance != UNDEFINED or relative_tolerance != UNDEFINED
+        )
 
         # Define a custom conditional group.
         converge_uncertainty = groups.ConditionalGroup(f"converge_uncertainty")
@@ -841,7 +844,10 @@ class EnthalpyOfVaporization(PhysicalProperty):
             liquid_value_source,
             liquid_output_to_store,
         ) = generate_base_simulation_protocols(
-            extract_liquid_energy, target_uncertainty, "_liquid", converge_uncertainty,
+            extract_liquid_energy,
+            use_target_uncertainty,
+            "_liquid",
+            converge_uncertainty,
         )
 
         # Make sure the number of molecules in the liquid is consistent.
@@ -857,7 +863,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
             gas_value_source,
             gas_output_to_store,
         ) = generate_base_simulation_protocols(
-            extract_gas_energy, target_uncertainty, "_gas", converge_uncertainty,
+            extract_gas_energy, use_target_uncertainty, "_gas", converge_uncertainty,
         )
 
         # Create only a single molecule in vacuum
@@ -909,10 +915,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
             energy_of_vaporization, ideal_volume, enthalpy_of_vaporization
         )
 
-        if (
-            calculation_schema.workflow_options.convergence_mode
-            != WorkflowOptions.ConvergenceMode.NoChecks
-        ):
+        if use_target_uncertainty:
 
             condition = groups.ConditionalGroup.Condition()
             condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
@@ -1019,30 +1022,29 @@ class EnthalpyOfVaporization(PhysicalProperty):
         )
 
         # Build the workflow schema.
-        schema = WorkflowSchema(property_type=EnthalpyOfVaporization.__name__)
-        schema.id = "{}{}".format(EnthalpyOfVaporization.__name__, "Schema")
+        schema = WorkflowSchema()
 
-        schema.protocols = {
-            liquid_protocols.build_coordinates.id: liquid_protocols.build_coordinates.schema,
-            liquid_protocols.assign_parameters.id: liquid_protocols.assign_parameters.schema,
-            liquid_protocols.energy_minimisation.id: liquid_protocols.energy_minimisation.schema,
-            liquid_protocols.equilibration_simulation.id: liquid_protocols.equilibration_simulation.schema,
-            gas_protocols.build_coordinates.id: gas_protocols.build_coordinates.schema,
-            gas_protocols.assign_parameters.id: gas_protocols.assign_parameters.schema,
-            gas_protocols.energy_minimisation.id: gas_protocols.energy_minimisation.schema,
-            gas_protocols.equilibration_simulation.id: gas_protocols.equilibration_simulation.schema,
-            converge_uncertainty.id: converge_uncertainty.schema,
-            liquid_protocols.extract_uncorrelated_trajectory.id: liquid_protocols.extract_uncorrelated_trajectory.schema,
-            liquid_protocols.extract_uncorrelated_statistics.id: liquid_protocols.extract_uncorrelated_statistics.schema,
-            gas_protocols.extract_uncorrelated_trajectory.id: gas_protocols.extract_uncorrelated_trajectory.schema,
-            gas_protocols.extract_uncorrelated_statistics.id: gas_protocols.extract_uncorrelated_statistics.schema,
-            liquid_gradient_group.id: liquid_gradient_group.schema,
-            gas_gradient_group.id: gas_gradient_group.schema,
-            scale_liquid_gradient.id: scale_liquid_gradient.schema,
-            combine_gradients.id: combine_gradients.schema,
-        }
+        schema.protocol_schemas = [
+            liquid_protocols.build_coordinates.schema,
+            liquid_protocols.assign_parameters.schema,
+            liquid_protocols.energy_minimisation.schema,
+            liquid_protocols.equilibration_simulation.schema,
+            gas_protocols.build_coordinates.schema,
+            gas_protocols.assign_parameters.schema,
+            gas_protocols.energy_minimisation.schema,
+            gas_protocols.equilibration_simulation.schema,
+            converge_uncertainty.schema,
+            liquid_protocols.extract_uncorrelated_trajectory.schema,
+            liquid_protocols.extract_uncorrelated_statistics.schema,
+            gas_protocols.extract_uncorrelated_trajectory.schema,
+            gas_protocols.extract_uncorrelated_statistics.schema,
+            liquid_gradient_group.schema,
+            gas_gradient_group.schema,
+            scale_liquid_gradient.schema,
+            combine_gradients.schema,
+        ]
 
-        schema.replicators = [gradient_replicator]
+        schema.protocol_replicators = [gradient_replicator]
 
         schema.outputs_to_store = {
             "liquid_data": liquid_output_to_store,
@@ -1058,29 +1060,35 @@ class EnthalpyOfVaporization(PhysicalProperty):
         return calculation_schema
 
     @staticmethod
-    def default_reweighting_schema(existing_schema=None):
+    def default_reweighting_schema(
+        absolute_tolerance=UNDEFINED,
+        relative_tolerance=UNDEFINED,
+        n_effective_samples=50,
+    ):
         """Returns the default calculation schema to use when estimating
         this property by reweighting existing data.
 
         Parameters
         ----------
-        existing_schema: ReweightingSchema, optional
-            An existing schema whose settings to use. If set,
-            the schema's `workflow_schema` will be overwritten
-            by this method.
+        absolute_tolerance: unit.Quantity, optional
+            The absolute tolerance to estimate the property to within.
+        relative_tolerance: float
+            The tolerance (as a fraction of the properties reported
+            uncertainty) to estimate the property to within.
+        n_effective_samples: int
+            The minimum number of effective samples to require when
+            reweighting the cached simulation data.
 
         Returns
         -------
         ReweightingSchema
             The schema to follow when estimating this property.
         """
+        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
 
         calculation_schema = ReweightingSchema()
-
-        if existing_schema is not None:
-
-            assert isinstance(existing_schema, ReweightingSchema)
-            calculation_schema = copy.deepcopy(existing_schema)
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
 
         # Set up the storage queries
         calculation_schema.storage_queries = (
@@ -1110,6 +1118,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
             "reweight_liquid_energy"
         )
         reweight_liquid_energy.statistics_type = ObservableType.PotentialEnergy
+        reweight_liquid_energy.required_effective_samples = n_effective_samples
 
         liquid_protocols, _ = generate_base_reweighting_protocols(
             extract_liquid_energy,
@@ -1142,6 +1151,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         reweight_gas_energy = reweighting.ReweightStatistics("reweight_gas_energy")
         reweight_gas_energy.statistics_type = ObservableType.PotentialEnergy
+        reweight_gas_energy.required_effective_samples = n_effective_samples
 
         gas_protocols, _ = generate_base_reweighting_protocols(
             extract_gas_energy,
@@ -1250,29 +1260,22 @@ class EnthalpyOfVaporization(PhysicalProperty):
         combine_gradients.value_a = ProtocolPath("result", divide_liquid_gradient.id)
 
         # Build the workflow schema.
-        schema = WorkflowSchema(property_type=EnthalpyOfVaporization.__name__)
-        schema.id = "{}{}".format(EnthalpyOfVaporization.__name__, "Schema")
+        schema = WorkflowSchema()
 
-        schema.protocols.update(
-            {protocol.id: protocol.schema for protocol in liquid_protocols}
-        )
-        schema.protocols.update(
-            {protocol.id: protocol.schema for protocol in gas_protocols}
-        )
+        schema.protocol_schemas = [
+            *(x.schema for x in liquid_protocols),
+            *(x.schema for x in gas_protocols),
+            divide_by_liquid_molecules.schema,
+            energy_of_vaporization.schema,
+            ideal_volume.schema,
+            enthalpy_of_vaporization.schema,
+            liquid_gradient_group.schema,
+            gas_gradient_group.schema,
+            divide_liquid_gradient.schema,
+            combine_gradients.schema,
+        ]
 
-        schema.protocols[
-            divide_by_liquid_molecules.id
-        ] = divide_by_liquid_molecules.schema
-        schema.protocols[energy_of_vaporization.id] = energy_of_vaporization.schema
-        schema.protocols[ideal_volume.id] = ideal_volume.schema
-        schema.protocols[enthalpy_of_vaporization.id] = enthalpy_of_vaporization.schema
-
-        schema.protocols[liquid_gradient_group.id] = liquid_gradient_group.schema
-        schema.protocols[gas_gradient_group.id] = gas_gradient_group.schema
-        schema.protocols[divide_liquid_gradient.id] = divide_liquid_gradient.schema
-        schema.protocols[combine_gradients.id] = combine_gradients.schema
-
-        schema.replicators = [
+        schema.protocol_replicators = [
             liquid_data_replicator,
             gas_data_replicator,
             gradient_replicator,
@@ -1292,13 +1295,13 @@ class EnthalpyOfVaporization(PhysicalProperty):
 # register_calculation_schema(
 #     EnthalpyOfMixing, ReweightingLayer, EnthalpyOfMixing.default_reweighting_schema
 # )
-# register_calculation_schema(
-#     EnthalpyOfVaporization,
-#     SimulationLayer,
-#     EnthalpyOfVaporization.default_simulation_schema,
-# )
-# register_calculation_schema(
-#     EnthalpyOfVaporization,
-#     ReweightingLayer,
-#     EnthalpyOfVaporization.default_reweighting_schema,
-# )
+register_calculation_schema(
+    EnthalpyOfVaporization,
+    SimulationLayer,
+    EnthalpyOfVaporization.default_simulation_schema,
+)
+register_calculation_schema(
+    EnthalpyOfVaporization,
+    ReweightingLayer,
+    EnthalpyOfVaporization.default_reweighting_schema,
+)
