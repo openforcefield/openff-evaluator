@@ -4,14 +4,16 @@ from .plugins import (  # isort:skip
     registered_workflow_protocols,
     workflow_protocol,
 )
-from .protocols import Protocol  # isort:skip
+from .protocols import Protocol, ProtocolGraph, ProtocolGroup  # isort:skip
 
 from .workflow import Workflow, WorkflowGraph  # isort:skip
 
 __all__ = [
     Protocol,
-    ProtocolGroupSchema,
+    ProtocolGraph,
+    ProtocolGroup,
     ProtocolSchema,
+    ProtocolGroupSchema,
     register_workflow_protocol,
     registered_workflow_protocols,
     workflow_protocol,

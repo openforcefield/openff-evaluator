@@ -6,7 +6,6 @@ import abc
 import os
 
 from propertyestimator.attributes import UNDEFINED, Attribute
-from propertyestimator.datasets import CalculationSource
 from propertyestimator.layers import CalculationLayer, CalculationLayerSchema
 from propertyestimator.workflow import Workflow, WorkflowGraph, WorkflowSchema
 
@@ -99,7 +98,7 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         options: RequestOptions
             The options to run the workflows with.
         """
-        workflow_graph = WorkflowGraph(working_directory)
+        workflow_graph = WorkflowGraph()
 
         for physical_property in properties:
 
@@ -136,11 +135,6 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
 
             workflow = Workflow(physical_property, global_metadata)
             workflow.schema = schema.workflow_schema
-
-            workflow.physical_property.source = CalculationSource(
-                fidelity=cls.__name__, provenance={}
-            )
-
             workflow_graph.add_workflow(workflow)
 
         return workflow_graph
@@ -172,7 +166,7 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
             batch.options,
         )
 
-        futures = workflow_graph.submit(calculation_backend)
+        futures = workflow_graph.execute(layer_directory, calculation_backend)
 
         CalculationLayer._await_results(
             calculation_backend, storage_backend, batch, callback, futures, synchronous,

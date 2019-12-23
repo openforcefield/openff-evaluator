@@ -4,10 +4,17 @@ form a larger property estimation workflow.
 """
 import abc
 import copy
+import json
+import logging
+import os
+import time
 from collections import defaultdict
 
 from propertyestimator.attributes import Attribute, AttributeClass, PlaceholderValue
 from propertyestimator.utils import graph
+from propertyestimator.utils.exceptions import EvaluatorException
+from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
+from propertyestimator.utils.string import extract_variable_index_and_name
 from propertyestimator.utils.utils import get_nested_attribute, set_nested_attribute
 from propertyestimator.workflow import registered_workflow_protocols, workflow_protocol
 from propertyestimator.workflow.attributes import (
@@ -16,6 +23,7 @@ from propertyestimator.workflow.attributes import (
     MergeBehaviour,
     OutputAttribute,
 )
+from propertyestimator.workflow.exceptions import WorkflowException
 from propertyestimator.workflow.schemas import ProtocolGroupSchema, ProtocolSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
@@ -402,7 +410,10 @@ class Protocol(AttributeClass, abc.ABC):
                 type(self), input_path.property_name
             ).merge_behavior
 
-            if merge_behavior == MergeBehaviour.ExactlyEqual:
+            if (
+                merge_behavior == MergeBehaviour.ExactlyEqual
+                or merge_behavior == MergeBehaviour.Custom
+            ):
                 continue
 
             if isinstance(self.get_value(input_path), ProtocolPath) or isinstance(
@@ -670,7 +681,8 @@ class Protocol(AttributeClass, abc.ABC):
 
 
 class ProtocolGraph:
-    """A graph of connected protocols.
+    """A graph of connected protocols which may be
+    executed together.
     """
 
     @property
@@ -912,6 +924,241 @@ class ProtocolGraph:
 
         return merged_ids
 
+    def execute(
+        self,
+        root_directory,
+        calculation_backend=None,
+        compute_resources=None,
+        enable_checkpointing=True,
+    ):
+        """Execute the protocol graph in the specified directory,
+        and either using a `CalculationBackend`, or using a specified
+        set of compute resources.
+
+        Parameters
+        ----------
+        root_directory: str
+            The directory to execute the graph in.
+        calculation_backend: CalculationBackend, optional.
+            The backend to execute the graph on. This parameter
+            is mutually exclusive with `compute_resources`.
+        compute_resources: CalculationBackend, optional.
+            The compute resources to run using. This parameter
+            is mutually exclusive with `calculation_backend`.
+        enable_checkpointing: bool
+            If enabled, protocols will not be executed more than once if the
+            output from their previous execution is found.
+
+        Returns
+        -------
+        dict of str and str or Future:
+            The paths to the JSON serialized outputs of the executed protocols.
+            If executed using a calculation backend, these will be `Future` objects
+            which will return the output paths on calling `future.result()`.
+        """
+
+        assert (calculation_backend is None and compute_resources is not None) or (
+            calculation_backend is not None and compute_resources is None
+        )
+
+        # Determine the order in which to submit the protocols, such
+        # that all dependencies are satisfied.
+        execution_order = graph.topological_sort(self._dependants_graph)
+
+        # Build a dependency graph from the dependants graph so that
+        # futures can easily be passed in the correct place.
+        dependencies = graph.dependants_to_dependencies(self._dependants_graph)
+
+        protocol_outputs = {}
+
+        for protocol_id in execution_order:
+
+            protocol = self._protocols_by_id[protocol_id]
+            parent_outputs = []
+
+            for dependency in dependencies[protocol_id]:
+                parent_outputs.append(protocol_outputs[dependency])
+
+            directory = os.path.join(root_directory, protocol_id)
+
+            if calculation_backend is not None:
+
+                protocol_outputs[protocol_id] = calculation_backend.submit_task(
+                    ProtocolGraph._execute_protocol,
+                    directory,
+                    protocol.schema.json(),
+                    enable_checkpointing,
+                    *parent_outputs,
+                )
+
+            else:
+
+                protocol_outputs[protocol_id] = ProtocolGraph._execute_protocol(
+                    directory,
+                    protocol,
+                    enable_checkpointing,
+                    *parent_outputs,
+                    available_resources=compute_resources,
+                )
+
+        return protocol_outputs
+
+    @staticmethod
+    def _execute_protocol(
+        directory,
+        protocol,
+        enable_checkpointing,
+        *previous_output_paths,
+        available_resources,
+        **_,
+    ):
+        """Executes the protocol defined by the ``protocol_schema``.
+
+        Parameters
+        ----------
+        directory: str
+            The directory to execute the protocol in.
+        protocol: Protocol or str
+            Either the protocol to execute, or the JSON schema which defines
+            the protocol to execute.
+        enable_checkpointing: bool
+            If enabled, the protocol will not be executed again if the
+            output of its previous execution is found.
+        parent_outputs: tuple of str
+            Paths to the outputs of the protocols which the
+            protocol to execute depends on.
+
+        Returns
+        -------
+        str
+            The id of the executed protocol.
+        str
+            The path to the JSON serialized output of the executed
+            protocol.
+        """
+
+        if isinstance(protocol, str):
+            protocol_schema = ProtocolSchema.parse_json(protocol)
+            protocol = protocol_schema.to_protocol()
+
+        # The path where the output of this protocol will be stored.
+        os.makedirs(directory, exist_ok=True)
+
+        output_path = os.path.join(directory, f"{protocol.id}_output.json")
+
+        # We need to make sure ALL exceptions are handled within this method,
+        # to avoid accidentally killing the compute backend / server.
+        try:
+
+            # Check if the output of this protocol already exists and
+            # whether we allow returning the found output.
+            if os.path.isfile(output_path) and enable_checkpointing:
+                return protocol.id, output_path
+
+            # Store the results of the relevant previous protocols in a
+            # convenient dictionary.
+            previous_outputs = {}
+
+            for parent_id, previous_output_path in previous_output_paths:
+
+                with open(previous_output_path) as file:
+                    parent_output = json.load(file, cls=TypedJSONDecoder)
+
+                # If one of the results is a failure exit early and propagate
+                # the exception up the graph.
+                if isinstance(parent_output, EvaluatorException):
+                    return protocol.id, previous_output_path
+
+                for protocol_path, output_value in parent_output.items():
+
+                    protocol_path = ProtocolPath.from_string(protocol_path)
+
+                    if (
+                        protocol_path.start_protocol is None
+                        or protocol_path.start_protocol != parent_id
+                    ):
+
+                        protocol_path.prepend_protocol_id(parent_id)
+
+                    previous_outputs[protocol_path] = output_value
+
+            # Pass the outputs of previously executed protocols as input to the
+            # protocol to execute.
+            for input_path in protocol.required_inputs:
+
+                value_references = protocol.get_value_references(input_path)
+
+                for source_path, target_path in value_references.items():
+
+                    if (
+                        target_path.start_protocol == input_path.start_protocol
+                        or target_path.start_protocol == protocol.id
+                    ):
+                        # The protocol takes input from itself / a nested protocol.
+                        # This is handled by the protocol directly so we can skip here.
+                        continue
+
+                    property_name = target_path.property_name
+                    property_index = None
+
+                    nested_property_name = None
+
+                    if property_name.find(".") > 0:
+
+                        nested_property_name = ".".join(property_name.split(".")[1:])
+                        property_name = property_name.split(".")[0]
+
+                    if property_name.find("[") >= 0 or property_name.find("]") >= 0:
+
+                        property_name, property_index = extract_variable_index_and_name(
+                            property_name
+                        )
+
+                    _, target_protocol_ids = ProtocolPath.to_components(
+                        target_path.full_path
+                    )
+
+                    target_value = previous_outputs[
+                        ProtocolPath(property_name, *target_protocol_ids)
+                    ]
+
+                    if property_index is not None:
+                        target_value = target_value[property_index]
+
+                    if nested_property_name is not None:
+                        target_value = get_nested_attribute(
+                            target_value, nested_property_name
+                        )
+
+                    protocol.set_value(source_path, target_value)
+
+            logging.info(f"Executing {protocol.id}")
+
+            start_time = time.perf_counter()
+            protocol.execute(directory, available_resources)
+
+            output = {key.full_path: value for key, value in protocol.outputs.items()}
+            output = json.dumps(output, cls=TypedJSONEncoder)
+
+            end_time = time.perf_counter()
+
+            execution_time = (end_time - start_time) * 1000
+            logging.info(f"{protocol.id} finished executing after {execution_time} ms")
+
+        except Exception as e:
+
+            logging.info(f"Protocol failed to execute: {protocol.id}")
+
+            exception = WorkflowException.from_exception(e)
+            exception.protocol_id = protocol.id
+
+            output = exception.json()
+
+        with open(output_path, "w") as file:
+            file.write(output)
+
+        return protocol.id, output_path
+
 
 @workflow_protocol()
 class ProtocolGroup(Protocol):
@@ -1003,7 +1250,9 @@ class ProtocolGroup(Protocol):
         super().__init__(protocol_id)
 
         self._protocols = []
+
         self._inner_graph = ProtocolGraph()
+        self._enable_checkpointing = True
 
     def _get_schema(self, schema_type=ProtocolGroupSchema, *args):
 
@@ -1100,7 +1349,12 @@ class ProtocolGroup(Protocol):
         )
 
     def _execute(self, directory, available_resources):
-        raise NotImplementedError()
+
+        self._inner_graph.execute(
+            directory,
+            compute_resources=available_resources,
+            enable_checkpointing=self._enable_checkpointing,
+        )
 
     def can_merge(self, other, path_replacements=None):
 

@@ -6,7 +6,7 @@ class WorkflowException(EvaluatorException):
     protocol.
     """
 
-    def __init__(self, message, protocol_id):
+    def __init__(self, message=None, protocol_id=None):
         """Constructs a new EvaluatorException object.
 
         Parameters

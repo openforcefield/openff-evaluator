@@ -5,29 +5,20 @@ import copy
 import json
 import logging
 import math
-import time
 import uuid
 from math import sqrt
 from os import makedirs, path
 from shutil import copy as file_copy
 
-from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.forcefield import ForceFieldSource, SmirnoffForceFieldSource
 from propertyestimator.storage.attributes import FilePath, StorageAttribute
 from propertyestimator.substances import Substance
-from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
-from propertyestimator.utils.string import extract_variable_index_and_name
 from propertyestimator.utils.utils import get_nested_attribute
-from propertyestimator.workflow.exceptions import WorkflowException
 from propertyestimator.workflow.protocols import ProtocolGraph
-from propertyestimator.workflow.schemas import (
-    ProtocolReplicator,
-    ProtocolSchema,
-    WorkflowSchema,
-)
+from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
@@ -783,7 +774,7 @@ class WorkflowGraph:
                 workflow.protocols[original_id], self._protocol_graph.protocols[new_id]
             )
 
-    def submit(self, root_directory, backend):
+    def execute(self, root_directory, backend):
         """Submits the protocol graph to the backend of choice.
 
         Parameters
@@ -798,70 +789,29 @@ class WorkflowGraph:
         list of Future:
             The futures of the submitted protocols.
         """
-        submitted_futures = {}
+        protocol_outputs = self._protocol_graph.execute(root_directory, backend)
+
         value_futures = []
-
-        # Determine the ideal order in which to submit the
-        # protocols.
-        submission_order = graph.topological_sort(self._inner_graph.dependants_graph)
-
-        # Build a dependency graph from the dependants graph so that
-        # futures can be passed in the correct place.
-        dependencies = graph.dependants_to_dependencies(
-            self._inner_graph.dependants_graph
-        )
-
-        # TODO: Use ProtocolGraph execution code?
-        raise NotImplementedError()
-
-        for node_id in submission_order:
-
-            node = self._protocols_by_id[node_id]
-            dependency_futures = []
-
-            for dependency in dependencies[node_id]:
-                dependency_futures.append(submitted_futures[dependency])
-
-            submitted_futures[node_id] = backend.submit_task(
-                WorkflowGraph._execute_protocol,
-                node.directory,
-                node.schema.json(),
-                *dependency_futures,
-                key=f"execute_{node_id}",
-            )
 
         for workflow_id in self._workflows_to_execute:
 
             workflow = self._workflows_to_execute[workflow_id]
-
-            # TODO: Fill in any extra required provenance.
-            provenance = {}
-
-            for protocol_id in workflow.protocols:
-
-                protocol = workflow.protocols[protocol_id]
-                provenance[protocol_id] = protocol.schema
-
-            workflow.physical_property.source.provenance = provenance
-
-            final_futures = []
+            data_futures = []
 
             # Make sure we keep track of all of the futures which we
             # will use to populate things such as a final property value
             # or gradient keys.
             if workflow.final_value_source is not None:
 
-                value_node_id = workflow.final_value_source.start_protocol
-                final_futures.append(submitted_futures[value_node_id])
+                protocol_id = workflow.final_value_source.start_protocol
+                data_futures.append(protocol_outputs[protocol_id])
 
             for gradient_source in workflow.gradients_sources:
 
                 protocol_id = gradient_source.start_protocol
-                final_futures.append(submitted_futures[protocol_id])
+                data_futures.append(protocol_outputs[protocol_id])
 
-            for output_label in workflow.outputs_to_store:
-
-                output_to_store = workflow.outputs_to_store[output_label]
+            for output_label, output_to_store in workflow.outputs_to_store.items():
 
                 for attribute_name in output_to_store.get_attributes(StorageAttribute):
 
@@ -870,14 +820,13 @@ class WorkflowGraph:
                     if not isinstance(attribute_value, ProtocolPath):
                         continue
 
-                    final_futures.append(
-                        submitted_futures[attribute_value.start_protocol]
+                    data_futures.append(
+                        protocol_outputs[attribute_value.start_protocol]
                     )
 
-            if len(final_futures) == 0:
-                final_futures = [submitted_futures[key] for key in submitted_futures]
+            if len(data_futures) == 0:
+                data_futures = [*protocol_outputs.values()]
 
-            # TODO
             value_futures.append(
                 backend.submit_task(
                     WorkflowGraph._gather_results,
@@ -886,195 +835,11 @@ class WorkflowGraph:
                     workflow.final_value_source,
                     workflow.gradients_sources,
                     workflow.outputs_to_store,
-                    *final_futures,
+                    *data_futures,
                 )
             )
 
         return value_futures
-
-    @staticmethod
-    def _save_protocol_output(file_path, output_dictionary):
-        """Saves the results of executing a protocol (whether these be the true
-        results or an exception) as a JSON file to disk.
-
-        Parameters
-        ----------
-        file_path: str
-            The path to save the output to.
-        output_dictionary: dict of str and Any
-            The results in the form of a dictionary which can be serialized
-            by the `TypedJSONEncoder`
-        """
-
-        with open(file_path, "w") as file:
-            json.dump(output_dictionary, file, cls=TypedJSONEncoder)
-
-    @staticmethod
-    def _execute_protocol(
-        directory,
-        protocol_schema_json,
-        *previous_output_paths,
-        available_resources,
-        **_,
-    ):
-        """Executes a protocol whose state is defined by the ``protocol_schema``.
-
-        Parameters
-        ----------
-        protocol_schema_json: str
-            The JSON schema defining the protocol to execute.
-        previous_output_paths: tuple of str
-            Paths to the results of previous protocol executions.
-
-        Returns
-        -------
-        str
-            The id of the executed protocol.
-        dict of str and Any
-            A dictionary which contains the outputs of the executed protocol.
-        """
-        protocol_schema = ProtocolSchema.parse_json(protocol_schema_json)
-
-        # The path where the output of this protocol will be stored.
-        output_dictionary_path = path.join(
-            directory, "{}_output.json".format(protocol_schema.id)
-        )
-        makedirs(directory, exist_ok=True)
-
-        # We need to make sure ALL exceptions are handled within this method,
-        # or any function which will be executed on a calculation backend to
-        # avoid accidentally killing the backend.
-        try:
-
-            # If the output file already exists, we can assume this protocol has already
-            # been executed and we can return immediately without re-executing.
-            if path.isfile(output_dictionary_path):
-                return protocol_schema.id, output_dictionary_path
-
-            # Store the results of the relevant previous protocols in a handy dictionary.
-            # If one of the results is a failure, propagate it up the chain.
-            previous_outputs_by_path = {}
-
-            for parent_id, previous_output_path in previous_output_paths:
-
-                try:
-
-                    with open(previous_output_path, "r") as file:
-                        parent_output = json.load(file, cls=TypedJSONDecoder)
-
-                except json.JSONDecodeError as e:
-
-                    exception = EvaluatorException.from_exception(e)
-
-                    WorkflowGraph._save_protocol_output(
-                        output_dictionary_path, exception
-                    )
-
-                    return protocol_schema.id, output_dictionary_path
-
-                if isinstance(parent_output, EvaluatorException):
-                    return protocol_schema.id, previous_output_path
-
-                for output_path, output_value in parent_output.items():
-
-                    property_name, protocol_ids = ProtocolPath.to_components(
-                        output_path
-                    )
-
-                    if len(protocol_ids) == 0 or (
-                        len(protocol_ids) > 0 and protocol_ids[0] != parent_id
-                    ):
-                        protocol_ids.insert(0, parent_id)
-
-                    final_path = ProtocolPath(property_name, *protocol_ids)
-                    previous_outputs_by_path[final_path] = output_value
-
-            # Recreate the protocol on the backend to bypass the need for static methods
-            # and awkward args and kwargs syntax.
-            protocol = protocol_schema.to_protocol()
-
-            # Pass the outputs of previously executed protocols as input to the
-            # protocol to execute.
-            for input_path in protocol.required_inputs:
-
-                value_references = protocol.get_value_references(input_path)
-
-                for source_path, target_path in value_references.items():
-
-                    if (
-                        target_path.start_protocol == input_path.start_protocol
-                        or target_path.start_protocol == protocol.id
-                    ):
-
-                        continue
-
-                    property_name = target_path.property_name
-                    property_index = None
-
-                    nested_property_name = None
-
-                    if property_name.find(".") > 0:
-
-                        nested_property_name = ".".join(property_name.split(".")[1:])
-                        property_name = property_name.split(".")[0]
-
-                    if property_name.find("[") >= 0 or property_name.find("]") >= 0:
-                        property_name, property_index = extract_variable_index_and_name(
-                            property_name
-                        )
-
-                    _, target_protocol_ids = ProtocolPath.to_components(
-                        target_path.full_path
-                    )
-
-                    target_value = previous_outputs_by_path[
-                        ProtocolPath(property_name, *target_protocol_ids)
-                    ]
-
-                    if property_index is not None:
-                        target_value = target_value[property_index]
-
-                    if nested_property_name is not None:
-                        target_value = get_nested_attribute(
-                            target_value, nested_property_name
-                        )
-
-                    protocol.set_value(source_path, target_value)
-
-            logging.info("Executing protocol: {}".format(protocol.id))
-
-            start_time = time.perf_counter()
-            output_dictionary = protocol.execute(directory, available_resources)
-            end_time = time.perf_counter()
-
-            logging.info(
-                "Protocol finished executing ({} ms): {}".format(
-                    (end_time - start_time) * 1000, protocol.id
-                )
-            )
-
-            try:
-
-                WorkflowGraph._save_protocol_output(
-                    output_dictionary_path, output_dictionary
-                )
-
-            except TypeError as e:
-
-                exception = EvaluatorException.from_exception(e)
-                WorkflowGraph._save_protocol_output(output_dictionary_path, exception)
-
-            return protocol.id, output_dictionary_path
-
-        except Exception as e:
-
-            logging.info(f"Protocol failed to execute: {protocol_schema.id}")
-
-            exception = WorkflowException.from_exception(e)
-            exception.protocol_id = protocol_schema.id
-
-            WorkflowGraph._save_protocol_output(output_dictionary_path, exception)
-            return protocol_schema.id, output_dictionary_path
 
     @staticmethod
     def _gather_results(
@@ -1083,7 +848,6 @@ class WorkflowGraph:
         value_reference,
         gradient_sources,
         outputs_to_store,
-        target_uncertainty,
         *protocol_result_paths,
         **_,
     ):
@@ -1103,11 +867,6 @@ class WorkflowGraph:
             to parameter gradients.
         outputs_to_store: dict of string and WorkflowOutputToStore
             A list of references to data which should be stored on the storage backend.
-        target_uncertainty: unit.Quantity, optional
-            The uncertainty within which this property should have been estimated. If this
-            value is not `None` and the target has not been met, a `None` result will be returned
-            indicating that this property could not be estimated by the workflow, but not because
-            of an error.
         protocol_results: dict of string and str
             The result dictionary of the protocol which calculated the value of the property.
 
@@ -1118,9 +877,6 @@ class WorkflowGraph:
             will be returned if the target uncertainty is set but not met.
         """
         from propertyestimator.layers.layers import CalculationLayerResult
-
-        if target_uncertainty is not None:
-            target_uncertainty = unit.Quantity.from_tuple(target_uncertainty)
 
         return_object = CalculationLayerResult()
         return_object.property_id = property_to_return.id

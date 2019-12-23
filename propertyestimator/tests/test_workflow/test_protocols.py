@@ -1,13 +1,17 @@
 """
 Units tests for propertyestimator.workflow
 """
+import json
+import tempfile
 
 import pytest
 
 from propertyestimator import unit
+from propertyestimator.backends import ComputeResources, DaskLocalCluster
 from propertyestimator.protocols.miscellaneous import AddValues
 from propertyestimator.tests.test_workflow.utils import DummyInputOutputProtocol
 from propertyestimator.utils.quantities import EstimatedQuantity
+from propertyestimator.utils.serialization import TypedJSONDecoder
 from propertyestimator.workflow.protocols import ProtocolGraph, ProtocolGroup
 from propertyestimator.workflow.utils import ProtocolPath
 
@@ -229,6 +233,46 @@ def test_protocol_graph_simple(protocols_a, protocols_b):
     assert len(protocol_graph.root_protocols) == 2 * n_root_protocols
 
 
+@pytest.mark.parametrize(
+    "calculation_backend, compute_resources",
+    [(DaskLocalCluster(), None), (None, ComputeResources())],
+)
+def test_protocol_graph_execution(calculation_backend, compute_resources):
+
+    if calculation_backend is not None:
+        calculation_backend.start()
+
+    protocol_a = DummyInputOutputProtocol("protocol_a")
+    protocol_a.input_value = 1
+    protocol_b = DummyInputOutputProtocol("protocol_b")
+    protocol_b.input_value = ProtocolPath("output_value", protocol_a.id)
+
+    protocol_graph = ProtocolGraph()
+    protocol_graph.add_protocols(protocol_a, protocol_b)
+
+    with tempfile.TemporaryDirectory() as directory:
+
+        results = protocol_graph.execute(
+            directory, calculation_backend, compute_resources
+        )
+
+        final_result = results[protocol_b.id]
+
+        if calculation_backend is not None:
+            final_result = final_result.result()
+
+        with open(final_result[1]) as file:
+            results_b = json.load(file, cls=TypedJSONDecoder)
+
+    assert results_b[".output_value"] == protocol_a.input_value
+
+    if compute_resources is not None:
+        assert protocol_b.output_value == protocol_a.input_value
+
+    if calculation_backend is not None:
+        calculation_backend.stop()
+
+
 def test_protocol_group_merging():
     def build_protocols(prefix):
 
@@ -268,3 +312,23 @@ def test_protocol_group_merging():
     merged_protocol_group = protocol_graph.protocols["a_protocol_group"]
 
     assert original_protocol_group.schema.json() == merged_protocol_group.schema.json()
+
+
+def test_protocol_group_execution():
+
+    protocol_a = DummyInputOutputProtocol("protocol_a")
+    protocol_a.input_value = 1
+    protocol_b = DummyInputOutputProtocol("protocol_b")
+    protocol_b.input_value = ProtocolPath("output_value", protocol_a.id)
+
+    protocol_group = ProtocolGroup("protocol_group")
+    protocol_group.add_protocols(protocol_a, protocol_b)
+
+    with tempfile.TemporaryDirectory() as directory:
+
+        protocol_group.execute(directory, ComputeResources())
+
+    value_path = ProtocolPath("output_value", protocol_group.id, protocol_b.id)
+    final_value = protocol_group.get_value(value_path)
+
+    assert final_value == protocol_a.input_value

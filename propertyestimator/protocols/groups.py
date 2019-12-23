@@ -7,16 +7,18 @@ Such behaviours may include for example running the grouped together
 protocols until certain conditions have been met.
 """
 
-import copy
 import json
 import logging
+import typing
 from enum import Enum, unique
 from os import path
 
 from propertyestimator import unit
+from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
 from propertyestimator.workflow.attributes import (
     InequalityMergeBehaviour,
     InputAttribute,
+    MergeBehaviour,
     OutputAttribute,
 )
 from propertyestimator.workflow.plugins import workflow_protocol
@@ -29,56 +31,39 @@ class ConditionalGroup(ProtocolGroup):
     a given condition is met.
     """
 
-    @unique
-    class ConditionType(Enum):
-        """The acceptable conditions to place on the group"""
+    class Condition(AttributeClass):
+        """Defines a specific condition which must be met of the form
+        `left_hand_value` [TYPE] `right_hand_value`, where `[TYPE]` may
+        be less than or greater than.
+        """
 
-        LessThan = "lessthan"
-        GreaterThan = "greaterthan"
+        @unique
+        class Type(Enum):
+            """The available condition types."""
 
-        @classmethod
-        def has_value(cls, value):
-            """Checks whether an of the enum items matches a given value.
+            LessThan = "lessthan"
+            GreaterThan = "greaterthan"
 
-            Parameters
-            ----------
-            value: str
-                The value to check for.
+        left_hand_value = Attribute(
+            docstring="The left-hand value to compare.",
+            type_hint=typing.Union[int, float, unit.Quantity],
+        )
+        right_hand_value = Attribute(
+            docstring="The right-hand value to compare.",
+            type_hint=typing.Union[int, float, unit.Quantity],
+        )
 
-            Returns
-            ---------
-            bool
-                True if the enum contains the value.
-            """
-            return any(value == item.value for item in cls)
-
-    class Condition:
-        def __init__(self):
-
-            self.type = ConditionalGroup.ConditionType.LessThan
-
-            self.left_hand_value = None
-            self.right_hand_value = None
-
-        def __getstate__(self):
-
-            return {
-                "type": self.type.value,
-                "left_hand_value": self.left_hand_value,
-                "right_hand_value": self.right_hand_value,
-            }
-
-        def __setstate__(self, state):
-
-            self.type = ConditionalGroup.ConditionType(state["type"])
-
-            self.left_hand_value = state["left_hand_value"]
-            self.right_hand_value = state["right_hand_value"]
+        type = Attribute(
+            docstring="The right-hand value to compare.",
+            type_hint=Type,
+            default_value=Type.LessThan,
+        )
 
         def __eq__(self, other):
 
             return (
-                self.left_hand_value == other.left_hand_value
+                type(self) == type(other)
+                and self.left_hand_value == other.left_hand_value
                 and self.right_hand_value == other.right_hand_value
                 and self.type == other.type
             )
@@ -89,16 +74,15 @@ class ConditionalGroup(ProtocolGroup):
         def __str__(self):
             return f"{self.left_hand_value} {self.type} {self.right_hand_value}"
 
-    @property
-    def conditions(self):
-        return self._conditions
+        def __repr__(self):
+            return f"<Condition {str(self)}>"
 
-    max_iterations = InputAttribute(
-        docstring="The maximum number of iterations to run for to try and satisfy the "
-        "groups conditions.",
-        type_hint=int,
-        default_value=100,
-        merge_behavior=InequalityMergeBehaviour.LargestValue,
+    conditions = InputAttribute(
+        docstring="The conditions which must be satisfied before"
+        "the group will cleanly exit.",
+        type_hint=list,
+        default_value=[],
+        merge_behavior=MergeBehaviour.Custom,
     )
 
     current_iteration = OutputAttribute(
@@ -107,33 +91,21 @@ class ConditionalGroup(ProtocolGroup):
         "from one.",
         type_hint=int,
     )
+    max_iterations = InputAttribute(
+        docstring="The maximum number of iterations to run for to try and satisfy the "
+        "groups conditions.",
+        type_hint=int,
+        default_value=100,
+        merge_behavior=InequalityMergeBehaviour.LargestValue,
+    )
 
     def __init__(self, protocol_id):
-        """Constructs a new ConditionalGroup
-        """
-        self._conditions = []
-        super().__init__(protocol_id)
+        super(ConditionalGroup, self).__init__(protocol_id)
 
-    def _initialize(self):
-        """Initialize the protocol."""
-
-        super(ConditionalGroup, self)._initialize()
-        self.required_inputs.append(ProtocolPath("conditions"))
-
-    def _set_schema(self, schema_value):
-
-        conditions = None
-
-        if ".conditions" in schema_value.inputs:
-            conditions = schema_value.inputs.pop(".conditions")
-
-            for condition in conditions:
-                self.add_condition(copy.deepcopy(condition))
-
-        super(ConditionalGroup, self)._set_schema(schema_value)
-
-        if conditions is not None:
-            schema_value.inputs[".conditions"] = conditions
+        # We disable checkpoint, as protocols may change their inputs
+        # at each iteration and hence their checkpointed outputs may
+        # be invalidated.
+        self._enable_checkpointing = False
 
     def _evaluate_condition(self, condition):
         """Evaluates whether a condition has been successfully met.
@@ -149,29 +121,25 @@ class ConditionalGroup(ProtocolGroup):
             True if the condition has been met.
         """
 
-        if not isinstance(condition.left_hand_value, ProtocolPath):
-            left_hand_value = condition.left_hand_value
-        else:
-            left_hand_value = self.get_value(condition.left_hand_value)
+        left_hand_value = condition.left_hand_value
+        right_hand_value = condition.right_hand_value
 
-        if not isinstance(condition.right_hand_value, ProtocolPath):
-            right_hand_value = condition.right_hand_value
-        else:
+        if isinstance(condition.left_hand_value, ProtocolPath):
+            left_hand_value = self.get_value(condition.left_hand_value)
+        if isinstance(condition.right_hand_value, ProtocolPath):
             right_hand_value = self.get_value(condition.right_hand_value)
 
-        if left_hand_value is None or right_hand_value is None:
+        if left_hand_value == UNDEFINED or right_hand_value == UNDEFINED:
             return False
-
-        right_hand_value_correct_units = right_hand_value
 
         if isinstance(right_hand_value, unit.Quantity) and isinstance(
             left_hand_value, unit.Quantity
         ):
-            right_hand_value_correct_units = right_hand_value.to(left_hand_value.units)
+            right_hand_value = right_hand_value.to(left_hand_value.units)
 
         logging.info(
             f"Evaluating condition for protocol {self.id}: "
-            f"{left_hand_value} {condition.type} {right_hand_value_correct_units}"
+            f"{left_hand_value} {condition.type} {right_hand_value}"
         )
 
         if condition.type == self.ConditionType.LessThan:
@@ -246,10 +214,11 @@ class ConditionalGroup(ProtocolGroup):
             True if all the protocols execute correctly.
         """
 
-        logging.info("Starting conditional while loop: {}".format(self.id))
-
         should_continue = True
         self.current_iteration = self._read_checkpoint(directory)
+
+        # Keep a track of the original protocol schemas
+        original_schemas = [x.schema for x in self._protocols]
 
         while should_continue:
 
@@ -258,6 +227,12 @@ class ConditionalGroup(ProtocolGroup):
             # constraints for e.g.
             self._write_checkpoint(directory, self.current_iteration)
             self.current_iteration += 1
+
+            # Reset the protocols from their schemas - this will ensure
+            # that at each iteration protocols which take their inputs from
+            # other protocols in the group get their inputs updated correctly.
+            for protocol, schema in zip(self._protocols, original_schemas):
+                protocol.schema = schema
 
             return_value = super(ConditionalGroup, self)._execute(
                 directory, available_resources
@@ -274,18 +249,16 @@ class ConditionalGroup(ProtocolGroup):
             if conditions_met:
 
                 logging.info(
-                    f"Conditional while loop finished after {self.current_iteration} iterations: {self.id}"
+                    f"{self.id} loop finished after {self.current_iteration} iterations"
                 )
                 return return_value
 
             if self.current_iteration >= self.max_iterations:
-
-                raise RuntimeError(
-                    f"Conditional while loop failed to converge: {self.id}"
-                )
+                raise RuntimeError(f"{self.id} failed to converge.")
 
             logging.info(
-                f"Conditional criteria not yet met after {self.current_iteration} iterations"
+                f"{self.id} criteria not yet met after {self.current_iteration} "
+                f"iterations"
             )
 
     def merge(self, other):
@@ -340,107 +313,6 @@ class ConditionalGroup(ProtocolGroup):
                 return
 
         self._conditions.append(condition_to_add)
-
-    def set_uuid(self, value):
-        """Store the uuid of the calculation this protocol belongs to
-
-        Parameters
-        ----------
-        value : str
-            The uuid of the parent calculation.
-        """
-        super(ConditionalGroup, self).set_uuid(value)
-
-        for condition in self._conditions:
-
-            if isinstance(condition.left_hand_value, ProtocolPath):
-                condition.left_hand_value.append_uuid(value)
-
-            if isinstance(condition.right_hand_value, ProtocolPath):
-                condition.right_hand_value.append_uuid(value)
-
-    def replace_protocol(self, old_id, new_id):
-        """Finds each input which came from a given protocol
-         and redirects it to instead take input from a different one.
-
-        Parameters
-        ----------
-        old_id : str
-            The id of the old input protocol.
-        new_id : str
-            The id of the new input protocol.
-        """
-        super(ConditionalGroup, self).replace_protocol(old_id, new_id)
-
-        for condition in self._conditions:
-
-            if isinstance(condition.left_hand_value, ProtocolPath):
-                condition.left_hand_value.replace_protocol(old_id, new_id)
-
-            if isinstance(condition.right_hand_value, ProtocolPath):
-                condition.right_hand_value.replace_protocol(old_id, new_id)
-
-    def get_class_attribute(self, reference_path):
-
-        if reference_path.start_protocol is None or (
-            reference_path.start_protocol == self.id
-            and reference_path.last_protocol == self.id
-        ):
-
-            if (
-                reference_path.property_name == "conditions"
-                or reference_path.property_name.find("condition_") >= 0
-            ):
-                return None
-
-        return super(ConditionalGroup, self).get_class_attribute(reference_path)
-
-    def get_value(self, reference_path):
-        """Returns the value of one of this protocols parameters / inputs.
-
-        Parameters
-        ----------
-        reference_path: ProtocolPath
-            The path pointing to the value to return.
-
-        Returns
-        ----------
-        object:
-            The value of the input
-        """
-
-        if reference_path.start_protocol is None or (
-            reference_path.start_protocol == self.id
-            and reference_path.last_protocol == self.id
-        ):
-
-            if reference_path.property_name == "conditions":
-                return self._conditions
-
-        return super(ConditionalGroup, self).get_value(reference_path)
-
-    def set_value(self, reference_path, value):
-        """Sets the value of one of this protocols parameters / inputs.
-
-        Parameters
-        ----------
-        reference_path: ProtocolPath
-            The path pointing to the value to return.
-        value: Any
-            The value to set.
-        """
-
-        if reference_path.start_protocol is None or (
-            reference_path.start_protocol == self.id
-            and reference_path.last_protocol == self.id
-        ):
-
-            if reference_path.property_name == "conditions":
-
-                self._conditions = value
-                return
-
-        super(ConditionalGroup, self).set_value(reference_path, value)
 
     def get_value_references(self, input_path):
 
