@@ -259,7 +259,7 @@ class ConditionalGroup(ProtocolGroup):
             self._write_checkpoint(directory, self.current_iteration)
             self.current_iteration += 1
 
-            return_value = super(ConditionalGroup, self).execute(
+            return_value = super(ConditionalGroup, self)._execute(
                 directory, available_resources
             )
 

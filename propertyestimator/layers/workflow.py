@@ -51,12 +51,20 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
             Returns `None` if the required metadata could not be
             found / assembled.
         """
+        target_uncertainty = None
+
+        if calculation_schema.absolute_tolerance != UNDEFINED:
+            target_uncertainty = calculation_schema.absolute_tolerance
+        elif calculation_schema.relative_tolerance != UNDEFINED:
+            target_uncertainty = (
+                physical_property.uncertainty * calculation_schema.relative_tolerance
+            )
 
         global_metadata = Workflow.generate_default_metadata(
             physical_property,
             force_field_path,
             parameter_gradient_keys,
-            calculation_schema.workflow_options,
+            target_uncertainty,
         )
 
         return global_metadata

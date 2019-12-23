@@ -1,6 +1,7 @@
 import os
 import tempfile
 
+from propertyestimator import unit
 from propertyestimator.datasets import PropertyPhase
 from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.layers import registered_calculation_schemas
@@ -39,13 +40,13 @@ def test_storage_retrieval():
 
     properties = [
         # Properties with a full system query.
-        Density(substance=methanol),
-        DielectricConstant(substance=methane),
+        Density(value=1.0 * unit.gram / unit.litre, substance=methanol),
+        DielectricConstant(value=1.0 * unit.dimensionless, substance=methane),
         # Properties with a multi-component query.
-        EnthalpyOfVaporization(substance=methanol),
+        EnthalpyOfVaporization(value=1.0 * unit.joule / unit.mole, substance=methanol),
         # Property with a multi-phase query.
-        EnthalpyOfMixing(substance=mixture),
-        ExcessMolarVolume(substance=mixture),
+        EnthalpyOfMixing(value=1.0 * unit.joule / unit.mole, substance=mixture),
+        ExcessMolarVolume(value=1.0 * unit.meter ** 3, substance=mixture),
     ]
     expected_data_per_property = {
         Density: {"full_system_data": [(methanol, PropertyPhase.Liquid, 1000)]},
