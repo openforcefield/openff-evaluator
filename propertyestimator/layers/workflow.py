@@ -6,7 +6,11 @@ import abc
 import os
 
 from propertyestimator.attributes import UNDEFINED, Attribute
-from propertyestimator.layers import CalculationLayer, CalculationLayerSchema, CalculationLayerResult
+from propertyestimator.layers import (
+    CalculationLayer,
+    CalculationLayerResult,
+    CalculationLayerSchema,
+)
 from propertyestimator.workflow import Workflow, WorkflowGraph, WorkflowSchema
 
 
@@ -210,11 +214,18 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         workflow_futures = workflow_graph.execute(layer_directory, calculation_backend)
 
         futures = calculation_backend.submit_task(
-            WorkflowCalculationLayer.workflow_to_layer_result, batch.queued_properties, workflow_futures
+            WorkflowCalculationLayer.workflow_to_layer_result,
+            batch.queued_properties,
+            workflow_futures,
         )
 
         CalculationLayer._await_results(
-            calculation_backend, storage_backend, batch, callback, [futures], synchronous,
+            calculation_backend,
+            storage_backend,
+            batch,
+            callback,
+            [futures],
+            synchronous,
         )
 
 
