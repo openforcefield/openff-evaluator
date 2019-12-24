@@ -590,7 +590,7 @@ class Workflow:
         from openforcefield.topology import Molecule, Topology
 
         # noinspection PyTypeChecker
-        if parameter_gradient_keys is None or len(parameter_gradient_keys) == 0:
+        if parameter_gradient_keys == UNDEFINED or len(parameter_gradient_keys) == 0:
             return []
 
         with open(force_field_path) as file:

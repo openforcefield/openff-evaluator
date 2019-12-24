@@ -6,7 +6,7 @@ import abc
 import os
 
 from propertyestimator.attributes import UNDEFINED, Attribute
-from propertyestimator.layers import CalculationLayer, CalculationLayerSchema
+from propertyestimator.layers import CalculationLayer, CalculationLayerSchema, CalculationLayerResult
 from propertyestimator.workflow import Workflow, WorkflowGraph, WorkflowSchema
 
 
@@ -133,11 +133,52 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
                 # required.
                 continue
 
-            workflow = Workflow(physical_property, global_metadata)
+            workflow = Workflow(global_metadata, physical_property.id)
             workflow.schema = schema.workflow_schema
             workflow_graph.add_workflow(workflow)
 
         return workflow_graph
+
+    @staticmethod
+    def workflow_to_layer_result(queued_properties, workflow_results, **_):
+        """Converts a list of `WorkflowResult` to a list of `CalculationLayerResult`
+        objects.
+
+        Parameters
+        ----------
+        queued_properties: list of PhysicalProperty
+            The properties being estimated by this layer
+        workflow_results: list of WorkflowResult
+
+        Returns
+        -------
+        list of CalculationLayerResult
+            The calculation layer result objects.
+        """
+        properties_by_id = {x.id: x for x in queued_properties}
+        results = []
+
+        for workflow_result in workflow_results:
+
+            calculation_result = CalculationLayerResult()
+            calculation_result.exceptions.extend(workflow_result.exceptions)
+
+            results.append(calculation_result)
+
+            if len(calculation_result.exceptions) > 0:
+                continue
+
+            physical_property = properties_by_id[workflow_result.workflow_id]
+            physical_property.value = workflow_result.value.value
+            physical_property.uncertainty = workflow_result.value.uncertainty
+
+            if len(workflow_result.gradients) > 0:
+                physical_property.gradients = workflow_result.gradients
+
+            calculation_result.physical_property = physical_property
+            calculation_result.data_to_store.extend(workflow_result.data_to_store)
+
+        return results
 
     @classmethod
     def schedule_calculation(
@@ -166,10 +207,14 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
             batch.options,
         )
 
-        futures = workflow_graph.execute(layer_directory, calculation_backend)
+        workflow_futures = workflow_graph.execute(layer_directory, calculation_backend)
+
+        futures = calculation_backend.submit_task(
+            WorkflowCalculationLayer.workflow_to_layer_result, batch.queued_properties, workflow_futures
+        )
 
         CalculationLayer._await_results(
-            calculation_backend, storage_backend, batch, callback, futures, synchronous,
+            calculation_backend, storage_backend, batch, callback, [futures], synchronous,
         )
 
 

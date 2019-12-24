@@ -2,6 +2,7 @@
 Defines the base API for defining new property estimator estimation layers.
 """
 import abc
+import collections
 import json
 import logging
 from os import path
@@ -143,10 +144,11 @@ class CalculationLayer(abc.ABC):
         """
 
         callback_future = calculation_backend.submit_task(
-            return_args, *submitted_futures, key=f"return_{batch.id}"
+            return_args, *submitted_futures
         )
 
         def callback_wrapper(results_future):
+
             CalculationLayer._process_results(
                 results_future, batch, storage_backend, callback
             )
@@ -220,6 +222,10 @@ class CalculationLayer(abc.ABC):
         try:
 
             results = list(results_future.result())
+
+            if len(results) > 0 and isinstance(results[0], collections.Iterable):
+                results = results[0]
+
             results_future.release()
 
             for returned_output in results:
