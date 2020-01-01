@@ -21,7 +21,7 @@ from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from propertyestimator.utils.utils import get_nested_attribute
-from propertyestimator.workflow.protocols import ProtocolGraph
+from propertyestimator.workflow.protocols import Protocol, ProtocolGraph
 from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
@@ -529,29 +529,37 @@ class Workflow:
 
         Parameters
         ----------
-        old_protocol : Protocol
+        old_protocol : Protocol or ProtocolPath
             The protocol (or its id) to replace.
-        new_protocol : Protocol
+        new_protocol : Protocol or ProtocolPath
             The new protocol (or its id) to use.
         """
 
-        if new_protocol.id in self._protocols:
+        new_id = (
+            new_protocol if not isinstance(new_protocol, Protocol) else new_protocol.id
+        )
+
+        if new_id in [x.id for x in self._protocols]:
 
             raise ValueError(
                 "A protocol with the same id already exists in this workflow."
             )
 
-        self._protocols.remove(old_protocol)
-        self._protocols.append(new_protocol)
+        if isinstance(old_protocol, Protocol):
+            self._protocols.remove(old_protocol)
+            old_protocol = old_protocol.id
+        if isinstance(new_protocol, Protocol):
+            self._protocols.append(new_protocol)
+            new_protocol = new_protocol.id
 
         for protocol in self._protocols:
-            protocol.replace_protocol(old_protocol.id, new_protocol.id)
+            protocol.replace_protocol(old_protocol, new_protocol)
 
         if self._final_value_source != UNDEFINED:
-            self._final_value_source.replace_protocol(old_protocol.id, new_protocol.id)
+            self._final_value_source.replace_protocol(old_protocol, new_protocol)
 
         for gradient_source in self._gradients_sources:
-            gradient_source.replace_protocol(old_protocol.id, new_protocol.id)
+            gradient_source.replace_protocol(old_protocol, new_protocol)
 
         for output_label in self._outputs_to_store:
 
@@ -564,7 +572,7 @@ class Workflow:
                 if not isinstance(attribute_value, ProtocolPath):
                     continue
 
-                attribute_value.replace_protocol(old_protocol.id, new_protocol.id)
+                attribute_value.replace_protocol(old_protocol, new_protocol)
 
     @staticmethod
     def _find_relevant_gradient_keys(
@@ -841,13 +849,16 @@ class WorkflowGraph:
         # Update the workflow to use the possibly merged protocols
         for original_id, new_id in merged_protocol_ids.items():
 
-            if original_id not in workflow.protocols:
-                # Skip nested protocols (i.e. those in ProtocolGroup's).
-                continue
+            original_protocol = original_id
+            new_protocol = new_id
 
-            workflow.replace_protocol(
-                workflow.protocols[original_id], self._protocol_graph.protocols[new_id]
-            )
+            if original_protocol in workflow.protocols:
+                # Only retrieve the actual protocol if it isn't nested in
+                # a group.
+                original_protocol = workflow.protocols[original_id]
+                new_protocol = self._protocol_graph.protocols[new_id]
+
+            workflow.replace_protocol(original_protocol, new_protocol)
 
     def execute(self, root_directory, backend):
         """Submits the protocol graph to the backend of choice.

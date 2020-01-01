@@ -265,30 +265,34 @@ class CalculationLayer(abc.ABC):
                             batch, returned_output, storage_backend
                         )
 
-                matches = [
-                    x
-                    for x in batch.queued_properties
-                    if x.id == returned_output.physical_property.id
-                ]
+                matches = []
 
-                if len(matches) > 1:
+                if returned_output.physical_property != UNDEFINED:
 
-                    raise ValueError(
-                        f"A property id ({returned_output.physical_property.id}) "
-                        f"conflict occurred."
-                    )
+                    matches = [
+                        x
+                        for x in batch.queued_properties
+                        if x.id == returned_output.physical_property.id
+                    ]
 
-                elif len(matches) == 0:
+                    if len(matches) > 1:
 
-                    logging.info(
-                        "A calculation layer returned results for a property not in "
-                        "the queue. This sometimes and expectedly occurs when using "
-                        "queue based calculation backends, but should be investigated."
-                    )
+                        raise ValueError(
+                            f"A property id ({returned_output.physical_property.id}) "
+                            f"conflict occurred."
+                        )
 
-                    continue
+                    elif len(matches) == 0:
 
-                if returned_output.physical_property is None:
+                        logging.info(
+                            "A calculation layer returned results for a property not in "
+                            "the queue. This sometimes and expectedly occurs when using "
+                            "queue based calculation backends, but should be investigated."
+                        )
+
+                        continue
+
+                if returned_output.physical_property == UNDEFINED:
 
                     if len(returned_output.exceptions) == 0:
 

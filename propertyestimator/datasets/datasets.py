@@ -57,7 +57,7 @@ class PhysicalProperty(AttributeClass):
     id = Attribute(
         docstring="A unique identifier string assigned to this property",
         type_hint=str,
-        default_value=lambda: str(uuid.uuid4()),
+        default_value=lambda: str(uuid.uuid4()).replace("-", ""),
     )
 
     substance = Attribute(
@@ -150,7 +150,7 @@ class PhysicalProperty(AttributeClass):
     def __setstate__(self, state):
 
         if "id" not in state:
-            state["id"] = str(uuid.uuid4())
+            state["id"] = str(uuid.uuid4()).replace("-", "")
 
         super(PhysicalProperty, self).__setstate__(state)
 
