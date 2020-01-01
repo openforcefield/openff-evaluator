@@ -117,6 +117,7 @@ class CalculationLayer(abc.ABC):
 
     @staticmethod
     def _await_results(
+        layer_name,
         calculation_backend,
         storage_backend,
         batch,
@@ -129,6 +130,8 @@ class CalculationLayer(abc.ABC):
 
         Parameters
         ----------
+        layer_name: str
+            The name of the layer processing the results.
         calculation_backend: CalculationBackend
             The backend to the submit the calculations to.
         storage_backend: StorageBackend
@@ -150,7 +153,7 @@ class CalculationLayer(abc.ABC):
         def callback_wrapper(results_future):
 
             CalculationLayer._process_results(
-                results_future, batch, storage_backend, callback
+                results_future, batch, layer_name, storage_backend, callback
             )
 
         if synchronous:
@@ -200,7 +203,7 @@ class CalculationLayer(abc.ABC):
             storage_backend.store_object(data_object, data_directory_path)
 
     @staticmethod
-    def _process_results(results_future, batch, storage_backend, callback):
+    def _process_results(results_future, batch, layer_name, storage_backend, callback):
         """Processes the results of a calculation layer, updates the server request,
         then passes it back to the callback ready for propagation to the next layer
         in the stack.
@@ -211,6 +214,8 @@ class CalculationLayer(abc.ABC):
             The future object which will hold the results.
         batch: _Batch
             The batch which spawned the awaited results.
+        layer_name: str
+            The name of the layer processing the results.
         storage_backend: StorageBackend
             The backend used to store / retrieve data from previous calculations.
         callback: function
@@ -307,6 +312,25 @@ class CalculationLayer(abc.ABC):
                 if len(returned_output.exceptions) > 0:
                     continue
 
+                # Check that the property has been estimated to within the
+                # requested tolerance.
+                uncertainty = returned_output.physical_property.uncertainty
+                options = batch.options.calculation_schemas[
+                    returned_output.physical_property.__class__.__name__
+                ][layer_name]
+
+                if (
+                    options.absolute_tolerance != UNDEFINED
+                    and options.absolute_tolerance < uncertainty
+                ):
+                    continue
+                elif (
+                    options.relative_tolerance != UNDEFINED
+                    and options.relative_tolerance * uncertainty < uncertainty
+                ):
+                    continue
+
+                # Move the property from queued to estimated.
                 for match in matches:
                     batch.queued_properties.remove(match)
 

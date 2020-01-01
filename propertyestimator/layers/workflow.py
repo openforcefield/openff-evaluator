@@ -3,9 +3,11 @@ use the built-in workflow framework to estimate the set of
 physical properties.
 """
 import abc
+import copy
 import os
 
 from propertyestimator.attributes import UNDEFINED, Attribute
+from propertyestimator.datasets import CalculationSource
 from propertyestimator.layers import (
     CalculationLayer,
     CalculationLayerResult,
@@ -103,6 +105,7 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
             The options to run the workflows with.
         """
         workflow_graph = WorkflowGraph()
+        provenance = {}
 
         for physical_property in properties:
 
@@ -141,10 +144,14 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
             workflow.schema = schema.workflow_schema
             workflow_graph.add_workflow(workflow)
 
-        return workflow_graph
+            provenance[physical_property.id] = CalculationSource(
+                fidelity=cls.__name__, provenance=workflow.schema.json()
+            )
+
+        return workflow_graph, provenance
 
     @staticmethod
-    def workflow_to_layer_result(queued_properties, workflow_results, **_):
+    def workflow_to_layer_result(queued_properties, provenance, workflow_results, **_):
         """Converts a list of `WorkflowResult` to a list of `CalculationLayerResult`
         objects.
 
@@ -152,7 +159,10 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         ----------
         queued_properties: list of PhysicalProperty
             The properties being estimated by this layer
+        provenance: dict of str and str
+            The provenance of each property.
         workflow_results: list of WorkflowResult
+            The results of each workflow.
 
         Returns
         -------
@@ -173,6 +183,8 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
                 continue
 
             physical_property = properties_by_id[workflow_result.workflow_id]
+            physical_property = copy.deepcopy(physical_property)
+            physical_property.source = provenance[physical_property.id]
             physical_property.value = workflow_result.value.value
             physical_property.uncertainty = workflow_result.value.uncertainty
 
@@ -202,7 +214,7 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         with open(force_field_path, "w") as file:
             file.write(force_field_source.json())
 
-        workflow_graph = cls._build_workflow_graph(
+        workflow_graph, provenance = cls._build_workflow_graph(
             layer_directory,
             storage_backend,
             batch.queued_properties,
@@ -216,10 +228,12 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         futures = calculation_backend.submit_task(
             WorkflowCalculationLayer.workflow_to_layer_result,
             batch.queued_properties,
+            provenance,
             workflow_futures,
         )
 
         CalculationLayer._await_results(
+            cls.__name__,
             calculation_backend,
             storage_backend,
             batch,

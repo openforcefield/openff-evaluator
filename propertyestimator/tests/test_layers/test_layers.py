@@ -62,7 +62,13 @@ class DummyCalculationLayer(CalculationLayer):
         ]
 
         CalculationLayer._await_results(
-            calculation_backend, storage_backend, batch, callback, futures, synchronous,
+            cls.__name__,
+            calculation_backend,
+            storage_backend,
+            batch,
+            callback,
+            futures,
+            synchronous,
         )
 
     @staticmethod
