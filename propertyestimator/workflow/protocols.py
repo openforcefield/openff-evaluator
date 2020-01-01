@@ -922,6 +922,11 @@ class ProtocolGraph:
             for dependant in reduced_graph[protocol_id]:
                 parent_protocol_ids[dependant].append(inserted_id)
 
+        # Rebuild the dependants graph
+        self._dependants_graph = self._build_dependants_graph(
+            self._protocols_by_id, allow_external_dependencies
+        )
+
         return merged_ids
 
     def execute(
