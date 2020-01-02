@@ -147,6 +147,9 @@ def test_base_layer():
     batch.queued_properties = properties_to_estimate
     batch.options = dummy_options
     batch.force_field_id = ""
+    batch.options.calculation_schemas = {
+        "Density": {"DummyCalculationLayer": CalculationLayerSchema()}
+    }
 
     with tempfile.TemporaryDirectory() as temporary_directory:
 

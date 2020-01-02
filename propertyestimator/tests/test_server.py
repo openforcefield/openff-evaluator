@@ -94,6 +94,9 @@ def test_launch_batch():
     batch.force_field_id = ""
     batch.options = RequestOptions()
     batch.options.calculation_layers = ["QuickCalculationLayer"]
+    batch.options.calculation_schemas = {
+        "Density": {"QuickCalculationLayer": CalculationLayerSchema()}
+    }
     batch.parameter_gradient_keys = []
     batch.queued_properties = next(iter(data_set.properties.values()))
     batch.validate()
