@@ -3,7 +3,6 @@ Defines the base API for defining new property estimator estimation layers.
 """
 import abc
 import collections
-import json
 import logging
 from os import path
 
@@ -15,9 +14,8 @@ from propertyestimator.attributes import (
     PlaceholderValue,
 )
 from propertyestimator.datasets import PhysicalProperty
-from propertyestimator.storage.data import StoredSimulationData
+from propertyestimator.storage.data import BaseStoredData, StoredSimulationData
 from propertyestimator.utils.exceptions import EvaluatorException
-from propertyestimator.utils.serialization import TypedJSONDecoder
 
 
 def return_args(*args, **_):
@@ -189,16 +187,14 @@ class CalculationLayer(abc.ABC):
                 continue
 
             # Attach any extra metadata which is missing.
-            with open(data_object_path, "r") as file:
+            data_object = BaseStoredData.from_json(data_object_path)
 
-                data_object = json.load(file, cls=TypedJSONDecoder)
+            if isinstance(data_object, StoredSimulationData):
 
-                if isinstance(data_object, StoredSimulationData):
-
-                    if isinstance(data_object.force_field_id, PlaceholderValue):
-                        data_object.force_field_id = batch.force_field_id
-                    if isinstance(data_object.source_calculation_id, PlaceholderValue):
-                        data_object.source_calculation_id = batch.id
+                if isinstance(data_object.force_field_id, PlaceholderValue):
+                    data_object.force_field_id = batch.force_field_id
+                if isinstance(data_object.source_calculation_id, PlaceholderValue):
+                    data_object.source_calculation_id = batch.id
 
             storage_backend.store_object(data_object, data_directory_path)
 

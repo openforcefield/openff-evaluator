@@ -18,6 +18,8 @@ protocol_modules = [
     "yank",
 ]
 
+importlib.import_module(f"propertyestimator.properties")
+
 for protocol_module in protocol_modules:
     importlib.import_module(f"propertyestimator.protocols.{protocol_module}")
 

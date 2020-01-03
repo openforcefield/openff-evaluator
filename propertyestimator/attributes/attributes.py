@@ -160,6 +160,12 @@ class AttributeClass(TypedBaseModel):
         # noinspection PyProtectedMember
         attribute._set_value(self, value)
 
+    @classmethod
+    def parse_json(cls, string_contents, encoding="utf8"):
+        return_object = super(AttributeClass, cls).parse_json(string_contents, encoding)
+        return_object.validate()
+        return return_object
+
     def __getstate__(self):
 
         attribute_names = self.get_attributes()
@@ -195,8 +201,6 @@ class AttributeClass(TypedBaseModel):
                 state[name] = UNDEFINED
 
             self._set_value(name, state[name])
-
-        self.validate()
 
 
 class Attribute:

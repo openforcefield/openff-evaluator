@@ -673,12 +673,6 @@ class Protocol(AttributeClass, abc.ABC):
         self.validate(InputAttribute)
         self._execute(directory, available_resources)
 
-    def validate(self, attribute_type=None):
-
-        # TODO: Don't validate after set state.
-        super(Protocol, self).validate(Attribute)
-        super(Protocol, self).validate(InputAttribute)
-
 
 class ProtocolGraph:
     """A graph of connected protocols which may be

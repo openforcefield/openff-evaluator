@@ -2,7 +2,6 @@
 A collection of protocols for loading cached data off of the disk.
 """
 
-import json
 from os import path
 from typing import Union
 
@@ -10,7 +9,6 @@ from propertyestimator.attributes import UNDEFINED
 from propertyestimator.storage.data import StoredSimulationData
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils.serialization import TypedJSONDecoder
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import workflow_protocol
 from propertyestimator.workflow.protocols import Protocol
@@ -87,8 +85,7 @@ class UnpackStoredSimulationData(Protocol):
                 f"The path to the force field is invalid: {force_field_path}"
             )
 
-        with open(data_object_path, "r") as file:
-            data_object = json.load(file, cls=TypedJSONDecoder)
+        data_object = StoredSimulationData.from_json(data_object_path)
 
         if not isinstance(data_object, StoredSimulationData):
 

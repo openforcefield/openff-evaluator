@@ -249,15 +249,6 @@ class WorkflowCalculationSchema(CalculationLayerSchema):
     of physical properties using the built-in workflow framework.
     """
 
-    # TODO: Implement.
-    allow_protocol_merging = Attribute(
-        docstring="If `True`, the workflow framework will attempt to merge "
-        "redundant protocols from multiple workflow graphs into "
-        "a single protocol execution.",
-        type_hint=bool,
-        default_value=True,
-    )
-
     workflow_schema = Attribute(
         docstring="The workflow schema to use when estimating properties.",
         type_hint=WorkflowSchema,
