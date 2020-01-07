@@ -8,8 +8,8 @@ from propertyestimator import unit
 from propertyestimator.backends import ComputeResources
 from propertyestimator.protocols.coordinates import BuildCoordinatesPackmol
 from propertyestimator.protocols.forcefield import BuildSmirnoffSystem
+from propertyestimator.protocols.openmm import OpenMMReducedPotentials
 from propertyestimator.protocols.reweighting import (
-    CalculateReducedPotentialOpenMM,
     ConcatenateStatistics,
     ConcatenateTrajectories,
     ReweightStatistics,
@@ -83,7 +83,7 @@ def test_calculate_reduced_potential_openmm():
         assign_parameters.substance = substance
         assign_parameters.execute(directory, None)
 
-        reduced_potentials = CalculateReducedPotentialOpenMM(f"reduced_potentials")
+        reduced_potentials = OpenMMReducedPotentials(f"reduced_potentials")
         reduced_potentials.substance = substance
         reduced_potentials.thermodynamic_state = thermodynamic_state
         reduced_potentials.reference_force_field_paths = [force_field_path]

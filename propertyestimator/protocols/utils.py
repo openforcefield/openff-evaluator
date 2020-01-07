@@ -13,8 +13,8 @@ from propertyestimator.protocols import (
     forcefield,
     gradients,
     groups,
+    openmm,
     reweighting,
-    simulation,
     storage,
 )
 from propertyestimator.storage.data import StoredSimulationData
@@ -172,7 +172,7 @@ def generate_base_reweighting_protocols(
         "coordinate_file_path", unpack_stored_data.id
     )
 
-    reduced_reference_potential = reweighting.CalculateReducedPotentialOpenMM(
+    reduced_reference_potential = openmm.OpenMMReducedPotentials(
         "reduced_potential{}".format(replicator_suffix)
     )
     reduced_reference_potential.system_path = ProtocolPath(
@@ -201,7 +201,7 @@ def generate_base_reweighting_protocols(
         "output_coordinate_path", join_trajectories.id
     )
 
-    reduced_target_potential = reweighting.CalculateReducedPotentialOpenMM(
+    reduced_target_potential = openmm.OpenMMReducedPotentials(
         "reduced_potential_target" + id_suffix
     )
     reduced_target_potential.thermodynamic_state = ProtocolPath(
@@ -357,7 +357,7 @@ def generate_base_simulation_protocols(
     assign_parameters.substance = ProtocolPath("output_substance", build_coordinates.id)
 
     # Equilibration
-    energy_minimisation = simulation.RunEnergyMinimisation(
+    energy_minimisation = openmm.OpenMMEnergyMinimisation(
         f"energy_minimisation{id_suffix}"
     )
     energy_minimisation.input_coordinate_file = ProtocolPath(
@@ -365,7 +365,7 @@ def generate_base_simulation_protocols(
     )
     energy_minimisation.system_path = ProtocolPath("system_path", assign_parameters.id)
 
-    equilibration_simulation = simulation.RunOpenMMSimulation(
+    equilibration_simulation = openmm.OpenMMSimulation(
         f"equilibration_simulation{id_suffix}"
     )
     equilibration_simulation.ensemble = Ensemble.NPT
@@ -383,9 +383,7 @@ def generate_base_simulation_protocols(
     )
 
     # Production
-    production_simulation = simulation.RunOpenMMSimulation(
-        f"production_simulation{id_suffix}"
-    )
+    production_simulation = openmm.OpenMMSimulation(f"production_simulation{id_suffix}")
     production_simulation.ensemble = Ensemble.NPT
     production_simulation.steps_per_iteration = 1000000
     production_simulation.output_frequency = 2000
@@ -613,7 +611,7 @@ def generate_gradient_protocol_group(
     # Define the protocol which will evaluate the reduced potentials of the
     # reference, forward and reverse states using only a subset of the full
     # force field.
-    reduced_potentials = gradients.GradientReducedPotentials(
+    reduced_potentials = openmm.OpenMMGradientPotentials(
         f"gradient_reduced_potentials{id_suffix}"
     )
     reduced_potentials.substance = substance_source

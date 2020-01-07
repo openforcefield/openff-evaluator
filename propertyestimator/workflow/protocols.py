@@ -42,14 +42,14 @@ class Protocol(AttributeClass, abc.ABC):
     An individual protocol may require a set of inputs, which may either be
     set as constants
 
-    >>> from propertyestimator.protocols.simulation import RunOpenMMSimulation
+    >>> from propertyestimator.protocols.openmm import OpenMMSimulation
     >>>
-    >>> npt_equilibration = RunOpenMMSimulation('npt_equilibration')
-    >>> npt_equilibration.ensemble = RunOpenMMSimulation.Ensemble.NPT
+    >>> npt_equilibration = OpenMMSimulation('npt_equilibration')
+    >>> npt_equilibration.ensemble = OpenMMSimulation.Ensemble.NPT
 
     or from the output of another protocol, pointed to by a ProtocolPath
 
-    >>> npt_production = RunOpenMMSimulation('npt_production')
+    >>> npt_production = OpenMMSimulation('npt_production')
     >>> # Use the coordinate file output by the npt_equilibration protocol
     >>> # as the input to the npt_production protocol
     >>> npt_production.input_coordinate_file = ProtocolPath('output_coordinate_file',

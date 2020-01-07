@@ -1,5 +1,6 @@
 """
-A collection of protocols for assigning force field parameters to molecular systems.
+A collection of protocols for assigning force field parameters to molecular
+systems.
 """
 import abc
 import copy
@@ -34,8 +35,8 @@ from propertyestimator.workflow.plugins import workflow_protocol
 from propertyestimator.workflow.protocols import Protocol
 
 
-class BuildSystemProtocol(Protocol, abc.ABC):
-    """The base for any protocol whose role is to apply a set of
+class BaseBuildSystem(Protocol, abc.ABC):
+    """The base class for any protocol whose role is to apply a set of
     force field parameters to a given system.
     """
 
@@ -275,7 +276,7 @@ class BuildSystemProtocol(Protocol, abc.ABC):
 
 
 @workflow_protocol()
-class BuildSmirnoffSystem(BuildSystemProtocol):
+class BuildSmirnoffSystem(BaseBuildSystem):
     """Parametrise a set of molecules with a given smirnoff force field
     using the `OpenFF toolkit <https://github.com/openforcefield/openforcefield>`_.
     """
@@ -401,7 +402,7 @@ class BuildSmirnoffSystem(BuildSystemProtocol):
 
 
 @workflow_protocol()
-class BuildLigParGenSystem(BuildSystemProtocol):
+class BuildLigParGenSystem(BaseBuildSystem):
     """Parametrise a set of molecules with the OPLS-AA/M force field.
     using the `LigParGen server <http://zarbi.chem.yale.edu/ligpargen/>`_.
 
@@ -742,7 +743,7 @@ class BuildLigParGenSystem(BuildSystemProtocol):
 
 
 @workflow_protocol()
-class BuildTLeapSystem(BuildSystemProtocol):
+class BuildTLeapSystem(BaseBuildSystem):
     """Parametrise a set of molecules with an Amber based force field.
     using the `tleap package <http://ambermd.org/AmberTools.php>`_.
 

@@ -11,7 +11,7 @@ from propertyestimator import unit
 from propertyestimator.backends import ComputeResources
 from propertyestimator.protocols.analysis import ExtractUncorrelatedTrajectoryData
 from propertyestimator.protocols.forcefield import BuildSmirnoffSystem
-from propertyestimator.protocols.simulation import RunOpenMMSimulation
+from propertyestimator.protocols.openmm import OpenMMSimulation
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import setup_timestamp_logging
@@ -37,7 +37,7 @@ def generate_trajectories():
 
     logger.info('System built.')
 
-    production_simulation = RunOpenMMSimulation(f'production_simulation')
+    production_simulation = OpenMMSimulation(f'production_simulation')
     production_simulation.steps_per_iteration = 500
     production_simulation.output_frequency = 1
     production_simulation.timestep = 2.0 * unit.femtosecond

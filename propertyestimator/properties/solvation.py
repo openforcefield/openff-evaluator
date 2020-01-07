@@ -12,7 +12,7 @@ from propertyestimator.protocols import (
     forcefield,
     groups,
     miscellaneous,
-    simulation,
+    openmm,
     yank,
 )
 from propertyestimator.substances import Component, Substance
@@ -76,7 +76,7 @@ class SolvationFreeEnergy(PhysicalProperty):
 
         # Perform a quick minimisation of the full system to give
         # YANK a better starting point for its minimisation.
-        energy_minimisation = simulation.RunEnergyMinimisation("energy_minimisation")
+        energy_minimisation = openmm.OpenMMEnergyMinimisation("energy_minimisation")
         energy_minimisation.system_path = ProtocolPath(
             "system_path", assign_full_parameters.id
         )
@@ -84,9 +84,7 @@ class SolvationFreeEnergy(PhysicalProperty):
             "coordinate_file_path", build_full_coordinates.id
         )
 
-        equilibration_simulation = simulation.RunOpenMMSimulation(
-            "equilibration_simulation"
-        )
+        equilibration_simulation = openmm.OpenMMSimulation("equilibration_simulation")
         equilibration_simulation.ensemble = Ensemble.NPT
         equilibration_simulation.steps_per_iteration = 100000
         equilibration_simulation.output_frequency = 10000

@@ -1,5 +1,5 @@
 """
-Units tests for propertyestimator.protocols.simulation
+Units tests for propertyestimator.protocols.yank
 """
 import os
 import tempfile

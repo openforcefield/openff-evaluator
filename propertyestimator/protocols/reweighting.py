@@ -12,11 +12,6 @@ from scipy.special import logsumexp
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils.openmm import (
-    disable_pbc,
-    pint_quantity_to_openmm,
-    setup_platform_with_resources,
-)
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import (
     ObservableType,
@@ -126,20 +121,20 @@ class ConcatenateStatistics(Protocol):
 
 
 @workflow_protocol()
-class CalculateReducedPotentialOpenMM(Protocol):
-    """Calculates the reduced potential for a given
-    set of configurations.
+class BaseReducedPotentials(Protocol, abc.ABC):
+    """A base class for protocols which will re-evaluate the reduced potential
+    of a series of configurations for a given set of force field parameters.
     """
 
     thermodynamic_state = InputAttribute(
-        docstring="The state to calculate the reduced potential at.",
+        docstring="The state to calculate the reduced potentials at.",
         type_hint=ThermodynamicState,
         default_value=UNDEFINED,
     )
 
     system_path = InputAttribute(
-        docstring="The path to the system object which describes the systems potential "
-        "energy function.",
+        docstring="The path to the system object which describes the systems "
+        "potential energy function.",
         type_hint=str,
         default_value=UNDEFINED,
     )
@@ -169,7 +164,8 @@ class CalculateReducedPotentialOpenMM(Protocol):
     )
 
     high_precision = InputAttribute(
-        docstring="If true, OpenMM will be run in double precision mode.",
+        docstring="If true, the reduced potentials will be calculated using double "
+        "precision operations.",
         type_hint=bool,
         default_value=False,
     )
@@ -190,103 +186,6 @@ class CalculateReducedPotentialOpenMM(Protocol):
         "specified system object.",
         type_hint=str,
     )
-
-    def _execute(self, directory, available_resources):
-
-        import openmmtools
-        import mdtraj
-
-        from simtk import openmm, unit as simtk_unit
-        from simtk.openmm import XmlSerializer
-
-        trajectory = mdtraj.load_dcd(
-            self.trajectory_file_path, self.coordinate_file_path
-        )
-
-        with open(self.system_path, "r") as file:
-            system = XmlSerializer.deserialize(file.read())
-
-        temperature = pint_quantity_to_openmm(self.thermodynamic_state.temperature)
-        pressure = pint_quantity_to_openmm(self.thermodynamic_state.pressure)
-
-        if self.enable_pbc:
-            system.setDefaultPeriodicBoxVectors(*trajectory.openmm_boxes(0))
-        else:
-            pressure = None
-
-        openmm_state = openmmtools.states.ThermodynamicState(
-            system=system, temperature=temperature, pressure=pressure
-        )
-
-        integrator = openmmtools.integrators.VelocityVerletIntegrator(
-            0.01 * simtk_unit.femtoseconds
-        )
-
-        # Setup the requested platform:
-        platform = setup_platform_with_resources(
-            available_resources, self.high_precision
-        )
-        openmm_system = openmm_state.get_system(True, True)
-
-        if not self.enable_pbc:
-            disable_pbc(openmm_system)
-
-        openmm_context = openmm.Context(openmm_system, integrator, platform)
-
-        potential_energies = np.zeros(trajectory.n_frames)
-        reduced_potentials = np.zeros(trajectory.n_frames)
-
-        for frame_index in range(trajectory.n_frames):
-
-            if self.enable_pbc:
-                box_vectors = trajectory.openmm_boxes(frame_index)
-                openmm_context.setPeriodicBoxVectors(*box_vectors)
-
-            positions = trajectory.xyz[frame_index]
-            openmm_context.setPositions(positions)
-
-            potential_energy = openmm_context.getState(
-                getEnergy=True
-            ).getPotentialEnergy()
-
-            potential_energies[frame_index] = potential_energy.value_in_unit(
-                simtk_unit.kilojoule_per_mole
-            )
-            reduced_potentials[frame_index] = openmm_state.reduced_potential(
-                openmm_context
-            )
-
-        kinetic_energies = StatisticsArray.from_pandas_csv(self.kinetic_energies_path)[
-            ObservableType.KineticEnergy
-        ]
-
-        statistics_array = StatisticsArray()
-        statistics_array[ObservableType.PotentialEnergy] = (
-            potential_energies * unit.kilojoule / unit.mole
-        )
-        statistics_array[ObservableType.KineticEnergy] = kinetic_energies
-        statistics_array[ObservableType.ReducedPotential] = (
-            reduced_potentials * unit.dimensionless
-        )
-
-        statistics_array[ObservableType.TotalEnergy] = (
-            statistics_array[ObservableType.PotentialEnergy]
-            + statistics_array[ObservableType.KineticEnergy]
-        )
-
-        statistics_array[ObservableType.Enthalpy] = (
-            statistics_array[ObservableType.ReducedPotential]
-            * self.thermodynamic_state.inverse_beta
-            + kinetic_energies
-        )
-
-        if self.use_internal_energy:
-            statistics_array[ObservableType.ReducedPotential] += (
-                kinetic_energies * self.thermodynamic_state.beta
-            )
-
-        self.statistics_file_path = path.join(directory, "statistics.csv")
-        statistics_array.to_pandas_csv(self.statistics_file_path)
 
 
 class BaseMBARProtocol(Protocol, abc.ABC):
