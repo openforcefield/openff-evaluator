@@ -11,6 +11,17 @@ Releases will eventually follow the ``major.minor.micro`` scheme recommended by
 All early releases however will simply recieve a ``micro`` version bump regardless of
 how major the changes may be.
 
+0.0.9 - Multi-state Reweighting Fix
+-----------------------------------
+
+This release implements a fix for calculating the gradients of properties being estimated by reweighting data cached from multiple independant simulations.
+
+Bugfixes
+""""""""
+
+* PR `#143 <https://github.com/openforcefield/propertyestimator/pull/143>`_: Fix for multi-state gradient calculations.
+
+
 0.0.8 - ThermoML Improvements
 -----------------------------
 
