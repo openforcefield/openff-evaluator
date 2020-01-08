@@ -192,9 +192,7 @@ def generate_base_reweighting_protocols(
     )
 
     # Calculate the reduced potential of the target state.
-    build_target_system = forcefield.BaseBuildSystem(
-        "build_system_target" + id_suffix
-    )
+    build_target_system = forcefield.BaseBuildSystem("build_system_target" + id_suffix)
     build_target_system.force_field_path = ProtocolPath("force_field_path", "global")
     build_target_system.substance = ProtocolPath("substance", "global")
     build_target_system.coordinate_file_path = ProtocolPath(

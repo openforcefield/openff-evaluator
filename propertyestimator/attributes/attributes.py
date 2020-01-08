@@ -92,7 +92,9 @@ class AttributeClass(TypedBaseModel):
                     if isinstance(attribute_value[x], AttributeClass)
                 )
 
-            elif isinstance(attribute_value, Iterable):
+            elif isinstance(attribute_value, Iterable) and not isinstance(
+                attribute_value, unit.Quantity
+            ):
 
                 iterable_values = (
                     x for x in attribute_value if isinstance(x, AttributeClass)

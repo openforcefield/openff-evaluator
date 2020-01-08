@@ -1,6 +1,7 @@
 """
 Units tests for propertyestimator.thermodynamics
 """
+import pint
 import pytest
 
 from propertyestimator import unit
@@ -62,5 +63,5 @@ def test_state_valid_checks(state):
 )
 def test_state_invalid_checks(state):
 
-    with pytest.raises((ValueError, AssertionError)):
+    with pytest.raises(ValueError, AssertionError, pint.errors.DimensionalityError):
         state.validate()

@@ -262,11 +262,15 @@ def test_numpy_array_serialization():
     serialized_value = json.dumps(one_dimensional_quantity_array, cls=TypedJSONEncoder)
     deserialized_value = json.loads(serialized_value, cls=TypedJSONDecoder)
 
-    assert np.allclose(one_dimensional_quantity_array.magnitude, deserialized_value.magnitude)
+    assert np.allclose(
+        one_dimensional_quantity_array.magnitude, deserialized_value.magnitude
+    )
 
     two_dimensional_quantity_array = two_dimensional_array * unit.kelvin
 
     serialized_value = json.dumps(two_dimensional_quantity_array, cls=TypedJSONEncoder)
     deserialized_value = json.loads(serialized_value, cls=TypedJSONDecoder)
 
-    assert np.allclose(two_dimensional_quantity_array.magnitude, deserialized_value.magnitude)
+    assert np.allclose(
+        two_dimensional_quantity_array.magnitude, deserialized_value.magnitude
+    )

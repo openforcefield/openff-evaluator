@@ -35,6 +35,7 @@ from propertyestimator.workflow.plugins import workflow_protocol
 from propertyestimator.workflow.protocols import Protocol
 
 
+@workflow_protocol()
 class BaseBuildSystem(Protocol, abc.ABC):
     """The base class for any protocol whose role is to apply a set of
     force field parameters to a given system.

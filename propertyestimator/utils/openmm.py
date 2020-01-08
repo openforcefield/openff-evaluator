@@ -117,7 +117,7 @@ unsupported_openmm_units = {
     simtk_unit.pound_mass,
     simtk_unit.stone,
     simtk_unit.millenium,
-    simtk_unit.gauss
+    simtk_unit.gauss,
 }
 
 

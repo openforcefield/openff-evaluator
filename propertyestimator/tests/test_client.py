@@ -8,7 +8,11 @@ import pytest
 from propertyestimator.backends import DaskLocalCluster
 from propertyestimator.client import EvaluatorClient, Request, RequestResult
 from propertyestimator.datasets import PhysicalPropertyDataSet
-from propertyestimator.forcefield import SmirnoffForceFieldSource, TLeapForceFieldSource, LigParGenForceFieldSource
+from propertyestimator.forcefield import (
+    LigParGenForceFieldSource,
+    SmirnoffForceFieldSource,
+    TLeapForceFieldSource,
+)
 from propertyestimator.properties import (
     Density,
     DielectricConstant,
@@ -52,11 +56,15 @@ def test_default_options():
 
 
 @pytest.mark.parametrize(
-    "force_field_source, expected_protocol_type", [
-        (SmirnoffForceFieldSource.from_path("smirnoff99Frosst-1.1.0.offxml"), "BuildSmirnoffSystem"),
+    "force_field_source, expected_protocol_type",
+    [
+        (
+            SmirnoffForceFieldSource.from_path("smirnoff99Frosst-1.1.0.offxml"),
+            "BuildSmirnoffSystem",
+        ),
         (TLeapForceFieldSource(), "BuildTLeapSystem"),
         (LigParGenForceFieldSource(), "BuildLigParGenSystem"),
-    ]
+    ],
 )
 def test_protocol_replacement(force_field_source, expected_protocol_type):
 
