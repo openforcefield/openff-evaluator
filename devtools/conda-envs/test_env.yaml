@@ -17,17 +17,17 @@ dependencies:
   - openeye-toolkits
 
     # Standard dependencies
-  - openforcefield ==0.4.0
+  - openforcefield >=0.4.0
   - smirnoff99frosst
   - numpy
   - pandas
   - openmm
   - pint >= 0.10.1
   - packmol
-  - pymbar
-  - mdtraj
-  - dask >=2.6.0
-  - distributed >=2.6.0
+  - pymbar >=3.0.5
+  - mdtraj >=1.9.3
+  - dask >=2.7.0
+  - distributed >=2.7.0
   - dask-jobqueue >=0.7.0
   - tornado
   - coverage >=4.4
