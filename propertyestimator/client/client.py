@@ -13,13 +13,16 @@ from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
 from propertyestimator.datasets import PhysicalPropertyDataSet
 from propertyestimator.forcefield import (
     ForceFieldSource,
+    LigParGenForceFieldSource,
     ParameterGradientKey,
     SmirnoffForceFieldSource,
+    TLeapForceFieldSource,
 )
 from propertyestimator.layers import (
     registered_calculation_layers,
     registered_calculation_schemas,
 )
+from propertyestimator.layers.workflow import WorkflowCalculationSchema
 from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder
 from propertyestimator.utils.tcp import (
@@ -432,7 +435,7 @@ class EvaluatorClient:
         self._connection_options = connection_options
 
     @staticmethod
-    def default_request_options(data_set):
+    def default_request_options(data_set, force_field_source):
         """Returns the default `RequestOptions` options used
         to estimate a set of properties if `None` are provided.
 
@@ -440,6 +443,9 @@ class EvaluatorClient:
         ----------
         data_set: PhysicalPropertyDataSet
             The data set which would be estimated.
+        force_field_source: ForceFieldSource
+            The force field parameters which will be used by the
+            request.
 
         Returns
         -------
@@ -447,12 +453,43 @@ class EvaluatorClient:
             The default options.
         """
         options = RequestOptions()
-        EvaluatorClient._populate_request_options(options, data_set)
+        EvaluatorClient._populate_request_options(options, data_set, force_field_source)
 
         return options
 
     @staticmethod
-    def _populate_request_options(options, data_set):
+    def _default_protocol_replacements(force_field_source):
+        """Returns the default set of protocols in a workflow to replace
+        with different types. This is mainly to handle replacing the base
+        force field assignment protocol with one specific to the force field
+        source.
+
+        Parameters
+        ----------
+        force_field_source: ForceFieldSource
+            The force field parameters which will be used by the
+            request.
+
+        Returns
+        -------
+        dict of str and str
+            A map between the type of protocol to replace, and the type of
+            protocol to use in its place.
+        """
+
+        replacements = {}
+
+        if isinstance(force_field_source, SmirnoffForceFieldSource):
+            replacements["BaseBuildSystem"] = "BuildSmirnoffSystem"
+        elif isinstance(force_field_source, LigParGenForceFieldSource):
+            replacements["BaseBuildSystem"] = "BuildLigParGenSystem"
+        elif isinstance(force_field_source, TLeapForceFieldSource):
+            replacements["BaseBuildSystem"] = "BuildTLeapSystem"
+
+        return replacements
+
+    @staticmethod
+    def _populate_request_options(options, data_set, force_field_source):
         """Populates any missing attributes of a `RequestOptions`
         object with default values registered via the plug-in
         system.
@@ -463,6 +500,9 @@ class EvaluatorClient:
             The object to populate with defaults.
         data_set: PhysicalPropertyDataSet
             The data set to be estimated using the options.
+        force_field_source: ForceFieldSource
+            The force field parameters which will be used by the
+            request.
         """
 
         property_types = set()
@@ -536,6 +576,23 @@ class EvaluatorClient:
                 f"the {type_string} properties."
             )
 
+        # Perform any protocol type replacements
+        replacement_types = EvaluatorClient._default_protocol_replacements(
+            force_field_source
+        )
+
+        for calculation_layer in options.calculation_layers:
+            for property_type in property_types:
+
+                # Check if the user has already provided a schema.
+                schema = options.calculation_schemas[property_type][calculation_layer]
+
+                if not isinstance(schema, WorkflowCalculationSchema):
+                    continue
+
+                workflow_schema = schema.workflow_schema
+                workflow_schema.replace_protocol_types(replacement_types)
+
     def request_estimate(
         self,
         property_set,
@@ -590,10 +647,10 @@ class EvaluatorClient:
 
         # Fill in any missing options with default values
         if options is None:
-            options = self.default_request_options(property_set)
+            options = self.default_request_options(property_set, force_field_source)
         else:
             options = copy.deepcopy(options)
-            self._populate_request_options(options, property_set)
+            self._populate_request_options(options, property_set, force_field_source)
 
         # Make sure the options are valid.
         options.validate()

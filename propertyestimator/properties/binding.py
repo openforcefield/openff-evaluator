@@ -95,7 +95,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         schema.protocols[solvate_complex.id] = solvate_complex.schema
 
         # Assign force field parameters to the solvated complex system.
-        build_solvated_complex_system = forcefield.BuildSmirnoffSystem(
+        build_solvated_complex_system = forcefield.BaseBuildSystem(
             "build_solvated_complex_system"
         )
 
@@ -128,7 +128,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         schema.protocols[solvate_ligand.id] = solvate_ligand.schema
 
         # Assign force field parameters to the solvated ligand system.
-        build_solvated_ligand_system = forcefield.BuildSmirnoffSystem(
+        build_solvated_ligand_system = forcefield.BaseBuildSystem(
             "build_solvated_ligand_system"
         )
 

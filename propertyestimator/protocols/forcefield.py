@@ -274,6 +274,9 @@ class BaseBuildSystem(Protocol, abc.ABC):
         if number_of_appended_forces != system_to_append.getNumForces():
             raise ValueError("Not all forces were appended.")
 
+    def _execute(self, directory, available_resources):
+        raise NotImplementedError()
+
 
 @workflow_protocol()
 class BuildSmirnoffSystem(BaseBuildSystem):

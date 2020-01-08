@@ -63,7 +63,7 @@ class SolvationFreeEnergy(PhysicalProperty):
         build_full_coordinates.substance = ProtocolPath("substance", "global")
         build_full_coordinates.max_molecules = n_molecules
 
-        assign_full_parameters = forcefield.BuildSmirnoffSystem(
+        assign_full_parameters = forcefield.BaseBuildSystem(
             f"assign_solvated_parameters"
         )
         assign_full_parameters.force_field_path = ProtocolPath(
@@ -118,7 +118,7 @@ class SolvationFreeEnergy(PhysicalProperty):
         )
         build_vacuum_coordinates.max_molecules = 1
 
-        assign_vacuum_parameters = forcefield.BuildSmirnoffSystem(f"assign_parameters")
+        assign_vacuum_parameters = forcefield.BaseBuildSystem(f"assign_parameters")
         assign_vacuum_parameters.force_field_path = ProtocolPath(
             "force_field_path", "global"
         )

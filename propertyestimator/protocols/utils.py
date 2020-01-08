@@ -161,7 +161,7 @@ def generate_base_reweighting_protocols(
     )
 
     # Calculate the reduced potentials for each of the reference states.
-    build_reference_system = forcefield.BuildSmirnoffSystem(
+    build_reference_system = forcefield.BaseBuildSystem(
         "build_system{}".format(replicator_suffix)
     )
     build_reference_system.force_field_path = ProtocolPath(
@@ -192,7 +192,7 @@ def generate_base_reweighting_protocols(
     )
 
     # Calculate the reduced potential of the target state.
-    build_target_system = forcefield.BuildSmirnoffSystem(
+    build_target_system = forcefield.BaseBuildSystem(
         "build_system_target" + id_suffix
     )
     build_target_system.force_field_path = ProtocolPath("force_field_path", "global")
@@ -349,7 +349,7 @@ def generate_base_simulation_protocols(
     build_coordinates.substance = ProtocolPath("substance", "global")
     build_coordinates.max_molecules = n_molecules
 
-    assign_parameters = forcefield.BuildSmirnoffSystem(f"assign_parameters{id_suffix}")
+    assign_parameters = forcefield.BaseBuildSystem(f"assign_parameters{id_suffix}")
     assign_parameters.force_field_path = ProtocolPath("force_field_path", "global")
     assign_parameters.coordinate_file_path = ProtocolPath(
         "coordinate_file_path", build_coordinates.id

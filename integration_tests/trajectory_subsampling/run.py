@@ -10,7 +10,7 @@ import numpy as np
 from propertyestimator import unit
 from propertyestimator.backends import ComputeResources
 from propertyestimator.protocols.analysis import ExtractUncorrelatedTrajectoryData
-from propertyestimator.protocols.forcefield import BuildSmirnoffSystem
+from propertyestimator.protocols.forcefield import BaseBuildSystem
 from propertyestimator.protocols.openmm import OpenMMSimulation
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
@@ -29,7 +29,7 @@ def generate_trajectories():
 
     logger.info('Building system.')
 
-    build_system = BuildSmirnoffSystem('build_system')
+    build_system = BaseBuildSystem('build_system')
     build_system.coordinate_file_path = 'coords.pdb'
     build_system.substance = substance
     build_system.force_field_path = 'smirnoff99Frosst-1.1.0.offxml'
