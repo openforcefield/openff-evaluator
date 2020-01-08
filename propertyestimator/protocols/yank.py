@@ -717,12 +717,12 @@ class SolvationYankProtocol(BaseYankProtocol):
     )
 
     solvent_1 = InputAttribute(
-        docstring="The substance describing the composition of " "the first solvent.",
+        docstring="The substance describing the composition of the first solvent.",
         type_hint=Substance,
         default_value=UNDEFINED,
     )
     solvent_2 = InputAttribute(
-        docstring="The substance describing the composition of " "the second solvent.",
+        docstring="The substance describing the composition of the second solvent.",
         type_hint=Substance,
         default_value=UNDEFINED,
     )

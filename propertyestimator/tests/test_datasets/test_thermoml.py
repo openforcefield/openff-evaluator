@@ -4,7 +4,6 @@ Units tests for propertyestimator.datasets
 import pint
 import pytest
 
-from propertyestimator import unit
 from propertyestimator.datasets import PhysicalProperty, PropertyPhase
 from propertyestimator.datasets.thermoml.plugins import thermoml_property
 from propertyestimator.datasets.thermoml.thermoml import (

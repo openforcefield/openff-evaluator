@@ -75,10 +75,10 @@ def test_protocol_replacement(force_field_source, expected_protocol_type):
         data_set.add_properties(physical_property)
 
     options = EvaluatorClient.default_request_options(data_set, force_field_source)
-    options_json = options.json()
+    options_json = options.json(format=True)
 
-    assert options_json.find("BaseBuildSystem") < 0
-    assert options_json.find("expected_protocol_type") >= 0
+    assert options_json.find('BaseBuildSystem"') < 0
+    assert options_json.find(expected_protocol_type) >= 0
 
 
 def test_submission():

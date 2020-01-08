@@ -111,11 +111,11 @@ class BaseGradientPotentials(Protocol, abc.ABC):
         type_hint=str,
     )
     reverse_parameter_value = OutputAttribute(
-        docstring="The value of the parameter perturbed in the reverse " "direction.",
+        docstring="The value of the parameter perturbed in the reverse direction.",
         type_hint=pint.Quantity,
     )
     forward_parameter_value = OutputAttribute(
-        docstring="The value of the parameter perturbed in the forward " "direction.",
+        docstring="The value of the parameter perturbed in the forward direction.",
         type_hint=pint.Quantity,
     )
 
@@ -153,12 +153,12 @@ class CentralDifferenceGradient(Protocol):
     )
 
     reverse_parameter_value = InputAttribute(
-        docstring="The value of the parameter perturbed in the reverse " "direction.",
+        docstring="The value of the parameter perturbed in the reverse direction.",
         type_hint=pint.Quantity,
         default_value=UNDEFINED,
     )
     forward_parameter_value = InputAttribute(
-        docstring="The value of the parameter perturbed in the forward " "direction.",
+        docstring="The value of the parameter perturbed in the forward direction.",
         type_hint=pint.Quantity,
         default_value=UNDEFINED,
     )

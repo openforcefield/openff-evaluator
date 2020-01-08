@@ -299,7 +299,7 @@ def set_nested_attribute(containing_object, name, value):
         if not hasattr(current_attribute, attribute_name):
 
             raise ValueError(
-                "This object does not have a {} " "attribute.".format(attribute_name)
+                "This object does not have a {} attribute.".format(attribute_name)
             )
 
         current_attribute = getattr(current_attribute, attribute_name)
@@ -310,7 +310,7 @@ def set_nested_attribute(containing_object, name, value):
                 array_index = int(array_index)
             except ValueError:
                 raise ValueError(
-                    "List indices must be integer: " "{}".format(attribute_name)
+                    "List indices must be integer: {}".format(attribute_name)
                 )
 
         current_attribute[array_index] = value
@@ -320,7 +320,7 @@ def set_nested_attribute(containing_object, name, value):
         if not hasattr(current_attribute, attribute_name):
 
             raise ValueError(
-                "This object does not have a {} " "attribute.".format(attribute_name)
+                "This object does not have a {} attribute.".format(attribute_name)
             )
 
         setattr(current_attribute, attribute_name, value)

@@ -169,14 +169,12 @@ def deserialize_enum(enum_dictionary):
     if "@type" not in enum_dictionary:
 
         raise ValueError(
-            "The serialized enum dictionary must include" "which type the enum is."
+            "The serialized enum dictionary must includewhich type the enum is."
         )
 
     if "value" not in enum_dictionary:
 
-        raise ValueError(
-            "The serialized enum dictionary must include" "the enum value."
-        )
+        raise ValueError("The serialized enum dictionary must includethe enum value.")
 
     enum_type_string = enum_dictionary["@type"]
     enum_value = enum_dictionary["value"]
@@ -202,7 +200,7 @@ def deserialize_set(set_dictionary):
     if "value" not in set_dictionary:
 
         raise ValueError(
-            "The serialized set dictionary must include" "the value of the set."
+            "The serialized set dictionary must includethe value of the set."
         )
 
     set_value = set_dictionary["value"]
@@ -227,7 +225,7 @@ def deserialize_frozen_set(set_dictionary):
     if "value" not in set_dictionary:
 
         raise ValueError(
-            "The serialized frozenset dictionary must include" "the value of the set."
+            "The serialized frozenset dictionary must includethe value of the set."
         )
 
     set_value = set_dictionary["value"]

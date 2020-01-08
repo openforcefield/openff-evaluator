@@ -606,7 +606,7 @@ class _PureOrMixtureData:
             if property_definition.index in properties:
 
                 raise ValueError(
-                    "A ThermoML data set contains two " "properties with the same index"
+                    "A ThermoML data set contains two properties with the same index"
                 )
 
             properties[property_definition.index] = property_definition
@@ -2238,7 +2238,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
             if compound.index in compounds:
                 raise RuntimeError(
-                    "A ThermoML data set contains two " "compounds with the same index"
+                    "A ThermoML data set contains two compounds with the same index"
                 )
 
             compounds[compound.index] = compound

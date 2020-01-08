@@ -109,10 +109,7 @@ def pack_box(
 
     if box_size is not None and len(box_size) != 3:
 
-        raise ValueError(
-            "`box_size` must be a pint.Quantity "
-            "wrapped list of length 3"
-        )
+        raise ValueError("`box_size` must be a pint.Quantity wrapped list of length 3")
 
     if mass_density is not None and box_aspect_ratio is None:
         box_aspect_ratio = [1.0, 1.0, 1.0]

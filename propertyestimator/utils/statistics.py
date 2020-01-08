@@ -124,9 +124,7 @@ class StatisticsArray:
             )
 
         if not isinstance(value, pint.Quantity):
-            raise ValueError(
-                "The data must be a unit bearing `pint.Quantity`"
-            )
+            raise ValueError("The data must be a unit bearing `pint.Quantity`")
 
         if (
             unit.get_base_units(value.units)[-1]
@@ -395,7 +393,7 @@ class StatisticsArray:
                 if observable_type not in existing_instance:
 
                     raise ValueError(
-                        "The arrays must contain the same" "types of observable."
+                        "The arrays must contain the sametypes of observable."
                     )
 
                 new_length += len(existing_instance)

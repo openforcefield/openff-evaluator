@@ -493,10 +493,7 @@ class WorkflowSchema(AttributeClass):
             if protocol_schema.type not in protocol_replacements:
                 continue
 
-            protocol = registered_workflow_protocols[protocol_schema.type](
-                protocol_schema.id
-            )
-            protocol.schema = protocol_schema
+            protocol = protocol_schema.to_protocol()
 
             new_protocol = registered_workflow_protocols[
                 protocol_replacements[protocol_schema.type]
@@ -511,6 +508,9 @@ class WorkflowSchema(AttributeClass):
                 new_protocol.set_value(input_path, value)
 
             protocol_schemas[protocol_schema_key] = new_protocol.schema
+
+            self.protocol_schemas.remove(protocol_schema)
+            self.protocol_schemas.append(new_protocol.schema)
 
             if isinstance(protocol_schemas[protocol_schema_key], ProtocolGroupSchema):
                 self.replace_protocol_types(
