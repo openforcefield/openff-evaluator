@@ -722,7 +722,7 @@ class RunOpenMMSimulation(BaseProtocol):
         )
 
         reduced_potentials = (
-            statistics[ObservableType.PotentialEnergy] / unit.avogadro_number
+            statistics[ObservableType.PotentialEnergy] / unit.avogadro_constant
         )
 
         if pressure is not None:

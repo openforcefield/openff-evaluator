@@ -270,7 +270,7 @@ class StatisticsArray:
 
             values[ObservableType.Enthalpy] = (
                 values[ObservableType.TotalEnergy]
-                + values[ObservableType.Volume] * pressure * unit.avogadro_number
+                + values[ObservableType.Volume] * pressure * unit.avogadro_constant
             )
 
         return_object = cls()
