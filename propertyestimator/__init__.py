@@ -3,18 +3,9 @@ propertyestimator
 Property calculation toolkit from the Open Forcefield Consortium.
 """
 
-<<<<<<< HEAD
-import pint
-import pkg_resources
-=======
-# Make Python 2 and 3 imports work the same
-# Safe to remove with Python 3-only code
-from __future__ import absolute_import
-
 import pint
 import pkg_resources
 import warnings
->>>>>>> origin/master
 
 from ._version import get_versions
 
