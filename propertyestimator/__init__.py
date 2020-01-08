@@ -5,11 +5,16 @@ Property calculation toolkit from the Open Forcefield Consortium.
 
 import pint
 import pkg_resources
+import warnings
 
 from ._version import get_versions
 
 unit = pint.UnitRegistry()
 pint.set_application_registry(unit)
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    pint.Quantity([])
 
 # Load in any found plugins.
 for entry_point in pkg_resources.iter_entry_points("propertyestimator.plugins"):
