@@ -116,6 +116,7 @@ unsupported_openmm_units = {
     simtk_unit.pound_mass,
     simtk_unit.stone,
     simtk_unit.millenium,
+    simtk_unit.gauss
 }
 
 
@@ -263,6 +264,9 @@ def pint_unit_to_openmm(pint_unit):
     assert isinstance(pint_unit, unit.Unit)
 
     pint_unit_string = str(pint_unit)
+
+    # Handle a unit name change in pint 0.10.*
+    pint_unit_string = pint_unit_string.replace("standard_atmosphere", "atmosphere")
 
     try:
         # noinspection PyTypeChecker

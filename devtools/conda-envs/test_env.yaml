@@ -22,7 +22,7 @@ dependencies:
   - numpy
   - pandas
   - openmm
-  - pint ==0.9.0
+  - pint >= 0.10.1
   - packmol
   - pymbar >=3.0.5
   - mdtraj >=1.9.3
