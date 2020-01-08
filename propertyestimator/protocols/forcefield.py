@@ -90,9 +90,9 @@ class BaseBuildSystem(Protocol, abc.ABC):
         topology_molecule: openforcefield.topology.TopologyMolecule
             The topology molecule which represents the water molecule
             in the full system.
-        cutoff: simtk.unit.Quantity
+        cutoff: simtk.pint.Quantity
             The non-bonded cutoff.
-        cell_vectors: simtk.unit.Quantity
+        cell_vectors: simtk.pint.Quantity
             The full system's cell vectors.
 
         Returns

@@ -4,6 +4,7 @@ A collection of dielectric physical property definitions.
 import copy
 
 import numpy as np
+import pint
 from simtk import openmm
 from simtk.openmm import XmlSerializer
 
@@ -49,17 +50,17 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
     dipole_moments = OutputAttribute(
         docstring="The raw (possibly correlated) dipole moments which were used in "
         "the dielectric calculation.",
-        type_hint=unit.Quantity,
+        type_hint=pint.Quantity,
     )
     volumes = OutputAttribute(
         docstring="The raw (possibly correlated) which were used in the dielectric calculation.",
-        type_hint=unit.Quantity,
+        type_hint=pint.Quantity,
     )
 
     uncorrelated_volumes = OutputAttribute(
         docstring="The uncorrelated volumes which were used in the dielectric "
         "calculation.",
-        type_hint=unit.Quantity,
+        type_hint=pint.Quantity,
     )
 
     def _bootstrap_function(self, **sample_kwargs):
@@ -289,12 +290,12 @@ class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
             raise ValueError("There were no volumes to reweight.")
 
         if not isinstance(
-            self.reference_dipole_moments[0], unit.Quantity
-        ) or not isinstance(self.reference_volumes[0], unit.Quantity):
+            self.reference_dipole_moments[0], pint.Quantity
+        ) or not isinstance(self.reference_volumes[0], pint.Quantity):
 
             raise ValueError(
                 "The reference observables should be a list of "
-                "unit.Quantity wrapped ndarray's.",
+                "pint.Quantity wrapped ndarray's.",
             )
 
         if len(self.reference_dipole_moments) != len(self.reference_volumes):
@@ -356,7 +357,7 @@ class DielectricConstant(PhysicalProperty):
 
         Parameters
         ----------
-        absolute_tolerance: unit.Quantity, optional
+        absolute_tolerance: pint.Quantity, optional
             The absolute tolerance to estimate the property to within.
         relative_tolerance: float
             The tolerance (as a fraction of the properties reported
@@ -481,7 +482,7 @@ class DielectricConstant(PhysicalProperty):
 
         Parameters
         ----------
-        absolute_tolerance: unit.Quantity, optional
+        absolute_tolerance: pint.Quantity, optional
             The absolute tolerance to estimate the property to within.
         relative_tolerance: float
             The tolerance (as a fraction of the properties reported

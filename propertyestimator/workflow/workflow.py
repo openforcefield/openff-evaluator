@@ -665,7 +665,7 @@ class Workflow:
         parameter_gradient_keys: list of ParameterGradientKey
                 A list of references to all of the parameters which all observables
                 should be differentiated with respect to.
-        target_uncertainty: unit.Quantity, optional
+        target_uncertainty: pint.Quantity, optional
             The uncertainty which the property should be estimated to
             within.
 
@@ -681,9 +681,9 @@ class Workflow:
             - substance: `Substance` - The composition of the system of interest.
             - components: list of `Substance` - The components present in the system for
                                               which the property is being estimated.
-            - target_uncertainty: propertyestimator.unit.Quantity - The target uncertainty with which
+            - target_uncertainty: pint.Quantity - The target uncertainty with which
                                                         properties should be estimated.
-            - per_component_uncertainty: propertyestimator.unit.Quantity - The target uncertainty divided
+            - per_component_uncertainty: pint.Quantity - The target uncertainty divided
                                                                by the sqrt of the number of
                                                                components in the system + 1
             - force_field_path: str - A path to the force field parameters with which the

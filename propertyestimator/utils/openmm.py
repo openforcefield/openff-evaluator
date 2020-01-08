@@ -3,6 +3,7 @@ A set of utilities for helping to perform simulations using openmm.
 """
 import logging
 
+import pint
 from pint import UndefinedUnitError
 from simtk import openmm
 from simtk import unit as simtk_unit
@@ -122,11 +123,11 @@ unsupported_openmm_units = {
 
 
 def openmm_quantity_to_pint(openmm_quantity):
-    """Converts a `simtk.unit.Quantity` to a `pint.Quantity`.
+    """Converts a `simtk.pint.Quantity` to a `pint.Quantity`.
 
     Parameters
     ----------
-    openmm_quantity: simtk.unit.Quantity
+    openmm_quantity: simtk.pint.Quantity
         The quantity to convert.
 
     Returns
@@ -209,7 +210,7 @@ def openmm_unit_to_pint(openmm_unit):
 
 
 def pint_quantity_to_openmm(pint_quantity):
-    """Converts a `pint.Quantity` to a `simtk.unit.Quantity`.
+    """Converts a `pint.Quantity` to a `simtk.pint.Quantity`.
 
     Notes
     -----
@@ -222,14 +223,14 @@ def pint_quantity_to_openmm(pint_quantity):
 
     Returns
     -------
-    simtk.unit.Quantity
+    simtk.pint.Quantity
         The converted quantity.
     """
 
     if pint_quantity is None or isinstance(pint_quantity, UndefinedAttribute):
         return None
 
-    assert isinstance(pint_quantity, unit.Quantity)
+    assert isinstance(pint_quantity, pint.Quantity)
 
     pint_unit = pint_quantity.units
     pint_raw_value = pint_quantity.magnitude
@@ -262,7 +263,7 @@ def pint_unit_to_openmm(pint_unit):
     if pint_unit is None or isinstance(pint_unit, UndefinedAttribute):
         return None
 
-    assert isinstance(pint_unit, unit.Unit)
+    assert isinstance(pint_unit, pint.Unit)
 
     pint_unit_string = str(pint_unit)
 

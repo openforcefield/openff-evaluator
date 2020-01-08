@@ -7,7 +7,8 @@ import inspect
 from collections.abc import Iterable, Mapping
 from enum import Enum, IntEnum, IntFlag
 
-from propertyestimator import unit
+import pint
+
 from propertyestimator.attributes.typing import is_instance_of_type, is_supported_type
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedBaseModel
@@ -93,7 +94,7 @@ class AttributeClass(TypedBaseModel):
                 )
 
             elif isinstance(attribute_value, Iterable) and not isinstance(
-                attribute_value, unit.Quantity
+                attribute_value, pint.Quantity
             ):
 
                 iterable_values = (
@@ -274,7 +275,7 @@ class Attribute:
         self._default_value = default_value
 
         if isinstance(
-            default_value, (int, float, str, unit.Quantity, EstimatedQuantity, Enum)
+            default_value, (int, float, str, pint.Quantity, EstimatedQuantity, Enum)
         ) or (
             isinstance(default_value, (list, tuple, set, frozenset))
             and len(default_value) <= 4

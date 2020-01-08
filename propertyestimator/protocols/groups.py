@@ -13,7 +13,8 @@ import typing
 from enum import Enum, unique
 from os import path
 
-from propertyestimator import unit
+import pint
+
 from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
 from propertyestimator.workflow.attributes import (
     InequalityMergeBehaviour,
@@ -46,11 +47,11 @@ class ConditionalGroup(ProtocolGroup):
 
         left_hand_value = Attribute(
             docstring="The left-hand value to compare.",
-            type_hint=typing.Union[int, float, unit.Quantity],
+            type_hint=typing.Union[int, float, pint.Quantity],
         )
         right_hand_value = Attribute(
             docstring="The right-hand value to compare.",
-            type_hint=typing.Union[int, float, unit.Quantity],
+            type_hint=typing.Union[int, float, pint.Quantity],
         )
 
         type = Attribute(
@@ -132,8 +133,8 @@ class ConditionalGroup(ProtocolGroup):
         if left_hand_value == UNDEFINED or right_hand_value == UNDEFINED:
             return False
 
-        if isinstance(right_hand_value, unit.Quantity) and isinstance(
-            left_hand_value, unit.Quantity
+        if isinstance(right_hand_value, pint.Quantity) and isinstance(
+            left_hand_value, pint.Quantity
         ):
             right_hand_value = right_hand_value.to(left_hand_value.units)
 

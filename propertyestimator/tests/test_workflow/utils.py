@@ -1,6 +1,7 @@
 from typing import Union
 
-from propertyestimator import unit
+import pint
+
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.layers import registered_calculation_schemas
 from propertyestimator.utils.quantities import EstimatedQuantity
@@ -66,7 +67,7 @@ class DummyInputOutputProtocol(Protocol):
             str,
             int,
             float,
-            unit.Quantity,
+            pint.Quantity,
             EstimatedQuantity,
             list,
             tuple,
@@ -82,7 +83,7 @@ class DummyInputOutputProtocol(Protocol):
             str,
             int,
             float,
-            unit.Quantity,
+            pint.Quantity,
             EstimatedQuantity,
             list,
             tuple,

@@ -286,7 +286,7 @@ class Substance(AttributeClass):
 
         Parameters
         ----------
-        ionic_strength: unit.Quantity
+        ionic_strength: pint.Quantity
             The ionic string in units of molar.
 
         Returns

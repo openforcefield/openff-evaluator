@@ -9,6 +9,7 @@ import shutil
 import threading
 from enum import Enum
 
+import pint
 import yaml
 
 from propertyestimator import unit
@@ -72,7 +73,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
 
     timestep = InputAttribute(
         docstring="The length of the timestep to take.",
-        type_hint=unit.Quantity,
+        type_hint=pint.Quantity,
         merge_behavior=InequalityMergeBehaviour.SmallestValue,
         default_value=2 * unit.femtosecond,
     )
@@ -365,9 +366,9 @@ class BaseYankProtocol(Protocol, abc.ABC):
 
         Returns
         -------
-        simtk.unit.Quantity
+        simtk.pint.Quantity
             The free energy returned by yank.
-        simtk.unit.Quantity
+        simtk.pint.Quantity
             The uncertainty in the free energy returned by yank.
         """
 
@@ -425,9 +426,9 @@ class BaseYankProtocol(Protocol, abc.ABC):
 
         Returns
         -------
-        simtk.unit.Quantity
+        simtk.pint.Quantity
             The free energy returned by yank.
-        simtk.unit.Quantity
+        simtk.pint.Quantity
             The uncertainty in the free energy returned by yank.
         str, optional
             The stringified errors which occurred on the other process,

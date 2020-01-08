@@ -6,7 +6,8 @@ import collections
 import logging
 from os import path
 
-from propertyestimator import unit
+import pint
+
 from propertyestimator.attributes import (
     UNDEFINED,
     Attribute,
@@ -64,7 +65,7 @@ class CalculationLayerSchema(AttributeClass):
         docstring="The absolute uncertainty that the property should "
         "be estimated to within. This attribute is mutually exclusive "
         "with the `relative_tolerance` attribute.",
-        type_hint=unit.Quantity,
+        type_hint=pint.Quantity,
         default_value=UNDEFINED,
         optional=True,
     )

@@ -5,8 +5,8 @@ math operations.
 import typing
 
 import numpy as np
+import pint
 
-from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.forcefield import ParameterGradient
 from propertyestimator.substances import Component, MoleFraction, Substance
@@ -22,8 +22,8 @@ class AddValues(Protocol):
 
     Notes
     -----
-    The `values` input must either be a list of unit.Quantity, a ProtocolPath to a list
-    of unit.Quantity, or a list of ProtocolPath which each point to a unit.Quantity.
+    The `values` input must either be a list of pint.Quantity, a ProtocolPath to a list
+    of pint.Quantity, or a list of ProtocolPath which each point to a pint.Quantity.
     """
 
     values = InputAttribute(
@@ -33,7 +33,7 @@ class AddValues(Protocol):
     result = OutputAttribute(
         docstring="The sum of the values.",
         type_hint=typing.Union[
-            int, float, EstimatedQuantity, unit.Quantity, ParameterGradient
+            int, float, EstimatedQuantity, pint.Quantity, ParameterGradient
         ],
     )
 
@@ -66,14 +66,14 @@ class SubtractValues(Protocol):
     value_a = InputAttribute(
         docstring="`value_a` in the formula `result` = `value_b` - `value_a`.",
         type_hint=typing.Union[
-            int, float, unit.Quantity, EstimatedQuantity, ParameterGradient
+            int, float, pint.Quantity, EstimatedQuantity, ParameterGradient
         ],
         default_value=UNDEFINED,
     )
     value_b = InputAttribute(
         docstring="`value_b` in the formula `result` = `value_b` - `value_a`.",
         type_hint=typing.Union[
-            int, float, unit.Quantity, EstimatedQuantity, ParameterGradient
+            int, float, pint.Quantity, EstimatedQuantity, ParameterGradient
         ],
         default_value=UNDEFINED,
     )
@@ -81,7 +81,7 @@ class SubtractValues(Protocol):
     result = OutputAttribute(
         docstring="The results of `value_b` - `value_a`.",
         type_hint=typing.Union[
-            int, float, EstimatedQuantity, unit.Quantity, ParameterGradient
+            int, float, EstimatedQuantity, pint.Quantity, ParameterGradient
         ],
     )
 
@@ -97,20 +97,20 @@ class MultiplyValue(Protocol):
     value = InputAttribute(
         docstring="The value to multiply.",
         type_hint=typing.Union[
-            int, float, unit.Quantity, EstimatedQuantity, ParameterGradient
+            int, float, pint.Quantity, EstimatedQuantity, ParameterGradient
         ],
         default_value=UNDEFINED,
     )
     multiplier = InputAttribute(
         docstring="The scalar to multiply by.",
-        type_hint=typing.Union[int, float, unit.Quantity],
+        type_hint=typing.Union[int, float, pint.Quantity],
         default_value=UNDEFINED,
     )
 
     result = OutputAttribute(
         docstring="The result of the multiplication.",
         type_hint=typing.Union[
-            int, float, EstimatedQuantity, unit.Quantity, ParameterGradient
+            int, float, EstimatedQuantity, pint.Quantity, ParameterGradient
         ],
     )
 
@@ -137,20 +137,20 @@ class DivideValue(Protocol):
     value = InputAttribute(
         docstring="The value to divide.",
         type_hint=typing.Union[
-            int, float, unit.Quantity, EstimatedQuantity, ParameterGradient
+            int, float, pint.Quantity, EstimatedQuantity, ParameterGradient
         ],
         default_value=UNDEFINED,
     )
     divisor = InputAttribute(
         docstring="The scalar to divide by.",
-        type_hint=typing.Union[int, float, unit.Quantity],
+        type_hint=typing.Union[int, float, pint.Quantity],
         default_value=UNDEFINED,
     )
 
     result = OutputAttribute(
         docstring="The result of the division.",
         type_hint=typing.Union[
-            int, float, EstimatedQuantity, unit.Quantity, ParameterGradient
+            int, float, EstimatedQuantity, pint.Quantity, ParameterGradient
         ],
     )
 
@@ -167,7 +167,7 @@ class WeightByMoleFraction(Protocol):
     value = InputAttribute(
         docstring="The value to be weighted.",
         type_hint=typing.Union[
-            float, int, EstimatedQuantity, unit.Quantity, ParameterGradient
+            float, int, EstimatedQuantity, pint.Quantity, ParameterGradient
         ],
         default_value=UNDEFINED,
     )
@@ -187,7 +187,7 @@ class WeightByMoleFraction(Protocol):
         "The value weighted by the `component`s mole fraction as determined from the "
         "`full_substance`.",
         type_hint=typing.Union[
-            float, int, EstimatedQuantity, unit.Quantity, ParameterGradient
+            float, int, EstimatedQuantity, pint.Quantity, ParameterGradient
         ],
     )
 
@@ -201,7 +201,7 @@ class WeightByMoleFraction(Protocol):
 
         Returns
         -------
-        float, int, EstimatedQuantity, unit.Quantity, ParameterGradient
+        float, int, EstimatedQuantity, pint.Quantity, ParameterGradient
             The weighted value.
         """
         return self.value * mole_fraction

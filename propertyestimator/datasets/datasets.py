@@ -7,6 +7,7 @@ from collections import defaultdict
 from enum import IntFlag, unique
 
 import pandas
+import pint
 from simtk.openmm.app import element
 
 from propertyestimator import unit
@@ -76,11 +77,11 @@ class PhysicalProperty(AttributeClass):
 
     value = Attribute(
         docstring="The measured / estimated value of this property.",
-        type_hint=unit.Quantity,
+        type_hint=pint.Quantity,
     )
     uncertainty = Attribute(
         docstring="The uncertainty in measured / estimated value of this property.",
-        type_hint=unit.Quantity,
+        type_hint=pint.Quantity,
         optional=True,
     )
 
@@ -122,9 +123,9 @@ class PhysicalProperty(AttributeClass):
             The phase that the property was measured in.
         substance : Substance
             The composition of the substance that was measured.
-        value: unit.Quantity
+        value: pint.Quantity
             The value of the measured physical property.
-        uncertainty: unit.Quantity
+        uncertainty: pint.Quantity
             The uncertainty in the measured value.
         source: Source
             The source of this property.
@@ -329,9 +330,9 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
         Parameters
         ----------
-        min_temperature : unit.Quantity
+        min_temperature : pint.Quantity
             The minimum temperature.
-        max_temperature : unit.Quantity
+        max_temperature : pint.Quantity
             The maximum temperature.
 
         Examples
@@ -358,9 +359,9 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
         Parameters
         ----------
-        min_pressure : unit.Quantity
+        min_pressure : pint.Quantity
             The minimum pressure.
-        max_pressure : unit.Quantity
+        max_pressure : pint.Quantity
             The maximum pressure.
 
         Examples

@@ -1,7 +1,7 @@
 """
 Units tests for propertyestimator.datasets
 """
-
+import pint
 import pytest
 
 from propertyestimator import unit
@@ -58,7 +58,7 @@ def test_thermoml_unit_from_string(unit_string):
     dummy_string = f"Property, {unit_string}"
 
     returned_unit = _unit_from_thermoml_string(dummy_string)
-    assert returned_unit is not None and isinstance(returned_unit, unit.Unit)
+    assert returned_unit is not None and isinstance(returned_unit, pint.Unit)
 
 
 def test_thermoml_from_url():

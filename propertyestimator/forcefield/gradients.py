@@ -1,6 +1,5 @@
 import numpy
-
-from propertyestimator import unit
+import pint
 
 
 class ParameterGradientKey:
@@ -128,7 +127,7 @@ class ParameterGradient:
         if (
             not isinstance(other, float)
             and not isinstance(other, int)
-            and not isinstance(other, unit.Quantity)
+            and not isinstance(other, pint.Quantity)
         ):
 
             raise ValueError(
@@ -151,7 +150,7 @@ class ParameterGradient:
         if (
             not isinstance(other, float)
             and not isinstance(other, int)
-            and not isinstance(other, unit.Quantity)
+            and not isinstance(other, pint.Quantity)
         ):
 
             raise ValueError(

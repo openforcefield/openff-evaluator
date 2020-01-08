@@ -7,6 +7,7 @@ from enum import Enum
 from os import path
 
 import numpy as np
+import pint
 from simtk.openmm import app
 
 from propertyestimator import unit
@@ -31,7 +32,7 @@ class BuildCoordinatesPackmol(Protocol):
     )
     mass_density = InputAttribute(
         docstring="The target density of the created system.",
-        type_hint=unit.Quantity,
+        type_hint=pint.Quantity,
         default_value=0.95 * unit.grams / unit.milliliters,
     )
 
@@ -207,8 +208,8 @@ class BuildCoordinatesPackmol(Protocol):
             The directory to save the results in.
         topology : simtk.openmm.Topology
             The topology of the created system.
-        positions : propertyestimator.unit.Quantity
-            A `propertyestimator.unit.Quantity` wrapped `numpy.ndarray` (shape=[natoms,3])
+        positions : pint.Quantity
+            A `pint.Quantity` wrapped `numpy.ndarray` (shape=[natoms,3])
             which contains the created positions with units compatible with angstroms.
         """
 

@@ -220,9 +220,9 @@ class OpenMMSimulation(BaseSimulation):
 
         Parameters
         ----------
-        temperature: simtk.unit.Quantity
+        temperature: simtk.pint.Quantity
             The temperature to run the simulation at.
-        pressure: simtk.unit.Quantity
+        pressure: simtk.pint.Quantity
             The pressure to run the simulation at.
         available_resources: ComputeResources
             The resources available to run on.
@@ -548,9 +548,9 @@ class OpenMMSimulation(BaseSimulation):
         ----------
         path: str
             The path to save the statistics to.
-        temperature: unit.Quantity
+        temperature: pint.Quantity
             The temperature that the simulation is being run at.
-        pressure: unit.Quantity
+        pressure: pint.Quantity
             The pressure that the simulation is being run at.
         """
         statistics = StatisticsArray.from_openmm_csv(
@@ -558,7 +558,7 @@ class OpenMMSimulation(BaseSimulation):
         )
 
         reduced_potentials = (
-            statistics[ObservableType.PotentialEnergy] / unit.avogadro_number
+            statistics[ObservableType.PotentialEnergy] / unit.avogadro_constant
         )
 
         if pressure is not None:
@@ -801,7 +801,7 @@ class OpenMMGradientPotentials(BaseGradientPotentials):
         -------
         simtk.openmm.System
             The created system.
-        simtk.unit.Quantity
+        simtk.pint.Quantity
             The new value of the perturbed parameter.
         """
         # As this method deals mainly with the toolkit, we stick to
@@ -893,8 +893,8 @@ class OpenMMGradientPotentials(BaseGradientPotentials):
             The path to save the reduced potentials to.
         compute_resources: ComputeResources
             The compute resources available to execute on.
-        subset_energy_corrections: unit.Quantity, optional
-            A unit.Quantity wrapped numpy.ndarray which contains a set
+        subset_energy_corrections: pint.Quantity, optional
+            A pint.Quantity wrapped numpy.ndarray which contains a set
             of energies to add to the re-evaluated potential energies.
             This is mainly used to correct the potential energies evaluated
             using a subset of the force field back to energies as if evaluated

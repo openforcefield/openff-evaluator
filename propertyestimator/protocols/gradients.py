@@ -5,7 +5,8 @@ with respect to force field parameters.
 import abc
 import typing
 
-from propertyestimator import unit
+import pint
+
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.forcefield import ParameterGradient, ParameterGradientKey
 from propertyestimator.substances import Substance
@@ -111,11 +112,11 @@ class BaseGradientPotentials(Protocol, abc.ABC):
     )
     reverse_parameter_value = OutputAttribute(
         docstring="The value of the parameter perturbed in the reverse " "direction.",
-        type_hint=unit.Quantity,
+        type_hint=pint.Quantity,
     )
     forward_parameter_value = OutputAttribute(
         docstring="The value of the parameter perturbed in the forward " "direction.",
-        type_hint=unit.Quantity,
+        type_hint=pint.Quantity,
     )
 
 
@@ -128,8 +129,8 @@ class CentralDifferenceGradient(Protocol):
 
     Notes
     -----
-    The `values` input must either be a list of unit.Quantity, a ProtocolPath to a list
-    of unit.Quantity, or a list of ProtocolPath which each point to a unit.Quantity.
+    The `values` input must either be a list of pint.Quantity, a ProtocolPath to a list
+    of pint.Quantity, or a list of ProtocolPath which each point to a pint.Quantity.
     """
 
     parameter_key = InputAttribute(
@@ -141,24 +142,24 @@ class CentralDifferenceGradient(Protocol):
     reverse_observable_value = InputAttribute(
         docstring="The value of the observable evaluated using the parameters"
         "perturbed in the reverse direction.",
-        type_hint=typing.Union[unit.Quantity, EstimatedQuantity],
+        type_hint=typing.Union[pint.Quantity, EstimatedQuantity],
         default_value=UNDEFINED,
     )
     forward_observable_value = InputAttribute(
         docstring="The value of the observable evaluated using the parameters"
         "perturbed in the forward direction.",
-        type_hint=typing.Union[unit.Quantity, EstimatedQuantity],
+        type_hint=typing.Union[pint.Quantity, EstimatedQuantity],
         default_value=UNDEFINED,
     )
 
     reverse_parameter_value = InputAttribute(
         docstring="The value of the parameter perturbed in the reverse " "direction.",
-        type_hint=unit.Quantity,
+        type_hint=pint.Quantity,
         default_value=UNDEFINED,
     )
     forward_parameter_value = InputAttribute(
         docstring="The value of the parameter perturbed in the forward " "direction.",
-        type_hint=unit.Quantity,
+        type_hint=pint.Quantity,
         default_value=UNDEFINED,
     )
 

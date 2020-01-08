@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 
 import numpy as np
+import pint
 
 from propertyestimator import unit
 from propertyestimator.utils.quantities import EstimatedQuantity
@@ -62,14 +63,14 @@ def _type_to_type_string(object_type):
     """
 
     if (
-        issubclass(object_type, unit.Unit)
+        issubclass(object_type, pint.Unit)
         or f"{object_type.__module__}.{object_type.__qualname__}"
         == "pint.quantity.build_quantity_class.<locals>.Unit"
     ):
 
         return "propertyestimator.unit.Unit"
     if (
-        issubclass(object_type, unit.Quantity)
+        issubclass(object_type, pint.Quantity)
         or f"{object_type.__module__}.{object_type.__qualname__}"
         == "pint.quantity.build_quantity_class.<locals>.Quantity"
     ):
@@ -84,18 +85,18 @@ def _type_to_type_string(object_type):
 
 
 def serialize_quantity(quantity):
-    """Serializes a propertyestimator.unit.Quantity into a dictionary of the form
+    """Serializes a pint.Quantity into a dictionary of the form
     `{'value': quantity.value_in_unit(quantity.unit), 'unit': quantity.unit}`
 
     Parameters
     ----------
-    quantity : unit.Quantity
+    quantity : pint.Quantity
         The quantity to serialize
 
     Returns
     -------
     dict of str and str
-        A dictionary representation of a propertyestimator.unit.Quantity
+        A dictionary representation of a pint.Quantity
         with keys of {"value", "unit"}
     """
 
@@ -104,17 +105,17 @@ def serialize_quantity(quantity):
 
 
 def deserialize_quantity(serialized):
-    """Deserialize a propertyestimator.unit.Quantity from a dictionary.
+    """Deserialize a pint.Quantity from a dictionary.
 
     Parameters
     ----------
     serialized : dict of str and str
-        A dictionary representation of a propertyestimator.unit.Quantity
+        A dictionary representation of a pint.Quantity
         which must have keys {"value", "unit"}
 
     Returns
     -------
-    propertyestimator.unit.Quantity
+    pint.Quantity
         The deserialized quantity.
     """
 
@@ -148,7 +149,7 @@ def deserialize_estimated_quantity(quantity_dictionary):
         quantity_dictionary.pop("@type")
 
     return_object = EstimatedQuantity(
-        unit.Quantity(0.0), unit.Quantity(0.0), "empty_source"
+        pint.Quantity(0.0), pint.Quantity(0.0), "empty_source"
     )
     return_object.__setstate__(quantity_dictionary)
 
@@ -243,7 +244,7 @@ class TypedJSONEncoder(json.JSONEncoder):
 
     _custom_supported_types = {
         Enum: serialize_enum,
-        unit.Quantity: serialize_quantity,
+        pint.Quantity: serialize_quantity,
         set: serialize_set,
         frozenset: serialize_frozen_set,
         np.float16: lambda x: {"value": float(x)},
@@ -273,7 +274,7 @@ class TypedJSONEncoder(json.JSONEncoder):
         if type_tag == "propertyestimator.unit.Unit":
             type_to_serialize = unit.Unit
         if type_tag == "propertyestimator.unit.Quantity":
-            type_to_serialize = unit.Quantity
+            type_to_serialize = pint.Quantity
 
         custom_encoder = None
 
@@ -339,7 +340,7 @@ class TypedJSONDecoder(json.JSONDecoder):
 
     _custom_supported_types = {
         Enum: deserialize_enum,
-        unit.Quantity: deserialize_quantity,
+        pint.Quantity: deserialize_quantity,
         EstimatedQuantity: deserialize_estimated_quantity,
         set: deserialize_set,
         frozenset: deserialize_frozen_set,

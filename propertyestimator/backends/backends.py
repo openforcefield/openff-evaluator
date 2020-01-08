@@ -5,6 +5,8 @@ import abc
 import re
 from enum import Enum
 
+import pint
+
 from propertyestimator import unit
 
 
@@ -155,7 +157,7 @@ class QueueWorkerResources(ComputeResources):
         assert self._per_thread_memory_limit is not None
 
         assert (
-            isinstance(self._per_thread_memory_limit, unit.Quantity)
+            isinstance(self._per_thread_memory_limit, pint.Quantity)
             and unit.get_base_units(unit.byte)[-1]
             == unit.get_base_units(self._per_thread_memory_limit.units)[-1]
         )

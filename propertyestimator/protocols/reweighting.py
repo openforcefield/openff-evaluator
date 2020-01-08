@@ -6,6 +6,7 @@ import typing
 from os import path
 
 import numpy as np
+import pint
 import pymbar
 from scipy.special import logsumexp
 
@@ -255,10 +256,10 @@ class BaseMBARProtocol(Protocol, abc.ABC):
         if len(self._reference_observables) == 0:
             raise ValueError("There were no observables to reweight.")
 
-        if not isinstance(self._reference_observables[0], unit.Quantity):
+        if not isinstance(self._reference_observables[0], pint.Quantity):
 
             raise ValueError(
-                "The reference_observables input should be a list of unit.Quantity "
+                "The reference_observables input should be a list of pint.Quantity "
                 "wrapped ndarray's.",
             )
 
@@ -333,7 +334,7 @@ class BaseMBARProtocol(Protocol, abc.ABC):
 
         Parameters
         ----------
-        observable_unit: propertyestimator.unit.Unit:
+        observable_unit: pint.Unit:
             The expected unit of the reweighted observable.
         observables: dict of str and numpy.ndarray
             The observables to reweight which have been stripped of their units.
@@ -439,7 +440,7 @@ class BaseMBARProtocol(Protocol, abc.ABC):
 
         Parameters
         ----------
-        reference_observables: List of unit.Quantity
+        reference_observables: List of pint.Quantity
             A list of observables for each reference state,
             which each observable is a Quantity wrapped numpy
             array.

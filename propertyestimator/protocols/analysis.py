@@ -6,8 +6,8 @@ import typing
 from os import path
 
 import numpy as np
+import pint
 
-from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.utils import statistics, timeseries
 from propertyestimator.utils.quantities import EstimatedQuantity
@@ -52,7 +52,7 @@ class AveragePropertyProtocol(Protocol, abc.ABC):
     )
     uncorrelated_values = OutputAttribute(
         docstring="The uncorrelated values which the average was calculated from.",
-        type_hint=unit.Quantity,
+        type_hint=pint.Quantity,
     )
 
     def _bootstrap_function(self, **sample_kwargs):
@@ -115,7 +115,7 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
     divisor = InputAttribute(
         docstring="A value to divide the statistic by. This is useful if a statistic (such "
         "as enthalpy) needs to be normalised by the number of molecules.",
-        type_hint=typing.Union[int, float, unit.Quantity],
+        type_hint=typing.Union[int, float, pint.Quantity],
         default_value=1.0,
     )
 
@@ -144,7 +144,7 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
 
         divisor = self.divisor
 
-        if isinstance(self.divisor, unit.Quantity):
+        if isinstance(self.divisor, pint.Quantity):
             statistics_unit /= self.divisor.units
             divisor = self.divisor.magnitude
 
