@@ -11,34 +11,11 @@ Client Side API
     :nosignatures:
     :toctree: api/generated/
 
-    PropertyEstimatorClient
-    PropertyEstimatorOptions
-    PropertyEstimatorSubmission
-    PropertyEstimatorResult
     ConnectionOptions
-
-**Force Field Sources**
-
-.. currentmodule:: propertyestimator.forcefield
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    ForceFieldSource
-    SmirnoffForceFieldSource
-    TLeapForceFieldSource
-    LigParGenForceFieldSource
-
-**Gradient Estimation**
-
-.. currentmodule:: propertyestimator.properties
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    ParameterGradientKey
-    ParameterGradient
-
+    EvaluatorClient
+    Request
+    RequestOptions
+    RequestResult
 
 Server Side API
 ---------------
@@ -48,7 +25,7 @@ Server Side API
     :nosignatures:
     :toctree: api/generated/
 
-    PropertyEstimatorServer
+    EvaluatorServer
 
 Physical Property API
 ---------------------
@@ -126,7 +103,31 @@ Data Set API
     :toctree: api/generated/
 
     ThermoMLDataSet
-    register_thermoml_property
+    thermoml_property
+
+Force Field API
+---------------
+
+.. currentmodule:: propertyestimator.forcefield
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    ForceFieldSource
+    SmirnoffForceFieldSource
+    TLeapForceFieldSource
+    LigParGenForceFieldSource
+
+**Gradient Estimation**
+
+.. currentmodule:: propertyestimator.properties
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    ParameterGradientKey
+    ParameterGradient
+
 
 Calculation Layers API
 ----------------------
@@ -136,7 +137,7 @@ Calculation Layers API
     :nosignatures:
     :toctree: api/generated/
 
-    PropertyCalculationLayer
+    CalculationLayer
     register_calculation_layer
 
 **Built-in Calculation Layers**
@@ -157,7 +158,7 @@ Calculation Backends API
     :nosignatures:
     :toctree: api/generated/
 
-    PropertyEstimatorBackend
+    CalculationBackend
     ComputeResources
     QueueWorkerResources
 
@@ -172,15 +173,15 @@ Calculation Backends API
     DaskLocalCluster
     DaskLSFBackend
 
-Storage Backends API
---------------------
+Storage API
+-----------
 
 .. currentmodule:: propertyestimator.storage
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
-    PropertyEstimatorStorage
+    StorageBackend
 
 **Built-in Storage Backends**
 
@@ -193,14 +194,40 @@ Storage Backends API
 
 **Data Classes**
 
-.. currentmodule:: propertyestimator.storage.dataclasses
+.. currentmodule:: propertyestimator.storage.data
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
     BaseStoredData
+    HashableStoredData
+    ForceFieldData
+    ReplaceableData
     StoredSimulationData
-    StoredDataCollection
+
+**Data Queries**
+
+.. currentmodule:: propertyestimator.storage.query
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    BaseDataQuery
+    SubstanceQuery
+    ForceFieldQuery
+    SimulationDataQuery
+
+**Attributes**
+
+.. currentmodule:: propertyestimator.storage.attributes
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    FilePath
+    StorageAttribute
+    QueryAttribute
+
 
 Workflow API
 ------------
@@ -226,9 +253,6 @@ Workflow API
     ProtocolSchema
     ProtocolGroupSchema
     ProtocolReplicator
-    WorkflowOutputToStore
-    WorkflowSimulationDataToStore
-    WorkflowDataCollectionToStore
 
 **Base Protocol API**
 
@@ -246,22 +270,8 @@ Workflow API
     :nosignatures:
     :toctree: api/generated/
 
-    PlaceholderInput
     ReplicatorValue
     ProtocolPath
-
-**Decorators**
-
-.. currentmodule:: propertyestimator.workflow.decorators
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    protocol_input
-    protocol_output
-    BaseProtocolAttribute
-    MergeBehaviour
-    InequalityMergeBehaviour
 
 Built-in Workflow Protocols
 ---------------------------
@@ -363,10 +373,7 @@ Built-in Workflow Protocols
     :nosignatures:
     :toctree: api/generated/
 
-
-    UnpackStoredDataCollection
     UnpackStoredSimulationData
-
 
 **Miscellaneous**
 
@@ -397,3 +404,19 @@ Workflow Construction Utilities
     generate_base_reweighting_protocols
     generate_base_simulation_protocols
     generate_gradient_protocol_group
+
+Attribute Utilities
+-------------------
+
+.. currentmodule:: propertyestimator.attributes
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    AttributeClass
+    Attribute
+    InputAttribute
+    OutputAttribute
+    MergeBehaviour
+    InequalityMergeBehaviour
+    PlaceholderInput

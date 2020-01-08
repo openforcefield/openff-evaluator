@@ -1,31 +1,31 @@
 """
 Defines an API for defining thermodynamic states.
 """
-import math
 from enum import Enum
 
+import pint
+
 from propertyestimator import unit
-from propertyestimator.utils.serialization import TypedBaseModel
+from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
 
 
 class Ensemble(Enum):
-    """An enum describing the available thermodynamic ensembles.
+    """An enum describing the supported thermodynamic ensembles.
     """
 
     NVT = "NVT"
     NPT = "NPT"
 
 
-class ThermodynamicState(TypedBaseModel):
-    """
-    Data specifying a physical thermodynamic state obeying Boltzmann statistics.
+class ThermodynamicState(AttributeClass):
+    """Data specifying a physical thermodynamic state obeying
+    Boltzmann statistics.
 
-    Attributes
-    ----------
-    temperature : propertyestimator.unit.Quantity with units compatible with kelvin
-        The external temperature
-    pressure : propertyestimator.unit.Quantity with units compatible with atmospheres
-        The external pressure
+    Notes
+    -----
+    Equality of two thermodynamic states is determined by comparing
+    the temperature in kelvin to within 3 decimal places, and comparing
+    the pressure (if defined) in pascals to within 3 decimal places.
 
     Examples
     --------
@@ -35,6 +35,13 @@ class ThermodynamicState(TypedBaseModel):
 
     Note that the pressure is only relevant for periodic systems.
     """
+
+    temperature = Attribute(
+        docstring="The external temperature.", type_hint=pint.Quantity
+    )
+    pressure = Attribute(
+        docstring="The external pressure.", type_hint=pint.Quantity, optional=True
+    )
 
     @property
     def inverse_beta(self):
@@ -53,66 +60,48 @@ class ThermodynamicState(TypedBaseModel):
 
         Parameters
         ----------
-        temperature : propertyestimator.unit.Quantity with units compatible with kelvin
+        temperature : pint.Quantity
             The external temperature
-        pressure : propertyestimator.unit.Quantity with units compatible with atmospheres
+        pressure : pint.Quantity
             The external pressure
         """
+        if temperature is not None:
+            self.temperature = temperature
+        if pressure is not None:
+            self.pressure = pressure
 
-        self.temperature = temperature
-        self.pressure = pressure
+    def validate(self, attribute_type=None):
+        super(ThermodynamicState, self).validate(attribute_type)
 
-    def __getstate__(self):
+        if self.pressure != UNDEFINED:
+            self.pressure.to(unit.pascals)
+            assert self.pressure > 0.0 * unit.pascals
 
-        return {
-            "temperature": self.temperature,
-            "pressure": self.pressure,
-        }
-
-    def __setstate__(self, state):
-
-        self.temperature = state["temperature"]
-        self.pressure = state["pressure"]
+        self.temperature.to(unit.kelvin)
+        assert self.temperature > 0.0 * unit.kelvin
 
     def __repr__(self):
-        """
-        Returns a string representation of a state.
-        """
-        return_value = "ThermodynamicState("
+        return_value = f"ThermodynamicState T={self.temperature:~}"
 
-        if self.temperature is not None:
-            return_value += "temperature={0:s}, ".format(repr(self.temperature))
-        if self.pressure is not None:
-            return_value += "pressure = {0:s}".format(repr(self.pressure))
-
-        return_value += ")"
+        if self.pressure != UNDEFINED:
+            return_value += f" P={self.pressure:~}"
 
         return return_value
 
     def __str__(self):
-
-        return_value = "<ThermodynamicState object"
-
-        if self.temperature is not None:
-            return_value += ", temperature = {0:s}".format(str(self.temperature))
-        if self.pressure is not None:
-            return_value += ", pressure = {0:s}".format(str(self.pressure))
-
-        return_value += ">"
-
-        return return_value
+        return f"<{str(self)}>"
 
     def __hash__(self):
 
         temperature = self.temperature.to(unit.kelvin).magnitude
         pressure = (
             None
-            if self.pressure is None
-            else self.pressure.to(unit.kilopascal).magnitude
+            if self.pressure == UNDEFINED
+            else self.pressure.to(unit.pascal).magnitude
         )
 
         return hash(
-            (f"{temperature:.6f}", None if pressure is None else f"{pressure:.6f}")
+            (f"{temperature:.3f}", None if pressure is None else f"{pressure:.3f}")
         )
 
     def __eq__(self, other):
@@ -120,21 +109,7 @@ class ThermodynamicState(TypedBaseModel):
         if not isinstance(other, ThermodynamicState):
             return False
 
-        if (self.pressure is None and other.pressure is not None) or (
-            self.pressure is not None and other.pressure is None
-        ):
-            return False
-
-        if self.pressure is not None and not math.isclose(
-            self.pressure.to(unit.kilopascal).magnitude,
-            other.pressure.to(unit.kilopascal).magnitude,
-        ):
-            return False
-
-        return math.isclose(
-            self.temperature.to(unit.kelvin).magnitude,
-            other.temperature.to(unit.kelvin).magnitude,
-        )
+        return hash(self) == hash(other)
 
     def __ne__(self, other):
         return not (self == other)

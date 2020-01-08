@@ -1,6 +1,8 @@
 """
-A collection of protocols for assigning force field parameters to molecular systems.
+A collection of protocols for assigning force field parameters to molecular
+systems.
 """
+import abc
 import copy
 import io
 import logging
@@ -15,6 +17,7 @@ import requests
 from simtk import openmm
 from simtk.openmm import app
 
+from propertyestimator.attributes import UNDEFINED
 from propertyestimator.forcefield import (
     ForceFieldSource,
     LigParGenForceFieldSource,
@@ -22,24 +25,19 @@ from propertyestimator.forcefield import (
     TLeapForceFieldSource,
 )
 from propertyestimator.substances import Substance
-from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.openmm import pint_quantity_to_openmm
 from propertyestimator.utils.utils import (
     get_data_filename,
     temporarily_change_directory,
 )
-from propertyestimator.workflow.decorators import (
-    UNDEFINED,
-    protocol_input,
-    protocol_output,
-)
-from propertyestimator.workflow.plugins import register_calculation_protocol
-from propertyestimator.workflow.protocols import BaseProtocol
+from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
+from propertyestimator.workflow.plugins import workflow_protocol
+from propertyestimator.workflow.protocols import Protocol
 
 
-@register_calculation_protocol()
-class BaseBuildSystemProtocol(BaseProtocol):
-    """The base for any protocol whose role is to apply a set of
+@workflow_protocol()
+class BaseBuildSystem(Protocol, abc.ABC):
+    """The base class for any protocol whose role is to apply a set of
     force field parameters to a given system.
     """
 
@@ -55,12 +53,12 @@ class BaseBuildSystemProtocol(BaseProtocol):
 
         TIP3P = "TIP3P"
 
-    force_field_path = protocol_input(
+    force_field_path = InputAttribute(
         docstring="The file path to the force field parameters to assign to the system.",
         type_hint=str,
         default_value=UNDEFINED,
     )
-    coordinate_file_path = protocol_input(
+    coordinate_file_path = InputAttribute(
         docstring="The file path to the PDB coordinate file which defines the "
         "topology of the system to which the force field parameters "
         "will be assigned.",
@@ -68,18 +66,18 @@ class BaseBuildSystemProtocol(BaseProtocol):
         default_value=UNDEFINED,
     )
 
-    substance = protocol_input(
+    substance = InputAttribute(
         docstring="The composition of the system.",
         type_hint=Substance,
         default_value=UNDEFINED,
     )
-    water_model = protocol_input(
+    water_model = InputAttribute(
         docstring="The water model to apply, if any water molecules are present.",
         type_hint=WaterModel,
         default_value=WaterModel.TIP3P,
     )
 
-    system_path = protocol_output(
+    system_path = OutputAttribute(
         docstring="The path to the assigned system object.", type_hint=str
     )
 
@@ -92,9 +90,9 @@ class BaseBuildSystemProtocol(BaseProtocol):
         topology_molecule: openforcefield.topology.TopologyMolecule
             The topology molecule which represents the water molecule
             in the full system.
-        cutoff: simtk.unit.Quantity
+        cutoff: simtk.pint.Quantity
             The non-bonded cutoff.
-        cell_vectors: simtk.unit.Quantity
+        cell_vectors: simtk.pint.Quantity
             The full system's cell vectors.
 
         Returns
@@ -277,17 +275,17 @@ class BaseBuildSystemProtocol(BaseProtocol):
         if number_of_appended_forces != system_to_append.getNumForces():
             raise ValueError("Not all forces were appended.")
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
         raise NotImplementedError()
 
 
-@register_calculation_protocol()
-class BuildSmirnoffSystem(BaseBuildSystemProtocol):
+@workflow_protocol()
+class BuildSmirnoffSystem(BaseBuildSystem):
     """Parametrise a set of molecules with a given smirnoff force field
     using the `OpenFF toolkit <https://github.com/openforcefield/openforcefield>`_.
     """
 
-    charged_molecule_paths = protocol_input(
+    charged_molecule_paths = InputAttribute(
         docstring="File paths to mol2 files which contain the charges assigned to "
         "molecules in the system. This input is helpful when dealing "
         "with large molecules (such as hosts in host-guest binding "
@@ -296,7 +294,7 @@ class BuildSmirnoffSystem(BaseBuildSystemProtocol):
         type_hint=list,
         default_value=[],
     )
-    apply_known_charges = protocol_input(
+    apply_known_charges = InputAttribute(
         docstring="If true, the formal charges of ions and the partial charges of "
         "the selected water model will be automatically applied to any "
         "matching molecules in the system.",
@@ -346,31 +344,18 @@ class BuildSmirnoffSystem(BaseBuildSystemProtocol):
 
         return [sodium, potassium, calcium, chlorine, water]
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         from openforcefield.topology import Molecule, Topology
 
-        logging.info("Generating topology: " + self.id)
-
         pdb_file = app.PDBFile(self.coordinate_file_path)
 
-        try:
-
-            with open(self.force_field_path) as file:
-                force_field_source = ForceFieldSource.parse_json(file.read())
-
-        except Exception as e:
-
-            return PropertyEstimatorException(
-                directory=directory,
-                message="{} could not load the ForceFieldSource: {}".format(self.id, e),
-            )
+        with open(self.force_field_path) as file:
+            force_field_source = ForceFieldSource.parse_json(file.read())
 
         if not isinstance(force_field_source, SmirnoffForceFieldSource):
-
-            return PropertyEstimatorException(
-                directory=directory,
-                message="Only SMIRNOFF force fields are supported by this " "protocol.",
+            raise ValueError(
+                "Only SMIRNOFF force fields are supported by this protocol."
             )
 
         force_field = force_field_source.to_force_field()
@@ -392,11 +377,7 @@ class BuildSmirnoffSystem(BaseBuildSystemProtocol):
             molecule = Molecule.from_smiles(smiles=component.smiles)
 
             if molecule is None:
-
-                return PropertyEstimatorException(
-                    directory=directory,
-                    message="{} could not be converted to a Molecule".format(component),
-                )
+                raise ValueError(f"{component} could not be converted to a Molecule")
 
             unique_molecules.append(molecule)
 
@@ -413,28 +394,19 @@ class BuildSmirnoffSystem(BaseBuildSystemProtocol):
 
         if system is None:
 
-            return PropertyEstimatorException(
-                directory=directory,
-                message="Failed to create a system from the"
-                "provided topology and molecules",
+            raise RuntimeError(
+                "Failed to create a system from the specified topology and molecules."
             )
 
-        from simtk.openmm import XmlSerializer
-
-        system_xml = XmlSerializer.serialize(system)
-
+        system_xml = openmm.XmlSerializer.serialize(system)
         self.system_path = os.path.join(directory, "system.xml")
 
-        with open(self.system_path, "wb") as file:
-            file.write(system_xml.encode("utf-8"))
-
-        logging.info("Topology generated: " + self.id)
-
-        return self._get_output_dictionary()
+        with open(self.system_path, "w") as file:
+            file.write(system_xml)
 
 
-@register_calculation_protocol()
-class BuildLigParGenSystem(BaseBuildSystemProtocol):
+@workflow_protocol()
+class BuildLigParGenSystem(BaseBuildSystem):
     """Parametrise a set of molecules with the OPLS-AA/M force field.
     using the `LigParGen server <http://zarbi.chem.yale.edu/ligpargen/>`_.
 
@@ -530,7 +502,7 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
 
         # Retrieve the server file name.
         force_field_file_name = re.search(
-            r"value=\"\/tmp\/(.*?).xml\"", response_content.decode()
+            r"value=\"/tmp/(.*?).xml\"", response_content.decode()
         )
 
         if force_field_file_name is None:
@@ -647,24 +619,18 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
                         exception_index, index_a, index_b, charge, sigma_14, epsilon_14
                     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         import mdtraj
         from openforcefield.topology import Molecule, Topology
-
-        logging.info(
-            f"Generating a system with LigParGen for {self.substance.identifier}: {self._id}"
-        )
 
         with open(self.force_field_path) as file:
             force_field_source = ForceFieldSource.parse_json(file.read())
 
         if not isinstance(force_field_source, LigParGenForceFieldSource):
 
-            return PropertyEstimatorException(
-                directory=directory,
-                message="Only LigParGen force field sources are supported by this "
-                "protocol.",
+            raise ValueError(
+                "Only LigParGen force field sources are supported by this protocol."
             )
 
         # Load in the systems coordinates / topology
@@ -704,7 +670,8 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
                 break
 
             if reference_topology_molecule is None or topology_molecule is None:
-                return PropertyEstimatorException(
+
+                raise ValueError(
                     "A topology molecule could not be matched to its reference."
                 )
 
@@ -775,16 +742,12 @@ class BuildLigParGenSystem(BaseBuildSystemProtocol):
 
         self.system_path = os.path.join(directory, "system.xml")
 
-        with open(self.system_path, "wb") as file:
-            file.write(system_xml.encode("utf-8"))
-
-        logging.info(f"System generated: {self.id}")
-
-        return self._get_output_dictionary()
+        with open(self.system_path, "w") as file:
+            file.write(system_xml)
 
 
-@register_calculation_protocol()
-class BuildTLeapSystem(BaseBuildSystemProtocol):
+@workflow_protocol()
+class BuildTLeapSystem(BaseBuildSystem):
     """Parametrise a set of molecules with an Amber based force field.
     using the `tleap package <http://ambermd.org/AmberTools.php>`_.
 
@@ -802,7 +765,7 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
         OpenEye = "OpenEye"
         AmberTools = "AmberTools"
 
-    charge_backend = protocol_input(
+    charge_backend = InputAttribute(
         docstring="The backend framework to use to assign partial charges.",
         type_hint=ChargeBackend,
         default_value=ChargeBackend.OpenEye,
@@ -891,6 +854,7 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
             # index if this were the only molecule in the whole Topology. We need to apply
             # this offset because `new_molecule` begins its atom indexing at 0, not the
             # real topology atom index (which we do know).
+            # noinspection PyProtectedMember
             index_offset = topology_molecule._atom_start_topology_index
 
             # Convert the `.atoms` generator into a list so we can access it by index
@@ -914,6 +878,7 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
         for reference_atom_index in range(reference_molecule.n_atoms):
             # We don't need to apply the offset here, since _ref_to_top_index is
             # already "locally" indexed for this topology molecule
+            # noinspection PyProtectedMember
             local_top_index = topology_molecule._ref_to_top_index[reference_atom_index]
 
             new_conformers[local_top_index, :] = reference_molecule.conformers[0][
@@ -951,8 +916,6 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
             The file path to the `prmtop` file.
         str
             The file path to the `rst7` file.
-        PropertyEstimatorException, optional
-            Any errors which were raised.
         """
 
         # Change into the working directory.
@@ -963,16 +926,11 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
             elif force_field_source.leap_source == "leaprc.gaff":
                 amber_type = "gaff"
             else:
-                return (
-                    None,
-                    None,
-                    PropertyEstimatorException(
-                        directory,
-                        f"The {force_field_source.leap_source} source "
-                        f"is currently unsupported. Only the "
-                        f"'leaprc.gaff2' and 'leaprc.gaff' "
-                        f" sources are supported.",
-                    ),
+
+                raise ValueError(
+                    f"The {force_field_source.leap_source} source is currently "
+                    f"unsupported. Only the 'leaprc.gaff2' and 'leaprc.gaff' "
+                    f" sources are supported."
                 )
 
             # Run antechamber to find the correct atom types.
@@ -1014,15 +972,9 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
 
             if not os.path.isfile(processed_mol2_path):
 
-                return (
-                    None,
-                    None,
-                    PropertyEstimatorException(
-                        directory,
-                        f"antechamber failed to assign atom types to "
-                        f"the input mol2 file "
-                        f"({initial_mol2_file_path})",
-                    ),
+                raise RuntimeError(
+                    f"antechamber failed to assign atom types to the input mol2 file "
+                    f"({initial_mol2_file_path})"
                 )
 
             frcmod_path = None
@@ -1059,15 +1011,9 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
 
                 if not os.path.isfile(frcmod_path):
 
-                    return (
-                        None,
-                        None,
-                        PropertyEstimatorException(
-                            directory,
-                            f"parmchk2 failed to assign missing {amber_type} "
-                            f"parameters to the antechamber created mol2 file "
-                            f"({processed_mol2_path})",
-                        ),
+                    raise RuntimeError(
+                        f"parmchk2 failed to assign missing {amber_type} parameters "
+                        f"to the antechamber created mol2 file ({processed_mol2_path})",
                     )
 
             # Build the tleap input file.
@@ -1108,47 +1054,33 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
             if not os.path.isfile(prmtop_file_name) or not os.path.isfile(
                 rst7_file_name
             ):
-                return (
-                    None,
-                    None,
-                    PropertyEstimatorException(directory, f"tleap failed to execute."),
-                )
+                raise RuntimeError(f"tleap failed to execute.")
 
             with open("leap.log", "r") as file:
 
-                if not re.search(
+                if re.search(
                     "ERROR|WARNING|Warning|duplicate|FATAL|Could|Fatal|Error",
                     file.read(),
                 ):
-                    return (
-                        os.path.join(directory, prmtop_file_name),
-                        os.path.join(directory, rst7_file_name),
-                        None,
-                    )
 
-            return (
-                None,
-                None,
-                PropertyEstimatorException(directory, f"tleap failed to execute."),
-            )
+                    raise RuntimeError(f"tleap failed to execute.")
 
-    def execute(self, directory, available_resources):
+        return (
+            os.path.join(directory, prmtop_file_name),
+            os.path.join(directory, rst7_file_name),
+        )
+
+    def _execute(self, directory, available_resources):
 
         from openforcefield.topology import Molecule, Topology
-
-        logging.info(
-            f"Generating a system with tleap for {self.substance.identifier}: {self._id}"
-        )
 
         with open(self.force_field_path) as file:
             force_field_source = ForceFieldSource.parse_json(file.read())
 
         if not isinstance(force_field_source, TLeapForceFieldSource):
 
-            return PropertyEstimatorException(
-                directory=directory,
-                message="Only TLeap force field sources are supported by this "
-                "protocol.",
+            raise ValueError(
+                "Only TLeap force field sources are supported by this protocol."
             )
 
         # Load in the systems coordinates / topology
@@ -1192,12 +1124,9 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
                 self._topology_molecule_to_mol2(
                     topology_molecule, initial_mol2_path, self.charge_backend
                 )
-                prmtop_path, _, error = self._run_tleap(
+                prmtop_path, _ = self._run_tleap(
                     force_field_source, initial_mol2_name, component_directory
                 )
-
-                if error is not None:
-                    return error
 
                 prmtop_file = openmm.app.AmberPrmtopFile(prmtop_path)
 
@@ -1251,7 +1180,3 @@ class BuildTLeapSystem(BaseBuildSystemProtocol):
 
         with open(self.system_path, "w") as file:
             file.write(system_xml)
-
-        logging.info(f"System generated: {self.id}")
-
-        return self._get_output_dictionary()

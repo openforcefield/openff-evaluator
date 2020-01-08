@@ -92,7 +92,6 @@ intersphinx_mapping = {
     'python': ('https://docs.python.org/', None),
     'numpy': ('https://docs.scipy.org/doc/numpy/', None),
     'mdtraj': ('http://mdtraj.org/latest/', None),
-    'tornado': ('https://www.tornadoweb.org/en/stable/', None),
     'dask': ('http://docs.dask.org/en/latest/', None),
     'dask.distributed': ('https://distributed.dask.org/en/latest/', None),
     'openforcefield': ('https://open-forcefield-toolkit.readthedocs.io/en/latest/', None),

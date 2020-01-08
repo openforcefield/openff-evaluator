@@ -1,9 +1,7 @@
-from .dataclasses import StoredSimulationData
-from .localfile import LocalFileStorage
-from .storage import PropertyEstimatorStorage
+from .storage import StorageBackend  # isort:skip
+from .localfile import LocalFileStorage  # isort:skip
 
 __all__ = [
-    StoredSimulationData,
     LocalFileStorage,
-    PropertyEstimatorStorage,
+    StorageBackend,
 ]

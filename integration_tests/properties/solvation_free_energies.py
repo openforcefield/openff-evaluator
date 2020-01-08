@@ -4,13 +4,13 @@ from distributed import Adaptive
 
 from propertyestimator import client, unit
 from propertyestimator.backends import QueueWorkerResources, DaskLSFBackend
-from propertyestimator.client import PropertyEstimatorOptions
+from propertyestimator.client import RequestOptions
 from propertyestimator.datasets import PhysicalPropertyDataSet
 from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.properties import PropertyPhase, MeasurementSource
 from propertyestimator.properties.solvation import SolvationFreeEnergy
 from propertyestimator.protocols.groups import ConditionalGroup
-from propertyestimator.server import PropertyEstimatorServer
+from propertyestimator.server.server import EvaluatorServer
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
@@ -78,10 +78,10 @@ def _create_data_set():
     """
 
     butan_1_ol = Substance()
-    butan_1_ol.add_component(Substance.Component('CCCCO', role=Substance.ComponentRole.Solute),
-                             Substance.ExactAmount(1))
-    butan_1_ol.add_component(Substance.Component('O', role=Substance.ComponentRole.Solvent),
-                             Substance.MoleFraction(1.0))
+    butan_1_ol.add_component(Component('CCCCO', role=Component.Role.Solute),
+                             ExactAmount(1))
+    butan_1_ol.add_component(Component('O', role=Component.Role.Solvent),
+                             MoleFraction(1.0))
 
     butan_1_ol_property = SolvationFreeEnergy(thermodynamic_state=ThermodynamicState(298.15*unit.kelvin,
                                                                                      1.0*unit.atmosphere),
@@ -92,10 +92,10 @@ def _create_data_set():
                                               source=MeasurementSource(doi=' 10.1021/ct050097l'))
 
     methyl_propanoate = Substance()
-    methyl_propanoate.add_component(Substance.Component('CCC(=O)OC', role=Substance.ComponentRole.Solute),
-                                    Substance.ExactAmount(1))
-    methyl_propanoate.add_component(Substance.Component('O', role=Substance.ComponentRole.Solvent),
-                                    Substance.MoleFraction(1.0))
+    methyl_propanoate.add_component(Component('CCC(=O)OC', role=Component.Role.Solute),
+                                    ExactAmount(1))
+    methyl_propanoate.add_component(Component('O', role=Component.Role.Solvent),
+                                    MoleFraction(1.0))
 
     methyl_propanoate_property = SolvationFreeEnergy(thermodynamic_state=ThermodynamicState(298.15*unit.kelvin,
                                                                                             1.0*unit.atmosphere),
@@ -106,10 +106,10 @@ def _create_data_set():
                                                      source=MeasurementSource(doi=' 10.1021/ct050097l'))
 
     benzamide = Substance()
-    benzamide.add_component(Substance.Component('c1ccc(cc1)C(=O)N', role=Substance.ComponentRole.Solute),
-                            Substance.ExactAmount(1))
-    benzamide.add_component(Substance.Component('O', role=Substance.ComponentRole.Solvent),
-                            Substance.MoleFraction(1.0))
+    benzamide.add_component(Component('c1ccc(cc1)C(=O)N', role=Component.Role.Solute),
+                            ExactAmount(1))
+    benzamide.add_component(Component('O', role=Component.Role.Solvent),
+                            MoleFraction(1.0))
 
     benzamide_property = SolvationFreeEnergy(thermodynamic_state=ThermodynamicState(298.15*unit.kelvin,
                                                                                     1.0*unit.atmosphere),
@@ -165,16 +165,16 @@ def main():
     storage_backend = LocalFileStorage(storage_directory)
 
     # Spin up the server object.
-    PropertyEstimatorServer(calculation_backend=calculation_backend,
+    EvaluatorServer(calculation_backend=calculation_backend,
                             storage_backend=storage_backend,
                             port=8005,
                             working_directory=working_directory)
 
     # Request the estimates.
-    property_estimator = client.PropertyEstimatorClient(client.ConnectionOptions(server_port=8005))
+    property_estimator = client.EvaluatorClient(client.ConnectionOptions(server_port=8005))
 
-    options = PropertyEstimatorOptions()
-    options.allowed_calculation_layers = ['SimulationLayer']
+    options = RequestOptions()
+    options.calculation_layers = ['SimulationLayer']
 
     workflow_options = WorkflowOptions(WorkflowOptions.ConvergenceMode.NoChecks)
 

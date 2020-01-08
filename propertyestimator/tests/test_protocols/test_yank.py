@@ -1,5 +1,5 @@
 """
-Units tests for propertyestimator.protocols.simulation
+Units tests for propertyestimator.protocols.yank
 """
 import os
 import tempfile
@@ -14,10 +14,9 @@ from propertyestimator.protocols.yank import (
     LigandReceptorYankProtocol,
     SolvationYankProtocol,
 )
-from propertyestimator.substances import Substance
+from propertyestimator.substances import Component, ExactAmount, MoleFraction, Substance
 from propertyestimator.tests.utils import build_tip3p_smirnoff_force_field
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils.exceptions import PropertyEstimatorException
 from propertyestimator.utils.utils import temporarily_change_directory
 
 
@@ -28,13 +27,13 @@ def _setup_dummy_system(directory, substance, number_of_molecules, force_field_p
     build_coordinates = BuildCoordinatesPackmol("coordinates")
     build_coordinates.substance = substance
     build_coordinates.max_molecules = number_of_molecules
-    assert isinstance(build_coordinates.execute(directory, None), dict)
+    build_coordinates.execute(directory, None)
 
     assign_parameters = BuildSmirnoffSystem(f"assign_parameters")
     assign_parameters.force_field_path = force_field_path
     assign_parameters.coordinate_file_path = build_coordinates.coordinate_file_path
     assign_parameters.substance = substance
-    assert isinstance(assign_parameters.execute(directory, None), dict)
+    assign_parameters.execute(directory, None)
 
     return build_coordinates.coordinate_file_path, assign_parameters.system_path
 
@@ -44,26 +43,21 @@ def test_ligand_receptor_yank_protocol():
     full_substance = Substance()
 
     full_substance.add_component(
-        Substance.Component(smiles="c1ccccc1", role=Substance.ComponentRole.Receptor),
-        Substance.ExactAmount(1),
+        Component(smiles="c1ccccc1", role=Component.Role.Receptor), ExactAmount(1),
     )
     full_substance.add_component(
-        Substance.Component(smiles="C", role=Substance.ComponentRole.Ligand),
-        Substance.ExactAmount(1),
+        Component(smiles="C", role=Component.Role.Ligand), ExactAmount(1),
     )
     full_substance.add_component(
-        Substance.Component(smiles="O", role=Substance.ComponentRole.Solvent),
-        Substance.MoleFraction(1.0),
+        Component(smiles="O", role=Component.Role.Solvent), MoleFraction(1.0),
     )
 
     solute_substance = Substance()
     solute_substance.add_component(
-        Substance.Component(smiles="C", role=Substance.ComponentRole.Ligand),
-        Substance.ExactAmount(1),
+        Component(smiles="C", role=Component.Role.Ligand), ExactAmount(1),
     )
     solute_substance.add_component(
-        Substance.Component(smiles="O", role=Substance.ComponentRole.Solvent),
-        Substance.MoleFraction(1.0),
+        Component(smiles="O", role=Component.Role.Solvent), MoleFraction(1.0),
     )
 
     thermodynamic_state = ThermodynamicState(
@@ -104,9 +98,7 @@ def test_ligand_receptor_yank_protocol():
             run_yank.solvated_complex_system = complex_system_path
 
             run_yank.force_field_path = force_field_path
-
-            result = run_yank.execute("", ComputeResources())
-            assert not isinstance(result, PropertyEstimatorException)
+            run_yank.execute("", ComputeResources())
 
 
 @pytest.mark.parametrize("solvent_smiles", ["O", "C(Cl)Cl"])
@@ -115,28 +107,22 @@ def test_solvation_yank_protocol(solvent_smiles):
     full_substance = Substance()
 
     full_substance.add_component(
-        Substance.Component(smiles="CO", role=Substance.ComponentRole.Solute),
-        Substance.ExactAmount(1),
+        Component(smiles="CO", role=Component.Role.Solute), ExactAmount(1),
     )
     full_substance.add_component(
-        Substance.Component(
-            smiles=solvent_smiles, role=Substance.ComponentRole.Solvent
-        ),
-        Substance.MoleFraction(1.0),
+        Component(smiles=solvent_smiles, role=Component.Role.Solvent),
+        MoleFraction(1.0),
     )
 
     solvent_substance = Substance()
     solvent_substance.add_component(
-        Substance.Component(
-            smiles=solvent_smiles, role=Substance.ComponentRole.Solvent
-        ),
-        Substance.MoleFraction(1.0),
+        Component(smiles=solvent_smiles, role=Component.Role.Solvent),
+        MoleFraction(1.0),
     )
 
     solute_substance = Substance()
     solute_substance.add_component(
-        Substance.Component(smiles="CO", role=Substance.ComponentRole.Solute),
-        Substance.ExactAmount(1),
+        Component(smiles="CO", role=Component.Role.Solute), ExactAmount(1),
     )
 
     thermodynamic_state = ThermodynamicState(
@@ -179,6 +165,4 @@ def test_solvation_yank_protocol(solvent_smiles):
             run_yank.steric_lambdas_1 = [1.00]
             run_yank.electrostatic_lambdas_2 = [1.00]
             run_yank.steric_lambdas_2 = [1.00]
-
-            result = run_yank.execute("", ComputeResources())
-            assert not isinstance(result, PropertyEstimatorException)
+            run_yank.execute("", ComputeResources())

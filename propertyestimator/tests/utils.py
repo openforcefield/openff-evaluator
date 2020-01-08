@@ -1,5 +1,6 @@
 import os
 import shutil
+import uuid
 from enum import Enum
 
 from propertyestimator import server, unit
@@ -9,21 +10,18 @@ from propertyestimator.backends import (
     DaskLSFBackend,
     QueueWorkerResources,
 )
-from propertyestimator.datasets import PhysicalPropertyDataSet
-from propertyestimator.forcefield import SmirnoffForceFieldSource
-from propertyestimator.properties import (
+from propertyestimator.datasets import (
     CalculationSource,
-    Density,
-    DielectricConstant,
-    EnthalpyOfMixing,
+    PhysicalPropertyDataSet,
     PropertyPhase,
 )
-from propertyestimator.protocols import coordinates, groups, simulation
-from propertyestimator.storage import LocalFileStorage, StoredSimulationData
-from propertyestimator.substances import Substance
+from propertyestimator.forcefield import SmirnoffForceFieldSource
+from propertyestimator.properties import Density, DielectricConstant, EnthalpyOfMixing
+from propertyestimator.storage import LocalFileStorage
+from propertyestimator.storage.data import StoredSimulationData
+from propertyestimator.substances import Component, MoleFraction, Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import get_data_filename
-from propertyestimator.workflow import WorkflowOptions
 
 
 class BackendType(Enum):
@@ -115,58 +113,12 @@ def setup_server(
 
     storage_backend = LocalFileStorage(storage_directory)
 
-    server.PropertyEstimatorServer(
+    server.EvaluatorServer(
         calculation_backend=calculation_backend,
         storage_backend=storage_backend,
         port=port,
         working_directory=working_directory,
     )
-
-
-def create_debug_density_workflow(
-    max_molecules=128,
-    equilibration_steps=50,
-    equilibration_frequency=5,
-    production_steps=100,
-    production_frequency=5,
-):
-
-    density_workflow_schema = Density.get_default_simulation_workflow_schema(
-        WorkflowOptions()
-    )
-
-    build_coordinates = coordinates.BuildCoordinatesPackmol("")
-    build_coordinates.schema = density_workflow_schema.protocols["build_coordinates"]
-
-    build_coordinates.max_molecules = max_molecules
-
-    density_workflow_schema.protocols["build_coordinates"] = build_coordinates.schema
-
-    npt_equilibration = simulation.RunOpenMMSimulation("")
-    npt_equilibration.schema = density_workflow_schema.protocols["npt_equilibration"]
-
-    npt_equilibration.steps_per_iteration = equilibration_steps
-    npt_equilibration.output_frequency = equilibration_frequency
-
-    density_workflow_schema.protocols["npt_equilibration"] = npt_equilibration.schema
-
-    converge_uncertainty = groups.ConditionalGroup("")
-    converge_uncertainty.schema = density_workflow_schema.protocols[
-        "converge_uncertainty"
-    ]
-
-    converge_uncertainty.protocols[
-        "npt_production"
-    ].steps_per_iteration = production_steps
-    converge_uncertainty.protocols[
-        "npt_production"
-    ].output_frequency = production_frequency
-
-    density_workflow_schema.protocols[
-        "converge_uncertainty"
-    ] = converge_uncertainty.schema
-
-    return density_workflow_schema
 
 
 def create_dummy_substance(number_of_components, elements=None):
@@ -196,9 +148,7 @@ def create_dummy_substance(number_of_components, elements=None):
 
         smiles_pattern = "".join(elements * (index + 1))
 
-        substance.add_component(
-            Substance.Component(smiles_pattern), Substance.MoleFraction(mole_fraction)
-        )
+        substance.add_component(Component(smiles_pattern), MoleFraction(mole_fraction))
 
     return substance
 
@@ -240,7 +190,7 @@ def create_dummy_property(property_class):
     return dummy_property
 
 
-def create_dummy_stored_simulation_data(
+def create_dummy_simulation_data(
     directory_path,
     substance,
     force_field_id="dummy_ff_id",
@@ -248,6 +198,9 @@ def create_dummy_stored_simulation_data(
     trajectory_file_name="trajectory.dcd",
     statistics_file_name="statistics.csv",
     statistical_inefficiency=1.0,
+    phase=PropertyPhase.Liquid,
+    number_of_molecules=1,
+    calculation_id=None,
 ):
 
     """Creates a dummy `StoredSimulationData` object and
@@ -263,6 +216,9 @@ def create_dummy_stored_simulation_data(
     trajectory_file_name
     statistics_file_name
     statistical_inefficiency
+    phase
+    number_of_molecules
+    calculation_id
 
     Returns
     -------
@@ -277,14 +233,27 @@ def create_dummy_stored_simulation_data(
     data.substance = substance
     data.force_field_id = force_field_id
     data.thermodynamic_state = ThermodynamicState(1.0 * unit.kelvin)
+    data.property_phase = phase
 
     data.coordinate_file_name = coordinate_file_name
     data.trajectory_file_name = trajectory_file_name
-
     data.statistics_file_name = statistics_file_name
+
+    with open(os.path.join(directory_path, coordinate_file_name), "w") as file:
+        file.write("")
+    with open(os.path.join(directory_path, trajectory_file_name), "w") as file:
+        file.write("")
+    with open(os.path.join(directory_path, statistics_file_name), "w") as file:
+        file.write("")
+
     data.statistical_inefficiency = statistical_inefficiency
 
-    data.total_number_of_molecules = 1
+    data.number_of_molecules = number_of_molecules
+
+    if calculation_id is None:
+        calculation_id = str(uuid.uuid4())
+
+    data.source_calculation_id = calculation_id
 
     return data
 

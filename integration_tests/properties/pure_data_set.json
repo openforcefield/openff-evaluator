@@ -9,30 +9,26 @@
         "metadata": {},
         "phase": 2,
         "source": {
-          "@type": "propertyestimator.properties.properties.MeasurementSource",
+          "@type": "propertyestimator.datasets.provenance.MeasurementSource",
           "doi": "",
           "reference": "www.engineeringtoolbox.com for densities and Dortmund Data Bank for heat of vaporization"
         },
         "substance": {
           "@type": "propertyestimator.substances.Substance",
           "amounts": {
-            "CCO": {
-              "@type": "builtins.frozenset",
-              "value": [
-                {
-                  "@type": "propertyestimator.substances.Substance->MoleFraction",
-                  "value": 1.0
-                }
-              ]
-            }
+            "CCO{solv}": [
+              {
+                "@type": "propertyestimator.substances.MoleFraction",
+                "value": 1.0
+              }
+            ]
           },
           "components": [
             {
-              "@type": "propertyestimator.substances.Substance->Component",
-              "label": "CCO",
+              "@type": "propertyestimator.substances.Component",
               "role": {
-                "@type": "propertyestimator.substances.Substance->ComponentRole",
-                "value": "Solvent"
+                "@type": "propertyestimator.substances.Component->Role",
+                "value": "solv"
               },
               "smiles": "CCO"
             }
@@ -69,30 +65,26 @@
         "metadata": {},
         "phase": 6,
         "source": {
-          "@type": "propertyestimator.properties.properties.MeasurementSource",
+          "@type": "propertyestimator.datasets.provenance.MeasurementSource",
           "doi": "",
           "reference": "www.engineeringtoolbox.com for densities and Dortmund Data Bank for heat of vaporization"
         },
         "substance": {
           "@type": "propertyestimator.substances.Substance",
           "amounts": {
-            "CCO": {
-              "@type": "builtins.frozenset",
-              "value": [
-                {
-                  "@type": "propertyestimator.substances.Substance->MoleFraction",
-                  "value": 1.0
-                }
-              ]
-            }
+            "CCO{solv}": [
+              {
+                "@type": "propertyestimator.substances.MoleFraction",
+                "value": 1.0
+              }
+            ]
           },
           "components": [
             {
-              "@type": "propertyestimator.substances.Substance->Component",
-              "label": "CCO",
+              "@type": "propertyestimator.substances.Component",
               "role": {
-                "@type": "propertyestimator.substances.Substance->ComponentRole",
-                "value": "Solvent"
+                "@type": "propertyestimator.substances.Component->Role",
+                "value": "solv"
               },
               "smiles": "CCO"
             }
@@ -129,30 +121,26 @@
         "metadata": {},
         "phase": 6,
         "source": {
-          "@type": "propertyestimator.properties.properties.MeasurementSource",
+          "@type": "propertyestimator.datasets.provenance.MeasurementSource",
           "doi": "",
           "reference": "https://depts.washington.edu/eooptic/linkfiles/dielectric_chart%5B1%5D.pdf"
         },
         "substance": {
           "@type": "propertyestimator.substances.Substance",
           "amounts": {
-            "CCO": {
-              "@type": "builtins.frozenset",
-              "value": [
-                {
-                  "@type": "propertyestimator.substances.Substance->MoleFraction",
-                  "value": 1.0
-                }
-              ]
-            }
+            "CCO{solv}": [
+              {
+                "@type": "propertyestimator.substances.MoleFraction",
+                "value": 1.0
+              }
+            ]
           },
           "components": [
             {
-              "@type": "propertyestimator.substances.Substance->Component",
-              "label": "CCO",
+              "@type": "propertyestimator.substances.Component",
               "role": {
-                "@type": "propertyestimator.substances.Substance->ComponentRole",
-                "value": "Solvent"
+                "@type": "propertyestimator.substances.Component->Role",
+                "value": "solv"
               },
               "smiles": "CCO"
             }

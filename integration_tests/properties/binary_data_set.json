@@ -9,48 +9,40 @@
         "metadata": {},
         "phase": 2,
         "source": {
-          "@type": "propertyestimator.properties.properties.MeasurementSource",
+          "@type": "propertyestimator.datasets.provenance.MeasurementSource",
           "doi": "",
           "reference": "j.jct.2009.11.018.xml"
         },
         "substance": {
           "@type": "propertyestimator.substances.Substance",
           "amounts": {
-            "C(CO)CO": {
-              "@type": "builtins.frozenset",
-              "value": [
-                {
-                  "@type": "propertyestimator.substances.Substance->MoleFraction",
-                  "value": 0.74
-                }
-              ]
-            },
-            "O": {
-              "@type": "builtins.frozenset",
-              "value": [
-                {
-                  "@type": "propertyestimator.substances.Substance->MoleFraction",
-                  "value": 0.26
-                }
-              ]
-            }
+            "C(CO)CO{solv}": [
+              {
+                "@type": "propertyestimator.substances.MoleFraction",
+                "value": 0.74
+              }
+            ],
+            "O{solv}": [
+              {
+                "@type": "propertyestimator.substances.MoleFraction",
+                "value": 0.26
+              }
+            ]
           },
           "components": [
             {
-              "@type": "propertyestimator.substances.Substance->Component",
-              "label": "O",
+              "@type": "propertyestimator.substances.Component",
               "role": {
-                "@type": "propertyestimator.substances.Substance->ComponentRole",
-                "value": "Solvent"
+                "@type": "propertyestimator.substances.Component->Role",
+                "value": "solv"
               },
               "smiles": "O"
             },
             {
-              "@type": "propertyestimator.substances.Substance->Component",
-              "label": "C(CO)CO",
+              "@type": "propertyestimator.substances.Component",
               "role": {
-                "@type": "propertyestimator.substances.Substance->ComponentRole",
-                "value": "Solvent"
+                "@type": "propertyestimator.substances.Component->Role",
+                "value": "solv"
               },
               "smiles": "C(CO)CO"
             }
@@ -89,48 +81,40 @@
         "metadata": {},
         "phase": 2,
         "source": {
-          "@type": "propertyestimator.properties.properties.MeasurementSource",
+          "@type": "propertyestimator.datasets.provenance.MeasurementSource",
           "doi": "",
           "reference": "je030207i.xml"
         },
         "substance": {
           "@type": "propertyestimator.substances.Substance",
           "amounts": {
-            "C(CO)O": {
-              "@type": "builtins.frozenset",
-              "value": [
-                {
-                  "@type": "propertyestimator.substances.Substance->MoleFraction",
-                  "value": 0.42
-                }
-              ]
-            },
-            "CO": {
-              "@type": "builtins.frozenset",
-              "value": [
-                {
-                  "@type": "propertyestimator.substances.Substance->MoleFraction",
-                  "value": 0.58
-                }
-              ]
-            }
+            "C(CO)O{solv}": [
+              {
+                "@type": "propertyestimator.substances.MoleFraction",
+                "value": 0.42
+              }
+            ],
+            "CO{solv}": [
+              {
+                "@type": "propertyestimator.substances.MoleFraction",
+                "value": 0.58
+              }
+            ]
           },
           "components": [
             {
-              "@type": "propertyestimator.substances.Substance->Component",
-              "label": "C(CO)O",
+              "@type": "propertyestimator.substances.Component",
               "role": {
-                "@type": "propertyestimator.substances.Substance->ComponentRole",
-                "value": "Solvent"
+                "@type": "propertyestimator.substances.Component->Role",
+                "value": "solv"
               },
               "smiles": "C(CO)O"
             },
             {
-              "@type": "propertyestimator.substances.Substance->Component",
-              "label": "CO",
+              "@type": "propertyestimator.substances.Component",
               "role": {
-                "@type": "propertyestimator.substances.Substance->ComponentRole",
-                "value": "Solvent"
+                "@type": "propertyestimator.substances.Component->Role",
+                "value": "solv"
               },
               "smiles": "CO"
             }
@@ -158,188 +142,6 @@
           "@type": "propertyestimator.unit.Quantity",
           "unit": "kilojoule / mole",
           "value": 0.12087
-        }
-      }
-    ],
-    "CCO{1.000000}": [
-      {
-        "@type": "propertyestimator.properties.density.Density",
-        "gradients": [],
-        "id": "f0ae6e81-e122-4c77-9376-89751e0edec2",
-        "metadata": {},
-        "phase": 2,
-        "source": {
-          "@type": "propertyestimator.properties.properties.MeasurementSource",
-          "doi": "",
-          "reference": "www.engineeringtoolbox.com for densities and Dortmund Data Bank for heat of vaporization"
-        },
-        "substance": {
-          "@type": "propertyestimator.substances.Substance",
-          "amounts": {
-            "CCO": {
-              "@type": "builtins.frozenset",
-              "value": [
-                {
-                  "@type": "propertyestimator.substances.Substance->MoleFraction",
-                  "value": 1.0
-                }
-              ]
-            }
-          },
-          "components": [
-            {
-              "@type": "propertyestimator.substances.Substance->Component",
-              "label": "CCO",
-              "role": {
-                "@type": "propertyestimator.substances.Substance->ComponentRole",
-                "value": "Solvent"
-              },
-              "smiles": "CCO"
-            }
-          ]
-        },
-        "thermodynamic_state": {
-          "@type": "propertyestimator.thermodynamics.ThermodynamicState",
-          "pressure": {
-            "@type": "propertyestimator.unit.Quantity",
-            "unit": "kilopascal",
-            "value": 101.325
-          },
-          "temperature": {
-            "@type": "propertyestimator.unit.Quantity",
-            "unit": "kelvin",
-            "value": 298.15
-          }
-        },
-        "uncertainty": {
-          "@type": "propertyestimator.unit.Quantity",
-          "unit": "kilogram / meter ** 3",
-          "value": 0.0
-        },
-        "value": {
-          "@type": "propertyestimator.unit.Quantity",
-          "unit": "kilogram / meter ** 3",
-          "value": 785.0
-        }
-      },
-      {
-        "@type": "propertyestimator.properties.enthalpy.EnthalpyOfVaporization",
-        "gradients": [],
-        "id": "f1ae6e81-e122-4c77-9376-89751e0edec2",
-        "metadata": {},
-        "phase": 6,
-        "source": {
-          "@type": "propertyestimator.properties.properties.MeasurementSource",
-          "doi": "",
-          "reference": "www.engineeringtoolbox.com for densities and Dortmund Data Bank for heat of vaporization"
-        },
-        "substance": {
-          "@type": "propertyestimator.substances.Substance",
-          "amounts": {
-            "CCO": {
-              "@type": "builtins.frozenset",
-              "value": [
-                {
-                  "@type": "propertyestimator.substances.Substance->MoleFraction",
-                  "value": 1.0
-                }
-              ]
-            }
-          },
-          "components": [
-            {
-              "@type": "propertyestimator.substances.Substance->Component",
-              "label": "CCO",
-              "role": {
-                "@type": "propertyestimator.substances.Substance->ComponentRole",
-                "value": "Solvent"
-              },
-              "smiles": "CCO"
-            }
-          ]
-        },
-        "thermodynamic_state": {
-          "@type": "propertyestimator.thermodynamics.ThermodynamicState",
-          "pressure": {
-            "@type": "propertyestimator.unit.Quantity",
-            "unit": "kilopascal",
-            "value": 101.325
-          },
-          "temperature": {
-            "@type": "propertyestimator.unit.Quantity",
-            "unit": "kelvin",
-            "value": 298.15
-          }
-        },
-        "uncertainty": {
-          "@type": "propertyestimator.unit.Quantity",
-          "unit": "kilojoule / mole",
-          "value": 0.0
-        },
-        "value": {
-          "@type": "propertyestimator.unit.Quantity",
-          "unit": "kilojoule / mole",
-          "value": 42.3
-        }
-      },
-      {
-        "@type": "propertyestimator.properties.dielectric.DielectricConstant",
-        "gradients": [],
-        "id": "f2ae6e82-e122-4c77-9376-89751e0edec2",
-        "metadata": {},
-        "phase": 6,
-        "source": {
-          "@type": "propertyestimator.properties.properties.MeasurementSource",
-          "doi": "",
-          "reference": "https://depts.washington.edu/eooptic/linkfiles/dielectric_chart%5B1%5D.pdf"
-        },
-        "substance": {
-          "@type": "propertyestimator.substances.Substance",
-          "amounts": {
-            "CCO": {
-              "@type": "builtins.frozenset",
-              "value": [
-                {
-                  "@type": "propertyestimator.substances.Substance->MoleFraction",
-                  "value": 1.0
-                }
-              ]
-            }
-          },
-          "components": [
-            {
-              "@type": "propertyestimator.substances.Substance->Component",
-              "label": "CCO",
-              "role": {
-                "@type": "propertyestimator.substances.Substance->ComponentRole",
-                "value": "Solvent"
-              },
-              "smiles": "CCO"
-            }
-          ]
-        },
-        "thermodynamic_state": {
-          "@type": "propertyestimator.thermodynamics.ThermodynamicState",
-          "pressure": {
-            "@type": "propertyestimator.unit.Quantity",
-            "unit": "kilopascal",
-            "value": 101.325
-          },
-          "temperature": {
-            "@type": "propertyestimator.unit.Quantity",
-            "unit": "kelvin",
-            "value": 298.15
-          }
-        },
-        "uncertainty": {
-          "@type": "propertyestimator.unit.Quantity",
-          "unit": "dimensionless",
-          "value": 0.0
-        },
-        "value": {
-          "@type": "propertyestimator.unit.Quantity",
-          "unit": "dimensionless",
-          "value": 24.5
         }
       }
     ]

@@ -211,16 +211,18 @@ def test_constants():
         simtk_unit.MOLAR_GAS_CONSTANT_R.value_in_unit(
             simtk_unit.joule / simtk_unit.kelvin / simtk_unit.mole
         ),
-        (1.0 * unit.molar_gas_constant).to(unit.joule / unit.kelvin / unit.mole).magnitude,
+        (1.0 * unit.molar_gas_constant)
+        .to(unit.joule / unit.kelvin / unit.mole)
+        .magnitude,
     )
 
     assert np.isclose(
         simtk_unit.GRAVITATIONAL_CONSTANT_G.value_in_unit(
             simtk_unit.meter ** 2 * simtk_unit.newton / simtk_unit.kilogram ** 2
         ),
-        (1.0 * unit.newtonian_constant_of_gravitation).to(
-            unit.meter ** 2 * unit.newton / unit.kilogram ** 2
-        ).magnitude,
+        (1.0 * unit.newtonian_constant_of_gravitation)
+        .to(unit.meter ** 2 * unit.newton / unit.kilogram ** 2)
+        .magnitude,
     )
 
     assert np.isclose(

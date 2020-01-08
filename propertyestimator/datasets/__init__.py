@@ -1,10 +1,11 @@
-from .datasets import PhysicalPropertyDataSet
-from .plugins import register_thermoml_property, registered_thermoml_properties
-from .thermoml import ThermoMLDataSet
+from .provenance import CalculationSource, MeasurementSource, Source  # isort:skip
+from .datasets import PhysicalProperty, PhysicalPropertyDataSet, PropertyPhase
 
 __all__ = [
+    PropertyPhase,
+    PhysicalProperty,
     PhysicalPropertyDataSet,
-    register_thermoml_property,
-    registered_thermoml_properties,
-    ThermoMLDataSet,
+    CalculationSource,
+    MeasurementSource,
+    Source,
 ]

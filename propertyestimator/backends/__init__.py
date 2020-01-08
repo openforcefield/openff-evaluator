@@ -1,9 +1,9 @@
-from .backends import ComputeResources, PropertyEstimatorBackend, QueueWorkerResources
+from .backends import CalculationBackend, ComputeResources, QueueWorkerResources
 from .dask import BaseDaskBackend, DaskLocalCluster, DaskLSFBackend, DaskPBSBackend
 
 __all__ = [
     ComputeResources,
-    PropertyEstimatorBackend,
+    CalculationBackend,
     QueueWorkerResources,
     BaseDaskBackend,
     DaskLocalCluster,

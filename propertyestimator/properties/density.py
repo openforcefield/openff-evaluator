@@ -4,63 +4,60 @@ A collection of density physical property definitions.
 import copy
 
 from propertyestimator import unit
-from propertyestimator.datasets.plugins import register_thermoml_property
-from propertyestimator.properties import PhysicalProperty, PropertyPhase
-from propertyestimator.properties.plugins import register_estimable_property
+from propertyestimator.attributes import UNDEFINED, PlaceholderValue
+from propertyestimator.datasets import PhysicalProperty, PropertyPhase
+from propertyestimator.datasets.thermoml import thermoml_property
+from propertyestimator.layers import register_calculation_schema
+from propertyestimator.layers.reweighting import ReweightingLayer, ReweightingSchema
+from propertyestimator.layers.simulation import SimulationLayer, SimulationSchema
 from propertyestimator.protocols import analysis, miscellaneous, reweighting
 from propertyestimator.protocols.utils import (
     generate_base_reweighting_protocols,
     generate_base_simulation_protocols,
     generate_gradient_protocol_group,
 )
-from propertyestimator.storage import StoredSimulationData
+from propertyestimator.storage.query import SimulationDataQuery, SubstanceQuery
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
-from propertyestimator.workflow import WorkflowOptions
 from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
-@register_estimable_property()
-@register_thermoml_property(
-    thermoml_string="Mass density, kg/m3", supported_phases=PropertyPhase.Liquid
-)
+@thermoml_property("Mass density, kg/m3", supported_phases=PropertyPhase.Liquid)
 class Density(PhysicalProperty):
     """A class representation of a density property"""
 
-    @property
-    def multi_component_property(self):
-        return False
-
-    @property
-    def required_data_class(self):
-        return StoredSimulationData
-
     @staticmethod
-    def get_default_workflow_schema(calculation_layer, options=None):
-
-        if calculation_layer == "SimulationLayer":
-            return Density.get_default_simulation_workflow_schema(options)
-        elif calculation_layer == "ReweightingLayer":
-            return Density.get_default_reweighting_workflow_schema(options)
-
-        return None
-
-    @staticmethod
-    def get_default_simulation_workflow_schema(options=None):
-        """Returns the default workflow to use when estimating this property
-        from direct simulations.
+    def default_simulation_schema(
+        absolute_tolerance=UNDEFINED, relative_tolerance=UNDEFINED, n_molecules=1000
+    ):
+        """Returns the default calculation schema to use when estimating
+        this class of property from direct simulations.
 
         Parameters
         ----------
-        options: WorkflowOptions
-            The default options to use when setting up the estimation workflow.
+        absolute_tolerance: pint.Quantity, optional
+            The absolute tolerance to estimate the property to within.
+        relative_tolerance: float
+            The tolerance (as a fraction of the properties reported
+            uncertainty) to estimate the property to within.
+        n_molecules: int
+            The number of molecules to use in the simulation.
 
         Returns
         -------
-        WorkflowSchema
+        SimulationSchema
             The schema to follow when estimating this property.
         """
+        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
+
+        calculation_schema = SimulationSchema()
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
+
+        use_target_uncertainty = (
+            absolute_tolerance != UNDEFINED or relative_tolerance != UNDEFINED
+        )
 
         # Define the protocol which will extract the average density from
         # the results of a simulation.
@@ -69,7 +66,7 @@ class Density(PhysicalProperty):
 
         # Define the protocols which will run the simulation itself.
         protocols, value_source, output_to_store = generate_base_simulation_protocols(
-            extract_density, options
+            extract_density, use_target_uncertainty, n_molecules=n_molecules,
         )
 
         # Set up the gradient calculations
@@ -105,44 +102,59 @@ class Density(PhysicalProperty):
         )
 
         # Build the workflow schema.
-        schema = WorkflowSchema(property_type=Density.__name__)
-        schema.id = "{}{}".format(Density.__name__, "Schema")
+        schema = WorkflowSchema()
 
-        schema.protocols = {
-            protocols.build_coordinates.id: protocols.build_coordinates.schema,
-            protocols.assign_parameters.id: protocols.assign_parameters.schema,
-            protocols.energy_minimisation.id: protocols.energy_minimisation.schema,
-            protocols.equilibration_simulation.id: protocols.equilibration_simulation.schema,
-            protocols.converge_uncertainty.id: protocols.converge_uncertainty.schema,
-            protocols.extract_uncorrelated_trajectory.id: protocols.extract_uncorrelated_trajectory.schema,
-            protocols.extract_uncorrelated_statistics.id: protocols.extract_uncorrelated_statistics.schema,
-            gradient_group.id: gradient_group.schema,
-        }
+        schema.protocol_schemas = [
+            protocols.build_coordinates.schema,
+            protocols.assign_parameters.schema,
+            protocols.energy_minimisation.schema,
+            protocols.equilibration_simulation.schema,
+            protocols.converge_uncertainty.schema,
+            protocols.extract_uncorrelated_trajectory.schema,
+            protocols.extract_uncorrelated_statistics.schema,
+            gradient_group.schema,
+        ]
 
-        schema.replicators = [gradient_replicator]
+        schema.protocol_replicators = [gradient_replicator]
 
         schema.outputs_to_store = {"full_system": output_to_store}
 
         schema.gradients_sources = [gradient_source]
         schema.final_value_source = value_source
 
-        return schema
+        calculation_schema.workflow_schema = schema
+        return calculation_schema
 
     @staticmethod
-    def get_default_reweighting_workflow_schema(options):
-        """Returns the default workflow to use when estimating this property
-        by reweighting existing data.
+    def default_reweighting_schema(
+        absolute_tolerance=UNDEFINED,
+        relative_tolerance=UNDEFINED,
+        n_effective_samples=50,
+    ):
+        """Returns the default calculation schema to use when estimating
+        this property by reweighting existing data.
 
         Parameters
         ----------
-        options: WorkflowOptions
-            The default options to use when setting up the estimation workflow.
+        absolute_tolerance: pint.Quantity, optional
+            The absolute tolerance to estimate the property to within.
+        relative_tolerance: float
+            The tolerance (as a fraction of the properties reported
+            uncertainty) to estimate the property to within.
+        n_effective_samples: int
+            The minimum number of effective samples to require when
+            reweighting the cached simulation data.
 
         Returns
         -------
-        WorkflowSchema
+        ReweightingSchema
             The schema to follow when estimating this property.
         """
+        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
+
+        calculation_schema = ReweightingSchema()
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
 
         data_replicator_id = "data_replicator"
 
@@ -155,9 +167,10 @@ class Density(PhysicalProperty):
 
         reweight_density = reweighting.ReweightStatistics(f"reweight_density")
         reweight_density.statistics_type = ObservableType.Density
+        reweight_density.required_effective_samples = n_effective_samples
 
         protocols, data_replicator = generate_base_reweighting_protocols(
-            density_calculation, reweight_density, options, data_replicator_id
+            density_calculation, reweight_density, data_replicator_id
         )
 
         # Set up the gradient calculations
@@ -189,44 +202,22 @@ class Density(PhysicalProperty):
             ),
         )
 
-        schema = WorkflowSchema(property_type=Density.__name__)
-        schema.id = "{}{}".format(Density.__name__, "Schema")
-
-        schema.protocols = {protocol.id: protocol.schema for protocol in protocols}
-        schema.protocols[gradient_group.id] = gradient_group.schema
-
-        schema.replicators = [data_replicator, gradient_replicator]
-
+        schema = WorkflowSchema()
+        schema.protocol_schemas = [
+            *(x.schema for x in protocols),
+            gradient_group.schema,
+        ]
+        schema.protocol_replicators = [data_replicator, gradient_replicator]
         schema.gradients_sources = [gradient_source]
         schema.final_value_source = ProtocolPath("value", protocols.mbar_protocol.id)
 
-        return schema
+        calculation_schema.workflow_schema = schema
+        return calculation_schema
 
 
-@register_estimable_property()
-@register_thermoml_property(
-    "Excess molar volume, m3/mol", supported_phases=PropertyPhase.Liquid
-)
+@thermoml_property("Excess molar volume, m3/mol", supported_phases=PropertyPhase.Liquid)
 class ExcessMolarVolume(PhysicalProperty):
     """A class representation of an excess molar volume property"""
-
-    @property
-    def multi_component_property(self):
-        return True
-
-    @property
-    def required_data_class(self):
-        return StoredSimulationData
-
-    @staticmethod
-    def get_default_workflow_schema(calculation_layer, options=None):
-
-        if calculation_layer == "SimulationLayer":
-            return ExcessMolarVolume.get_default_simulation_workflow_schema(options)
-        elif calculation_layer == "ReweightingLayer":
-            return ExcessMolarVolume.get_default_reweighting_workflow_schema(options)
-
-        return None
 
     @staticmethod
     def _get_simulation_protocols(
@@ -236,7 +227,8 @@ class ExcessMolarVolume(PhysicalProperty):
         weight_by_mole_fraction=False,
         component_substance_reference=None,
         full_substance_reference=None,
-        options=None,
+        use_target_uncertainty=False,
+        n_molecules=1000,
     ):
 
         """Returns the set of protocols which when combined in a workflow
@@ -256,15 +248,18 @@ class ExcessMolarVolume(PhysicalProperty):
         weight_by_mole_fraction: bool
             If true, an extra protocol will be added to weight the calculated
             molar volume by the mole fraction of the component.
-        component_substance_reference: ProtocolPath or PlaceholderInput, optional
+        component_substance_reference: ProtocolPath or PlaceholderValue, optional
             An optional protocol path (or replicator reference) to the component substance
             whose enthalpy is being estimated.
-        full_substance_reference: ProtocolPath or PlaceholderInput, optional
+        full_substance_reference: ProtocolPath or PlaceholderValue, optional
             An optional protocol path (or replicator reference) to the full substance
             whose enthalpy of mixing is being estimated. This cannot be `None` if
             `weight_by_mole_fraction` is `True`.
-        options: WorkflowOptions
-            The options to use when setting up the workflows.
+        use_target_uncertainty: bool
+            Whether to calculate the observable to within the target
+            uncertainty.
+        n_molecules: int
+            The number of molecules to use in the simulation.
 
         Returns
         -------
@@ -311,7 +306,9 @@ class ExcessMolarVolume(PhysicalProperty):
             simulation_protocols,
             value_source,
             output_to_store,
-        ) = generate_base_simulation_protocols(extract_volume, options, id_suffix)
+        ) = generate_base_simulation_protocols(
+            extract_volume, use_target_uncertainty, id_suffix, n_molecules=n_molecules
+        )
 
         # Divide the volume by the number of molecules in the system
         number_of_molecules = ProtocolPath(
@@ -325,7 +322,9 @@ class ExcessMolarVolume(PhysicalProperty):
             f"number_of_molar_molecules{id_suffix}"
         )
         number_of_molar_molecules.value = number_of_molecules
-        number_of_molar_molecules.divisor = (1.0 * unit.avogadro_constant).to("mole**-1")
+        number_of_molar_molecules.divisor = (1.0 * unit.avogadro_constant).to(
+            "mole**-1"
+        )
 
         extract_volume.divisor = ProtocolPath("result", number_of_molar_molecules.id)
 
@@ -352,7 +351,7 @@ class ExcessMolarVolume(PhysicalProperty):
                 "weighted_value", conditional_group.id, weight_by_mole_fraction.id
             )
 
-        if options.convergence_mode != WorkflowOptions.ConvergenceMode.NoChecks:
+        if use_target_uncertainty:
 
             # Make sure the convergence criteria is set to use the per component
             # uncertainty target.
@@ -444,7 +443,7 @@ class ExcessMolarVolume(PhysicalProperty):
         replicator_id=None,
         weight_by_mole_fraction=False,
         substance_reference=None,
-        options=None,
+        n_effective_samples=50,
     ):
 
         """Returns the set of protocols which when combined in a workflow
@@ -466,11 +465,12 @@ class ExcessMolarVolume(PhysicalProperty):
         weight_by_mole_fraction: bool
             If true, an extra protocol will be added to weight the calculated
             molar volume by the mole fraction of the component.
-        substance_reference: ProtocolPath or PlaceholderInput, optional
+        substance_reference: ProtocolPath or PlaceholderValue, optional
             An optional protocol path (or replicator reference) to the substance
             whose molar volume is being estimated.
-        options: WorkflowOptions
-            The options to use when setting up the workflows.
+        n_effective_samples: int
+            The minimum number of effective samples to require when
+            reweighting the cached simulation data.
 
         Returns
         -------
@@ -505,11 +505,11 @@ class ExcessMolarVolume(PhysicalProperty):
         extract_volume.statistics_type = ObservableType.Volume
         reweight_volume = reweighting.ReweightStatistics(f"reweight_volume{id_suffix}")
         reweight_volume.statistics_type = ObservableType.Volume
+        reweight_volume.required_effective_samples = n_effective_samples
 
         (protocols, data_replicator) = generate_base_reweighting_protocols(
             analysis_protocol=extract_volume,
             mbar_protocol=reweight_volume,
-            workflow_options=options,
             replicator_id=data_replicator_id,
             id_suffix=id_suffix,
         )
@@ -628,20 +628,71 @@ class ExcessMolarVolume(PhysicalProperty):
         )
 
     @staticmethod
-    def get_default_simulation_workflow_schema(options=None):
-        """Returns the default workflow to use when estimating this property
-        from direct simulations.
+    def _default_reweighting_storage_query():
+        """Returns the default storage queries to use when
+        retrieving cached simulation data to reweight.
 
-        Parameters
-        ----------
-        options: WorkflowOptions
-            The default options to use when setting up the estimation workflow.
+        This will include one query (with the key `"full_system_data"`)
+        to return data for the full mixture system, and another query
+        (with the key `"component_data"`) which will include data for
+        each pure component in the system.
 
         Returns
         -------
-        WorkflowSchema
+        dict of str and SimulationDataQuery
+            The dictionary of queries.
+        """
+
+        mixture_data_query = SimulationDataQuery()
+        mixture_data_query.substance = PlaceholderValue()
+        mixture_data_query.property_phase = PropertyPhase.Liquid
+
+        # Set up a query which will return the data of each
+        # individual component in the system.
+        component_query = SubstanceQuery()
+        component_query.components_only = True
+
+        component_data_query = SimulationDataQuery()
+        component_data_query.property_phase = PropertyPhase.Liquid
+        component_data_query.substance = PlaceholderValue()
+        component_data_query.substance_query = component_query
+
+        return {
+            "full_system_data": mixture_data_query,
+            "component_data": component_data_query,
+        }
+
+    @staticmethod
+    def default_simulation_schema(
+        absolute_tolerance=UNDEFINED, relative_tolerance=UNDEFINED, n_molecules=1000
+    ):
+        """Returns the default calculation schema to use when estimating
+        this class of property from direct simulations.
+
+        Parameters
+        ----------
+        absolute_tolerance: pint.Quantity, optional
+            The absolute tolerance to estimate the property to within.
+        relative_tolerance: float
+            The tolerance (as a fraction of the properties reported
+            uncertainty) to estimate the property to within.
+        n_molecules: int
+            The number of molecules to use in the simulation.
+
+        Returns
+        -------
+        SimulationSchema
             The schema to follow when estimating this property.
         """
+        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
+
+        calculation_schema = SimulationSchema()
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
+
+        use_target_uncertainty = (
+            absolute_tolerance != UNDEFINED or relative_tolerance != UNDEFINED
+        )
 
         # Define the id of the replicator which will clone the gradient protocols
         # for each gradient key to be estimated.
@@ -657,7 +708,10 @@ class ExcessMolarVolume(PhysicalProperty):
             full_system_gradient_replicator,
             full_system_gradient,
         ) = ExcessMolarVolume._get_simulation_protocols(
-            "_full", gradient_replicator_id, options=options
+            "_full",
+            gradient_replicator_id,
+            use_target_uncertainty=use_target_uncertainty,
+            n_molecules=n_molecules,
         )
 
         # Set up a general workflow for calculating the molar volume of one of the system components.
@@ -685,7 +739,8 @@ class ExcessMolarVolume(PhysicalProperty):
             weight_by_mole_fraction=True,
             component_substance_reference=component_substance,
             full_substance_reference=full_substance,
-            options=options,
+            use_target_uncertainty=use_target_uncertainty,
+            n_molecules=n_molecules,
         )
 
         # Finally, set up the protocols which will be responsible for adding together
@@ -727,35 +782,34 @@ class ExcessMolarVolume(PhysicalProperty):
         )
 
         # Build the final workflow schema
-        schema = WorkflowSchema(property_type=ExcessMolarVolume.__name__)
-        schema.id = "{}{}".format(ExcessMolarVolume.__name__, "Schema")
+        schema = WorkflowSchema()
 
-        schema.protocols = {
-            component_protocols.build_coordinates.id: component_protocols.build_coordinates.schema,
-            component_protocols.assign_parameters.id: component_protocols.assign_parameters.schema,
-            component_protocols.energy_minimisation.id: component_protocols.energy_minimisation.schema,
-            component_protocols.equilibration_simulation.id: component_protocols.equilibration_simulation.schema,
-            component_protocols.converge_uncertainty.id: component_protocols.converge_uncertainty.schema,
-            component_molar_molecules.id: component_molar_molecules.schema,
-            full_system_protocols.build_coordinates.id: full_system_protocols.build_coordinates.schema,
-            full_system_protocols.assign_parameters.id: full_system_protocols.assign_parameters.schema,
-            full_system_protocols.energy_minimisation.id: full_system_protocols.energy_minimisation.schema,
-            full_system_protocols.equilibration_simulation.id: full_system_protocols.equilibration_simulation.schema,
-            full_system_protocols.converge_uncertainty.id: full_system_protocols.converge_uncertainty.schema,
-            full_system_molar_molecules.id: full_system_molar_molecules.schema,
-            component_protocols.extract_uncorrelated_trajectory.id: component_protocols.extract_uncorrelated_trajectory.schema,
-            component_protocols.extract_uncorrelated_statistics.id: component_protocols.extract_uncorrelated_statistics.schema,
-            full_system_protocols.extract_uncorrelated_trajectory.id: full_system_protocols.extract_uncorrelated_trajectory.schema,
-            full_system_protocols.extract_uncorrelated_statistics.id: full_system_protocols.extract_uncorrelated_statistics.schema,
-            add_component_molar_volumes.id: add_component_molar_volumes.schema,
-            calculate_excess_volume.id: calculate_excess_volume.schema,
-            component_gradient_group.id: component_gradient_group.schema,
-            full_system_gradient_group.id: full_system_gradient_group.schema,
-            add_component_gradients.id: add_component_gradients.schema,
-            combine_gradients.id: combine_gradients.schema,
-        }
+        schema.protocol_schemas = [
+            component_protocols.build_coordinates.schema,
+            component_protocols.assign_parameters.schema,
+            component_protocols.energy_minimisation.schema,
+            component_protocols.equilibration_simulation.schema,
+            component_protocols.converge_uncertainty.schema,
+            component_molar_molecules.schema,
+            full_system_protocols.build_coordinates.schema,
+            full_system_protocols.assign_parameters.schema,
+            full_system_protocols.energy_minimisation.schema,
+            full_system_protocols.equilibration_simulation.schema,
+            full_system_protocols.converge_uncertainty.schema,
+            full_system_molar_molecules.schema,
+            component_protocols.extract_uncorrelated_trajectory.schema,
+            component_protocols.extract_uncorrelated_statistics.schema,
+            full_system_protocols.extract_uncorrelated_trajectory.schema,
+            full_system_protocols.extract_uncorrelated_statistics.schema,
+            add_component_molar_volumes.schema,
+            calculate_excess_volume.schema,
+            component_gradient_group.schema,
+            full_system_gradient_group.schema,
+            add_component_gradients.schema,
+            combine_gradients.schema,
+        ]
 
-        schema.replicators = [gradient_replicator, component_replicator]
+        schema.protocol_replicators = [gradient_replicator, component_replicator]
 
         # Finally, tell the schemas where to look for its final values.
         schema.gradients_sources = [ProtocolPath("result", combine_gradients.id)]
@@ -766,23 +820,44 @@ class ExcessMolarVolume(PhysicalProperty):
             f"component_$({component_replicator_id})": component_output,
         }
 
-        return schema
+        calculation_schema.workflow_schema = schema
+        return calculation_schema
 
     @staticmethod
-    def get_default_reweighting_workflow_schema(options=None):
-        """Returns the default workflow to use when estimating this property
-        by reweighting existing data.
+    def default_reweighting_schema(
+        absolute_tolerance=UNDEFINED,
+        relative_tolerance=UNDEFINED,
+        n_effective_samples=50,
+    ):
+        """Returns the default calculation schema to use when estimating
+        this property by reweighting existing data.
 
         Parameters
         ----------
-        options: WorkflowOptions
-            The default options to use when setting up the estimation workflow.
+        absolute_tolerance: pint.Quantity, optional
+            The absolute tolerance to estimate the property to within.
+        relative_tolerance: float
+            The tolerance (as a fraction of the properties reported
+            uncertainty) to estimate the property to within.
+        n_effective_samples: int
+            The minimum number of effective samples to require when
+            reweighting the cached simulation data.
 
         Returns
         -------
-        WorkflowSchema
+        ReweightingSchema
             The schema to follow when estimating this property.
         """
+        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
+
+        calculation_schema = ReweightingSchema()
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
+
+        # Set up the storage queries
+        calculation_schema.storage_queries = (
+            ExcessMolarVolume._default_reweighting_storage_query()
+        )
 
         # Set up a replicator that will re-run the component reweighting workflow for each
         # component in the system.
@@ -804,7 +879,10 @@ class ExcessMolarVolume(PhysicalProperty):
             full_gradient_group,
             full_gradient_source,
         ) = ExcessMolarVolume._get_reweighting_protocols(
-            "_full", gradient_replicator.id, full_data_replicator_id, options=options
+            "_full",
+            gradient_replicator.id,
+            full_data_replicator_id,
+            n_effective_samples=n_effective_samples,
         )
 
         # Set up the protocols which will reweight data for each component.
@@ -825,7 +903,7 @@ class ExcessMolarVolume(PhysicalProperty):
             replicator_id=component_replicator.id,
             weight_by_mole_fraction=True,
             substance_reference=ReplicatorValue(component_replicator.id),
-            options=options,
+            n_effective_samples=n_effective_samples,
         )
 
         # Make sure the replicator is only replicating over component data.
@@ -859,29 +937,20 @@ class ExcessMolarVolume(PhysicalProperty):
         combine_gradients.value_a = ProtocolPath("result", add_component_gradients.id)
 
         # Build the final workflow schema.
-        schema = WorkflowSchema(property_type=ExcessMolarVolume.__name__)
-        schema.id = "{}{}".format(ExcessMolarVolume.__name__, "Schema")
+        schema = WorkflowSchema()
 
-        schema.protocols = dict()
+        schema.protocol_schemas = [
+            *(x.schema for x in full_protocols),
+            *(x.schema for x in component_protocols),
+            add_component_molar_volumes.schema,
+            calculate_excess_volume.schema,
+            full_gradient_group.schema,
+            component_gradient_group.schema,
+            add_component_gradients.schema,
+            combine_gradients.schema,
+        ]
 
-        schema.protocols.update(
-            {protocol.id: protocol.schema for protocol in full_protocols}
-        )
-        schema.protocols.update(
-            {protocol.id: protocol.schema for protocol in component_protocols}
-        )
-
-        schema.protocols[
-            add_component_molar_volumes.id
-        ] = add_component_molar_volumes.schema
-        schema.protocols[calculate_excess_volume.id] = calculate_excess_volume.schema
-
-        schema.protocols[full_gradient_group.id] = full_gradient_group.schema
-        schema.protocols[component_gradient_group.id] = component_gradient_group.schema
-        schema.protocols[add_component_gradients.id] = add_component_gradients.schema
-        schema.protocols[combine_gradients.id] = combine_gradients.schema
-
-        schema.replicators = [
+        schema.protocol_replicators = [
             full_data_replicator,
             component_replicator,
             component_data_replicator,
@@ -891,4 +960,18 @@ class ExcessMolarVolume(PhysicalProperty):
         schema.gradients_sources = [ProtocolPath("result", combine_gradients.id)]
         schema.final_value_source = ProtocolPath("result", calculate_excess_volume.id)
 
-        return schema
+        calculation_schema.workflow_schema = schema
+        return calculation_schema
+
+
+# Register the properties via the plugin system.
+register_calculation_schema(Density, SimulationLayer, Density.default_simulation_schema)
+register_calculation_schema(
+    Density, ReweightingLayer, Density.default_reweighting_schema
+)
+register_calculation_schema(
+    ExcessMolarVolume, SimulationLayer, ExcessMolarVolume.default_simulation_schema,
+)
+register_calculation_schema(
+    ExcessMolarVolume, ReweightingLayer, ExcessMolarVolume.default_reweighting_schema,
+)

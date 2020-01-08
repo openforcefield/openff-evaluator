@@ -1,10 +1,8 @@
 """
 Units tests for propertyestimator.utils.exceptions
 """
-import abc
-
 from propertyestimator.utils import utils
-from propertyestimator.utils.utils import SubhookedABCMeta, get_nested_attribute
+from propertyestimator.utils.utils import get_nested_attribute
 
 
 class DummyNestedClass:
@@ -35,12 +33,6 @@ class DummyDescriptor2:
         pass
 
 
-class DummyInterface(SubhookedABCMeta):
-    @abc.abstractmethod
-    def dummy_function_1(self):
-        pass
-
-
 class DummyDecoratedClass:
     @DummyDescriptor1
     def dummy_function_1(self):
@@ -63,12 +55,6 @@ def test_find_decorator():
 
     types = utils.find_types_with_decorator(DummyDecoratedClass, DummyDescriptor2)
     assert len(types) == 1 and types[0] == "dummy_function_3"
-
-
-def test_interfaces():
-    """Test that interface checking is working."""
-    dummy_class = DummyDecoratedClass()
-    assert isinstance(dummy_class, DummyInterface)
 
 
 def test_get_nested_attribute():

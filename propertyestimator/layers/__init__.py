@@ -1,15 +1,19 @@
-from .layers import (
-    PropertyCalculationLayer,
-    available_layers,
+from .layers import CalculationLayer, CalculationLayerResult, CalculationLayerSchema
+from .plugins import (
+    calculation_layer,
     register_calculation_layer,
+    register_calculation_schema,
+    registered_calculation_layers,
+    registered_calculation_schemas,
 )
-from .reweighting import ReweightingLayer
-from .simulation import SimulationLayer
 
 __all__ = [
-    PropertyCalculationLayer,
-    available_layers,
+    calculation_layer,
+    CalculationLayer,
+    CalculationLayerResult,
+    CalculationLayerSchema,
     register_calculation_layer,
-    ReweightingLayer,
-    SimulationLayer,
+    register_calculation_schema,
+    registered_calculation_layers,
+    registered_calculation_schemas,
 ]

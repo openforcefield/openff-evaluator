@@ -2,23 +2,11 @@
 buildings blocks in a property estimation workflow.
 """
 
+from propertyestimator.attributes import PlaceholderValue
 from propertyestimator.utils import graph
 
 
-class PlaceholderInput:
-    """A class to act as a place holder for a protocols
-    input value, for when the value of an input is not
-    known a priori, and does not come from another protocol.
-    """
-
-    def __getstate__(self):
-        return {}
-
-    def __setstate__(self, state):
-        pass
-
-
-class ReplicatorValue(PlaceholderInput):
+class ReplicatorValue(PlaceholderValue):
     """A placeholder value which will be set by a protocol replicator
     with the specified id.
     """
@@ -40,7 +28,7 @@ class ReplicatorValue(PlaceholderInput):
         self.replicator_id = state["replicator_id"]
 
 
-class ProtocolPath(PlaceholderInput):
+class ProtocolPath(PlaceholderValue):
     """Represents a pointer to the output of another protocol.
     """
 
@@ -263,23 +251,9 @@ class ProtocolPath(PlaceholderInput):
         """
         self._full_path = self._full_path.replace(old_id, new_id)
 
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, v):
-
-        if isinstance(v, str):
-            return ProtocolPath.from_string(v)
-        elif isinstance(v, dict):
-
-            path_object = ProtocolPath("", *[])
-            path_object.__setstate__(v)
-
-            v = path_object
-
-        return v
+    def copy(self):
+        """Returns a copy of this path."""
+        return ProtocolPath.from_string(self.full_path)
 
     def __str__(self):
         return self._full_path

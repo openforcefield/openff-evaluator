@@ -3,11 +3,13 @@ A set of utilities for helping to perform simulations using openmm.
 """
 import logging
 
+import pint
 from pint import UndefinedUnitError
 from simtk import openmm
 from simtk import unit as simtk_unit
 
 from propertyestimator import unit
+from propertyestimator.attributes.attributes import UndefinedAttribute
 
 
 def setup_platform_with_resources(compute_resources, high_precision=False):
@@ -116,16 +118,16 @@ unsupported_openmm_units = {
     simtk_unit.pound_mass,
     simtk_unit.stone,
     simtk_unit.millenium,
-    simtk_unit.gauss
+    simtk_unit.gauss,
 }
 
 
 def openmm_quantity_to_pint(openmm_quantity):
-    """Converts a `simtk.unit.Quantity` to a `pint.Quantity`.
+    """Converts a `simtk.pint.Quantity` to a `pint.Quantity`.
 
     Parameters
     ----------
-    openmm_quantity: simtk.unit.Quantity
+    openmm_quantity: simtk.pint.Quantity
         The quantity to convert.
 
     Returns
@@ -134,7 +136,7 @@ def openmm_quantity_to_pint(openmm_quantity):
         The converted quantity.
     """
 
-    if openmm_quantity is None:
+    if openmm_quantity is None or isinstance(openmm_quantity, UndefinedAttribute):
         return None
 
     assert isinstance(openmm_quantity, simtk_unit.Quantity)
@@ -170,7 +172,7 @@ def openmm_unit_to_pint(openmm_unit):
     """
     from openforcefield.utils import unit_to_string
 
-    if openmm_unit is None:
+    if openmm_unit is None or isinstance(openmm_unit, UndefinedAttribute):
         return None
 
     assert isinstance(openmm_unit, simtk_unit.Unit)
@@ -208,7 +210,7 @@ def openmm_unit_to_pint(openmm_unit):
 
 
 def pint_quantity_to_openmm(pint_quantity):
-    """Converts a `pint.Quantity` to a `simtk.unit.Quantity`.
+    """Converts a `pint.Quantity` to a `simtk.pint.Quantity`.
 
     Notes
     -----
@@ -221,14 +223,14 @@ def pint_quantity_to_openmm(pint_quantity):
 
     Returns
     -------
-    simtk.unit.Quantity
+    simtk.pint.Quantity
         The converted quantity.
     """
 
-    if pint_quantity is None:
+    if pint_quantity is None or isinstance(pint_quantity, UndefinedAttribute):
         return None
 
-    assert isinstance(pint_quantity, unit.Quantity)
+    assert isinstance(pint_quantity, pint.Quantity)
 
     pint_unit = pint_quantity.units
     pint_raw_value = pint_quantity.magnitude
@@ -258,10 +260,10 @@ def pint_unit_to_openmm(pint_unit):
     """
     from openforcefield.utils import string_to_unit
 
-    if pint_unit is None:
+    if pint_unit is None or isinstance(pint_unit, UndefinedAttribute):
         return None
 
-    assert isinstance(pint_unit, unit.Unit)
+    assert isinstance(pint_unit, pint.Unit)
 
     pint_unit_string = str(pint_unit)
 

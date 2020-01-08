@@ -10,7 +10,7 @@ import pytest
 
 from propertyestimator import unit
 from propertyestimator.backends import ComputeResources
-from propertyestimator.properties import ParameterGradient, ParameterGradientKey
+from propertyestimator.forcefield import ParameterGradient, ParameterGradientKey
 from propertyestimator.protocols.miscellaneous import (
     AddValues,
     DivideValue,
@@ -19,8 +19,7 @@ from propertyestimator.protocols.miscellaneous import (
     SubtractValues,
     WeightByMoleFraction,
 )
-from propertyestimator.substances import Substance
-from propertyestimator.utils.exceptions import PropertyEstimatorException
+from propertyestimator.substances import Component, ExactAmount, MoleFraction, Substance
 from propertyestimator.utils.quantities import EstimatedQuantity
 
 
@@ -51,9 +50,7 @@ def test_add_values_protocol(values):
         add_quantities = AddValues("add")
         add_quantities.values = values
 
-        result = add_quantities.execute(temporary_directory, ComputeResources())
-
-        assert not isinstance(result, PropertyEstimatorException)
+        add_quantities.execute(temporary_directory, ComputeResources())
         assert add_quantities.result == reduce(operator.add, values)
 
 
@@ -85,9 +82,7 @@ def test_subtract_values_protocol(values):
         sub_quantities.value_b = values[1]
         sub_quantities.value_a = values[0]
 
-        result = sub_quantities.execute(temporary_directory, ComputeResources())
-
-        assert not isinstance(result, PropertyEstimatorException)
+        sub_quantities.execute(temporary_directory, ComputeResources())
         assert sub_quantities.result == values[1] - values[0]
 
 
@@ -113,10 +108,7 @@ def test_multiply_values_protocol(value, multiplier):
         multiply_quantities = MultiplyValue("multiply")
         multiply_quantities.value = value
         multiply_quantities.multiplier = multiplier
-
-        result = multiply_quantities.execute(temporary_directory, ComputeResources())
-
-        assert not isinstance(result, PropertyEstimatorException)
+        multiply_quantities.execute(temporary_directory, ComputeResources())
         assert multiply_quantities.result == value * multiplier
 
 
@@ -142,10 +134,7 @@ def test_divide_values_protocol(value, divisor):
         divide_quantities = DivideValue("divide")
         divide_quantities.value = value
         divide_quantities.divisor = divisor
-
-        result = divide_quantities.execute(temporary_directory, ComputeResources())
-
-        assert not isinstance(result, PropertyEstimatorException)
+        divide_quantities.execute(temporary_directory, ComputeResources())
         assert divide_quantities.result == value / divisor
 
 
@@ -169,7 +158,9 @@ def test_weight_by_mole_fraction_protocol(component_smiles, value):
     full_substance = Substance.from_components("C", "CC", "CCC")
     component = Substance.from_components(component_smiles)
 
-    mole_fraction = next(iter(full_substance.get_amounts(component_smiles))).value
+    mole_fraction = next(
+        iter(full_substance.get_amounts(component.components[0].identifier))
+    ).value
 
     with tempfile.TemporaryDirectory() as temporary_directory:
 
@@ -177,20 +168,17 @@ def test_weight_by_mole_fraction_protocol(component_smiles, value):
         weight_protocol.value = value
         weight_protocol.full_substance = full_substance
         weight_protocol.component = component
-
-        result = weight_protocol.execute(temporary_directory, ComputeResources())
-
-        assert not isinstance(result, PropertyEstimatorException)
+        weight_protocol.execute(temporary_directory, ComputeResources())
         assert weight_protocol.weighted_value == value * mole_fraction
 
 
 @pytest.mark.parametrize(
     "filter_role",
     [
-        Substance.ComponentRole.Solute,
-        Substance.ComponentRole.Solvent,
-        Substance.ComponentRole.Ligand,
-        Substance.ComponentRole.Receptor,
+        Component.Role.Solute,
+        Component.Role.Solvent,
+        Component.Role.Ligand,
+        Component.Role.Receptor,
     ],
 )
 def test_substance_filtering_protocol(filter_role):
@@ -201,23 +189,19 @@ def test_substance_filtering_protocol(filter_role):
         test_substance = Substance()
 
         test_substance.add_component(
-            Substance.Component("C", role=Substance.ComponentRole.Solute),
-            Substance.ExactAmount(1),
+            Component("C", role=Component.Role.Solute), ExactAmount(1),
         )
 
         test_substance.add_component(
-            Substance.Component("CC", role=Substance.ComponentRole.Ligand),
-            Substance.ExactAmount(1),
+            Component("CC", role=Component.Role.Ligand), ExactAmount(1),
         )
 
         test_substance.add_component(
-            Substance.Component("CCC", role=Substance.ComponentRole.Receptor),
-            Substance.ExactAmount(1),
+            Component("CCC", role=Component.Role.Receptor), ExactAmount(1),
         )
 
         test_substance.add_component(
-            Substance.Component("O", role=Substance.ComponentRole.Solvent),
-            Substance.MoleFraction(1.0),
+            Component("O", role=Component.Role.Solvent), MoleFraction(1.0),
         )
 
         return test_substance

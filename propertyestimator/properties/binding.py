@@ -1,52 +1,43 @@
 """
 A collection of density physical property definitions.
 """
+import copy
 
-from propertyestimator.properties import PhysicalProperty
-from propertyestimator.properties.plugins import register_estimable_property
+from propertyestimator.datasets import PhysicalProperty
+from propertyestimator.layers.simulation import SimulationSchema
 from propertyestimator.protocols import coordinates, forcefield, miscellaneous, yank
-from propertyestimator.substances import Substance
+from propertyestimator.substances import Component
 from propertyestimator.workflow.schemas import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
 
-@register_estimable_property()
 class HostGuestBindingAffinity(PhysicalProperty):
     """A class representation of a host-guest binding affinity property"""
 
-    @property
-    def multi_component_property(self):
-        """Returns whether this property is dependant on properties of the
-        full mixed substance, or whether it is also dependant on the properties
-        of the individual components also.
-        """
-        return False
-
     @staticmethod
-    def get_default_workflow_schema(calculation_layer, options=None):
-
-        if calculation_layer == "SimulationLayer":
-            return HostGuestBindingAffinity.get_default_simulation_workflow_schema(
-                options
-            )
-
-        return None
-
-    @staticmethod
-    def get_default_simulation_workflow_schema(options=None):
-        """Returns the default workflow to use when estimating this property
-        from direct simulations.
+    def default_simulation_schema(existing_schema=None):
+        """Returns the default calculation schema to use when estimating
+        this class of property from direct simulations.
 
         Parameters
         ----------
-        options: WorkflowOptions
-            The default options to use when setting up the estimation workflow.
+        existing_schema: SimulationSchema, optional
+            An existing schema whose settings to use. If set,
+            the schema's `workflow_schema` will be overwritten
+            by this method.
 
         Returns
         -------
-        WorkflowSchema
+        SimulationSchema
             The schema to follow when estimating this property.
         """
+
+        calculation_schema = SimulationSchema()
+
+        if existing_schema is not None:
+
+            assert isinstance(existing_schema, SimulationSchema)
+            calculation_schema = copy.deepcopy(existing_schema)
 
         schema = WorkflowSchema(property_type=HostGuestBindingAffinity.__name__)
         schema.id = "{}{}".format(HostGuestBindingAffinity.__name__, "Schema")
@@ -55,7 +46,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         filter_ligand = miscellaneous.FilterSubstanceByRole("filter_ligand")
         filter_ligand.input_substance = ProtocolPath("substance", "global")
 
-        filter_ligand.component_role = Substance.ComponentRole.Ligand
+        filter_ligand.component_role = Component.Role.Ligand
         # We only support substances with a single guest ligand.
         filter_ligand.expected_components = 1
 
@@ -66,7 +57,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         filter_receptor = miscellaneous.FilterSubstanceByRole("filter_receptor")
         filter_receptor.input_substance = ProtocolPath("substance", "global")
 
-        filter_receptor.component_role = Substance.ComponentRole.Receptor
+        filter_receptor.component_role = Component.Role.Receptor
         # We only support substances with a single host receptor.
         filter_receptor.expected_components = 1
 
@@ -87,7 +78,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         # Solvate the docked structure using packmol
         filter_solvent = miscellaneous.FilterSubstanceByRole("filter_solvent")
         filter_solvent.input_substance = ProtocolPath("substance", "global")
-        filter_solvent.component_role = Substance.ComponentRole.Solvent
+        filter_solvent.component_role = Component.Role.Solvent
 
         schema.protocols[filter_solvent.id] = filter_solvent.schema
 
@@ -104,7 +95,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         schema.protocols[solvate_complex.id] = solvate_complex.schema
 
         # Assign force field parameters to the solvated complex system.
-        build_solvated_complex_system = forcefield.BuildSmirnoffSystem(
+        build_solvated_complex_system = forcefield.BaseBuildSystem(
             "build_solvated_complex_system"
         )
 
@@ -137,7 +128,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         schema.protocols[solvate_ligand.id] = solvate_ligand.schema
 
         # Assign force field parameters to the solvated ligand system.
-        build_solvated_ligand_system = forcefield.BuildSmirnoffSystem(
+        build_solvated_ligand_system = forcefield.BaseBuildSystem(
             "build_solvated_ligand_system"
         )
 
@@ -197,19 +188,5 @@ class HostGuestBindingAffinity(PhysicalProperty):
             "estimated_free_energy", yank_protocol.id
         )
 
-        # output_to_store = WorkflowOutputToStore()
-        #
-        # output_to_store.trajectory_file_path = ProtocolPath('output_trajectory_path',
-        #                                                     extract_uncorrelated_trajectory.id)
-        # output_to_store.coordinate_file_path = ProtocolPath('output_coordinate_file',
-        #                                                     converge_uncertainty.id, npt_production.id)
-        #
-        # output_to_store.statistics_file_path = ProtocolPath('output_statistics_path',
-        #                                                     extract_uncorrelated_statistics.id)
-        #
-        # output_to_store.statistical_inefficiency = ProtocolPath('statistical_inefficiency', converge_uncertainty.id,
-        #                                                                                     extract_density.id)
-        #
-        # schema.outputs_to_store = {'full_system': output_to_store}
-
-        return schema
+        calculation_schema.workflow_schema = schema
+        return calculation_schema

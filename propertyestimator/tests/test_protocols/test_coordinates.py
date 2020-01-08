@@ -12,9 +12,8 @@ from propertyestimator.protocols.coordinates import (
     BuildDockedCoordinates,
     SolvateExistingStructure,
 )
-from propertyestimator.substances import Substance
+from propertyestimator.substances import Component, ExactAmount, MoleFraction, Substance
 from propertyestimator.utils import get_data_filename
-from propertyestimator.utils.exceptions import PropertyEstimatorException
 
 
 def _build_input_output_substances():
@@ -39,38 +38,22 @@ def _build_input_output_substances():
 
     # Handle some cases where rounding will need to occur.
     input_substance = Substance()
-    input_substance.add_component(
-        Substance.Component("O"), Substance.MoleFraction(0.41)
-    )
-    input_substance.add_component(
-        Substance.Component("C"), Substance.MoleFraction(0.59)
-    )
+    input_substance.add_component(Component("O"), MoleFraction(0.41))
+    input_substance.add_component(Component("C"), MoleFraction(0.59))
 
     expected_substance = Substance()
-    expected_substance.add_component(
-        Substance.Component("O"), Substance.MoleFraction(0.4)
-    )
-    expected_substance.add_component(
-        Substance.Component("C"), Substance.MoleFraction(0.6)
-    )
+    expected_substance.add_component(Component("O"), MoleFraction(0.4))
+    expected_substance.add_component(Component("C"), MoleFraction(0.6))
 
     substances.append((input_substance, expected_substance))
 
     input_substance = Substance()
-    input_substance.add_component(
-        Substance.Component("O"), Substance.MoleFraction(0.59)
-    )
-    input_substance.add_component(
-        Substance.Component("C"), Substance.MoleFraction(0.41)
-    )
+    input_substance.add_component(Component("O"), MoleFraction(0.59))
+    input_substance.add_component(Component("C"), MoleFraction(0.41))
 
     expected_substance = Substance()
-    expected_substance.add_component(
-        Substance.Component("O"), Substance.MoleFraction(0.6)
-    )
-    expected_substance.add_component(
-        Substance.Component("C"), Substance.MoleFraction(0.4)
-    )
+    expected_substance.add_component(Component("O"), MoleFraction(0.6))
+    expected_substance.add_component(Component("C"), MoleFraction(0.4))
 
     substances.append((input_substance, expected_substance))
 
@@ -87,9 +70,7 @@ def test_build_coordinates_packmol(input_substance, expected):
     build_coordinates.substance = input_substance
 
     with tempfile.TemporaryDirectory() as directory:
-        assert not isinstance(
-            build_coordinates.execute(directory, None), PropertyEstimatorException
-        )
+        build_coordinates.execute(directory, None)
 
     assert build_coordinates.output_substance == expected
 
@@ -98,12 +79,10 @@ def test_solvate_existing_structure_protocol():
     """Tests solvating a single methanol molecule in water."""
 
     methanol_substance = Substance()
-    methanol_substance.add_component(
-        Substance.Component("CO"), Substance.ExactAmount(1)
-    )
+    methanol_substance.add_component(Component("CO"), ExactAmount(1))
 
     water_substance = Substance()
-    water_substance.add_component(Substance.Component("O"), Substance.MoleFraction(1.0))
+    water_substance.add_component(Component("O"), MoleFraction(1.0))
 
     with tempfile.TemporaryDirectory() as temporary_directory:
 
@@ -129,8 +108,7 @@ def test_build_docked_coordinates_protocol():
 
     ligand_substance = Substance()
     ligand_substance.add_component(
-        Substance.Component("CO", role=Substance.ComponentRole.Ligand),
-        Substance.ExactAmount(1),
+        Component("CO", role=Component.Role.Ligand), ExactAmount(1),
     )
 
     # TODO: This test could likely be made substantially faster

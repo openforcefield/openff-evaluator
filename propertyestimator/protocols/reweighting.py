@@ -1,82 +1,68 @@
 """
 A collection of protocols for reweighting cached simulation data.
 """
-
+import abc
 import typing
 from os import path
 
 import numpy as np
+import pint
 import pymbar
 from scipy.special import logsumexp
 
 from propertyestimator import unit
+from propertyestimator.attributes import UNDEFINED
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils.exceptions import PropertyEstimatorException
-from propertyestimator.utils.openmm import (
-    disable_pbc,
-    pint_quantity_to_openmm,
-    setup_platform_with_resources,
-)
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import (
     ObservableType,
     StatisticsArray,
     bootstrap,
 )
-from propertyestimator.workflow.decorators import (
-    UNDEFINED,
-    protocol_input,
-    protocol_output,
-)
-from propertyestimator.workflow.plugins import register_calculation_protocol
-from propertyestimator.workflow.protocols import BaseProtocol
+from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
+from propertyestimator.workflow.plugins import workflow_protocol
+from propertyestimator.workflow.protocols import Protocol
 
 
-@register_calculation_protocol()
-class ConcatenateTrajectories(BaseProtocol):
+@workflow_protocol()
+class ConcatenateTrajectories(Protocol):
     """A protocol which concatenates multiple trajectories into
     a single one.
     """
 
-    input_coordinate_paths = protocol_input(
+    input_coordinate_paths = InputAttribute(
         docstring="A list of paths to the starting PDB coordinates for each of the trajectories.",
         type_hint=list,
         default_value=UNDEFINED,
     )
-    input_trajectory_paths = protocol_input(
+    input_trajectory_paths = InputAttribute(
         docstring="A list of paths to the trajectories to concatenate.",
         type_hint=list,
         default_value=UNDEFINED,
     )
 
-    output_coordinate_path = protocol_output(
+    output_coordinate_path = OutputAttribute(
         docstring="The path the PDB coordinate file which contains the topology "
         "of the concatenated trajectory.",
         type_hint=str,
     )
 
-    output_trajectory_path = protocol_output(
+    output_trajectory_path = OutputAttribute(
         docstring="The path to the concatenated trajectory.", type_hint=str
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         import mdtraj
 
         if len(self.input_coordinate_paths) != len(self.input_trajectory_paths):
 
-            return PropertyEstimatorException(
-                directory=directory,
-                message="There should be the same number of "
-                "coordinate and trajectory paths.",
+            raise ValueError(
+                "There should be the same number of coordinate and trajectory paths."
             )
 
         if len(self.input_trajectory_paths) == 0:
-
-            return PropertyEstimatorException(
-                directory=directory,
-                message="No trajectories were " "given to concatenate.",
-            )
+            raise ValueError("No trajectories were given to concatenate.")
 
         trajectories = []
 
@@ -99,33 +85,27 @@ class ConcatenateTrajectories(BaseProtocol):
         self.output_trajectory_path = path.join(directory, "output_trajectory.dcd")
         output_trajectory.save_dcd(self.output_trajectory_path)
 
-        return self._get_output_dictionary()
 
-
-@register_calculation_protocol()
-class ConcatenateStatistics(BaseProtocol):
+@workflow_protocol()
+class ConcatenateStatistics(Protocol):
     """A protocol which concatenates multiple trajectories into
     a single one.
     """
 
-    input_statistics_paths = protocol_input(
+    input_statistics_paths = InputAttribute(
         docstring="A list of paths to statistics arrays to concatenate.",
         type_hint=list,
         default_value=UNDEFINED,
     )
-    output_statistics_path = protocol_output(
+    output_statistics_path = OutputAttribute(
         docstring="The path the csv file which contains the concatenated statistics.",
         type_hint=str,
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         if len(self.input_statistics_paths) == 0:
-
-            return PropertyEstimatorException(
-                directory=directory,
-                message="No statistics arrays were " "given to concatenate.",
-            )
+            raise ValueError("No statistics arrays were given to concatenate.")
 
         arrays = [
             StatisticsArray.from_pandas_csv(file_path)
@@ -140,59 +120,58 @@ class ConcatenateStatistics(BaseProtocol):
         self.output_statistics_path = path.join(directory, "output_statistics.csv")
         output_array.to_pandas_csv(self.output_statistics_path)
 
-        return self._get_output_dictionary()
 
-
-@register_calculation_protocol()
-class CalculateReducedPotentialOpenMM(BaseProtocol):
-    """Calculates the reduced potential for a given
-    set of configurations.
+@workflow_protocol()
+class BaseReducedPotentials(Protocol, abc.ABC):
+    """A base class for protocols which will re-evaluate the reduced potential
+    of a series of configurations for a given set of force field parameters.
     """
 
-    thermodynamic_state = protocol_input(
-        docstring="The state to calculate the reduced potential at.",
+    thermodynamic_state = InputAttribute(
+        docstring="The state to calculate the reduced potentials at.",
         type_hint=ThermodynamicState,
         default_value=UNDEFINED,
     )
 
-    system_path = protocol_input(
-        docstring="The path to the system object which describes the systems potential "
-        "energy function.",
+    system_path = InputAttribute(
+        docstring="The path to the system object which describes the systems "
+        "potential energy function.",
         type_hint=str,
         default_value=UNDEFINED,
     )
-    enable_pbc = protocol_input(
+    enable_pbc = InputAttribute(
         docstring="If true, periodic boundary conditions will be enabled.",
         type_hint=bool,
         default_value=True,
     )
 
-    coordinate_file_path = protocol_input(
+    coordinate_file_path = InputAttribute(
         docstring="The path to the coordinate file which contains topology "
         "information about the system.",
         type_hint=str,
         default_value=UNDEFINED,
     )
-    trajectory_file_path = protocol_input(
+    trajectory_file_path = InputAttribute(
         docstring="The path to the trajectory file which contains the "
         "configurations to calculate the energies of.",
         type_hint=str,
         default_value=UNDEFINED,
     )
-    kinetic_energies_path = protocol_input(
+    kinetic_energies_path = InputAttribute(
         docstring="The file path to a statistics array which contain the kinetic "
         "energies of each frame in the trajectory.",
         type_hint=str,
         default_value=UNDEFINED,
     )
 
-    high_precision = protocol_input(
-        docstring="If true, OpenMM will be run in double precision mode.",
+    high_precision = InputAttribute(
+        docstring="If true, the reduced potentials will be calculated using double "
+        "precision operations.",
         type_hint=bool,
         default_value=False,
     )
 
-    use_internal_energy = protocol_input(
+    use_internal_energy = InputAttribute(
         docstring="If true the internal energy, rather than the potential energy will "
         "be used when calculating the reduced potential. This is required "
         "when reweighting properties which depend on the total energy, such "
@@ -201,7 +180,7 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         default_value=False,
     )
 
-    statistics_file_path = protocol_output(
+    statistics_file_path = OutputAttribute(
         docstring="A file path to the statistics file which contains the reduced "
         "potentials, and the potential, kinetic and total energies and "
         "enthalpies evaluated at the specified state and using the "
@@ -209,144 +188,44 @@ class CalculateReducedPotentialOpenMM(BaseProtocol):
         type_hint=str,
     )
 
-    def execute(self, directory, available_resources):
 
-        import openmmtools
-        import mdtraj
-
-        from simtk import openmm, unit as simtk_unit
-        from simtk.openmm import XmlSerializer
-
-        trajectory = mdtraj.load_dcd(
-            self.trajectory_file_path, self.coordinate_file_path
-        )
-
-        with open(self.system_path, "rb") as file:
-            system = XmlSerializer.deserialize(file.read().decode())
-
-        temperature = pint_quantity_to_openmm(self.thermodynamic_state.temperature)
-        pressure = pint_quantity_to_openmm(self.thermodynamic_state.pressure)
-
-        if self.enable_pbc:
-            system.setDefaultPeriodicBoxVectors(*trajectory.openmm_boxes(0))
-        else:
-            pressure = None
-
-        openmm_state = openmmtools.states.ThermodynamicState(
-            system=system, temperature=temperature, pressure=pressure
-        )
-
-        integrator = openmmtools.integrators.VelocityVerletIntegrator(
-            0.01 * simtk_unit.femtoseconds
-        )
-
-        # Setup the requested platform:
-        platform = setup_platform_with_resources(
-            available_resources, self.high_precision
-        )
-        openmm_system = openmm_state.get_system(True, True)
-
-        if not self.enable_pbc:
-            disable_pbc(openmm_system)
-
-        openmm_context = openmm.Context(openmm_system, integrator, platform)
-
-        potential_energies = np.zeros(trajectory.n_frames)
-        reduced_potentials = np.zeros(trajectory.n_frames)
-
-        for frame_index in range(trajectory.n_frames):
-
-            if self.enable_pbc:
-                box_vectors = trajectory.openmm_boxes(frame_index)
-                openmm_context.setPeriodicBoxVectors(*box_vectors)
-
-            positions = trajectory.xyz[frame_index]
-            openmm_context.setPositions(positions)
-
-            potential_energy = openmm_context.getState(
-                getEnergy=True
-            ).getPotentialEnergy()
-
-            potential_energies[frame_index] = potential_energy.value_in_unit(
-                simtk_unit.kilojoule_per_mole
-            )
-            reduced_potentials[frame_index] = openmm_state.reduced_potential(
-                openmm_context
-            )
-
-        kinetic_energies = StatisticsArray.from_pandas_csv(self.kinetic_energies_path)[
-            ObservableType.KineticEnergy
-        ]
-
-        statistics_array = StatisticsArray()
-        statistics_array[ObservableType.PotentialEnergy] = (
-            potential_energies * unit.kilojoule / unit.mole
-        )
-        statistics_array[ObservableType.KineticEnergy] = kinetic_energies
-        statistics_array[ObservableType.ReducedPotential] = (
-            reduced_potentials * unit.dimensionless
-        )
-
-        statistics_array[ObservableType.TotalEnergy] = (
-            statistics_array[ObservableType.PotentialEnergy]
-            + statistics_array[ObservableType.KineticEnergy]
-        )
-
-        statistics_array[ObservableType.Enthalpy] = (
-            statistics_array[ObservableType.ReducedPotential]
-            * self.thermodynamic_state.inverse_beta
-            + kinetic_energies
-        )
-
-        if self.use_internal_energy:
-            statistics_array[ObservableType.ReducedPotential] += (
-                kinetic_energies * self.thermodynamic_state.beta
-            )
-
-        self.statistics_file_path = path.join(directory, "statistics.csv")
-        statistics_array.to_pandas_csv(self.statistics_file_path)
-
-        return self._get_output_dictionary()
-
-
-@register_calculation_protocol()
-class BaseMBARProtocol(BaseProtocol):
+class BaseMBARProtocol(Protocol, abc.ABC):
     """Reweights a set of observables using MBAR to calculate
     the average value of the observables at a different state
     than they were originally measured.
     """
 
-    reference_reduced_potentials = protocol_input(
+    reference_reduced_potentials = InputAttribute(
         docstring="A list of paths to the reduced potentials of each "
         "reference state.",
         type_hint=typing.Union[str, list],
         default_value=UNDEFINED,
     )
-    target_reduced_potentials = protocol_input(
+    target_reduced_potentials = InputAttribute(
         docstring="A list of paths to the reduced potentials of the target state.",
         type_hint=typing.Union[str, list],
         default_value=UNDEFINED,
     )
 
-    bootstrap_uncertainties = protocol_input(
+    bootstrap_uncertainties = InputAttribute(
         docstring="If true, bootstrapping will be used to estimated the total uncertainty",
         type_hint=bool,
         default_value=False,
     )
-    bootstrap_iterations = protocol_input(
+    bootstrap_iterations = InputAttribute(
         docstring="The number of bootstrap iterations to perform if bootstraped "
         "uncertainties have been requested",
         type_hint=int,
         default_value=1,
     )
-    bootstrap_sample_size = protocol_input(
+    bootstrap_sample_size = InputAttribute(
         docstring="The relative bootstrap sample size to use if bootstraped "
         "uncertainties have been requested",
         type_hint=float,
         default_value=1.0,
     )
 
-    required_effective_samples = protocol_input(
+    required_effective_samples = InputAttribute(
         docstring="The minimum number of MBAR effective samples for the "
         "reweighted value to be trusted. If this minimum is not met "
         "then the uncertainty will be set to sys.float_info.max",
@@ -354,16 +233,16 @@ class BaseMBARProtocol(BaseProtocol):
         default_value=50,
     )
 
-    value = protocol_output(
+    value = OutputAttribute(
         docstring="The reweighted average value of the observable at the target state.",
         type_hint=EstimatedQuantity,
     )
 
-    effective_samples = protocol_output(
+    effective_samples = OutputAttribute(
         docstring="The number of effective samples which were reweighted.",
         type_hint=float,
     )
-    effective_sample_indices = protocol_output(
+    effective_sample_indices = OutputAttribute(
         docstring="The indices of those samples which have a non-zero weight.",
         type_hint=list,
     )
@@ -372,40 +251,27 @@ class BaseMBARProtocol(BaseProtocol):
         super().__init__(protocol_id)
         self._reference_observables = []
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         if len(self._reference_observables) == 0:
+            raise ValueError("There were no observables to reweight.")
 
-            return PropertyEstimatorException(
-                directory=directory, message="There were no observables to reweight."
-            )
+        if not isinstance(self._reference_observables[0], pint.Quantity):
 
-        if not isinstance(self._reference_observables[0], unit.Quantity):
-
-            return PropertyEstimatorException(
-                directory=directory,
-                message="The reference_observables input should be"
-                "a list of unit.Quantity wrapped ndarray's.",
+            raise ValueError(
+                "The reference_observables input should be a list of pint.Quantity "
+                "wrapped ndarray's.",
             )
 
         observables = self._prepare_observables_array(self._reference_observables)
         observable_unit = self._reference_observables[0].units
 
         if self.bootstrap_uncertainties:
-            error = self._execute_with_bootstrapping(
-                observable_unit, observables=observables
-            )
+            self._execute_with_bootstrapping(observable_unit, observables=observables)
         else:
-            error = self._execute_without_bootstrapping(
+            self._execute_without_bootstrapping(
                 observable_unit, observables=observables
             )
-
-        if error is not None:
-
-            error.directory = directory
-            return error
-
-        return self._get_output_dictionary()
 
     def _load_reduced_potentials(self):
         """Loads the target and reference reduced potentials
@@ -420,13 +286,13 @@ class BaseMBARProtocol(BaseProtocol):
             The target reduced potentials array with dtype=double and
             shape=(1,)
         """
-        
+
         if isinstance(self.reference_reduced_potentials, str):
             self.reference_reduced_potentials = [self.reference_reduced_potentials]
 
         if isinstance(self.target_reduced_potentials, str):
             self.target_reduced_potentials = [self.target_reduced_potentials]
-        
+
         reference_reduced_potentials = []
         target_reduced_potentials = []
 
@@ -468,15 +334,10 @@ class BaseMBARProtocol(BaseProtocol):
 
         Parameters
         ----------
-        observable_unit: propertyestimator.unit.Unit:
+        observable_unit: pint.Unit:
             The expected unit of the reweighted observable.
         observables: dict of str and numpy.ndarray
             The observables to reweight which have been stripped of their units.
-
-        Returns
-        -------
-        PropertyEstimatorException, optional
-            None if the method executed normally, otherwise the exception that was raised.
         """
 
         (
@@ -498,10 +359,9 @@ class BaseMBARProtocol(BaseProtocol):
 
         if self.effective_samples < self.required_effective_samples:
 
-            return PropertyEstimatorException(
-                message=f"{self.id}: There was not enough effective samples "
-                f"to reweight - {self.effective_samples} < "
-                f"{self.required_effective_samples}"
+            raise ValueError(
+                f"There was not enough effective samples to reweight - "
+                f"{self.effective_samples} < {self.required_effective_samples}"
             )
 
         # Transpose the observables ready for bootstrapping.
@@ -562,10 +422,9 @@ class BaseMBARProtocol(BaseProtocol):
 
         if self.effective_samples < self.required_effective_samples:
 
-            return PropertyEstimatorException(
-                message=f"{self.id}: There was not enough effective samples "
-                f"to reweight - {self.effective_samples} < "
-                f"{self.required_effective_samples}"
+            raise ValueError(
+                f"There was not enough effective samples to reweight - "
+                f"{self.effective_samples} < {self.required_effective_samples}"
             )
 
         self.value = EstimatedQuantity(
@@ -581,7 +440,7 @@ class BaseMBARProtocol(BaseProtocol):
 
         Parameters
         ----------
-        reference_observables: List of unit.Quantity
+        reference_observables: List of pint.Quantity
             A list of observables for each reference state,
             which each observable is a Quantity wrapped numpy
             array.
@@ -795,12 +654,12 @@ class BaseMBARProtocol(BaseProtocol):
         return values, uncertainties, effective_samples
 
 
-@register_calculation_protocol()
+@workflow_protocol()
 class ReweightStatistics(BaseMBARProtocol):
     """Reweights a set of observables from a `StatisticsArray` using MBAR.
     """
 
-    statistics_paths = protocol_input(
+    statistics_paths = InputAttribute(
         docstring="The file paths to the statistics array which contains the observables "
         "of interest from each state. If the observable of interest is "
         "dependant on the changing variable (e.g. the potential energy) then "
@@ -808,13 +667,13 @@ class ReweightStatistics(BaseMBARProtocol):
         type_hint=typing.Union[list, str],
         default_value=UNDEFINED,
     )
-    statistics_type = protocol_input(
+    statistics_type = InputAttribute(
         docstring="The type of observable to reweight.",
         type_hint=ObservableType,
         default_value=UNDEFINED,
     )
 
-    frame_counts = protocol_input(
+    frame_counts = InputAttribute(
         docstring="A list which describes how many of the statistics in the array "
         "belong to each reference state. If this input is used, only a single file "
         "path should be passed to the `statistics_paths` input.",
@@ -823,28 +682,23 @@ class ReweightStatistics(BaseMBARProtocol):
         optional=True,
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         if isinstance(self.statistics_paths, str):
             self.statistics_paths = [self.statistics_paths]
 
         if self.statistics_paths is None or len(self.statistics_paths) == 0:
-            return PropertyEstimatorException(
-                directory, "No statistics paths were provided."
-            )
+            return ValueError("No statistics paths were provided.")
 
         if len(self.frame_counts) > 0 and len(self.statistics_paths) != 1:
-            return PropertyEstimatorException(
-                directory,
-                "The frame counts input can only be used when only"
-                "a single path is passed to the `statistics_paths`"
-                "input.",
+
+            raise ValueError(
+                "The frame counts input can only be used when only a single "
+                "path is passed to the `statistics_paths` input.",
             )
 
         if self.statistics_type == ObservableType.KineticEnergy:
-            return PropertyEstimatorException(
-                directory, f"Kinetic energies cannot be reweighted."
-            )
+            raise ValueError(f"Kinetic energies cannot be reweighted.")
 
         statistics_arrays = [
             StatisticsArray.from_pandas_csv(file_path)
@@ -861,9 +715,7 @@ class ReweightStatistics(BaseMBARProtocol):
             for frame_count in self.frame_counts:
 
                 if frame_count <= 0:
-                    return PropertyEstimatorException(
-                        directory, "The frame counts must be > 0."
-                    )
+                    raise ValueError("The frame counts must be > 0.")
 
                 observables = statistics_array[self.statistics_type][
                     current_index : current_index + frame_count
@@ -879,4 +731,4 @@ class ReweightStatistics(BaseMBARProtocol):
                 observables = statistics_array[self.statistics_type]
                 self._reference_observables.append(observables)
 
-        return super(ReweightStatistics, self).execute(directory, available_resources)
+        return super(ReweightStatistics, self)._execute(directory, available_resources)

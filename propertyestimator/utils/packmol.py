@@ -77,10 +77,10 @@ def pack_box(
         A file path to the PDB coordinates of the structure to be solvated.
     tolerance : float
         The minimum spacing between molecules during packing in angstroms.
-    box_size : propertyestimator.unit.Quantity, optional
+    box_size : pint.Quantity, optional
         The size of the box to generate in units compatible with angstroms. If `None`,
         `mass_density` must be provided.
-    mass_density : propertyestimator.unit.Quantity, optional
+    mass_density : pint.Quantity, optional
         Target mass density for final system with units compatible with g/mL. If `None`,
         `box_size` must be provided.
     box_aspect_ratio: list of float, optional
@@ -99,8 +99,8 @@ def pack_box(
     -------
     topology : simtk.openmm.Topology
         Topology of the resulting system
-    positions : propertyestimator.unit.Quantity
-        A `propertyestimator.unit.Quantity` wrapped `numpy.ndarray` (shape=[natoms,3]) which contains
+    positions : pint.Quantity
+        A `pint.Quantity` wrapped `numpy.ndarray` (shape=[natoms,3]) which contains
         the created positions with units compatible with angstroms.
     """
 
@@ -109,10 +109,7 @@ def pack_box(
 
     if box_size is not None and len(box_size) != 3:
 
-        raise ValueError(
-            "`box_size` must be a propertyestimator.unit.Quantity "
-            "wrapped list of length 3"
-        )
+        raise ValueError("`box_size` must be a pint.Quantity wrapped list of length 3")
 
     if mass_density is not None and box_aspect_ratio is None:
         box_aspect_ratio = [1.0, 1.0, 1.0]
@@ -318,13 +315,13 @@ def _approximate_volume_by_density(
         Number of copies of the molecules.
     box_scaleup_factor : float, optional, default = 1.1
         Factor by which the estimated box size is increased
-    mass_density : propertyestimator.unit.Quantity, optional
+    mass_density : pint.Quantity, optional
         The target mass density for final system, if available.
         It should have units compatible with grams/milliliters.
 
     Returns
     -------
-    box_edge : propertyestimator.unit.Quantity
+    box_edge : pint.Quantity
         The size (edge length) of the box to generate in units
         compatible with angstroms.
 

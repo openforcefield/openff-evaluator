@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 
 import numpy as np
+import pint
 
 from propertyestimator import unit
 from propertyestimator.utils.quantities import EstimatedQuantity
@@ -62,14 +63,14 @@ def _type_to_type_string(object_type):
     """
 
     if (
-        issubclass(object_type, unit.Unit)
+        issubclass(object_type, pint.Unit)
         or f"{object_type.__module__}.{object_type.__qualname__}"
         == "pint.quantity.build_quantity_class.<locals>.Unit"
     ):
 
         return "propertyestimator.unit.Unit"
     if (
-        issubclass(object_type, unit.Quantity)
+        issubclass(object_type, pint.Quantity)
         or f"{object_type.__module__}.{object_type.__qualname__}"
         == "pint.quantity.build_quantity_class.<locals>.Quantity"
     ):
@@ -84,18 +85,18 @@ def _type_to_type_string(object_type):
 
 
 def serialize_quantity(quantity):
-    """Serializes a propertyestimator.unit.Quantity into a dictionary of the form
+    """Serializes a pint.Quantity into a dictionary of the form
     `{'value': quantity.value_in_unit(quantity.unit), 'unit': quantity.unit}`
 
     Parameters
     ----------
-    quantity : unit.Quantity
+    quantity : pint.Quantity
         The quantity to serialize
 
     Returns
     -------
     dict of str and str
-        A dictionary representation of a propertyestimator.unit.Quantity
+        A dictionary representation of a pint.Quantity
         with keys of {"value", "unit"}
     """
 
@@ -104,17 +105,17 @@ def serialize_quantity(quantity):
 
 
 def deserialize_quantity(serialized):
-    """Deserialize a propertyestimator.unit.Quantity from a dictionary.
+    """Deserialize a pint.Quantity from a dictionary.
 
     Parameters
     ----------
     serialized : dict of str and str
-        A dictionary representation of a propertyestimator.unit.Quantity
+        A dictionary representation of a pint.Quantity
         which must have keys {"value", "unit"}
 
     Returns
     -------
-    propertyestimator.unit.Quantity
+    pint.Quantity
         The deserialized quantity.
     """
 
@@ -148,7 +149,7 @@ def deserialize_estimated_quantity(quantity_dictionary):
         quantity_dictionary.pop("@type")
 
     return_object = EstimatedQuantity(
-        unit.Quantity(0.0), unit.Quantity(0.0), "empty_source"
+        pint.Quantity(0.0), pint.Quantity(0.0), "empty_source"
     )
     return_object.__setstate__(quantity_dictionary)
 
@@ -168,14 +169,12 @@ def deserialize_enum(enum_dictionary):
     if "@type" not in enum_dictionary:
 
         raise ValueError(
-            "The serialized enum dictionary must include" "which type the enum is."
+            "The serialized enum dictionary must includewhich type the enum is."
         )
 
     if "value" not in enum_dictionary:
 
-        raise ValueError(
-            "The serialized enum dictionary must include" "the enum value."
-        )
+        raise ValueError("The serialized enum dictionary must includethe enum value.")
 
     enum_type_string = enum_dictionary["@type"]
     enum_value = enum_dictionary["value"]
@@ -201,7 +200,7 @@ def deserialize_set(set_dictionary):
     if "value" not in set_dictionary:
 
         raise ValueError(
-            "The serialized set dictionary must include" "the value of the set."
+            "The serialized set dictionary must includethe value of the set."
         )
 
     set_value = set_dictionary["value"]
@@ -226,7 +225,7 @@ def deserialize_frozen_set(set_dictionary):
     if "value" not in set_dictionary:
 
         raise ValueError(
-            "The serialized frozenset dictionary must include" "the value of the set."
+            "The serialized frozenset dictionary must includethe value of the set."
         )
 
     set_value = set_dictionary["value"]
@@ -243,7 +242,7 @@ class TypedJSONEncoder(json.JSONEncoder):
 
     _custom_supported_types = {
         Enum: serialize_enum,
-        unit.Quantity: serialize_quantity,
+        pint.Quantity: serialize_quantity,
         set: serialize_set,
         frozenset: serialize_frozen_set,
         np.float16: lambda x: {"value": float(x)},
@@ -273,7 +272,7 @@ class TypedJSONEncoder(json.JSONEncoder):
         if type_tag == "propertyestimator.unit.Unit":
             type_to_serialize = unit.Unit
         if type_tag == "propertyestimator.unit.Quantity":
-            type_to_serialize = unit.Quantity
+            type_to_serialize = pint.Quantity
 
         custom_encoder = None
 
@@ -339,7 +338,7 @@ class TypedJSONDecoder(json.JSONDecoder):
 
     _custom_supported_types = {
         Enum: deserialize_enum,
-        unit.Quantity: deserialize_quantity,
+        pint.Quantity: deserialize_quantity,
         EstimatedQuantity: deserialize_estimated_quantity,
         set: deserialize_set,
         frozenset: deserialize_frozen_set,
@@ -393,38 +392,25 @@ class TypedJSONDecoder(json.JSONDecoder):
 
         elif hasattr(class_type, "__setstate__"):
 
-            try:
+            class_init_signature = inspect.signature(class_type)
 
-                class_init_signature = inspect.signature(class_type)
+            for parameter in class_init_signature.parameters.values():
 
-                for parameter in class_init_signature.parameters.values():
+                if (
+                    parameter.default != inspect.Parameter.empty
+                    or parameter.kind == inspect.Parameter.VAR_KEYWORD
+                    or parameter.kind == inspect.Parameter.VAR_POSITIONAL
+                ):
 
-                    if (
-                        parameter.default != inspect.Parameter.empty
-                        or parameter.kind == inspect.Parameter.VAR_KEYWORD
-                        or parameter.kind == inspect.Parameter.VAR_POSITIONAL
-                    ):
-
-                        continue
-
-                    raise ValueError(
-                        "Cannot deserialize objects which have "
-                        "non-optional arguments {} in the constructor: {}.".format(
-                            parameter.name, class_type
-                        )
-                    )
-
-                deserialized_object = class_type()
-                deserialized_object.__setstate__(object_dictionary)
-
-            except Exception as e:
+                    continue
 
                 raise ValueError(
-                    "{} ({}) could not be deserialized "
-                    "using its __setstate__ method: {}".format(
-                        object_dictionary, type(class_type), e
-                    )
+                    f"Cannot deserialize objects ({class_type}) which have non-"
+                    f"optional arguments {parameter.name} in the constructor."
                 )
+
+            deserialized_object = class_type()
+            deserialized_object.__setstate__(object_dictionary)
 
         else:
 
@@ -454,16 +440,56 @@ class TypedBaseModel(ABC):
     output.
     """
 
-    def json(self):
+    def json(self, file_path=None, format=False):
         """Creates a JSON representation of this class.
+
+        Parameters
+        ----------
+        file_path: str, optional
+            The (optional) file path to save the JSON file to.
+        format: bool
+            Whether to format the JSON or not.
 
         Returns
         -------
         str
             The JSON representation of this class.
         """
-        json_string = json.dumps(self, cls=TypedJSONEncoder)
+        if format:
+            json_string = json.dumps(
+                self,
+                sort_keys=True,
+                indent=2,
+                separators=(",", ": "),
+                cls=TypedJSONEncoder,
+            )
+
+        else:
+            json_string = json.dumps(self, cls=TypedJSONEncoder)
+
+        if file_path is not None:
+
+            with open(file_path, "w") as file:
+                file.write(json_string)
+
         return json_string
+
+    @classmethod
+    def from_json(cls, file_path):
+        """Create this object from a JSON file.
+
+        Parameters
+        ----------
+        file_path: str
+            The path to load the JSON from.
+
+        Returns
+        -------
+        cls
+            The parsed class.
+        """
+        with open(file_path, "r") as file:
+            return cls.parse_json(file.read())
 
     @classmethod
     def parse_json(cls, string_contents, encoding="utf8"):

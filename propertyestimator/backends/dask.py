@@ -1,6 +1,7 @@
 """
 A collection of property estimator compute backends which use dask as the distribution engine.
 """
+import abc
 import importlib
 import logging
 import multiprocessing
@@ -15,7 +16,7 @@ from distributed import get_worker
 
 from propertyestimator import unit
 
-from .backends import ComputeResources, PropertyEstimatorBackend, QueueWorkerResources
+from .backends import CalculationBackend, ComputeResources, QueueWorkerResources
 
 
 class _Multiprocessor:
@@ -44,23 +45,23 @@ class _Multiprocessor:
 
         try:
 
-            from propertyestimator.workflow.plugins import available_protocols
+            from propertyestimator.workflow.plugins import registered_workflow_protocols
 
             # Each spun up worker doesn't automatically import
             # all of the modules which were imported in the main
             # launch script, and as such custom plugins will no
             # longer be registered. We re-import / register them
             # here.
-            if "available_protocols" in kwargs:
+            if "registered_workflow_protocols" in kwargs:
 
-                protocols_to_import = kwargs.pop("available_protocols")
+                protocols_to_import = kwargs.pop("registered_workflow_protocols")
 
                 for protocol_class in protocols_to_import:
                     module_name = ".".join(protocol_class.split(".")[:-1])
                     class_name = protocol_class.split(".")[-1]
 
                     imported_module = importlib.import_module(module_name)
-                    available_protocols[class_name] = getattr(
+                    registered_workflow_protocols[class_name] = getattr(
                         imported_module, class_name
                     )
 
@@ -142,7 +143,7 @@ class _Multiprocessor:
         return return_value
 
 
-class BaseDaskBackend(PropertyEstimatorBackend):
+class BaseDaskBackend(CalculationBackend, abc.ABC):
     """A base `dask` backend class, which implements functionality
     which is common to all other `dask` based backends.
     """
@@ -155,10 +156,9 @@ class BaseDaskBackend(PropertyEstimatorBackend):
         self._cluster = None
         self._client = None
 
-    def __del__(self):
-        self.stop()
-
     def start(self):
+
+        super(BaseDaskBackend, self).start()
         self._client = distributed.Client(self._cluster)
 
     def stop(self):
@@ -191,7 +191,7 @@ class BaseDaskBackend(PropertyEstimatorBackend):
         -------
         Any
             Returns the output of the function without modification, unless
-            an uncaught exception is raised in which case a PropertyEstimatorException
+            an uncaught exception is raised in which case a EvaluatorException
             is returned.
         """
         raise NotImplementedError()
@@ -281,7 +281,7 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
         # jobs restarting because of workers being killed (due to
         # wall-clock time limits mainly) do not get terminated. This
         # should mostly be safe as we most wrap genuinely thrown
-        # exceptions up as PropertyEstimatorExceptions and return these
+        # exceptions up as EvaluatorExceptions and return these
         # gracefully (such that the task won't be marked as failed by
         # dask).
         dask.config.set({"distributed.scheduler.allowed-failures": 500})
@@ -448,13 +448,13 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
 
     def submit_task(self, function, *args, **kwargs):
 
-        from propertyestimator.workflow.plugins import available_protocols
+        from propertyestimator.workflow.plugins import registered_workflow_protocols
 
         key = kwargs.pop("key", None)
 
         protocols_to_import = [
             protocol_class.__module__ + "." + protocol_class.__qualname__
-            for protocol_class in available_protocols.values()
+            for protocol_class in registered_workflow_protocols.values()
         ]
 
         return self._client.submit(
@@ -462,7 +462,7 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
             function,
             *args,
             available_resources=self._resources_per_worker,
-            available_protocols=protocols_to_import,
+            registered_workflow_protocols=protocols_to_import,
             gpu_assignments={},
             per_worker_logging=True,
             key=key,

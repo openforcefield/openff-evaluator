@@ -5,6 +5,7 @@ import json
 from enum import Enum, IntEnum
 
 import numpy as np
+import pint
 import pytest
 
 from propertyestimator import unit
@@ -211,7 +212,7 @@ def test_dimensionless_quantity_serialization():
 
     assert test_value == deserialized_value
 
-    test_value = unit.Quantity(1.0)
+    test_value = pint.Quantity(1.0)
 
     serialized_value = serialize_quantity(test_value)
     deserialized_value = deserialize_quantity(serialized_value)
@@ -262,11 +263,15 @@ def test_numpy_array_serialization():
     serialized_value = json.dumps(one_dimensional_quantity_array, cls=TypedJSONEncoder)
     deserialized_value = json.loads(serialized_value, cls=TypedJSONDecoder)
 
-    assert np.allclose(one_dimensional_quantity_array.magnitude, deserialized_value.magnitude)
+    assert np.allclose(
+        one_dimensional_quantity_array.magnitude, deserialized_value.magnitude
+    )
 
     two_dimensional_quantity_array = two_dimensional_array * unit.kelvin
 
     serialized_value = json.dumps(two_dimensional_quantity_array, cls=TypedJSONEncoder)
     deserialized_value = json.loads(serialized_value, cls=TypedJSONDecoder)
 
-    assert np.allclose(two_dimensional_quantity_array.magnitude, deserialized_value.magnitude)
+    assert np.allclose(
+        two_dimensional_quantity_array.magnitude, deserialized_value.magnitude
+    )

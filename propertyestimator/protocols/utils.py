@@ -5,25 +5,23 @@ import copy
 from collections import namedtuple
 
 from propertyestimator import unit
+from propertyestimator.attributes import UNDEFINED, PlaceholderValue
+from propertyestimator.datasets import PropertyPhase
 from propertyestimator.protocols import (
     analysis,
     coordinates,
     forcefield,
     gradients,
     groups,
+    openmm,
     reweighting,
-    simulation,
     storage,
 )
+from propertyestimator.storage.data import StoredSimulationData
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.statistics import ObservableType
-from propertyestimator.workflow import WorkflowOptions
-from propertyestimator.workflow.decorators import UNDEFINED
-from propertyestimator.workflow.plugins import available_protocols
-from propertyestimator.workflow.schemas import (
-    ProtocolReplicator,
-    WorkflowSimulationDataToStore,
-)
+from propertyestimator.workflow.plugins import registered_workflow_protocols
+from propertyestimator.workflow.schemas import ProtocolReplicator
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 BaseReweightingProtocols = namedtuple(
@@ -57,11 +55,7 @@ BaseSimulationProtocols = namedtuple(
 
 
 def generate_base_reweighting_protocols(
-    analysis_protocol,
-    mbar_protocol,
-    workflow_options,
-    replicator_id="data_repl",
-    id_suffix="",
+    analysis_protocol, mbar_protocol, replicator_id="data_repl", id_suffix="",
 ):
     """Constructs a set of protocols which, when combined in a workflow schema,
     may be executed to reweight a set of existing data to estimate a particular
@@ -77,8 +71,6 @@ def generate_base_reweighting_protocols(
         A template mbar reweighting protocol, which has it's reference
         observables already set. This method will automatically set the
         reduced potentials on this object.
-    workflow_options: WorkflowOptions
-        The options being used to generate a workflow.
     replicator_id: str
         The id to use for the data replicator.
     id_suffix: str
@@ -169,7 +161,7 @@ def generate_base_reweighting_protocols(
     )
 
     # Calculate the reduced potentials for each of the reference states.
-    build_reference_system = forcefield.BuildSmirnoffSystem(
+    build_reference_system = forcefield.BaseBuildSystem(
         "build_system{}".format(replicator_suffix)
     )
     build_reference_system.force_field_path = ProtocolPath(
@@ -180,7 +172,7 @@ def generate_base_reweighting_protocols(
         "coordinate_file_path", unpack_stored_data.id
     )
 
-    reduced_reference_potential = reweighting.CalculateReducedPotentialOpenMM(
+    reduced_reference_potential = openmm.OpenMMReducedPotentials(
         "reduced_potential{}".format(replicator_suffix)
     )
     reduced_reference_potential.system_path = ProtocolPath(
@@ -200,16 +192,14 @@ def generate_base_reweighting_protocols(
     )
 
     # Calculate the reduced potential of the target state.
-    build_target_system = forcefield.BuildSmirnoffSystem(
-        "build_system_target" + id_suffix
-    )
+    build_target_system = forcefield.BaseBuildSystem("build_system_target" + id_suffix)
     build_target_system.force_field_path = ProtocolPath("force_field_path", "global")
     build_target_system.substance = ProtocolPath("substance", "global")
     build_target_system.coordinate_file_path = ProtocolPath(
         "output_coordinate_path", join_trajectories.id
     )
 
-    reduced_target_potential = reweighting.CalculateReducedPotentialOpenMM(
+    reduced_target_potential = openmm.OpenMMReducedPotentials(
         "reduced_potential_target" + id_suffix
     )
     reduced_target_potential.thermodynamic_state = ProtocolPath(
@@ -279,7 +269,11 @@ def generate_base_reweighting_protocols(
 
 
 def generate_base_simulation_protocols(
-    analysis_protocol, workflow_options, id_suffix="", conditional_group=None
+    analysis_protocol,
+    use_target_uncertainty,
+    id_suffix="",
+    conditional_group=None,
+    n_molecules=1000,
 ):
     """Constructs a set of protocols which, when combined in a workflow schema,
     may be executed to run a single simulation to estimate a particular
@@ -319,8 +313,9 @@ def generate_base_simulation_protocols(
     analysis_protocol: AveragePropertyProtocol
         The protocol which will extract the observable of
         interest from the generated simulation data.
-    workflow_options: WorkflowOptions
-        The options being used to generate a workflow.
+    use_target_uncertainty: bool
+        Whether to run the simulation until the observable is
+        estimated to within the target uncertainty.
     id_suffix: str
         A string suffix to append to each of the protocol ids.
     conditional_group: ProtocolGroup, optional
@@ -329,6 +324,8 @@ def generate_base_simulation_protocols(
         manually add the convergence conditions to this group.
         If `None`, a default group with uncertainty convergence
         conditions is automatically constructed.
+    n_molecules: int
+        The number of molecules to use in the workflow.
 
     Returns
     -------
@@ -337,7 +334,7 @@ def generate_base_simulation_protocols(
     ProtocolPath
         A reference to the final value of the estimated observable
         and its uncertainty (an `EstimatedQuantity`).
-    WorkflowSimulationDataToStore
+    StoredSimulationData
         An object which describes the default data from a simulation to store,
         such as the uncorrelated statistics and configurations.
     """
@@ -348,9 +345,9 @@ def generate_base_simulation_protocols(
         f"build_coordinates{id_suffix}"
     )
     build_coordinates.substance = ProtocolPath("substance", "global")
-    build_coordinates.max_molecules = 1000
+    build_coordinates.max_molecules = n_molecules
 
-    assign_parameters = forcefield.BuildSmirnoffSystem(f"assign_parameters{id_suffix}")
+    assign_parameters = forcefield.BaseBuildSystem(f"assign_parameters{id_suffix}")
     assign_parameters.force_field_path = ProtocolPath("force_field_path", "global")
     assign_parameters.coordinate_file_path = ProtocolPath(
         "coordinate_file_path", build_coordinates.id
@@ -358,7 +355,7 @@ def generate_base_simulation_protocols(
     assign_parameters.substance = ProtocolPath("output_substance", build_coordinates.id)
 
     # Equilibration
-    energy_minimisation = simulation.RunEnergyMinimisation(
+    energy_minimisation = openmm.OpenMMEnergyMinimisation(
         f"energy_minimisation{id_suffix}"
     )
     energy_minimisation.input_coordinate_file = ProtocolPath(
@@ -366,7 +363,7 @@ def generate_base_simulation_protocols(
     )
     energy_minimisation.system_path = ProtocolPath("system_path", assign_parameters.id)
 
-    equilibration_simulation = simulation.RunOpenMMSimulation(
+    equilibration_simulation = openmm.OpenMMSimulation(
         f"equilibration_simulation{id_suffix}"
     )
     equilibration_simulation.ensemble = Ensemble.NPT
@@ -384,12 +381,10 @@ def generate_base_simulation_protocols(
     )
 
     # Production
-    production_simulation = simulation.RunOpenMMSimulation(
-        f"production_simulation{id_suffix}"
-    )
+    production_simulation = openmm.OpenMMSimulation(f"production_simulation{id_suffix}")
     production_simulation.ensemble = Ensemble.NPT
     production_simulation.steps_per_iteration = 1000000
-    production_simulation.output_frequency = 3000
+    production_simulation.output_frequency = 2000
     production_simulation.timestep = 2.0 * unit.femtosecond
     production_simulation.thermodynamic_state = ProtocolPath(
         "thermodynamic_state", "global"
@@ -407,20 +402,14 @@ def generate_base_simulation_protocols(
         conditional_group = groups.ConditionalGroup(f"conditional_group{id_suffix}")
         conditional_group.max_iterations = 100
 
-        if (
-            workflow_options.convergence_mode
-            != WorkflowOptions.ConvergenceMode.NoChecks
-        ):
+        if use_target_uncertainty:
 
             condition = groups.ConditionalGroup.Condition()
-
+            condition.right_hand_value = ProtocolPath("target_uncertainty", "global")
+            condition.condition_type = groups.ConditionalGroup.Condition.Type.LessThan
             condition.left_hand_value = ProtocolPath(
                 "value.uncertainty", conditional_group.id, analysis_protocol.id
             )
-
-            condition.right_hand_value = ProtocolPath("target_uncertainty", "global")
-
-            condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
 
             conditional_group.add_condition(condition)
 
@@ -485,20 +474,27 @@ def generate_base_simulation_protocols(
     extract_uncorrelated_statistics.input_statistics_path = statistics_path
 
     # Build the object which defines which pieces of simulation data to store.
-    output_to_store = WorkflowSimulationDataToStore()
+    output_to_store = StoredSimulationData()
 
-    output_to_store.total_number_of_molecules = ProtocolPath(
+    output_to_store.thermodynamic_state = ProtocolPath("thermodynamic_state", "global")
+    output_to_store.property_phase = PropertyPhase.Liquid
+
+    output_to_store.force_field_id = PlaceholderValue()
+
+    output_to_store.number_of_molecules = ProtocolPath(
         "output_number_of_molecules", build_coordinates.id
     )
     output_to_store.substance = ProtocolPath("output_substance", build_coordinates.id)
     output_to_store.statistical_inefficiency = statistical_inefficiency
-    output_to_store.statistics_file_path = ProtocolPath(
+    output_to_store.statistics_file_name = ProtocolPath(
         "output_statistics_path", extract_uncorrelated_statistics.id
     )
-    output_to_store.trajectory_file_path = ProtocolPath(
+    output_to_store.trajectory_file_name = ProtocolPath(
         "output_trajectory_path", extract_uncorrelated_trajectory.id
     )
-    output_to_store.coordinate_file_path = coordinate_file
+    output_to_store.coordinate_file_name = coordinate_file
+
+    output_to_store.source_calculation_id = PlaceholderValue()
 
     # Define where the final values come from.
     final_value_source = ProtocolPath(
@@ -568,7 +564,7 @@ def generate_gradient_protocol_group(
     replicator_id: str
         A unique id which will be used for the protocol replicator which will
         replicate this group for every parameter of interest.
-    substance_source: PlaceholderInput, optional
+    substance_source: PlaceholderValue, optional
         An optional protocol path to the substance whose gradient
         is being estimated. If None, the global property substance
         is used.
@@ -596,7 +592,7 @@ def generate_gradient_protocol_group(
 
     assert isinstance(template_reweighting_protocol, reweighting.BaseMBARProtocol)
     assert template_reweighting_protocol.reference_reduced_potentials is not None
-    assert template_reweighting_protocol.reference_reduced_potentials is not UNDEFINED
+    assert template_reweighting_protocol.reference_reduced_potentials != UNDEFINED
 
     id_suffix = f"_$({replicator_id}){id_suffix}"
 
@@ -613,7 +609,7 @@ def generate_gradient_protocol_group(
     # Define the protocol which will evaluate the reduced potentials of the
     # reference, forward and reverse states using only a subset of the full
     # force field.
-    reduced_potentials = gradients.GradientReducedPotentials(
+    reduced_potentials = openmm.OpenMMGradientPotentials(
         f"gradient_reduced_potentials{id_suffix}"
     )
     reduced_potentials.substance = substance_source
@@ -650,7 +646,9 @@ def generate_gradient_protocol_group(
     # Create the reweighting protocols from the template schema.
     reverse_mbar_schema = copy.deepcopy(template_reweighting_schema)
     reverse_mbar_schema.id = f"reverse_reweight{id_suffix}"
-    reverse_mbar = available_protocols[reverse_mbar_schema.type](reverse_mbar_schema.id)
+    reverse_mbar = registered_workflow_protocols[reverse_mbar_schema.type](
+        reverse_mbar_schema.id
+    )
     reverse_mbar.schema = reverse_mbar_schema
     reverse_mbar.target_reduced_potentials = ProtocolPath(
         "reverse_potentials_path", reduced_potentials.id
@@ -658,7 +656,9 @@ def generate_gradient_protocol_group(
 
     forward_mbar_schema = copy.deepcopy(template_reweighting_schema)
     forward_mbar_schema.id = f"forward_reweight{id_suffix}"
-    forward_mbar = available_protocols[forward_mbar_schema.type](forward_mbar_schema.id)
+    forward_mbar = registered_workflow_protocols[forward_mbar_schema.type](
+        forward_mbar_schema.id
+    )
     forward_mbar.schema = forward_mbar_schema
     forward_mbar.target_reduced_potentials = ProtocolPath(
         "forward_potentials_path", reduced_potentials.id

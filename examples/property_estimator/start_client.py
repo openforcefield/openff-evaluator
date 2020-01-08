@@ -2,8 +2,7 @@
 import logging
 
 from propertyestimator import client
-from propertyestimator.datasets import ThermoMLDataSet
-from propertyestimator.forcefield import SmirnoffForceFieldSource
+from propertyestimator.datasets.thermoml import ThermoMLDataSet
 from propertyestimator.utils import get_data_filename, setup_timestamp_logging
 
 
@@ -19,17 +18,26 @@ def main():
     )
 
     # Load in the force field to use.
-    smirnoff_force_field = smirnoff.ForceField("smirnoff99Frosst-1.1.0.offxml")
-    force_field_source = SmirnoffForceFieldSource.from_object(smirnoff_force_field)
+    force_field = smirnoff.ForceField("smirnoff99Frosst-1.1.0.offxml")
 
     # Create the client object.
-    property_estimator = client.PropertyEstimatorClient()
+    property_estimator = client.EvaluatorClient()
     # Submit the request to a running server.
-    request = property_estimator.request_estimate(data_set, force_field_source)
+    request = property_estimator.request_estimate(data_set, force_field)
 
     # Wait for the results.
-    results = request.results(True, 5)
-    logging.info("The server has returned a response: {}".format(results))
+    results, error = request.results(True, 60)
+
+    if error is not None:
+
+        logging.info(f"The server failed to complete the request:")
+        logging.info(f"Message: {error.message}")
+        return
+
+    logging.info(f"The server has completed the request.")
+
+    # Save the response
+    results.json("results.json")
 
 
 if __name__ == "__main__":

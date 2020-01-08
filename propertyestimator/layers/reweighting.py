@@ -1,307 +1,165 @@
+"""This module implements a `CalculationLayer` which attempts to
+'reweight' cached simulation data to evalulate the values of properties
+at states which have not previously been simulated directly, but where
+simulations at similar states have been run.
 """
-The simulation reweighting estimation layer.
-"""
-import abc
-import json
-import logging
+import copy
 import os
 
-from propertyestimator.layers import (
-    PropertyCalculationLayer,
-    register_calculation_layer,
+from propertyestimator.attributes import Attribute, PlaceholderValue
+from propertyestimator.datasets import PropertyPhase
+from propertyestimator.layers import calculation_layer
+from propertyestimator.layers.workflow import (
+    WorkflowCalculationLayer,
+    WorkflowCalculationSchema,
 )
-from propertyestimator.substances import Substance
-from propertyestimator.utils.serialization import TypedJSONEncoder
-from propertyestimator.utils.utils import SubhookedABCMeta
-from propertyestimator.workflow import Workflow, WorkflowGraph
-from propertyestimator.workflow.workflow import IWorkflowProperty
+from propertyestimator.storage.query import SimulationDataQuery
 
 
-class IReweightable(SubhookedABCMeta):
-    @property
-    @abc.abstractmethod
-    def multi_component_property(self):
-        """bool: Returns whether this property is dependant on properties of the
-        full mixed substance, or whether it is also dependant on the properties
-        of the individual components also.
-        """
-        pass
+def default_storage_query():
+    """Return the default query to use when retrieving cached simulation
+     data from the storage backend.
 
-    @property
-    @abc.abstractmethod
-    def required_data_class(self):
-        """subclass of BaseStoredData: The data class required to reweight this
-        property (e.g. `StoredSimulationData`).
-        """
-        pass
+    Currently this query will search for data for the full substance of
+    interest in the liquid phase.
 
-
-@register_calculation_layer()
-class ReweightingLayer(PropertyCalculationLayer):
-    """A calculation layer which aims to calculate physical properties by
-    reweighting the results of previous calculations.
-
-    .. warning :: This class is still heavily under development and is subject to
-                 rapid changes.
+    Returns
+    -------
+    dict of str and SimulationDataQuery
+        A single query with a key of `"full_system_data"`.
     """
 
+    query = SimulationDataQuery()
+    query.substance = PlaceholderValue()
+    query.property_phase = PropertyPhase.Liquid
+
+    return {"full_system_data": query}
+
+
+class ReweightingSchema(WorkflowCalculationSchema):
+    """A schema which encodes the options and the workflow schema
+    that the `SimulationLayer` should use when estimating a given class
+    of physical properties using the built-in workflow framework.
+    """
+
+    storage_queries = Attribute(
+        docstring="The queries to perform when retrieving data for each "
+        "of the components in the system from the storage backend. The "
+        "keys of this dictionary will correspond to the metadata keys made "
+        "available to the workflow system.",
+        type_hint=dict,
+        default_value=default_storage_query(),
+    )
+
+    def validate(self, attribute_type=None):
+        super(ReweightingSchema, self).validate(attribute_type)
+
+        assert len(self.storage_queries) > 0
+
+        assert all(
+            isinstance(x, SimulationDataQuery) for x in self.storage_queries.values()
+        )
+
+
+@calculation_layer()
+class ReweightingLayer(WorkflowCalculationLayer):
+    """A `CalculationLayer` which attempts to 'reweight' cached simulation
+    data to evaluate the values of properties at states which have not previously
+    been simulated directly, but where simulations at similar states have been run
+    previously.
+    """
+
+    @classmethod
+    def required_schema_type(cls):
+        return ReweightingSchema
+
     @staticmethod
-    def schedule_calculation(
-        calculation_backend,
+    def _get_workflow_metadata(
+        working_directory,
+        physical_property,
+        force_field_path,
+        parameter_gradient_keys,
         storage_backend,
-        layer_directory,
-        data_model,
-        callback,
-        synchronous=False,
+        calculation_schema,
     ):
-
-        # Make a local copy of the target force field.
-        target_force_field_source = storage_backend.retrieve_force_field(
-            data_model.force_field_id
-        )
-        target_force_field_path = os.path.join(
-            layer_directory, data_model.force_field_id
-        )
-
-        with open(target_force_field_path, "w") as file:
-            file.write(target_force_field_source.json())
-
-        stored_data_paths = ReweightingLayer._retrieve_stored_data(
-            data_model.queued_properties, storage_backend, layer_directory
-        )
-
-        workflow_graph = ReweightingLayer._build_workflow_graph(
-            layer_directory,
-            data_model.queued_properties,
-            target_force_field_path,
-            stored_data_paths,
-            data_model.parameter_gradient_keys,
-            data_model.options,
-        )
-
-        reweighting_futures = workflow_graph.submit(calculation_backend)
-
-        PropertyCalculationLayer._await_results(
-            calculation_backend,
-            storage_backend,
-            layer_directory,
-            data_model,
-            callback,
-            reweighting_futures,
-            synchronous,
-        )
-
-    @staticmethod
-    def _retrieve_stored_data(physical_properties, storage_backend, layer_directory):
-        """Extract all of the stored data from the backend which may be
-        used in reweighting
+        """
 
         Parameters
         ----------
-        physical_properties: list of PhysicalProperty
-            The physical properties to attempt to estimate.
-        storage_backend: PropertyEstimatorStorage
-            The storage backend to retrieve the data from.
-        layer_directory: str
-            The directory in which to store the retrieved data.
-
-        Returns
-        -------
-        dict of str and dict of str and tuple(str, str, str)
-            A dictionary partitioned by substance identifiers and the type,
-            of data class, whose values are a tuple of a path to a stored
-            simulation data object, it's ancillary data directory, and its
-            corresponding force field path.
+        calculation_schema: ReweightingSchema
         """
 
-        data_paths = {}
+        global_metadata = WorkflowCalculationLayer._get_workflow_metadata(
+            working_directory,
+            physical_property,
+            force_field_path,
+            parameter_gradient_keys,
+            storage_backend,
+            calculation_schema,
+        )
 
-        for physical_property in physical_properties:
+        template_queries = calculation_schema.storage_queries
 
-            if not isinstance(physical_property, IReweightable):
-                # Only properties which implement the IReweightable
-                # interface can be reweighted
-                continue
+        # Apply the storage queries
+        required_force_field_keys = set()
 
-            existing_data = storage_backend.retrieve_simulation_data(
-                physical_property.substance,
-                physical_property.multi_component_property,
-                physical_property.required_data_class,
-            )
+        for key in template_queries:
 
-            if len(existing_data) == 0:
-                continue
+            query = copy.deepcopy(template_queries[key])
 
-            # Take data from the storage backend and save it in the working directory.
-            for substance_id in existing_data:
+            # Fill in any place holder values.
+            if isinstance(query.substance, PlaceholderValue):
+                query.substance = physical_property.substance
 
-                # Register the substance id with the return dictionary
-                if substance_id not in data_paths:
-                    data_paths[substance_id] = {}
+            # Apply the query.
+            query_results = storage_backend.query(query)
 
-                for data_object, data_directory in existing_data[substance_id]:
+            if len(query_results) == 0:
+                # We haven't found and cached data which is compatible
+                # with this property.
+                return None
 
-                    # Register this objects data class type with the
-                    # return dictionary
-                    if type(data_object) not in data_paths[substance_id]:
-                        data_paths[substance_id][type(data_object)] = []
+            # Save a local copy of the data object file.
+            stored_data_tuples = []
 
-                    data_object_path = os.path.join(
-                        layer_directory, f"{os.path.basename(data_directory)}.json"
+            for query_list in query_results.values():
+
+                query_data_tuples = []
+
+                for storage_key, data_object, data_directory in query_list:
+
+                    object_path = os.path.join(working_directory, f"{storage_key}")
+                    force_field_path = os.path.join(
+                        working_directory, f"{data_object.force_field_id}"
                     )
 
                     # Save a local copy of the data object file.
-                    if not os.path.isfile(data_object_path):
+                    if not os.path.isfile(object_path):
+                        data_object.json(object_path)
 
-                        with open(data_object_path, "w") as file:
-                            json.dump(data_object, file, cls=TypedJSONEncoder)
-
-                    force_field_path = os.path.join(
-                        layer_directory, data_object.force_field_id
+                    required_force_field_keys.add(data_object.force_field_id)
+                    query_data_tuples.append(
+                        (object_path, data_directory, force_field_path)
                     )
 
-                    path_tuple = (data_object_path, data_directory, force_field_path)
+                stored_data_tuples.append(query_data_tuples)
 
-                    if path_tuple in data_paths[substance_id][type(data_object)]:
-                        continue
+            # Add the results to the metadata.
+            if len(stored_data_tuples) == 1:
+                stored_data_tuples = stored_data_tuples[0]
 
-                    # Save a local copy of the force field file if one
-                    # does not already exist.
-                    if not os.path.isfile(force_field_path):
+            global_metadata[key] = stored_data_tuples
 
-                        existing_force_field = storage_backend.retrieve_force_field(
-                            data_object.force_field_id
-                        )
+        # Make a local copy of the required force fields
+        for force_field_id in required_force_field_keys:
 
-                        with open(force_field_path, "w") as file:
-                            file.write(existing_force_field.json())
+            force_field_path = os.path.join(working_directory, force_field_id)
 
-                    data_paths[substance_id][type(data_object)].append(path_tuple)
+            if not os.path.isfile(force_field_path):
 
-        return data_paths
-
-    @staticmethod
-    def _build_workflow_graph(
-        working_directory,
-        properties,
-        target_force_field_path,
-        stored_data_paths,
-        parameter_gradient_keys,
-        options,
-    ):
-        """Construct a workflow graph, containing all of the workflows which should
-        be followed to estimate a set of properties by reweighting.
-
-        Parameters
-        ----------
-        working_directory: str
-            The local directory in which to store all local,
-            temporary calculation data from this graph.
-        properties : list of PhysicalProperty
-            The properties to attempt to compute.
-        target_force_field_path : str
-            The path to the target force field parameters to use in the workflow.
-        stored_data_paths: dict of str and tuple(str, str)
-            A dictionary partitioned by substance identifiers, whose values
-            are a tuple of a path to a stored simulation data object, and
-            its corresponding force field path.
-        parameter_gradient_keys: list of ParameterGradientKey
-            A list of references to all of the parameters which all observables
-            should be differentiated with respect to.
-        options: PropertyEstimatorOptions
-            The options to run the workflows with.
-        """
-        workflow_graph = WorkflowGraph(working_directory)
-
-        for property_to_calculate in properties:
-
-            if not isinstance(property_to_calculate, IReweightable) or not isinstance(
-                property_to_calculate, IWorkflowProperty
-            ):
-                # Only properties which implement the IReweightable and
-                # IWorkflowProperty interfaces can be reweighted
-                continue
-
-            property_type = type(property_to_calculate).__name__
-
-            if property_type not in options.workflow_schemas:
-
-                logging.warning(
-                    "The reweighting layer does not support {} "
-                    "workflows.".format(property_type)
+                existing_force_field = storage_backend.retrieve_force_field(
+                    force_field_id
                 )
+                existing_force_field.json(force_field_path)
 
-                continue
-
-            if ReweightingLayer.__name__ not in options.workflow_schemas[property_type]:
-                continue
-
-            schema = options.workflow_schemas[property_type][ReweightingLayer.__name__]
-            workflow_options = options.workflow_options[property_type].get(
-                ReweightingLayer.__name__
-            )
-
-            global_metadata = Workflow.generate_default_metadata(
-                property_to_calculate,
-                target_force_field_path,
-                parameter_gradient_keys,
-                workflow_options,
-            )
-
-            substance_id = property_to_calculate.substance.identifier
-            data_class_type = property_to_calculate.required_data_class
-
-            if (
-                substance_id not in stored_data_paths
-                or data_class_type not in stored_data_paths[substance_id]
-            ):
-
-                # We haven't found and cached data which is compatible with this property.
-                continue
-
-            global_metadata["full_system_data"] = stored_data_paths[substance_id][
-                data_class_type
-            ]
-            global_metadata["component_data"] = []
-
-            if property_to_calculate.multi_component_property:
-
-                has_data_for_property = True
-
-                for component in property_to_calculate.substance.components:
-
-                    temporary_substance = Substance()
-                    temporary_substance.add_component(
-                        component, amount=Substance.MoleFraction()
-                    )
-
-                    if (
-                        temporary_substance.identifier not in stored_data_paths
-                        or data_class_type
-                        not in stored_data_paths[temporary_substance.identifier]
-                    ):
-
-                        has_data_for_property = False
-                        break
-
-                    global_metadata["component_data"].append(
-                        stored_data_paths[temporary_substance.identifier][
-                            data_class_type
-                        ]
-                    )
-
-                if not has_data_for_property:
-                    continue
-
-            workflow = Workflow(property_to_calculate, global_metadata)
-            workflow.schema = schema
-
-            from propertyestimator.properties import CalculationSource
-
-            workflow.physical_property.source = CalculationSource(
-                fidelity=ReweightingLayer.__name__, provenance={}
-            )
-
-            workflow_graph.add_workflow(workflow)
-
-        return workflow_graph
+        return global_metadata

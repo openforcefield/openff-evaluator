@@ -1,7 +1,7 @@
 import json
 
 from propertyestimator import client
-from propertyestimator.client import PropertyEstimatorOptions
+from propertyestimator.client import RequestOptions
 from propertyestimator.datasets import PhysicalPropertyDataSet
 from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.properties import ParameterGradientKey
@@ -30,10 +30,10 @@ def main():
     setup_server(backend_type=BackendType.LocalGPU, max_number_of_workers=1, port=8002)
 
     # Request the estimates.
-    property_estimator = client.PropertyEstimatorClient(client.ConnectionOptions(server_port=8002))
+    property_estimator = client.EvaluatorClient(client.ConnectionOptions(server_port=8002))
 
-    options = PropertyEstimatorOptions()
-    options.allowed_calculation_layers = ['SimulationLayer']
+    options = RequestOptions()
+    options.calculation_layers = ['SimulationLayer']
 
     options.workflow_options = {
         'EnthalpyOfMixing': {
@@ -64,7 +64,7 @@ def main():
         file.write(json_results.encode('utf-8'))
 
     # Attempt to reweight the cached data.
-    options.allowed_calculation_layers = ['ReweightingLayer']
+    options.calculation_layers = ['ReweightingLayer']
 
     request = property_estimator.request_estimate(property_set=data_set,
                                                   force_field_source=force_field_source,

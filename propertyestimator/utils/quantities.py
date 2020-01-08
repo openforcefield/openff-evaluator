@@ -3,6 +3,7 @@ their uncertainties
 """
 
 import numpy as np
+import pint
 from uncertainties import ufloat
 
 from propertyestimator import unit
@@ -85,9 +86,9 @@ class EstimatedQuantity:
         """Constructs a new TaggedEstimatedQuantity object.
         Parameters
         ----------
-        value: unit.Quantity
+        value: pint.Quantity
             The value of the estimated quantity.
-        uncertainty: unit.Quantity
+        uncertainty: pint.Quantity
             The uncertainty in the value of the estimated quantity.
         sources: str
             A list of string representations of where this value came from. This
@@ -106,8 +107,8 @@ class EstimatedQuantity:
 
         assert value is not None and uncertainty is not None
 
-        assert isinstance(value, unit.Quantity)
-        assert isinstance(uncertainty, unit.Quantity)
+        assert isinstance(value, pint.Quantity)
+        assert isinstance(uncertainty, pint.Quantity)
 
         assert (
             unit.get_base_units(value.units)[-1]
@@ -195,7 +196,7 @@ class EstimatedQuantity:
         result_value = result_ufloat.nominal_value * self_unit
         result_uncertainty = result_ufloat.std_dev * self_unit
 
-        if isinstance(result_ufloat, unit.Quantity):
+        if isinstance(result_ufloat, pint.Quantity):
             result_value *= result_ufloat.units
             result_uncertainty *= result_ufloat.units
 
@@ -230,7 +231,7 @@ class EstimatedQuantity:
         -------
         ufloat
             The ufloat representation of the estimated quantity object.
-        unit.Unit
+        pint.Unit
             The unit of the values encoded in the ufloat object.
         """
 
