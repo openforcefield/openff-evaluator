@@ -7,7 +7,7 @@ from os import makedirs, path
 
 from propertyestimator.storage import StorageBackend
 from propertyestimator.storage.data import BaseStoredData
-from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
+from propertyestimator.utils.serialization import TypedJSONEncoder
 
 
 class LocalFileStorage(StorageBackend):
@@ -54,8 +54,7 @@ class LocalFileStorage(StorageBackend):
         file_path = path.join(self._root_directory, f"{storage_key}.json")
         directory_path = None
 
-        with open(file_path, "r") as file:
-            loaded_object = json.load(file, cls=TypedJSONDecoder)
+        loaded_object = BaseStoredData.from_json(file_path)
 
         # Make sure the data has the correct type.
         if expected_type is not None and not isinstance(loaded_object, expected_type):

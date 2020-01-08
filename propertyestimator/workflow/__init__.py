@@ -1,12 +1,24 @@
-from .schemas import ProtocolGroupSchema, ProtocolSchema, WorkflowSchema
-from .workflow import IWorkflowProperty, Workflow, WorkflowGraph, WorkflowOptions
+from .schemas import ProtocolGroupSchema, ProtocolSchema, WorkflowSchema  # isort:skip
+from .plugins import (  # isort:skip
+    register_workflow_protocol,
+    registered_workflow_protocols,
+    workflow_protocol,
+)
+from .protocols import Protocol, ProtocolGraph, ProtocolGroup  # isort:skip
+
+from .workflow import Workflow, WorkflowGraph, WorkflowResult  # isort:skip
 
 __all__ = [
-    ProtocolGroupSchema,
+    Protocol,
+    ProtocolGraph,
+    ProtocolGroup,
     ProtocolSchema,
-    WorkflowSchema,
-    IWorkflowProperty,
+    ProtocolGroupSchema,
+    register_workflow_protocol,
+    registered_workflow_protocols,
+    workflow_protocol,
     Workflow,
     WorkflowGraph,
-    WorkflowOptions,
+    WorkflowResult,
+    WorkflowSchema,
 ]

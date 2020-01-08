@@ -449,7 +449,6 @@ class EvaluatorServer:
         if client_request_id not in self._batch_ids_per_client_id:
 
             error = EvaluatorException(
-                directory="",
                 message=f"The request id ({client_request_id}) was not found "
                 f"on the server.",
             )

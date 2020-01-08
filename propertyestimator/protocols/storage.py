@@ -2,7 +2,6 @@
 A collection of protocols for loading cached data off of the disk.
 """
 
-import json
 from os import path
 from typing import Union
 
@@ -10,15 +9,13 @@ from propertyestimator.attributes import UNDEFINED
 from propertyestimator.storage.data import StoredSimulationData
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils.exceptions import EvaluatorException
-from propertyestimator.utils.serialization import TypedJSONDecoder
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
-from propertyestimator.workflow.plugins import register_calculation_protocol
-from propertyestimator.workflow.protocols import BaseProtocol
+from propertyestimator.workflow.plugins import workflow_protocol
+from propertyestimator.workflow.protocols import Protocol
 
 
-@register_calculation_protocol()
-class UnpackStoredSimulationData(BaseProtocol):
+@workflow_protocol()
+class UnpackStoredSimulationData(Protocol):
     """Loads a `StoredSimulationData` object from disk,
     and makes its attributes easily accessible to other protocols.
     """
@@ -63,15 +60,13 @@ class UnpackStoredSimulationData(BaseProtocol):
         type_hint=str,
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         if len(self.simulation_data_path) != 3:
 
-            return EvaluatorException(
-                directory=directory,
-                message="The simulation data path should be a tuple "
-                "of a path to the data object, directory, and a path "
-                "to the force field used to generate it.",
+            raise ValueError(
+                "The simulation data path should be a tuple of a path to the data "
+                "object, directory, and a path to the force field used to generate it."
             )
 
         data_object_path = self.simulation_data_path[0]
@@ -80,28 +75,22 @@ class UnpackStoredSimulationData(BaseProtocol):
 
         if not path.isdir(data_directory):
 
-            return EvaluatorException(
-                directory=directory,
-                message="The path to the data directory"
-                "is invalid: {}".format(data_directory),
+            raise ValueError(
+                f"The path to the data directory is invalid: {data_directory}"
             )
 
         if not path.isfile(force_field_path):
 
-            return EvaluatorException(
-                directory=directory,
-                message="The path to the force field"
-                "is invalid: {}".format(force_field_path),
+            raise ValueError(
+                f"The path to the force field is invalid: {force_field_path}"
             )
 
-        with open(data_object_path, "r") as file:
-            data_object = json.load(file, cls=TypedJSONDecoder)
+        data_object = StoredSimulationData.from_json(data_object_path)
 
         if not isinstance(data_object, StoredSimulationData):
 
-            return EvaluatorException(
-                directory=directory,
-                message=f"The data path must point to a `StoredSimulationData` "
+            raise ValueError(
+                f"The data path must point to a `StoredSimulationData` "
                 f"object, and not a {data_object.__class__.__name__}",
             )
 
@@ -124,5 +113,3 @@ class UnpackStoredSimulationData(BaseProtocol):
         )
 
         self.force_field_path = force_field_path
-
-        return self._get_output_dictionary()

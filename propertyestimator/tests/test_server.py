@@ -7,10 +7,14 @@ from time import sleep
 from propertyestimator.backends import DaskLocalCluster
 from propertyestimator.client import RequestOptions
 from propertyestimator.datasets import PhysicalPropertyDataSet
-from propertyestimator.layers import calculation_layer, CalculationLayer, CalculationLayerSchema
+from propertyestimator.layers import (
+    CalculationLayer,
+    CalculationLayerSchema,
+    calculation_layer,
+)
 from propertyestimator.layers.layers import CalculationLayerResult
 from propertyestimator.properties import Density
-from propertyestimator.server.server import _Batch, EvaluatorServer
+from propertyestimator.server.server import EvaluatorServer, _Batch
 from propertyestimator.tests.utils import create_dummy_property
 
 
@@ -37,13 +41,18 @@ class QuickCalculationLayer(CalculationLayer):
 
         futures = [
             calculation_backend.submit_task(
-                QuickCalculationLayer.process_property,
-                batch.queued_properties[0],
+                QuickCalculationLayer.process_property, batch.queued_properties[0],
             ),
         ]
 
         CalculationLayer._await_results(
-            calculation_backend, storage_backend, batch, callback, futures, synchronous,
+            cls.__name__,
+            calculation_backend,
+            storage_backend,
+            batch,
+            callback,
+            futures,
+            synchronous,
         )
 
     @staticmethod
@@ -51,7 +60,7 @@ class QuickCalculationLayer(CalculationLayer):
         """Return a result as if the property had been successfully estimated.
         """
         return_object = CalculationLayerResult()
-        return_object.property_id = physical_property.id
+        return_object.physical_property = physical_property
         return_object.calculated_property = physical_property
 
         return return_object
@@ -78,14 +87,16 @@ def test_launch_batch():
     # Set up a dummy data set
     data_set = PhysicalPropertyDataSet()
     data_set.add_properties(
-        create_dummy_property(Density),
-        create_dummy_property(Density)
+        create_dummy_property(Density), create_dummy_property(Density)
     )
 
     batch = _Batch()
     batch.force_field_id = ""
     batch.options = RequestOptions()
     batch.options.calculation_layers = ["QuickCalculationLayer"]
+    batch.options.calculation_schemas = {
+        "Density": {"QuickCalculationLayer": CalculationLayerSchema()}
+    }
     batch.parameter_gradient_keys = []
     batch.queued_properties = next(iter(data_set.properties.values()))
     batch.validate()

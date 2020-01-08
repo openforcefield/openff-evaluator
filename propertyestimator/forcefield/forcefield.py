@@ -132,7 +132,7 @@ class TLeapForceFieldSource(ForceFieldSource):
 
     @property
     def cutoff(self):
-        """unit.Quantity: The non-bonded interaction cutoff.
+        """pint.Quantity: The non-bonded interaction cutoff.
         """
         return self._cutoff
 
@@ -145,7 +145,7 @@ class TLeapForceFieldSource(ForceFieldSource):
             The parameter file which should be sourced by `leap`
             when applying the force field. Currently only
             `'leaprc.gaff'` and `'leaprc.gaff2'` are supported.
-        cutoff: unit.Quantity
+        cutoff: pint.Quantity
             The non-bonded interaction cutoff.
 
         Examples
@@ -206,7 +206,7 @@ class LigParGenForceFieldSource(ForceFieldSource):
 
     @property
     def cutoff(self):
-        """unit.Quantity: The non-bonded interaction cutoff.
+        """pint.Quantity: The non-bonded interaction cutoff.
         """
         return self._cutoff
 
@@ -237,7 +237,7 @@ class LigParGenForceFieldSource(ForceFieldSource):
             (e.g. 1.14*CM1A-LBCC may only be applied to neutral
             molecules) and so another model may be applied in its
             place.
-        cutoff: unit.Quantity
+        cutoff: pint.Quantity
             The non-bonded interaction cutoff.
         request_url: str
             The URL of the LIGPARGEN server file to send the parametrization to request to.

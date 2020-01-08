@@ -45,23 +45,23 @@ class _Multiprocessor:
 
         try:
 
-            from propertyestimator.workflow.plugins import available_protocols
+            from propertyestimator.workflow.plugins import registered_workflow_protocols
 
             # Each spun up worker doesn't automatically import
             # all of the modules which were imported in the main
             # launch script, and as such custom plugins will no
             # longer be registered. We re-import / register them
             # here.
-            if "available_protocols" in kwargs:
+            if "registered_workflow_protocols" in kwargs:
 
-                protocols_to_import = kwargs.pop("available_protocols")
+                protocols_to_import = kwargs.pop("registered_workflow_protocols")
 
                 for protocol_class in protocols_to_import:
                     module_name = ".".join(protocol_class.split(".")[:-1])
                     class_name = protocol_class.split(".")[-1]
 
                     imported_module = importlib.import_module(module_name)
-                    available_protocols[class_name] = getattr(
+                    registered_workflow_protocols[class_name] = getattr(
                         imported_module, class_name
                     )
 
@@ -448,13 +448,13 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
 
     def submit_task(self, function, *args, **kwargs):
 
-        from propertyestimator.workflow.plugins import available_protocols
+        from propertyestimator.workflow.plugins import registered_workflow_protocols
 
         key = kwargs.pop("key", None)
 
         protocols_to_import = [
             protocol_class.__module__ + "." + protocol_class.__qualname__
-            for protocol_class in available_protocols.values()
+            for protocol_class in registered_workflow_protocols.values()
         ]
 
         return self._client.submit(
@@ -462,7 +462,7 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
             function,
             *args,
             available_resources=self._resources_per_worker,
-            available_protocols=protocols_to_import,
+            registered_workflow_protocols=protocols_to_import,
             gpu_assignments={},
             per_worker_logging=True,
             key=key,

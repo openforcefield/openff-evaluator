@@ -3,17 +3,17 @@ use the built-in workflow framework to estimate the set of
 physical properties.
 """
 import abc
+import copy
 import os
 
 from propertyestimator.attributes import UNDEFINED, Attribute
 from propertyestimator.datasets import CalculationSource
-from propertyestimator.layers import CalculationLayer, CalculationLayerSchema
-from propertyestimator.workflow import (
-    Workflow,
-    WorkflowGraph,
-    WorkflowOptions,
-    WorkflowSchema,
+from propertyestimator.layers import (
+    CalculationLayer,
+    CalculationLayerResult,
+    CalculationLayerSchema,
 )
+from propertyestimator.workflow import Workflow, WorkflowGraph, WorkflowSchema
 
 
 class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
@@ -56,12 +56,20 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
             Returns `None` if the required metadata could not be
             found / assembled.
         """
+        target_uncertainty = None
+
+        if calculation_schema.absolute_tolerance != UNDEFINED:
+            target_uncertainty = calculation_schema.absolute_tolerance
+        elif calculation_schema.relative_tolerance != UNDEFINED:
+            target_uncertainty = (
+                physical_property.uncertainty * calculation_schema.relative_tolerance
+            )
 
         global_metadata = Workflow.generate_default_metadata(
             physical_property,
             force_field_path,
             parameter_gradient_keys,
-            calculation_schema.workflow_options,
+            target_uncertainty,
         )
 
         return global_metadata
@@ -96,7 +104,8 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         options: RequestOptions
             The options to run the workflows with.
         """
-        workflow_graph = WorkflowGraph(working_directory)
+        workflow_graph = WorkflowGraph()
+        provenance = {}
 
         for physical_property in properties:
 
@@ -131,16 +140,61 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
                 # required.
                 continue
 
-            workflow = Workflow(physical_property, global_metadata)
+            workflow = Workflow(global_metadata, physical_property.id)
             workflow.schema = schema.workflow_schema
-
-            workflow.physical_property.source = CalculationSource(
-                fidelity=cls.__name__, provenance={}
-            )
-
             workflow_graph.add_workflow(workflow)
 
-        return workflow_graph
+            provenance[physical_property.id] = CalculationSource(
+                fidelity=cls.__name__, provenance=workflow.schema.json()
+            )
+
+        return workflow_graph, provenance
+
+    @staticmethod
+    def workflow_to_layer_result(queued_properties, provenance, workflow_results, **_):
+        """Converts a list of `WorkflowResult` to a list of `CalculationLayerResult`
+        objects.
+
+        Parameters
+        ----------
+        queued_properties: list of PhysicalProperty
+            The properties being estimated by this layer
+        provenance: dict of str and str
+            The provenance of each property.
+        workflow_results: list of WorkflowResult
+            The results of each workflow.
+
+        Returns
+        -------
+        list of CalculationLayerResult
+            The calculation layer result objects.
+        """
+        properties_by_id = {x.id: x for x in queued_properties}
+        results = []
+
+        for workflow_result in workflow_results:
+
+            calculation_result = CalculationLayerResult()
+            calculation_result.exceptions.extend(workflow_result.exceptions)
+
+            results.append(calculation_result)
+
+            if len(calculation_result.exceptions) > 0:
+                continue
+
+            physical_property = properties_by_id[workflow_result.workflow_id]
+            physical_property = copy.deepcopy(physical_property)
+            physical_property.source = provenance[physical_property.id]
+            physical_property.value = workflow_result.value.value
+            physical_property.uncertainty = workflow_result.value.uncertainty
+
+            if len(workflow_result.gradients) > 0:
+                physical_property.gradients = workflow_result.gradients
+
+            calculation_result.physical_property = physical_property
+            calculation_result.data_to_store.extend(workflow_result.data_to_store)
+
+        return results
 
     @classmethod
     def schedule_calculation(
@@ -160,7 +214,7 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         with open(force_field_path, "w") as file:
             file.write(force_field_source.json())
 
-        workflow_graph = cls._build_workflow_graph(
+        workflow_graph, provenance = cls._build_workflow_graph(
             layer_directory,
             storage_backend,
             batch.queued_properties,
@@ -169,10 +223,23 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
             batch.options,
         )
 
-        futures = workflow_graph.submit(calculation_backend)
+        workflow_futures = workflow_graph.execute(layer_directory, calculation_backend)
+
+        futures = calculation_backend.submit_task(
+            WorkflowCalculationLayer.workflow_to_layer_result,
+            batch.queued_properties,
+            provenance,
+            workflow_futures,
+        )
 
         CalculationLayer._await_results(
-            calculation_backend, storage_backend, batch, callback, futures, synchronous,
+            cls.__name__,
+            calculation_backend,
+            storage_backend,
+            batch,
+            callback,
+            [futures],
+            synchronous,
         )
 
 
@@ -182,63 +249,12 @@ class WorkflowCalculationSchema(CalculationLayerSchema):
     of physical properties using the built-in workflow framework.
     """
 
-    # TODO: Implement.
-    allow_protocol_merging = Attribute(
-        docstring="If `True`, the workflow framework will attempt to merge "
-        "redundant protocols from multiple workflow graphs into "
-        "a single protocol execution.",
-        type_hint=bool,
-        default_value=True,
-    )
-
     workflow_schema = Attribute(
         docstring="The workflow schema to use when estimating properties.",
         type_hint=WorkflowSchema,
         default_value=UNDEFINED,
     )
 
-    @property
-    def workflow_options(self):
-        """WorkflowOptions: The workflow options associated with this schema."""
-        return self._get_workflow_options()
-
-    def _get_workflow_options(self):
-        """Returns the workflow options associated with this schema.
-
-        Returns
-        -------
-        WorkflowOptions
-            The workflow options associated with this schema.
-        """
-
-        options = WorkflowOptions(WorkflowOptions.ConvergenceMode.NoChecks)
-
-        if (
-            self.absolute_uncertainty != UNDEFINED
-            and self.relative_uncertainty_fraction != UNDEFINED
-        ):
-            raise ValueError(
-                "Either one of the `absolute_uncertainty` and "
-                "`relative_uncertainty_fraction` attributes must "
-                "be set or neither must be."
-            )
-
-        if self.absolute_uncertainty != UNDEFINED:
-
-            options = WorkflowOptions(
-                WorkflowOptions.ConvergenceMode.AbsoluteUncertainty,
-                absolute_uncertainty=self.absolute_uncertainty,
-            )
-
-        elif self.relative_uncertainty_fraction != UNDEFINED:
-
-            options = WorkflowOptions(
-                WorkflowOptions.ConvergenceMode.RelativeUncertainty,
-                relative_uncertainty_fraction=self.relative_uncertainty_fraction,
-            )
-
-        return options
-
     def validate(self, attribute_type=None):
         super(WorkflowCalculationSchema, self).validate(attribute_type)
-        self.workflow_schema.validate_interfaces()
+        self.workflow_schema.validate()

@@ -25,9 +25,6 @@ def test_simple_replicators():
 
     dummy_replicated_protocol = DummyInputOutputProtocol(f"dummy_$({replicator_id})")
     dummy_replicated_protocol.input_value = ReplicatorValue(replicator_id)
-    dummy_schema.protocols[
-        dummy_replicated_protocol.id
-    ] = dummy_replicated_protocol.schema
 
     dummy_protocol_single_value = DummyInputOutputProtocol(
         f"dummy_single_$({replicator_id})"
@@ -35,17 +32,17 @@ def test_simple_replicators():
     dummy_protocol_single_value.input_value = ProtocolPath(
         "output_value", dummy_replicated_protocol.id
     )
-    dummy_schema.protocols[
-        dummy_protocol_single_value.id
-    ] = dummy_protocol_single_value.schema
 
     dummy_protocol_list_value = AddValues(f"dummy_list")
     dummy_protocol_list_value.values = ProtocolPath(
         "output_value", dummy_replicated_protocol.id
     )
-    dummy_schema.protocols[
-        dummy_protocol_list_value.id
-    ] = dummy_protocol_list_value.schema
+
+    dummy_schema.protocol_schemas = [
+        dummy_replicated_protocol.schema,
+        dummy_protocol_single_value.schema,
+        dummy_protocol_list_value.schema,
+    ]
 
     replicator = ProtocolReplicator(replicator_id)
 
@@ -54,9 +51,8 @@ def test_simple_replicators():
         EstimatedQuantity(2.0 * unit.kelvin, 2.0 * unit.kelvin, "dummy_source"),
     ]
 
-    dummy_schema.replicators.append(replicator)
-
-    dummy_schema.validate_interfaces()
+    dummy_schema.protocol_replicators = [replicator]
+    dummy_schema.validate()
 
     dummy_property = create_dummy_property(Density)
 
@@ -64,7 +60,7 @@ def test_simple_replicators():
         dummy_property, "smirnoff99Frosst-1.1.0.offxml", []
     )
 
-    dummy_workflow = Workflow(dummy_property, dummy_metadata, "")
+    dummy_workflow = Workflow(dummy_metadata, "")
     dummy_workflow.schema = dummy_schema
 
     assert len(dummy_workflow.protocols) == 5
@@ -92,8 +88,6 @@ def test_simple_replicators():
         "output_value", "dummy_1"
     )
 
-    print(dummy_workflow.schema)
-
 
 def test_group_replicators():
 
@@ -106,7 +100,6 @@ def test_group_replicators():
 
     dummy_group = ProtocolGroup("dummy_group")
     dummy_group.add_protocols(dummy_replicated_protocol)
-    dummy_schema.protocols[dummy_group.id] = dummy_group.schema
 
     dummy_protocol_single_value = DummyInputOutputProtocol(
         f"dummy_single_$({replicator_id})"
@@ -114,17 +107,17 @@ def test_group_replicators():
     dummy_protocol_single_value.input_value = ProtocolPath(
         "output_value", dummy_group.id, dummy_replicated_protocol.id
     )
-    dummy_schema.protocols[
-        dummy_protocol_single_value.id
-    ] = dummy_protocol_single_value.schema
 
     dummy_protocol_list_value = AddValues(f"dummy_list")
     dummy_protocol_list_value.values = ProtocolPath(
         "output_value", dummy_group.id, dummy_replicated_protocol.id
     )
-    dummy_schema.protocols[
-        dummy_protocol_list_value.id
-    ] = dummy_protocol_list_value.schema
+
+    dummy_schema.protocol_schemas = [
+        dummy_group.schema,
+        dummy_protocol_single_value.schema,
+        dummy_protocol_list_value.schema,
+    ]
 
     replicator = ProtocolReplicator(replicator_id)
 
@@ -133,9 +126,8 @@ def test_group_replicators():
         EstimatedQuantity(2.0 * unit.kelvin, 2.0 * unit.kelvin, "dummy_source"),
     ]
 
-    dummy_schema.replicators.append(replicator)
-
-    dummy_schema.validate_interfaces()
+    dummy_schema.protocol_replicators = [replicator]
+    dummy_schema.validate()
 
     dummy_property = create_dummy_property(Density)
 
@@ -143,7 +135,7 @@ def test_group_replicators():
         dummy_property, "smirnoff99Frosst-1.1.0.offxml", []
     )
 
-    dummy_workflow = Workflow(dummy_property, dummy_metadata, "")
+    dummy_workflow = Workflow(dummy_metadata, "")
     dummy_workflow.schema = dummy_schema
 
     assert len(dummy_workflow.protocols) == 4
@@ -193,7 +185,6 @@ def test_advanced_group_replicators():
 
     dummy_group = ProtocolGroup(f"dummy_group_$({replicator_id})")
     dummy_group.add_protocols(dummy_replicated_protocol, dummy_group_2)
-    dummy_schema.protocols[dummy_group.id] = dummy_group.schema
 
     dummy_protocol_single_value = DummyInputOutputProtocol(
         f"dummy_single_$({replicator_id})"
@@ -201,9 +192,6 @@ def test_advanced_group_replicators():
     dummy_protocol_single_value.input_value = ProtocolPath(
         "output_value", dummy_group.id, dummy_replicated_protocol.id
     )
-    dummy_schema.protocols[
-        dummy_protocol_single_value.id
-    ] = dummy_protocol_single_value.schema
 
     dummy_protocol_2_single_value = DummyInputOutputProtocol(
         f"dummy_single_2_$({replicator_id})"
@@ -211,9 +199,12 @@ def test_advanced_group_replicators():
     dummy_protocol_2_single_value.input_value = ProtocolPath(
         "output_value", dummy_group.id, dummy_group_2.id, dummy_replicated_protocol_2.id
     )
-    dummy_schema.protocols[
-        dummy_protocol_2_single_value.id
-    ] = dummy_protocol_2_single_value.schema
+
+    dummy_schema.protocol_schemas = [
+        dummy_group.schema,
+        dummy_protocol_single_value.schema,
+        dummy_protocol_2_single_value.schema,
+    ]
 
     replicator = ProtocolReplicator(replicator_id)
 
@@ -222,9 +213,8 @@ def test_advanced_group_replicators():
         EstimatedQuantity(2.0 * unit.kelvin, 2.0 * unit.kelvin, "dummy_source"),
     ]
 
-    dummy_schema.replicators.append(replicator)
-
-    dummy_schema.validate_interfaces()
+    dummy_schema.protocol_replicators = [replicator]
+    dummy_schema.validate()
 
     dummy_property = create_dummy_property(Density)
 
@@ -232,7 +222,7 @@ def test_advanced_group_replicators():
         dummy_property, "smirnoff99Frosst-1.1.0.offxml", []
     )
 
-    dummy_workflow = Workflow(dummy_property, dummy_metadata, "")
+    dummy_workflow = Workflow(dummy_metadata, "")
     dummy_workflow.schema = dummy_schema
 
     assert len(dummy_workflow.protocols) == 6
@@ -273,7 +263,7 @@ def test_nested_replicators():
     dummy_protocol.replicated_value_a = ReplicatorValue("rep_a")
     dummy_protocol.replicated_value_b = ReplicatorValue("rep_b")
 
-    dummy_schema.protocols[dummy_protocol.id] = dummy_protocol.schema
+    dummy_schema.protocol_schemas = [dummy_protocol.schema]
 
     replicator_a = ProtocolReplicator(replicator_id="rep_a")
     replicator_a.template_values = ["a", "b"]
@@ -281,9 +271,9 @@ def test_nested_replicators():
     replicator_b = ProtocolReplicator(replicator_id="rep_b")
     replicator_b.template_values = [1, 2]
 
-    dummy_schema.replicators = [replicator_a, replicator_b]
+    dummy_schema.protocol_replicators = [replicator_a, replicator_b]
 
-    dummy_schema.validate_interfaces()
+    dummy_schema.validate()
 
     dummy_property = create_dummy_property(Density)
 
@@ -291,7 +281,7 @@ def test_nested_replicators():
         dummy_property, "smirnoff99Frosst-1.1.0.offxml", []
     )
 
-    dummy_workflow = Workflow(dummy_property, dummy_metadata, "")
+    dummy_workflow = Workflow(dummy_metadata, "")
     dummy_workflow.schema = dummy_schema
 
     assert len(dummy_workflow.protocols) == 4
@@ -332,10 +322,10 @@ def test_advanced_nested_replicators():
     dummy_protocol.replicated_value_a = ReplicatorValue(replicator_a.id)
     dummy_protocol.replicated_value_b = ReplicatorValue(replicator_b.id)
 
-    dummy_schema.protocols[dummy_protocol.id] = dummy_protocol.schema
-    dummy_schema.replicators = [replicator_a, replicator_b]
+    dummy_schema.protocol_schemas = [dummy_protocol.schema]
+    dummy_schema.protocol_replicators = [replicator_a, replicator_b]
 
-    dummy_schema.validate_interfaces()
+    dummy_schema.validate()
 
     dummy_property = create_dummy_property(Density)
     dummy_metadata = Workflow.generate_default_metadata(
@@ -343,7 +333,7 @@ def test_advanced_nested_replicators():
     )
     dummy_metadata["dummy_list"] = [[1], [2]]
 
-    dummy_workflow = Workflow(dummy_property, dummy_metadata, "")
+    dummy_workflow = Workflow(dummy_metadata, "")
     dummy_workflow.schema = dummy_schema
 
     assert len(dummy_workflow.protocols) == 2
@@ -353,5 +343,3 @@ def test_advanced_nested_replicators():
 
     assert dummy_workflow.protocols["dummy_1_0"].replicated_value_a == "b"
     assert dummy_workflow.protocols["dummy_1_0"].replicated_value_b == 2
-
-    print(dummy_workflow.schema)

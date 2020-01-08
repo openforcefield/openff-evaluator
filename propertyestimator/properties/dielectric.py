@@ -2,9 +2,9 @@
 A collection of dielectric physical property definitions.
 """
 import copy
-import logging
 
 import numpy as np
+import pint
 from simtk import openmm
 from simtk.openmm import XmlSerializer
 
@@ -23,16 +23,15 @@ from propertyestimator.protocols.utils import (
 )
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import timeseries
-from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import bootstrap
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
-from propertyestimator.workflow.plugins import register_calculation_protocol
+from propertyestimator.workflow.plugins import workflow_protocol
 from propertyestimator.workflow.schemas import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
 
-@register_calculation_protocol()
+@workflow_protocol()
 class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
     """Extracts the average dielectric constant from a simulation trajectory.
     """
@@ -51,17 +50,17 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
     dipole_moments = OutputAttribute(
         docstring="The raw (possibly correlated) dipole moments which were used in "
         "the dielectric calculation.",
-        type_hint=unit.Quantity,
+        type_hint=pint.Quantity,
     )
     volumes = OutputAttribute(
         docstring="The raw (possibly correlated) which were used in the dielectric calculation.",
-        type_hint=unit.Quantity,
+        type_hint=pint.Quantity,
     )
 
     uncorrelated_volumes = OutputAttribute(
         docstring="The uncorrelated volumes which were used in the dielectric "
         "calculation.",
-        type_hint=unit.Quantity,
+        type_hint=pint.Quantity,
     )
 
     def _bootstrap_function(self, **sample_kwargs):
@@ -170,16 +169,9 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
 
         return dipole_moments, volumes
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
-        logging.info("Extracting dielectrics: " + self.id)
-
-        base_exception = super(ExtractAverageDielectric, self).execute(
-            directory, available_resources
-        )
-
-        if isinstance(base_exception, ExtractAverageDielectric):
-            return base_exception
+        super(ExtractAverageDielectric, self)._execute(directory, available_resources)
 
         # Extract the dipoles
         dipole_moments, volumes = self._extract_dipoles_and_volumes()
@@ -216,12 +208,8 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
             value * unit.dimensionless, uncertainty * unit.dimensionless, self.id
         )
 
-        logging.info("Extracted dielectrics: " + self.id)
 
-        return self._get_output_dictionary()
-
-
-@register_calculation_protocol()
+@workflow_protocol()
 class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
     """Reweights a set of dipole moments (`reference_observables`) and volumes
     (`reference_volumes`) using MBAR, and then combines these to yeild the reweighted
@@ -293,35 +281,28 @@ class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
 
         return dielectric_constant
 
-    def execute(self, directory, available_resources):
-
-        logging.info("Reweighting dielectric: {}".format(self.id))
+    def _execute(self, directory, available_resources):
 
         if len(self.reference_dipole_moments) == 0:
-            return EvaluatorException(
-                directory=directory, message="There were no dipole moments to reweight."
-            )
+            raise ValueError("There were no dipole moments to reweight.")
 
         if len(self.reference_volumes) == 0:
-            return EvaluatorException(
-                directory=directory, message="There were no volumes to reweight."
-            )
+            raise ValueError("There were no volumes to reweight.")
 
         if not isinstance(
-            self.reference_dipole_moments[0], unit.Quantity
-        ) or not isinstance(self.reference_volumes[0], unit.Quantity):
+            self.reference_dipole_moments[0], pint.Quantity
+        ) or not isinstance(self.reference_volumes[0], pint.Quantity):
 
-            return EvaluatorException(
-                directory=directory,
-                message="The reference observables should be "
-                "a list of unit.Quantity wrapped ndarray's.",
+            raise ValueError(
+                "The reference observables should be a list of "
+                "pint.Quantity wrapped ndarray's.",
             )
 
         if len(self.reference_dipole_moments) != len(self.reference_volumes):
-            return EvaluatorException(
-                directory=directory,
-                message="The number of reference dipoles does "
-                "not match the number of reference volumes.",
+
+            raise ValueError(
+                "The number of reference dipoles does not match the "
+                "number of reference volumes.",
             )
 
         for reference_dipoles, reference_volumes in zip(
@@ -331,10 +312,9 @@ class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
             if len(reference_dipoles) == len(reference_volumes):
                 continue
 
-            return EvaluatorException(
-                directory=directory,
-                message="The number of reference dipoles does "
-                "not match the number of reference volumes.",
+            raise ValueError(
+                "The number of reference dipoles does not match the "
+                "number of reference volumes.",
             )
 
         self._reference_observables = self.reference_dipole_moments
@@ -347,7 +327,8 @@ class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
         volumes = self._prepare_observables_array(self.reference_volumes)
 
         if self.bootstrap_uncertainties:
-            error = self._execute_with_bootstrapping(
+
+            self._execute_with_bootstrapping(
                 unit.dimensionless,
                 dipoles=dipole_moments,
                 dipoles_sqr=dipole_moments_sqr,
@@ -355,18 +336,10 @@ class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
             )
         else:
 
-            return EvaluatorException(
-                directory=directory,
-                message="Dielectric constant can only be reweighted in conjunction "
+            raise ValueError(
+                "Dielectric constant can only be reweighted in conjunction "
                 "with bootstrapped uncertainties.",
             )
-
-        if error is not None:
-
-            error.directory = directory
-            return error
-
-        return self._get_output_dictionary()
 
 
 @thermoml_property(
@@ -376,29 +349,32 @@ class DielectricConstant(PhysicalProperty):
     """A class representation of a dielectric property"""
 
     @staticmethod
-    def default_simulation_schema(existing_schema=None):
+    def default_simulation_schema(
+        absolute_tolerance=UNDEFINED, relative_tolerance=UNDEFINED, n_molecules=1000
+    ):
         """Returns the default calculation schema to use when estimating
         this class of property from direct simulations.
 
         Parameters
         ----------
-        existing_schema: SimulationSchema, optional
-            An existing schema whose settings to use. If set,
-            the schema's `workflow_schema` will be overwritten
-            by this method.
+        absolute_tolerance: pint.Quantity, optional
+            The absolute tolerance to estimate the property to within.
+        relative_tolerance: float
+            The tolerance (as a fraction of the properties reported
+            uncertainty) to estimate the property to within.
+        n_molecules: int
+            The number of molecules to use in the simulation.
 
         Returns
         -------
         SimulationSchema
             The schema to follow when estimating this property.
         """
+        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
 
         calculation_schema = SimulationSchema()
-
-        if existing_schema is not None:
-
-            assert isinstance(existing_schema, SimulationSchema)
-            calculation_schema = copy.deepcopy(existing_schema)
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
 
         # Define the protocol which will extract the average dielectric constant
         # from the results of a simulation.
@@ -408,8 +384,12 @@ class DielectricConstant(PhysicalProperty):
         )
 
         # Define the protocols which will run the simulation itself.
+        use_target_uncertainty = (
+            absolute_tolerance != UNDEFINED or relative_tolerance != UNDEFINED
+        )
+
         protocols, value_source, output_to_store = generate_base_simulation_protocols(
-            extract_dielectric, calculation_schema.workflow_options
+            extract_dielectric, use_target_uncertainty, n_molecules=n_molecules,
         )
 
         # Make sure the input of the analysis protcol is properly hooked up.
@@ -468,21 +448,20 @@ class DielectricConstant(PhysicalProperty):
         )
 
         # Build the workflow schema.
-        schema = WorkflowSchema(property_type=DielectricConstant.__name__)
-        schema.id = "{}{}".format(DielectricConstant.__name__, "Schema")
+        schema = WorkflowSchema()
 
-        schema.protocols = {
-            protocols.build_coordinates.id: protocols.build_coordinates.schema,
-            protocols.assign_parameters.id: protocols.assign_parameters.schema,
-            protocols.energy_minimisation.id: protocols.energy_minimisation.schema,
-            protocols.equilibration_simulation.id: protocols.equilibration_simulation.schema,
-            protocols.converge_uncertainty.id: protocols.converge_uncertainty.schema,
-            protocols.extract_uncorrelated_trajectory.id: protocols.extract_uncorrelated_trajectory.schema,
-            protocols.extract_uncorrelated_statistics.id: protocols.extract_uncorrelated_statistics.schema,
-            gradient_group.id: gradient_group.schema,
-        }
+        schema.protocol_schemas = [
+            protocols.build_coordinates.schema,
+            protocols.assign_parameters.schema,
+            protocols.energy_minimisation.schema,
+            protocols.equilibration_simulation.schema,
+            protocols.converge_uncertainty.schema,
+            protocols.extract_uncorrelated_trajectory.schema,
+            protocols.extract_uncorrelated_statistics.schema,
+            gradient_group.schema,
+        ]
 
-        schema.replicators = [gradient_replicator]
+        schema.protocol_replicators = [gradient_replicator]
 
         schema.outputs_to_store = {"full_system": output_to_store}
 
@@ -493,29 +472,35 @@ class DielectricConstant(PhysicalProperty):
         return calculation_schema
 
     @staticmethod
-    def default_reweighting_schema(existing_schema=None):
+    def default_reweighting_schema(
+        absolute_tolerance=UNDEFINED,
+        relative_tolerance=UNDEFINED,
+        n_effective_samples=50,
+    ):
         """Returns the default calculation schema to use when estimating
         this property by reweighting existing data.
 
         Parameters
         ----------
-        existing_schema: ReweightingSchema, optional
-            An existing schema whose settings to use. If set,
-            the schema's `workflow_schema` will be overwritten
-            by this method.
+        absolute_tolerance: pint.Quantity, optional
+            The absolute tolerance to estimate the property to within.
+        relative_tolerance: float
+            The tolerance (as a fraction of the properties reported
+            uncertainty) to estimate the property to within.
+        n_effective_samples: int
+            The minimum number of effective samples to require when
+            reweighting the cached simulation data.
 
         Returns
         -------
         ReweightingSchema
             The schema to follow when estimating this property.
         """
+        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
 
         calculation_schema = ReweightingSchema()
-
-        if existing_schema is not None:
-
-            assert isinstance(existing_schema, ReweightingSchema)
-            calculation_schema = copy.deepcopy(existing_schema)
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
 
         data_replicator_id = "data_replicator"
 
@@ -538,6 +523,7 @@ class DielectricConstant(PhysicalProperty):
         )
         reweight_dielectric.bootstrap_uncertainties = True
         reweight_dielectric.bootstrap_iterations = 200
+        reweight_dielectric.required_effective_samples = n_effective_samples
 
         protocols, data_replicator = generate_base_reweighting_protocols(
             extract_dielectric, reweight_dielectric, data_replicator_id
@@ -580,14 +566,12 @@ class DielectricConstant(PhysicalProperty):
             ),
         )
 
-        schema = WorkflowSchema(property_type=DielectricConstant.__name__)
-        schema.id = "{}{}".format(DielectricConstant.__name__, "Schema")
-
-        schema.protocols = {protocol.id: protocol.schema for protocol in protocols}
-        schema.protocols[gradient_group.id] = gradient_group.schema
-
-        schema.replicators = [data_replicator, gradient_replicator]
-
+        schema = WorkflowSchema()
+        schema.protocol_schemas = [
+            *(x.schema for x in protocols),
+            gradient_group.schema,
+        ]
+        schema.protocol_replicators = [data_replicator, gradient_replicator]
         schema.gradients_sources = [gradient_source]
         schema.final_value_source = ProtocolPath("value", protocols.mbar_protocol.id)
 

@@ -2,13 +2,14 @@
 A collection of protocols for performing free energy calculations
 using the YANK package.
 """
+import abc
 import logging
 import os
 import shutil
 import threading
-import traceback
 from enum import Enum
 
+import pint
 import yaml
 
 from propertyestimator import unit
@@ -16,7 +17,6 @@ from propertyestimator.attributes import UNDEFINED
 from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.substances import Component, Substance
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.openmm import (
     disable_pbc,
     openmm_quantity_to_pint,
@@ -30,17 +30,13 @@ from propertyestimator.workflow.attributes import (
     InputAttribute,
     OutputAttribute,
 )
-from propertyestimator.workflow.plugins import register_calculation_protocol
-from propertyestimator.workflow.protocols import BaseProtocol
+from propertyestimator.workflow.plugins import workflow_protocol
+from propertyestimator.workflow.protocols import Protocol
 
 
-@register_calculation_protocol()
-class BaseYankProtocol(BaseProtocol):
-    """An abstract base class for protocols which will performs a set of alchemical
-    free energy simulations using the YANK framework.
-
-    Protocols which inherit from this base must implement the abstract `_get_yank_options`
-    methods.
+class BaseYankProtocol(Protocol, abc.ABC):
+    """An abstract base class for protocols which will performs a set of
+    alchemical free energy simulations using the YANK framework.
     """
 
     thermodynamic_state = InputAttribute(
@@ -77,7 +73,7 @@ class BaseYankProtocol(BaseProtocol):
 
     timestep = InputAttribute(
         docstring="The length of the timestep to take.",
-        type_hint=unit.Quantity,
+        type_hint=pint.Quantity,
         merge_behavior=InequalityMergeBehaviour.SmallestValue,
         default_value=2 * unit.femtosecond,
     )
@@ -265,6 +261,7 @@ class BaseYankProtocol(BaseProtocol):
             "platform": platform_name,
         }
 
+    @abc.abstractmethod
     def _get_system_dictionary(self):
         """Returns a dictionary of the system which will be serialized
         to a yaml file and passed to YANK. Only a single system may be
@@ -277,6 +274,7 @@ class BaseYankProtocol(BaseProtocol):
         """
         raise NotImplementedError()
 
+    @abc.abstractmethod
     def _get_protocol_dictionary(self):
         """Returns a dictionary of the protocol which will be serialized
         to a yaml file and passed to YANK. Only a single protocol may be
@@ -368,9 +366,9 @@ class BaseYankProtocol(BaseProtocol):
 
         Returns
         -------
-        simtk.unit.Quantity
+        simtk.pint.Quantity
             The free energy returned by yank.
-        simtk.unit.Quantity
+        simtk.pint.Quantity
             The uncertainty in the free energy returned by yank.
         """
 
@@ -428,9 +426,9 @@ class BaseYankProtocol(BaseProtocol):
 
         Returns
         -------
-        simtk.unit.Quantity
+        simtk.pint.Quantity
             The free energy returned by yank.
-        simtk.unit.Quantity
+        simtk.pint.Quantity
             The uncertainty in the free energy returned by yank.
         str, optional
             The stringified errors which occurred on the other process,
@@ -440,18 +438,18 @@ class BaseYankProtocol(BaseProtocol):
         free_energy = None
         free_energy_uncertainty = None
 
-        error = None
+        exception = None
 
         try:
             free_energy, free_energy_uncertainty = BaseYankProtocol._run_yank(
                 directory, available_resources, setup_only
             )
         except Exception as e:
-            error = traceback.format_exception(None, e, e.__traceback__)
+            exception = e
 
-        queue.put((free_energy, free_energy_uncertainty, error))
+        queue.put((free_energy, free_energy_uncertainty, exception))
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         yaml_filename = os.path.join(directory, "yank.yaml")
 
@@ -489,22 +487,20 @@ class BaseYankProtocol(BaseProtocol):
 
             # Start the process and gather back the output.
             process.start()
-            free_energy, free_energy_uncertainty, error = queue.get()
+            free_energy, free_energy_uncertainty, exception = queue.get()
             process.join()
 
-            if error is not None:
-                return EvaluatorException(directory, error)
+            if exception is not None:
+                raise exception
 
         self.estimated_free_energy = EstimatedQuantity(
             openmm_quantity_to_pint(free_energy),
             openmm_quantity_to_pint(free_energy_uncertainty),
-            self._id,
+            self.id,
         )
 
-        return self._get_output_dictionary()
 
-
-@register_calculation_protocol()
+@workflow_protocol()
 class LigandReceptorYankProtocol(BaseYankProtocol):
     """A protocol for performing ligand-receptor alchemical free energy
     calculations using the YANK framework.
@@ -661,7 +657,7 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
 
         return full_dictionary
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         # Because of quirks in where Yank looks files while doing temporary
         # directory changes, we need to copy the coordinate files locally so
@@ -684,15 +680,10 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
             os.path.join(directory, self._local_complex_system),
         )
 
-        result = super(LigandReceptorYankProtocol, self).execute(
-            directory, available_resources
-        )
-
-        if isinstance(result, EvaluatorException):
-            return result
+        super(LigandReceptorYankProtocol, self)._execute(directory, available_resources)
 
         if self.setup_only:
-            return self._get_output_dictionary()
+            return
 
         ligand_yank_path = os.path.join(directory, "experiments", "solvent.nc")
         complex_yank_path = os.path.join(directory, "experiments", "complex.nc")
@@ -705,10 +696,8 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
             complex_yank_path, self.solvated_complex_trajectory_path
         )
 
-        return self._get_output_dictionary()
 
-
-@register_calculation_protocol()
+@workflow_protocol()
 class SolvationYankProtocol(BaseYankProtocol):
     """A protocol for performing solvation alchemical free energy
     calculations using the YANK framework.
@@ -728,12 +717,12 @@ class SolvationYankProtocol(BaseYankProtocol):
     )
 
     solvent_1 = InputAttribute(
-        docstring="The substance describing the composition of " "the first solvent.",
+        docstring="The substance describing the composition of the first solvent.",
         type_hint=Substance,
         default_value=UNDEFINED,
     )
     solvent_2 = InputAttribute(
-        docstring="The substance describing the composition of " "the second solvent.",
+        docstring="The substance describing the composition of the second solvent.",
         type_hint=Substance,
         default_value=UNDEFINED,
     )
@@ -917,7 +906,7 @@ class SolvationYankProtocol(BaseYankProtocol):
 
         return {"solvation-protocol": protocol_dictionary}
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         from simtk.openmm import XmlSerializer
 
@@ -940,13 +929,11 @@ class SolvationYankProtocol(BaseYankProtocol):
         ]
 
         if len(solute_components) != 1:
-            return EvaluatorException(
-                directory, "There must only be a single component marked as a solute."
+            raise ValueError(
+                "There must only be a single component marked as a solute."
             )
         if len(solvent_1_components) == 0 and len(solvent_2_components) == 0:
-            return EvaluatorException(
-                directory, "At least one of the solvents must not be vacuum."
-            )
+            raise ValueError("At least one of the solvents must not be vacuum.")
 
         # Because of quirks in where Yank looks files while doing temporary
         # directory changes, we need to copy the coordinate files locally so
@@ -992,15 +979,10 @@ class SolvationYankProtocol(BaseYankProtocol):
                 file.write(XmlSerializer.serialize(vacuum_system))
 
         # Set up the yank input file.
-        result = super(SolvationYankProtocol, self).execute(
-            directory, available_resources
-        )
-
-        if isinstance(result, EvaluatorException):
-            return result
+        super(SolvationYankProtocol, self)._execute(directory, available_resources)
 
         if self.setup_only:
-            return self._get_output_dictionary()
+            return
 
         solvent_1_yank_path = os.path.join(directory, "experiments", "solvent1.nc")
         solvent_2_yank_path = os.path.join(directory, "experiments", "solvent2.nc")
@@ -1010,5 +992,3 @@ class SolvationYankProtocol(BaseYankProtocol):
 
         self._extract_trajectory(solvent_1_yank_path, self.solvent_1_trajectory_path)
         self._extract_trajectory(solvent_2_yank_path, self.solvent_2_trajectory_path)
-
-        return self._get_output_dictionary()

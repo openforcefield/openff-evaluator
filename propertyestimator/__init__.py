@@ -3,9 +3,10 @@ propertyestimator
 Property calculation toolkit from the Open Forcefield Consortium.
 """
 
+import warnings
+
 import pint
 import pkg_resources
-import warnings
 
 from ._version import get_versions
 

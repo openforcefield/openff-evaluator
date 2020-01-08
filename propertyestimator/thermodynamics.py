@@ -3,6 +3,8 @@ Defines an API for defining thermodynamic states.
 """
 from enum import Enum
 
+import pint
+
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
 
@@ -35,10 +37,10 @@ class ThermodynamicState(AttributeClass):
     """
 
     temperature = Attribute(
-        docstring="The external temperature.", type_hint=unit.Quantity
+        docstring="The external temperature.", type_hint=pint.Quantity
     )
     pressure = Attribute(
-        docstring="The external pressure.", type_hint=unit.Quantity, optional=True
+        docstring="The external pressure.", type_hint=pint.Quantity, optional=True
     )
 
     @property
@@ -58,9 +60,9 @@ class ThermodynamicState(AttributeClass):
 
         Parameters
         ----------
-        temperature : propertyestimator.unit.Quantity
+        temperature : pint.Quantity
             The external temperature
-        pressure : propertyestimator.unit.Quantity
+        pressure : pint.Quantity
             The external pressure
         """
         if temperature is not None:

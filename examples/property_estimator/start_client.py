@@ -31,8 +31,7 @@ def main():
     if error is not None:
 
         logging.info(f"The server failed to complete the request:")
-        logging.info(f"Directory: {error.directory}")
-        logging.info(f"Message: {error.directory}")
+        logging.info(f"Message: {error.message}")
         return
 
     logging.info(f"The server has completed the request.")

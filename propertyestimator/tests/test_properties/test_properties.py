@@ -82,10 +82,10 @@ def test_workflow_schema_merging(calculation_layer, property_type):
 
     global_metadata = create_dummy_metadata(dummy_property, calculation_layer)
 
-    workflow_a = Workflow(dummy_property, global_metadata)
+    workflow_a = Workflow(global_metadata, "workflow_a")
     workflow_a.schema = schema.workflow_schema
 
-    workflow_b = Workflow(dummy_property, global_metadata)
+    workflow_b = Workflow(global_metadata, "workflow_b")
     workflow_b.schema = schema.workflow_schema
 
     workflow_graph = WorkflowGraph()
@@ -93,16 +93,21 @@ def test_workflow_schema_merging(calculation_layer, property_type):
     workflow_graph.add_workflow(workflow_a)
     workflow_graph.add_workflow(workflow_b)
 
-    ordered_dict_a = OrderedDict(sorted(workflow_a.dependants_graph.items()))
-    ordered_dict_b = OrderedDict(sorted(workflow_b.dependants_graph.items()))
+    workflow_graph_a = workflow_a.to_graph()
+    workflow_graph_b = workflow_b.to_graph()
+
+    ordered_dict_a = OrderedDict(sorted(workflow_graph_a.dependants_graph.items()))
+    ordered_dict_a = {key: sorted(value) for key, value in ordered_dict_a.items()}
+    ordered_dict_b = OrderedDict(sorted(workflow_graph_b.dependants_graph.items()))
+    ordered_dict_b = {key: sorted(value) for key, value in ordered_dict_b.items()}
 
     merge_order_a = graph.topological_sort(ordered_dict_a)
     merge_order_b = graph.topological_sort(ordered_dict_b)
 
-    assert len(workflow_graph._protocols_by_id) == len(workflow_a.protocols)
+    assert len(workflow_graph.protocols) == len(workflow_a.protocols)
 
     for protocol_id in workflow_a.protocols:
-        assert protocol_id in workflow_graph._protocols_by_id
+        assert protocol_id in workflow_graph.protocols
 
     for protocol_id_A, protocol_id_B in zip(merge_order_a, merge_order_b):
 
@@ -149,19 +154,22 @@ def test_density_dielectric_merging():
         density, "smirnoff99Frosst-1.1.0.offxml", []
     )
 
-    density_workflow = Workflow(density, density_metadata)
+    density_workflow = Workflow(density_metadata)
     density_workflow.schema = density_schema
 
-    dielectric_workflow = Workflow(dielectric, dielectric_metadata)
+    dielectric_workflow = Workflow(dielectric_metadata)
     dielectric_workflow.schema = dielectric_schema
 
-    workflow_graph = WorkflowGraph("")
+    workflow_graph = WorkflowGraph()
 
     workflow_graph.add_workflow(density_workflow)
     workflow_graph.add_workflow(dielectric_workflow)
 
-    merge_order_a = graph.topological_sort(density_workflow.dependants_graph)
-    merge_order_b = graph.topological_sort(dielectric_workflow.dependants_graph)
+    density_workflow_graph = density_workflow.to_graph()
+    dielectric_workflow_graph = dielectric_workflow.to_graph()
+
+    merge_order_a = graph.topological_sort(density_workflow_graph.dependants_graph)
+    merge_order_b = graph.topological_sort(dielectric_workflow_graph.dependants_graph)
 
     for protocol_id_A, protocol_id_B in zip(merge_order_a, merge_order_b):
 

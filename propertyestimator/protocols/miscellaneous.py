@@ -5,26 +5,25 @@ math operations.
 import typing
 
 import numpy as np
+import pint
 
-from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.forcefield import ParameterGradient
 from propertyestimator.substances import Component, MoleFraction, Substance
-from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
-from propertyestimator.workflow.plugins import register_calculation_protocol
-from propertyestimator.workflow.protocols import BaseProtocol
+from propertyestimator.workflow.plugins import workflow_protocol
+from propertyestimator.workflow.protocols import Protocol
 
 
-@register_calculation_protocol()
-class AddValues(BaseProtocol):
+@workflow_protocol()
+class AddValues(Protocol):
     """A protocol to add together a list of values.
 
     Notes
     -----
-    The `values` input must either be a list of unit.Quantity, a ProtocolPath to a list
-    of unit.Quantity, or a list of ProtocolPath which each point to a unit.Quantity.
+    The `values` input must either be a list of pint.Quantity, a ProtocolPath to a list
+    of pint.Quantity, or a list of ProtocolPath which each point to a pint.Quantity.
     """
 
     values = InputAttribute(
@@ -34,23 +33,21 @@ class AddValues(BaseProtocol):
     result = OutputAttribute(
         docstring="The sum of the values.",
         type_hint=typing.Union[
-            int, float, EstimatedQuantity, unit.Quantity, ParameterGradient
+            int, float, EstimatedQuantity, pint.Quantity, ParameterGradient
         ],
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         if len(self.values) < 1:
-            return EvaluatorException(
-                directory, "There were no gradients to add together"
-            )
+            raise ValueError("There were no values to add together")
 
         if not all(isinstance(x, type(self.values[0])) for x in self.values):
 
-            return EvaluatorException(
-                directory,
-                f"All values to add together must be "
-                f'the same type ({" ".join(map(str, self.values))}).',
+            types = " ".join(map(str, self.values))
+
+            raise ValueError(
+                f"All of the values to add together must be the same type ({types})."
             )
 
         self.result = self.values[0]
@@ -58,11 +55,9 @@ class AddValues(BaseProtocol):
         for value in self.values[1:]:
             self.result += value
 
-        return self._get_output_dictionary()
 
-
-@register_calculation_protocol()
-class SubtractValues(BaseProtocol):
+@workflow_protocol()
+class SubtractValues(Protocol):
     """A protocol to subtract one value from another such that:
 
     `result = value_b - value_a`
@@ -71,14 +66,14 @@ class SubtractValues(BaseProtocol):
     value_a = InputAttribute(
         docstring="`value_a` in the formula `result` = `value_b` - `value_a`.",
         type_hint=typing.Union[
-            int, float, unit.Quantity, EstimatedQuantity, ParameterGradient
+            int, float, pint.Quantity, EstimatedQuantity, ParameterGradient
         ],
         default_value=UNDEFINED,
     )
     value_b = InputAttribute(
         docstring="`value_b` in the formula `result` = `value_b` - `value_a`.",
         type_hint=typing.Union[
-            int, float, unit.Quantity, EstimatedQuantity, ParameterGradient
+            int, float, pint.Quantity, EstimatedQuantity, ParameterGradient
         ],
         default_value=UNDEFINED,
     )
@@ -86,42 +81,40 @@ class SubtractValues(BaseProtocol):
     result = OutputAttribute(
         docstring="The results of `value_b` - `value_a`.",
         type_hint=typing.Union[
-            int, float, EstimatedQuantity, unit.Quantity, ParameterGradient
+            int, float, EstimatedQuantity, pint.Quantity, ParameterGradient
         ],
     )
 
-    def execute(self, directory, available_resources):
-
+    def _execute(self, directory, available_resources):
         self.result = self.value_b - self.value_a
-        return self._get_output_dictionary()
 
 
-@register_calculation_protocol()
-class MultiplyValue(BaseProtocol):
+@workflow_protocol()
+class MultiplyValue(Protocol):
     """A protocol which multiplies a value by a specified scalar
     """
 
     value = InputAttribute(
         docstring="The value to multiply.",
         type_hint=typing.Union[
-            int, float, unit.Quantity, EstimatedQuantity, ParameterGradient
+            int, float, pint.Quantity, EstimatedQuantity, ParameterGradient
         ],
         default_value=UNDEFINED,
     )
     multiplier = InputAttribute(
         docstring="The scalar to multiply by.",
-        type_hint=typing.Union[int, float, unit.Quantity],
+        type_hint=typing.Union[int, float, pint.Quantity],
         default_value=UNDEFINED,
     )
 
     result = OutputAttribute(
         docstring="The result of the multiplication.",
         type_hint=typing.Union[
-            int, float, EstimatedQuantity, unit.Quantity, ParameterGradient
+            int, float, EstimatedQuantity, pint.Quantity, ParameterGradient
         ],
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         if isinstance(self.value, EstimatedQuantity):
 
@@ -135,42 +128,38 @@ class MultiplyValue(BaseProtocol):
 
             self.result = self.value * self.multiplier
 
-        return self._get_output_dictionary()
 
-
-@register_calculation_protocol()
-class DivideValue(BaseProtocol):
+@workflow_protocol()
+class DivideValue(Protocol):
     """A protocol which divides a value by a specified scalar
     """
 
     value = InputAttribute(
         docstring="The value to divide.",
         type_hint=typing.Union[
-            int, float, unit.Quantity, EstimatedQuantity, ParameterGradient
+            int, float, pint.Quantity, EstimatedQuantity, ParameterGradient
         ],
         default_value=UNDEFINED,
     )
     divisor = InputAttribute(
         docstring="The scalar to divide by.",
-        type_hint=typing.Union[int, float, unit.Quantity],
+        type_hint=typing.Union[int, float, pint.Quantity],
         default_value=UNDEFINED,
     )
 
     result = OutputAttribute(
         docstring="The result of the division.",
         type_hint=typing.Union[
-            int, float, EstimatedQuantity, unit.Quantity, ParameterGradient
+            int, float, EstimatedQuantity, pint.Quantity, ParameterGradient
         ],
     )
 
-    def execute(self, directory, available_resources):
-
+    def _execute(self, directory, available_resources):
         self.result = self.value / self.divisor
-        return self._get_output_dictionary()
 
 
-@register_calculation_protocol()
-class WeightByMoleFraction(BaseProtocol):
+@workflow_protocol()
+class WeightByMoleFraction(Protocol):
     """Multiplies a value by the mole fraction of a component
     in a `Substance`.
     """
@@ -178,7 +167,7 @@ class WeightByMoleFraction(BaseProtocol):
     value = InputAttribute(
         docstring="The value to be weighted.",
         type_hint=typing.Union[
-            float, int, EstimatedQuantity, unit.Quantity, ParameterGradient
+            float, int, EstimatedQuantity, pint.Quantity, ParameterGradient
         ],
         default_value=UNDEFINED,
     )
@@ -198,7 +187,7 @@ class WeightByMoleFraction(BaseProtocol):
         "The value weighted by the `component`s mole fraction as determined from the "
         "`full_substance`.",
         type_hint=typing.Union[
-            float, int, EstimatedQuantity, unit.Quantity, ParameterGradient
+            float, int, EstimatedQuantity, pint.Quantity, ParameterGradient
         ],
     )
 
@@ -212,12 +201,12 @@ class WeightByMoleFraction(BaseProtocol):
 
         Returns
         -------
-        float, int, EstimatedQuantity, unit.Quantity, ParameterGradient
+        float, int, EstimatedQuantity, pint.Quantity, ParameterGradient
             The weighted value.
         """
         return self.value * mole_fraction
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         assert len(self.component.components) == 1
 
@@ -226,29 +215,25 @@ class WeightByMoleFraction(BaseProtocol):
 
         if len(amounts) != 1:
 
-            return EvaluatorException(
-                directory=directory,
-                message=f"More than one type of amount was defined for component "
-                f"{main_component}. Only a single mole fraction must be "
-                f"defined.",
+            raise ValueError(
+                f"More than one type of amount was defined for component "
+                f"{main_component}. Only a single mole fraction must be defined.",
             )
 
         amount = next(iter(amounts))
 
         if not isinstance(amount, MoleFraction):
 
-            return EvaluatorException(
-                directory=directory,
-                message=f"The component {main_component} was given as an "
-                f"exact amount, and not a mole fraction",
+            raise ValueError(
+                f"The component {main_component} was given as an exact amount, and "
+                f"not a mole fraction"
             )
 
         self.weighted_value = self._weight_values(amount.value)
-        return self._get_output_dictionary()
 
 
-@register_calculation_protocol()
-class FilterSubstanceByRole(BaseProtocol):
+@workflow_protocol()
+class FilterSubstanceByRole(Protocol):
     """A protocol which takes a substance as input, and returns a substance which only
     contains components whose role match a given criteria.
     """
@@ -277,7 +262,7 @@ class FilterSubstanceByRole(BaseProtocol):
         docstring="The filtered substance.", type_hint=Substance
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         filtered_components = []
         total_mole_fraction = 0.0
@@ -302,11 +287,9 @@ class FilterSubstanceByRole(BaseProtocol):
             filtered_components
         ):
 
-            return EvaluatorException(
-                directory=directory,
-                message=f"The filtered substance does not contain the expected "
-                f"number of components ({self.expected_components}) - "
-                f"{filtered_components}",
+            raise ValueError(
+                f"The filtered substance does not contain the expected number of "
+                f"components ({self.expected_components}) - {filtered_components}",
             )
 
         inverse_mole_fraction = (
@@ -325,5 +308,3 @@ class FilterSubstanceByRole(BaseProtocol):
                     amount = MoleFraction(amount.value * inverse_mole_fraction)
 
                 self.filtered_substance.add_component(component, amount)
-
-        return self._get_output_dictionary()

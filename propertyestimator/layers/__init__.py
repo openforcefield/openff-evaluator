@@ -1,4 +1,4 @@
-from .layers import CalculationLayer, CalculationLayerSchema
+from .layers import CalculationLayer, CalculationLayerResult, CalculationLayerSchema
 from .plugins import (
     calculation_layer,
     register_calculation_layer,
@@ -10,6 +10,7 @@ from .plugins import (
 __all__ = [
     calculation_layer,
     CalculationLayer,
+    CalculationLayerResult,
     CalculationLayerSchema,
     register_calculation_layer,
     register_calculation_schema,

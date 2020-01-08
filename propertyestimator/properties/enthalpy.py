@@ -5,7 +5,7 @@ import copy
 from collections import namedtuple
 
 from propertyestimator import unit
-from propertyestimator.attributes import PlaceholderValue
+from propertyestimator.attributes import UNDEFINED, PlaceholderValue
 from propertyestimator.datasets import PhysicalProperty, PropertyPhase
 from propertyestimator.datasets.thermoml.plugins import thermoml_property
 from propertyestimator.layers import register_calculation_schema
@@ -21,7 +21,6 @@ from propertyestimator.storage.query import SimulationDataQuery, SubstanceQuery
 from propertyestimator.thermodynamics import Ensemble
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
-from propertyestimator.workflow import WorkflowOptions
 from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
@@ -52,7 +51,8 @@ class EnthalpyOfMixing(PhysicalProperty):
         weight_by_mole_fraction=False,
         component_substance_reference=None,
         full_substance_reference=None,
-        options=None,
+        use_target_uncertainty=False,
+        n_molecules=1000,
     ):
 
         """Returns the set of protocols which when combined in a workflow
@@ -79,8 +79,11 @@ class EnthalpyOfMixing(PhysicalProperty):
             An optional protocol path (or replicator reference) to the full substance
             whose enthalpy of mixing is being estimated. This cannot be `None` if
             `weight_by_mole_fraction` is `True`.
-        options: WorkflowOptions
-            The options to use when setting up the workflows.
+        use_target_uncertainty: bool
+            Whether to calculate the observable to within the target
+            uncertainty.
+        n_molecules: int
+            The number of molecules to use in the simulation.
 
         Returns
         -------
@@ -126,7 +129,9 @@ class EnthalpyOfMixing(PhysicalProperty):
             simulation_protocols,
             value_source,
             output_to_store,
-        ) = generate_base_simulation_protocols(extract_enthalpy, options, id_suffix)
+        ) = generate_base_simulation_protocols(
+            extract_enthalpy, use_target_uncertainty, id_suffix, n_molecules=n_molecules
+        )
 
         number_of_molecules = ProtocolPath(
             "output_number_of_molecules", simulation_protocols.build_coordinates.id
@@ -162,7 +167,7 @@ class EnthalpyOfMixing(PhysicalProperty):
                 "weighted_value", conditional_group.id, weight_by_mole_fraction.id
             )
 
-        if options.convergence_mode != WorkflowOptions.ConvergenceMode.NoChecks:
+        if use_target_uncertainty:
 
             # Make sure the convergence criteria is set to use the per component
             # uncertainty target.
@@ -254,6 +259,7 @@ class EnthalpyOfMixing(PhysicalProperty):
         replicator_id=None,
         weight_by_mole_fraction=False,
         substance_reference=None,
+        n_effective_samples=50,
     ):
 
         """Returns the set of protocols which when combined in a workflow
@@ -278,6 +284,9 @@ class EnthalpyOfMixing(PhysicalProperty):
         substance_reference: ProtocolPath or PlaceholderValue, optional
             An optional protocol path (or replicator reference) to the substance
             whose enthalpy is being estimated.
+        n_effective_samples: int
+            The minimum number of effective samples to require when
+            reweighting the cached simulation data.
 
         Returns
         -------
@@ -314,6 +323,7 @@ class EnthalpyOfMixing(PhysicalProperty):
             f"reweight_enthalpy{id_suffix}"
         )
         reweight_enthalpy.statistics_type = ObservableType.Enthalpy
+        reweight_enthalpy.required_effective_samples = n_effective_samples
 
         (protocols, data_replicator) = generate_base_reweighting_protocols(
             analysis_protocol=extract_enthalpy,
@@ -464,29 +474,36 @@ class EnthalpyOfMixing(PhysicalProperty):
         }
 
     @staticmethod
-    def default_simulation_schema(existing_schema=None):
+    def default_simulation_schema(
+        absolute_tolerance=UNDEFINED, relative_tolerance=UNDEFINED, n_molecules=1000
+    ):
         """Returns the default calculation schema to use when estimating
         this class of property from direct simulations.
 
         Parameters
         ----------
-        existing_schema: SimulationSchema, optional
-            An existing schema whose settings to use. If set,
-            the schema's `workflow_schema` will be overwritten
-            by this method.
+        absolute_tolerance: pint.Quantity, optional
+            The absolute tolerance to estimate the property to within.
+        relative_tolerance: float
+            The tolerance (as a fraction of the properties reported
+            uncertainty) to estimate the property to within.
+        n_molecules: int
+            The number of molecules to use in the simulation.
 
         Returns
         -------
         SimulationSchema
             The schema to follow when estimating this property.
         """
+        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
 
         calculation_schema = SimulationSchema()
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
 
-        if existing_schema is not None:
-
-            assert isinstance(existing_schema, SimulationSchema)
-            calculation_schema = copy.deepcopy(existing_schema)
+        use_target_uncertainty = (
+            absolute_tolerance != UNDEFINED or relative_tolerance != UNDEFINED
+        )
 
         # Define the id of the replicator which will clone the gradient protocols
         # for each gradient key to be estimated.
@@ -501,7 +518,10 @@ class EnthalpyOfMixing(PhysicalProperty):
             full_system_gradient_replicator,
             full_system_gradient,
         ) = EnthalpyOfMixing._get_simulation_protocols(
-            "_full", gradient_replicator_id, options=calculation_schema.workflow_options
+            "_full",
+            gradient_replicator_id,
+            use_target_uncertainty=use_target_uncertainty,
+            n_molecules=n_molecules,
         )
 
         # Set up a general workflow for calculating the enthalpy of one of the system components.
@@ -528,7 +548,8 @@ class EnthalpyOfMixing(PhysicalProperty):
             weight_by_mole_fraction=True,
             component_substance_reference=component_substance,
             full_substance_reference=full_substance,
-            options=calculation_schema.workflow_options,
+            use_target_uncertainty=use_target_uncertainty,
+            n_molecules=n_molecules,
         )
 
         # Finally, set up the protocols which will be responsible for adding together
@@ -568,33 +589,32 @@ class EnthalpyOfMixing(PhysicalProperty):
         )
 
         # Build the final workflow schema
-        schema = WorkflowSchema(property_type=EnthalpyOfMixing.__name__)
-        schema.id = "{}{}".format(EnthalpyOfMixing.__name__, "Schema")
+        schema = WorkflowSchema()
 
-        schema.protocols = {
-            component_protocols.build_coordinates.id: component_protocols.build_coordinates.schema,
-            component_protocols.assign_parameters.id: component_protocols.assign_parameters.schema,
-            component_protocols.energy_minimisation.id: component_protocols.energy_minimisation.schema,
-            component_protocols.equilibration_simulation.id: component_protocols.equilibration_simulation.schema,
-            component_protocols.converge_uncertainty.id: component_protocols.converge_uncertainty.schema,
-            full_system_protocols.build_coordinates.id: full_system_protocols.build_coordinates.schema,
-            full_system_protocols.assign_parameters.id: full_system_protocols.assign_parameters.schema,
-            full_system_protocols.energy_minimisation.id: full_system_protocols.energy_minimisation.schema,
-            full_system_protocols.equilibration_simulation.id: full_system_protocols.equilibration_simulation.schema,
-            full_system_protocols.converge_uncertainty.id: full_system_protocols.converge_uncertainty.schema,
-            component_protocols.extract_uncorrelated_trajectory.id: component_protocols.extract_uncorrelated_trajectory.schema,
-            component_protocols.extract_uncorrelated_statistics.id: component_protocols.extract_uncorrelated_statistics.schema,
-            full_system_protocols.extract_uncorrelated_trajectory.id: full_system_protocols.extract_uncorrelated_trajectory.schema,
-            full_system_protocols.extract_uncorrelated_statistics.id: full_system_protocols.extract_uncorrelated_statistics.schema,
-            add_component_enthalpies.id: add_component_enthalpies.schema,
-            calculate_enthalpy_of_mixing.id: calculate_enthalpy_of_mixing.schema,
-            component_gradient_group.id: component_gradient_group.schema,
-            full_system_gradient_group.id: full_system_gradient_group.schema,
-            add_component_gradients.id: add_component_gradients.schema,
-            combine_gradients.id: combine_gradients.schema,
-        }
+        schema.protocol_schemas = [
+            component_protocols.build_coordinates.schema,
+            component_protocols.assign_parameters.schema,
+            component_protocols.energy_minimisation.schema,
+            component_protocols.equilibration_simulation.schema,
+            component_protocols.converge_uncertainty.schema,
+            full_system_protocols.build_coordinates.schema,
+            full_system_protocols.assign_parameters.schema,
+            full_system_protocols.energy_minimisation.schema,
+            full_system_protocols.equilibration_simulation.schema,
+            full_system_protocols.converge_uncertainty.schema,
+            component_protocols.extract_uncorrelated_trajectory.schema,
+            component_protocols.extract_uncorrelated_statistics.schema,
+            full_system_protocols.extract_uncorrelated_trajectory.schema,
+            full_system_protocols.extract_uncorrelated_statistics.schema,
+            add_component_enthalpies.schema,
+            calculate_enthalpy_of_mixing.schema,
+            component_gradient_group.schema,
+            full_system_gradient_group.schema,
+            add_component_gradients.schema,
+            combine_gradients.schema,
+        ]
 
-        schema.replicators = [gradient_replicator, component_replicator]
+        schema.protocol_replicators = [gradient_replicator, component_replicator]
 
         # Finally, tell the schemas where to look for its final values.
         schema.gradients_sources = [ProtocolPath("result", combine_gradients.id)]
@@ -611,29 +631,35 @@ class EnthalpyOfMixing(PhysicalProperty):
         return calculation_schema
 
     @staticmethod
-    def default_reweighting_schema(existing_schema=None):
+    def default_reweighting_schema(
+        absolute_tolerance=UNDEFINED,
+        relative_tolerance=UNDEFINED,
+        n_effective_samples=50,
+    ):
         """Returns the default calculation schema to use when estimating
         this property by reweighting existing data.
 
         Parameters
         ----------
-        existing_schema: ReweightingSchema, optional
-            An existing schema whose settings to use. If set,
-            the schema's `workflow_schema` will be overwritten
-            by this method.
+        absolute_tolerance: pint.Quantity, optional
+            The absolute tolerance to estimate the property to within.
+        relative_tolerance: float
+            The tolerance (as a fraction of the properties reported
+            uncertainty) to estimate the property to within.
+        n_effective_samples: int
+            The minimum number of effective samples to require when
+            reweighting the cached simulation data.
 
         Returns
         -------
         ReweightingSchema
             The schema to follow when estimating this property.
         """
+        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
 
         calculation_schema = ReweightingSchema()
-
-        if existing_schema is not None:
-
-            assert isinstance(existing_schema, ReweightingSchema)
-            calculation_schema = copy.deepcopy(existing_schema)
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
 
         # Set up the storage queries
         calculation_schema.storage_queries = (
@@ -660,7 +686,10 @@ class EnthalpyOfMixing(PhysicalProperty):
             full_gradient_group,
             full_gradient_source,
         ) = EnthalpyOfMixing._get_reweighting_protocols(
-            "_full", gradient_replicator.id, full_data_replicator_id
+            "_full",
+            gradient_replicator.id,
+            full_data_replicator_id,
+            n_effective_samples=n_effective_samples,
         )
 
         # Set up the protocols which will reweight data for each component.
@@ -681,6 +710,7 @@ class EnthalpyOfMixing(PhysicalProperty):
             replicator_id=component_replicator.id,
             weight_by_mole_fraction=True,
             substance_reference=ReplicatorValue(component_replicator.id),
+            n_effective_samples=n_effective_samples,
         )
 
         # Make sure the replicator is only replicating over component data.
@@ -712,29 +742,20 @@ class EnthalpyOfMixing(PhysicalProperty):
         combine_gradients.value_a = ProtocolPath("result", add_component_gradients.id)
 
         # Build the final workflow schema.
-        schema = WorkflowSchema(property_type=EnthalpyOfMixing.__name__)
-        schema.id = "{}{}".format(EnthalpyOfMixing.__name__, "Schema")
+        schema = WorkflowSchema()
 
-        schema.protocols = dict()
+        schema.protocol_schemas = [
+            *(x.schema for x in full_protocols),
+            *(x.schema for x in component_protocols),
+            add_component_potentials.schema,
+            calculate_excess_enthalpy.schema,
+            full_gradient_group.schema,
+            component_gradient_group.schema,
+            add_component_gradients.schema,
+            combine_gradients.schema,
+        ]
 
-        schema.protocols.update(
-            {protocol.id: protocol.schema for protocol in full_protocols}
-        )
-        schema.protocols.update(
-            {protocol.id: protocol.schema for protocol in component_protocols}
-        )
-
-        schema.protocols[add_component_potentials.id] = add_component_potentials.schema
-        schema.protocols[
-            calculate_excess_enthalpy.id
-        ] = calculate_excess_enthalpy.schema
-
-        schema.protocols[full_gradient_group.id] = full_gradient_group.schema
-        schema.protocols[component_gradient_group.id] = component_gradient_group.schema
-        schema.protocols[add_component_gradients.id] = add_component_gradients.schema
-        schema.protocols[combine_gradients.id] = combine_gradients.schema
-
-        schema.replicators = [
+        schema.protocol_replicators = [
             full_data_replicator,
             component_replicator,
             component_data_replicator,
@@ -785,32 +806,36 @@ class EnthalpyOfVaporization(PhysicalProperty):
         }
 
     @staticmethod
-    def default_simulation_schema(existing_schema=None):
+    def default_simulation_schema(
+        absolute_tolerance=UNDEFINED, relative_tolerance=UNDEFINED, n_molecules=1000
+    ):
         """Returns the default calculation schema to use when estimating
         this class of property from direct simulations.
 
         Parameters
         ----------
-        existing_schema: SimulationSchema, optional
-            An existing schema whose settings to use. If set,
-            the schema's `workflow_schema` will be overwritten
-            by this method.
+        absolute_tolerance: pint.Quantity, optional
+            The absolute tolerance to estimate the property to within.
+        relative_tolerance: float
+            The tolerance (as a fraction of the properties reported
+            uncertainty) to estimate the property to within.
+        n_molecules: int
+            The number of molecules to use in the simulation.
 
         Returns
         -------
         SimulationSchema
             The schema to follow when estimating this property.
         """
+        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
 
         calculation_schema = SimulationSchema()
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
 
-        if existing_schema is not None:
-
-            assert isinstance(existing_schema, SimulationSchema)
-            calculation_schema = copy.deepcopy(existing_schema)
-
-        # Define the number of molecules for the liquid phase
-        number_of_liquid_molecules = 1000
+        use_target_uncertainty = (
+            absolute_tolerance != UNDEFINED or relative_tolerance != UNDEFINED
+        )
 
         # Define a custom conditional group.
         converge_uncertainty = groups.ConditionalGroup(f"converge_uncertainty")
@@ -821,7 +846,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
             "extract_liquid_energy"
         )
         extract_liquid_energy.statistics_type = ObservableType.PotentialEnergy
-        extract_liquid_energy.divisor = number_of_liquid_molecules
+        extract_liquid_energy.divisor = n_molecules
 
         (
             liquid_protocols,
@@ -829,13 +854,13 @@ class EnthalpyOfVaporization(PhysicalProperty):
             liquid_output_to_store,
         ) = generate_base_simulation_protocols(
             extract_liquid_energy,
-            calculation_schema.workflow_options,
+            use_target_uncertainty,
             "_liquid",
             converge_uncertainty,
         )
 
         # Make sure the number of molecules in the liquid is consistent.
-        liquid_protocols.build_coordinates.max_molecules = number_of_liquid_molecules
+        liquid_protocols.build_coordinates.max_molecules = n_molecules
         liquid_output_to_store.property_phase = PropertyPhase.Liquid
 
         # Define the protocols to perform the simulation in the gas phase.
@@ -847,10 +872,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
             gas_value_source,
             gas_output_to_store,
         ) = generate_base_simulation_protocols(
-            extract_gas_energy,
-            calculation_schema.workflow_options,
-            "_gas",
-            converge_uncertainty,
+            extract_gas_energy, use_target_uncertainty, "_gas", converge_uncertainty,
         )
 
         # Create only a single molecule in vacuum
@@ -902,13 +924,10 @@ class EnthalpyOfVaporization(PhysicalProperty):
             energy_of_vaporization, ideal_volume, enthalpy_of_vaporization
         )
 
-        if (
-            calculation_schema.workflow_options.convergence_mode
-            != WorkflowOptions.ConvergenceMode.NoChecks
-        ):
+        if use_target_uncertainty:
 
             condition = groups.ConditionalGroup.Condition()
-            condition.condition_type = groups.ConditionalGroup.ConditionType.LessThan
+            condition.condition_type = groups.ConditionalGroup.Condition.Type.LessThan
 
             condition.left_hand_value = ProtocolPath(
                 "result.uncertainty",
@@ -997,7 +1016,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
             "scale_liquid_gradient_$(repl)"
         )
         scale_liquid_gradient.value = liquid_gradient_source
-        scale_liquid_gradient.divisor = number_of_liquid_molecules
+        scale_liquid_gradient.divisor = n_molecules
 
         combine_gradients = miscellaneous.SubtractValues("combine_gradients_$(repl)")
         combine_gradients.value_b = gas_gradient_source
@@ -1012,30 +1031,29 @@ class EnthalpyOfVaporization(PhysicalProperty):
         )
 
         # Build the workflow schema.
-        schema = WorkflowSchema(property_type=EnthalpyOfVaporization.__name__)
-        schema.id = "{}{}".format(EnthalpyOfVaporization.__name__, "Schema")
+        schema = WorkflowSchema()
 
-        schema.protocols = {
-            liquid_protocols.build_coordinates.id: liquid_protocols.build_coordinates.schema,
-            liquid_protocols.assign_parameters.id: liquid_protocols.assign_parameters.schema,
-            liquid_protocols.energy_minimisation.id: liquid_protocols.energy_minimisation.schema,
-            liquid_protocols.equilibration_simulation.id: liquid_protocols.equilibration_simulation.schema,
-            gas_protocols.build_coordinates.id: gas_protocols.build_coordinates.schema,
-            gas_protocols.assign_parameters.id: gas_protocols.assign_parameters.schema,
-            gas_protocols.energy_minimisation.id: gas_protocols.energy_minimisation.schema,
-            gas_protocols.equilibration_simulation.id: gas_protocols.equilibration_simulation.schema,
-            converge_uncertainty.id: converge_uncertainty.schema,
-            liquid_protocols.extract_uncorrelated_trajectory.id: liquid_protocols.extract_uncorrelated_trajectory.schema,
-            liquid_protocols.extract_uncorrelated_statistics.id: liquid_protocols.extract_uncorrelated_statistics.schema,
-            gas_protocols.extract_uncorrelated_trajectory.id: gas_protocols.extract_uncorrelated_trajectory.schema,
-            gas_protocols.extract_uncorrelated_statistics.id: gas_protocols.extract_uncorrelated_statistics.schema,
-            liquid_gradient_group.id: liquid_gradient_group.schema,
-            gas_gradient_group.id: gas_gradient_group.schema,
-            scale_liquid_gradient.id: scale_liquid_gradient.schema,
-            combine_gradients.id: combine_gradients.schema,
-        }
+        schema.protocol_schemas = [
+            liquid_protocols.build_coordinates.schema,
+            liquid_protocols.assign_parameters.schema,
+            liquid_protocols.energy_minimisation.schema,
+            liquid_protocols.equilibration_simulation.schema,
+            gas_protocols.build_coordinates.schema,
+            gas_protocols.assign_parameters.schema,
+            gas_protocols.energy_minimisation.schema,
+            gas_protocols.equilibration_simulation.schema,
+            converge_uncertainty.schema,
+            liquid_protocols.extract_uncorrelated_trajectory.schema,
+            liquid_protocols.extract_uncorrelated_statistics.schema,
+            gas_protocols.extract_uncorrelated_trajectory.schema,
+            gas_protocols.extract_uncorrelated_statistics.schema,
+            liquid_gradient_group.schema,
+            gas_gradient_group.schema,
+            scale_liquid_gradient.schema,
+            combine_gradients.schema,
+        ]
 
-        schema.replicators = [gradient_replicator]
+        schema.protocol_replicators = [gradient_replicator]
 
         schema.outputs_to_store = {
             "liquid_data": liquid_output_to_store,
@@ -1051,29 +1069,35 @@ class EnthalpyOfVaporization(PhysicalProperty):
         return calculation_schema
 
     @staticmethod
-    def default_reweighting_schema(existing_schema=None):
+    def default_reweighting_schema(
+        absolute_tolerance=UNDEFINED,
+        relative_tolerance=UNDEFINED,
+        n_effective_samples=50,
+    ):
         """Returns the default calculation schema to use when estimating
         this property by reweighting existing data.
 
         Parameters
         ----------
-        existing_schema: ReweightingSchema, optional
-            An existing schema whose settings to use. If set,
-            the schema's `workflow_schema` will be overwritten
-            by this method.
+        absolute_tolerance: pint.Quantity, optional
+            The absolute tolerance to estimate the property to within.
+        relative_tolerance: float
+            The tolerance (as a fraction of the properties reported
+            uncertainty) to estimate the property to within.
+        n_effective_samples: int
+            The minimum number of effective samples to require when
+            reweighting the cached simulation data.
 
         Returns
         -------
         ReweightingSchema
             The schema to follow when estimating this property.
         """
+        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
 
         calculation_schema = ReweightingSchema()
-
-        if existing_schema is not None:
-
-            assert isinstance(existing_schema, ReweightingSchema)
-            calculation_schema = copy.deepcopy(existing_schema)
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
 
         # Set up the storage queries
         calculation_schema.storage_queries = (
@@ -1103,6 +1127,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
             "reweight_liquid_energy"
         )
         reweight_liquid_energy.statistics_type = ObservableType.PotentialEnergy
+        reweight_liquid_energy.required_effective_samples = n_effective_samples
 
         liquid_protocols, _ = generate_base_reweighting_protocols(
             extract_liquid_energy,
@@ -1135,6 +1160,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         reweight_gas_energy = reweighting.ReweightStatistics("reweight_gas_energy")
         reweight_gas_energy.statistics_type = ObservableType.PotentialEnergy
+        reweight_gas_energy.required_effective_samples = n_effective_samples
 
         gas_protocols, _ = generate_base_reweighting_protocols(
             extract_gas_energy,
@@ -1243,29 +1269,22 @@ class EnthalpyOfVaporization(PhysicalProperty):
         combine_gradients.value_a = ProtocolPath("result", divide_liquid_gradient.id)
 
         # Build the workflow schema.
-        schema = WorkflowSchema(property_type=EnthalpyOfVaporization.__name__)
-        schema.id = "{}{}".format(EnthalpyOfVaporization.__name__, "Schema")
+        schema = WorkflowSchema()
 
-        schema.protocols.update(
-            {protocol.id: protocol.schema for protocol in liquid_protocols}
-        )
-        schema.protocols.update(
-            {protocol.id: protocol.schema for protocol in gas_protocols}
-        )
+        schema.protocol_schemas = [
+            *(x.schema for x in liquid_protocols),
+            *(x.schema for x in gas_protocols),
+            divide_by_liquid_molecules.schema,
+            energy_of_vaporization.schema,
+            ideal_volume.schema,
+            enthalpy_of_vaporization.schema,
+            liquid_gradient_group.schema,
+            gas_gradient_group.schema,
+            divide_liquid_gradient.schema,
+            combine_gradients.schema,
+        ]
 
-        schema.protocols[
-            divide_by_liquid_molecules.id
-        ] = divide_by_liquid_molecules.schema
-        schema.protocols[energy_of_vaporization.id] = energy_of_vaporization.schema
-        schema.protocols[ideal_volume.id] = ideal_volume.schema
-        schema.protocols[enthalpy_of_vaporization.id] = enthalpy_of_vaporization.schema
-
-        schema.protocols[liquid_gradient_group.id] = liquid_gradient_group.schema
-        schema.protocols[gas_gradient_group.id] = gas_gradient_group.schema
-        schema.protocols[divide_liquid_gradient.id] = divide_liquid_gradient.schema
-        schema.protocols[combine_gradients.id] = combine_gradients.schema
-
-        schema.replicators = [
+        schema.protocol_replicators = [
             liquid_data_replicator,
             gas_data_replicator,
             gradient_replicator,

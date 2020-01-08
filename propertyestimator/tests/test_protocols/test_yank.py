@@ -1,5 +1,5 @@
 """
-Units tests for propertyestimator.protocols.simulation
+Units tests for propertyestimator.protocols.yank
 """
 import os
 import tempfile
@@ -17,7 +17,6 @@ from propertyestimator.protocols.yank import (
 from propertyestimator.substances import Component, ExactAmount, MoleFraction, Substance
 from propertyestimator.tests.utils import build_tip3p_smirnoff_force_field
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.utils import temporarily_change_directory
 
 
@@ -28,13 +27,13 @@ def _setup_dummy_system(directory, substance, number_of_molecules, force_field_p
     build_coordinates = BuildCoordinatesPackmol("coordinates")
     build_coordinates.substance = substance
     build_coordinates.max_molecules = number_of_molecules
-    assert isinstance(build_coordinates.execute(directory, None), dict)
+    build_coordinates.execute(directory, None)
 
     assign_parameters = BuildSmirnoffSystem(f"assign_parameters")
     assign_parameters.force_field_path = force_field_path
     assign_parameters.coordinate_file_path = build_coordinates.coordinate_file_path
     assign_parameters.substance = substance
-    assert isinstance(assign_parameters.execute(directory, None), dict)
+    assign_parameters.execute(directory, None)
 
     return build_coordinates.coordinate_file_path, assign_parameters.system_path
 
@@ -99,9 +98,7 @@ def test_ligand_receptor_yank_protocol():
             run_yank.solvated_complex_system = complex_system_path
 
             run_yank.force_field_path = force_field_path
-
-            result = run_yank.execute("", ComputeResources())
-            assert not isinstance(result, EvaluatorException)
+            run_yank.execute("", ComputeResources())
 
 
 @pytest.mark.parametrize("solvent_smiles", ["O", "C(Cl)Cl"])
@@ -168,6 +165,4 @@ def test_solvation_yank_protocol(solvent_smiles):
             run_yank.steric_lambdas_1 = [1.00]
             run_yank.electrostatic_lambdas_2 = [1.00]
             run_yank.steric_lambdas_2 = [1.00]
-
-            result = run_yank.execute("", ComputeResources())
-            assert not isinstance(result, EvaluatorException)
+            run_yank.execute("", ComputeResources())

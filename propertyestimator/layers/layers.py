@@ -2,74 +2,58 @@
 Defines the base API for defining new property estimator estimation layers.
 """
 import abc
-import json
+import collections
 import logging
-import traceback
 from os import path
 
-from propertyestimator import unit
+import pint
+
 from propertyestimator.attributes import (
     UNDEFINED,
     Attribute,
     AttributeClass,
     PlaceholderValue,
 )
-from propertyestimator.storage.data import StoredSimulationData
+from propertyestimator.datasets import PhysicalProperty
+from propertyestimator.storage.data import BaseStoredData, StoredSimulationData
 from propertyestimator.utils.exceptions import EvaluatorException
-from propertyestimator.utils.serialization import TypedJSONDecoder
 
 
 def return_args(*args, **_):
     return args
 
 
-class CalculationLayerResult:
-    """The output returned from attempting to calculate a property on
+class CalculationLayerResult(AttributeClass):
+    """The result of attempting to estimate a property using
     a `CalculationLayer`.
-
-    Attributes
-    ----------
-    property_id: str
-        The unique id of the original physical property that this
-        calculation layer attempted to estimate.
-    calculated_property: PhysicalProperty, optional
-        The property which was estimated by this layer. The will
-        be `None` if the layer could not estimate the property.
-    exception: EvaluatorException, optional
-        The exception which was raised when estimating the property
-        of interest, if any.
-    data_to_store: list of tuple of str and str
-        A list of pairs of a path to a JSON serialized `BaseStoredData`
-        object, and the path to the corresponding data directory.
     """
 
-    def __init__(self):
-        """Constructs a new CalculationLayerResult object.
-        """
-        self.property_id = None
+    physical_property = Attribute(
+        docstring="The estimated property (if the layer was successful).",
+        type_hint=PhysicalProperty,
+        optional=True,
+    )
+    data_to_store = Attribute(
+        docstring="Paths to the data objects to store.",
+        type_hint=list,
+        default_value=[],
+    )
 
-        self.calculated_property = None
-        self.exception = None
+    exceptions = Attribute(
+        docstring="Any exceptions raised by the layer while estimating the "
+        "property.",
+        type_hint=list,
+        default_value=[],
+    )
 
-        self.data_to_store = []
+    def validate(self, attribute_type=None):
+        super(CalculationLayerResult, self).validate(attribute_type)
 
-    def __getstate__(self):
+        assert all(isinstance(x, (tuple, list)) for x in self.data_to_store)
+        assert all(len(x) == 2 for x in self.data_to_store)
+        assert all(all(isinstance(y, str) for y in x) for x in self.data_to_store)
 
-        return {
-            "property_id": self.property_id,
-            "calculated_property": self.calculated_property,
-            "exception": self.exception,
-            "data_to_store": self.data_to_store,
-        }
-
-    def __setstate__(self, state):
-
-        self.property_id = state["property_id"]
-
-        self.calculated_property = state["calculated_property"]
-        self.exception = state["exception"]
-
-        self.data_to_store = state["data_to_store"]
+        assert all(isinstance(x, EvaluatorException) for x in self.exceptions)
 
 
 class CalculationLayerSchema(AttributeClass):
@@ -77,19 +61,19 @@ class CalculationLayerSchema(AttributeClass):
     should use when estimating a given class of physical properties.
     """
 
-    absolute_uncertainty = Attribute(
+    absolute_tolerance = Attribute(
         docstring="The absolute uncertainty that the property should "
         "be estimated to within. This attribute is mutually exclusive "
-        "with the `relative_uncertainty_fraction` attribute.",
-        type_hint=unit.Quantity,
+        "with the `relative_tolerance` attribute.",
+        type_hint=pint.Quantity,
         default_value=UNDEFINED,
         optional=True,
     )
-    relative_uncertainty_fraction = Attribute(
+    relative_tolerance = Attribute(
         docstring="The relative uncertainty that the property should "
-        "be estimated to within, i.e `relative_uncertainty_fraction * "
+        "be estimated to within, i.e `relative_tolerance * "
         "measured_property.uncertainty`. This attribute is mutually "
-        "exclusive with the `absolute_uncertainty` attribute.",
+        "exclusive with the `absolute_tolerance` attribute.",
         type_hint=float,
         default_value=UNDEFINED,
         optional=True,
@@ -98,12 +82,12 @@ class CalculationLayerSchema(AttributeClass):
     def validate(self, attribute_type=None):
 
         if (
-            self.absolute_uncertainty != UNDEFINED
-            and self.relative_uncertainty_fraction != UNDEFINED
+            self.absolute_tolerance != UNDEFINED
+            and self.relative_tolerance != UNDEFINED
         ):
 
             raise ValueError(
-                "Only one of `absolute_uncertainty` and `relative_uncertainty_fraction` "
+                "Only one of `absolute_tolerance` and `relative_tolerance` "
                 "can be set."
             )
 
@@ -132,6 +116,7 @@ class CalculationLayer(abc.ABC):
 
     @staticmethod
     def _await_results(
+        layer_name,
         calculation_backend,
         storage_backend,
         batch,
@@ -144,6 +129,8 @@ class CalculationLayer(abc.ABC):
 
         Parameters
         ----------
+        layer_name: str
+            The name of the layer processing the results.
         calculation_backend: CalculationBackend
             The backend to the submit the calculations to.
         storage_backend: StorageBackend
@@ -159,12 +146,13 @@ class CalculationLayer(abc.ABC):
         """
 
         callback_future = calculation_backend.submit_task(
-            return_args, *submitted_futures, key=f"return_{batch.id}"
+            return_args, *submitted_futures
         )
 
         def callback_wrapper(results_future):
+
             CalculationLayer._process_results(
-                results_future, batch, storage_backend, callback
+                results_future, batch, layer_name, storage_backend, callback
             )
 
         if synchronous:
@@ -200,21 +188,19 @@ class CalculationLayer(abc.ABC):
                 continue
 
             # Attach any extra metadata which is missing.
-            with open(data_object_path, "r") as file:
+            data_object = BaseStoredData.from_json(data_object_path)
 
-                data_object = json.load(file, cls=TypedJSONDecoder)
+            if isinstance(data_object, StoredSimulationData):
 
-                if isinstance(data_object, StoredSimulationData):
-
-                    if isinstance(data_object.force_field_id, PlaceholderValue):
-                        data_object.force_field_id = batch.force_field_id
-                    if isinstance(data_object.source_calculation_id, PlaceholderValue):
-                        data_object.source_calculation_id = batch.id
+                if isinstance(data_object.force_field_id, PlaceholderValue):
+                    data_object.force_field_id = batch.force_field_id
+                if isinstance(data_object.source_calculation_id, PlaceholderValue):
+                    data_object.source_calculation_id = batch.id
 
             storage_backend.store_object(data_object, data_directory_path)
 
     @staticmethod
-    def _process_results(results_future, batch, storage_backend, callback):
+    def _process_results(results_future, batch, layer_name, storage_backend, callback):
         """Processes the results of a calculation layer, updates the server request,
         then passes it back to the callback ready for propagation to the next layer
         in the stack.
@@ -225,6 +211,8 @@ class CalculationLayer(abc.ABC):
             The future object which will hold the results.
         batch: _Batch
             The batch which spawned the awaited results.
+        layer_name: str
+            The name of the layer processing the results.
         storage_backend: StorageBackend
             The backend used to store / retrieve data from previous calculations.
         callback: function
@@ -236,6 +224,10 @@ class CalculationLayer(abc.ABC):
         try:
 
             results = list(results_future.result())
+
+            if len(results) > 0 and isinstance(results[0], collections.Iterable):
+                results = results[0]
+
             results_future.release()
 
             for returned_output in results:
@@ -253,53 +245,58 @@ class CalculationLayer(abc.ABC):
                         "a CalculationLayerResult as expected."
                     )
 
-                if returned_output.exception is not None:
-                    # If an exception was raised, make sure to add it to the list.
-                    batch.exceptions.append(returned_output.exception)
+                if len(returned_output.exceptions) > 0:
+
+                    # If exceptions were raised, make sure to add them to the list.
+                    batch.exceptions.extend(returned_output.exceptions)
 
                     logging.info(
-                        f"An exception was raised: "
-                        f"{returned_output.exception.directory} - "
-                        f"{returned_output.exception.message}"
+                        f"Exceptions were raised while executing batch {batch.id}"
                     )
+
+                    for exception in returned_output.exceptions:
+                        logging.info(str(exception))
 
                 else:
 
                     # Make sure to store any important calculation data if no exceptions
                     # were thrown.
-                    if (
-                        returned_output.data_to_store is not None
-                        and returned_output.calculated_property is not None
-                    ):
+                    if returned_output.data_to_store is not None:
 
                         CalculationLayer._store_cached_output(
                             batch, returned_output, storage_backend
                         )
 
-                matches = [
-                    x
-                    for x in batch.queued_properties
-                    if x.id == returned_output.property_id
-                ]
+                matches = []
 
-                if len(matches) > 1:
-                    raise ValueError(
-                        f"A property id ({returned_output.property_id}) conflict occurred."
-                    )
+                if returned_output.physical_property != UNDEFINED:
 
-                elif len(matches) == 0:
+                    matches = [
+                        x
+                        for x in batch.queued_properties
+                        if x.id == returned_output.physical_property.id
+                    ]
 
-                    logging.info(
-                        "A calculation layer returned results for a property not in the "
-                        "queue. This sometimes and expectedly occurs when using queue based "
-                        "calculation backends, but should be investigated."
-                    )
+                    if len(matches) > 1:
 
-                    continue
+                        raise ValueError(
+                            f"A property id ({returned_output.physical_property.id}) "
+                            f"conflict occurred."
+                        )
 
-                if returned_output.calculated_property is None:
+                    elif len(matches) == 0:
 
-                    if returned_output.exception is None:
+                        logging.info(
+                            "A calculation layer returned results for a property not in "
+                            "the queue. This sometimes and expectedly occurs when using "
+                            "queue based calculation backends, but should be investigated."
+                        )
+
+                        continue
+
+                if returned_output.physical_property == UNDEFINED:
+
+                    if len(returned_output.exceptions) == 0:
 
                         logging.info(
                             "A calculation layer did not return an estimated property nor did it "
@@ -309,24 +306,37 @@ class CalculationLayer(abc.ABC):
 
                     continue
 
-                if returned_output.exception is not None:
+                if len(returned_output.exceptions) > 0:
                     continue
 
+                # Check that the property has been estimated to within the
+                # requested tolerance.
+                uncertainty = returned_output.physical_property.uncertainty
+                options = batch.options.calculation_schemas[
+                    returned_output.physical_property.__class__.__name__
+                ][layer_name]
+
+                if (
+                    options.absolute_tolerance != UNDEFINED
+                    and options.absolute_tolerance < uncertainty
+                ):
+                    continue
+                elif (
+                    options.relative_tolerance != UNDEFINED
+                    and options.relative_tolerance * uncertainty < uncertainty
+                ):
+                    continue
+
+                # Move the property from queued to estimated.
                 for match in matches:
                     batch.queued_properties.remove(match)
 
-                batch.estimated_properties.append(returned_output.calculated_property)
+                batch.estimated_properties.append(returned_output.physical_property)
 
         except Exception as e:
 
-            logging.info(f"Error processing layer results for request {batch.id}")
-
-            formatted_exception = traceback.format_exception(None, e, e.__traceback__)
-
-            exception = EvaluatorException(
-                message="An unhandled internal exception "
-                "occurred: {}".format(formatted_exception)
-            )
+            logging.exception(f"Error processing layer results for request {batch.id}")
+            exception = EvaluatorException.from_exception(e)
 
             batch.exceptions.append(exception)
 

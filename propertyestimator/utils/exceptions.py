@@ -1,44 +1,54 @@
 """
 A collection of commonly raised python exceptions.
 """
+import traceback
+
 from propertyestimator.utils.serialization import TypedBaseModel
 
 
-class XmlNodeMissingException(Exception):
-    def __init__(self, node_name):
-
-        message = (
-            "The calculation template does not contain a <" + str(node_name) + "> node."
-        )
-        super().__init__(message)
-
-
 class EvaluatorException(TypedBaseModel):
-    """A json serializable object wrapper containing information about
-    a failed property calculation.
-
-    .. todo:: Flesh out more fully.
+    """A serializable wrapper around an `Exception`.
     """
 
-    def __init__(self, directory="", message=""):
+    @classmethod
+    def from_exception(cls, exception):
+        """Initialize this class from an existing exception.
+
+        Parameters
+        ----------
+        exception: Exception
+            The existing exception
+
+        Returns
+        -------
+        cls
+            The initialized exception object.
+        """
+
+        message = traceback.format_exception(None, exception, exception.__traceback__)
+        return cls(message)
+
+    def __init__(self, message=None):
         """Constructs a new EvaluatorException object.
 
         Parameters
         ----------
-        directory: str
-            The directory in which this exception was raised.
-        message:
+        message: str or list of str
             Information about the raised exception.
         """
-
-        self.directory = directory
         self.message = message
 
     def __getstate__(self):
-
-        return {"directory": self.directory, "message": self.message}
+        return {"message": self.message}
 
     def __setstate__(self, state):
-
-        self.directory = state["directory"]
         self.message = state["message"]
+
+    def __str__(self):
+
+        message = self.message
+
+        if isinstance(message, list):
+            message = "".join(message)
+
+        return str(message)

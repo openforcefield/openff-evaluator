@@ -6,7 +6,7 @@ from propertyestimator.backends import (
     QueueWorkerResources,
 )
 from propertyestimator.backends.dask import _Multiprocessor
-from propertyestimator.workflow.plugins import available_protocols
+from propertyestimator.workflow.plugins import registered_workflow_protocols
 
 
 def dummy_function(*args, **kwargs):
@@ -67,7 +67,7 @@ def test_lsf_wrapped_function():
 
     protocols_to_import = [
         protocol_class.__module__ + "." + protocol_class.__qualname__
-        for protocol_class in available_protocols.values()
+        for protocol_class in registered_workflow_protocols.values()
     ]
 
     per_worker_logging = True
@@ -80,7 +80,7 @@ def test_lsf_wrapped_function():
         dummy_function,
         expected_output,
         available_resources=available_resources,
-        available_protocols=protocols_to_import,
+        registered_workflow_protocols=protocols_to_import,
         per_worker_logging=per_worker_logging,
         gpu_assignments=gpu_assignments,
     )

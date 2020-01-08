@@ -25,9 +25,12 @@ class MergeBehaviour(BaseMergeBehaviour):
 
     * ExactlyEqual: This attribute must be exactly equal between two protocols for
       them to be able to merge.
+    * Custom: This attribute will be ignored by the built-in merging code such that
+     user specified behavior can be implemented.
     """
 
     ExactlyEqual = "ExactlyEqual"
+    Custom = "Custom"
 
 
 class InequalityMergeBehaviour(BaseMergeBehaviour):

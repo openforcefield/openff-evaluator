@@ -1,17 +1,15 @@
 """
 A collection of protocols for running analysing the results of molecular simulations.
 """
-
-import logging
+import abc
 import typing
 from os import path
 
 import numpy as np
+import pint
 
-from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.utils import statistics, timeseries
-from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import StatisticsArray, bootstrap
 from propertyestimator.workflow.attributes import (
@@ -19,12 +17,11 @@ from propertyestimator.workflow.attributes import (
     InputAttribute,
     OutputAttribute,
 )
-from propertyestimator.workflow.plugins import register_calculation_protocol
-from propertyestimator.workflow.protocols import BaseProtocol
+from propertyestimator.workflow.plugins import workflow_protocol
+from propertyestimator.workflow.protocols import Protocol
 
 
-@register_calculation_protocol()
-class AveragePropertyProtocol(BaseProtocol):
+class AveragePropertyProtocol(Protocol, abc.ABC):
     """An abstract base class for protocols which will calculate the
     average of a property and its uncertainty via bootstrapping.
     """
@@ -55,7 +52,7 @@ class AveragePropertyProtocol(BaseProtocol):
     )
     uncorrelated_values = OutputAttribute(
         docstring="The uncorrelated values which the average was calculated from.",
-        type_hint=unit.Quantity,
+        type_hint=pint.Quantity,
     )
 
     def _bootstrap_function(self, **sample_kwargs):
@@ -80,12 +77,8 @@ class AveragePropertyProtocol(BaseProtocol):
 
         return sample_data.mean()
 
-    def execute(self, directory, available_resources):
-        return self._get_output_dictionary()
 
-
-@register_calculation_protocol()
-class AverageTrajectoryProperty(AveragePropertyProtocol):
+class AverageTrajectoryProperty(AveragePropertyProtocol, abc.ABC):
     """An abstract base class for protocols which will calculate the
     average of a property from a simulation trajectory.
     """
@@ -101,20 +94,8 @@ class AverageTrajectoryProperty(AveragePropertyProtocol):
         default_value=UNDEFINED,
     )
 
-    def execute(self, directory, available_resources):
 
-        if self.trajectory_path is None:
-
-            return EvaluatorException(
-                directory=directory,
-                message="The AverageTrajectoryProperty protocol "
-                "requires a previously calculated trajectory",
-            )
-
-        return self._get_output_dictionary()
-
-
-@register_calculation_protocol()
+@workflow_protocol()
 class ExtractAverageStatistic(AveragePropertyProtocol):
     """Extracts the average value from a statistics file which was generated
     during a simulation.
@@ -134,7 +115,7 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
     divisor = InputAttribute(
         docstring="A value to divide the statistic by. This is useful if a statistic (such "
         "as enthalpy) needs to be normalised by the number of molecules.",
-        type_hint=typing.Union[int, float, unit.Quantity],
+        type_hint=typing.Union[int, float, pint.Quantity],
         default_value=1.0,
     )
 
@@ -143,17 +124,7 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
         super().__init__(protocol_id)
         self._statistics = None
 
-    def execute(self, directory, available_resources):
-
-        logging.info("Extracting {}: {}".format(self.statistics_type, self.id))
-
-        if self.statistics_path is None:
-
-            return EvaluatorException(
-                directory=directory,
-                message="The ExtractAverageStatistic protocol "
-                "requires a previously calculated statistics file",
-            )
+    def _execute(self, directory, available_resources):
 
         self._statistics = statistics.StatisticsArray.from_pandas_csv(
             self.statistics_path
@@ -161,10 +132,9 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
 
         if self.statistics_type not in self._statistics:
 
-            return EvaluatorException(
-                directory=directory,
-                message=f"The {self.statistics_path} statistics file contains no "
-                f"data of type {self.statistics_type}.",
+            raise ValueError(
+                f"The {self.statistics_path} statistics file contains no "
+                f"data of type {self.statistics_type}."
             )
 
         values = self._statistics[self.statistics_type]
@@ -174,7 +144,7 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
 
         divisor = self.divisor
 
-        if isinstance(self.divisor, unit.Quantity):
+        if isinstance(self.divisor, pint.Quantity):
             statistics_unit /= self.divisor.units
             divisor = self.divisor.magnitude
 
@@ -199,13 +169,8 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
             final_value * statistics_unit, final_uncertainty * statistics_unit, self.id
         )
 
-        logging.info("Extracted {}: {}".format(self.statistics_type, self.id))
 
-        return self._get_output_dictionary()
-
-
-@register_calculation_protocol()
-class ExtractUncorrelatedData(BaseProtocol):
+class ExtractUncorrelatedData(Protocol, abc.ABC):
     """An abstract base class for protocols which will subsample
     a data set, yielding only equilibrated, uncorrelated data.
     """
@@ -227,11 +192,8 @@ class ExtractUncorrelatedData(BaseProtocol):
         docstring="The number of uncorrelated samples.", type_hint=int
     )
 
-    def execute(self, directory, available_resources):
-        raise NotImplementedError
 
-
-@register_calculation_protocol()
+@workflow_protocol()
 class ExtractUncorrelatedTrajectoryData(ExtractUncorrelatedData):
     """A protocol which will subsample frames from a trajectory, yielding only uncorrelated
     frames as determined from a provided statistical inefficiency and equilibration time.
@@ -280,21 +242,11 @@ class ExtractUncorrelatedTrajectoryData(ExtractUncorrelatedData):
 
             yield frame
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
 
         import mdtraj
         from mdtraj.formats.dcd import DCDTrajectoryFile
         from mdtraj.utils import in_units_of
-
-        logging.info("Subsampling trajectory: {}".format(self.id))
-
-        if self.input_trajectory_path is None:
-
-            return EvaluatorException(
-                directory=directory,
-                message="The ExtractUncorrelatedTrajectoryData protocol "
-                "requires a previously calculated trajectory",
-            )
 
         # Set the output path.
         self.output_trajectory_path = path.join(
@@ -306,6 +258,7 @@ class ExtractUncorrelatedTrajectoryData(ExtractUncorrelatedData):
         # Parse the internal mdtraj distance unit. While private access is undesirable,
         # this is never publicly defined and I believe this route to be preferable
         # over hard coding this unit.
+        # noinspection PyProtectedMember
         base_distance_unit = mdtraj.Trajectory._distance_unit
 
         # Determine the stride that needs to be taken to yield uncorrelated frames.
@@ -338,12 +291,8 @@ class ExtractUncorrelatedTrajectoryData(ExtractUncorrelatedData):
 
         self.number_of_uncorrelated_samples = frame_count
 
-        logging.info("Trajectory subsampled: {}".format(self.id))
 
-        return self._get_output_dictionary()
-
-
-@register_calculation_protocol()
+@workflow_protocol()
 class ExtractUncorrelatedStatisticsData(ExtractUncorrelatedData):
     """A protocol which will subsample entries from a statistics array, yielding only uncorrelated
     entries as determined from a provided statistical inefficiency and equilibration time.
@@ -359,17 +308,7 @@ class ExtractUncorrelatedStatisticsData(ExtractUncorrelatedData):
         docstring="The file path to the subsampled statistics.", type_hint=str
     )
 
-    def execute(self, directory, available_resources):
-
-        logging.info("Subsampling statistics: {}".format(self.id))
-
-        if self.input_statistics_path is None:
-
-            return EvaluatorException(
-                directory=directory,
-                message="The ExtractUncorrelatedStatisticsData protocol "
-                "requires a previously calculated statisitics file",
-            )
+    def _execute(self, directory, available_resources):
 
         statistics_array = StatisticsArray.from_pandas_csv(self.input_statistics_path)
 
@@ -390,8 +329,4 @@ class ExtractUncorrelatedStatisticsData(ExtractUncorrelatedData):
         )
         uncorrelated_statistics.to_pandas_csv(self.output_statistics_path)
 
-        logging.info("Statistics subsampled: {}".format(self.id))
-
         self.number_of_uncorrelated_samples = len(uncorrelated_statistics)
-
-        return self._get_output_dictionary()

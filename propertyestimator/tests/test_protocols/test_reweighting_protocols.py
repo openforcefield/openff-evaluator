@@ -8,8 +8,8 @@ from propertyestimator import unit
 from propertyestimator.backends import ComputeResources
 from propertyestimator.protocols.coordinates import BuildCoordinatesPackmol
 from propertyestimator.protocols.forcefield import BuildSmirnoffSystem
+from propertyestimator.protocols.openmm import OpenMMReducedPotentials
 from propertyestimator.protocols.reweighting import (
-    CalculateReducedPotentialOpenMM,
     ConcatenateStatistics,
     ConcatenateTrajectories,
     ReweightStatistics,
@@ -18,7 +18,6 @@ from propertyestimator.substances import Substance
 from propertyestimator.tests.utils import build_tip3p_smirnoff_force_field
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import get_data_filename
-from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.statistics import ObservableType, StatisticsArray
 
 
@@ -36,9 +35,7 @@ def test_concatenate_trajectories():
         concatenate_protocol = ConcatenateTrajectories("concatenate_protocol")
         concatenate_protocol.input_coordinate_paths = [coordinate_path, coordinate_path]
         concatenate_protocol.input_trajectory_paths = [trajectory_path, trajectory_path]
-
-        result = concatenate_protocol.execute(temporary_directory, ComputeResources())
-        assert not isinstance(result, EvaluatorException)
+        concatenate_protocol.execute(temporary_directory, ComputeResources())
 
         final_trajectory = mdtraj.load(
             concatenate_protocol.output_trajectory_path, top=coordinate_path
@@ -55,9 +52,7 @@ def test_concatenate_statistics():
 
         concatenate_protocol = ConcatenateStatistics("concatenate_protocol")
         concatenate_protocol.input_statistics_paths = [statistics_path, statistics_path]
-
-        result = concatenate_protocol.execute(temporary_directory, ComputeResources())
-        assert not isinstance(result, EvaluatorException)
+        concatenate_protocol.execute(temporary_directory, ComputeResources())
 
         final_array = StatisticsArray.from_pandas_csv(
             concatenate_protocol.output_statistics_path
@@ -88,7 +83,7 @@ def test_calculate_reduced_potential_openmm():
         assign_parameters.substance = substance
         assign_parameters.execute(directory, None)
 
-        reduced_potentials = CalculateReducedPotentialOpenMM(f"reduced_potentials")
+        reduced_potentials = OpenMMReducedPotentials(f"reduced_potentials")
         reduced_potentials.substance = substance
         reduced_potentials.thermodynamic_state = thermodynamic_state
         reduced_potentials.reference_force_field_paths = [force_field_path]
@@ -103,10 +98,8 @@ def test_calculate_reduced_potential_openmm():
             "test/statistics/stats_pandas.csv"
         )
         reduced_potentials.high_precision = False
+        reduced_potentials.execute(directory, ComputeResources())
 
-        result = reduced_potentials.execute(directory, ComputeResources())
-
-        assert not isinstance(result, EvaluatorException)
         assert path.isfile(reduced_potentials.statistics_file_path)
 
         final_array = StatisticsArray.from_pandas_csv(
@@ -142,6 +135,4 @@ def test_reweight_statistics():
         reweight_protocol.target_reduced_potentials = statistics_path
         reweight_protocol.bootstrap_uncertainties = True
         reweight_protocol.required_effective_samples = 0
-
-        result = reweight_protocol.execute(directory, ComputeResources())
-        assert not isinstance(result, EvaluatorException)
+        reweight_protocol.execute(directory, ComputeResources())

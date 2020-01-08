@@ -9,6 +9,7 @@ from io import StringIO
 
 import numpy as np
 import pandas as pd
+import pint
 
 from propertyestimator import unit
 
@@ -94,7 +95,7 @@ class StatisticsArray:
 
         Returns
         -------
-        unit.Quantity
+        pint.Quantity
             The unit wrapped data (shape=(len(self)) dtype=float) of the
             given type, or `None` if not present in the array.
         """
@@ -109,7 +110,7 @@ class StatisticsArray:
         ----------
         key: ObservableType or str
             The type of observable to set.
-        value: unit.Quantity
+        value: pint.Quantity
             The unit wrapped data to set with shape=len(self) and dtype=float
         """
 
@@ -122,10 +123,8 @@ class StatisticsArray:
                 f"shape of the array ({len(self)})"
             )
 
-        if not isinstance(value, unit.Quantity):
-            raise ValueError(
-                "The data must be a unit bearing `propertyestimator.unit.Quantity`"
-            )
+        if not isinstance(value, pint.Quantity):
+            raise ValueError("The data must be a unit bearing `pint.Quantity`")
 
         if (
             unit.get_base_units(value.units)[-1]
@@ -216,7 +215,7 @@ class StatisticsArray:
         ----------
         file_path: str
             The file path to the csv file.
-        pressure: unit.Quantity, optional
+        pressure: pint.Quantity, optional
             The pressure at which the statistics in the csv file were collected.
 
         Returns
@@ -394,7 +393,7 @@ class StatisticsArray:
                 if observable_type not in existing_instance:
 
                     raise ValueError(
-                        "The arrays must contain the same" "types of observable."
+                        "The arrays must contain the sametypes of observable."
                     )
 
                 new_length += len(existing_instance)

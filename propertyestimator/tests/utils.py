@@ -17,13 +17,11 @@ from propertyestimator.datasets import (
 )
 from propertyestimator.forcefield import SmirnoffForceFieldSource
 from propertyestimator.properties import Density, DielectricConstant, EnthalpyOfMixing
-from propertyestimator.protocols import coordinates, groups, simulation
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.storage.data import StoredSimulationData
 from propertyestimator.substances import Component, MoleFraction, Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import get_data_filename
-from propertyestimator.workflow import WorkflowOptions
 
 
 class BackendType(Enum):
@@ -121,52 +119,6 @@ def setup_server(
         port=port,
         working_directory=working_directory,
     )
-
-
-def create_debug_density_workflow(
-    max_molecules=128,
-    equilibration_steps=50,
-    equilibration_frequency=5,
-    production_steps=100,
-    production_frequency=5,
-):
-
-    density_workflow_schema = Density.get_default_simulation_workflow_schema(
-        WorkflowOptions()
-    )
-
-    build_coordinates = coordinates.BuildCoordinatesPackmol("")
-    build_coordinates.schema = density_workflow_schema.protocols["build_coordinates"]
-
-    build_coordinates.max_molecules = max_molecules
-
-    density_workflow_schema.protocols["build_coordinates"] = build_coordinates.schema
-
-    npt_equilibration = simulation.RunOpenMMSimulation("")
-    npt_equilibration.schema = density_workflow_schema.protocols["npt_equilibration"]
-
-    npt_equilibration.steps_per_iteration = equilibration_steps
-    npt_equilibration.output_frequency = equilibration_frequency
-
-    density_workflow_schema.protocols["npt_equilibration"] = npt_equilibration.schema
-
-    converge_uncertainty = groups.ConditionalGroup("")
-    converge_uncertainty.schema = density_workflow_schema.protocols[
-        "converge_uncertainty"
-    ]
-
-    converge_uncertainty.protocols[
-        "npt_production"
-    ].steps_per_iteration = production_steps
-    converge_uncertainty.protocols[
-        "npt_production"
-    ].output_frequency = production_frequency
-
-    density_workflow_schema.protocols[
-        "converge_uncertainty"
-    ] = converge_uncertainty.schema
-
-    return density_workflow_schema
 
 
 def create_dummy_substance(number_of_components, elements=None):

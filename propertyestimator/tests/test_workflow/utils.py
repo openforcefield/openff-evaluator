@@ -1,13 +1,14 @@
 from typing import Union
 
-from propertyestimator import unit
+import pint
+
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.layers import registered_calculation_schemas
 from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import Workflow
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
-from propertyestimator.workflow.plugins import register_calculation_protocol
-from propertyestimator.workflow.protocols import BaseProtocol
+from propertyestimator.workflow.plugins import workflow_protocol
+from propertyestimator.workflow.protocols import Protocol
 
 
 def create_dummy_metadata(dummy_property, calculation_layer):
@@ -42,8 +43,8 @@ def create_dummy_metadata(dummy_property, calculation_layer):
     return global_metadata
 
 
-@register_calculation_protocol()
-class DummyReplicableProtocol(BaseProtocol):
+@workflow_protocol()
+class DummyReplicableProtocol(Protocol):
 
     replicated_value_a = InputAttribute(
         docstring="", type_hint=Union[str, int, float], default_value=UNDEFINED
@@ -53,9 +54,12 @@ class DummyReplicableProtocol(BaseProtocol):
     )
     final_value = OutputAttribute(docstring="", type_hint=EstimatedQuantity)
 
+    def _execute(self, directory, available_resources):
+        pass
 
-@register_calculation_protocol()
-class DummyInputOutputProtocol(BaseProtocol):
+
+@workflow_protocol()
+class DummyInputOutputProtocol(Protocol):
 
     input_value = InputAttribute(
         docstring="A dummy input.",
@@ -63,7 +67,7 @@ class DummyInputOutputProtocol(BaseProtocol):
             str,
             int,
             float,
-            unit.Quantity,
+            pint.Quantity,
             EstimatedQuantity,
             list,
             tuple,
@@ -79,7 +83,7 @@ class DummyInputOutputProtocol(BaseProtocol):
             str,
             int,
             float,
-            unit.Quantity,
+            pint.Quantity,
             EstimatedQuantity,
             list,
             tuple,
@@ -89,6 +93,5 @@ class DummyInputOutputProtocol(BaseProtocol):
         ],
     )
 
-    def execute(self, directory, available_resources):
+    def _execute(self, directory, available_resources):
         self.output_value = self.input_value
-        return self._get_output_dictionary()

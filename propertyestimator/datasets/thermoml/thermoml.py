@@ -11,6 +11,7 @@ from urllib.request import urlopen
 from xml.etree import ElementTree
 
 import numpy as np
+import pint
 
 from propertyestimator import unit
 from propertyestimator.datasets import MeasurementSource, PropertyPhase
@@ -30,7 +31,7 @@ def _unit_from_thermoml_string(full_string):
 
     Returns
     ----------
-    unit.Unit
+    pint.Unit
         The parsed unit.
     """
 
@@ -41,7 +42,7 @@ def _unit_from_thermoml_string(full_string):
     # Convert symbols like dm3 to dm**3
     unit_string = re.sub(r"([a-z])([0-9]+)", r"\1**\2", unit_string.strip())
 
-    return unit.Unit(unit_string)
+    return pint.Unit(unit_string)
 
 
 def _phase_from_thermoml_string(string):
@@ -208,7 +209,7 @@ class _Constraint:
         ----------
         variable: _VariableDefinition
             The variable to convert.
-        value: propertyestimator.unit.Quantity
+        value: pint.Quantity
             The value of the constant.
 
         Returns
@@ -605,7 +606,7 @@ class _PureOrMixtureData:
             if property_definition.index in properties:
 
                 raise ValueError(
-                    "A ThermoML data set contains two " "properties with the same index"
+                    "A ThermoML data set contains two properties with the same index"
                 )
 
             properties[property_definition.index] = property_definition
@@ -829,7 +830,7 @@ class _PureOrMixtureData:
 
         Returns
         -------
-        propertyestimator.unit.Quantity
+        pint.Quantity
             The molecular weight.
         """
 
@@ -865,7 +866,7 @@ class _PureOrMixtureData:
 
         Parameters
         ----------
-        solvent_mass: propertyestimator.unit.Quantity
+        solvent_mass: pint.Quantity
             The total mass of the solvent in units compatible with kg.
         solvent_mole_fractions: dict of int and float
             The mole fractions of any solvent compounds in the system.
@@ -874,7 +875,7 @@ class _PureOrMixtureData:
 
         Returns
         -------
-        dict of int and unit.Quantity
+        dict of int and pint.Quantity
             A dictionary of the moles of each solvent compound.
         """
         weighted_molecular_weights = 0.0 * unit.gram / unit.mole
@@ -931,7 +932,7 @@ class _PureOrMixtureData:
 
             mole_fraction = constraint.value
 
-            if isinstance(mole_fraction, unit.Quantity):
+            if isinstance(mole_fraction, pint.Quantity):
                 mole_fraction = mole_fraction.to(unit.dimensionless).magnitude
 
             mole_fractions[constraint.compound_index] = mole_fraction
@@ -1017,7 +1018,7 @@ class _PureOrMixtureData:
 
             mass_fraction = constraint.value
 
-            if isinstance(mass_fraction, unit.Quantity):
+            if isinstance(mass_fraction, pint.Quantity):
                 mass_fraction = mass_fraction.to(unit.dimensionless).magnitude
 
             mass_fractions[constraint.compound_index] = mass_fraction
@@ -1047,7 +1048,7 @@ class _PureOrMixtureData:
                     continue
 
                 mass_fractions[compound_index] = 1.0 - total_mass_fraction
-                if isinstance(mass_fractions[compound_index], unit.Quantity):
+                if isinstance(mass_fractions[compound_index], pint.Quantity):
                     mass_fractions[compound_index] = (
                         mass_fractions[compound_index].to(unit.dimensionless).magnitude
                     )
@@ -1423,7 +1424,7 @@ class _PureOrMixtureData:
         # Make sure we haven't picked up a dimensionless unit be accident.
         for compound_index in mole_fractions:
 
-            if isinstance(mole_fractions[compound_index], unit.Quantity):
+            if isinstance(mole_fractions[compound_index], pint.Quantity):
                 mole_fractions[compound_index] = (
                     mole_fractions[compound_index].to(unit.dimensionless).magnitude
                 )
@@ -1530,7 +1531,7 @@ class _PureOrMixtureData:
                 variable_value = float(
                     variable_node.find("ThermoML:nVarValue", namespace).text
                 )
-                value_as_quantity = unit.Quantity(
+                value_as_quantity = pint.Quantity(
                     variable_value, variable_definition.default_unit
                 )
 
@@ -1991,14 +1992,14 @@ class ThermoMLProperty:
 
         Parameters
         ----------
-        value: float or unit.Quantity
+        value: float or pint.Quantity
             The value of the property
-        uncertainty: float or unit.Quantity, optional
+        uncertainty: float or pint.Quantity, optional
             The uncertainty in the value.
         """
         value_quantity = value
 
-        if not isinstance(value_quantity, unit.Quantity):
+        if not isinstance(value_quantity, pint.Quantity):
             value_quantity = value * self.default_unit
 
         self.value = value_quantity
@@ -2007,7 +2008,7 @@ class ThermoMLProperty:
 
             uncertainty_quantity = uncertainty
 
-            if not isinstance(uncertainty_quantity, unit.Quantity):
+            if not isinstance(uncertainty_quantity, pint.Quantity):
                 uncertainty_quantity = uncertainty * self.default_unit
 
             self.uncertainty = uncertainty_quantity
@@ -2237,7 +2238,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
             if compound.index in compounds:
                 raise RuntimeError(
-                    "A ThermoML data set contains two " "compounds with the same index"
+                    "A ThermoML data set contains two compounds with the same index"
                 )
 
             compounds[compound.index] = compound
