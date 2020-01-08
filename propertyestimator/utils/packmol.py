@@ -345,7 +345,7 @@ def _approximate_volume_by_density(
             oechem.OECalculateMolecularWeight(molecule)
             * unit.grams
             / unit.mole
-            / unit.avogadro_number
+            / unit.avogadro_constant
         )
 
         molecule_volume = molecule_mass / mass_density

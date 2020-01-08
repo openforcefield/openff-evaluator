@@ -7,14 +7,18 @@ Property calculation toolkit from the Open Forcefield Consortium.
 # Safe to remove with Python 3-only code
 from __future__ import absolute_import
 
+import pint
 import pkg_resources
-
-# Set up pint.
-from pint import UnitRegistry
+import warnings
 
 from ._version import get_versions
 
-unit = UnitRegistry()
+unit = pint.UnitRegistry()
+pint.set_application_registry(unit)
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    pint.Quantity([])
 
 # Load in any found plugins.
 for entry_point in pkg_resources.iter_entry_points("propertyestimator.plugins"):

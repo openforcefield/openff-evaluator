@@ -325,7 +325,7 @@ class ExcessMolarVolume(PhysicalProperty):
             f"number_of_molar_molecules{id_suffix}"
         )
         number_of_molar_molecules.value = number_of_molecules
-        number_of_molar_molecules.divisor = (1.0 * unit.avogadro_number).to("mole**-1")
+        number_of_molar_molecules.divisor = (1.0 * unit.avogadro_constant).to("mole**-1")
 
         extract_volume.divisor = ProtocolPath("result", number_of_molar_molecules.id)
 
@@ -543,8 +543,8 @@ class ExcessMolarVolume(PhysicalProperty):
             f"number_of_molar_molecules{id_suffix}"
         )
         number_of_molar_molecules.value = EstimatedQuantity(
-            (1.0 / unit.avogadro_number).to(unit.mole),
-            (0.0 / unit.avogadro_number).to(unit.mole),
+            (1.0 / unit.avogadro_constant).to(unit.mole),
+            (0.0 / unit.avogadro_constant).to(unit.mole),
             "",
         )
         number_of_molar_molecules.multiplier = number_of_molecules

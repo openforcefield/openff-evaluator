@@ -50,6 +50,7 @@ def _get_all_pint_units():
     all_pint_units = [
         openmm_unit_to_pint(openmm_unit) for openmm_unit in all_openmm_units
     ]
+
     return all_pint_units
 
 
@@ -196,21 +197,21 @@ def test_constants():
 
     assert np.isclose(
         simtk_unit.AVOGADRO_CONSTANT_NA.value_in_unit((1.0 / simtk_unit.mole).unit),
-        (1.0 * unit.avogadro_number).to((1.0 / unit.mole).units),
+        (1.0 * unit.avogadro_constant).to((1.0 / unit.mole).units).magnitude,
     )
 
     assert np.isclose(
         simtk_unit.BOLTZMANN_CONSTANT_kB.value_in_unit(
             simtk_unit.joule / simtk_unit.kelvin
         ),
-        (1.0 * unit.boltzmann_constant).to(unit.joule / unit.kelvin),
+        (1.0 * unit.boltzmann_constant).to(unit.joule / unit.kelvin).magnitude,
     )
 
     assert np.isclose(
         simtk_unit.MOLAR_GAS_CONSTANT_R.value_in_unit(
             simtk_unit.joule / simtk_unit.kelvin / simtk_unit.mole
         ),
-        (1.0 * unit.molar_gas_constant).to(unit.joule / unit.kelvin / unit.mole),
+        (1.0 * unit.molar_gas_constant).to(unit.joule / unit.kelvin / unit.mole).magnitude,
     )
 
     assert np.isclose(
@@ -219,12 +220,12 @@ def test_constants():
         ),
         (1.0 * unit.newtonian_constant_of_gravitation).to(
             unit.meter ** 2 * unit.newton / unit.kilogram ** 2
-        ),
+        ).magnitude,
     )
 
     assert np.isclose(
         simtk_unit.SPEED_OF_LIGHT_C.value_in_unit(
             simtk_unit.meter / simtk_unit.seconds
         ),
-        (1.0 * unit.speed_of_light).to(unit.meter / unit.seconds),
+        (1.0 * unit.speed_of_light).to(unit.meter / unit.seconds).magnitude,
     )
