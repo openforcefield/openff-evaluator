@@ -1160,10 +1160,10 @@ class ProtocolGraph:
 
         except Exception as e:
 
+            logger.info(f"Protocol failed to execute: {protocol.id}")
+
             if not safe_exceptions:
                 raise
-
-            logger.info(f"Protocol failed to execute: {protocol.id}")
 
             exception = WorkflowException.from_exception(e)
             exception.protocol_id = protocol.id
