@@ -31,20 +31,24 @@ def _type_string_to_object(type_string):
             "module_path.class_name: {}".format(type_string)
         )
 
-    module_name = type_string[0:last_period_index]
-    module = importlib.import_module(module_name)
+    type_string_split = type_string.split(".")
+    class_object = None
 
-    class_name = type_string[last_period_index + 1 :]
+    while len(type_string_split) > 0:
 
-    if class_name == "NoneType":
-        return None
+        class_name = type_string_split.pop(0)
 
-    class_name_split = class_name.split("->")
-    class_object = module
+        try:
 
-    while len(class_name_split) > 0:
-        class_name_current = class_name_split.pop(0)
-        class_object = getattr(class_object, class_name_current)
+            # First try and treat the current string as a module
+            module = importlib.import_module(class_name)
+            class_object = module
+
+        except ImportError:
+
+            # If we get an import error, try then to treat the string
+            # as the name of a nested class.
+            class_object = getattr(class_object, class_name)
 
     return class_object
 
@@ -86,7 +90,6 @@ def _type_to_type_string(object_type):
         return "propertyestimator.unit.Quantity"
 
     qualified_name = object_type.__qualname__
-    qualified_name = qualified_name.replace(".", "->")
 
     return_value = "{}.{}".format(object_type.__module__, qualified_name)
     return return_value
@@ -305,7 +308,6 @@ class TypedJSONEncoder(json.JSONEncoder):
             if isinstance(encoder_type, str):
 
                 qualified_name = type_to_serialize.__qualname__
-                qualified_name = qualified_name.replace(".", "->")
 
                 if encoder_type != qualified_name:
                     continue

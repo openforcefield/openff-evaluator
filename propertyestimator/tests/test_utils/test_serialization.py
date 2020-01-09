@@ -9,10 +9,13 @@ import pint
 import pytest
 
 from propertyestimator import unit
+from propertyestimator.client import EvaluatorClient
 from propertyestimator.utils.serialization import (
     TypedBaseModel,
     TypedJSONDecoder,
     TypedJSONEncoder,
+    _type_string_to_object,
+    _type_to_type_string,
     deserialize_quantity,
     serialize_quantity,
 )
@@ -293,3 +296,25 @@ def test_pint_serialization():
 
     assert test_value.value == deserialized_value.value
     assert test_value.error == deserialized_value.error
+
+
+def test_type_string_to_object():
+
+    client_class = _type_string_to_object("propertyestimator.client.EvaluatorClient")
+    assert client_class == EvaluatorClient
+
+    nested_class = _type_string_to_object(
+        "propertyestimator.client.EvaluatorClient._Submission"
+    )
+    assert nested_class == EvaluatorClient._Submission
+
+
+def test_type_to_type_string():
+
+    client_string = _type_to_type_string(EvaluatorClient)
+    assert client_string == "propertyestimator.client.client.EvaluatorClient"
+
+    nested_string = _type_to_type_string(EvaluatorClient._Submission)
+    assert (
+        nested_string == "propertyestimator.client.client.EvaluatorClient._Submission"
+    )
