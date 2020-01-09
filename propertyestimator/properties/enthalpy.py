@@ -925,9 +925,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
             condition.condition_type = groups.ConditionalGroup.Condition.Type.LessThan
 
             condition.left_hand_value = ProtocolPath(
-                "result.error",
-                converge_uncertainty.id,
-                enthalpy_of_vaporization.id,
+                "result.error", converge_uncertainty.id, enthalpy_of_vaporization.id,
             )
             condition.right_hand_value = ProtocolPath("target_uncertainty", "global")
 

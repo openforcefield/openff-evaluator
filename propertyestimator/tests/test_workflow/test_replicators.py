@@ -65,10 +65,12 @@ def test_simple_replicators():
     assert len(dummy_workflow.protocols) == 5
 
     assert (
-        dummy_workflow.protocols["dummy_0"].input_value.value == replicator.template_values[0].value
+        dummy_workflow.protocols["dummy_0"].input_value.value
+        == replicator.template_values[0].value
     )
     assert (
-        dummy_workflow.protocols["dummy_1"].input_value.value == replicator.template_values[1].value
+        dummy_workflow.protocols["dummy_1"].input_value.value
+        == replicator.template_values[1].value
     )
 
     assert dummy_workflow.protocols["dummy_single_0"].input_value == ProtocolPath(
