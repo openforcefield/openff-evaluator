@@ -27,7 +27,7 @@
             {
               "@type": "propertyestimator.substances.Component",
               "role": {
-                "@type": "propertyestimator.substances.Component->Role",
+                "@type": "propertyestimator.substances.Component.Role",
                 "value": "solv"
               },
               "smiles": "CCO"
@@ -83,7 +83,7 @@
             {
               "@type": "propertyestimator.substances.Component",
               "role": {
-                "@type": "propertyestimator.substances.Component->Role",
+                "@type": "propertyestimator.substances.Component.Role",
                 "value": "solv"
               },
               "smiles": "CCO"
@@ -139,7 +139,7 @@
             {
               "@type": "propertyestimator.substances.Component",
               "role": {
-                "@type": "propertyestimator.substances.Component->Role",
+                "@type": "propertyestimator.substances.Component.Role",
                 "value": "solv"
               },
               "smiles": "CCO"

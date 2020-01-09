@@ -22,6 +22,7 @@ from propertyestimator.properties import (
 )
 from propertyestimator.server import EvaluatorServer
 from propertyestimator.tests.utils import create_dummy_property
+from propertyestimator.utils.utils import temporarily_change_directory
 
 property_types = [
     Density,
@@ -85,32 +86,32 @@ def test_submission():
 
     with tempfile.TemporaryDirectory() as directory:
 
-        calculation_backend = DaskLocalCluster()
+        with temporarily_change_directory(directory):
 
-        with calculation_backend:
+            with DaskLocalCluster() as calculation_backend:
 
-            # Spin up a server instance.
-            server = EvaluatorServer(
-                calculation_backend=calculation_backend, working_directory=directory,
-            )
-
-            with server:
-
-                # Connect a client.
-                client = EvaluatorClient()
-
-                # Submit an empty data set.
-                force_field_path = "smirnoff99Frosst-1.1.0.offxml"
-                force_field_source = SmirnoffForceFieldSource.from_path(
-                    force_field_path
+                # Spin up a server instance.
+                server = EvaluatorServer(
+                    calculation_backend=calculation_backend, working_directory=directory,
                 )
 
-                request, error = client.request_estimate(
-                    PhysicalPropertyDataSet(), force_field_source
-                )
-                assert error is None
-                assert isinstance(request, Request)
+                with server:
 
-                result, error = request.results(polling_interval=0.01)
-                assert error is None
-                assert isinstance(result, RequestResult)
+                    # Connect a client.
+                    client = EvaluatorClient()
+
+                    # Submit an empty data set.
+                    force_field_path = "smirnoff99Frosst-1.1.0.offxml"
+                    force_field_source = SmirnoffForceFieldSource.from_path(
+                        force_field_path
+                    )
+
+                    request, error = client.request_estimate(
+                        PhysicalPropertyDataSet(), force_field_source
+                    )
+                    assert error is None
+                    assert isinstance(request, Request)
+
+                    result, error = request.results(polling_interval=0.01)
+                    assert error is None
+                    assert isinstance(result, RequestResult)

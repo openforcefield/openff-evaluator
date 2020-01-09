@@ -32,7 +32,7 @@
             {
               "@type": "propertyestimator.substances.components.Component",
               "role": {
-                "@type": "propertyestimator.substances.components.Component->Role",
+                "@type": "propertyestimator.substances.components.Component.Role",
                 "value": "sol"
               },
               "smiles": "CCC(=O)OC"
@@ -40,7 +40,7 @@
             {
               "@type": "propertyestimator.substances.components.Component",
               "role": {
-                "@type": "propertyestimator.substances.components.Component->Role",
+                "@type": "propertyestimator.substances.components.Component.Role",
                 "value": "solv"
               },
               "smiles": "O"
@@ -103,7 +103,7 @@
             {
               "@type": "propertyestimator.substances.components.Component",
               "role": {
-                "@type": "propertyestimator.substances.components.Component->Role",
+                "@type": "propertyestimator.substances.components.Component.Role",
                 "value": "sol"
               },
               "smiles": "CCCCO"
@@ -111,7 +111,7 @@
             {
               "@type": "propertyestimator.substances.components.Component",
               "role": {
-                "@type": "propertyestimator.substances.components.Component->Role",
+                "@type": "propertyestimator.substances.components.Component.Role",
                 "value": "solv"
               },
               "smiles": "O"
@@ -174,7 +174,7 @@
             {
               "@type": "propertyestimator.substances.components.Component",
               "role": {
-                "@type": "propertyestimator.substances.components.Component->Role",
+                "@type": "propertyestimator.substances.components.Component.Role",
                 "value": "sol"
               },
               "smiles": "c1ccc(cc1)C(=O)N"
@@ -182,7 +182,7 @@
             {
               "@type": "propertyestimator.substances.components.Component",
               "role": {
-                "@type": "propertyestimator.substances.components.Component->Role",
+                "@type": "propertyestimator.substances.components.Component.Role",
                 "value": "solv"
               },
               "smiles": "O"
