@@ -11,7 +11,6 @@ from propertyestimator.server import server
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.tests.test_workflow.utils import DummyInputOutputProtocol
 from propertyestimator.tests.utils import create_dummy_property
-from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.utils import temporarily_change_directory
 from propertyestimator.workflow import WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath
@@ -29,7 +28,7 @@ def test_workflow_layer():
 
     # Create a very simple workflow which just returns some placeholder
     # value.
-    estimated_value = EstimatedQuantity(1 * unit.kelvin, 0.1 * unit.kelvin, "source")
+    estimated_value = (1 * unit.kelvin).plus_minus(0.1 * unit.kelvin)
     protocol_a = DummyInputOutputProtocol("protocol_a")
     protocol_a.input_value = estimated_value
 

@@ -23,7 +23,6 @@ from propertyestimator.utils.openmm import (
     pint_quantity_to_openmm,
     setup_platform_with_resources,
 )
-from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.utils import temporarily_change_directory
 from propertyestimator.workflow.attributes import (
     InequalityMergeBehaviour,
@@ -96,7 +95,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
     estimated_free_energy = OutputAttribute(
         docstring="The estimated free energy value and its uncertainty "
         "returned by YANK.",
-        type_hint=EstimatedQuantity,
+        type_hint=pint.Measurement,
     )
 
     @staticmethod
@@ -495,10 +494,8 @@ class BaseYankProtocol(Protocol, abc.ABC):
             if exception is not None:
                 raise exception
 
-        self.estimated_free_energy = EstimatedQuantity(
-            openmm_quantity_to_pint(free_energy),
-            openmm_quantity_to_pint(free_energy_uncertainty),
-            self.id,
+        self.estimated_free_energy = openmm_quantity_to_pint(free_energy).plus_minus(
+            openmm_quantity_to_pint(free_energy_uncertainty)
         )
 
 

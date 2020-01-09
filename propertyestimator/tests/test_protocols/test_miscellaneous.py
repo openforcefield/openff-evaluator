@@ -20,7 +20,6 @@ from propertyestimator.protocols.miscellaneous import (
     WeightByMoleFraction,
 )
 from propertyestimator.substances import Component, ExactAmount, MoleFraction, Substance
-from propertyestimator.utils.quantities import EstimatedQuantity
 
 
 @pytest.mark.parametrize(
@@ -30,16 +29,14 @@ from propertyestimator.utils.quantities import EstimatedQuantity
         [random.random() for _ in range(10)],
         [random.random() * unit.kelvin for _ in range(10)],
         [
-            EstimatedQuantity(
-                random.random() * unit.kelvin, random.random() * unit.kelvin, f"{x}"
-            )
+            (random.random() * unit.kelvin).plus_minus(random.random() * unit.kelvin)
             for x in range(10)
         ],
         [
             ParameterGradient(
                 ParameterGradientKey("a", "b", "c"), random.random() * unit.kelvin
             )
-            for x in range(10)
+            for _ in range(10)
         ],
     ],
 )
@@ -61,16 +58,14 @@ def test_add_values_protocol(values):
         [random.random() for _ in range(2)],
         [random.random() * unit.kelvin for _ in range(2)],
         [
-            EstimatedQuantity(
-                random.random() * unit.kelvin, random.random() * unit.kelvin, f"{x}"
-            )
-            for x in range(2)
+            (random.random() * unit.kelvin).plus_minus(random.random() * unit.kelvin)
+            for _ in range(2)
         ],
         [
             ParameterGradient(
                 ParameterGradientKey("a", "b", "c"), random.random() * unit.kelvin
             )
-            for x in range(2)
+            for _ in range(2)
         ],
     ],
 )
@@ -92,9 +87,7 @@ def test_subtract_values_protocol(values):
         random.randint(1, 10),
         random.random(),
         random.random() * unit.kelvin,
-        EstimatedQuantity(
-            random.random() * unit.kelvin, random.random() * unit.kelvin, "a"
-        ),
+        (random.random() * unit.kelvin).plus_minus(random.random() * unit.kelvin),
         ParameterGradient(
             ParameterGradientKey("a", "b", "c"), random.random() * unit.kelvin
         ),
@@ -118,9 +111,7 @@ def test_multiply_values_protocol(value, multiplier):
         random.randint(1, 10),
         random.random(),
         random.random() * unit.kelvin,
-        EstimatedQuantity(
-            random.random() * unit.kelvin, random.random() * unit.kelvin, "a"
-        ),
+        (random.random() * unit.kelvin).plus_minus(random.random() * unit.kelvin),
         ParameterGradient(
             ParameterGradientKey("a", "b", "c"), random.random() * unit.kelvin
         ),
@@ -145,9 +136,7 @@ def test_divide_values_protocol(value, divisor):
         random.randint(1, 10),
         random.random(),
         random.random() * unit.kelvin,
-        EstimatedQuantity(
-            random.random() * unit.kelvin, random.random() * unit.kelvin, "a"
-        ),
+        (random.random() * unit.kelvin).plus_minus(random.random() * unit.kelvin),
         ParameterGradient(
             ParameterGradientKey("a", "b", "c"), random.random() * unit.kelvin
         ),

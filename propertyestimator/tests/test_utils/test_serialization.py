@@ -275,3 +275,21 @@ def test_numpy_array_serialization():
     assert np.allclose(
         two_dimensional_quantity_array.magnitude, deserialized_value.magnitude
     )
+
+
+def test_pint_serialization():
+
+    test_value = 1.0 * unit.kelvin
+
+    serialized_value = json.dumps(test_value, cls=TypedJSONEncoder)
+    deserialized_value = json.loads(serialized_value, cls=TypedJSONDecoder)
+
+    assert test_value == deserialized_value
+
+    test_value = test_value.plus_minus(1.0 * unit.kelvin)
+
+    serialized_value = json.dumps(test_value, cls=TypedJSONEncoder)
+    deserialized_value = json.loads(serialized_value, cls=TypedJSONDecoder)
+
+    assert test_value.value == deserialized_value.value
+    assert test_value.error == deserialized_value.error

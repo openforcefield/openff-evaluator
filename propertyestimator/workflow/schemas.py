@@ -3,12 +3,13 @@ A collection of schemas which represent elements of a workflow.
 """
 import re
 
+import pint
+
 from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
 from propertyestimator.attributes.typing import is_type_subclass_of_type
 from propertyestimator.forcefield import ParameterGradient
 from propertyestimator.storage.attributes import StorageAttribute
 from propertyestimator.storage.data import BaseStoredData
-from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedBaseModel
 from propertyestimator.workflow.attributes import InputAttribute
 from propertyestimator.workflow.plugins import registered_workflow_protocols
@@ -712,7 +713,7 @@ class WorkflowSchema(AttributeClass):
         attribute_type = protocol_object.get_class_attribute(
             self.final_value_source
         ).type_hint
-        assert is_type_subclass_of_type(attribute_type, EstimatedQuantity)
+        assert is_type_subclass_of_type(attribute_type, pint.Measurement)
 
     def _validate_gradients(self, schemas_by_id):
 

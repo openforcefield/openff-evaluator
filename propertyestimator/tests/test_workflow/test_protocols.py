@@ -10,7 +10,6 @@ from propertyestimator import unit
 from propertyestimator.backends import ComputeResources, DaskLocalCluster
 from propertyestimator.protocols.miscellaneous import AddValues
 from propertyestimator.tests.test_workflow.utils import DummyInputOutputProtocol
-from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedJSONDecoder
 from propertyestimator.workflow.protocols import ProtocolGraph, ProtocolGroup
 from propertyestimator.workflow.utils import ProtocolPath
@@ -19,9 +18,7 @@ from propertyestimator.workflow.utils import ProtocolPath
 def test_nested_protocol_paths():
 
     value_protocol_a = DummyInputOutputProtocol("protocol_a")
-    value_protocol_a.input_value = EstimatedQuantity(
-        1 * unit.kelvin, 0.1 * unit.kelvin, "constant"
-    )
+    value_protocol_a.input_value = (1 * unit.kelvin).plus_minus(0.1 * unit.kelvin)
 
     assert (
         value_protocol_a.get_value(ProtocolPath("input_value.value"))
@@ -32,14 +29,10 @@ def test_nested_protocol_paths():
     assert value_protocol_a.input_value.value == 0.5 * unit.kelvin
 
     value_protocol_b = DummyInputOutputProtocol("protocol_b")
-    value_protocol_b.input_value = EstimatedQuantity(
-        2 * unit.kelvin, 0.05 * unit.kelvin, "constant"
-    )
+    value_protocol_b.input_value = (2 * unit.kelvin).plus_minus(0.05 * unit.kelvin)
 
     value_protocol_c = DummyInputOutputProtocol("protocol_c")
-    value_protocol_c.input_value = EstimatedQuantity(
-        4 * unit.kelvin, 0.01 * unit.kelvin, "constant"
-    )
+    value_protocol_c.input_value = (4 * unit.kelvin).plus_minus(0.01 * unit.kelvin)
 
     add_values_protocol = AddValues("add_values")
 

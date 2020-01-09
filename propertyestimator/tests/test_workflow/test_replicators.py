@@ -11,7 +11,6 @@ from propertyestimator.tests.test_workflow.utils import (
     DummyReplicableProtocol,
 )
 from propertyestimator.tests.utils import create_dummy_property
-from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import Workflow, WorkflowSchema
 from propertyestimator.workflow.schemas import ProtocolReplicator
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
@@ -47,8 +46,8 @@ def test_simple_replicators():
     replicator = ProtocolReplicator(replicator_id)
 
     replicator.template_values = [
-        EstimatedQuantity(1.0 * unit.kelvin, 1.0 * unit.kelvin, "dummy_source"),
-        EstimatedQuantity(2.0 * unit.kelvin, 2.0 * unit.kelvin, "dummy_source"),
+        (1.0 * unit.kelvin).plus_minus(1.0 * unit.kelvin),
+        (2.0 * unit.kelvin).plus_minus(2.0 * unit.kelvin),
     ]
 
     dummy_schema.protocol_replicators = [replicator]
@@ -122,8 +121,8 @@ def test_group_replicators():
     replicator = ProtocolReplicator(replicator_id)
 
     replicator.template_values = [
-        EstimatedQuantity(1.0 * unit.kelvin, 1.0 * unit.kelvin, "dummy_source"),
-        EstimatedQuantity(2.0 * unit.kelvin, 2.0 * unit.kelvin, "dummy_source"),
+        (1.0 * unit.kelvin).plus_minus(1.0 * unit.kelvin),
+        (2.0 * unit.kelvin).plus_minus(2.0 * unit.kelvin),
     ]
 
     dummy_schema.protocol_replicators = [replicator]
@@ -209,8 +208,8 @@ def test_advanced_group_replicators():
     replicator = ProtocolReplicator(replicator_id)
 
     replicator.template_values = [
-        EstimatedQuantity(1.0 * unit.kelvin, 1.0 * unit.kelvin, "dummy_source"),
-        EstimatedQuantity(2.0 * unit.kelvin, 2.0 * unit.kelvin, "dummy_source"),
+        (1.0 * unit.kelvin).plus_minus(1.0 * unit.kelvin),
+        (2.0 * unit.kelvin).plus_minus(2.0 * unit.kelvin),
     ]
 
     dummy_schema.protocol_replicators = [replicator]

@@ -13,7 +13,6 @@ from scipy.special import logsumexp
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import (
     ObservableType,
     StatisticsArray,
@@ -235,7 +234,7 @@ class BaseMBARProtocol(Protocol, abc.ABC):
 
     value = OutputAttribute(
         docstring="The reweighted average value of the observable at the target state.",
-        type_hint=EstimatedQuantity,
+        type_hint=pint.Measurement,
     )
 
     effective_samples = OutputAttribute(
@@ -386,10 +385,7 @@ class BaseMBARProtocol(Protocol, abc.ABC):
         )
 
         self.effective_sample_indices = effective_sample_indices
-
-        self.value = EstimatedQuantity(
-            value * observable_unit, uncertainty * observable_unit, self.id
-        )
+        self.value = (value * observable_unit).plus_minus(uncertainty * observable_unit)
 
     def _execute_without_bootstrapping(self, observable_unit, **observables):
         """Calculates the average reweighted observables at the target state,
@@ -427,10 +423,8 @@ class BaseMBARProtocol(Protocol, abc.ABC):
                 f"{self.effective_samples} < {self.required_effective_samples}"
             )
 
-        self.value = EstimatedQuantity(
-            values[observable_key] * observable_unit,
-            uncertainty * observable_unit,
-            self.id,
+        self.value = (values[observable_key] * observable_unit).plus_minus(
+            uncertainty * observable_unit
         )
 
     @staticmethod

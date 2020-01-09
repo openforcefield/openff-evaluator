@@ -8,7 +8,6 @@ from propertyestimator.backends import DaskLocalCluster
 from propertyestimator.protocols.groups import ConditionalGroup
 from propertyestimator.tests.test_workflow.utils import DummyInputOutputProtocol
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import Workflow, WorkflowResult, WorkflowSchema
 from propertyestimator.workflow.schemas import ProtocolReplicator
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
@@ -16,7 +15,7 @@ from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 def test_simple_workflow_graph():
 
-    expected_value = EstimatedQuantity(1 * unit.kelvin, 0.1 * unit.kelvin, "source")
+    expected_value = (1 * unit.kelvin).plus_minus(0.1 * unit.kelvin)
 
     protocol_a = DummyInputOutputProtocol("protocol_a")
     protocol_a.input_value = expected_value
@@ -48,7 +47,7 @@ def test_simple_workflow_graph():
 
 def test_workflow_with_groups():
 
-    expected_value = EstimatedQuantity(1 * unit.kelvin, 0.1 * unit.kelvin, "source")
+    expected_value = (1 * unit.kelvin).plus_minus(0.1 * unit.kelvin)
 
     protocol_a = DummyInputOutputProtocol("protocol_a")
     protocol_a.input_value = expected_value

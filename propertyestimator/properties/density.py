@@ -17,7 +17,6 @@ from propertyestimator.protocols.utils import (
     generate_gradient_protocol_group,
 )
 from propertyestimator.storage.query import SimulationDataQuery, SubstanceQuery
-from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
@@ -542,11 +541,7 @@ class ExcessMolarVolume(PhysicalProperty):
         number_of_molar_molecules = miscellaneous.MultiplyValue(
             f"number_of_molar_molecules{id_suffix}"
         )
-        number_of_molar_molecules.value = EstimatedQuantity(
-            (1.0 / unit.avogadro_constant).to(unit.mole),
-            (0.0 / unit.avogadro_constant).to(unit.mole),
-            "",
-        )
+        number_of_molar_molecules.value = (1.0 / unit.avogadro_constant).to(unit.mole)
         number_of_molar_molecules.multiplier = number_of_molecules
 
         divide_by_molecules = miscellaneous.DivideValue(
@@ -554,7 +549,7 @@ class ExcessMolarVolume(PhysicalProperty):
         )
         divide_by_molecules.value = value_source
         divide_by_molecules.divisor = ProtocolPath(
-            "result.value", number_of_molar_molecules.id
+            "result", number_of_molar_molecules.id
         )
 
         value_source = ProtocolPath("result", divide_by_molecules.id)

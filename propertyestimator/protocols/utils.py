@@ -333,7 +333,7 @@ def generate_base_simulation_protocols(
         A named tuple of the generated protocols.
     ProtocolPath
         A reference to the final value of the estimated observable
-        and its uncertainty (an `EstimatedQuantity`).
+        and its uncertainty (a `pint.Measurement`).
     StoredSimulationData
         An object which describes the default data from a simulation to store,
         such as the uncorrelated statistics and configurations.

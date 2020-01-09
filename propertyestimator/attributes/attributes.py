@@ -10,7 +10,6 @@ from enum import Enum, IntEnum, IntFlag
 import pint
 
 from propertyestimator.attributes.typing import is_instance_of_type, is_supported_type
-from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedBaseModel
 
 
@@ -275,7 +274,7 @@ class Attribute:
         self._default_value = default_value
 
         if isinstance(
-            default_value, (int, float, str, pint.Quantity, EstimatedQuantity, Enum)
+            default_value, (int, float, str, pint.Quantity, pint.Measurement, Enum)
         ) or (
             isinstance(default_value, (list, tuple, set, frozenset))
             and len(default_value) <= 4
