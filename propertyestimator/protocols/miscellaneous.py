@@ -41,14 +41,6 @@ class AddValues(Protocol):
         if len(self.values) < 1:
             raise ValueError("There were no values to add together")
 
-        if not all(isinstance(x, type(self.values[0])) for x in self.values):
-
-            types = " ".join(map(str, self.values))
-
-            raise ValueError(
-                f"All of the values to add together must be the same type ({types})."
-            )
-
         self.result = self.values[0]
 
         for value in self.values[1:]:
