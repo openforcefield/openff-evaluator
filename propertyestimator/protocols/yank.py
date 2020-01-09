@@ -33,6 +33,8 @@ from propertyestimator.workflow.attributes import (
 from propertyestimator.workflow.plugins import workflow_protocol
 from propertyestimator.workflow.protocols import Protocol
 
+logger = logging.getLogger(__name__)
+
 
 class BaseYankProtocol(Protocol, abc.ABC):
     """An abstract base class for protocols which will performs a set of
@@ -467,7 +469,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
         # If the current thread is not detected as the main one, then yank should
         # be spun up in a new process which should itself be safe to run yank in.
         if threading.current_thread() is threading.main_thread():
-            logging.info("Launching YANK in the main thread.")
+            logger.info("Launching YANK in the main thread.")
             free_energy, free_energy_uncertainty = self._run_yank(
                 directory, available_resources, setup_only
             )
@@ -475,7 +477,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
 
             from multiprocessing import Process, Queue
 
-            logging.info("Launching YANK in a new process.")
+            logger.info("Launching YANK in a new process.")
 
             # Create a queue to pass the results back to the main process.
             queue = Queue()
@@ -965,7 +967,7 @@ class SolvationYankProtocol(BaseYankProtocol):
 
         if vacuum_system_path is not None:
 
-            logging.info(
+            logger.info(
                 f"Disabling the periodic boundary conditions in {vacuum_system_path} "
                 f"by setting the cutoff type to NoCutoff"
             )

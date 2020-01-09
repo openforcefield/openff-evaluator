@@ -18,6 +18,8 @@ from propertyestimator import unit
 
 from .backends import CalculationBackend, ComputeResources, QueueWorkerResources
 
+logger = logging.getLogger(__name__)
+
 
 class _Multiprocessor:
     """A temporary utility class which runs a given
@@ -136,7 +138,7 @@ class _Multiprocessor:
             formatted_exception = traceback.format_exception(
                 None, return_value[0], return_value[1]
             )
-            logging.info(f"{formatted_exception} {return_value[0]} {return_value[1]}")
+            logger.info(f"{formatted_exception} {return_value[0]} {return_value[1]}")
 
             raise return_value[0]
 
@@ -438,7 +440,7 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
                 "0" if worker_id not in gpu_assignments else gpu_assignments[worker_id]
             )
 
-            logging.info(
+            logger.info(
                 f"Launching a job with access to GPUs {available_resources._gpu_device_indices}"
             )
 
@@ -735,7 +737,7 @@ class DaskLocalCluster(BaseDaskBackend):
             worker_id = distributed.get_worker().id
             available_resources._gpu_device_indices = gpu_assignments[worker_id]
 
-            logging.info(
+            logger.info(
                 "Launching a job with access to GPUs {}".format(
                     gpu_assignments[worker_id]
                 )

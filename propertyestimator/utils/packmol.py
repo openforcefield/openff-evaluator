@@ -21,6 +21,9 @@ from simtk import openmm
 from propertyestimator import unit
 from propertyestimator.utils.utils import temporarily_change_directory
 
+logger = logging.getLogger(__name__)
+
+
 PACKMOL_PATH = (
     find_executable("packmol") or shutil.which("packmol") or None
     if "PACKMOL" not in os.environ
@@ -240,7 +243,7 @@ def pack_box(
             ).decode("utf-8")
 
             if verbose:
-                logging.info(result)
+                logger.info(result)
 
             packmol_succeeded = result.find("Success!") > 0
 
@@ -254,7 +257,7 @@ def pack_box(
     if not packmol_succeeded:
 
         if verbose:
-            logging.info("Packmol failed to converge")
+            logger.info("Packmol failed to converge")
 
         if os.path.isfile(output_file_path):
             os.unlink(output_file_path)

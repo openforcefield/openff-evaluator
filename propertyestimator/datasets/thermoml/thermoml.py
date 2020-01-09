@@ -20,6 +20,8 @@ from propertyestimator.substances import Component, MoleFraction, Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.openmm import openmm_quantity_to_pint
 
+logger = logging.getLogger(__name__)
+
 
 def _unit_from_thermoml_string(full_string):
     """Extract the unit from a ThermoML property name.
@@ -2129,7 +2131,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
                 return_value = cls.from_xml(response.read(), source)
 
         except HTTPError:
-            logging.warning(f"No ThermoML file could not be found at {url}")
+            logger.warning(f"No ThermoML file could not be found at {url}")
 
         return return_value
 
@@ -2189,7 +2191,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
                 return_value = ThermoMLDataSet.from_xml(file.read(), source)
 
         except FileNotFoundError:
-            logging.warning(f"No ThermoML file could not be found at {path}")
+            logger.warning(f"No ThermoML file could not be found at {path}")
 
         return return_value
 
@@ -2212,11 +2214,11 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
         root_node = ElementTree.fromstring(xml)
 
         if root_node is None:
-            logging.warning("The ThermoML XML document could not be parsed.")
+            logger.warning("The ThermoML XML document could not be parsed.")
             return None
 
         if root_node.tag.find("DataReport") < 0:
-            logging.warning(
+            logger.warning(
                 "The ThermoML XML document does not contain the expected root node."
             )
             return None

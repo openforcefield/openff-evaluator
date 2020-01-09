@@ -9,6 +9,8 @@ import sys
 
 from propertyestimator.utils.string import extract_variable_index_and_name
 
+logger = logging.getLogger(__name__)
+
 
 def find_types_with_decorator(class_type, decorator_type):
     """ A method to collect all attributes marked by a specified
@@ -112,7 +114,7 @@ def create_molecule_from_smiles(smiles, number_of_conformers=1):
 
     if not oechem.OEParseSmiles(molecule, smiles, parse_smiles_options):
 
-        logging.warning("Could not parse SMILES: " + smiles)
+        logger.warning("Could not parse SMILES: " + smiles)
         return None
 
     # Normalize molecule
@@ -135,7 +137,7 @@ def create_molecule_from_smiles(smiles, number_of_conformers=1):
 
         if not status:
 
-            logging.warning("Could not generate a conformer for " + smiles)
+            logger.warning("Could not generate a conformer for " + smiles)
             return None
 
     _cached_molecules[(number_of_conformers, smiles)] = molecule

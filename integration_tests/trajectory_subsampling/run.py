@@ -3,6 +3,7 @@ yields correct results relative to subsampling a trajectory fully loaded
 into memory.
 """
 import logging
+
 import time
 
 import numpy as np
@@ -15,6 +16,8 @@ from propertyestimator.protocols.openmm import OpenMMSimulation
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import setup_timestamp_logging
+
+logger = logging.getLogger(__name__)
 
 
 def generate_trajectories():

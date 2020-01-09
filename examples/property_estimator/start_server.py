@@ -6,6 +6,8 @@ from propertyestimator.backends import ComputeResources, DaskLocalCluster
 from propertyestimator.server import EvaluatorServer
 from propertyestimator.utils import setup_timestamp_logging
 
+logger = logging.getLogger(__name__)
+
 
 def validate_inputs(n_workers, cpus_per_worker, gpus_per_worker):
     """Validate the command line inputs.

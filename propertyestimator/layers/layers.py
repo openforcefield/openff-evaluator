@@ -18,6 +18,8 @@ from propertyestimator.datasets import PhysicalProperty
 from propertyestimator.storage.data import BaseStoredData, StoredSimulationData
 from propertyestimator.utils.exceptions import EvaluatorException
 
+logger = logging.getLogger(__name__)
+
 
 def return_args(*args, **_):
     return args
@@ -181,7 +183,7 @@ class CalculationLayer(abc.ABC):
             # Make sure the data directory / file to store actually exists
             if not path.isdir(data_directory_path) or not path.isfile(data_object_path):
 
-                logging.info(
+                logger.info(
                     f"Invalid data directory ({data_directory_path}) / "
                     f"file ({data_object_path})"
                 )
@@ -250,12 +252,12 @@ class CalculationLayer(abc.ABC):
                     # If exceptions were raised, make sure to add them to the list.
                     batch.exceptions.extend(returned_output.exceptions)
 
-                    logging.info(
+                    logger.info(
                         f"Exceptions were raised while executing batch {batch.id}"
                     )
 
                     for exception in returned_output.exceptions:
-                        logging.info(str(exception))
+                        logger.info(str(exception))
 
                 else:
 
@@ -286,7 +288,7 @@ class CalculationLayer(abc.ABC):
 
                     elif len(matches) == 0:
 
-                        logging.info(
+                        logger.info(
                             "A calculation layer returned results for a property not in "
                             "the queue. This sometimes and expectedly occurs when using "
                             "queue based calculation backends, but should be investigated."
@@ -298,7 +300,7 @@ class CalculationLayer(abc.ABC):
 
                     if len(returned_output.exceptions) == 0:
 
-                        logging.info(
+                        logger.info(
                             "A calculation layer did not return an estimated property nor did it "
                             "raise an Exception. This sometimes and expectedly occurs when using "
                             "queue based calculation backends, but should be investigated."
@@ -335,7 +337,7 @@ class CalculationLayer(abc.ABC):
 
         except Exception as e:
 
-            logging.exception(f"Error processing layer results for request {batch.id}")
+            logger.exception(f"Error processing layer results for request {batch.id}")
             exception = EvaluatorException.from_exception(e)
 
             batch.exceptions.append(exception)

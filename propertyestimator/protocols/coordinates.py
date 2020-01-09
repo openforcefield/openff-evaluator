@@ -18,6 +18,8 @@ from propertyestimator.workflow.attributes import InputAttribute, OutputAttribut
 from propertyestimator.workflow.plugins import workflow_protocol
 from propertyestimator.workflow.protocols import Protocol
 
+logger = logging.getLogger(__name__)
+
 
 @workflow_protocol()
 class BuildCoordinatesPackmol(Protocol):
@@ -223,7 +225,7 @@ class BuildCoordinatesPackmol(Protocol):
             # noinspection PyTypeChecker
             app.PDBFile.writeFile(topology, simtk_positions, minimised_file)
 
-        logging.info("Coordinates generated: " + self.substance.identifier)
+        logger.info("Coordinates generated: " + self.substance.identifier)
 
     def _execute(self, directory, available_resources):
 
@@ -412,13 +414,13 @@ class BuildDockedCoordinates(Protocol):
                 "The ligand substance must contain a single ligand component."
             )
 
-        logging.info("Initializing the receptor molecule.")
+        logger.info("Initializing the receptor molecule.")
         receptor_molecule = self._create_receptor()
 
-        logging.info("Initializing the ligand molecule.")
+        logger.info("Initializing the ligand molecule.")
         ligand_molecule = self._create_ligand()
 
-        logging.info("Initializing the docking object.")
+        logger.info("Initializing the docking object.")
 
         # Dock the ligand to the receptor.
         dock = oedocking.OEDock()
@@ -426,7 +428,7 @@ class BuildDockedCoordinates(Protocol):
 
         docked_ligand = oechem.OEGraphMol()
 
-        logging.info("Performing the docking.")
+        logger.info("Performing the docking.")
 
         status = dock.DockMultiConformerMolecule(docked_ligand, ligand_molecule)
 
