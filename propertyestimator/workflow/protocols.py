@@ -931,6 +931,7 @@ class ProtocolGraph:
         calculation_backend=None,
         compute_resources=None,
         enable_checkpointing=True,
+        safe_exceptions=True,
     ):
         """Execute the protocol graph in the specified directory,
         and either using a `CalculationBackend`, or using a specified
@@ -949,6 +950,10 @@ class ProtocolGraph:
         enable_checkpointing: bool
             If enabled, protocols will not be executed more than once if the
             output from their previous execution is found.
+        safe_exceptions: bool
+            If true, exceptions will be serialized into the results file rather
+            than directly raised, otherwise, the exception will be raised as
+            normal.
 
         Returns
         -------
@@ -990,6 +995,7 @@ class ProtocolGraph:
                     protocol.schema.json(),
                     enable_checkpointing,
                     *parent_outputs,
+                    safe_exceptions=safe_exceptions,
                 )
 
             else:
@@ -1000,6 +1006,7 @@ class ProtocolGraph:
                     enable_checkpointing,
                     *parent_outputs,
                     available_resources=compute_resources,
+                    safe_exceptions=safe_exceptions,
                 )
 
         return protocol_outputs
@@ -1011,6 +1018,7 @@ class ProtocolGraph:
         enable_checkpointing,
         *previous_output_paths,
         available_resources,
+        safe_exceptions,
         **_,
     ):
         """Executes the protocol defined by the ``protocol_schema``.
@@ -1028,6 +1036,10 @@ class ProtocolGraph:
         parent_outputs: tuple of str
             Paths to the outputs of the protocols which the
             protocol to execute depends on.
+        safe_exceptions: bool
+            If true, exceptions will be serialized into the results file rather
+            than directly raised, otherwise, the exception will be raised as
+            normal.
 
         Returns
         -------
@@ -1147,6 +1159,9 @@ class ProtocolGraph:
             logger.info(f"{protocol.id} finished executing after {execution_time} ms")
 
         except Exception as e:
+
+            if not safe_exceptions:
+                raise
 
             logger.info(f"Protocol failed to execute: {protocol.id}")
 
@@ -1376,6 +1391,7 @@ class ProtocolGroup(Protocol):
             directory,
             compute_resources=available_resources,
             enable_checkpointing=self._enable_checkpointing,
+            safe_exceptions=False,
         )
 
     def can_merge(self, other, path_replacements=None):
