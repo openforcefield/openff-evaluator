@@ -1,4 +1,5 @@
 from .exceptions import WorkflowException
+
 from .schemas import ProtocolGroupSchema, ProtocolSchema, WorkflowSchema  # isort:skip
 from .plugins import (  # isort:skip
     register_workflow_protocol,
@@ -19,6 +20,7 @@ __all__ = [
     registered_workflow_protocols,
     workflow_protocol,
     Workflow,
+    WorkflowException,
     WorkflowGraph,
     WorkflowResult,
     WorkflowSchema,
