@@ -16,6 +16,7 @@ from propertyestimator.layers.layers import CalculationLayerResult
 from propertyestimator.properties import Density
 from propertyestimator.server.server import EvaluatorServer, _Batch
 from propertyestimator.tests.utils import create_dummy_property
+from propertyestimator.utils.utils import temporarily_change_directory
 
 
 @calculation_layer()
@@ -70,16 +71,16 @@ def test_server_spin_up():
 
     with tempfile.TemporaryDirectory() as directory:
 
-        calculation_backend = DaskLocalCluster()
+        with temporarily_change_directory(directory):
 
-        with calculation_backend:
+            with DaskLocalCluster() as calculation_backend:
 
-            server = EvaluatorServer(
-                calculation_backend=calculation_backend, working_directory=directory,
-            )
+                server = EvaluatorServer(
+                    calculation_backend=calculation_backend, working_directory=directory,
+                )
 
-            with server:
-                sleep(0.5)
+                with server:
+                    sleep(0.5)
 
 
 def test_launch_batch():
@@ -103,17 +104,19 @@ def test_launch_batch():
 
     with tempfile.TemporaryDirectory() as directory:
 
-        with DaskLocalCluster() as calculation_backend:
+        with temporarily_change_directory(directory):
 
-            server = EvaluatorServer(
-                calculation_backend=calculation_backend, working_directory=directory,
-            )
+            with DaskLocalCluster() as calculation_backend:
 
-            server._queued_batches[batch.id] = batch
-            server._launch_batch(batch)
+                server = EvaluatorServer(
+                    calculation_backend=calculation_backend, working_directory=directory,
+                )
 
-            while len(batch.queued_properties) > 0:
-                sleep(0.01)
+                server._queued_batches[batch.id] = batch
+                server._launch_batch(batch)
 
-            assert len(batch.estimated_properties) == 1
-            assert len(batch.unsuccessful_properties) == 1
+                while len(batch.queued_properties) > 0:
+                    sleep(0.01)
+
+                assert len(batch.estimated_properties) == 1
+                assert len(batch.unsuccessful_properties) == 1
