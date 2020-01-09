@@ -1292,7 +1292,7 @@ class ProtocolGroup(Protocol):
 
         Parameters
         ----------
-        protocols: *Protocol
+        protocols: Protocol
             The protocols to add.
         """
         for protocol in protocols:

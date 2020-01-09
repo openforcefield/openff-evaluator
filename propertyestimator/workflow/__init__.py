@@ -1,3 +1,4 @@
+from .exceptions import WorkflowException
 from .schemas import ProtocolGroupSchema, ProtocolSchema, WorkflowSchema  # isort:skip
 from .plugins import (  # isort:skip
     register_workflow_protocol,

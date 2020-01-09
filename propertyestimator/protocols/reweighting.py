@@ -436,13 +436,13 @@ class BaseMBARProtocol(Protocol, abc.ABC):
     @staticmethod
     def _prepare_observables_array(reference_observables):
         """Takes a list of reference observables, and concatenates them
-        into a single Quantity wrapped numpy array.
+        into a single `pint.Quantity` wrapped numpy array.
 
         Parameters
         ----------
         reference_observables: List of pint.Quantity
             A list of observables for each reference state,
-            which each observable is a Quantity wrapped numpy
+            which each observable is a `pint.Quantity` wrapped numpy
             array.
 
         Returns

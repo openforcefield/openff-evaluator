@@ -10,9 +10,7 @@ registered_calculation_schemas: dict of str and dict of str and type of Calculat
     The default calculation schemas to use when estimating a class of properties (e.g. `Density`)
     with a specific calculation layer (e.g. `SimulationLayer`).
 
-    The dictionary is of the form::
-
-        registered_calculation_schemas['LayerType']['PropertyType']
+    The dictionary is of the form `registered_calculation_schemas['LayerType']['PropertyType']`
 """
 from collections import defaultdict
 from typing import Dict, Type

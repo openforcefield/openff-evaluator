@@ -95,6 +95,7 @@ intersphinx_mapping = {
     'dask': ('http://docs.dask.org/en/latest/', None),
     'dask.distributed': ('https://distributed.dask.org/en/latest/', None),
     'openforcefield': ('https://open-forcefield-toolkit.readthedocs.io/en/latest/', None),
+    'pint': ('https://pint.readthedocs.io/en/latest/', None)
 }
 
 
