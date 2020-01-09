@@ -44,7 +44,7 @@ def _is_supported_generic(type_object):
     )
 
 
-def _is_union_type(type_object):
+def is_union_type(type_object):
     """Checks if a typing is a `typing.Union` type.
 
     Parameters
@@ -110,7 +110,7 @@ def is_type_subclass_of_type(type_a, type_b):
             f"typing module types are supported, and not {type_b}."
         )
 
-    if _is_union_type(type_a):
+    if is_union_type(type_a):
 
         for arg in type_a.__args__:
 
@@ -121,7 +121,7 @@ def is_type_subclass_of_type(type_a, type_b):
 
         return False
 
-    if _is_union_type(type_b):
+    if is_union_type(type_b):
 
         for arg in type_b.__args__:
 
