@@ -11,8 +11,15 @@ from propertyestimator.backends import ComputeResources, DaskLocalCluster
 from propertyestimator.protocols.miscellaneous import AddValues
 from propertyestimator.tests.test_workflow.utils import DummyInputOutputProtocol
 from propertyestimator.utils.serialization import TypedJSONDecoder
-from propertyestimator.workflow.protocols import ProtocolGraph, ProtocolGroup
+from propertyestimator.workflow import workflow_protocol
+from propertyestimator.workflow.protocols import Protocol, ProtocolGraph, ProtocolGroup
 from propertyestimator.workflow.utils import ProtocolPath
+
+
+@workflow_protocol()
+class ExceptionProtocol(Protocol):
+    def _execute(self, directory, available_resources):
+        raise RuntimeError()
 
 
 def test_nested_protocol_paths():
@@ -322,3 +329,15 @@ def test_protocol_group_execution():
     final_value = protocol_group.get_value(value_path)
 
     assert final_value == protocol_a.input_value
+
+
+def test_protocol_group_exceptions():
+
+    exception_protocol = ExceptionProtocol("exception_protocol")
+
+    protocol_group = ProtocolGroup("protocol_group")
+    protocol_group.add_protocols(exception_protocol)
+
+    with tempfile.TemporaryDirectory() as directory:
+        with pytest.raises(RuntimeError):
+            protocol_group.execute(directory, ComputeResources())
