@@ -161,7 +161,7 @@ class SolvationFreeEnergy(PhysicalProperty):
             condition.condition_type = groups.ConditionalGroup.Condition.Type.LessThan
             condition.right_hand_value = ProtocolPath("target_uncertainty", "global")
             condition.left_hand_value = ProtocolPath(
-                "estimated_free_energy.uncertainty", conditional_group.id, run_yank.id
+                "estimated_free_energy.error", conditional_group.id, run_yank.id
             )
 
             conditional_group.add_condition(condition)

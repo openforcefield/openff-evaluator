@@ -3,12 +3,13 @@ A collection of schemas which represent elements of a workflow.
 """
 import re
 
+import pint
+
 from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
-from propertyestimator.attributes.typing import is_type_subclass_of_type
+from propertyestimator.attributes.typing import is_type_subclass_of_type, is_union_type
 from propertyestimator.forcefield import ParameterGradient
 from propertyestimator.storage.attributes import StorageAttribute
 from propertyestimator.storage.data import BaseStoredData
-from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedBaseModel
 from propertyestimator.workflow.attributes import InputAttribute
 from propertyestimator.workflow.plugins import registered_workflow_protocols
@@ -607,7 +608,7 @@ class WorkflowSchema(AttributeClass):
         has been truncated to only include the top level name,
         e.g:
 
-        `some_protocol_id.value.uncertainty` would be truncated to `some_protocol_id.value`
+        `some_protocol_id.value.error` would be truncated to `some_protocol_id.value`
 
         and
 
@@ -712,7 +713,16 @@ class WorkflowSchema(AttributeClass):
         attribute_type = protocol_object.get_class_attribute(
             self.final_value_source
         ).type_hint
-        assert is_type_subclass_of_type(attribute_type, EstimatedQuantity)
+
+        # TODO: In Python < 3.7 the Union type will collapse pint.Quantity
+        #       and pint.Measurement into pint.Quantity such that this check
+        #       will fail. For now we allow Measurements or Quantities, but
+        #       this should be reverted to just pint.Measurement when dropping
+        #       3.6 support.
+        if is_union_type(attribute_type):
+            assert is_type_subclass_of_type(attribute_type, pint.Quantity)
+        else:
+            assert is_type_subclass_of_type(attribute_type, pint.Measurement)
 
     def _validate_gradients(self, schemas_by_id):
 

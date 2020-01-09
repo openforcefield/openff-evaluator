@@ -10,7 +10,6 @@ import pint
 
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.utils import statistics, timeseries
-from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import StatisticsArray, bootstrap
 from propertyestimator.workflow.attributes import (
     InequalityMergeBehaviour,
@@ -48,7 +47,7 @@ class AveragePropertyProtocol(Protocol, abc.ABC):
     )
 
     value = OutputAttribute(
-        docstring="The average value and its uncertainty.", type_hint=EstimatedQuantity
+        docstring="The average value and its uncertainty.", type_hint=pint.Measurement
     )
     uncorrelated_values = OutputAttribute(
         docstring="The uncorrelated values which the average was calculated from.",
@@ -164,9 +163,8 @@ class ExtractAverageStatistic(AveragePropertyProtocol):
         )
 
         self.uncorrelated_values = unitless_values * statistics_unit
-
-        self.value = EstimatedQuantity(
-            final_value * statistics_unit, final_uncertainty * statistics_unit, self.id
+        self.value = (final_value * statistics_unit).plus_minus(
+            final_uncertainty * statistics_unit
         )
 
 

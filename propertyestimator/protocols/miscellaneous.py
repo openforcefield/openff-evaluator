@@ -10,7 +10,6 @@ import pint
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.forcefield import ParameterGradient
 from propertyestimator.substances import Component, MoleFraction, Substance
-from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import workflow_protocol
 from propertyestimator.workflow.protocols import Protocol
@@ -33,7 +32,7 @@ class AddValues(Protocol):
     result = OutputAttribute(
         docstring="The sum of the values.",
         type_hint=typing.Union[
-            int, float, EstimatedQuantity, pint.Quantity, ParameterGradient
+            int, float, pint.Measurement, pint.Quantity, ParameterGradient
         ],
     )
 
@@ -41,14 +40,6 @@ class AddValues(Protocol):
 
         if len(self.values) < 1:
             raise ValueError("There were no values to add together")
-
-        if not all(isinstance(x, type(self.values[0])) for x in self.values):
-
-            types = " ".join(map(str, self.values))
-
-            raise ValueError(
-                f"All of the values to add together must be the same type ({types})."
-            )
 
         self.result = self.values[0]
 
@@ -66,14 +57,14 @@ class SubtractValues(Protocol):
     value_a = InputAttribute(
         docstring="`value_a` in the formula `result` = `value_b` - `value_a`.",
         type_hint=typing.Union[
-            int, float, pint.Quantity, EstimatedQuantity, ParameterGradient
+            int, float, pint.Quantity, pint.Measurement, ParameterGradient
         ],
         default_value=UNDEFINED,
     )
     value_b = InputAttribute(
         docstring="`value_b` in the formula `result` = `value_b` - `value_a`.",
         type_hint=typing.Union[
-            int, float, pint.Quantity, EstimatedQuantity, ParameterGradient
+            int, float, pint.Quantity, pint.Measurement, ParameterGradient
         ],
         default_value=UNDEFINED,
     )
@@ -81,7 +72,7 @@ class SubtractValues(Protocol):
     result = OutputAttribute(
         docstring="The results of `value_b` - `value_a`.",
         type_hint=typing.Union[
-            int, float, EstimatedQuantity, pint.Quantity, ParameterGradient
+            int, float, pint.Measurement, pint.Quantity, ParameterGradient
         ],
     )
 
@@ -97,7 +88,7 @@ class MultiplyValue(Protocol):
     value = InputAttribute(
         docstring="The value to multiply.",
         type_hint=typing.Union[
-            int, float, pint.Quantity, EstimatedQuantity, ParameterGradient
+            int, float, pint.Quantity, pint.Measurement, ParameterGradient
         ],
         default_value=UNDEFINED,
     )
@@ -110,23 +101,12 @@ class MultiplyValue(Protocol):
     result = OutputAttribute(
         docstring="The result of the multiplication.",
         type_hint=typing.Union[
-            int, float, EstimatedQuantity, pint.Quantity, ParameterGradient
+            int, float, pint.Measurement, pint.Quantity, ParameterGradient
         ],
     )
 
     def _execute(self, directory, available_resources):
-
-        if isinstance(self.value, EstimatedQuantity):
-
-            self.result = EstimatedQuantity(
-                self.value.value * self.multiplier,
-                self.value.uncertainty * self.multiplier,
-                *self.value.sources,
-            )
-
-        else:
-
-            self.result = self.value * self.multiplier
+        self.result = self.value * self.multiplier
 
 
 @workflow_protocol()
@@ -137,7 +117,7 @@ class DivideValue(Protocol):
     value = InputAttribute(
         docstring="The value to divide.",
         type_hint=typing.Union[
-            int, float, pint.Quantity, EstimatedQuantity, ParameterGradient
+            int, float, pint.Quantity, pint.Measurement, ParameterGradient
         ],
         default_value=UNDEFINED,
     )
@@ -150,7 +130,7 @@ class DivideValue(Protocol):
     result = OutputAttribute(
         docstring="The result of the division.",
         type_hint=typing.Union[
-            int, float, EstimatedQuantity, pint.Quantity, ParameterGradient
+            int, float, pint.Measurement, pint.Quantity, ParameterGradient
         ],
     )
 
@@ -167,7 +147,7 @@ class WeightByMoleFraction(Protocol):
     value = InputAttribute(
         docstring="The value to be weighted.",
         type_hint=typing.Union[
-            float, int, EstimatedQuantity, pint.Quantity, ParameterGradient
+            float, int, pint.Measurement, pint.Quantity, ParameterGradient
         ],
         default_value=UNDEFINED,
     )
@@ -187,7 +167,7 @@ class WeightByMoleFraction(Protocol):
         "The value weighted by the `component`s mole fraction as determined from the "
         "`full_substance`.",
         type_hint=typing.Union[
-            float, int, EstimatedQuantity, pint.Quantity, ParameterGradient
+            float, int, pint.Measurement, pint.Quantity, ParameterGradient
         ],
     )
 
@@ -201,7 +181,7 @@ class WeightByMoleFraction(Protocol):
 
         Returns
         -------
-        float, int, EstimatedQuantity, pint.Quantity, ParameterGradient
+        float, int, pint.Measurement, pint.Quantity, ParameterGradient
             The weighted value.
         """
         return self.value * mole_fraction

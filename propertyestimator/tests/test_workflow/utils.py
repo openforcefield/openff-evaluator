@@ -4,7 +4,6 @@ import pint
 
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.layers import registered_calculation_schemas
-from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import Workflow
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import workflow_protocol
@@ -52,7 +51,7 @@ class DummyReplicableProtocol(Protocol):
     replicated_value_b = InputAttribute(
         docstring="", type_hint=Union[str, int, float], default_value=UNDEFINED
     )
-    final_value = OutputAttribute(docstring="", type_hint=EstimatedQuantity)
+    final_value = OutputAttribute(docstring="", type_hint=pint.Measurement)
 
     def _execute(self, directory, available_resources):
         pass
@@ -68,7 +67,7 @@ class DummyInputOutputProtocol(Protocol):
             int,
             float,
             pint.Quantity,
-            EstimatedQuantity,
+            pint.Measurement,
             list,
             tuple,
             dict,
@@ -84,7 +83,7 @@ class DummyInputOutputProtocol(Protocol):
             int,
             float,
             pint.Quantity,
-            EstimatedQuantity,
+            pint.Measurement,
             list,
             tuple,
             dict,

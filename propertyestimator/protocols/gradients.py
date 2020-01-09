@@ -11,7 +11,6 @@ from propertyestimator.attributes import UNDEFINED
 from propertyestimator.forcefield import ParameterGradient, ParameterGradientKey
 from propertyestimator.substances import Substance
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import workflow_protocol
 from propertyestimator.workflow.protocols import Protocol
@@ -142,13 +141,13 @@ class CentralDifferenceGradient(Protocol):
     reverse_observable_value = InputAttribute(
         docstring="The value of the observable evaluated using the parameters"
         "perturbed in the reverse direction.",
-        type_hint=typing.Union[pint.Quantity, EstimatedQuantity],
+        type_hint=typing.Union[pint.Quantity, pint.Measurement],
         default_value=UNDEFINED,
     )
     forward_observable_value = InputAttribute(
         docstring="The value of the observable evaluated using the parameters"
         "perturbed in the forward direction.",
-        type_hint=typing.Union[pint.Quantity, EstimatedQuantity],
+        type_hint=typing.Union[pint.Quantity, pint.Measurement],
         default_value=UNDEFINED,
     )
 
@@ -179,10 +178,10 @@ class CentralDifferenceGradient(Protocol):
         reverse_value = self.reverse_observable_value
         forward_value = self.forward_observable_value
 
-        if isinstance(reverse_value, EstimatedQuantity):
+        if isinstance(reverse_value, pint.Measurement):
             reverse_value = reverse_value.value
 
-        if isinstance(forward_value, EstimatedQuantity):
+        if isinstance(forward_value, pint.Measurement):
             forward_value = forward_value.value
 
         gradient = (forward_value - reverse_value) / (

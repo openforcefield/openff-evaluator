@@ -11,7 +11,6 @@ from propertyestimator.tests.test_workflow.utils import (
     DummyReplicableProtocol,
 )
 from propertyestimator.tests.utils import create_dummy_property
-from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.workflow import Workflow, WorkflowSchema
 from propertyestimator.workflow.schemas import ProtocolReplicator
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
@@ -47,8 +46,8 @@ def test_simple_replicators():
     replicator = ProtocolReplicator(replicator_id)
 
     replicator.template_values = [
-        EstimatedQuantity(1.0 * unit.kelvin, 1.0 * unit.kelvin, "dummy_source"),
-        EstimatedQuantity(2.0 * unit.kelvin, 2.0 * unit.kelvin, "dummy_source"),
+        (1.0 * unit.kelvin).plus_minus(1.0 * unit.kelvin),
+        (2.0 * unit.kelvin).plus_minus(2.0 * unit.kelvin),
     ]
 
     dummy_schema.protocol_replicators = [replicator]
@@ -66,10 +65,12 @@ def test_simple_replicators():
     assert len(dummy_workflow.protocols) == 5
 
     assert (
-        dummy_workflow.protocols["dummy_0"].input_value == replicator.template_values[0]
+        dummy_workflow.protocols["dummy_0"].input_value.value
+        == replicator.template_values[0].value
     )
     assert (
-        dummy_workflow.protocols["dummy_1"].input_value == replicator.template_values[1]
+        dummy_workflow.protocols["dummy_1"].input_value.value
+        == replicator.template_values[1].value
     )
 
     assert dummy_workflow.protocols["dummy_single_0"].input_value == ProtocolPath(
@@ -122,8 +123,8 @@ def test_group_replicators():
     replicator = ProtocolReplicator(replicator_id)
 
     replicator.template_values = [
-        EstimatedQuantity(1.0 * unit.kelvin, 1.0 * unit.kelvin, "dummy_source"),
-        EstimatedQuantity(2.0 * unit.kelvin, 2.0 * unit.kelvin, "dummy_source"),
+        (1.0 * unit.kelvin).plus_minus(1.0 * unit.kelvin),
+        (2.0 * unit.kelvin).plus_minus(2.0 * unit.kelvin),
     ]
 
     dummy_schema.protocol_replicators = [replicator]
@@ -141,12 +142,12 @@ def test_group_replicators():
     assert len(dummy_workflow.protocols) == 4
 
     assert (
-        dummy_workflow.protocols[dummy_group.id].protocols["dummy_0"].input_value
-        == replicator.template_values[0]
+        dummy_workflow.protocols[dummy_group.id].protocols["dummy_0"].input_value.value
+        == replicator.template_values[0].value
     )
     assert (
-        dummy_workflow.protocols[dummy_group.id].protocols["dummy_1"].input_value
-        == replicator.template_values[1]
+        dummy_workflow.protocols[dummy_group.id].protocols["dummy_1"].input_value.value
+        == replicator.template_values[1].value
     )
 
     assert dummy_workflow.protocols["dummy_single_0"].input_value == ProtocolPath(
@@ -209,8 +210,8 @@ def test_advanced_group_replicators():
     replicator = ProtocolReplicator(replicator_id)
 
     replicator.template_values = [
-        EstimatedQuantity(1.0 * unit.kelvin, 1.0 * unit.kelvin, "dummy_source"),
-        EstimatedQuantity(2.0 * unit.kelvin, 2.0 * unit.kelvin, "dummy_source"),
+        (1.0 * unit.kelvin).plus_minus(1.0 * unit.kelvin),
+        (2.0 * unit.kelvin).plus_minus(2.0 * unit.kelvin),
     ]
 
     dummy_schema.protocol_replicators = [replicator]
@@ -228,14 +229,14 @@ def test_advanced_group_replicators():
     assert len(dummy_workflow.protocols) == 6
 
     assert (
-        dummy_workflow.protocols["dummy_group_0"].protocols["dummy_0"].input_value
-        == replicator.template_values[0]
+        dummy_workflow.protocols["dummy_group_0"].protocols["dummy_0"].input_value.value
+        == replicator.template_values[0].value
     )
     assert "dummy_1" not in dummy_workflow.protocols["dummy_group_0"].protocols
 
     assert (
-        dummy_workflow.protocols["dummy_group_1"].protocols["dummy_1"].input_value
-        == replicator.template_values[1]
+        dummy_workflow.protocols["dummy_group_1"].protocols["dummy_1"].input_value.value
+        == replicator.template_values[1].value
     )
     assert "dummy_0" not in dummy_workflow.protocols["dummy_group_1"].protocols
 

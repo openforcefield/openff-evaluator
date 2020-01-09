@@ -9,6 +9,8 @@ from math import sqrt
 from os import makedirs, path
 from shutil import copy as file_copy
 
+import pint
+
 from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
 from propertyestimator.forcefield import (
     ForceFieldSource,
@@ -18,7 +20,6 @@ from propertyestimator.forcefield import (
 from propertyestimator.storage.attributes import FilePath, StorageAttribute
 from propertyestimator.substances import Substance
 from propertyestimator.utils.exceptions import EvaluatorException
-from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from propertyestimator.utils.utils import get_nested_attribute
 from propertyestimator.workflow.protocols import Protocol, ProtocolGraph
@@ -757,7 +758,7 @@ class WorkflowResult(AttributeClass):
     value = Attribute(
         docstring="The estimated value of the property and the uncertainty "
         "in that value.",
-        type_hint=EstimatedQuantity,
+        type_hint=pint.Measurement,
         optional=True,
     )
     gradients = Attribute(

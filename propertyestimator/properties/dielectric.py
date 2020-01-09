@@ -23,7 +23,6 @@ from propertyestimator.protocols.utils import (
 )
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils import timeseries
-from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import bootstrap
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import workflow_protocol
@@ -204,8 +203,8 @@ class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
             volumes=uncorrelated_volumes,
         )
 
-        self.value = EstimatedQuantity(
-            value * unit.dimensionless, uncertainty * unit.dimensionless, self.id
+        self.value = (value * unit.dimensionless).plus_minus(
+            uncertainty * unit.dimensionless
         )
 
 

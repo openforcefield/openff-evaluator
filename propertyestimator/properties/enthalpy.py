@@ -19,7 +19,6 @@ from propertyestimator.protocols.utils import (
 )
 from propertyestimator.storage.query import SimulationDataQuery, SubstanceQuery
 from propertyestimator.thermodynamics import Ensemble
-from propertyestimator.utils.quantities import EstimatedQuantity
 from propertyestimator.utils.statistics import ObservableType
 from propertyestimator.workflow.schemas import ProtocolReplicator, WorkflowSchema
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
@@ -178,7 +177,7 @@ class EnthalpyOfMixing(PhysicalProperty):
             if weight_by_mole_fraction:
                 # Make sure the weighted uncertainty is being used in the conditional comparison.
                 conditional_group.conditions[0].left_hand_value = ProtocolPath(
-                    "weighted_value.uncertainty",
+                    "weighted_value.error",
                     conditional_group.id,
                     weight_by_mole_fraction.id,
                 )
@@ -904,11 +903,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
         energy_of_vaporization.value_a = ProtocolPath("value", extract_liquid_energy.id)
 
         ideal_volume = miscellaneous.MultiplyValue("ideal_volume")
-        ideal_volume.value = EstimatedQuantity(
-            1.0 * unit.molar_gas_constant,
-            0.0 * unit.joule / unit.mole / unit.kelvin,
-            "Universal Constant",
-        )
+        ideal_volume.value = 1.0 * unit.molar_gas_constant
         ideal_volume.multiplier = ProtocolPath(
             "thermodynamic_state.temperature", "global"
         )
@@ -930,9 +925,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
             condition.condition_type = groups.ConditionalGroup.Condition.Type.LessThan
 
             condition.left_hand_value = ProtocolPath(
-                "result.uncertainty",
-                converge_uncertainty.id,
-                enthalpy_of_vaporization.id,
+                "result.error", converge_uncertainty.id, enthalpy_of_vaporization.id,
             )
             condition.right_hand_value = ProtocolPath("target_uncertainty", "global")
 
@@ -1183,11 +1176,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
         )
 
         ideal_volume = miscellaneous.MultiplyValue("ideal_volume")
-        ideal_volume.value = EstimatedQuantity(
-            1.0 * unit.molar_gas_constant,
-            0.0 * unit.joule / unit.mole / unit.kelvin,
-            "Universal Constant",
-        )
+        ideal_volume.value = 1.0 * unit.molar_gas_constant
         ideal_volume.multiplier = ProtocolPath(
             "thermodynamic_state.temperature", "global"
         )

@@ -333,7 +333,7 @@ def generate_base_simulation_protocols(
         A named tuple of the generated protocols.
     ProtocolPath
         A reference to the final value of the estimated observable
-        and its uncertainty (an `EstimatedQuantity`).
+        and its uncertainty (a `pint.Measurement`).
     StoredSimulationData
         An object which describes the default data from a simulation to store,
         such as the uncorrelated statistics and configurations.
@@ -408,7 +408,7 @@ def generate_base_simulation_protocols(
             condition.right_hand_value = ProtocolPath("target_uncertainty", "global")
             condition.condition_type = groups.ConditionalGroup.Condition.Type.LessThan
             condition.left_hand_value = ProtocolPath(
-                "value.uncertainty", conditional_group.id, analysis_protocol.id
+                "value.error", conditional_group.id, analysis_protocol.id
             )
 
             conditional_group.add_condition(condition)
