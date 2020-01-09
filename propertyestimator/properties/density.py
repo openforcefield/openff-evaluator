@@ -602,9 +602,7 @@ class ExcessMolarVolume(PhysicalProperty):
             f"scale_gradient_$({gradient_replicator_id}){id_suffix}"
         )
         scale_gradient.value = gradient_source
-        scale_gradient.divisor = ProtocolPath(
-            "result.value", number_of_molar_molecules.id
-        )
+        scale_gradient.divisor = ProtocolPath("result", number_of_molar_molecules.id)
 
         gradient_group.add_protocols(scale_gradient)
         gradient_source = ProtocolPath("result", gradient_group.id, scale_gradient.id)
