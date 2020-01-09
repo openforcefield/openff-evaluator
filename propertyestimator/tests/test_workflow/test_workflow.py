@@ -42,7 +42,7 @@ def test_simple_workflow_graph():
             result = results_futures[0].result()
 
         assert isinstance(result, WorkflowResult)
-        assert result.value == expected_value
+        assert result.value.value == expected_value.value
 
 
 def test_workflow_with_groups():
@@ -87,7 +87,7 @@ def test_workflow_with_groups():
             result = results_futures[0].result()
 
         assert isinstance(result, WorkflowResult)
-        assert result.value == expected_value
+        assert result.value.value == expected_value.value
 
 
 def test_nested_input():

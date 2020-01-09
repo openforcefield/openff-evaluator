@@ -608,7 +608,7 @@ class WorkflowSchema(AttributeClass):
         has been truncated to only include the top level name,
         e.g:
 
-        `some_protocol_id.value.uncertainty` would be truncated to `some_protocol_id.value`
+        `some_protocol_id.value.error` would be truncated to `some_protocol_id.value`
 
         and
 

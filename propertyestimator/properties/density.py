@@ -361,7 +361,7 @@ class ExcessMolarVolume(PhysicalProperty):
             if weight_by_mole_fraction:
                 # Make sure the weighted uncertainty is being used in the conditional comparison.
                 conditional_group.conditions[0].left_hand_value = ProtocolPath(
-                    "weighted_value.uncertainty",
+                    "weighted_value.error",
                     conditional_group.id,
                     weight_by_mole_fraction.id,
                 )

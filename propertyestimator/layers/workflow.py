@@ -186,7 +186,7 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
             physical_property = copy.deepcopy(physical_property)
             physical_property.source = provenance[physical_property.id]
             physical_property.value = workflow_result.value.value
-            physical_property.uncertainty = workflow_result.value.uncertainty
+            physical_property.uncertainty = workflow_result.value.error
 
             if len(workflow_result.gradients) > 0:
                 physical_property.gradients = workflow_result.gradients

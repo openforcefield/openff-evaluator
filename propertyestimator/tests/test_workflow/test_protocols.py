@@ -25,9 +25,6 @@ def test_nested_protocol_paths():
         == value_protocol_a.input_value.value
     )
 
-    value_protocol_a.set_value(ProtocolPath("input_value._value"), 0.5 * unit.kelvin)
-    assert value_protocol_a.input_value.value == 0.5 * unit.kelvin
-
     value_protocol_b = DummyInputOutputProtocol("protocol_b")
     value_protocol_b.input_value = (2 * unit.kelvin).plus_minus(0.05 * unit.kelvin)
 
