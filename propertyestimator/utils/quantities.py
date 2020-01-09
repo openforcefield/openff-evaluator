@@ -21,7 +21,7 @@ class EstimatedQuantity:
     Warnings
     --------
     The implementation of this class is temporary - it will be replaced with
-    a class which overrides the pint Quantity class when the codebase has
+    a class which overrides the `pint.Quantity` class when the codebase has
     been swapped to pint.
 
     Notes

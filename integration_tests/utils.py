@@ -37,7 +37,7 @@ def setup_server(
     conda_environment: str
         The name of the conda environment in which the propertyestimator
         package is installed.
-    worker_memory: Quantity
+    worker_memory: pint.Quantity
         The maximum amount of memory to request per worker.
     port: int
         The port that the server should listen for estimation requests on.

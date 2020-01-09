@@ -121,7 +121,7 @@ class ParameterGradient:
         """
         Parameters
         ----------
-        other: float, int, Quantity
+        other: float, int, pint.Quantity
         """
 
         if (
@@ -144,7 +144,7 @@ class ParameterGradient:
         """
         Parameters
         ----------
-        other: float, int, Quantity
+        other: float, int, pint.Quantity
         """
 
         if (
