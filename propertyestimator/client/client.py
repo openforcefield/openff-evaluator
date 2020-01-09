@@ -32,6 +32,8 @@ from propertyestimator.utils.tcp import (
     unpack_int,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class ConnectionOptions(AttributeClass):
     """The options to use when connecting to an `EvaluatorServer`
@@ -728,7 +730,7 @@ class EvaluatorClient:
             ):
                 continue
 
-            logging.info(f"The server has completed request {request_id}.")
+            logger.info(f"The server has completed request {request_id}.")
             should_run = False
 
         return response, error

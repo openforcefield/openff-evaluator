@@ -27,6 +27,8 @@ from propertyestimator.utils.tcp import (
     unpack_int,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class _Batch(AttributeClass):
     """Represents a batch of physical properties which are
@@ -323,7 +325,7 @@ class EvaluatorServer:
             self._queued_batches.pop(batch.id)
             self._finished_batches[batch.id] = batch
 
-            logging.info(f"Finished server request {batch.id}")
+            logger.info(f"Finished server request {batch.id}")
             return
 
         current_layer_type = batch.options.calculation_layers.pop(0)
@@ -340,7 +342,7 @@ class EvaluatorServer:
             self._launch_batch(batch)
             return
 
-        logging.info(f"Launching batch {batch.id} using the {current_layer_type} layer")
+        logger.info(f"Launching batch {batch.id} using the {current_layer_type} layer")
 
         layer_directory = os.path.join(
             self._working_directory, current_layer_type, batch.id
@@ -372,7 +374,7 @@ class EvaluatorServer:
             The length of the message being received.
         """
 
-        logging.info("Received estimation request from {}".format(address))
+        logger.info("Received estimation request from {}".format(address))
 
         # Read the incoming request from the server. The first four bytes
         # of the response should be the length of the message being sent.
@@ -480,7 +482,7 @@ class EvaluatorServer:
         except ValueError as e:
 
             trace = traceback.format_exception(None, e, e.__traceback__)
-            logging.info(f"Bad message type received: {trace}")
+            logger.info(f"Bad message type received: {trace}")
 
             # Discard the unrecognised message.
             if message_length > 0:
@@ -519,7 +521,7 @@ class EvaluatorServer:
                         to_read.remove(data)
 
         except Exception:
-            logging.exception(f"Fatal error in the main server loop")
+            logger.exception(f"Fatal error in the main server loop")
 
     def start(self, asynchronous=False):
         """Instructs the server to begin listening for incoming
@@ -536,7 +538,7 @@ class EvaluatorServer:
         if self._started:
             raise RuntimeError("The server has already been started.")
 
-        logging.info("Server listening at port {}".format(self._port))
+        logger.info("Server listening at port {}".format(self._port))
         self._started = True
         self._stopped = False
 

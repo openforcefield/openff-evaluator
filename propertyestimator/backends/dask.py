@@ -18,6 +18,8 @@ from propertyestimator import unit
 
 from .backends import CalculationBackend, ComputeResources, QueueWorkerResources
 
+logger = logging.getLogger(__name__)
+
 
 class _Multiprocessor:
     """A temporary utility class which runs a given
@@ -74,14 +76,14 @@ class _Multiprocessor:
 
                 logger_path = kwargs.pop("logger_path")
 
-                logger = logging.getLogger()
+                worker_logger = logging.getLogger()
 
-                if not len(logger.handlers):
+                if not len(worker_logger.handlers):
                     logger_handler = logging.FileHandler(logger_path)
                     logger_handler.setFormatter(formatter)
 
-                    logger.setLevel(logging.INFO)
-                    logger.addHandler(logger_handler)
+                    worker_logger.setLevel(logging.INFO)
+                    worker_logger.addHandler(logger_handler)
 
             return_value = func(*args, **kwargs)
             queue.put(return_value)
@@ -136,7 +138,7 @@ class _Multiprocessor:
             formatted_exception = traceback.format_exception(
                 None, return_value[0], return_value[1]
             )
-            logging.info(f"{formatted_exception} {return_value[0]} {return_value[1]}")
+            logger.info(f"{formatted_exception} {return_value[0]} {return_value[1]}")
 
             raise return_value[0]
 
@@ -428,7 +430,10 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
         if per_worker_logging:
 
             # Each worker should have its own log file.
-            kwargs["logger_path"] = "{}.log".format(get_worker().id)
+            os.makedirs("worker-logs", exist_ok=True)
+            kwargs["logger_path"] = os.path.join(
+                "worker-logs", f"{get_worker().id}.log"
+            )
 
         if available_resources.number_of_gpus > 0:
 
@@ -438,7 +443,7 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
                 "0" if worker_id not in gpu_assignments else gpu_assignments[worker_id]
             )
 
-            logging.info(
+            logger.info(
                 f"Launching a job with access to GPUs {available_resources._gpu_device_indices}"
             )
 
@@ -735,7 +740,7 @@ class DaskLocalCluster(BaseDaskBackend):
             worker_id = distributed.get_worker().id
             available_resources._gpu_device_indices = gpu_assignments[worker_id]
 
-            logging.info(
+            logger.info(
                 "Launching a job with access to GPUs {}".format(
                     gpu_assignments[worker_id]
                 )

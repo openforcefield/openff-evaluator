@@ -25,6 +25,8 @@ from propertyestimator.workflow.attributes import (
 from propertyestimator.workflow.plugins import workflow_protocol
 from propertyestimator.workflow.protocols import ProtocolGroup, ProtocolPath
 
+logger = logging.getLogger(__name__)
+
 
 @workflow_protocol()
 class ConditionalGroup(ProtocolGroup):
@@ -138,7 +140,7 @@ class ConditionalGroup(ProtocolGroup):
         ):
             right_hand_value = right_hand_value.to(left_hand_value.units)
 
-        logging.info(
+        logger.info(
             f"Evaluating condition for protocol {self.id}: "
             f"{left_hand_value} {condition.type} {right_hand_value}"
         )
@@ -247,7 +249,7 @@ class ConditionalGroup(ProtocolGroup):
 
             if conditions_met:
 
-                logging.info(
+                logger.info(
                     f"{self.id} loop finished after {self.current_iteration} iterations"
                 )
                 return
@@ -255,7 +257,7 @@ class ConditionalGroup(ProtocolGroup):
             if self.current_iteration >= self.max_iterations:
                 raise RuntimeError(f"{self.id} failed to converge.")
 
-            logging.info(
+            logger.info(
                 f"{self.id} criteria not yet met after {self.current_iteration} "
                 f"iterations"
             )

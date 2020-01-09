@@ -34,6 +34,8 @@ from propertyestimator.workflow.attributes import InputAttribute, OutputAttribut
 from propertyestimator.workflow.plugins import workflow_protocol
 from propertyestimator.workflow.protocols import Protocol
 
+logger = logging.getLogger(__name__)
+
 
 @workflow_protocol()
 class BaseBuildSystem(Protocol, abc.ABC):
@@ -474,7 +476,7 @@ class BuildLigParGenSystem(BaseBuildSystem):
                 != LigParGenForceFieldSource.ChargeModel.CM1A_1_14
             ):
 
-                logging.warning(
+                logger.warning(
                     f"The preferred charge model is {str(force_field_source.preferred_charge_model)}, "
                     f"however the system is charged and so the "
                     f"{str(LigParGenForceFieldSource.ChargeModel.CM1A_1_14)} model will be used in its "

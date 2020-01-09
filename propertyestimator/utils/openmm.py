@@ -11,6 +11,8 @@ from simtk import unit as simtk_unit
 from propertyestimator import unit
 from propertyestimator.attributes.attributes import UndefinedAttribute
 
+logger = logging.getLogger(__name__)
+
 
 def setup_platform_with_resources(compute_resources, high_precision=False):
     """Creates an OpenMM `Platform` object which requests a set
@@ -68,7 +70,7 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
         if high_precision:
             platform.setPropertyDefaultValue("Precision", "double")
 
-        logging.info(
+        logger.info(
             "Setting up an openmm platform on GPU {}".format(
                 compute_resources.gpu_device_indices or 0
             )
@@ -86,7 +88,7 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
             # noinspection PyCallByClass,PyTypeChecker
             platform = Platform.getPlatformByName("Reference")
 
-        logging.info(
+        logger.info(
             "Setting up a simulation with {} threads".format(
                 compute_resources.number_of_threads
             )
@@ -199,7 +201,7 @@ def openmm_unit_to_pint(openmm_unit):
         pint_unit = unit(openmm_unit_string).units
     except UndefinedUnitError:
 
-        logging.info(
+        logger.info(
             f"The {openmm_unit_string} OMM unit string (based on the {openmm_unit} object) "
             f"is undefined in pint"
         )
@@ -275,7 +277,7 @@ def pint_unit_to_openmm(pint_unit):
         openmm_unit = string_to_unit(pint_unit_string)
     except AttributeError:
 
-        logging.info(
+        logger.info(
             f"The {pint_unit_string} pint unit string (based on the {pint_unit} object) "
             f"could not be understood by `openforcefield.utils.string_to_unit`"
         )

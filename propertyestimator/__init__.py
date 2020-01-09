@@ -27,8 +27,10 @@ for entry_point in pkg_resources.iter_entry_points("propertyestimator.plugins"):
         import logging
         import traceback
 
+        logger = logging.getLogger(__name__)
+
         formatted_exception = traceback.format_exception(None, e, e.__traceback__)
-        logging.warning(
+        logger.warning(
             f"Could not load the {entry_point} plugin: {formatted_exception}"
         )
 

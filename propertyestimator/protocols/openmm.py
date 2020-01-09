@@ -34,6 +34,8 @@ from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEnc
 from propertyestimator.utils.statistics import ObservableType, StatisticsArray
 from propertyestimator.workflow.plugins import workflow_protocol
 
+logger = logging.getLogger(__name__)
+
 
 @workflow_protocol()
 class OpenMMEnergyMinimisation(BaseEnergyMinimisation):
@@ -476,7 +478,7 @@ class OpenMMSimulation(BaseSimulation):
             self._state_path
         ):
 
-            logging.info("No checkpoint files were found.")
+            logger.info("No checkpoint files were found.")
             return current_step_number
 
         if not os.path.isfile(self._local_statistics_path) or not os.path.isfile(
@@ -488,7 +490,7 @@ class OpenMMSimulation(BaseSimulation):
                 "or statistics files seem to be missing. This should not happen."
             )
 
-        logging.info("Restoring the system state from checkpoint files.")
+        logger.info("Restoring the system state from checkpoint files.")
 
         # If they do, load the current state from disk.
         with open(self._state_path, "r") as file:
@@ -536,7 +538,7 @@ class OpenMMSimulation(BaseSimulation):
         # Handle the truncation of the trajectory file.
         self._truncate_trajectory_file(expected_number_of_frames)
 
-        logging.info("System state restored from checkpoint files.")
+        logger.info("System state restored from checkpoint files.")
 
         return checkpoint.current_step_number
 

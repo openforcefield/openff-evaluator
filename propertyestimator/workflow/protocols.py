@@ -27,6 +27,8 @@ from propertyestimator.workflow.exceptions import WorkflowException
 from propertyestimator.workflow.schemas import ProtocolGroupSchema, ProtocolSchema
 from propertyestimator.workflow.utils import ProtocolPath
 
+logger = logging.getLogger(__name__)
+
 
 class Protocol(AttributeClass, abc.ABC):
     """The base class for a protocol which would form one
@@ -1131,7 +1133,7 @@ class ProtocolGraph:
 
                     protocol.set_value(source_path, target_value)
 
-            logging.info(f"Executing {protocol.id}")
+            logger.info(f"Executing {protocol.id}")
 
             start_time = time.perf_counter()
             protocol.execute(directory, available_resources)
@@ -1142,11 +1144,11 @@ class ProtocolGraph:
             end_time = time.perf_counter()
 
             execution_time = (end_time - start_time) * 1000
-            logging.info(f"{protocol.id} finished executing after {execution_time} ms")
+            logger.info(f"{protocol.id} finished executing after {execution_time} ms")
 
         except Exception as e:
 
-            logging.info(f"Protocol failed to execute: {protocol.id}")
+            logger.info(f"Protocol failed to execute: {protocol.id}")
 
             exception = WorkflowException.from_exception(e)
             exception.protocol_id = protocol.id

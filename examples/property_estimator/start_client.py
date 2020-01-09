@@ -5,6 +5,8 @@ from propertyestimator import client
 from propertyestimator.datasets.thermoml import ThermoMLDataSet
 from propertyestimator.utils import get_data_filename, setup_timestamp_logging
 
+logger = logging.getLogger(__name__)
+
 
 def main():
     """Submit calculations to a running server instance"""
@@ -30,11 +32,11 @@ def main():
 
     if error is not None:
 
-        logging.info(f"The server failed to complete the request:")
-        logging.info(f"Message: {error.message}")
+        logger.info(f"The server failed to complete the request:")
+        logger.info(f"Message: {error.message}")
         return
 
-    logging.info(f"The server has completed the request.")
+    logger.info(f"The server has completed the request.")
 
     # Save the response
     results.json("results.json")
