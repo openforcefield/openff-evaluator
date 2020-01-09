@@ -32,7 +32,9 @@ def _type_string_to_object(type_string):
         )
 
     type_string_split = type_string.split(".")
+
     class_object = None
+    module_path = None
 
     while len(type_string_split) > 0:
 
@@ -40,8 +42,13 @@ def _type_string_to_object(type_string):
 
         try:
 
+            if module_path is None:
+                module_path = class_name
+            else:
+                module_path = module_path + "." + class_name
+
             # First try and treat the current string as a module
-            module = importlib.import_module(class_name)
+            module = importlib.import_module(module_path)
             class_object = module
 
         except ImportError:
