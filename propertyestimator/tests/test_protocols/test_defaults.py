@@ -1,27 +1,10 @@
-import importlib
-
 import pytest
 
+from propertyestimator.plugins import register_default_plugins
 from propertyestimator.workflow.plugins import registered_workflow_protocols
 
 # Load the default protocols.
-protocol_modules = [
-    "analysis",
-    "coordinates",
-    "forcefield",
-    "gradients",
-    "groups",
-    "miscellaneous",
-    "reweighting",
-    "simulation",
-    "storage",
-    "yank",
-]
-
-importlib.import_module(f"propertyestimator.properties")
-
-for protocol_module in protocol_modules:
-    importlib.import_module(f"propertyestimator.protocols.{protocol_module}")
+register_default_plugins()
 
 
 @pytest.mark.parametrize("available_protocol", registered_workflow_protocols)

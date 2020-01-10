@@ -76,7 +76,8 @@ def test_server_spin_up():
             with DaskLocalCluster() as calculation_backend:
 
                 server = EvaluatorServer(
-                    calculation_backend=calculation_backend, working_directory=directory,
+                    calculation_backend=calculation_backend,
+                    working_directory=directory,
                 )
 
                 with server:
@@ -109,7 +110,8 @@ def test_launch_batch():
             with DaskLocalCluster() as calculation_backend:
 
                 server = EvaluatorServer(
-                    calculation_backend=calculation_backend, working_directory=directory,
+                    calculation_backend=calculation_backend,
+                    working_directory=directory,
                 )
 
                 server._queued_batches[batch.id] = batch
