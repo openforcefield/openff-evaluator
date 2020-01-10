@@ -505,7 +505,20 @@ def _create_pdb_and_topology(molecule, file_path):
         residue_map[residue.name] = None
 
         if smiles == "[H]O[H]":
+
             residue_map[residue.name] = "HOH"
+
+            # Re-assign the water atom names. These need to be set to get
+            # correct CONECT statements.
+            h_counter = 1
+
+            for atom in residue.atoms:
+
+                if atom.element.symbol == "O":
+                    atom.name = "O1"
+                else:
+                    atom.name = f"H{h_counter}"
+                    h_counter += 1
 
         elif smiles == "[Cl-]":
 
