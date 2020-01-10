@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from propertyestimator import unit
-from propertyestimator.utils import create_molecule_from_smiles, packmol
+from propertyestimator.utils import packmol
 
 
 def _validate_water_results(topology, positions):
@@ -43,10 +43,10 @@ def _validate_paracetamol_results(topology, positions):
 
 
 def test_packmol_packbox():
-    """Test transitive graph reduction utility."""
+    from openforcefield.topology import Molecule
     from simtk import unit as simtk_unit
 
-    molecules = [create_molecule_from_smiles("O")]
+    molecules = [Molecule.from_smiles("O")]
 
     topology, positions = packmol.pack_box(
         molecules, [10], mass_density=1.0 * unit.grams / unit.milliliters
@@ -75,7 +75,7 @@ def test_packmol_packbox():
         packmol.pack_box(molecules, [10, 20], box_size=([20] * 3) * unit.angstrom)
 
     # Test something a bit more tricky than water
-    molecules = [create_molecule_from_smiles("CC(=O)NC1=CC=C(C=C1)O")]
+    molecules = [Molecule.from_smiles("CC(=O)NC1=CC=C(C=C1)O")]
 
     topology, positions = packmol.pack_box(
         molecules, [1], box_size=([20] * 3) * unit.angstrom
