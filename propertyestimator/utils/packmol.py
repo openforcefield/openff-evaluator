@@ -474,34 +474,23 @@ def _create_pdb_and_topology(molecule, file_path):
     """
     import mdtraj
     from mdtraj.core import residue_names
+    from openforcefield.topology import Topology
+    from simtk.openmm.app import PDBFile
 
     # Check whether the molecule has a configuration defined, and if not,
     # define one.
     if molecule.n_conformers <= 0:
         molecule.generate_conformers(n_conformers=1)
 
-    # Create a temporary mol2 / SDF file then reload it using mdtraj.
-    # This is a necessary workaround as sometimes the PDB saved by the
-    # toolkit will have a different atom ordering to the original molecule
-    # object.
-    try:
+    # Create a temporary pdb file then reload it using mdtraj. This is a
+    # necessary workaround as sometimes the PDB saved by the toolkit will
+    # have a different atom ordering to the original molecule object.
+    topology = Topology.from_molecules([molecule])
 
-        # First try to mol2
-        with tempfile.NamedTemporaryFile(suffix=".mol2") as mol2_file:
-            molecule.to_file(mol2_file.name, file_format="MOL2")
-            mdtraj_molecule = mdtraj.load_mol2(mol2_file.name)
-
-    except ValueError:
-
-        # Fall back to going via the OFF toolkit / OpenMM
-        from openforcefield.topology import Topology
-        from simtk.openmm.app import PDBFile
-
-        topology = Topology.from_molecules([molecule])
-
-        with tempfile.NamedTemporaryFile(suffix=".pdb") as pdb_file:
-            PDBFile.writeFile(topology.to_openmm(), molecule.conformers[0], pdb_file)
-            mdtraj_molecule = mdtraj.load_pdb(pdb_file.name)
+    with tempfile.NamedTemporaryFile(mode="r+", suffix=".pdb") as pdb_file:
+        PDBFile.writeFile(topology.to_openmm(), molecule.conformers[0], pdb_file)
+        pdb_file.flush()
+        mdtraj_molecule = mdtraj.load_pdb(pdb_file.name)
 
     # Change the assigned residue name (sometimes molecules are assigned
     # an amino acid residue name even if that molecule is not an amino acid,
