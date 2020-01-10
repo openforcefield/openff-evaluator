@@ -426,13 +426,13 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
             for component in substance.components:
 
-                molecule = Molecule.from_smiles(component.smiles, allow_undefined_stereo=True)
+                molecule = Molecule.from_smiles(
+                    component.smiles, allow_undefined_stereo=True
+                )
 
-                for atom in molecule.atoms:
-
-                    if atom.element in allowed_elements:
-                        continue
-
+                if not all(
+                    [x.element.symbol in allowed_elements for x in molecule.atoms]
+                ):
                     return False
 
             return True

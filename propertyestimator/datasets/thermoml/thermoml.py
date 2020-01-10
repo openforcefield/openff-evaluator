@@ -394,7 +394,7 @@ class _Compound:
         if not molecule:
             raise ValueError(f"The InchI string ({inchi_string}) could not be parsed")
 
-        return mol_to_smiles(molecule, explicit_hydrogen=False)
+        return mol_to_smiles(molecule, explicit_hydrogen=False, mapped=False)
 
     @staticmethod
     def smiles_from_thermoml_smiles_string(thermoml_string):
@@ -416,7 +416,7 @@ class _Compound:
             raise ValueError("The string cannot be `None`.")
 
         molecule = load_molecule(thermoml_string)
-        return mol_to_smiles(molecule, explicit_hydrogen=False)
+        return mol_to_smiles(molecule, explicit_hydrogen=False, mapped=False)
 
     @staticmethod
     def smiles_from_common_name(common_name):
@@ -442,7 +442,9 @@ class _Compound:
 
             molecule = Molecule.from_iupac(common_name, allow_undefined_stereo=True)
             cmiles_molecule = load_molecule(molecule.to_smiles())
-            smiles = mol_to_smiles(cmiles_molecule, explicit_hydrogen=False)
+            smiles = mol_to_smiles(
+                cmiles_molecule, explicit_hydrogen=False, mapped=False
+            )
 
         except LicenseError:
             smiles = None

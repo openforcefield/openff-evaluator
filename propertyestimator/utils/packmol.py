@@ -14,6 +14,7 @@ import string
 import subprocess
 import tempfile
 from distutils.spawn import find_executable
+from functools import reduce
 
 import numpy as np
 from simtk import openmm
@@ -339,7 +340,9 @@ def _approximate_volume_by_density(
 
     for (molecule, number) in zip(molecules, n_copies):
 
-        molecule_mass = sum([atom.mass for atom in molecule.atoms])
+        molecule_mass = reduce(
+            (lambda x, y: x + y), [atom.mass for atom in molecule.atoms]
+        )
         molecule_mass = openmm_quantity_to_pint(molecule_mass) / unit.avogadro_constant
 
         molecule_volume = molecule_mass / mass_density
@@ -485,7 +488,7 @@ def _create_pdb_and_topology(molecule, file_path):
 
         # First try to mol2
         with tempfile.NamedTemporaryFile(suffix=".mol2") as mol2_file:
-            molecule.to_file(mol2_file, file_format="MOL2")
+            molecule.to_file(mol2_file.name, file_format="MOL2")
             mdtraj_molecule = mdtraj.load_mol2(mol2_file.name)
 
     except ValueError:

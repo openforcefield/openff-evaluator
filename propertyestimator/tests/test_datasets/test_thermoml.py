@@ -10,7 +10,10 @@ from propertyestimator.datasets.thermoml.thermoml import (
     ThermoMLDataSet,
     _unit_from_thermoml_string,
 )
+from propertyestimator.plugins import register_default_plugins
 from propertyestimator.utils import get_data_filename
+
+register_default_plugins()
 
 
 @thermoml_property("Osmotic coefficient", supported_phases=PropertyPhase.Liquid)
