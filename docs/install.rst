@@ -14,14 +14,21 @@ Installation from Conda
 
 To install the ``propertyestimator`` from the ``omnia`` channel, simply run::
 
-    conda install -c openeye -c omnia propertyestimator
+    conda install -c omnia propertyestimator
 
-Optional Dependencies
----------------------
+Recommended Dependencies
+------------------------
 
-To parameterize systems with the Amber ``tleap`` tool using a ``TLeapForceFieldSource`` the ``ambertools19`` package must be installed::
+If you have access to the fantastic `OpenEye toolkit <https://docs.eyesopen.com/toolkits/python/index.html>`_ we
+recommend installing this to enable (among many other things) the use of the ``BuildDockedCoordinates`` protocol and
+faster conformer generation / AM1BCC partial charge calculations::
 
-    conda install -c ambermd 'ambertools ==19.0'
+    conda install -c openeye openeye-toolkits
+
+To parameterize systems with the Amber ``tleap`` tool using a ``TLeapForceFieldSource`` the ``ambertools19`` package
+must be installed::
+
+    conda install -c ambermd 'ambertools >=19.0'
 
 Installation from Source
 ------------------------

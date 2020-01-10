@@ -379,17 +379,22 @@ class _Compound:
         str, optional
             None if the identifier cannot be converted, otherwise the converted SMILES pattern.
         """
-        from openeye import oechem
+        from cmiles.utils import mol_to_smiles
+
+        try:
+            import rdkit.Chem
+        except ImportError:
+            return None
 
         if inchi_string is None:
             raise ValueError("The InChI string cannot be `None`.")
 
-        temp_molecule = oechem.OEMol()
+        molecule = rdkit.Chem.MolFromInchi(inchi_string, removeHs=False)
 
-        if oechem.OEParseInChI(temp_molecule, inchi_string) is False:
-            raise ValueError("All InChI strings in ThermoML files must be valid.")
+        if not molecule:
+            raise ValueError(f"The InchI string ({inchi_string}) could not be parsed")
 
-        return oechem.OEMolToSmiles(temp_molecule)
+        return mol_to_smiles(molecule, explicit_hydrogen=False, mapped=False)
 
     @staticmethod
     def smiles_from_thermoml_smiles_string(thermoml_string):
@@ -405,28 +410,17 @@ class _Compound:
         str, optional
             None if the identifier cannot be converted, otherwise the converted SMILES pattern.
         """
-        from openeye import oechem
+        from cmiles.utils import load_molecule, mol_to_smiles
 
         if thermoml_string is None:
             raise ValueError("The string cannot be `None`.")
 
-        temp_molecule = oechem.OEMol()
-
-        parse_smiles_options = oechem.OEParseSmilesOptions(quiet=True)
-
-        # Should make sure all smiles are OEChem consistent.
-        if (
-            oechem.OEParseSmiles(temp_molecule, thermoml_string, parse_smiles_options)
-            is False
-        ):
-            raise ValueError("All SMILES strings in ThermoML files must be valid.")
-
-        return oechem.OEMolToSmiles(temp_molecule)
+        molecule = load_molecule(thermoml_string)
+        return mol_to_smiles(molecule, explicit_hydrogen=False, mapped=False)
 
     @staticmethod
     def smiles_from_common_name(common_name):
-        """Attempts to create a SMILES pattern from a common molecular name using
-        the `oechem.OEParseIUPACName` method.
+        """Attempts to create a SMILES pattern from an IUPAC name.
 
         Parameters
         ----------
@@ -437,17 +431,23 @@ class _Compound:
         str, None
             None if the identifier cannot be converted, otherwise the converted SMILES pattern.
         """
-        from openeye import oechem
-        from openeye import oeiupac
+        from cmiles.utils import load_molecule, mol_to_smiles
+        from openforcefield.topology import Molecule
+        from openforcefield.utils import LicenseError
 
         if common_name is None:
             return None
 
-        temp_molecule = oechem.OEMol()
-        smiles = None
+        try:
 
-        if oeiupac.OEParseIUPACName(temp_molecule, common_name) is True:
-            smiles = oechem.OEMolToSmiles(temp_molecule)
+            molecule = Molecule.from_iupac(common_name, allow_undefined_stereo=True)
+            cmiles_molecule = load_molecule(molecule.to_smiles())
+            smiles = mol_to_smiles(
+                cmiles_molecule, explicit_hydrogen=False, mapped=False
+            )
+
+        except LicenseError:
+            smiles = None
 
         return smiles
 

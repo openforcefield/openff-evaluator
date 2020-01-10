@@ -32,8 +32,15 @@ before_install:
 install:
 - python devtools/scripts/create_conda_env.py -n=test -p=$PYTHON_VER devtools/conda-envs/test_env.yaml
 - conda activate test
+
+  # Prevent sporadic travis failures on MacOS.
 - python -c "import fcntl; fcntl.fcntl(1, fcntl.F_SETFL, 0)"
+
+  # Install the OpenEye toolkits.
+- conda install -c openeye openeye-toolkits
+  # Install this framework.
 - python setup.py develop --no-deps
+
 script:
   - if [[ $LINT == false ]]; then pytest -v --cov=propertyestimator propertyestimator/tests/ ; fi
   - if [[ $LINT == true ]]; then conda install flake8 ; flake8 propertyestimator ; flake8 examples ; fi

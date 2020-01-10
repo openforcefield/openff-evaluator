@@ -2,7 +2,6 @@ name: test
 channels:
   - conda-forge
   - omnia
-  - openeye
 dependencies:
     # Base depends
   - python
@@ -13,11 +12,8 @@ dependencies:
   - pytest-cov
   - codecov
 
-    # Commercial
-  - openeye-toolkits
-
     # Standard dependencies
-  - openforcefield >=0.4.0
+  - openforcefield >=0.4.1
   - smirnoff99frosst
   - numpy
   - pandas
@@ -36,3 +32,4 @@ dependencies:
   - pyyaml
   - requests
   - requests-mock # For testing http requests.
+  - cmiles

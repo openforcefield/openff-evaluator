@@ -34,10 +34,10 @@ def test_build_smirnoff_system():
         with open(force_field_path, "w") as file:
             file.write(build_tip3p_smirnoff_force_field().json())
 
-        substance = Substance.from_components("C", "CO", "C(=O)N")
+        substance = Substance.from_components("C", "O", "CO", "C(=O)N")
 
         build_coordinates = BuildCoordinatesPackmol("build_coordinates")
-        build_coordinates.max_molecules = 9
+        build_coordinates.max_molecules = 8
         build_coordinates.substance = substance
         build_coordinates.execute(directory, None)
 

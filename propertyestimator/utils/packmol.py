@@ -14,17 +14,19 @@ import string
 import subprocess
 import tempfile
 from distutils.spawn import find_executable
+from functools import reduce
 
 import numpy as np
 from simtk import openmm
 
 from propertyestimator import unit
+from propertyestimator.utils.openmm import openmm_quantity_to_pint
 from propertyestimator.utils.utils import temporarily_change_directory
 
 logger = logging.getLogger(__name__)
 
 
-PACKMOL_PATH = (
+_PACKMOL_PATH = (
     find_executable("packmol") or shutil.which("packmol") or None
     if "PACKMOL" not in os.environ
     else os.environ["PACKMOL"]
@@ -71,8 +73,8 @@ def pack_box(
 
     Parameters
     ----------
-    molecules : list of openeye.oechem.OEMol
-        The molecules in the system (with 3D geometries)
+    molecules : list of openforcefield.topology.Molecule
+        The molecules in the system.
     number_of_copies : list of int
         A list of the number of copies of each molecule type, of length
         equal to the length of `molecules`.
@@ -172,7 +174,7 @@ def pack_box(
         )
 
     # Run packmol
-    if PACKMOL_PATH is None:
+    if _PACKMOL_PATH is None:
         raise IOError("Packmol not found, cannot run pack_box()")
 
     output_file_name = "packmol_output.pdb"
@@ -232,14 +234,12 @@ def pack_box(
     with open(packmol_file_path, "w") as file_handle:
         file_handle.write(packmol_input)
 
-    packmol_succeeded = False
-
     with temporarily_change_directory(working_directory):
 
         with open(packmol_file_name) as file_handle:
 
             result = subprocess.check_output(
-                PACKMOL_PATH, stdin=file_handle, stderr=subprocess.STDOUT
+                _PACKMOL_PATH, stdin=file_handle, stderr=subprocess.STDOUT
             ).decode("utf-8")
 
             if verbose:
@@ -334,19 +334,16 @@ def _approximate_volume_by_density(
     extensively tested for stability but has been used in the Mobley lab
     for perhaps ~100 different systems without substantial problems.
     """
-    from openeye import oechem
 
     # Load molecules to get molecular weights
     volume = 0.0 * unit.angstrom ** 3
 
     for (molecule, number) in zip(molecules, n_copies):
 
-        molecule_mass = (
-            oechem.OECalculateMolecularWeight(molecule)
-            * unit.grams
-            / unit.mole
-            / unit.avogadro_constant
+        molecule_mass = reduce(
+            (lambda x, y: x + y), [atom.mass for atom in molecule.atoms]
         )
+        molecule_mass = openmm_quantity_to_pint(molecule_mass) / unit.avogadro_constant
 
         molecule_volume = molecule_mass / mass_density
 
@@ -466,7 +463,7 @@ def _create_pdb_and_topology(molecule, file_path):
     openeye molecule.
     Parameters
     ----------
-    molecule: openeye.oechem.OEChem
+    molecule: openforcefield.topology.Molecule
         The component to create the PDB and topology for.
     file_path: str
         The path pointing to where the PDB file should be created.
@@ -477,98 +474,113 @@ def _create_pdb_and_topology(molecule, file_path):
     """
     import mdtraj
     from mdtraj.core import residue_names
+    from openforcefield.topology import Topology
+    from simtk.openmm.app import PDBFile
 
-    from openeye import oechem
+    # Check whether the molecule has a configuration defined, and if not,
+    # define one.
+    if molecule.n_conformers <= 0:
+        molecule.generate_conformers(n_conformers=1)
 
-    # Create a temporary mol2 file using OE, change its
-    # residue name (sometimes OE assigns the molecule an
-    # amino acid residue name even if that molecule is not
-    # an amino acid, e.g. C(CO)N is not Gly), save the
-    # altered object as a pdb.
-    with tempfile.NamedTemporaryFile(suffix=".mol2") as mol2_file:
+    # Create a temporary pdb file then reload it using mdtraj. This is a
+    # necessary workaround as sometimes the PDB saved by the toolkit will
+    # have a different atom ordering to the original molecule object.
+    topology = Topology.from_molecules([molecule])
 
-        mol2_flavor = oechem.OEOFlavor_MOL2_DEFAULT
+    with tempfile.NamedTemporaryFile(mode="r+", suffix=".pdb") as pdb_file:
+        PDBFile.writeFile(topology.to_openmm(), molecule.conformers[0], pdb_file)
+        pdb_file.flush()
+        mdtraj_molecule = mdtraj.load_pdb(pdb_file.name)
 
-        ofs = oechem.oemolostream(mol2_file.name)
-        ofs.SetFlavor(oechem.OEFormat_MOL2, mol2_flavor)
+    # Change the assigned residue name (sometimes molecules are assigned
+    # an amino acid residue name even if that molecule is not an amino acid,
+    # e.g. C(CO)N is not Gly) and save the altered object as a pdb.
+    smiles = molecule.to_smiles()
 
-        oechem.OEWriteConstMolecule(ofs, molecule)
-        ofs.close()
+    # Choose a random residue name.
+    residue_map = {}
 
-        # Load in the OE created mol2 file.
-        oe_mol2 = mdtraj.load_mol2(mol2_file.name)
-        smiles = oechem.OEMolToSmiles(molecule)
+    for residue in mdtraj_molecule.topology.residues:
 
-        # Choose a random residue name.
-        residue_map = {}
+        residue_map[residue.name] = None
 
-        for residue in oe_mol2.topology.residues:
+        if smiles == "[H]O[H]":
 
-            residue_map[residue.name] = None
+            residue_map[residue.name] = "HOH"
 
-            if smiles == "O":
-                residue_map[residue.name] = "HOH"
+            # Re-assign the water atom names. These need to be set to get
+            # correct CONECT statements.
+            h_counter = 1
 
-            elif smiles == "[Cl-]":
+            for atom in residue.atoms:
 
-                residue_map[residue.name] = "Cl-"
+                if atom.element.symbol == "O":
+                    atom.name = "O1"
+                else:
+                    atom.name = f"H{h_counter}"
+                    h_counter += 1
 
-                for atom in residue.atoms:
-                    atom.name = "Cl-"
+        elif smiles == "[Cl-]":
 
-            elif smiles == "[Na+]":
+            residue_map[residue.name] = "Cl-"
 
-                residue_map[residue.name] = "Na+"
+            for atom in residue.atoms:
+                atom.name = "Cl-"
 
-                for atom in residue.atoms:
-                    atom.name = "Na+"
+        elif smiles == "[Na+]":
 
-        for original_residue_name in residue_map:
+            residue_map[residue.name] = "Na+"
 
-            if residue_map[original_residue_name] is not None:
-                continue
+            for atom in residue.atoms:
+                atom.name = "Na+"
 
-            # Make sure the residue is not already reserved, as this can occasionally
-            # result in bonds being automatically added in the wrong places when
-            # loading the pdb file either through mdtraj or openmm
-            forbidden_residue_names = [
-                *residue_names._AMINO_ACID_CODES,
-                *residue_names._SOLVENT_TYPES,
-                *residue_names._WATER_RESIDUES,
-                "ADE",
-                "CYT",
-                "CYX",
-                "DAD",
-                "DGU",
-                "FOR",
-                "GUA",
-                "HID",
-                "HIE",
-                "HIH",
-                "HSD",
-                "HSH",
-                "HSP",
-                "NMA",
-                "THY",
-                "URA",
-            ]
+    for original_residue_name in residue_map:
 
+        if residue_map[original_residue_name] is not None:
+            continue
+
+        # Make sure the residue name is not already reserved as this can
+        # occasionally result in bonds being automatically added in the wrong
+        # places when loading the pdb file either through mdtraj or openmm
+
+        # noinspection PyProtectedMember
+        forbidden_residue_names = [
+            *residue_names._AMINO_ACID_CODES,
+            *residue_names._SOLVENT_TYPES,
+            *residue_names._WATER_RESIDUES,
+            "ADE",
+            "CYT",
+            "CYX",
+            "DAD",
+            "DGU",
+            "FOR",
+            "GUA",
+            "HID",
+            "HIE",
+            "HIH",
+            "HSD",
+            "HSH",
+            "HSP",
+            "NMA",
+            "THY",
+            "URA",
+        ]
+
+        new_residue_name = "".join(
+            [random.choice(string.ascii_uppercase) for _ in range(3)]
+        )
+
+        while new_residue_name in forbidden_residue_names:
+            # Re-choose the residue name until we find a safe one.
             new_residue_name = "".join(
                 [random.choice(string.ascii_uppercase) for _ in range(3)]
             )
 
-            while new_residue_name in forbidden_residue_names:
-                # Re-choose the residue name until we find a safe one.
-                new_residue_name = "".join(
-                    [random.choice(string.ascii_uppercase) for _ in range(3)]
-                )
+        residue_map[original_residue_name] = new_residue_name
 
-            residue_map[original_residue_name] = new_residue_name
+    for residue in mdtraj_molecule.topology.residues:
+        residue.name = residue_map[residue.name]
 
-        for residue in oe_mol2.topology.residues:
-            residue.name = residue_map[residue.name]
-
-        # Create the final pdb file.
-        oe_mol2.save_pdb(file_path)
-
-    return oe_mol2.topology
+    # Create the final pdb file.
+    mdtraj_molecule.save_pdb(file_path)
+    return mdtraj_molecule.topology

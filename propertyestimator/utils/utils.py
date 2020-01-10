@@ -2,55 +2,11 @@
 A collection of general utilities.
 """
 import contextlib
-import copy
 import logging
 import os
 import sys
 
 from propertyestimator.utils.string import extract_variable_index_and_name
-
-logger = logging.getLogger(__name__)
-
-
-def find_types_with_decorator(class_type, decorator_type):
-    """ A method to collect all attributes marked by a specified
-    decorator type (e.g. InputProperty).
-
-    Parameters
-    ----------
-    class_type: type
-        The class to pull attributes from.
-    decorator_type: type
-        The type of decorator to search for.
-
-    Returns
-    ----------
-    The names of the attributes decorated with the specified decorator.
-    """
-    inputs = []
-
-    def get_bases(current_base_type):
-
-        bases = [current_base_type]
-
-        for base_type in current_base_type.__bases__:
-            bases.extend(get_bases(base_type))
-
-        return bases
-
-    all_bases = get_bases(class_type)
-
-    for base in all_bases:
-
-        inputs.extend(
-            [
-                attribute_name
-                for attribute_name in base.__dict__
-                if isinstance(base.__dict__[attribute_name], decorator_type)
-            ]
-        )
-
-    return inputs
 
 
 def get_data_filename(relative_path):
@@ -77,72 +33,6 @@ def get_data_filename(relative_path):
         )
 
     return fn
-
-
-_cached_molecules = {}
-
-
-def create_molecule_from_smiles(smiles, number_of_conformers=1):
-    """
-    Create an ``OEMol`` molecule from a smiles pattern.
-
-    .. todo:: Replace with the toolkit function when finished.
-
-    Parameters
-    ----------
-    smiles : str
-        The smiles pattern to create the molecule from.
-    number_of_conformers: int
-        The number of conformers to generate for the molecule using Omega.
-
-    Returns
-    -------
-    molecule : OEMol
-        OEMol with no charges, and a number of conformers as specified
-        by `number_of_conformers`
-     """
-
-    from openeye import oechem, oeomega
-
-    # Check cache
-    if (number_of_conformers, smiles) in _cached_molecules:
-        return copy.deepcopy(_cached_molecules[(number_of_conformers, smiles)])
-
-    # Create molecule from smiles.
-    molecule = oechem.OEMol()
-    parse_smiles_options = oechem.OEParseSmilesOptions(quiet=True)
-
-    if not oechem.OEParseSmiles(molecule, smiles, parse_smiles_options):
-
-        logger.warning("Could not parse SMILES: " + smiles)
-        return None
-
-    # Normalize molecule
-    oechem.OEAssignAromaticFlags(molecule, oechem.OEAroModelOpenEye)
-    oechem.OEAddExplicitHydrogens(molecule)
-
-    # Create configuration
-    if number_of_conformers > 0:
-
-        omega = oeomega.OEOmega()
-
-        omega.SetMaxConfs(number_of_conformers)
-        omega.SetIncludeInput(False)
-        omega.SetCanonOrder(False)
-        omega.SetSampleHydrogens(True)
-        omega.SetStrictStereo(True)
-        omega.SetStrictAtomTypes(False)
-
-        status = omega(molecule)
-
-        if not status:
-
-            logger.warning("Could not generate a conformer for " + smiles)
-            return None
-
-    _cached_molecules[(number_of_conformers, smiles)] = molecule
-
-    return molecule
 
 
 def setup_timestamp_logging(file_path=None):

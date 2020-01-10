@@ -8,14 +8,12 @@ from enum import IntFlag, unique
 
 import pandas
 import pint
-from simtk.openmm.app import element
 
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
 from propertyestimator.datasets import CalculationSource, MeasurementSource, Source
 from propertyestimator.substances import MoleFraction, Substance
 from propertyestimator.thermodynamics import ThermodynamicState
-from propertyestimator.utils import create_molecule_from_smiles
 from propertyestimator.utils.serialization import TypedBaseModel
 
 
@@ -420,6 +418,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             The symbols (e.g. C, H, Cl) of the elements to
             retain.
         """
+        from openforcefield.topology import Molecule
 
         def filter_function(physical_property):
 
@@ -427,18 +426,13 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
             for component in substance.components:
 
-                oe_molecule = create_molecule_from_smiles(component.smiles, 0)
+                molecule = Molecule.from_smiles(
+                    component.smiles, allow_undefined_stereo=True
+                )
 
-                for atom in oe_molecule.GetAtoms():
-
-                    atomic_number = atom.GetAtomicNum()
-                    atomic_element = element.Element.getByAtomicNumber(
-                        atomic_number
-                    ).symbol
-
-                    if atomic_element in allowed_elements:
-                        continue
-
+                if not all(
+                    [x.element.symbol in allowed_elements for x in molecule.atoms]
+                ):
                     return False
 
             return True

@@ -13,7 +13,7 @@ from simtk.openmm import app
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
 from propertyestimator.substances import Component, ExactAmount, MoleFraction, Substance
-from propertyestimator.utils import create_molecule_from_smiles, packmol
+from propertyestimator.utils import packmol
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import workflow_protocol
 from propertyestimator.workflow.protocols import Protocol
@@ -82,27 +82,24 @@ class BuildCoordinatesPackmol(Protocol):
     )
 
     def _build_molecule_arrays(self):
-        """Converts the input substance into a list of openeye OEMol's and a list of
-        counts for how many of each there should be as determined by the `max_molecules`
-        input and the molecules respective mole fractions.
+        """Converts the input substance into a list of molecules and a list
+        of counts for how many of each there should be as determined by the
+        `max_molecules` input and the substances respective mole fractions.
 
         Returns
         -------
-        list of openeye.oechem.OEMol
-            The list of openeye molecules.
+        list of openforcefield.topology.Molecule
+            The list of molecules.
         list of int
             The number of each molecule which should be added to the system.
         """
+        from openforcefield.topology import Molecule
 
         molecules = []
 
         for component in self.substance.components:
 
-            molecule = create_molecule_from_smiles(component.smiles)
-
-            if molecule is None:
-                raise RuntimeError(f"{component} could not be converted to a Molecule")
-
+            molecule = Molecule.from_smiles(component.smiles)
             molecules.append(molecule)
 
         # Determine how many molecules of each type will be present in the system.
