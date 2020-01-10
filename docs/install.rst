@@ -20,8 +20,8 @@ Recommended Dependencies
 ------------------------
 
 If you have access to the fantastic `OpenEye toolkit <https://docs.eyesopen.com/toolkits/python/index.html>`_ we
-recommend installing this to enable (among many other things) the use of the ``BuildDockedCoordinates`` protocol,
-faster conformer generation, and AM1BCC partial charge calculations::
+recommend installing this to enable (among many other things) the use of the ``BuildDockedCoordinates`` protocol and
+faster conformer generation / AM1BCC partial charge calculations::
 
     conda install -c openeye openeye-toolkits
 
