@@ -14,7 +14,7 @@ Installation from Conda
 
 To install the ``propertyestimator`` from the ``omnia`` channel, simply run::
 
-    conda install -c openeye -c omnia propertyestimator
+    conda install -c omnia propertyestimator
 
 Recommended Dependencies
 ------------------------
