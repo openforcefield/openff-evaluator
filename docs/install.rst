@@ -1,9 +1,9 @@
-Installing the Property Estimator
-=================================
+Installation
+============
 
-The Property Estimator is currently installable both from source and through ``conda``. Whichever route
-is chosen, it is recommended to install the estimator within a conda environment, and allow the conda
-package manager to install the required dependencies.
+The OpenFF Evaluator is currently installable both from source and through ``conda``. Whichever route
+is chosen, it is recommended to install the framework within a conda environment, and allow the conda
+package manager to install the required and optional dependencies.
 
 More information about conda and instructions to perform a lightweight miniconda installation `can be
 found here <https://docs.conda.io/en/latest/miniconda.html>`_. It will be assumed that these have been
@@ -19,21 +19,21 @@ To install the ``propertyestimator`` from the ``omnia`` channel, simply run::
 Recommended Dependencies
 ------------------------
 
-If you have access to the fantastic `OpenEye toolkit <https://docs.eyesopen.com/toolkits/python/index.html>`_ we
-recommend installing this to enable (among many other things) the use of the ``BuildDockedCoordinates`` protocol and
-faster conformer generation / AM1BCC partial charge calculations::
+If you have access to the fantastic `OpenEye toolkit <https://docs.eyesopen.com/toolkits/python/index.html>`_
+we recommend installing this to enable (among many other things) the use of the ``BuildDockedCoordinates``
+protocol and faster conformer generation / AM1BCC partial charge calculations::
 
     conda install -c openeye openeye-toolkits
 
-To parameterize systems with the Amber ``tleap`` tool using a ``TLeapForceFieldSource`` the ``ambertools19`` package
-must be installed::
+To parameterize systems with the Amber ``tleap`` tool using a ``TLeapForceFieldSource`` the ``ambertools``
+package must be installed::
 
     conda install -c ambermd 'ambertools >=19.0'
 
 Installation from Source
 ------------------------
 
-To install Property Estimator from source, clone the repository from `github
+To install then OpenFF Evaluator from source being by cloning the repository from `github
 <https://github.com/openforcefield/propertyestimator>`_::
 
     git clone https://github.com/openforcefield/propertyestimator.git
@@ -44,9 +44,7 @@ Create a custom conda environment which contains the required dependencies and a
     conda env create --name propertyestimator --file devtools/conda-envs/test_env.yaml
     conda activate propertyestimator
 
-The final step is to install the estimator itself::
+Finally, install the estimator itself::
 
     python setup.py develop
-
-And that's it!
 

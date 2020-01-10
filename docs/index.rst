@@ -41,13 +41,10 @@ The framework currently has built in support for estimating the following proper
 Index
 -----
 
-
 **User Guide**
 
 * :doc:`install`
 * :doc:`gettingstarted`
-* :doc:`physicalproperties`
-* :doc:`propertydatasets`
 
 .. toctree::
   :maxdepth: 2
@@ -56,11 +53,23 @@ Index
 
   install
   gettingstarted
+
+**Class Guide**
+
+* :doc:`physicalproperties`
+* :doc:`propertydatasets`
+
+.. toctree::
+  :maxdepth: 2
+  :hidden:
+  :caption: User Guide
+
   physicalproperties
   propertydatasets
 
 **Developer Documentation**
 
+* :doc:`builddocs`
 * :doc:`api`
 * :doc:`releasehistory`
 * :doc:`releaseprocess`
@@ -70,6 +79,7 @@ Index
   :hidden:
   :caption: Developer Documentation
 
+  builddocs
   api
   releasehistory
   releaseprocess
