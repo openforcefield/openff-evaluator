@@ -6,9 +6,9 @@ Property calculation toolkit from the Open Forcefield Consortium.
 import warnings
 
 import pint
-import pkg_resources
 
 from ._version import get_versions
+from .plugins import register_external_plugins
 
 unit = pint.UnitRegistry()
 pint.set_application_registry(unit)
@@ -17,22 +17,8 @@ with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     pint.Quantity([])
 
-# Load in any found plugins.
-for entry_point in pkg_resources.iter_entry_points("propertyestimator.plugins"):
-
-    try:
-        entry_point.load()
-    except ImportError as e:
-
-        import logging
-        import traceback
-
-        logger = logging.getLogger(__name__)
-
-        formatted_exception = traceback.format_exception(None, e, e.__traceback__)
-        logger.warning(
-            f"Could not load the {entry_point} plugin: {formatted_exception}"
-        )
+# Load in any found external plugins.
+register_external_plugins()
 
 # Handle versioneer
 versions = get_versions()

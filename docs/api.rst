@@ -454,3 +454,16 @@ Attribute Utilities
     AttributeClass
     UNDEFINED
     PlaceholderValue
+
+Plugin Utilities
+----------------
+
+**Plugins**
+
+.. currentmodule:: propertyestimator.plugins
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    register_default_plugins
+    register_external_plugins

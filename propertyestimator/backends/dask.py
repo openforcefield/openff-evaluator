@@ -14,7 +14,7 @@ from dask import distributed
 from dask_jobqueue import LSFCluster, PBSCluster
 from distributed import get_worker
 
-from propertyestimator import unit
+import propertyestimator
 
 from .backends import CalculationBackend, ComputeResources, QueueWorkerResources
 
@@ -108,8 +108,6 @@ class _Multiprocessor:
         Any
             The result of the function
         """
-
-        import propertyestimator
 
         # An unpleasant way to ensure that codecov works correctly
         # when testing on travis.
@@ -380,7 +378,9 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
     def start(self):
 
         requested_memory = self._resources_per_worker.per_thread_memory_limit
-        memory_string = f"{requested_memory.to(unit.byte):~}".replace(" ", "")
+        memory_string = f"{requested_memory.to(propertyestimator.unit.byte):~}".replace(
+            " ", ""
+        )
 
         job_extra = self._get_job_extra()
         env_extra = self._get_env_extra()
@@ -568,7 +568,7 @@ class DaskLSFBackend(BaseDaskJobQueueBackend):
     def _get_extra_cluster_kwargs(self):
 
         requested_memory = self._resources_per_worker.per_thread_memory_limit
-        memory_bytes = requested_memory.to(unit.byte).magnitude
+        memory_bytes = requested_memory.to(propertyestimator.unit.byte).magnitude
 
         extra_kwargs = super(DaskLSFBackend, self)._get_extra_cluster_kwargs()
         extra_kwargs.update({"mem": memory_bytes})

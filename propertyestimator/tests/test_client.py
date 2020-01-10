@@ -92,7 +92,8 @@ def test_submission():
 
                 # Spin up a server instance.
                 server = EvaluatorServer(
-                    calculation_backend=calculation_backend, working_directory=directory,
+                    calculation_backend=calculation_backend,
+                    working_directory=directory,
                 )
 
                 with server:
