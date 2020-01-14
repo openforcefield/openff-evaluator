@@ -36,6 +36,24 @@ The framework is built around four central ideas:
 Calculation Approaches
 ----------------------
 
+Framework aims to flexible in how it estimates properties from simulations or simulation data, with the goal to
+support not only estimation directly by simulation, but also by caching data from such and using techniques such
+as Multistate Bennett Acceptance Ratio (MBAR) reweighting to re-evaluate that data to nearby states, or by on the
+fly training surrogate models (such as Gaussian Mixture models) on that data which can be rapidly evaluated. Such
+an approach greatly enchances force field optimisation against physical properties, as as the optimisation progresses,
+more rapid techniques will be employed thus reducing the cost per iteration from hours to perhaps milliseconds in
+the case where mixture models may be employed.
+
+The end result is a hierarchical set of calculation approaches with varying efficiencies, but all varying regions
+of applicability. The frame work implements these approaches as discrete 'calculation layers', and on the fly
+determines which 'layer' should be employed to evaluate the properties, whereby the fastest layers are preferred
+over more time consuming ones.
+
+FIGURE
+
+Currently two layers are built-in to the framework (although new layers can be readily plugged in) - a layer which
+employs `simulations directly <>`_, and a layer which employs `MBAR reweighting <>`_.
+
 Supported Physical Properties
 -----------------------------
 The framework has built-in support for evaluating a number of physical properties, ranging from relatively
