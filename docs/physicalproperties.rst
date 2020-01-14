@@ -1,10 +1,13 @@
 Property Data Sets
 ==================
 
-A ``PhysicalPropertyDataSet`` is a collection of ``PhysicalProperty`` objects. It can be easily stored as /
-created from JSON::
+A ``PhysicalPropertyDataSet`` is a collection of measured physical properties encapsulated as ``PhysicalProperty``
+objects. It can be easily stored as / created from JSON::
 
-    data_set = PhysicalPropertyDataset.from_json("data_set.json")
+    # Load the data set from a JSON file
+    data_set = PhysicalPropertyDataset.from_json(file_path="data_set.json")
+    # Save the data set as a JSON file
+    data_set.json(file_path="data_set.json", format=True)
 
 or for convenience, can be retrieved as a pandas `DataFrame <https://pandas.pydata.org/pandas-docs/stable/
 generated/pandas.DataFrame.html>`_::
@@ -12,18 +15,19 @@ generated/pandas.DataFrame.html>`_::
     data_set.to_pandas()
 
 The framework implements specific data set objects for a number of open data sources, such as the ``ThermoMLDataSet``
-which provides utilities for extracting the data from the `NIST ThermoML Archive <http://trc.nist.gov/ThermoML.html>`_
-and converting it into the standard framework objects.
+(see :doc:`thermomldatasets`) which provides utilities for extracting the data from the `NIST ThermoML Archive
+<http://trc.nist.gov/ThermoML.html>`_ and converting it into the standard framework objects.
 
 Physical Properties
 -------------------
 
-The ``PhysicalProperty`` object describes a measured property of substance, and is defined by a combination of a:
+The ``PhysicalProperty`` object describes a measured property of substance, and is defined by a combination of:
 
+* the observed value of the property.
 * ``Substance`` specifying the substance that the measurement was collected for.
 * ``ThermodynamicState`` specifying the thermodynamic conditions under which the measurement was performed
 
-and the measured value, as well as optionally
+as well as optionally
 
 * the uncertainty in the value of the property.
 * a list of ``ParameterGradient`` which defines the gradient of the property with respect to the model parameters
