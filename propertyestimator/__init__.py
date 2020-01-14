@@ -8,7 +8,7 @@ import warnings
 import pint
 
 from ._version import get_versions
-from .plugins import register_external_plugins
+from .plugins import register_default_plugins, register_external_plugins
 
 unit = pint.UnitRegistry()
 pint.set_application_registry(unit)
@@ -17,6 +17,8 @@ with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     pint.Quantity([])
 
+# Load the default plugins
+register_default_plugins()
 # Load in any found external plugins.
 register_external_plugins()
 
