@@ -394,7 +394,10 @@ class _Compound:
         if not molecule:
             raise ValueError(f"The InchI string ({inchi_string}) could not be parsed")
 
-        return mol_to_smiles(molecule, explicit_hydrogen=False, mapped=False)
+        try:
+            return mol_to_smiles(molecule, explicit_hydrogen=False, mapped=False)
+        except ValueError:
+            return None
 
     @staticmethod
     def smiles_from_thermoml_smiles_string(thermoml_string):
@@ -448,6 +451,8 @@ class _Compound:
 
         except LicenseError:
             smiles = None
+        except ValueError:
+            smiles = None
 
         return smiles
 
@@ -472,6 +477,8 @@ class _Compound:
         smiles_identifier_nodes = node.findall("ThermoML:sSmiles", namespace)
         common_identifier_nodes = node.findall("ThermoML:sCommonName", namespace)
 
+        smiles = None
+
         if (
             len(inchi_identifier_nodes) > 0
             and inchi_identifier_nodes[0].text is not None
@@ -479,8 +486,9 @@ class _Compound:
             # Convert InChI key to a smiles pattern.
             smiles = cls.smiles_from_inchi_string(inchi_identifier_nodes[0].text)
 
-        elif (
-            len(smiles_identifier_nodes) > 0
+        if (
+            smiles is None
+            and len(smiles_identifier_nodes) > 0
             and smiles_identifier_nodes[0].text is not None
         ):
             # Standardise the smiles pattern using OE.
@@ -488,14 +496,15 @@ class _Compound:
                 smiles_identifier_nodes[0].text
             )
 
-        elif (
-            len(common_identifier_nodes) > 0
+        if (
+            smiles is None
+            and len(common_identifier_nodes) > 0
             and common_identifier_nodes[0].text is not None
         ):
             # Convert the common name to a smiles pattern.
             smiles = cls.smiles_from_common_name(common_identifier_nodes[0].text)
 
-        else:
+        if smiles is None:
 
             logging.debug(
                 "A ThermoML:Compound node does not have a valid InChI identifier, "
@@ -1711,6 +1720,13 @@ class _PureOrMixtureData:
                 continue
 
             used_compounds[compound_index] = compounds[compound_index]
+
+        if (
+            property_definitions is None
+            or global_constraints is None
+            or variable_definitions is None
+        ):
+            return []
 
         measured_properties = _PureOrMixtureData.extract_measured_properties(
             node,
