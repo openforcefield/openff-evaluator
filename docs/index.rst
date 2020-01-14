@@ -71,14 +71,7 @@ field optimisation.
 
 *\* Entries marked with an asterisk are supported but have not yet been extensively tested and validated.*
 
-=====
-
-Index
------
-
-**Getting Started**
-
-* :doc:`install`
+.. Setup the side-pane table of contents.
 
 .. toctree::
   :maxdepth: 2
@@ -87,21 +80,12 @@ Index
 
   install
 
-**Tutorials**
-
-* :doc:`tutorial01`
-
 .. toctree::
   :maxdepth: 2
   :hidden:
   :caption: Tutorials
 
   tutorial01
-
-**Data Set Documentation**
-
-* :doc:`physicalproperties`
-* :doc:`thermomldatasets`
 
 .. toctree::
   :maxdepth: 2
@@ -111,11 +95,6 @@ Index
   physicalproperties
   thermomldatasets
 
-**Layer Documentation**
-
-* :doc:`reweightinglayer`
-* :doc:`simulationlayer`
-
 .. toctree::
   :maxdepth: 2
   :hidden:
@@ -124,11 +103,6 @@ Index
   simulationlayer
   reweightinglayer
 
-**Backend Documentation**
-
-* :doc:`builddocs`
-* :doc:`builddocs`
-
 .. toctree::
   :maxdepth: 2
   :hidden:
@@ -136,13 +110,6 @@ Index
 
   calculationbackend
   storagebackend
-
-**Developer Documentation**
-
-* :doc:`builddocs`
-* :doc:`api`
-* :doc:`releasehistory`
-* :doc:`releaseprocess`
 
 .. toctree::
   :maxdepth: 2
