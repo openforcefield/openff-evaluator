@@ -688,7 +688,7 @@ class _PureOrMixtureData:
 
         Returns
         ----------
-        dict of int and _Constraint, optional
+        list of _Constraint, optional
             The extracted constraints if all could be parsed,
             otherwise `None`.
         """
@@ -725,8 +725,7 @@ class _PureOrMixtureData:
         Returns
         ----------
         dict of int and _VariableDefinition
-            The extracted variable definitions if all could be parsed,
-            otherwise `None`.
+            The extracted variable definitions which could be parsed.
         """
         variable_nodes = node.findall("ThermoML:Variable", namespace)
         variables = {}
@@ -736,7 +735,7 @@ class _PureOrMixtureData:
             variable = _VariableDefinition.from_node(variable_node, namespace)
 
             if not _PureOrMixtureData.validate_constraint(variable, compounds):
-                return None
+                continue
 
             variables[variable.index] = variable
 
@@ -1484,7 +1483,7 @@ class _PureOrMixtureData:
             The xml namespace.
         property_definitions: dict of int and ThermoMLProperty
             The extracted property definitions.
-        global_constraints: dict of int and _Constraint
+        global_constraints: list of _Constraint
             The extracted constraints.
         variable_definitions: dict of int and _VariableDefinition
             The extracted variable definitions.
@@ -1720,13 +1719,6 @@ class _PureOrMixtureData:
                 continue
 
             used_compounds[compound_index] = compounds[compound_index]
-
-        if (
-            property_definitions is None
-            or global_constraints is None
-            or variable_definitions is None
-        ):
-            return []
 
         measured_properties = _PureOrMixtureData.extract_measured_properties(
             node,
