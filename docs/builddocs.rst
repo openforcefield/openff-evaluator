@@ -1,7 +1,7 @@
 Building the Docs
 =================
 
-Although documentation for the Property Estimator is `readily available online
+Although documentation for the OpenFF Evaluator is `readily available online
 <https://property-estimator.readthedocs.io/en/latest/>`_, it is sometimes useful
 to build a local version such as when
 

@@ -19,9 +19,8 @@ sys.path.insert(0, os.path.abspath('.'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'Property Estimator'
-copyright = ("2019, Open Force Field Consortium. Project structure based on the "
-             "Computational Molecular Science Python Cookiecutter version 1.0")
+project = 'OpenFF Evaluator'
+copyright = ("2019, Open Force Field Consortium.")
 author = 'Open Force Field Consortium'
 
 # The short X.Y version
@@ -82,7 +81,7 @@ language = None
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+pygments_style = 'default'
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
