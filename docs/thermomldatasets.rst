@@ -16,7 +16,8 @@ You can also specify multiple identifiers to create a dataset from multiple Ther
     identifiers = ['10.1021/acs.jced.5b00365', '10.1021/acs.jced.5b00474']
     dataset = ThermoMLDataset.doi(*identifiers)
 
-Entire archives of properties can be downloaded directly from the `TRC website <>`_ and parsed by the framework::
+Entire archives of properties can be downloaded directly from the `ThermoML RSS Feeds <https://trc.nist.gov/RSS/>`_
+and parsed by the framework::
 
     # Download the zip archive of all properties from the JCT journal
     x = requests.get()

@@ -11,3 +11,47 @@
       overflow: visible !important;
    }
 }
+
+table.docutils.property-table {
+    border: 0 solid #e1e4e5;
+}
+table.docutils.property-table thead {
+    border-top: 1px solid #e1e4e5;
+    border-bottom: 1px solid #e1e4e5;
+}
+table.docutils.property-table thead th {
+    border: 0 solid #e1e4e5;
+}
+table.property-table div.line-block {
+    margin-bottom: 0;
+    line-height: normal;
+}
+table.property-table th:not(:first-child) {
+    text-align: center;
+}
+table.property-table td:not(:first-child) {
+    text-align: center;
+}
+table.property-table.docutils td {
+     border-bottom: 0 solid #e1e4e5;
+     border-left: 0 solid #e1e4e5;
+}
+table.property-table.docutils:not(.field-list) tr:nth-child(2n-1) td {
+    background-color: initial
+}
+
+ul.spaced-list li {
+    margin-bottom: 10px;
+}
+
+.green-font {
+    color: mediumseagreen;
+}
+.red-font {
+    color: red;
+}
+
+.ignore-width {
+  display: inline-block;
+  width: 0;
+}

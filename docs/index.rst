@@ -2,61 +2,74 @@
 OpenFF Evaluator
 ================
 
+.. role:: green-font
+.. role:: red-font
+.. role:: ignore-width
+
+.. |tick|    replace:: :green-font:`✓`
+.. |cross|   replace:: :red-font:`✕`
+.. |delta|   unicode:: U+0394
+.. |ast|     replace:: :ignore-width:`*`
+
 *An automated and scalable framework for curating, manipulating, and computing data sets of physical properties
 from molecular simulation and simulation data.*
 
-The framework is built around three central tenets:
+The framework is built around four central ideas:
 
-- **Flexibility:** New physical properties, data sources and calculation approaches are easily added via
-  the extensible plugin system and flexible workflow engine.
+.. rst-class:: spaced-list
 
-- **Automation:** Physical property measurements are readily importable from open data source (such as
-  ThermoML) through the data set API, and automatically calculated using the builtin workflow definitions
-  with no user intervation.
+    - **Flexibility:** New physical properties, data sources and calculation approaches are easily added via
+      the extensible plugin system and flexible workflow engine.
 
-- **Scalability:** Calculations are readily scalable from single machines and laptops up to large HPC clusters and
-  supercomputers through seamless integration with libraries like `dask <https://distributed.dask.org/en/latest/>`_.
+    - **Automation:** Physical property measurements are readily importable from open data sources (such as the
+      `NIST ThermoML Archive <http://trc.nist.gov/ThermoML.html>`_) through the data set API, and automatically
+      calculated using the built-in or user specified calculation workflows.
 
-..  The framework is designed to be as flexible as possible, with a focus on users being able to readily plug-in the
-    physical properties which are of interest to them, as well as different approach to estimate them, such as by
-    direct simulation, by re-using cached simulation, or by evaluating regressed models trained upon such (see ...).
-    The framework enables a high throughput of calculations thanks to a distributed architecture, whereby all requests
-    for data sets to be estimated may be seamlessly submitted from local machines with modest hardware requirements to
-    high performance compute clusters and supercomputers whereby compute backends such as `dask` may be used to
-    distribute the calculations across many compute nodes (see ..).
+    - **Scalability:** Calculations are readily scalable from single machines and laptops up to large HPC clusters and
+      supercomputers through seamless integration with libraries such as `dask <https://distributed.dask.org/en/
+      latest/>`_.
 
-..  Calculation Approaches
-    ----------------------
+    - **Efficiency:** Properties will automatically be estimated using the fastest approach possible, whether that be
+      through evaluated a trained surrogate model, re-evaluating cached simulation data, or by running simulations
+      directly.
 
+Calculation Approaches
+----------------------
 
+Supported Physical Properties
+-----------------------------
+The framework has built-in support for evaluating a number of physical properties, ranging from relatively
+'cheap' properties such as liquid densities, up to more computationally demanding properties such as solvation
+free energies and host-guest binding affinities.
 
-..  Supported Physical Properties
-    -----------------------------
-    The framework currently has built-in support for evaluating a number of physical properties, ranging from
-    relatively 'cheap' properties such as liquid densities, up to more computationally demanding properties such
-    as solvation free energies and host-guest binding affinities.
-    Included for most of these properties is the ability to calculate their derivates with respect to force field
-    parameters, making the framework ideal for evaluating the objective function and it's gradient as part of a
-    force field optimisation.
-    The properties currently supported are:
-    +-------------------------+---------------------------+---------------------------+
-    || Physical Property      || Simulation Layer         || Reweighting Layer        |
-    ||                        +--------------+------------+--------------+------------+
-    ||                        || Implemented || Gradients || Implemented || Gradients |
-    +=========================+==============+============+==============+============+
-    || Density                || Yes         || Yes       || Yes         || Yes       |
-    +-------------------------+--------------+------------+--------------+------------+
-    || Dielectric Constatant  || Yes         || Yes*      || Yes         || Yes*      |
-    +-------------------------+--------------+------------+--------------+------------+
-    || H\ :sub:`vaporization` || Yes         || Yes       || Yes         || Yes*      |
-    +-------------------------+--------------+------------+--------------+------------+
-    || H\ :sub:`mixing`       || Yes         || Yes*      || Yes         || Yes*      |
-    +-------------------------+--------------+------------+--------------+------------+
-    || V\ :sub:`excess`       || Yes         || Yes*      || Yes         || Yes*      |
-    +-------------------------+--------------+------------+--------------+------------+
-    || G\ :sub:`solvation`    || Yes*        || No        || No          || No        |
-    +-------------------------+--------------+------------+--------------+------------+
-    \* Entries marked with an asterisk are implemented but have not yet been extensively tested and validated.
+Included for most of these properties is the ability to calculate their derivatives with respect to force field
+parameters, making the framework ideal for evaluating the objective function and it's gradient as part of a force
+field optimisation.
+
+.. table::
+   :widths: auto
+   :align: center
+   :class: property-table
+
+   +----------------------------------+---------------------------------+--------------------------------+
+   || Physical Property               || Direct Simulation              || Reweighting Cached Data       |
+   ||                                 +----------------+----------------+--------------+-----------------+
+   ||                                 || Supported     || Gradients     || Supported   || Gradients      |
+   +==================================+================+================+==============+=================+
+   || Density                         || |tick|        || |tick|        || |tick|      || |tick|         |
+   +----------------------------------+----------------+----------------+--------------+-----------------+
+   || Dielectric Constant             || |tick|\ |ast| || |tick|        || |tick|      || |tick|\ |ast|  |
+   +----------------------------------+----------------+----------------+--------------+-----------------+
+   || |delta|\ H\ :sub:`vaporization` || |tick|        || |tick|        || |tick|      || |tick|\ |ast|  |
+   +----------------------------------+----------------+----------------+--------------+-----------------+
+   || |delta|\ H\ :sub:`mixing`       || |tick|        || |tick|\ |ast| || |tick|      || |tick|\ |ast|  |
+   +----------------------------------+----------------+----------------+--------------+-----------------+
+   || |delta|\ V\ :sub:`excess`       || |tick|        || |tick|\ |ast| || |tick|      || |tick|\ |ast|  |
+   +----------------------------------+----------------+----------------+--------------+-----------------+
+   || |delta|\ G\ :sub:`solvation`    || |tick|\ |ast| || |cross|       || |cross|     || |cross|        |
+   +----------------------------------+----------------+----------------+--------------+-----------------+
+
+*\* Entries marked with an asterisk are supported but have not yet been extensively tested and validated.*
 
 =====
 
