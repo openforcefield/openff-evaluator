@@ -11,6 +11,9 @@ OpenFF Evaluator
 .. |delta|   unicode:: U+0394
 .. |ast|     replace:: :ignore-width:`*`
 
+.. |simulation|     replace:: :doc:`Direct Simulation <simulationlayer>`
+.. |reweighting|     replace:: :doc:`MBAR Reweighting <reweightinglayer>`
+
 *An automated and scalable framework for curating, manipulating, and computing data sets of physical properties
 from molecular simulation and simulation data.*
 
@@ -19,11 +22,11 @@ The framework is built around four central ideas:
 .. rst-class:: spaced-list
 
     - **Flexibility:** New physical properties, data sources and calculation approaches are easily added via
-      the extensible plugin system and flexible workflow engine.
+      an extensible plug-in system and a flexible workflow engine.
 
     - **Automation:** Physical property measurements are readily importable from open data sources (such as the
-      `NIST ThermoML Archive <http://trc.nist.gov/ThermoML.html>`_) through the data set API, and automatically
-      calculated using the built-in or user specified calculation workflows.
+      `NIST ThermoML Archive <http://trc.nist.gov/ThermoML.html>`_) through the data set APIs, and automatically
+      calculated using either the built-in or user specified calculation schemas.
 
     - **Scalability:** Calculations are readily scalable from single machines and laptops up to large HPC clusters and
       supercomputers through seamless integration with libraries such as `dask <https://distributed.dask.org/en/
@@ -35,24 +38,21 @@ The framework is built around four central ideas:
 
 Calculation Approaches
 ----------------------
+The framework is designed around the idea of allowing multiple calculation approaches for estimating the same set
+of properties, in addition to estimation directly from molecular simulation, all using a uniform API.
 
-Framework aims to flexible in how it estimates properties from simulations or simulation data, with the goal to
-support not only estimation directly by simulation, but also by caching data from such and using techniques such
-as Multistate Bennett Acceptance Ratio (MBAR) reweighting to re-evaluate that data to nearby states, or by on the
-fly training surrogate models (such as Gaussian Mixture models) on that data which can be rapidly evaluated. Such
-an approach greatly enchances force field optimisation against physical properties, as as the optimisation progresses,
-more rapid techniques will be employed thus reducing the cost per iteration from hours to perhaps milliseconds in
-the case where mixture models may be employed.
+The primary purpose of this is to take advantage of the many techniques exist which are able to leverage data from
+previous simulations to rapidly estimate sets of properties, such as `reweighting cached simulation data <http://
+www.alchemistry.org/wiki/Multistate_Bennett_Acceptance_Ratio>`_, or evaluating `surrogate models <https://pubs.acs
+.org/doi/abs/10.1021/acs.jctc.8b00223>`_ trained upon cached data. The most rapid approach which may accurately
+estimate a set of properties is automatically determined by the framework on the fly.
 
-The end result is a hierarchical set of calculation approaches with varying efficiencies, but all varying regions
-of applicability. The frame work implements these approaches as discrete 'calculation layers', and on the fly
-determines which 'layer' should be employed to evaluate the properties, whereby the fastest layers are preferred
-over more time consuming ones.
+Each approach supported by the framework is implemented as a :doc:`calculation layer <calculationlayers>`. Two such
+layers are currently supported (although new calculation layers can be readily added via the plug-in system):
 
-FIGURE
-
-Currently two layers are built-in to the framework (although new layers can be readily plugged in) - a layer which
-employs `simulations directly <>`_, and a layer which employs `MBAR reweighting <>`_.
+* evaluating physical properties directly from molecular simulation using the :doc:`SimulationLayer <simulationlayer>`.
+* reprocessing cached simulation data with `MBAR reweighting <http://www.alchemistry.org/wiki/
+  Multistate_Bennett_Acceptance_Ratio>`_ using the :doc:`ReweightingLayer <reweightinglayer>`.
 
 Supported Physical Properties
 -----------------------------
@@ -64,13 +64,13 @@ Included for most of these properties is the ability to calculate their derivati
 parameters, making the framework ideal for evaluating the objective function and it's gradient as part of a force
 field optimisation.
 
-.. table::
+.. table:: The physical properties which are natively supported by the framework.
    :widths: auto
    :align: center
    :class: property-table
 
    +----------------------------------+---------------------------------+--------------------------------+
-   || Physical Property               || Direct Simulation              || Reweighting Cached Data       |
+   || Physical Property               || |simulation|                   || |reweighting|                 |
    ||                                 +----------------+----------------+--------------+-----------------+
    ||                                 || Supported     || Gradients     || Supported   || Gradients      |
    +==================================+================+================+==============+=================+
@@ -96,6 +96,7 @@ field optimisation.
   :hidden:
   :caption: Getting Started
 
+  Overview <self>
   install
 
 .. toctree::
@@ -108,7 +109,7 @@ field optimisation.
 .. toctree::
   :maxdepth: 2
   :hidden:
-  :caption: Data Set Documentation
+  :caption: Data Sets
 
   physicalproperties
   thermomldatasets
@@ -116,8 +117,9 @@ field optimisation.
 .. toctree::
   :maxdepth: 2
   :hidden:
-  :caption: Layer Documentation
+  :caption: Calculation Layers
 
+  Overview <calculationlayers>
   simulationlayer
   reweightinglayer
 

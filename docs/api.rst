@@ -455,10 +455,10 @@ Attribute Utilities
     UNDEFINED
     PlaceholderValue
 
-Plugin Utilities
-----------------
+Plug-in Utilities
+-----------------
 
-**Plugins**
+**Plug-ins**
 
 .. currentmodule:: propertyestimator.plugins
 .. autosummary::

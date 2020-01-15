@@ -1,0 +1,117 @@
+Calculation Layers
+==================
+
+A ``CalculationLayer`` is an implementation of one calculation approach for estimating a set of physical properties,
+such as via molecular simulation or evaluating some `QSAR <https://en.wikipedia.org/wiki/Quantitative_structure-
+activity_relationship>`_ like model.
+
+The framework stacks multiple layers together when estimating a data set of properties.
+
+FIGURE
+
+Each layer will in turn attempt to evaluate the properties being estimated using the specific approach the layer
+represents, such as by running a set of simulations. If the layer is unable to estimate a given property, for example
+if a layer does not yet support a given property, or if the layer has insufficient data to reprocesses, the property
+will be passed to the next layer for it to try and evaluate.
+
+In practice, this allows the framework to attempt to estimate a data set using the most rapid calculation layer first,
+before moving to successively slower yet more robust layers, and thus enabling as efficient as possible property
+estimation.
+
+Defining a Calculation Layer
+----------------------------
+
+A calculation layer is defined by two objects - a ``CalculationLayer`` object which implements the main layer
+logic, and a ``CalculationLayerSchema`` which defines those settings and options exposed and required by the layer.
+
+One ``CalculationLayerSchema`` will be provided to the for each type of property that the layer is being asked to
+estimate. The base ``CalculationLayerSchema`` exposes options for optionally defining either the relative
+or absolute uncertainty that the layer should attempt to estimate the associated property type to within.
+
+The structure of a ``CalculationLayer`` is relatively simple and permissive::
+
+    @calculation_layer()
+    class MyCalculationLayer(CalculationLayer):
+
+        @classmethod
+        def required_schema_type(cls):
+            return CalculationLayerSchema
+
+        @classmethod
+        def _schedule_calculation(
+            cls,
+            calculation_backend,
+            storage_backend,
+            layer_directory,
+            batch
+        ):
+            ...
+
+The first thing to note is the ``calculation_layer`` decorator which is being applied to the class. This registers
+the calculation layer with the frameworks plug-in system, allowing it to be used in future calculations.
+
+The only other requirements is that the class implement a ``required_schema_type`` class method, which returns the
+type of ``CalculationLayerSchema`` that is associated with this layer, and a ``_schedule_calculation``. The
+``_schedule_calculation`` is responsible for performing the actual layer calculations.
+
+The form of the ``_schedule_calculation`` function is very flexible::
+
+    @classmethod
+    def _schedule_calculation(
+        cls,
+        calculation_backend,
+        storage_backend,
+        layer_directory,
+        batch
+    ):
+
+        futures = []
+
+        for queued_property in batch.queued_properties:
+
+            futures.append(
+                calculation_backend.submit_task(
+                    cls.process_property, queued_property, cls.__name__
+                )
+            )
+
+        return futures
+
+It takes as arguments:
+
+* a :doc:`CalculationBackend <calculationbackend>` which is used to asynchronously distribute any calculations
+  across the compute resources available to the framework.
+* a :doc:`StorageBackend <storagebackend>` which may be used to store any data from the calculations.
+* the path to the directory within which all of the calculation working files should be stored.
+* the ``_Batch`` of properties which this layer should attempt to estimate. This object includes the properties
+  to estimate, as well as the ``CalculationLayerSchema`` for each property type.
+
+and must return a list of ``Future`` objects (which either must be or implement the same API as the `asyncio
+Future object <https://docs.python.org/3/library/asyncio-future.html>`_). The easiest way to generate the futures
+is to perform any calculations using the ``calculation_backend`` argument, which will automatically return the
+results of any functions as such.
+
+The future objects returned by ``_schedule_calculation`` must return a ``CalculationLayerResult`` object, which
+includes
+
+* the estimated property if the calculation was successful.
+* a list of any exceptions which were raised during the calculation.
+* a list of any data to be stored by the storage backend.
+
+At the minimum, a method which returns one such object would look like::
+
+    @classmethod
+    def process_property(cls, physical_property, **_):
+        """Return a result as if the property had been successfully estimated.
+        """
+
+        # TODO: Do some calculations
+
+        # Set the property provenance
+        physical_property.source = CalculationSource(fidelity=cls.__name__)
+
+        # Return the results object.
+        results = CalculationLayerResult()
+        results.physical_property = physical_property
+        return results
+
