@@ -120,8 +120,9 @@ field optimisation.
   :caption: Calculation Layers
 
   Overview <calculationlayers>
-  simulationlayer
-  reweightinglayer
+  Workflow Base Layer <workflowlayer>
+  Direct Simulation <simulationlayer>
+  Data Reweighting <reweightinglayer>
 
 .. toctree::
   :maxdepth: 2
