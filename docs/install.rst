@@ -1,8 +1,8 @@
 Installation
 ============
 
-The OpenFF Evaluator is currently installable both from source and through ``conda``. Whichever route
-is chosen, it is recommended to install the framework within a conda environment, and allow the conda
+The OpenFF Evaluator is currently installable either through ``conda`` or directly from the source code. Whichever
+route is chosen, it is recommended to install the framework within a conda environment and allow the conda
 package manager to install the required and optional dependencies.
 
 More information about conda and instructions to perform a lightweight miniconda installation `can be
@@ -33,7 +33,7 @@ package must be installed::
 Installation from Source
 ------------------------
 
-To install then OpenFF Evaluator from source being by cloning the repository from `github
+To install the OpenFF Evaluator from source begin by cloning the repository from `github
 <https://github.com/openforcefield/propertyestimator>`_::
 
     git clone https://github.com/openforcefield/propertyestimator.git

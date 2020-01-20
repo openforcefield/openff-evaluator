@@ -3,9 +3,11 @@ ThermoML Data Sets
 
 The ``ThermoMLDataset`` object offers an API for extracting physical properties from the `NIST ThermoML Archive
 <http://trc.nist.gov/ThermoML.html>`_, both directly from the archive itself or from files stored in the IUPAC-
-standard `ThermoML <http://trc.nist.gov/ThermoMLRecommendations.pdf>`_) format locally.
+standard `ThermoML <http://trc.nist.gov/ThermoMLRecommendations.pdf>`_ format stored locally.
 
-For example, to retrieve `the ThermoML data set <http://trc.boulder.nist.gov/ThermoML/10.1016/j.jct.2005.03.012>`_
+NOTE + SECTION ABOUT THE CLASS DECORATOR FOR REGISTERING PROPERTIES
+
+For example, to retrieve the `ThermoML data set <http://trc.boulder.nist.gov/ThermoML/10.1016/j.jct.2005.03.012>`_
 that accompanies `this paper <http://www.sciencedirect.com/science/article/pii/S0021961405000741>`_, we can simply
 use the digital object identifier (DOI) ``10.1016/j.jct.2005.03.012``::
 

@@ -32,8 +32,8 @@ The framework is built around four central ideas:
       supercomputers through seamless integration with libraries such as `dask <https://distributed.dask.org/en/
       latest/>`_.
 
-    - **Efficiency:** Properties will automatically be estimated using the fastest approach possible, whether that be
-      through evaluated a trained surrogate model, re-evaluating cached simulation data, or by running simulations
+    - **Efficiency:** Properties are estimated using the fastest approach available to the framework, whether that
+      be through evaluating a trained surrogate model, re-evaluating cached simulation data, or by running simulations
       directly.
 
 Calculation Approaches
@@ -61,7 +61,7 @@ The framework has built-in support for evaluating a number of physical propertie
 free energies and host-guest binding affinities.
 
 Included for most of these properties is the ability to calculate their derivatives with respect to force field
-parameters, making the framework ideal for evaluating the objective function and it's gradient as part of a force
+parameters, making the framework ideal for evaluating an objective function and it's gradient as part of a force
 field optimisation.
 
 .. table:: The physical properties which are natively supported by the framework.
@@ -117,20 +117,36 @@ field optimisation.
 .. toctree::
   :maxdepth: 2
   :hidden:
-  :caption: Calculation Layers
+  :caption: Workflows
 
-  Overview <calculationlayers>
-  Workflow Base Layer <workflowlayer>
-  Direct Simulation <simulationlayer>
-  Data Reweighting <reweightinglayer>
+  Overview <workflows>
 
 .. toctree::
   :maxdepth: 2
   :hidden:
-  :caption: Backend Documentation
+  :caption: Calculation Layers
 
-  calculationbackend
-  storagebackend
+  Overview <calculationlayers>
+  Workflow Layers <workflowlayer>
+  Direct Simulation <simulationlayer>
+  MBAR Reweighting <reweightinglayer>
+
+.. toctree::
+  :maxdepth: 2
+  :hidden:
+  :caption: Calculation Backends
+
+  Overview <calculationbackend>
+  daskbackends
+
+.. toctree::
+  :maxdepth: 2
+  :hidden:
+  :caption: Storage Backends
+
+  Overview <storagebackend>
+  dataclasses
+  localstorage
 
 .. toctree::
   :maxdepth: 2
