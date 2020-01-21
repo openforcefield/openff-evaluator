@@ -1,20 +1,23 @@
+.. |calculation_backend|     replace:: :py:class:`~propertyestimator.backends.CalculationBackend`
+.. |compute_resources|       replace:: :py:class:`~propertyestimator.backends.ComputeResources`
+
 Calculation Backends
 ====================
 
-A ``CalculationBackend`` is an object used to distribute calculation tasks across available compute resources. This is
+A |calculation_backend| is an object used to distribute calculation tasks across available compute resources. This is
 possible through specific backends which integrate with libraries such as `multiprocessing <https://docs.python.org/3.7
-/library/multiprocessing.html>`_, `dask <https://distributed.dask.org/en/latest/>`_, `parsl <https://parsl-project.org
+/library/multiprocessing.html>`__, `dask <https://distributed.dask.org/en/latest/>`_, `parsl <https://parsl-project.org
 />`_ and `cerlery <http://www.celeryproject.org/>`_.
 
 Each backend is responsible for creating *compute workers*. A compute worker is an entity which has a set amount of
 dedicated compute resources available to it and which can execute python functions using those resources. Calculation
 backends may spawn multiple workers such that many tasks and calculations can be performed simultaneously.
 
-A compute worker can be as simple as a new python ``Process`` or something more complex like a `dask worker <https://
-distributed.dask.org/en/latest/worker.html>`_. The resources available to a worker are described by the
-``ComputeResources`` object.
+A compute worker can be as simple as a new `multiprocessing <https://docs.python.org/3.7/library/multiprocessing.html#
+the-process-class>`__ ``Process`` or something more complex like a `dask worker <https://distributed.dask.org/en/latest/
+worker.html>`_. The resources available to a worker are described by the |compute_resources| object.
 
-``CalculationBackend`` classes have a relatively simple structure::
+|calculation_backend| classes have a relatively simple structure::
 
     class MyCalculationBackend(CalculationBackend):
 

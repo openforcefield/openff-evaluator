@@ -1,8 +1,21 @@
+.. |data_set|               replace:: :py:class:`~propertyestimator.datasets.PhysicalPropertyDataSet`
+.. |property|               replace:: :py:class:`~propertyestimator.datasets.PhysicalProperty`
+.. |property_phase|         replace:: :py:class:`~propertyestimator.datasets.PropertyPhase`
+.. |source|                 replace:: :py:class:`~propertyestimator.datasets.Source`
+
+.. |thermoml_set|           replace:: :py:class:`~propertyestimator.datasets.thermoml.ThermoMLDataSet`
+
+.. |substance|              replace:: :py:class:`~propertyestimator.substances.Substance`
+.. |thermodynamic_state|    replace:: :py:class:`~propertyestimator.thermodynamics.ThermodynamicState`
+.. |force_field_source|     replace:: :py:class:`~propertyestimator.forcefield.ForceFieldSource`
+
+.. |gradient|               replace:: :py:class:`~propertyestimator.forcefield.ParameterGradient`
+
 Property Data Sets
 ==================
 
-A ``PhysicalPropertyDataSet`` is a collection of measured physical properties encapsulated as ``PhysicalProperty``
-objects. It can be easily stored as / created from JSON::
+A |data_set| is a collection of measured physical properties encapsulated as |property| objects. It can be easily
+stored as / created from JSON::
 
     # Load the data set from a JSON file
     data_set = PhysicalPropertyDataset.from_json(file_path="data_set.json")
@@ -14,29 +27,29 @@ generated/pandas.DataFrame.html>`_::
 
     data_set.to_pandas()
 
-The framework implements specific data set objects for a number of open data sources, such as the ``ThermoMLDataSet``
+The framework implements specific data set objects for a number of open data sources, such as the |thermoml_set|
 (see :doc:`thermomldatasets`) which provides utilities for extracting the data from the `NIST ThermoML Archive
 <http://trc.nist.gov/ThermoML.html>`_ and converting it into the standard framework objects.
 
 Physical Properties
 -------------------
 
-The ``PhysicalProperty`` object describes a measured property of substance, and is defined by a combination of:
+The |property| object describes a measured property of substance, and is defined by a combination of:
 
 * the observed value of the property.
-* ``Substance`` specifying the substance that the measurement was collected for.
-* ``PropertyPhase`` specifying the phase that the measurement was collected in.
-* ``ThermodynamicState`` specifying the thermodynamic conditions under which the measurement was performed
+* |substance| specifying the substance that the measurement was collected for.
+* |property_phase| specifying the phase that the measurement was collected in.
+* |thermodynamic_state| specifying the thermodynamic conditions under which the measurement was performed
 
 as well as optionally
 
 * the uncertainty in the value of the property.
-* a list of ``ParameterGradient`` which defines the gradient of the property with respect to the model parameters
+* a list of |gradient| which defines the gradient of the property with respect to the model parameters
   if it was computationally estimated.
-* a ``Source`` specifying the source (either experimental or computational) and provenance of the measurement.
+* a |source| specifying the source (either experimental or computational) and provenance of the measurement.
 
 Each type of property supported by the framework, such as a density of an enthalpy of vaporization, must have it's own
-class representation which inherits from ``PhysicalProperty``::
+class representation which inherits from |property|::
 
     # Define the substance
     water = Substance.from_components("O")
@@ -61,7 +74,7 @@ class representation which inherits from ``PhysicalProperty``::
 Substances
 ----------
 
-A ``Substance`` is defined by a number of components (which may have specific roles assigned to them such as
+A |substance| is defined by a number of components (which may have specific roles assigned to them such as
 being solutes in the system) and the amount of each component in the substance.
 
 To create a pure substance containing only water::
@@ -87,7 +100,7 @@ To create a substance of an infinitely dilute paracetamol solute dissolved in wa
 Property Phases
 ---------------
 
-The ``PropertyPhase`` enum describes the possible phases which a measurement was performed in.
+The |property_phase| enum describes the possible phases which a measurement was performed in.
 
 While the enum only has three defined phases (``Solid``, ``Liquid`` and ``Gas``), multiple phases can be formed by
 OR'ing (|) multiple phases together. As an example, to define a phase for a liquid and gas coexisting::
@@ -97,7 +110,7 @@ OR'ing (|) multiple phases together. As an example, to define a phase for a liqu
 Thermodynamic States
 --------------------
 
-A ``ThermodynamicState`` specifies a combination of the temperature and (optionally) the pressure at which a
+A |thermodynamic_state| specifies a combination of the temperature and (optionally) the pressure at which a
 measurement is performed::
 
     thermodynamic_state = ThermodynamicState(

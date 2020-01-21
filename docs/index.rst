@@ -146,7 +146,7 @@ field optimisation.
 
   Overview <storagebackend>
   dataclasses
-  localstorage
+  Local File Backend <localstorage>
 
 .. toctree::
   :maxdepth: 2

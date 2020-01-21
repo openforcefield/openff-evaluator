@@ -17,6 +17,15 @@ Client Side API
     RequestOptions
     RequestResult
 
+**Exceptions**
+
+.. currentmodule:: propertyestimator.utils.exceptions
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    EvaluatorException
+
 Server Side API
 ---------------
 
@@ -180,12 +189,13 @@ Calculation Backends API
 
 **Dask Backends**
 
-.. currentmodule:: propertyestimator.backends
+.. currentmodule:: propertyestimator.backends.dask
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
     BaseDaskBackend
+    BaseDaskJobQueueBackend
     DaskLocalCluster
     DaskLSFBackend
     DaskPBSBackend

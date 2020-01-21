@@ -1,3 +1,9 @@
+.. |dask_local_cluster|    replace:: :py:class:`~propertyestimator.backends.dask.DaskLocalCluster`
+.. |job_queue_backend|     replace:: :py:class:`~propertyestimator.backends.dask.BaseDaskJobQueueBackend`
+.. |dask_lsf_backend|      replace:: :py:class:`~propertyestimator.backends.dask.DaskLSFBackend`
+.. |dask_pbs_backend|      replace:: :py:class:`~propertyestimator.backends.dask.DaskPBSBackend`
+.. |queue_resources|       replace:: :py:class:`~propertyestimator.backends.dask.QueueWorkerResources`
+
 Dask Backends
 =============
 
@@ -7,7 +13,7 @@ distributed.dask.org/>`_ and `job-queue <https://dask-jobqueue.readthedocs.io>`_
 Dask Local Cluster
 ------------------
 
-The ``DaskLocalCluster`` backend wraps around the dask `LocalCluster <https://distributed.dask.org/en/latest/local-
+The |dask_local_cluster| backend wraps around the dask `LocalCluster <https://distributed.dask.org/en/latest/local-
 cluster.html>`_ class to distribute tasks on a single machine::
 
     worker_resources = ComputeResources(
@@ -26,10 +32,10 @@ numbers of CPUs or GPUs.
 Dask HPC Cluster
 ----------------
 
-The ``DaskLSFBackend`` and ``DaskPBSBackend`` backends wrap around the dask `LSFCluster <https://jobqueue.dask.org/en/
+The |dask_lsf_backend| and |dask_pbs_backend| backends wrap around the dask `LSFCluster <https://jobqueue.dask.org/en/
 latest/generated/dask_jobqueue.LSFCluster.html#dask_jobqueue.LSFCluster>`_ and `PBSCluster <https://jobqueue.dask.org/
 en/latest/generated/dask_jobqueue.PBSCluster.html#dask_jobqueue.PBSCluster>`_ classes respectively, and both inherit
-the ``BaseDaskJobQueueBackend`` class which implements the core of their functionality. They predominantly run in an
+the |job_queue_backend| class which implements the core of their functionality. They predominantly run in an
 adaptive mode, whereby the backend will automatically scale up or down the number of workers based on the current number
 of tasks that the backend is trying to execute.
 

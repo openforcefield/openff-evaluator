@@ -48,13 +48,16 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.intersphinx',
     'nbsphinx',
-    'm2r'
 ]
 
 # Autodoc settings
 autosummary_generate = True
-autodoc_default_flags = ['members', 'inherited-members']
-autodoc_member_order = 'bysource' # preserve ordering in source
+
+autodoc_default_options = {
+    'members': True,
+    'inherited-members': True,
+    'member-order': 'bysource',
+}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -62,7 +65,7 @@ templates_path = ['_templates']
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
 #
-source_suffix = ['.rst', '.md']
+source_suffix = ['.rst']
 # source_suffix = '.rst'
 
 # The master toctree document.
