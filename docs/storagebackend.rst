@@ -1,37 +1,56 @@
+.. |storage_backend|     replace:: :py:class:`~propertyestimator.storage.StorageBackend`
+.. |base_data|     replace:: :py:class:`~propertyestimator.storage.data.BaseStoredData`
+.. |base_query|     replace:: :py:class:`~propertyestimator.storage.query.BaseDataQuery`
+.. |substance|     replace:: :py:class:`~propertyestimator.substances.Substance`
+
 Storage Backends
 ================
 
-A ``StorageBackend`` is an object used to store data generated as part of property calculations, and to retrieve
-that data for use in future calculations.
+A |storage_backend| is an object used to store data generated as part of property calculations, and to retrieve that
+data for use in future calculations.
 
 In general, most data stored in a storage backend is stored in two parts:
 
 * A JSON serialized representation of this class (or a subclass), which contains lightweight information such as the
-  state and composition of a system. Larger pieces of data, such as coordinates, trajectories or system objects, should
-  be referenced as a file name.
+  state and composition of a system.
 * A directory like structure (either directly a directory, or some NetCDF like compressed archive) of ancillary files
-  which do not easily lend themselves to be serialized within a JSON object, whose files are referenced by their file
-  name by the data object.
+  which do not easily lend themselves to be serialized within a JSON object, such as simulation trajectories, whose
+  files are referenced by their file name by the data object.
 
 The ancillary directory-like structure is not required if the data may be suitably stored in the data object itself.
-See the :doc:`dataclasses` page for more information about the available data classes and their details.
 
-Retrieving Data
----------------
+Data Storage / Retrieval
+------------------------
 
-Data may be retrieved from the storage system via two mechanisms:
+Each piece of data which is stored in a backend must inherit from the |base_data| class, will be assigned a unique key.
+This unique key is both useful for tracking provenance if this data is re-used in future calculations, and also can be
+used to retrieve the piece of data from the storage system.
 
-* using the unique key which was assigned to the data when it was stored, or
-* by using :doc:`data queries <dataclasses>` to search for data within the backend.
+In addition to retrieval using the data keys, each backend offers the ability to perform a 'query' to retrieve data
+which matches a set of given criteria. Data queries are implemented via |base_query| objects, which expose different
+options for querying for specific types of data (such a simulation data, trained models, etc.).
 
-A data query is an object which exposes a set of search criteria, and is used to match data which has been stored
-within a storage backend. A query may be used for example to match all data that was generated for a given
-``Substance`` (or a substance which contains a particular component), or for a particular ``ThermodynamicState``.
+A query may be used for example to match all simulation data that was generated for a given |substance| in a
+particular phase::
+
+    # Look for all simulation data generated for liquid water
+    substance_query = SimulationDataQuery()
+
+    substance_query.substance = Substance.from_components("O")
+    substance_query.property_phase = PropertyPhase.Liquid
+
+    found_data = backend.query(substance_query)
+
+here ``found_data`` will be a list of tuples, where the first item in each tuple is the unique key of the found data
+object, the second item is the data object itself, and the final object is the file path to the ancillary data
+directory (or :py:class:`None` if none is present).
+
+See the :doc:`dataclasses` page for more information about the available data classes, queries and their details.
 
 Implementation
 --------------
 
-A ``StorageBackend`` must at minimum implement a structure of::
+A |storage_backend| must at minimum implement a structure of::
 
     class MyStorageBackend(StorageBackend):
 
@@ -46,11 +65,11 @@ A ``StorageBackend`` must at minimum implement a structure of::
 
 where
 
-* ``_store_object`` must store a ``BaseStoredData`` object as well as optionally its ancillary data directory,
-  and return a unique key assigned to that object.
-* ``_retrieve_object`` must return the ``BaseStoredData`` object which has been assigned a given key if the
-  object exists in the system, as well as the ancillary data directory if it exists.
-* ``_object_exists`` should check whether any object still exists in the storage system with a given key.
+* ``_store_object`` must store a |base_data| object as well as optionally its ancillary data directory, and return a
+  unique key assigned to that object.
+* ``_retrieve_object`` must return the |base_data| object which has been assigned a given key if the object exists in
+  the system, as well as the file path to ancillary data directory if it exists.
+* ``_object_exists`` should return whether any object still exists in the storage system with a given key.
 
 All of these methods will be called under a `reentrant thread lock <https://docs.python.org/2/library/threading.
 html#rlock-objects>`_ and may be considered as thread safe.
