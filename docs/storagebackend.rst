@@ -14,23 +14,19 @@ In general, most data stored in a storage backend is stored in two parts:
   name by the data object.
 
 The ancillary directory-like structure is not required if the data may be suitably stored in the data object itself.
-See the `dataclasses` page for more information about the available data classes and their details.
-
-Storing Data
-------------
-
+See the :doc:`dataclasses` page for more information about the available data classes and their details.
 
 Retrieving Data
 ---------------
 
 Data may be retrieved from the storage system via two mechanisms:
 
-* using the unique key of the data which was generated when the data was stored
-* or by using `data queries <dataclasses>`
+* using the unique key which was assigned to the data when it was stored, or
+* by using :doc:`data queries <dataclasses>` to search for data within the backend.
 
-A data query is an object which exposes a set of search criteria, which is then used to match data which has
-been stored within a backend. A query may be used for example to match all data that was generated for a given
-``Substance``, or for a particular ``ThermodynamicState``.
+A data query is an object which exposes a set of search criteria, and is used to match data which has been stored
+within a storage backend. A query may be used for example to match all data that was generated for a given
+``Substance`` (or a substance which contains a particular component), or for a particular ``ThermodynamicState``.
 
 Implementation
 --------------

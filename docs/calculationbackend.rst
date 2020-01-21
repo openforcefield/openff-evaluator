@@ -9,8 +9,9 @@ Each backend is responsible for creating *compute workers*. A compute worker is 
 dedicated compute resources available to it and which can execute python functions using those resources. Calculation
 backends may spawn multiple workers such that many tasks and calculations can be performed simultaneously.
 
-A compute worker can be as simple as a new python ``Process`` or something more complex like a `dask worker <>`_. The
-resources available to a worker are described by the ``ComputeResources`` object.
+A compute worker can be as simple as a new python ``Process`` or something more complex like a `dask worker <https://
+distributed.dask.org/en/latest/worker.html>`_. The resources available to a worker are described by the
+``ComputeResources`` object.
 
 ``CalculationBackend`` classes have a relatively simple structure::
 
@@ -45,4 +46,4 @@ All calculation backends are implemented as context managers such that they can 
     with MyCalculationBackend(number_of_workers=..., resources_per_worker...) as backend:
         backend.submit_task
 
-where the ``start`` and ``stop`` method will be called automatically.
+where the ``start`` and ``stop`` methods will be called automatically.

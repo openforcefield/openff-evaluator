@@ -19,8 +19,8 @@ Currently the framework has built-in support for extracting:
 * *Excess molar enthalpy (molar enthalpy of mixing), kJ/mol* (``EnthalpyOfMixing``)
 * *Molar enthalpy of vaporization or sublimation, kJ/mol* (``EnthalpyOfVaporization``)
 
-where here both the ThermoML property name (as defined by the IUPAC XML schema) and the built-in framework class
-are provided.
+where here both the ThermoML property name (as defined by the `IUPAC XML schema <https://trc.nist.gov/ThermoML.xsd>`_)
+and the built-in framework class are listed.
 
 Registering Properties
 ----------------------
