@@ -2,8 +2,9 @@ Calculation Backends
 ====================
 
 A ``CalculationBackend`` is an object used to distribute calculation tasks across available compute resources. This is
-possible through specific backends which integrate with libraries such as ``multiprocessing``, ``dask``, ``parsl`` and
-``cerlery``.
+possible through specific backends which integrate with libraries such as `multiprocessing <https://docs.python.org/3.7
+/library/multiprocessing.html>`_, `dask <https://distributed.dask.org/en/latest/>`_, `parsl <https://parsl-project.org
+/>`_ and `cerlery <http://www.celeryproject.org/>`_.
 
 Each backend is responsible for creating *compute workers*. A compute worker is an entity which has a set amount of
 dedicated compute resources available to it and which can execute python functions using those resources. Calculation

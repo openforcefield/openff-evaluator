@@ -25,6 +25,7 @@ The ``PhysicalProperty`` object describes a measured property of substance, and 
 
 * the observed value of the property.
 * ``Substance`` specifying the substance that the measurement was collected for.
+* ``PropertyPhase`` specifying the phase that the measurement was collected in.
 * ``ThermodynamicState`` specifying the thermodynamic conditions under which the measurement was performed
 
 as well as optionally
@@ -48,6 +49,7 @@ class representation which inherits from ``PhysicalProperty``::
     density = Density(
         substance=substance,
         thermodynamic_state=thermodynamic_state,
+        phase=PropertyPhase.Liquid,
         value=1.0*unit.gram/unit.millilitre,
         uncertainty=0.0001*unit.gram/unit.millilitre
     )
@@ -81,6 +83,16 @@ To create a substance of an infinitely dilute paracetamol solute dissolved in wa
     solution.add_component(
         Component(smiles="CC(=O)Nc1ccc(O)cc1", role=Component.Role.Solute), ExactAmount(value=1)
     )
+
+Property Phases
+---------------
+
+The ``PropertyPhase`` enum describes the possible phases which a measurement was performed in.
+
+While the enum only has three defined phases (``Solid``, ``Liquid`` and ``Gas``), multiple phases can be formed by
+OR'ing (|) multiple phases together. As an example, to define a phase for a liquid and gas coexisting::
+
+    liquid_gas_phase = PropertyPhase.Liquid | PropertyPhase.Gas
 
 Thermodynamic States
 --------------------

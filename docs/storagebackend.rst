@@ -1,7 +1,7 @@
 .. |storage_backend|     replace:: :py:class:`~propertyestimator.storage.StorageBackend`
-.. |base_data|     replace:: :py:class:`~propertyestimator.storage.data.BaseStoredData`
-.. |base_query|     replace:: :py:class:`~propertyestimator.storage.query.BaseDataQuery`
-.. |substance|     replace:: :py:class:`~propertyestimator.substances.Substance`
+.. |base_data|           replace:: :py:class:`~propertyestimator.storage.data.BaseStoredData`
+.. |base_query|          replace:: :py:class:`~propertyestimator.storage.query.BaseDataQuery`
+.. |substance|           replace:: :py:class:`~propertyestimator.substances.Substance`
 
 Storage Backends
 ================
@@ -41,9 +41,11 @@ particular phase::
 
     found_data = backend.query(substance_query)
 
-here ``found_data`` will be a list of tuples, where the first item in each tuple is the unique key of the found data
-object, the second item is the data object itself, and the final object is the file path to the ancillary data
-directory (or :py:class:`None` if none is present).
+The returned ``found_data`` will be a dictionary with keys of tuples and values as lists of tuples. Each key will be a
+tuple of the values which were matched, for example the matched thermodynamic state, or the matched substance. For each
+value tuple in the tuple list, the first item in the tuple is the unique key of the found data object, the second item
+is the data object itself, and the final object is the file path to the ancillary data directory (or :py:class:`None`
+if none is present).
 
 See the :doc:`dataclasses` page for more information about the available data classes, queries and their details.
 
