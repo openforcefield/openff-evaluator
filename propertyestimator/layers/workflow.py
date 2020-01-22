@@ -197,14 +197,12 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         return results
 
     @classmethod
-    def schedule_calculation(
+    def _schedule_calculation(
         cls,
         calculation_backend,
         storage_backend,
         layer_directory,
         batch,
-        callback,
-        synchronous=False,
     ):
 
         # Store a temporary copy of the force field for protocols to easily access.
@@ -232,15 +230,7 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
             workflow_futures,
         )
 
-        CalculationLayer._await_results(
-            cls.__name__,
-            calculation_backend,
-            storage_backend,
-            batch,
-            callback,
-            [futures],
-            synchronous,
-        )
+        return futures
 
 
 class WorkflowCalculationSchema(CalculationLayerSchema):

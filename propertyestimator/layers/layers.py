@@ -346,6 +346,30 @@ class CalculationLayer(abc.ABC):
 
     @classmethod
     @abc.abstractmethod
+    def _schedule_calculation(
+        cls,
+        calculation_backend,
+        storage_backend,
+        layer_directory,
+        batch
+    ):
+        """The implementation of the public facing `schedule_calculation` method.
+
+        Parameters
+        ----------
+        calculation_backend: CalculationBackend
+            The backend to the submit the calculations to.
+        storage_backend: StorageBackend
+            The backend used to store / retrieve data from previous calculations.
+        layer_directory: str
+            The directory in which to store all temporary calculation data from this
+            layer.
+        batch: _Batch
+            The batch of properties to estimate with the layer.
+        """
+        raise NotImplementedError()
+
+    @classmethod
     def schedule_calculation(
         cls,
         calculation_backend,
@@ -374,4 +398,14 @@ class CalculationLayer(abc.ABC):
             If true, this function will block until the calculation has completed.
             This is mainly intended for debugging purposes.
         """
-        raise NotImplementedError()
+        futures = cls._schedule_calculation(calculation_backend, storage_backend, layer_directory, batch)
+
+        cls._await_results(
+            cls.__name__,
+            calculation_backend,
+            storage_backend,
+            batch,
+            callback,
+            futures,
+            synchronous,
+        )
