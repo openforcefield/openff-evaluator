@@ -367,6 +367,12 @@ class CalculationLayer(abc.ABC):
             layer.
         batch: _Batch
             The batch of properties to estimate with the layer.
+
+        Returns
+        -------
+        list of Future
+            The future objects which will yield the finished `CalculationLayerResult`
+            objects.
         """
         raise NotImplementedError()
 
