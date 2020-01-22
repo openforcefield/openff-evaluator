@@ -353,7 +353,8 @@ class CalculationLayer(abc.ABC):
         layer_directory,
         batch
     ):
-        """The implementation of the public facing `schedule_calculation` method.
+        """The implementation of the `schedule_calculation` method which is responsible
+        for handling the main layer logic.
 
         Parameters
         ----------

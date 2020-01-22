@@ -223,14 +223,14 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
 
         workflow_futures = workflow_graph.execute(layer_directory, calculation_backend)
 
-        futures = calculation_backend.submit_task(
+        future = calculation_backend.submit_task(
             WorkflowCalculationLayer.workflow_to_layer_result,
             batch.queued_properties,
             provenance,
             workflow_futures,
         )
 
-        return futures
+        return [future]
 
 
 class WorkflowCalculationSchema(CalculationLayerSchema):
