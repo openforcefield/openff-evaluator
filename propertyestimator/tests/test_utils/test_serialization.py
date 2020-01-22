@@ -2,6 +2,7 @@
 Units tests for propertyestimator.utils.serialization
 """
 import json
+from datetime import datetime
 from enum import Enum, IntEnum
 
 import numpy as np
@@ -296,6 +297,16 @@ def test_pint_serialization():
 
     assert test_value.value == deserialized_value.value
     assert test_value.error == deserialized_value.error
+
+
+def test_datetime_serialization():
+
+    test_value = datetime.now()
+
+    serialized_value = json.dumps(test_value, cls=TypedJSONEncoder)
+    deserialized_value = json.loads(serialized_value, cls=TypedJSONDecoder)
+
+    assert test_value == deserialized_value
 
 
 def test_type_string_to_object():
