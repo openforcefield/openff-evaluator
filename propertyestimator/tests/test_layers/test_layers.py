@@ -31,14 +31,12 @@ class DummyCalculationLayer(CalculationLayer):
         return CalculationLayerSchema
 
     @classmethod
-    def schedule_calculation(
+    def _schedule_calculation(
         cls,
         calculation_backend,
         storage_backend,
         layer_directory,
-        batch,
-        callback,
-        synchronous=False,
+        batch
     ):
 
         futures = [
@@ -61,15 +59,7 @@ class DummyCalculationLayer(CalculationLayer):
             ),
         ]
 
-        CalculationLayer._await_results(
-            cls.__name__,
-            calculation_backend,
-            storage_backend,
-            batch,
-            callback,
-            futures,
-            synchronous,
-        )
+        return futures
 
     @staticmethod
     def process_successful_property(physical_property, layer_directory, **_):
