@@ -1,5 +1,5 @@
-.. |calculation_backend|     replace:: :py:class:`~propertyestimator.backends.CalculationBackend`
-.. |compute_resources|       replace:: :py:class:`~propertyestimator.backends.ComputeResources`
+.. |calculation_backend|    replace:: :py:class:`~propertyestimator.backends.CalculationBackend`
+.. |compute_resources|      replace:: :py:class:`~propertyestimator.backends.ComputeResources`
 
 Calculation Backends
 ====================

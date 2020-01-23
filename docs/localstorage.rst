@@ -1,9 +1,9 @@
-.. |local_file_backend|    replace:: :py:class:`~propertyestimator.storage.LocalFileStorage`
+.. |local_file_storage|    replace:: :py:class:`~propertyestimator.storage.LocalFileStorage`
 
 Local File Storage
 ==================
 
-The |local_file_backend| backend stores and retrieves all data objects to / from the local file system. The root
+The |local_file_storage| backend stores and retrieves all data objects to / from the local file system. The root
 directory in which all data is to be stored is defined when the object is created::
 
     storage_backend = LocalFileStorage(root_directory="stored_data")

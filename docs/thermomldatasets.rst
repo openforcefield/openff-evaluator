@@ -1,19 +1,19 @@
-.. |register_thermoml|     replace:: :py:class:`~propertyestimator.datasets.thermoml.register_thermoml_property`
-.. |thermoml_decorator|    replace:: :py:class:`~propertyestimator.datasets.thermoml.thermoml_property`
-.. |thermoml_set|          replace:: :py:class:`~propertyestimator.datasets.thermoml.ThermoMLDataSet`
+.. |register_thermoml_property|    replace:: :py:class:`~propertyestimator.datasets.thermoml.register_thermoml_property`
+.. |thermoml_property|             replace:: :py:class:`~propertyestimator.datasets.thermoml.thermoml_property`
+.. |thermoml_data_set|             replace:: :py:class:`~propertyestimator.datasets.thermoml.ThermoMLDataSet`
 
-.. |property|              replace:: :py:class:`~propertyestimator.datasets.PhysicalProperty`
+.. |physical_property|             replace:: :py:class:`~propertyestimator.datasets.PhysicalProperty`
 
-.. |density|               replace:: :py:class:`~propertyestimator.properties.Density`
-.. |dielectric|            replace:: :py:class:`~propertyestimator.properties.DielectricConstant`
-.. |eom|                   replace:: :py:class:`~propertyestimator.properties.EnthalpyOfMixing`
-.. |eov|                   replace:: :py:class:`~propertyestimator.properties.EnthalpyOfVaporization`
-.. |emv|                   replace:: :py:class:`~propertyestimator.properties.ExcessMolarVolume`
+.. |density|                       replace:: :py:class:`~propertyestimator.properties.Density`
+.. |dielectric_constant|           replace:: :py:class:`~propertyestimator.properties.DielectricConstant`
+.. |enthalpy_of_mixing|            replace:: :py:class:`~propertyestimator.properties.EnthalpyOfMixing`
+.. |enthalpy_of_vaporization|      replace:: :py:class:`~propertyestimator.properties.EnthalpyOfVaporization`
+.. |excess_molar_volume|           replace:: :py:class:`~propertyestimator.properties.ExcessMolarVolume`
 
 ThermoML Data Sets
 ==================
 
-The |thermoml_set| object offers an API for extracting physical properties from the `NIST ThermoML Archive
+The |thermoml_data_set| object offers an API for extracting physical properties from the `NIST ThermoML Archive
 <http://trc.nist.gov/ThermoML.html>`_, both directly from the archive itself or from files stored in the IUPAC-
 standard `ThermoML <http://trc.nist.gov/ThermoMLRecommendations.pdf>`_ format.
 
@@ -26,10 +26,10 @@ github.com/openforcefield/propertyestimator/issues>`_ *to request it.*
 Currently the framework has built-in support for extracting:
 
 * *Mass density, kg/m3* (|density|)
-* *Excess molar volume, m3/mol* (|emv|)
-* *Relative permittivity at zero frequency* (|dielectric|)
-* *Excess molar enthalpy (molar enthalpy of mixing), kJ/mol* (|eom|)
-* *Molar enthalpy of vaporization or sublimation, kJ/mol* (|eov|)
+* *Excess molar volume, m3/mol* (|excess_molar_volume|)
+* *Relative permittivity at zero frequency* (|dielectric_constant|)
+* *Excess molar enthalpy (molar enthalpy of mixing), kJ/mol* (|enthalpy_of_mixing|)
+* *Molar enthalpy of vaporization or sublimation, kJ/mol* (|enthalpy_of_vaporization|)
 
 where here both the ThermoML property name (as defined by the `IUPAC XML schema <https://trc.nist.gov/ThermoML.xsd>`_)
 and the built-in framework class are listed.
@@ -40,9 +40,9 @@ Registering Properties
 Properties to be extracted from ThermoML archives must have a corresponding class representation to be loading into.
 This class representation must both:
 
-* inherit from the frameworks |property| class and
-* be registered with the frameworks plug-in system using either the |thermoml_decorator| decorator or the
-  |register_thermoml| method.
+* inherit from the frameworks |physical_property| class and
+* be registered with the frameworks plug-in system using either the |thermoml_property| decorator or the
+  |register_thermoml_property| method.
 
 As an example, a class representation of the ThermoML *'Mass density, kg/m3'* property could be defined and registered
 with the plug-in system using::
@@ -51,10 +51,10 @@ with the plug-in system using::
     class Density(PhysicalProperty):
         """A class representation of a mass density property"""
 
-The |thermoml_decorator| decorator takes in the name of the ThermoML property (as defined by the `IUPAC schema <https:
+The |thermoml_property| decorator takes in the name of the ThermoML property (as defined by the `IUPAC schema <https:
 //trc.nist.gov/ThermoML.xsd>`_) as well as the phases which the framework will be able to estimate this property in.
 
-Multiple ThermoML properties can be mapped onto a single class using the flexible |register_thermoml|
+Multiple ThermoML properties can be mapped onto a single class using the flexible |register_thermoml_property|
 function. As an example, the *'Specific volume, m3/kg'* property (which is simply the reciprocal of mass density) may
 be mapped onto the |density| by providing a ``conversion_function``::
 

@@ -1,21 +1,21 @@
-.. |data_set|               replace:: :py:class:`~propertyestimator.datasets.PhysicalPropertyDataSet`
-.. |property|               replace:: :py:class:`~propertyestimator.datasets.PhysicalProperty`
-.. |property_phase|         replace:: :py:class:`~propertyestimator.datasets.PropertyPhase`
-.. |source|                 replace:: :py:class:`~propertyestimator.datasets.Source`
+.. |physical_property_data_set|    replace:: :py:class:`~propertyestimator.datasets.PhysicalPropertyDataSet`
+.. |physical_property|             replace:: :py:class:`~propertyestimator.datasets.PhysicalProperty`
+.. |property_phase|                replace:: :py:class:`~propertyestimator.datasets.PropertyPhase`
+.. |source|                        replace:: :py:class:`~propertyestimator.datasets.Source`
 
-.. |thermoml_set|           replace:: :py:class:`~propertyestimator.datasets.thermoml.ThermoMLDataSet`
+.. |thermoml_data_set|             replace:: :py:class:`~propertyestimator.datasets.thermoml.ThermoMLDataSet`
 
-.. |substance|              replace:: :py:class:`~propertyestimator.substances.Substance`
-.. |thermodynamic_state|    replace:: :py:class:`~propertyestimator.thermodynamics.ThermodynamicState`
-.. |force_field_source|     replace:: :py:class:`~propertyestimator.forcefield.ForceFieldSource`
+.. |substance|                     replace:: :py:class:`~propertyestimator.substances.Substance`
+.. |thermodynamic_state|           replace:: :py:class:`~propertyestimator.thermodynamics.ThermodynamicState`
+.. |force_field_source|            replace:: :py:class:`~propertyestimator.forcefield.ForceFieldSource`
 
-.. |gradient|               replace:: :py:class:`~propertyestimator.forcefield.ParameterGradient`
+.. |parameter_gradient|            replace:: :py:class:`~propertyestimator.forcefield.ParameterGradient`
 
 Property Data Sets
 ==================
 
-A |data_set| is a collection of measured physical properties encapsulated as |property| objects. It can be easily
-stored as / created from JSON::
+A |physical_property_data_set| is a collection of measured physical properties encapsulated as |physical_property|
+objects. It can be easily stored as / created from JSON::
 
     # Load the data set from a JSON file
     data_set = PhysicalPropertyDataset.from_json(file_path="data_set.json")
@@ -27,14 +27,14 @@ generated/pandas.DataFrame.html>`_::
 
     data_set.to_pandas()
 
-The framework implements specific data set objects for a number of open data sources, such as the |thermoml_set|
+The framework implements specific data set objects for a number of open data sources, such as the |thermoml_data_set|
 (see :doc:`thermomldatasets`) which provides utilities for extracting the data from the `NIST ThermoML Archive
 <http://trc.nist.gov/ThermoML.html>`_ and converting it into the standard framework objects.
 
 Physical Properties
 -------------------
 
-The |property| object describes a measured property of substance, and is defined by a combination of:
+The |physical_property| object describes a measured property of substance, and is defined by a combination of:
 
 * the observed value of the property.
 * |substance| specifying the substance that the measurement was collected for.
@@ -44,12 +44,12 @@ The |property| object describes a measured property of substance, and is defined
 as well as optionally
 
 * the uncertainty in the value of the property.
-* a list of |gradient| which defines the gradient of the property with respect to the model parameters
+* a list of |parameter_gradient| which defines the gradient of the property with respect to the model parameters
   if it was computationally estimated.
 * a |source| specifying the source (either experimental or computational) and provenance of the measurement.
 
 Each type of property supported by the framework, such as a density of an enthalpy of vaporization, must have it's own
-class representation which inherits from |property|::
+class representation which inherits from |physical_property|::
 
     # Define the substance
     water = Substance.from_components("O")
