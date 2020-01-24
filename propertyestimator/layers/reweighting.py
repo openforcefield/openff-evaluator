@@ -7,6 +7,7 @@ import copy
 import os
 import time
 
+import dateutil.parser
 import numpy
 import pint
 
@@ -119,7 +120,7 @@ class ReweightingLayer(WorkflowCalculationLayer):
         """
 
         sorted_list = []
-        time_created = []
+        times_created = []
 
         # First remove any data measured outside of the allowed temperature range.
         for data_tuple in data_list:
@@ -135,9 +136,19 @@ class ReweightingLayer(WorkflowCalculationLayer):
                 continue
 
             sorted_list.append(data_tuple)
-            time_created = time.ctime(os.path.getctime(data_directory))
 
-        return [data for _, data in reversed(sorted(zip(time_created, sorted_list)))]
+            # Roughly determine the time at which this data was created.
+            time_created = dateutil.parser.parse(
+                time.ctime(os.path.getctime(data_directory))
+            )
+            times_created.append(time_created)
+
+        return [
+            data
+            for _, data in reversed(
+                sorted(zip(times_created, sorted_list), key=lambda pair: pair[0])
+            )
+        ]
 
     @staticmethod
     def _get_workflow_metadata(

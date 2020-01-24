@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from enum import Enum
 
-import dateutil
+import dateutil.parser
 import numpy as np
 import pint
 
