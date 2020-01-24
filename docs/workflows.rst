@@ -19,3 +19,6 @@ Workflows are represented as |workflow| objects by the framework, which are them
 |protocol| objects.
 
 A workflow is a collection of steps which, when coupled together, can estimate the values
+
+Replicators
+-----------

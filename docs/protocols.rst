@@ -15,6 +15,15 @@
 
 .. |compute_resources|    replace:: :py:class:`~propertyestimator.backends.ComputeResources`
 
+.. |can_merge|            replace:: :py:meth:`~propertyestimator.workflow.Protocol.can_merge`
+.. |execute|              replace:: :py:meth:`~propertyestimator.workflow.Protocol.execute`
+.. |merge|                replace:: :py:meth:`~propertyestimator.workflow.Protocol.merge`
+.. |validate|             replace:: :py:meth:`~propertyestimator.workflow.Protocol.execute`
+
+.. |to_protocol|          replace:: :py:meth:`~propertyestimator.workflow.schemas.ProtocolSchema.to_protocol`
+
+.. |schema|               replace:: :py:attr:`~propertyestimator.workflow.Protocol.schema`
+
 Protocols
 =========
 
@@ -33,7 +42,7 @@ as complex as performing entire free energy simulations::
     add_numbers.execute()
 
     # Retrieve the output
-    add_value = add_numbers.result
+    result = add_numbers.result
 
 Each protocol exposes a set of the required inputs as well as the produced outputs. These inputs may either be set as a
 constant directly, or if used as part of a :doc:`workflow <workflows>`, can take their value from one of the outputs
@@ -90,8 +99,8 @@ In the above example we set the default value of ``values`` to |undefined| in or
 set by the user. The custom |undefined| class is used in place of ``None`` as ``None`` may be a valid input value for
 some attributes.
 
-In addition to defining its inputs and outputs, a protocol must also implement an ``_execute`` method which handles the
-main logic of the task::
+In addition to defining its inputs and outputs, a protocol must also implement an ``_execute`` function which handles
+the main logic of the task::
 
     def _execute(self, directory, available_resources):
 
@@ -101,16 +110,16 @@ main logic of the task::
             self.result += value
 
 The function is passed the directory in which it should run and create any working files, as well as a
-|compute_resources| object which describes which compute resources are available to run on. This method *must* set all
+|compute_resources| object which describes which compute resources are available to run on. This function *must* set all
 of the output attributes of the protocol before returning.
 
-The private ``_execute`` method which must be implemented should not be confused with the public ``execute`` method. The
-public ``execute`` method implements some common protocol logic (such as validating the inputs and creating the
-directory to run in if needed) before calling the private ``_execute`` method.
+The private ``_execute`` function which must be implemented should not be confused with the public |execute| function.
+The public |execute| function implements some common protocol logic (such as validating the inputs and creating the
+directory to run in if needed) before calling the private ``_execute`` function.
 
 The protocols inputs will automatically be validated before ``_execute`` is called - this validation includes making
-sure that all of the non-optional inputs have been set, as well as ensuring they have been set to the correct type.
-Protocols may implement additional validation logic by implementing a ``validate`` method::
+sure that all of the non-optional inputs have been set, as well as ensuring they have been set to a value of the correct
+type. Protocols may implement additional validation logic by implementing a |validate| function::
 
     def validate(self, attribute_type=None):
 
@@ -118,3 +127,75 @@ Protocols may implement additional validation logic by implementing a ``validate
 
         if len(self.values) < 1:
             raise ValueError("There were no values to add together")
+
+Schemas
+-------
+
+Every protocol has a |protocol_schema| representation from which the protocol can be uniquely recreated. The schema
+stores not only the type of protocol which it represents, but also the values of each of the inputs. Protocol schemas
+are fully JSON serializable. The following is an example schema for the above ``add_numbers`` protocol:
+
+.. code-block:: json
+
+    {
+      "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+      "id": "add_values",
+      "inputs": {
+        ".allow_merging": true,
+        ".values": [1, 2, 3, 4]
+      },
+      "type": "AddValues"
+    }
+
+A protocols schema can be accessed via it's |schema| attribute. A protocol can be directly created from its schema
+representation by calling the schema's |to_protocol| function.
+
+
+Merging Protocols
+-----------------
+
+When executing multiple workflows together (e.g. executing a workflow to estimate a substances density and potential
+energy) there is a large likelihood that some of tasks in those two workflows will be identical. Examples may include
+two workflows requiring protocols which build a set of coordinates, or assigning the same set of parameters to those
+coordinates.
+
+Protocols have built-in support for comparing whether they are performing the same task / calculation as another
+protocol through the |can_merge| and |merge| functions:
+
+* The ``can_merge`` function checks to see whether two protocols are performing an identical task and hence whether
+  they should be merged or not.
+
+* The ``merge`` function handles the actual merging of two protocols which can be merged.
+
+The default ``can_merge`` function takes advantage of the ``merge_behvaiour`` attribute of the different input
+descriptors. The ``merge_behvaiour`` attribute describes how each input should be considered when checking to see
+if two protocols can be merged::
+
+    max_molecules = InputAttribute(
+        docstring="The maximum number of molecules to be added to the system.",
+        type_hint=int,
+        default_value=1000,
+        merge_behavior=MergeBehaviour.ExactlyEqual
+    )
+
+The most common behavior is to require that the inputs must be ``ExactlyEqual`` in order for two protocols two be
+considered to be identical. However, for some inputs such as the timestep of a simulation or the number of steps to
+simulate for, the exact values of the inputs don't necessarily need to be equal but rather, we may
+just wish to take the larger / smaller of the two inputs::
+
+    timestep = InputAttribute(
+        docstring="The timestep to evolve the system by at each step.",
+        type_hint=pint.Quantity,
+        merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        default_value=2.0 * unit.femtosecond,
+    )
+
+    total_number_of_iterations = InputAttribute(
+        docstring="The number of times to propogate the system forward by.",
+        type_hint=int,
+        merge_behavior=InequalityMergeBehaviour.LargestValue,
+        default_value=1,
+    )
+
+The default ``merge`` function also relies upon the ``merge_behaviour`` attributes to determine which values of the
+inputs should be retained when merging two protocols.

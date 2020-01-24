@@ -121,6 +121,7 @@ field optimisation.
 
   Overview <workflows>
   protocols
+  protocolgroups
 
 .. toctree::
   :maxdepth: 2
