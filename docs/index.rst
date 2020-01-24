@@ -120,6 +120,7 @@ field optimisation.
   :caption: Workflows
 
   Overview <workflows>
+  protocols
 
 .. toctree::
   :maxdepth: 2
