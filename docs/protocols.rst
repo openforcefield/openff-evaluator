@@ -1,11 +1,5 @@
 .. |protocol|             replace:: :py:class:`~propertyestimator.workflow.Protocol`
 .. |protocol_schema|      replace:: :py:class:`~propertyestimator.workflow.schemas.ProtocolSchema`
-.. |protocol_graph|       replace:: :py:class:`~propertyestimator.workflow.ProtocolGraph`
-.. |protocol_path|        replace:: :py:class:`~propertyestimator.workflow.utils.ProtocolPath`
-.. |workflow|             replace:: :py:class:`~propertyestimator.workflow.Workflow`
-.. |workflow_schema|      replace:: :py:class:`~propertyestimator.workflow.schemas.WorkflowSchema`
-.. |workflow_graph|       replace:: :py:class:`~propertyestimator.workflow.WorkflowGraph`
-.. |workflow_result|      replace:: :py:class:`~propertyestimator.workflow.WorkflowResult`
 
 .. |input_attribute|      replace:: :py:class:`~propertyestimator.workflow.attributes.InputAttribute`
 .. |output_attribute|     replace:: :py:class:`~propertyestimator.workflow.attributes.OutputAttribute`
@@ -162,12 +156,12 @@ coordinates.
 Protocols have built-in support for comparing whether they are performing the same task / calculation as another
 protocol through the |can_merge| and |merge| functions:
 
-* The ``can_merge`` function checks to see whether two protocols are performing an identical task and hence whether
+* The|can_merge| function checks to see whether two protocols are performing an identical task and hence whether
   they should be merged or not.
 
-* The ``merge`` function handles the actual merging of two protocols which can be merged.
+* The |merge| function handles the actual merging of two protocols which can be merged.
 
-The default ``can_merge`` function takes advantage of the ``merge_behvaiour`` attribute of the different input
+The default|can_merge| function takes advantage of the ``merge_behvaiour`` attribute of the different input
 descriptors. The ``merge_behvaiour`` attribute describes how each input should be considered when checking to see
 if two protocols can be merged::
 
@@ -197,5 +191,5 @@ just wish to take the larger / smaller of the two inputs::
         default_value=1,
     )
 
-The default ``merge`` function also relies upon the ``merge_behaviour`` attributes to determine which values of the
+The default |merge| function also relies upon the ``merge_behaviour`` attributes to determine which values of the
 inputs should be retained when merging two protocols.
