@@ -55,3 +55,7 @@ ul.spaced-list li {
   display: inline-block;
   width: 0;
 }
+
+.rst-content div.figure p.caption {
+    margin-top: 14px;
+}

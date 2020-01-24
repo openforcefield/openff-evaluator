@@ -7,6 +7,8 @@
 .. |workflow_graph|     replace:: :py:class:`~propertyestimator.workflow.WorkflowGraph`
 .. |workflow_result|    replace:: :py:class:`~propertyestimator.workflow.WorkflowResult`
 
+.. |openmm_simulation|                       replace:: :py:class:`~propertyestimator.protocols.openmm.OpenMMSimulation`
+
 Protocols
 =========
 
@@ -14,7 +16,14 @@ The |protocol| class represents a task to be executed within some larger workflo
 may be as simple as adding two numbers together or even as complex as performing entire free energy simulations. In
 general however a protocol should have a *single* well defined task to perform.
 
-.. image:: _static/img/protocol.jpg
+.. figure:: _static/img/protocol.jpg
     :align: center
 
-Protocols
+    A selection of the inputs and outputs of the |openmm_simulation| protocol.
+
+Each protocol exposes a set of required inputs, and the produced outputs. The value of each input may either be set
+as a constant, or, may be set as the output of another protocol, such the inputs and outputs of protocols may be
+chained together to form complex behaviours.
+
+Implementation
+--------------
