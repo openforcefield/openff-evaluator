@@ -31,11 +31,7 @@ class QuickCalculationLayer(CalculationLayer):
 
     @classmethod
     def _schedule_calculation(
-        cls,
-        calculation_backend,
-        storage_backend,
-        layer_directory,
-        batch
+        cls, calculation_backend, storage_backend, layer_directory, batch
     ):
 
         futures = [

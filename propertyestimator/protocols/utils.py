@@ -406,7 +406,7 @@ def generate_base_simulation_protocols(
 
             condition = groups.ConditionalGroup.Condition()
             condition.right_hand_value = ProtocolPath("target_uncertainty", "global")
-            condition.condition_type = groups.ConditionalGroup.Condition.Type.LessThan
+            condition.type = groups.ConditionalGroup.Condition.Type.LessThan
             condition.left_hand_value = ProtocolPath(
                 "value.error", conditional_group.id, analysis_protocol.id
             )

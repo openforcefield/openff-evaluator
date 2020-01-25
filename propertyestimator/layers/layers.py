@@ -347,11 +347,7 @@ class CalculationLayer(abc.ABC):
     @classmethod
     @abc.abstractmethod
     def _schedule_calculation(
-        cls,
-        calculation_backend,
-        storage_backend,
-        layer_directory,
-        batch
+        cls, calculation_backend, storage_backend, layer_directory, batch
     ):
         """The implementation of the `schedule_calculation` method which is responsible
         for handling the main layer logic.
@@ -405,7 +401,9 @@ class CalculationLayer(abc.ABC):
             If true, this function will block until the calculation has completed.
             This is mainly intended for debugging purposes.
         """
-        futures = cls._schedule_calculation(calculation_backend, storage_backend, layer_directory, batch)
+        futures = cls._schedule_calculation(
+            calculation_backend, storage_backend, layer_directory, batch
+        )
 
         cls._await_results(
             cls.__name__,
