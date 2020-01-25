@@ -11,6 +11,7 @@ import time
 from collections import defaultdict
 
 from propertyestimator.attributes import Attribute, AttributeClass, PlaceholderValue
+from propertyestimator.backends import ComputeResources
 from propertyestimator.utils import graph
 from propertyestimator.utils.exceptions import EvaluatorException
 from propertyestimator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
@@ -662,7 +663,7 @@ class Protocol(AttributeClass, abc.ABC):
             The resources available to execute on.
         """
 
-    def execute(self, directory, available_resources):
+    def execute(self, directory="", available_resources=None):
         """Execute the protocol.
 
         Parameters
@@ -670,8 +671,15 @@ class Protocol(AttributeClass, abc.ABC):
         directory: str
             The directory to store output data in.
         available_resources: ComputeResources
-            The resources available to execute on.
+            The resources available to execute on. If `None`, the protocol
+            will be executed on a single CPU.
         """
+        if len(directory) > 0 and not os.path.isdir(directory):
+            os.makedirs(directory, exist_ok=True)
+
+        if available_resources is None:
+            available_resources = ComputeResources(number_of_threads=1)
+
         self.validate(InputAttribute)
         self._execute(directory, available_resources)
 
