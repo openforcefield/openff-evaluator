@@ -198,11 +198,7 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
 
     @classmethod
     def _schedule_calculation(
-        cls,
-        calculation_backend,
-        storage_backend,
-        layer_directory,
-        batch,
+        cls, calculation_backend, storage_backend, layer_directory, batch,
     ):
 
         # Store a temporary copy of the force field for protocols to easily access.
