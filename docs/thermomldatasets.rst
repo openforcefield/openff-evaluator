@@ -1,4 +1,4 @@
-.. |register_thermoml_property|    replace:: :py:class:`~propertyestimator.datasets.thermoml.register_thermoml_property`
+.. |register_thermoml_property|    replace:: :py:meth:`~propertyestimator.datasets.thermoml.register_thermoml_property`
 .. |thermoml_property|             replace:: :py:class:`~propertyestimator.datasets.thermoml.thermoml_property`
 .. |thermoml_data_set|             replace:: :py:class:`~propertyestimator.datasets.thermoml.ThermoMLDataSet`
 

@@ -1,15 +1,17 @@
-.. |protocol|             replace:: :py:class:`~propertyestimator.workflow.Protocol`
-.. |protocol_schema|      replace:: :py:class:`~propertyestimator.workflow.schemas.ProtocolSchema`
+.. |protocol|                     replace:: :py:class:`~propertyestimator.workflow.Protocol`
+.. |protocol_schema|              replace:: :py:class:`~propertyestimator.workflow.schemas.ProtocolSchema`
 
-.. |input_attribute|      replace:: :py:class:`~propertyestimator.workflow.attributes.InputAttribute`
-.. |output_attribute|     replace:: :py:class:`~propertyestimator.workflow.attributes.OutputAttribute`
-.. |undefined|            replace:: :py:class:`~propertyestimator.attributes.UNDEFINED`
+.. |input_attribute|              replace:: :py:class:`~propertyestimator.workflow.attributes.InputAttribute`
+.. |output_attribute|             replace:: :py:class:`~propertyestimator.workflow.attributes.OutputAttribute`
+.. |undefined|                    replace:: :py:class:`~propertyestimator.attributes.UNDEFINED`
+.. |inequality_merge_behavior|    replace:: :py:class:`~propertyestimator.workflow.attributes.InequalityMergeBehaviour`
 
 .. |openmm_simulation|    replace:: :py:class:`~propertyestimator.protocols.openmm.OpenMMSimulation`
 
 .. |compute_resources|    replace:: :py:class:`~propertyestimator.backends.ComputeResources`
 
 .. |can_merge|            replace:: :py:meth:`~propertyestimator.workflow.Protocol.can_merge`
+.. |_execute|              replace:: :py:meth:`~propertyestimator.workflow.Protocol._execute`
 .. |execute|              replace:: :py:meth:`~propertyestimator.workflow.Protocol.execute`
 .. |merge|                replace:: :py:meth:`~propertyestimator.workflow.Protocol.merge`
 .. |validate|             replace:: :py:meth:`~propertyestimator.workflow.Protocol.execute`
@@ -37,6 +39,9 @@ as complex as performing entire free energy simulations::
 
     # Retrieve the output
     result = add_numbers.result
+
+Inputs and Outputs
+------------------
 
 Each protocol exposes a set of the required inputs as well as the produced outputs. These inputs may either be set as a
 constant directly, or if used as part of a :doc:`workflow <workflows>`, can take their value from one of the outputs
@@ -93,7 +98,10 @@ In the above example we set the default value of ``values`` to |undefined| in or
 set by the user. The custom |undefined| class is used in place of ``None`` as ``None`` may be a valid input value for
 some attributes.
 
-In addition to defining its inputs and outputs, a protocol must also implement an ``_execute`` function which handles
+Task Execution
+--------------
+
+In addition to defining its inputs and outputs, a protocol must also implement an |_execute| function which handles
 the main logic of the task::
 
     def _execute(self, directory, available_resources):
@@ -107,11 +115,14 @@ The function is passed the directory in which it should run and create any worki
 |compute_resources| object which describes which compute resources are available to run on. This function *must* set all
 of the output attributes of the protocol before returning.
 
-The private ``_execute`` function which must be implemented should not be confused with the public |execute| function.
+The private |_execute| function which must be implemented should not be confused with the public |execute| function.
 The public |execute| function implements some common protocol logic (such as validating the inputs and creating the
-directory to run in if needed) before calling the private ``_execute`` function.
+directory to run in if needed) before calling the private |_execute| function.
 
-The protocols inputs will automatically be validated before ``_execute`` is called - this validation includes making
+Protocol Validation
+-------------------
+
+The protocols inputs will automatically be validated before |_execute| is called - this validation includes making
 sure that all of the non-optional inputs have been set, as well as ensuring they have been set to a value of the correct
 type. Protocols may implement additional validation logic by implementing a |validate| function::
 
@@ -125,9 +136,10 @@ type. Protocols may implement additional validation logic by implementing a |val
 Schemas
 -------
 
-Every protocol has a |protocol_schema| representation from which the protocol can be uniquely recreated. The schema
-stores not only the type of protocol which it represents, but also the values of each of the inputs. Protocol schemas
-are fully JSON serializable. The following is an example schema for the above ``add_numbers`` protocol:
+Every protocol has a |protocol_schema| representation which uniquely describes the protocol, and from which the protocol
+can be exactly recreated. The schema stores not only the type of protocol which it represents, but also the values of
+each of the inputs. Protocol schemas are fully JSON serializable. The following is an example schema for the above
+``add_numbers`` protocol:
 
 .. code-block:: json
 
@@ -156,12 +168,12 @@ coordinates.
 Protocols have built-in support for comparing whether they are performing the same task / calculation as another
 protocol through the |can_merge| and |merge| functions:
 
-* The|can_merge| function checks to see whether two protocols are performing an identical task and hence whether
+* The |can_merge| function checks to see whether two protocols are performing an identical task and hence whether
   they should be merged or not.
 
 * The |merge| function handles the actual merging of two protocols which can be merged.
 
-The default|can_merge| function takes advantage of the ``merge_behvaiour`` attribute of the different input
+The default |can_merge| function takes advantage of the ``merge_behvaiour`` attribute of the different input
 descriptors. The ``merge_behvaiour`` attribute describes how each input should be considered when checking to see
 if two protocols can be merged::
 
@@ -190,6 +202,8 @@ just wish to take the larger / smaller of the two inputs::
         merge_behavior=InequalityMergeBehaviour.LargestValue,
         default_value=1,
     )
+
+This can be accomplished using the |inequality_merge_behavior| enum.
 
 The default |merge| function also relies upon the ``merge_behaviour`` attributes to determine which values of the
 inputs should be retained when merging two protocols.

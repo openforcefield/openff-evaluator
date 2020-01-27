@@ -26,7 +26,7 @@ Conditional Protocol Groups
 
 A |conditional_group| is a special class of |protocol_group| which will execute all of the grouped protocols again
 and again until a set of conditions has been met or until a maximum number of iterations (see |max_iterations|) has been
-performed. They can be thought of as being a protocol representation of a ``while`` statement::
+performed. They can be thought of as being a protocol representation of a ``while`` statement.
 
 Each condition to be met is represented by a |condition| object::
 
@@ -55,14 +55,16 @@ longer and longer until the groups condition has been met::
     simulation.input_coordinate_file = "coords.pdb"
     simulation.system_path = "system.xml"
 
-    # Extend the simulation after each group iteration.
-    simulation.total_number_of_iterations = ProtocolPath(
-        "current_iteration", conditional_group.id
-    )
-
     extract_density = ExtractAverageStatistic("extract_density")
     extract_density.statistics_type = ObservableType.Density
     extract_density.statistics_path = simulation.statistics_file_path
+
+    # Set the total number of iterations the simulation should perform to be equal
+    # to the current iteration of the group. I.e the simulation should perform a
+    # new iteration at each group iteration.
+    simulation.total_number_of_iterations = ProtocolPath(
+        "current_iteration", conditional_group.id
+    )
 
     # Add the protocols to the group.
     conditional_group.add_protocols(production_simulation, analysis_protocol)

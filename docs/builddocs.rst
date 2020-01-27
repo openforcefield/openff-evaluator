@@ -5,7 +5,7 @@ Although documentation for the OpenFF Evaluator is `readily available online
 <https://property-estimator.readthedocs.io/en/latest/>`_, it is sometimes useful
 to build a local version such as when
 
-- developing new pages and you wish to preview those pages without having to wait
+- developing new pages which you wish to preview without having to wait
   for ReadTheDocs to finish building.
 
 - debugging errors which occur when building on ReadTheDocs.

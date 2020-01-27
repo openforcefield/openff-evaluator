@@ -1,6 +1,6 @@
 .. |storage_backend|           replace:: :py:class:`~propertyestimator.storage.StorageBackend`
 
-.. |base_data|                 replace:: :py:class:`~propertyestimator.storage.data.BaseStoredData`
+.. |base_stored_data|          replace:: :py:class:`~propertyestimator.storage.data.BaseStoredData`
 .. |base_data_query|           replace:: :py:class:`~propertyestimator.storage.query.BaseDataQuery`
 .. |hashable_stored_data|      replace:: :py:class:`~propertyestimator.storage.data.HashableStoredData`
 .. |replaceable_data|          replace:: :py:class:`~propertyestimator.storage.data.ReplaceableData`
@@ -16,6 +16,11 @@
 .. |substance|                 replace:: :py:class:`~propertyestimator.substances.Substance`
 .. |thermodynamic_state|       replace:: :py:class:`~propertyestimator.thermodynamics.ThermodynamicState`
 .. |force_field_source|        replace:: :py:class:`~propertyestimator.forcefield.ForceFieldSource`
+
+.. |to_storage_query|          replace:: :py:meth:`~propertyestimator.storage.data.BaseStoredData.to_storage_query`
+
+.. |substance_query_attr|      replace:: :py:attr:`~propertyestimator.storage.query.SimulationDataQuery.substance_query`
+.. |components_only|           replace:: :py:attr:`~propertyestimator.storage.query.SubstanceQuery.components_only`
 
 Data Classes and Queries
 ========================
@@ -33,8 +38,8 @@ there are typically two types of data which are expected to be stored:
   |thermodynamic_state| as an existing piece of data, but which stores many more uncorrelated configurations.
 
 Every data class **must** be paired with a corresponding data query class which inherits from the |base_data_query|
-class. In addition, each data object must implement a ``to_storage_query`` function which returns the data query
-which would uniquely match that data object. The ``to_storage_query`` is used heavily by storage backends when checking
+class. In addition, each data object must implement a |to_storage_query| function which returns the data query
+which would uniquely match that data object. The |to_storage_query| is used heavily by storage backends when checking
 if a piece of data already exists within the backend.
 
 Force Field Data
@@ -70,8 +75,8 @@ of particular criteria within a storage backend, which in part includes querying
   system
 
 Included is not only the ability to find data generated for a particular ``substance`` (e.g. only data for methanol),
-but also the ability to return data for each component of a given substance by setting the ``substance_query`` attribute
-to a |substance_query| which has the ``components_only`` attribute set to true::
+but also the ability to return data for each component of a given substance by setting the |substance_query_attr|
+attribute to a |substance_query| which has the |components_only| attribute set to true::
 
     # Load an existing storage backend
     storage_backend = LocalFileStorage()

@@ -67,7 +67,7 @@ field optimisation.
 .. table:: The physical properties which are natively supported by the framework.
    :widths: auto
    :align: center
-   :class: property-table
+   :class: clean-table property-table
 
    +----------------------------------+---------------------------------+--------------------------------+
    ||                                 || |simulation|                   || |reweighting|                 |

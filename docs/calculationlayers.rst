@@ -1,10 +1,13 @@
 .. |calculation_layer_result|    replace:: :py:class:`~propertyestimator.layers.CalculationLayerResult`
 .. |calculation_layer|           replace:: :py:class:`~propertyestimator.layers.CalculationLayer`
 .. |calculation_layer_schema|    replace:: :py:class:`~propertyestimator.layers.CalculationLayerSchema`
-.. |layer_decorator|             replace:: :py:class:`~propertyestimator.layers.calculation_layer`
+.. |layer_decorator|             replace:: :py:meth:`~propertyestimator.layers.calculation_layer`
 
 .. |evaluator_exception|         replace:: :py:class:`~propertyestimator.utils.exceptions.EvaluatorException`
 .. |undefined|                   replace:: :py:class:`~propertyestimator.attributes.UNDEFINED`
+
+.. |_schedule_calculation|       replace:: :py:meth:`~propertyestimator.layers.CalculationLayer._schedule_calculation`
+
 
 Calculation Layers
 ==================
@@ -60,10 +63,10 @@ The first thing to note is the |layer_decorator| decorator which is being applie
 the calculation layer with the frameworks plug-in system, allowing it to be used in future calculations.
 
 The only other requirements is that the class implement a ``required_schema_type`` class method, which returns the
-type of |calculation_layer_schema| that is associated with this layer, and a ``_schedule_calculation``. The
-``_schedule_calculation`` is responsible for performing the actual property calculations.
+type of |calculation_layer_schema| that is associated with this layer, and a |_schedule_calculation|. The
+|_schedule_calculation| is responsible for performing the actual property calculations.
 
-The form of the ``_schedule_calculation`` function is very flexible::
+The form of the |_schedule_calculation| function is very flexible::
 
     @classmethod
     def _schedule_calculation(
@@ -100,7 +103,7 @@ Future object <https://docs.python.org/3/library/asyncio-future.html>`_). The ea
 is to perform any calculations using the ``calculation_backend`` which will automatically return the
 results of any functions as such.
 
-The future objects returned by ``_schedule_calculation`` must return a |calculation_layer_result| object, which
+The future objects returned by |_schedule_calculation| must return a |calculation_layer_result| object, which
 includes
 
 * the estimated property if the calculation was successful (or |undefined| otherwise).
