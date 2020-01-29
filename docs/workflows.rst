@@ -23,6 +23,8 @@
 .. |outputs_to_store|             replace:: :py:class:`~propertyestimator.workflow.schemas.WorkflowSchema.outputs_to_store`
 .. |protocol_replicators|         replace:: :py:class:`~propertyestimator.workflow.schemas.WorkflowSchema.protocol_replicators`
 
+.. |quantity|                     replace:: :py:class:`~pint.Quantity`
+
 Workflows
 =========
 
@@ -125,27 +127,27 @@ this *metadata* is populated from the property which the workflow is aiming to e
 |generate_default_metadata| function, and includes:
 
 .. table::
-   :widths: auto
+   :widths: 20 37 43
    :align: center
    :class: clean-table
 
-   +--------------------------------+-----------------------------------+------------------------------------------------------------------------------------------------------+
-   || Key                           || Type                             || Description                                                                                         |
-   +================================+===================================+======================================================================================================+
-   || ``thermodynamic_state``       || |thermodynamic_state|            || The state at which the to perform any calculations .                                                |
-   +--------------------------------+-----------------------------------+------------------------------------------------------------------------------------------------------+
-   || ``substance``                 || |substance|                      || The substance to use in any calculations.                                                           |
-   +--------------------------------+-----------------------------------+------------------------------------------------------------------------------------------------------+
-   || ``components``                || list of |substance|              || The components present in the main ``substance``.                                                   |
-   +--------------------------------+-----------------------------------+------------------------------------------------------------------------------------------------------+
-   || ``target_uncertainty``        || ``pint.Quantity``                || The target uncertainty of any calculations.                                                         |
-   +--------------------------------+-----------------------------------+------------------------------------------------------------------------------------------------------+
-   || ``per_component_uncertainty`` || ``pint.Quantity``                || The ``target_uncertainty`` divided by the sqrt of the number of components in the ``substance`` + 1 |
-   +--------------------------------+-----------------------------------+------------------------------------------------------------------------------------------------------+
-   || ``force_field_path``          || ``str``                          || A file path to the force field parameters to used in any calculations.                              |
-   +--------------------------------+-----------------------------------+------------------------------------------------------------------------------------------------------+
-   || ``parameter_gradient_keys``   || list of |parameter_gradient_key| || The parameters to differentiate any observables with respect to.                                    |
-   +--------------------------------+-----------------------------------+------------------------------------------------------------------------------------------------------+
+   +--------------------------------+-----------------------------------+-----------------------------------------------------------------------------+
+   || Key                           || Type                             || Description                                                                |
+   +================================+===================================+=============================================================================+
+   || ``thermodynamic_state``       || |thermodynamic_state|            || The state at which the to perform any calculations .                       |
+   +--------------------------------+-----------------------------------+-----------------------------------------------------------------------------+
+   || ``substance``                 || |substance|                      || The substance to use in any calculations.                                  |
+   +--------------------------------+-----------------------------------+-----------------------------------------------------------------------------+
+   || ``components``                || list of |substance|              || The components present in the main ``substance``.                          |
+   +--------------------------------+-----------------------------------+-----------------------------------------------------------------------------+
+   || ``target_uncertainty``        || |quantity|                       || The target uncertainty of any calculations.                                |
+   +--------------------------------+-----------------------------------+-----------------------------------------------------------------------------+
+   || ``per_component_uncertainty`` || |quantity|                       || The ``target_uncertainty`` divided by ``sqrt(substance.n_components + 1)`` |
+   +--------------------------------+-----------------------------------+-----------------------------------------------------------------------------+
+   || ``force_field_path``          || :py:class:`str`                  || A file path to the force field parameters to use.                          |
+   +--------------------------------+-----------------------------------+-----------------------------------------------------------------------------+
+   || ``parameter_gradient_keys``   || list of |parameter_gradient_key| || The parameters to differentiate any observables with respect to.           |
+   +--------------------------------+-----------------------------------+-----------------------------------------------------------------------------+
 
 Replicators
 -----------
