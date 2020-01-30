@@ -33,8 +33,30 @@ backends <calculationbackend>`. While lightweight, it offers a large amount of e
 currently used by both the :doc:`simulation <simulationlayer>` and :doc:`reweighting <reweightinglayer>` layers to
 perform their required calculations.
 
-All workflows to be executed are created from a |workflow_schema|. The schema defines a blueprint for a particular
-workflow (for example, a workflow to calculate a density from molecular simulation) and includes:
+A workflow is simply a collection of tasks which should be executed in succession, and whereby the outputs of certain
+tasks may be passed as the input of successive tasks.
+
+.. figure:: _static/img/coords_and_assign.svg
+    :align: center
+    :width: 70%
+
+    A an example workflow which combines a protocol which will build a set of coordinates for a particular system,
+    assign parameters to that system, and then perform an energy minimisation.
+
+Each task to be executed is represented by specific :doc:`protocol object <protocols>`, where each protocol exposes a
+set of its required inputs, and its produced outputs. The inputs to each protocol may either be set to some constant
+value, or be connected to the :ref:`output of another protocol <Connecting Protocols>`::
+
+
+
+Workflows (represented by |workflow| objects) of such chained together protocols  are predominantly created from both
+a :ref:`schema definition <Workflow Schemas>` and a set of additional metadata which the schema may draw from.
+
+Workflow Schemas
+----------------
+
+A |workflow_schema| defines a general blueprint for a workflow, such as a workflow to calculate a density from
+molecular simulation. Each schema will be composed of
 
 .. rst-class:: spaced-list
 
@@ -52,26 +74,47 @@ as well as optionally:
     - |protocol_replicators|: A set of :ref:`replicators <Replicators>` which flag parts of a workflow which should be
       replicated.
 
+
+
 A workflow to execute is represented by the |workflow| object, whereby a workflow is created from both it's schema
 as well as a dictionary of metadata which will be made available to the workflow.
 
+Metadata
+########
+
+In certain instances, the input to a protocol may not be known when defining a workflow. When designing a workflow to
+estimate a density for example, it is deseriable to specify that the ``substance`` to estimate for should be taken
+from the ``Density`` measurement directly.
+
+Each workflow makes available a set of *global metadata* which can be used as inputs to each of the component protocols.
+
+The available metadata is specified when creating the |workflow| object through the ``global_metadata`` argument. It
+should be a dictionary where the keys correspond to the metadata keys and the values can be any JSON serializable
+structures::
+
+    # Define the metadata dictionary.
+    metadata = {
+        "some_int_data": 1,
+        "some_list_data": [1, 2, 3]
+    }
+
+    # Pass the metadata to the workflow.
+    workflow = Workflow(global_metadata=metadata)
+
+The metadata is then accessible using a |protocol_path| with a protocol name of ``global``::
+
+    # The metadata is then accessible via ProtocolPath objects
+    ProtocolPath("some_int_data", "global")
+    ProtocolPath("some_list_data", "global")
+
+
 Connecting Protocols
 --------------------
-
-Workflows are constructed by chaining together multiple protocols by setting the inputs of certain protocols as the
-outputs of others. This is accomplished using the |protocol_path| object.
 
 A |protocol_path| is a reference to the output of a protocol in a workflow. It is created from two parts:
 
 * the name of the output attribute to reference (passed as the ``property_name`` constructor argument).
 * the unique id of the protocol to take the output from.
-
-.. figure:: _static/img/coords_and_assign.svg
-    :align: center
-    :width: 70%
-
-    A schematic view of a |build_smirnoff_system| protocol which takes inputs from a |build_coordinates_packmol|
-    protocol.
 
 As an example, consider the case whereby a |build_smirnoff_system| protocol takes it's coordinate file
 input from the output of a |build_coordinates_packmol| protocol::
@@ -97,57 +140,6 @@ referenced protocol (in this case ``build_coordinates``) has finished executing.
 
 The workflow engine will automatically determine the order in which to execute protocols such that all the input
 dependencies are satisfied.
-
-Global Metadata
-###############
-
-Each workflow makes available a set of *global metadata* which can be used as inputs to each of the component protocols.
-
-The available metadata is specified when creating the |workflow| object through the ``global_metadata`` argument. It
-should be a dictionary where the keys correspond to the metadata keys and the values can be any JSON serializable
-structures::
-
-    # Define the metadata dictionary.
-    metadata = {
-        "some_int_data": 1,
-        "some_list_data": [1, 2, 3]
-    }
-
-    # Pass the metadata to the workflow.
-    workflow = Workflow(global_metadata=metadata)
-
-The metadata is then accessible using a |protocol_path| with a protocol name of ``global``::
-
-    # The metadata is then accessible via ProtocolPath objects
-    ProtocolPath("some_int_data", "global")
-    ProtocolPath("some_list_data", "global")
-
-By default (see the :doc:`simulation <simulationlayer>` and :doc:`reweighting <reweightinglayer>` layer documentation)
-this *metadata* is populated from the property which the workflow is aiming to estimate using the
-|generate_default_metadata| function, and includes:
-
-.. table::
-   :widths: 20 37 43
-   :align: center
-   :class: clean-table
-
-   +--------------------------------+-----------------------------------+-----------------------------------------------------------------------------+
-   || Key                           || Type                             || Description                                                                |
-   +================================+===================================+=============================================================================+
-   || ``thermodynamic_state``       || |thermodynamic_state|            || The state at which the to perform any calculations .                       |
-   +--------------------------------+-----------------------------------+-----------------------------------------------------------------------------+
-   || ``substance``                 || |substance|                      || The substance to use in any calculations.                                  |
-   +--------------------------------+-----------------------------------+-----------------------------------------------------------------------------+
-   || ``components``                || list of |substance|              || The components present in the main ``substance``.                          |
-   +--------------------------------+-----------------------------------+-----------------------------------------------------------------------------+
-   || ``target_uncertainty``        || |quantity|                       || The target uncertainty of any calculations.                                |
-   +--------------------------------+-----------------------------------+-----------------------------------------------------------------------------+
-   || ``per_component_uncertainty`` || |quantity|                       || The ``target_uncertainty`` divided by ``sqrt(substance.n_components + 1)`` |
-   +--------------------------------+-----------------------------------+-----------------------------------------------------------------------------+
-   || ``force_field_path``          || :py:class:`str`                  || A file path to the force field parameters to use.                          |
-   +--------------------------------+-----------------------------------+-----------------------------------------------------------------------------+
-   || ``parameter_gradient_keys``   || list of |parameter_gradient_key| || The parameters to differentiate any observables with respect to.           |
-   +--------------------------------+-----------------------------------+-----------------------------------------------------------------------------+
 
 Replicators
 -----------
