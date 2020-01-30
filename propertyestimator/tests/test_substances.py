@@ -6,14 +6,15 @@ import numpy as np
 from propertyestimator.substances import Component, ExactAmount, MoleFraction, Substance
 
 
-def test_add_mole_fractions():
+def test_substance_from_components_no_amounts():
 
-    substance = Substance()
+    water = Component(smiles="O")
+    methanol = "CO"
 
-    substance.add_component(Component("C"), MoleFraction(0.5))
-    substance.add_component(Component("C"), MoleFraction(0.5))
+    substance = Substance.from_components(water, methanol)
+    substance.validate()
 
-    assert substance.number_of_components == 1
+    assert substance.number_of_components == 2
 
     amounts = substance.get_amounts(substance.components[0])
 
@@ -22,23 +23,22 @@ def test_add_mole_fractions():
     amount = next(iter(amounts))
 
     assert isinstance(amount, MoleFraction)
-    assert np.isclose(amount.value, 1.0)
+    assert np.isclose(amount.value, 0.5)
 
 
-def test_multiple_amounts():
+def test_substance_from_components():
 
-    substance = Substance()
+    sodium = Component(smiles="[Na+]")
+    chloride = Component(smiles="[Cl-]")
 
-    sodium = Component("[Na+]")
-    chloride = Component("[Cl-]")
+    amounts = {
+        sodium: [MoleFraction(0.75), ExactAmount(1)],
+        chloride: [MoleFraction(0.25), ExactAmount(1)]
+    }
 
-    substance.add_component(sodium, MoleFraction(0.75))
-    substance.add_component(sodium, ExactAmount(1))
+    substance = Substance.from_components(sodium, chloride, amounts=amounts)
 
-    substance.add_component(chloride, MoleFraction(0.25))
-    substance.add_component(chloride, ExactAmount(1))
-
-    assert substance.number_of_components == 2
+    assert len(substance) == 2
 
     sodium_amounts = substance.get_amounts(sodium)
     chlorine_amounts = substance.get_amounts(chloride)
@@ -52,3 +52,47 @@ def test_multiple_amounts():
 
     assert molecule_counts[sodium.identifier] == 4
     assert molecule_counts[chloride.identifier] == 2
+
+
+def test_substance_from_components_with_roles():
+
+    sodium_solvent = Component(smiles="[Na+]", role=Component.Role.Solvent)
+    chloride_solvent = Component(smiles="[Cl-]", role=Component.Role.Solvent)
+
+    sodium_solute = Component(smiles="[Na+]", role=Component.Role.Solute)
+    chloride_solute = Component(smiles="[Cl-]", role=Component.Role.Solute)
+
+    amounts = {
+        sodium_solute: MoleFraction(0.75),
+        sodium_solvent: ExactAmount(1),
+        chloride_solvent: MoleFraction(0.25),
+        chloride_solute: ExactAmount(1),
+    }
+
+    substance = Substance.from_components(sodium_solvent, sodium_solute, chloride_solvent, chloride_solute, amounts=amounts)
+
+    assert len(substance) == 4
+
+    for component in substance:
+        assert len(substance.get_amounts(component)) == 1
+
+
+def test_len():
+
+    substance = Substance.from_components("O", "CO")
+    assert len(substance) == 2
+
+
+def test_iter():
+
+    water = Component("O")
+    methanol = Component("CO")
+
+    substance = Substance.from_components(water, methanol)
+
+    components = []
+
+    for component in substance:
+        components.append(component)
+
+    assert components == [water, methanol]

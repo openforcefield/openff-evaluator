@@ -1,6 +1,8 @@
 """
 An API for defining and creating substances.
 """
+from collections import abc
+
 import numpy as np
 
 from propertyestimator import unit
@@ -11,33 +13,9 @@ from propertyestimator.substances import Amount, Component, ExactAmount, MoleFra
 class Substance(AttributeClass):
     """Defines the components, their amounts, and their roles in a system.
 
-    Examples
+    See Also
     --------
-    A neat liquid containing only a single component:
-
-    >>> from propertyestimator.substances import Component, ExactAmount, MoleFraction
-    >>> liquid = Substance()
-    >>> liquid.add_component(Component(smiles='O'), MoleFraction(1.0))
-
-    A binary mixture containing two components, where the mole fractions are explicitly stated:
-
-    >>> binary_mixture = Substance()
-    >>> binary_mixture.add_component(Component(smiles='O'), MoleFraction(0.2))
-    >>> binary_mixture.add_component(Component(smiles='CO'), MoleFraction(0.8))
-
-    The infinite dilution of one molecule within a bulk solvent or mixture may also be specified
-    by defining the exact number of copies of that molecule, rather than a mole fraction:
-
-    >>> benzene = Component(smiles='C1=CC=CC=C1', role=Component.Role.Solute)
-    >>> water = Component(smiles='O', role=Component.Role.Solvent)
-    >>>
-    >>> infinite_dilution = Substance()
-    >>> infinite_dilution.add_component(component=benzene, amount=ExactAmount(1)) # Infinite dilution.
-    >>> infinite_dilution.add_component(component=water, amount=MoleFraction(1.0))
-
-    In this example we explicitly flag benzene as being the solute and the water component the solvent.
-    This enables workflow's to easily identify key molecules of interest, such as the molecule which should
-    be 'grown' into solution during solvation free energy calculations.
+    physicalproperties
     """
 
     components = Attribute(
@@ -93,10 +71,8 @@ class Substance(AttributeClass):
         return "|".join(identifier_split)
 
     @classmethod
-    def from_components(cls, *components):
+    def from_components(cls, *components, amounts=None):
         """Creates a new `Substance` object from a list of components.
-        This method assumes that all components should be present with
-        equal mole fractions.
 
         Parameters
         ----------
@@ -104,33 +80,78 @@ class Substance(AttributeClass):
             The components to add to the substance. These may either be full
             `Component` objects or just the smiles representation
             of the component.
+        amounts: dict of Component or str and Amount or iterable of Amount, optional
+            The amount of each component being added. Each key should correspond to one
+            of the passed `components`, and the value should be the amount(s) of that
+            component. If `None`, it will be assumed each component is present with
+            an equal mole fraction.
 
         Returns
         -------
         Substance
             The substance containing the requested components in equal amounts.
+
+        See Also
+        --------
+        physicalproperties
         """
 
         if len(components) == 0:
             raise ValueError("At least one component must be specified")
 
-        mole_fraction = 1.0 / len(components)
+        if not all(isinstance(x, (str, Component)) for x in components):
+
+            raise ValueError(
+                "The components must either be string SMILES patterns or "
+                "`Component` objects"
+            )
+
+        # Make sure all of the components have at least one amount defined
+        if amounts is None:
+
+            mole_fraction = 1.0 / len(components)
+            amounts = {x: MoleFraction(mole_fraction) for x in components}
+
+        if not all(x in amounts for x in components):
+            raise ValueError("Each component must have a corresponding amount defined.")
+
+        for amount_key, amount_value in amounts.items():
+
+            if amount_key not in components:
+
+                raise ValueError(
+                    f"The amounts dictionary contained amounts for an undefined "
+                    f"component ({amount_key})."
+                )
+
+            assert isinstance(amount_value, (Amount, abc.Iterable))
+
+            if isinstance(amount_value, Amount):
+                amount_value = [amount_value]
+
+            assert all(isinstance(x, Amount) for x in amount_value)
+            amounts[amount_key] = amount_value
+
+        # Make sure all of the components are Component objects.
+        new_components = [Component(x) if isinstance(x, str) else x for x in components]
+
+        # Create a map of the original components and the new components - these may be
+        # different as each component will standardize its smiles pattern.
+        component_map = {x: y for x, y in zip(components, new_components)}
+
+        new_amounts = {component_map[x]: amounts[x] for x in amounts}
 
         return_substance = cls()
 
-        for component in components:
-
-            if isinstance(component, str):
-                component = Component(smiles=component)
-
-            return_substance.add_component(component, MoleFraction(mole_fraction))
+        for component in new_components:
+            for amount in new_amounts[component]:
+                return_substance._add_component(component, amount)
 
         return return_substance
 
-    def add_component(self, component, amount):
+    def _add_component(self, component, amount):
         """Add a component to the Substance. If the component is already present in
-        the substance, then the mole fraction will be added to the current mole
-        fraction of that component.
+        the substance, then the amount will be added to the current amount of that component.
 
         Parameters
         ----------
@@ -145,29 +166,6 @@ class Substance(AttributeClass):
 
         component.validate()
         amount.validate()
-
-        if isinstance(amount, MoleFraction):
-
-            total_mole_fraction = amount.value
-
-            for component_identifier in self.amounts:
-
-                total_mole_fraction += sum(
-                    [
-                        amount.value
-                        for amount in self.amounts[component_identifier]
-                        if isinstance(amount, MoleFraction)
-                    ]
-                )
-
-            if np.isclose(total_mole_fraction, 1.0):
-                total_mole_fraction = 1.0
-
-            if total_mole_fraction > 1.0:
-
-                raise ValueError(
-                    f"The total mole fraction of this substance {total_mole_fraction} exceeds 1.0"
-                )
 
         if component.identifier not in self.amounts:
 
@@ -331,6 +329,12 @@ class Substance(AttributeClass):
 
         super(Substance, self).__setstate__(state)
 
+    def __len__(self):
+        return len(self.components)
+
+    def __iter__(self):
+        return iter(self.components)
+
     def validate(self, attribute_type=None):
         super(Substance, self).validate(attribute_type)
 
@@ -344,6 +348,7 @@ class Substance(AttributeClass):
         assert all(len(x) > 0 for x in self.amounts.values())
 
         for component in self.components:
+
             component.validate(attribute_type)
             amounts = self.amounts[component.identifier]
 
@@ -351,3 +356,28 @@ class Substance(AttributeClass):
 
             for amount in amounts:
                 amount.validate(attribute_type)
+
+        contains_mole_fraction = any(
+            isinstance(x, MoleFraction) for y in self.amounts.values() for x in y
+        )
+
+        if contains_mole_fraction:
+
+            total_mole_fraction = 0.0
+
+            for component_identifier in self.amounts:
+
+                total_mole_fraction += sum(
+                    [
+                        amount.value
+                        for amount in self.amounts[component_identifier]
+                        if isinstance(amount, MoleFraction)
+                    ]
+                )
+
+            if not np.isclose(total_mole_fraction, 1.0):
+
+                raise ValueError(
+                    f"The total mole fraction of this substance "
+                    f"({total_mole_fraction}) must equal 1.0"
+                )
