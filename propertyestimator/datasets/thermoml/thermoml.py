@@ -1541,7 +1541,7 @@ class _PureOrMixtureData:
                 variable_value = float(
                     variable_node.find("ThermoML:nVarValue", namespace).text
                 )
-                value_as_quantity = pint.Quantity(
+                value_as_quantity = unit.Quantity(
                     variable_value, variable_definition.default_unit
                 )
 

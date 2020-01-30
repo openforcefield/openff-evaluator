@@ -5,7 +5,13 @@ simulations at similar states have been run.
 """
 import copy
 import os
+import time
 
+import dateutil.parser
+import numpy
+import pint
+
+from propertyestimator import unit
 from propertyestimator.attributes import Attribute, PlaceholderValue
 from propertyestimator.datasets import PropertyPhase
 from propertyestimator.layers import calculation_layer
@@ -51,10 +57,26 @@ class ReweightingSchema(WorkflowCalculationSchema):
         default_value=default_storage_query(),
     )
 
+    maximum_data_points = Attribute(
+        docstring="The maximum number of data points to include "
+        "as part of the multi-state reweighting calculations. If "
+        "zero, no cap will be applied.",
+        type_hint=int,
+        default_value=4,
+    )
+    temperature_cutoff = Attribute(
+        docstring="The maximum difference between the target temperature "
+        "and the temperature at which cached data was collected to. Data "
+        "collected for temperatures outside of this cutoff will be ignored.",
+        type_hint=pint.Quantity,
+        default_value=5.0 * unit.kelvin,
+    )
+
     def validate(self, attribute_type=None):
         super(ReweightingSchema, self).validate(attribute_type)
 
         assert len(self.storage_queries) > 0
+        assert self.maximum_data_points > 0
 
         assert all(
             isinstance(x, SimulationDataQuery) for x in self.storage_queries.values()
@@ -74,6 +96,61 @@ class ReweightingLayer(WorkflowCalculationLayer):
         return ReweightingSchema
 
     @staticmethod
+    def _rank_cached_data(data_list, target_temperature, temperature_cutoff):
+        """Sorts the data retrieved from a storage backend based upon the
+        likelihood that the data will contribute significantly to the
+        reweighting.
+
+        Currently we naively just prefer newer data over older data.
+
+        Parameters
+        ----------
+        data_list: list of tuple of str, StoredSimulationData and str
+            A list of query results which take the form
+            (storage_key, data_object, data_directory_path).
+        target_temperature: pint.Quantity
+            The temperature that the data will be reweighted to.
+        temperature_cutoff: pint.Quantity
+            The maximum difference in the target and data temperatures.
+
+        Returns
+        -------
+        list of tuple of str, StoredSimulationData and str
+            The ranked data.
+        """
+
+        sorted_list = []
+        times_created = []
+
+        # First remove any data measured outside of the allowed temperature range.
+        for data_tuple in data_list:
+
+            _, data_object, data_directory = data_tuple
+
+            if (
+                numpy.abs(
+                    data_object.thermodynamic_state.temperature - target_temperature
+                )
+                > temperature_cutoff
+            ):
+                continue
+
+            sorted_list.append(data_tuple)
+
+            # Roughly determine the time at which this data was created.
+            time_created = dateutil.parser.parse(
+                time.ctime(os.path.getctime(data_directory))
+            )
+            times_created.append(time_created)
+
+        return [
+            data
+            for _, data in reversed(
+                sorted(zip(times_created, sorted_list), key=lambda pair: pair[0])
+            )
+        ]
+
+    @staticmethod
     def _get_workflow_metadata(
         working_directory,
         physical_property,
@@ -83,7 +160,6 @@ class ReweightingLayer(WorkflowCalculationLayer):
         calculation_schema,
     ):
         """
-
         Parameters
         ----------
         calculation_schema: ReweightingSchema
@@ -123,6 +199,19 @@ class ReweightingLayer(WorkflowCalculationLayer):
             stored_data_tuples = []
 
             for query_list in query_results.values():
+
+                query_list = ReweightingLayer._rank_cached_data(
+                    query_list,
+                    physical_property.thermodynamic_state.temperature,
+                    calculation_schema.temperature_cutoff,
+                )
+
+                if calculation_schema.maximum_data_points > 0:
+                    query_list = query_list[0 : calculation_schema.maximum_data_points]
+
+                if len(query_list) == 0:
+                    # Make sure we still have data after the cutoff check.
+                    return None
 
                 query_data_tuples = []
 
