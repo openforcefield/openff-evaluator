@@ -745,6 +745,24 @@ class Workflow:
         graph.add_workflow(self)
         return graph
 
+    def execute(self, root_directory, backend):
+        """Executes the workflow.
+
+        Parameters
+        ----------
+        root_directory: str
+            The directory to execute the graph in.
+        backend: CalculationBackend, optional.
+            The backend to execute the graph on.
+
+        Returns
+        -------
+        Future of WorkflowResult:
+            A future references to the result of executing this workflow.
+        """
+        workflow_graph = self.to_graph()
+        return workflow_graph.execute(root_directory, backend)[0]
+
 
 class WorkflowResult(AttributeClass):
     """The result of executing a `Workflow` as part of a
@@ -862,7 +880,7 @@ class WorkflowGraph:
             workflow.replace_protocol(original_protocol, new_protocol)
 
     def execute(self, root_directory, backend):
-        """Submits the protocol graph to the backend of choice.
+        """Executes the workflow graph.
 
         Parameters
         ----------
@@ -873,8 +891,8 @@ class WorkflowGraph:
 
         Returns
         -------
-        list of Future:
-            The futures of the submitted protocols.
+        list of Future of WorkflowResult:
+            Future references to the workflow results.
         """
         protocol_outputs = self._protocol_graph.execute(root_directory, backend)
 
