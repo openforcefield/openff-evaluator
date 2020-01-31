@@ -105,7 +105,7 @@ class Workflow:
         schema = WorkflowSchema()
 
         schema.id = self.uuid
-        schema.protocol_schemas = [copy.deepcopy(x) for x in self._protocols]
+        schema.protocol_schemas = [copy.deepcopy(x.schema) for x in self._protocols]
 
         if self._final_value_source != UNDEFINED:
             schema.final_value_source = self._final_value_source.copy()
