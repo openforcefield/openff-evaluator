@@ -745,6 +745,31 @@ class Workflow:
         graph.add_workflow(self)
         return graph
 
+    @classmethod
+    def from_schema(cls, schema, metadata, unique_id=None):
+        """Creates a workflow from its schema blueprint, and the associated metadata.
+
+        Parameters
+        ----------
+        schema: WorkflowSchema
+            The schema blueprint for this workflow.
+        metadata: dict of str and Any
+            The metadata to make available to the workflow.
+        unique_id: str, optional
+            A unique identifier to assign to this workflow. This id will be appended
+            to the ids of the protocols of this workflow. If none is provided one will
+            be chosen at random.
+
+        Returns
+        -------
+        cls
+            The created workflow.
+        """
+        workflow = cls(metadata, unique_id)
+        workflow.schema = schema
+
+        return workflow
+
     def execute(self, root_directory, backend):
         """Executes the workflow.
 

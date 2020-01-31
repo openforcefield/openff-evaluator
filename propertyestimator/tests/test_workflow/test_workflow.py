@@ -4,6 +4,7 @@ Units tests for propertyestimator.layers.simulation
 import tempfile
 
 from propertyestimator import unit
+from propertyestimator.attributes import UNDEFINED
 from propertyestimator.backends import DaskLocalCluster
 from propertyestimator.protocols.groups import ConditionalGroup
 from propertyestimator.tests.test_workflow.utils import DummyInputOutputProtocol
@@ -149,3 +150,22 @@ def test_index_replicated_protocol():
 
     workflow = Workflow({})
     workflow.schema = schema
+
+
+def test_from_schema():
+
+    protocol_a = DummyInputOutputProtocol("protocol_a")
+    protocol_a.input_value = 1 * unit.kelvin
+
+    schema = WorkflowSchema()
+    schema.protocol_schemas = [protocol_a.schema]
+
+    workflow = Workflow.from_schema(schema, {}, unique_id="")
+
+    assert workflow is not None
+
+    rebuilt_schema = workflow.schema
+    rebuilt_schema.gradients_sources = UNDEFINED
+    rebuilt_schema.outputs_to_store = UNDEFINED
+
+    assert rebuilt_schema.json(format=True) == schema.json(format=True)
