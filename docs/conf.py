@@ -61,7 +61,11 @@ autodoc_default_options = {
 }
 
 # Autolabel settings
-autosectionlabel_maxdepth = 2
+autosectionlabel_maxdepth = 3
+
+suppress_warnings = [
+    'autosectionlabel.releasehistory',
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
