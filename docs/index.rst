@@ -120,6 +120,7 @@ field optimisation.
   :caption: Workflows
 
   Overview <workflows>
+  replicators
   workflow_graphs
   protocols
   protocolgroups
