@@ -71,16 +71,59 @@ class Substance(AttributeClass):
         return "|".join(identifier_split)
 
     @classmethod
+    def from_smiles(cls, *smiles, amounts=None):
+        """Creates a new `Substance` object from a list of SMILES strings
+        and optionally their amounts.
+
+        Parameters
+        ----------
+        smiles: str
+            The SMILES representation of the components to add to the substance.
+        amounts: dict of str and Amount or iterable of Amount, optional
+            The amount of each component being added. Each key should correspond to one
+            of the passed `smiles`, and the value should be the amount(s) of that
+            component. If `None`, it will be assumed each component is present with
+            an equal mole fraction.
+
+        Returns
+        -------
+        Substance
+            The substance containing the requested components in equal amounts.
+
+        See Also
+        --------
+        physicalproperties
+        """
+
+        if len(smiles) == 0:
+            raise ValueError("At least one component must be specified")
+
+        if not all(isinstance(x, str) for x in smiles):
+            raise ValueError("The SMILES patterns must all be strings.")
+
+        # Convert the smiles to components
+        components = [Component(smiles=x) for x in smiles]
+
+        if amounts is not None:
+
+            if not all(x in amounts for x in smiles):
+                raise ValueError("Each component must have a corresponding amount defined.")
+
+            # Update the amounts dictionary to use the new components as keys.
+            component_map = {x: y for x, y in zip(smiles, components)}
+            amounts = {component_map[x]: amounts[x] for x in amounts}
+
+        return cls.from_components(*components, amounts=amounts)
+
+    @classmethod
     def from_components(cls, *components, amounts=None):
         """Creates a new `Substance` object from a list of components.
 
         Parameters
         ----------
-        components: Component or str
-            The components to add to the substance. These may either be full
-            `Component` objects or just the smiles representation
-            of the component.
-        amounts: dict of Component or str and Amount or iterable of Amount, optional
+        components: Component
+            The components to add to the substance.
+        amounts: dict of Component and Amount or iterable of Amount, optional
             The amount of each component being added. Each key should correspond to one
             of the passed `components`, and the value should be the amount(s) of that
             component. If `None`, it will be assumed each component is present with
@@ -99,12 +142,8 @@ class Substance(AttributeClass):
         if len(components) == 0:
             raise ValueError("At least one component must be specified")
 
-        if not all(isinstance(x, (str, Component)) for x in components):
-
-            raise ValueError(
-                "The components must either be string SMILES patterns or "
-                "`Component` objects"
-            )
+        if not all(isinstance(x, Component) for x in components):
+            raise ValueError("The components must be `Component` objects")
 
         # Make sure all of the components have at least one amount defined
         if amounts is None:
@@ -115,6 +154,7 @@ class Substance(AttributeClass):
         if not all(x in amounts for x in components):
             raise ValueError("Each component must have a corresponding amount defined.")
 
+        # Validate the amounts.
         for amount_key, amount_value in amounts.items():
 
             if amount_key not in components:
@@ -132,19 +172,10 @@ class Substance(AttributeClass):
             assert all(isinstance(x, Amount) for x in amount_value)
             amounts[amount_key] = amount_value
 
-        # Make sure all of the components are Component objects.
-        new_components = [Component(x) if isinstance(x, str) else x for x in components]
-
-        # Create a map of the original components and the new components - these may be
-        # different as each component will standardize its smiles pattern.
-        component_map = {x: y for x, y in zip(components, new_components)}
-
-        new_amounts = {component_map[x]: amounts[x] for x in amounts}
-
         return_substance = cls()
 
-        for component in new_components:
-            for amount in new_amounts[component]:
+        for component in components:
+            for amount in amounts[component]:
                 return_substance._add_component(component, amount)
 
         return return_substance

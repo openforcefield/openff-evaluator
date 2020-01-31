@@ -6,52 +6,100 @@ import numpy as np
 from propertyestimator.substances import Component, ExactAmount, MoleFraction, Substance
 
 
-def test_substance_from_components_no_amounts():
+def test_substance_from_smiles_no_amounts():
 
-    water = Component(smiles="O")
-    methanol = "CO"
-
-    substance = Substance.from_components(water, methanol)
+    substance = Substance.from_smiles("O", "CO")
     substance.validate()
 
     assert substance.number_of_components == 2
 
-    amounts = substance.get_amounts(substance.components[0])
+    water_amounts = substance.get_amounts(substance.components[0])
+    assert len(water_amounts) == 1
 
-    assert len(amounts) == 1
+    assert isinstance(water_amounts[0], MoleFraction)
+    assert np.isclose(water_amounts[0].value, 0.5)
 
-    amount = next(iter(amounts))
+    methanol_amounts = substance.get_amounts(substance.components[1])
+    assert len(methanol_amounts) == 1
 
-    assert isinstance(amount, MoleFraction)
-    assert np.isclose(amount.value, 0.5)
+    assert isinstance(methanol_amounts[0], MoleFraction)
+    assert np.isclose(methanol_amounts[0].value, 0.5)
 
 
-def test_substance_from_components():
-
-    sodium = Component(smiles="[Na+]")
-    chloride = Component(smiles="[Cl-]")
+def test_substance_from_smiles():
 
     amounts = {
-        sodium: [MoleFraction(0.75), ExactAmount(1)],
-        chloride: [MoleFraction(0.25), ExactAmount(1)]
+        "O": MoleFraction(0.25),
+        "CO": [MoleFraction(0.75), ExactAmount(1)]
     }
 
-    substance = Substance.from_components(sodium, chloride, amounts=amounts)
+    substance = Substance.from_smiles("O", "CO", amounts=amounts)
+    substance.validate()
 
-    assert len(substance) == 2
+    assert substance.number_of_components == 2
 
-    sodium_amounts = substance.get_amounts(sodium)
-    chlorine_amounts = substance.get_amounts(chloride)
+    water_amounts = substance.get_amounts(substance.components[0])
+    assert len(water_amounts) == 1
 
-    assert len(sodium_amounts) == 2
-    assert len(chlorine_amounts) == 2
+    assert isinstance(water_amounts[0], MoleFraction)
+    assert np.isclose(water_amounts[0].value, 0.25)
 
-    molecule_counts = substance.get_molecules_per_component(6)
+    methanol_amounts = substance.get_amounts(substance.components[1])
+    assert len(methanol_amounts) == 2
 
-    assert len(molecule_counts) == 2
+    assert isinstance(methanol_amounts[0], MoleFraction)
+    assert np.isclose(methanol_amounts[0].value, 0.75)
 
-    assert molecule_counts[sodium.identifier] == 4
-    assert molecule_counts[chloride.identifier] == 2
+    assert isinstance(methanol_amounts[1], ExactAmount)
+    assert np.isclose(methanol_amounts[1].value, 1)
+
+
+def test_substance_components_no_amounts():
+
+    substance = Substance.from_smiles("O", "CO")
+    substance.validate()
+
+    assert substance.number_of_components == 2
+
+    water_amounts = substance.get_amounts(substance.components[0])
+    assert len(water_amounts) == 1
+
+    assert isinstance(water_amounts[0], MoleFraction)
+    assert np.isclose(water_amounts[0].value, 0.5)
+
+    methanol_amounts = substance.get_amounts(substance.components[1])
+    assert len(methanol_amounts) == 1
+
+    assert isinstance(methanol_amounts[0], MoleFraction)
+    assert np.isclose(methanol_amounts[0].value, 0.5)
+
+
+def test_substance_from_smiles():
+
+    amounts = {
+        "O": MoleFraction(0.25),
+        "CO": [MoleFraction(0.75), ExactAmount(1)]
+    }
+
+    substance = Substance.from_smiles("O", "CO", amounts=amounts)
+    substance.validate()
+
+    assert substance.number_of_components == 2
+
+    water_amounts = substance.get_amounts(substance.components[0])
+    assert len(water_amounts) == 1
+
+    assert isinstance(water_amounts[0], MoleFraction)
+    assert np.isclose(water_amounts[0].value, 0.25)
+
+    methanol_amounts = substance.get_amounts(substance.components[1])
+    assert len(methanol_amounts) == 2
+
+    assert isinstance(methanol_amounts[0], MoleFraction)
+    assert np.isclose(methanol_amounts[0].value, 0.75)
+
+    assert isinstance(methanol_amounts[1], ExactAmount)
+    assert np.isclose(methanol_amounts[1].value, 1)
 
 
 def test_substance_from_components_with_roles():
