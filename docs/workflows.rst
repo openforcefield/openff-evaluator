@@ -9,11 +9,6 @@
 
 .. |generate_default_metadata|    replace:: :py:meth:`~propertyestimator.workflow.Workflow.generate_default_metadata`
 
-.. |substance|                    replace:: :py:class:`~propertyestimator.substances.Substance`
-.. |thermodynamic_state|          replace:: :py:class:`~propertyestimator.thermodynamics.ThermodynamicState`
-
-.. |parameter_gradient_key|       replace:: :py:class:`~propertyestimator.forcefield.ParameterGradientKey`
-
 .. |build_coordinates_packmol|    replace:: :py:class:`~propertyestimator.protocols.coordinates.BuildCoordinatesPackmol`
 .. |build_smirnoff_system|        replace:: :py:class:`~propertyestimator.protocols.forcefield.BuildSmirnoffSystem`
 
@@ -31,8 +26,6 @@
 
 .. |protocol_replicator|          replace:: :py:class:`~propertyestimator.workflow.schemas.ProtocolReplicator`
 .. |replicator_value|             replace:: :py:class:`~propertyestimator.workflow.utils.ReplicatorValue`
-
-.. |quantity|                     replace:: :py:class:`~pint.Quantity`
 
 Workflows
 =========
