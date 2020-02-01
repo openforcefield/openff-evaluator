@@ -18,7 +18,13 @@ activity_relationship>`_ like model.
 
 The framework stacks multiple layers together when estimating a data set of properties.
 
-FIGURE
+.. figure:: _static/img/layers.svg
+    :align: center
+    :width: 90%
+
+    A schematic of the layer system. A set of properties to estimate are fed into the first layer. Those which can
+    be calculated are returned back. Those that can't are passed to the next layer until no layer are left.
+
 
 Each layer will in turn attempt to evaluate the properties being estimated using the specific approach the layer
 represents, such as by running a set of simulations. If the layer is unable to estimate a given property, for example
