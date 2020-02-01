@@ -11,30 +11,50 @@
 
 .. |parameter_gradient|            replace:: :py:class:`~propertyestimator.forcefield.ParameterGradient`
 
+.. |data_frame|                    replace:: :py:class:`~pandas.DataFrame`
+
 Property Data Sets
 ==================
 
-A |physical_property_data_set| is a collection of measured physical properties encapsulated as |physical_property|
-objects. It can be easily stored as / created from JSON::
+A |physical_property_data_set| is a collection of measured physical properties encapsulated as :ref:`physical property
+<physicalproperties:Physical Properties>` objects. They may be created from scratch::
 
+    # Define a density measurement
+    density = Density(
+        substance=Substance.from_components("O"),
+        thermodynamic_state=ThermodynamicState(
+            pressure=1.0*unit.atmospheres, temperature=298.15*unit.kelvin
+        ),
+        phase=PropertyPhase.Liquid,
+        value=1.0*unit.gram/unit.millilitre,
+        uncertainty=0.0001*unit.gram/unit.millilitre
+    )
+
+    # Add the property to a data set
+    data_set = PhysicalPropertyDataset()
+    data_set.add_properties(density)
+
+are readily JSON (de)serializable::
+
+    # Save the data set as a JSON file.
+    data_set.json(file_path="data_set.json", format=True)
     # Load the data set from a JSON file
     data_set = PhysicalPropertyDataset.from_json(file_path="data_set.json")
-    # Save the data set as a JSON file
-    data_set.json(file_path="data_set.json", format=True)
 
-or for convenience, can be retrieved as a pandas `DataFrame <https://pandas.pydata.org/pandas-docs/stable/
-generated/pandas.DataFrame.html>`_::
+and may be converted to pandas |data_frame| objects::
 
     data_set.to_pandas()
 
-The framework implements specific data set objects for a number of open data sources, such as the |thermoml_data_set|
-(see :doc:`thermomldatasets`) which provides utilities for extracting the data from the `NIST ThermoML Archive
-<http://trc.nist.gov/ThermoML.html>`_ and converting it into the standard framework objects.
+The framework implements specific data set objects for extracting data measurements directly from a number of open data
+sources, such as the |thermoml_data_set| (see :doc:`thermomldatasets`) which provides utilities for extracting the data
+from the `NIST ThermoML Archive <http://trc.nist.gov/ThermoML.html>`_ and converting it into the standard framework
+objects.
 
 Physical Properties
 -------------------
 
-The |physical_property| object describes a measured property of substance, and is defined by a combination of:
+The |physical_property| object is a base class for any object which describes a measured property of substance, and is
+defined by a combination of:
 
 * the observed value of the property.
 * |substance| specifying the substance that the measurement was collected for.
@@ -51,25 +71,16 @@ as well as optionally
 Each type of property supported by the framework, such as a density of an enthalpy of vaporization, must have it's own
 class representation which inherits from |physical_property|::
 
-    # Define the substance
-    water = Substance.from_components("O")
-    # Define thermodynamic state
-    thermodynamic_state = ThermodynamicState(
-        pressure=1.0*unit.atmospheres, temperature=298.15*unit.kelvin
-    )
-
     # Define a density measurement
     density = Density(
-        substance=substance,
-        thermodynamic_state=thermodynamic_state,
+        substance=Substance.from_components("O"),
+        thermodynamic_state=ThermodynamicState(
+            pressure=1.0*unit.atmospheres, temperature=298.15*unit.kelvin
+        ),
         phase=PropertyPhase.Liquid,
         value=1.0*unit.gram/unit.millilitre,
         uncertainty=0.0001*unit.gram/unit.millilitre
     )
-
-    # Add the property to a data set
-    data_set = PhysicalPropertyDataset()
-    data_set.add_properties(density)
 
 Substances
 ----------

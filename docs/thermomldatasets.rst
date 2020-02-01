@@ -1,5 +1,5 @@
 .. |register_thermoml_property|    replace:: :py:meth:`~propertyestimator.datasets.thermoml.register_thermoml_property`
-.. |thermoml_property|             replace:: :py:class:`~propertyestimator.datasets.thermoml.thermoml_property`
+.. |thermoml_property|             replace:: :py:meth:`~propertyestimator.datasets.thermoml.thermoml_property`
 .. |thermoml_data_set|             replace:: :py:class:`~propertyestimator.datasets.thermoml.ThermoMLDataSet`
 
 .. |physical_property|             replace:: :py:class:`~propertyestimator.datasets.PhysicalProperty`
@@ -17,11 +17,12 @@ The |thermoml_data_set| object offers an API for extracting physical properties 
 <http://trc.nist.gov/ThermoML.html>`_, both directly from the archive itself or from files stored in the IUPAC-
 standard `ThermoML <http://trc.nist.gov/ThermoMLRecommendations.pdf>`_ format.
 
-The API only supports extracting those properties which have been registered with the frameworks plug-in system,
-and does not currently load the full set of metadata available in the archive files.
+The API only supports extracting those properties which have been :ref:`registered
+<thermomldatasets:Registering Properties>` with the frameworks plug-in system, and does not currently load the full set
+of metadata available in the archive files.
 
-*If the metadata you require is currently not exposed, please open an issue on the* `GitHub issue tracker <https://
-github.com/openforcefield/propertyestimator/issues>`_ *to request it.*
+.. note:: If the metadata you require is not currently exposed, please open an issue on the `GitHub issue tracker
+   <https://github.com/openforcefield/propertyestimator/issues>`_ to request it.
 
 Currently the framework has built-in support for extracting:
 
@@ -55,8 +56,8 @@ The |thermoml_property| decorator takes in the name of the ThermoML property (as
 //trc.nist.gov/ThermoML.xsd>`_) as well as the phases which the framework will be able to estimate this property in.
 
 Multiple ThermoML properties can be mapped onto a single class using the flexible |register_thermoml_property|
-function. As an example, the *'Specific volume, m3/kg'* property (which is simply the reciprocal of mass density) may
-be mapped onto the |density| by providing a ``conversion_function``::
+function. For example, the *'Specific volume, m3/kg'* property (which is simply the reciprocal of mass density) may
+be mapped onto the |density| object by providing a ``conversion_function``::
 
     def specific_volume_to_mass_density(specific_volume):
         """Converts a specific volume measurement into a mass

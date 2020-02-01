@@ -45,13 +45,11 @@ values for certain protocol inputs.
 .. note:: The syntax of replicators is still rather rough around the edges, and will be refined in future versions of
           the framework.
 
-Each |protocol_replicator| requires both:
+Each |protocol_replicator| requires both a unique id and the set of *template values* which the replicator will 'loop'
+over to be defined. These values must either be a list of constant values or a reference to a list of values provided
+as *metadata*.
 
-* a unique id which will be used when specifying which protocols should be replicated by a given replicator
-* the set of *template values* which the replicator will 'loop' over. This must either be a list of known values,
-  or a reference to a list of values provided as *metadata*.
-
-The 'replicator value' can be referenced by protocols in the workflow using the |replicator_value| placeholder input,
+The 'loop variable' is referenced by protocols in the workflow using the |replicator_value| placeholder input,
 where the value is linked to the replicator through the replicators unique id.
 
 As an example, consider the case where a set of coordinates should be built for each component in a substance::

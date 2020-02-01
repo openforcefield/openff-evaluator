@@ -73,9 +73,9 @@ requiring a specific set of user specified inputs::
     )
 
 The |protocol_path| object is used to reference the output of another protocol in the workflow, and will be replaced by
-the value of that output once that protocol has been executed. It is constructed from two parts:
+the value of that output once that protocol has been executed by the workflow engine. It is constructed from two parts:
 
-* the name of the output attribute to reference (passed as the ``property_name`` constructor argument).
+* the name of the output attribute to reference.
 * the unique id of the protocol to take the output from.
 
 To turn these tasks into a valid workflow which can be automatically executed, they must first be converted to a
@@ -99,7 +99,7 @@ or asynchronously using a calculation backend yielding a ``Future`` like object 
     with DaskLocalCluster() as calculation_backend:
         result_future = workflow.execute(calculation_backend=calculation_backend)
 
-In addition, a workflow may be add to, and executed as part as a larger :doc:`workflowgraphs`.
+In addition, a workflow may be add to, and executed as part as a larger :doc:`workflow graphs <workflowgraphs>`.
 
 Workflow Schemas
 ----------------
@@ -119,7 +119,7 @@ tasks which compose the workflow, but may optionally define:
       should be replicated.
 
 Each of these attributes will control whether the |result_value|, |result_gradients| and |result_data_to_store|
-attributes of the |workflow_result| results object will be populated respectively.
+attributes of the |workflow_result| results object will be populated respectively when executing a workflow.
 
 Metadata
 """"""""
@@ -129,9 +129,11 @@ of its constituent tasks. Consider the above example workflow for constructing a
 field parameters to them. Ideally this one schema could be reused for multiple substances. This is made possible through
 a workflows *metadata*.
 
-Each workflow will make available a dictionary of values (termed here *metadata*) which is defined when a |workflow| is
-created from its schema. This metadata may be accessed by protocols via a fictitious ``"global"`` protocol whose outputs
-map to the ``metadata`` dictionary::
+Each protocol within a workflow may access a dictionary of values unique to that workflow (termed here *metadata*) which
+is defined when the |workflow| object is created from its schema.
+
+This metadata may be accessed by protocols via a fictitious ``"global"`` protocol whose outputs map to the ``metadata``
+dictionary::
 
     build_coordinates = BuildCoordinatesPackmol("build_coordinates")
     build_coordinates.substance = ProtocolPath("substance", "global")
