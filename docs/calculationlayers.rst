@@ -20,7 +20,7 @@ The framework stacks multiple layers together when estimating a data set of prop
 
 .. figure:: _static/img/layers.svg
     :align: center
-    :width: 90%
+    :width: 70%
 
     A schematic of the layer system. A set of properties to estimate are fed into the first layer. Those which can
     be calculated are returned back. Those that can't are passed to the next layer until no layer are left.
