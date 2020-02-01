@@ -62,6 +62,7 @@ autodoc_default_options = {
 
 # Autolabel settings
 autosectionlabel_maxdepth = 3
+autosectionlabel_prefix_document = True
 
 suppress_warnings = [
     'autosectionlabel.releasehistory',

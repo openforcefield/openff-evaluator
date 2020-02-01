@@ -46,7 +46,7 @@ made available as the input to others.
     assign parameters to that system, and then perform an energy minimisation.
 
 The workflow engine offers a number of advanced features such as the :doc:`automatic reduction of redundant tasks
-<workflow_graphs>`, and :doc:`looping over parts of a workflow <replicators>`
+<workflowgraphs>`, and :doc:`looping over parts of a workflow <replicators>`
 
 Building Workflows
 ------------------
@@ -79,7 +79,7 @@ the value of that output once that protocol has been executed. It is constructed
 * the unique id of the protocol to take the output from.
 
 To turn these tasks into a valid workflow which can be automatically executed, they must first be converted to a
-:ref:`workflow schema <Workflow Schemas>`::
+:ref:`workflow schema <workflows:Workflow Schemas>`::
 
     # Create the schema object.
     schema = WorkflowSchema()
@@ -99,7 +99,7 @@ or asynchronously using a calculation backend yielding a ``Future`` like object 
     with DaskLocalCluster() as calculation_backend:
         result_future = workflow.execute(calculation_backend=calculation_backend)
 
-In addition, a workflow may be add to, and executed as part as a larger :doc:`workflow_graphs`.
+In addition, a workflow may be add to, and executed as part as a larger :doc:`workflowgraphs`.
 
 Workflow Schemas
 ----------------
@@ -115,7 +115,7 @@ tasks which compose the workflow, but may optionally define:
       main observable with respect to a set of force field parameters.
     - |outputs_to_store|: A list of :doc:`data classes <dataclasses>` whose values will be populated from protocol
       outputs.
-    - |protocol_replicators|: A set of :ref:`replicators <replicators>` which are used to flag parts of a workflow which
+    - |protocol_replicators|: A set of :doc:`replicators <replicators>` which are used to flag parts of a workflow which
       should be replicated.
 
 Each of these attributes will control whether the |result_value|, |result_gradients| and |result_data_to_store|

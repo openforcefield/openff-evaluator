@@ -98,6 +98,7 @@ field optimisation.
 
   Overview <self>
   install
+  clientserver
 
 .. toctree::
   :maxdepth: 2
@@ -121,7 +122,7 @@ field optimisation.
 
   Overview <workflows>
   replicators
-  workflow_graphs
+  workflowgraphs
   protocols
   protocolgroups
 
