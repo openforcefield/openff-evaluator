@@ -71,7 +71,7 @@ def test_thermoml_from_url():
     )
     assert data_set is not None
 
-    assert len(data_set.properties) > 0
+    assert len(data_set) > 0
 
     data_set = ThermoMLDataSet.from_url(
         "https://trc.nist.gov/ThermoML/10.1021/acs.jced.6b00916.xmld"
@@ -83,21 +83,9 @@ def test_thermoml_from_doi():
     """A test to ensure that ThermoML archive files can be loaded from a doi."""
 
     data_set = ThermoMLDataSet.from_doi("10.1016/j.jct.2016.10.001")
+
     assert data_set is not None
-
-    assert len(data_set.properties) > 0
-
-    for mixture_tag in data_set.properties:
-
-        for physical_property in data_set.properties[mixture_tag]:
-
-            physical_property_json = physical_property.json()
-            print(physical_property_json)
-
-            physical_property_recreated = PhysicalProperty.parse_json(
-                physical_property_json
-            )
-            print(physical_property_recreated)
+    assert len(data_set) > 0
 
     data_set = ThermoMLDataSet.from_doi("10.1016/j.jct.2016.12.009x")
     assert data_set is None
@@ -113,7 +101,7 @@ def test_thermoml_from_files():
     )
 
     assert data_set is not None
-    assert len(data_set.properties) == 3
+    assert len(data_set) == 3
 
     data_set = ThermoMLDataSet.from_file("dummy_filename")
     assert data_set is None
@@ -127,7 +115,7 @@ def test_thermoml_mass_constraints():
     data_set = ThermoMLDataSet.from_file(get_data_filename("test/properties/mass.xml"))
 
     assert data_set is not None
-    assert len(data_set.properties) > 0
+    assert len(data_set) > 0
 
     # Mass fraction + Solvent: Mass fraction
     data_set = ThermoMLDataSet.from_file(
@@ -135,7 +123,7 @@ def test_thermoml_mass_constraints():
     )
 
     assert data_set is not None
-    assert len(data_set.properties) > 0
+    assert len(data_set) > 0
 
     # Mass fraction + Solvent: Mole fraction
     data_set = ThermoMLDataSet.from_file(
@@ -143,7 +131,7 @@ def test_thermoml_mass_constraints():
     )
 
     assert data_set is not None
-    assert len(data_set.properties) > 0
+    assert len(data_set) > 0
 
 
 def test_thermoml_molality_constraints():
@@ -156,7 +144,7 @@ def test_thermoml_molality_constraints():
     )
 
     assert data_set is not None
-    assert len(data_set.properties) > 0
+    assert len(data_set) > 0
 
     # Molality + Solvent: Mass fraction
     data_set = ThermoMLDataSet.from_file(
@@ -164,7 +152,7 @@ def test_thermoml_molality_constraints():
     )
 
     assert data_set is not None
-    assert len(data_set.properties) > 0
+    assert len(data_set) > 0
 
     # Molality + Solvent: Mole fraction
     data_set = ThermoMLDataSet.from_file(
@@ -172,7 +160,7 @@ def test_thermoml_molality_constraints():
     )
 
     assert data_set is not None
-    assert len(data_set.properties) > 0
+    assert len(data_set) > 0
 
     # Molality + Solvent: Molality
     data_set = ThermoMLDataSet.from_file(
@@ -180,7 +168,7 @@ def test_thermoml_molality_constraints():
     )
 
     assert data_set is not None
-    assert len(data_set.properties) > 0
+    assert len(data_set) > 0
 
 
 def test_thermoml_mole_constraints():
@@ -191,7 +179,7 @@ def test_thermoml_mole_constraints():
     data_set = ThermoMLDataSet.from_file(get_data_filename("test/properties/mole.xml"))
 
     assert data_set is not None
-    assert len(data_set.properties) > 0
+    assert len(data_set) > 0
 
     # Mole fraction + Solvent: Mass fraction
     data_set = ThermoMLDataSet.from_file(
@@ -199,7 +187,7 @@ def test_thermoml_mole_constraints():
     )
 
     assert data_set is not None
-    assert len(data_set.properties) > 0
+    assert len(data_set) > 0
 
     # Mole fraction + Solvent: Mole fraction
     data_set = ThermoMLDataSet.from_file(
@@ -207,7 +195,7 @@ def test_thermoml_mole_constraints():
     )
 
     assert data_set is not None
-    assert len(data_set.properties) > 0
+    assert len(data_set) > 0
 
     # Mole fraction + Solvent: Molality
     data_set = ThermoMLDataSet.from_file(
@@ -215,4 +203,4 @@ def test_thermoml_mole_constraints():
     )
 
     assert data_set is not None
-    assert len(data_set.properties) > 0
+    assert len(data_set) > 0
