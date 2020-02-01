@@ -25,7 +25,9 @@ typically several fold faster than the :doc:`simulation layer <simulationlayer>`
 
 Theory
 ------
-Lorem ipsum
+The theory behind applying MBAR to reweighting observables from a simulated state to an unsimulated state is covered
+in detail in the publication `Configuration-Sampling-Based Surrogate Models for Rapid Parameterization of Non-Bonded
+Interactions <https://pubs.acs.org/doi/10.1021/acs.jctc.8b00223>`_.
 
 Calculation Schema
 ------------------
