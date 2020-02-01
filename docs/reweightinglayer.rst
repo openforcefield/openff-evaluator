@@ -21,7 +21,7 @@ cached. It inherits the |workflow_calculation_layer| base layer, and primarily m
 Because MBAR is a technique which reprocesses exisiting simulation data rather than re-running new simulations, it is
 typically several fold faster than the :doc:`simulation layer <simulationlayer>` provided it has cached simulation data
 (made accessible via a :doc:`storage backend <storagebackend>`) available. Any properties for which the required data
-(see :ref:`reweightinglayer:Calculation Schema`) will be skipped.
+(see :ref:`reweightinglayer:Calculation Schema`) is not available will be skipped.
 
 Theory
 ------
