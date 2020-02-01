@@ -133,6 +133,34 @@ def test_to_pandas():
     assert len(data_set_pandas) == 6
 
 
+def test_sources_substances():
+
+    physical_property = create_dummy_property(Density)
+
+    data_set = PhysicalPropertyDataSet()
+    data_set.add_properties(physical_property)
+
+    assert next(iter(data_set.sources)) == physical_property.source
+    assert next(iter(data_set.substances)) == physical_property.substance
+
+
+def test_properties_by_type():
+
+    density = create_dummy_property(Density)
+    dielectric = create_dummy_property(DielectricConstant)
+
+    data_set = PhysicalPropertyDataSet()
+    data_set.add_properties(density, dielectric)
+
+    densities = [x for x in data_set.properties_by_type("Density")]
+    assert len(densities) == 1
+    assert densities[0] == density
+
+    dielectrics = [x for x in data_set.properties_by_type("DielectricConstant")]
+    assert len(dielectrics) == 1
+    assert dielectrics[0] == dielectric
+
+
 def test_filter_by_property_types():
     """A test to ensure that data sets may be filtered by property type."""
 
