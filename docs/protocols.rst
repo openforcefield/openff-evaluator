@@ -49,7 +49,7 @@ of another protocol.
 
 .. figure:: _static/img/protocol.svg
     :align: center
-    :width: 250
+    :width: 30%
 
     A selection of the inputs and outputs of the |openmm_simulation| protocol.
 
