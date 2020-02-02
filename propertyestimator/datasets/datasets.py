@@ -3,7 +3,6 @@ An API for defining, storing, and loading sets of physical
 property data.
 """
 import uuid
-from collections import defaultdict
 from enum import IntFlag, unique
 
 import pandas
@@ -12,7 +11,7 @@ import pint
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
 from propertyestimator.datasets import CalculationSource, MeasurementSource, Source
-from propertyestimator.substances import MoleFraction, Substance
+from propertyestimator.substances import MoleFraction, Substance, ExactAmount
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.serialization import TypedBaseModel
 
@@ -510,10 +509,14 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             - 'Phase'
             - 'Number Of Components'
             - 'Component 1'
+            - 'Role 1'
             - 'Mole Fraction 1'
+            - 'Exact Amount 1'
             - ...
             - 'Component N'
+            - 'Role N'
             - 'Mole Fraction N'
+            - 'Exact Amount N'
             - '<Property 1> Value'
             - '<Property 1> Uncertainty'
             - ...
@@ -532,18 +535,20 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         if len(self) == 0:
             return pandas.DataFrame()
 
-        # Determine the maximum number of components for any
-        # given measurements.
-        maximum_number_of_components = max(
-            x.number_of_components for x in self.substances
-        )
+        # Keep track of the maximum number of components in any substance
+        # as this determines the number of component columns.
+        maximum_number_of_components = 0
 
         data_rows = []
 
         # Extract the data from the data set.
         for substance in self.substances:
 
-            data_points_by_state = defaultdict(dict)
+            number_of_components = substance.number_of_components
+
+            maximum_number_of_components = max(
+                maximum_number_of_components, number_of_components
+            )
 
             for physical_property in self.properties_by_substance(substance):
 
@@ -554,37 +559,45 @@ class PhysicalPropertyDataSet(TypedBaseModel):
                 pressure = None
 
                 if physical_property.thermodynamic_state.pressure != UNDEFINED:
+
                     pressure = physical_property.thermodynamic_state.pressure.to(
                         unit.kilopascal
                     )
 
-                phase = physical_property.phase
+                phase = physical_property.phase.name
 
                 # Extract the component data.
-                number_of_components = physical_property.substance.number_of_components
-
-                components = [] * maximum_number_of_components
+                components = []
+                amounts = []
+                roles = []
 
                 for index, component in enumerate(
                     physical_property.substance.components
                 ):
 
-                    amount = next(
-                        iter(physical_property.substance.get_amounts(component))
-                    )
-                    assert isinstance(amount, MoleFraction)
+                    component_amounts = {
+                        MoleFraction: None,
+                        ExactAmount: None
+                    }
 
-                    components.append((component.smiles, amount.value))
+                    for x in physical_property.substance.get_amounts(component):
+
+                        assert isinstance(x, (MoleFraction, ExactAmount))
+                        component_amounts[type(x)] = x.value
+
+                    components.append(component.smiles)
+                    amounts.append(component_amounts)
+                    roles.append(component.role.name)
 
                 # Extract the value data as a string.
                 value = (
                     None
-                    if physical_property.value is None
+                    if physical_property.value is UNDEFINED
                     else str(physical_property.value)
                 )
                 uncertainty = (
                     None
-                    if physical_property.uncertainty is None
+                    if physical_property.uncertainty is UNDEFINED
                     else str(physical_property.uncertainty)
                 )
 
@@ -611,8 +624,10 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
                 for index in range(len(components)):
 
-                    data_row[f"Component {index + 1}"] = components[index][0]
-                    data_row[f"Mole Fraction {index + 1}"] = components[index][1]
+                    data_row[f"Component {index + 1}"] = components[index]
+                    data_row[f"Role {index + 1}"] = roles[index]
+                    data_row[f"Mole Fraction {index + 1}"] = amounts[index][MoleFraction]
+                    data_row[f"Exact Amount {index + 1}"] = amounts[index][ExactAmount]
 
                 data_row[f"{type(physical_property).__name__} Value"] = value
                 data_row[
@@ -621,12 +636,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
                 data_row["Source"] = source
 
-                data_points_by_state[physical_property.thermodynamic_state].update(
-                    data_row
-                )
-
-            for state in data_points_by_state:
-                data_rows.append(data_points_by_state[state])
+                data_rows.append(data_row)
 
         # Set up the column headers.
         if len(data_rows) == 0:
@@ -646,6 +656,8 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         for property_type in self.property_types:
             data_columns.append(f"{property_type} Value")
             data_columns.append(f"{property_type} Uncertainty")
+
+        data_columns.append("Source")
 
         data_frame = pandas.DataFrame(data_rows, columns=data_columns)
         return data_frame
