@@ -592,12 +592,12 @@ class PhysicalPropertyDataSet(TypedBaseModel):
                 # Extract the value data as a string.
                 value = (
                     None
-                    if physical_property.value is UNDEFINED
+                    if physical_property.value == UNDEFINED
                     else str(physical_property.value)
                 )
                 uncertainty = (
                     None
-                    if physical_property.uncertainty is UNDEFINED
+                    if physical_property.uncertainty == UNDEFINED
                     else str(physical_property.uncertainty)
                 )
 
