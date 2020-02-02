@@ -394,7 +394,10 @@ class _Compound:
         if not molecule:
             raise ValueError(f"The InchI string ({inchi_string}) could not be parsed")
 
-        return mol_to_smiles(molecule, explicit_hydrogen=False, mapped=False)
+        try:
+            return mol_to_smiles(molecule, explicit_hydrogen=False, mapped=False)
+        except ValueError:
+            return None
 
     @staticmethod
     def smiles_from_thermoml_smiles_string(thermoml_string):
@@ -448,6 +451,8 @@ class _Compound:
 
         except LicenseError:
             smiles = None
+        except ValueError:
+            smiles = None
 
         return smiles
 
@@ -472,6 +477,8 @@ class _Compound:
         smiles_identifier_nodes = node.findall("ThermoML:sSmiles", namespace)
         common_identifier_nodes = node.findall("ThermoML:sCommonName", namespace)
 
+        smiles = None
+
         if (
             len(inchi_identifier_nodes) > 0
             and inchi_identifier_nodes[0].text is not None
@@ -479,8 +486,9 @@ class _Compound:
             # Convert InChI key to a smiles pattern.
             smiles = cls.smiles_from_inchi_string(inchi_identifier_nodes[0].text)
 
-        elif (
-            len(smiles_identifier_nodes) > 0
+        if (
+            smiles is None
+            and len(smiles_identifier_nodes) > 0
             and smiles_identifier_nodes[0].text is not None
         ):
             # Standardise the smiles pattern using OE.
@@ -488,14 +496,15 @@ class _Compound:
                 smiles_identifier_nodes[0].text
             )
 
-        elif (
-            len(common_identifier_nodes) > 0
+        if (
+            smiles is None
+            and len(common_identifier_nodes) > 0
             and common_identifier_nodes[0].text is not None
         ):
             # Convert the common name to a smiles pattern.
             smiles = cls.smiles_from_common_name(common_identifier_nodes[0].text)
 
-        else:
+        if smiles is None:
 
             logging.debug(
                 "A ThermoML:Compound node does not have a valid InChI identifier, "
@@ -679,7 +688,7 @@ class _PureOrMixtureData:
 
         Returns
         ----------
-        dict of int and _Constraint, optional
+        list of _Constraint, optional
             The extracted constraints if all could be parsed,
             otherwise `None`.
         """
@@ -716,8 +725,7 @@ class _PureOrMixtureData:
         Returns
         ----------
         dict of int and _VariableDefinition
-            The extracted variable definitions if all could be parsed,
-            otherwise `None`.
+            The extracted variable definitions which could be parsed.
         """
         variable_nodes = node.findall("ThermoML:Variable", namespace)
         variables = {}
@@ -727,7 +735,7 @@ class _PureOrMixtureData:
             variable = _VariableDefinition.from_node(variable_node, namespace)
 
             if not _PureOrMixtureData.validate_constraint(variable, compounds):
-                return None
+                continue
 
             variables[variable.index] = variable
 
@@ -1475,7 +1483,7 @@ class _PureOrMixtureData:
             The xml namespace.
         property_definitions: dict of int and ThermoMLProperty
             The extracted property definitions.
-        global_constraints: dict of int and _Constraint
+        global_constraints: list of _Constraint
             The extracted constraints.
         variable_definitions: dict of int and _VariableDefinition
             The extracted variable definitions.
@@ -1533,7 +1541,7 @@ class _PureOrMixtureData:
                 variable_value = float(
                     variable_node.find("ThermoML:nVarValue", namespace).text
                 )
-                value_as_quantity = pint.Quantity(
+                value_as_quantity = unit.Quantity(
                     variable_value, variable_definition.default_unit
                 )
 
@@ -2063,7 +2071,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
             data_set = cls._from_url(doi_url, MeasurementSource(doi=doi))
 
-            if data_set is None or len(data_set.properties) == 0:
+            if data_set is None or len(data_set) == 0:
                 continue
 
             if return_value is None:
@@ -2094,7 +2102,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
             data_set = cls._from_url(url)
 
-            if data_set is None or len(data_set.properties) == 0:
+            if data_set is None or len(data_set) == 0:
                 continue
 
             if return_value is None:
@@ -2158,7 +2166,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
             counter += 1
 
-            if data_set is None or len(data_set.properties) == 0:
+            if data_set is None or len(data_set) == 0:
                 continue
 
             if return_value is None:
@@ -2255,11 +2263,6 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
             for measured_property in properties:
 
-                substance_id = measured_property.substance.identifier
-
-                if substance_id not in return_value._properties:
-                    return_value._properties[substance_id] = []
-
                 registered_plugin = ThermoMLDataSet.registered_properties[
                     measured_property.type_string
                 ]
@@ -2268,8 +2271,6 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
                     measured_property
                 )
                 mapped_property.source = source
-                return_value._properties[substance_id].append(mapped_property)
-
-        return_value._sources.append(source)
+                return_value.add_properties(mapped_property)
 
         return return_value

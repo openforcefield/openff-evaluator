@@ -57,7 +57,7 @@ def test_serialization():
     data_set_json = data_set.json()
 
     parsed_data_set = PhysicalPropertyDataSet.parse_json(data_set_json)
-    assert data_set.number_of_properties == parsed_data_set.number_of_properties
+    assert len(data_set) == len(parsed_data_set)
 
     parsed_data_set_json = parsed_data_set.json()
     assert parsed_data_set_json == data_set_json
@@ -133,18 +133,46 @@ def test_to_pandas():
     assert len(data_set_pandas) == 6
 
 
+def test_sources_substances():
+
+    physical_property = create_dummy_property(Density)
+
+    data_set = PhysicalPropertyDataSet()
+    data_set.add_properties(physical_property)
+
+    assert next(iter(data_set.sources)) == physical_property.source
+    assert next(iter(data_set.substances)) == physical_property.substance
+
+
+def test_properties_by_type():
+
+    density = create_dummy_property(Density)
+    dielectric = create_dummy_property(DielectricConstant)
+
+    data_set = PhysicalPropertyDataSet()
+    data_set.add_properties(density, dielectric)
+
+    densities = [x for x in data_set.properties_by_type("Density")]
+    assert len(densities) == 1
+    assert densities[0] == density
+
+    dielectrics = [x for x in data_set.properties_by_type("DielectricConstant")]
+    assert len(dielectrics) == 1
+    assert dielectrics[0] == dielectric
+
+
 def test_filter_by_property_types():
     """A test to ensure that data sets may be filtered by property type."""
 
     dummy_data_set = create_filterable_data_set()
     dummy_data_set.filter_by_property_types("Density")
 
-    assert dummy_data_set.number_of_properties == 1
+    assert len(dummy_data_set) == 1
 
     dummy_data_set = create_filterable_data_set()
     dummy_data_set.filter_by_property_types("Density", "DielectricConstant")
 
-    assert dummy_data_set.number_of_properties == 2
+    assert len(dummy_data_set) == 2
 
 
 def test_filter_by_phases():
@@ -153,14 +181,14 @@ def test_filter_by_phases():
     dummy_data_set = create_filterable_data_set()
     dummy_data_set.filter_by_phases(phases=PropertyPhase.Liquid)
 
-    assert dummy_data_set.number_of_properties == 1
+    assert len(dummy_data_set) == 1
 
     dummy_data_set = create_filterable_data_set()
     dummy_data_set.filter_by_phases(
         phases=PropertyPhase(PropertyPhase.Liquid | PropertyPhase.Solid)
     )
 
-    assert dummy_data_set.number_of_properties == 2
+    assert len(dummy_data_set) == 2
 
     dummy_data_set = create_filterable_data_set()
     dummy_data_set.filter_by_phases(
@@ -169,7 +197,7 @@ def test_filter_by_phases():
         )
     )
 
-    assert dummy_data_set.number_of_properties == 3
+    assert len(dummy_data_set) == 3
 
 
 def test_filter_by_temperature():
@@ -180,21 +208,21 @@ def test_filter_by_temperature():
         min_temperature=287 * unit.kelvin, max_temperature=289 * unit.kelvin
     )
 
-    assert dummy_data_set.number_of_properties == 1
+    assert len(dummy_data_set) == 1
 
     dummy_data_set = create_filterable_data_set()
     dummy_data_set.filter_by_temperature(
         min_temperature=287 * unit.kelvin, max_temperature=299 * unit.kelvin
     )
 
-    assert dummy_data_set.number_of_properties == 2
+    assert len(dummy_data_set) == 2
 
     dummy_data_set = create_filterable_data_set()
     dummy_data_set.filter_by_temperature(
         min_temperature=287 * unit.kelvin, max_temperature=309 * unit.kelvin
     )
 
-    assert dummy_data_set.number_of_properties == 3
+    assert len(dummy_data_set) == 3
 
 
 def test_filter_by_pressure():
@@ -205,21 +233,21 @@ def test_filter_by_pressure():
         min_pressure=0.4 * unit.atmosphere, max_pressure=0.6 * unit.atmosphere
     )
 
-    assert dummy_data_set.number_of_properties == 1
+    assert len(dummy_data_set) == 1
 
     dummy_data_set = create_filterable_data_set()
     dummy_data_set.filter_by_pressure(
         min_pressure=0.4 * unit.atmosphere, max_pressure=1.1 * unit.atmosphere
     )
 
-    assert dummy_data_set.number_of_properties == 2
+    assert len(dummy_data_set) == 2
 
     dummy_data_set = create_filterable_data_set()
     dummy_data_set.filter_by_pressure(
         min_pressure=0.4 * unit.atmosphere, max_pressure=1.6 * unit.atmosphere
     )
 
-    assert dummy_data_set.number_of_properties == 3
+    assert len(dummy_data_set) == 3
 
 
 def test_filter_by_components():
@@ -228,17 +256,17 @@ def test_filter_by_components():
     dummy_data_set = create_filterable_data_set()
     dummy_data_set.filter_by_components(number_of_components=1)
 
-    assert dummy_data_set.number_of_properties == 1
+    assert len(dummy_data_set) == 1
 
     dummy_data_set = create_filterable_data_set()
     dummy_data_set.filter_by_components(number_of_components=2)
 
-    assert dummy_data_set.number_of_properties == 1
+    assert len(dummy_data_set) == 1
 
     dummy_data_set = create_filterable_data_set()
     dummy_data_set.filter_by_components(number_of_components=3)
 
-    assert dummy_data_set.number_of_properties == 1
+    assert len(dummy_data_set) == 1
 
 
 def test_filter_by_elements():
@@ -248,17 +276,17 @@ def test_filter_by_elements():
     dummy_data_set = create_filterable_data_set()
     dummy_data_set.filter_by_elements("H", "C")
 
-    assert dummy_data_set.number_of_properties == 1
+    assert len(dummy_data_set) == 1
 
     dummy_data_set = create_filterable_data_set()
     dummy_data_set.filter_by_elements("H", "C", "N")
 
-    assert dummy_data_set.number_of_properties == 2
+    assert len(dummy_data_set) == 2
 
     dummy_data_set = create_filterable_data_set()
     dummy_data_set.filter_by_elements("H", "C", "N", "O")
 
-    assert dummy_data_set.number_of_properties == 3
+    assert len(dummy_data_set) == 3
 
 
 def test_filter_by_smiles():
@@ -278,11 +306,10 @@ def test_filter_by_smiles():
     property_b.substance = ethanol_substance
 
     data_set = PhysicalPropertyDataSet()
-    data_set.properties[methanol_substance.identifier] = [property_a]
-    data_set.properties[ethanol_substance.identifier] = [property_b]
+    data_set.add_properties(property_a, property_b)
 
     data_set.filter_by_smiles("CO")
 
-    assert data_set.number_of_properties == 1
-    assert methanol_substance.identifier in data_set.properties
-    assert ethanol_substance.identifier not in data_set.properties
+    assert len(data_set) == 1
+    assert methanol_substance in data_set.substances
+    assert ethanol_substance not in data_set.substances

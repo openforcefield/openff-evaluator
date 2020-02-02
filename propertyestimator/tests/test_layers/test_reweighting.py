@@ -16,6 +16,7 @@ from propertyestimator.properties import (
 from propertyestimator.storage import LocalFileStorage
 from propertyestimator.substances import Substance
 from propertyestimator.tests.utils import create_dummy_simulation_data
+from propertyestimator.thermodynamics import ThermodynamicState
 
 
 def test_storage_retrieval():
@@ -38,15 +39,33 @@ def test_storage_retrieval():
     ]
     storage_keys = {}
 
+    state = ThermodynamicState(temperature=1.0 * unit.kelvin)
+
     properties = [
         # Properties with a full system query.
-        Density(value=1.0 * unit.gram / unit.litre, substance=methanol),
-        DielectricConstant(value=1.0 * unit.dimensionless, substance=methane),
+        Density(
+            value=1.0 * unit.gram / unit.litre,
+            substance=methanol,
+            thermodynamic_state=state,
+        ),
+        DielectricConstant(
+            value=1.0 * unit.dimensionless, substance=methane, thermodynamic_state=state
+        ),
         # Properties with a multi-component query.
-        EnthalpyOfVaporization(value=1.0 * unit.joule / unit.mole, substance=methanol),
+        EnthalpyOfVaporization(
+            value=1.0 * unit.joule / unit.mole,
+            substance=methanol,
+            thermodynamic_state=state,
+        ),
         # Property with a multi-phase query.
-        EnthalpyOfMixing(value=1.0 * unit.joule / unit.mole, substance=mixture),
-        ExcessMolarVolume(value=1.0 * unit.meter ** 3, substance=mixture),
+        EnthalpyOfMixing(
+            value=1.0 * unit.joule / unit.mole,
+            substance=mixture,
+            thermodynamic_state=state,
+        ),
+        ExcessMolarVolume(
+            value=1.0 * unit.meter ** 3, substance=mixture, thermodynamic_state=state
+        ),
     ]
     expected_data_per_property = {
         Density: {"full_system_data": [(methanol, PropertyPhase.Liquid, 1000)]},

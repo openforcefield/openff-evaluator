@@ -30,14 +30,8 @@ class QuickCalculationLayer(CalculationLayer):
         return CalculationLayerSchema
 
     @classmethod
-    def schedule_calculation(
-        cls,
-        calculation_backend,
-        storage_backend,
-        layer_directory,
-        batch,
-        callback,
-        synchronous=False,
+    def _schedule_calculation(
+        cls, calculation_backend, storage_backend, layer_directory, batch
     ):
 
         futures = [
@@ -46,15 +40,7 @@ class QuickCalculationLayer(CalculationLayer):
             ),
         ]
 
-        CalculationLayer._await_results(
-            cls.__name__,
-            calculation_backend,
-            storage_backend,
-            batch,
-            callback,
-            futures,
-            synchronous,
-        )
+        return futures
 
     @staticmethod
     def process_property(physical_property, **_):
@@ -100,7 +86,7 @@ def test_launch_batch():
         "Density": {"QuickCalculationLayer": CalculationLayerSchema()}
     }
     batch.parameter_gradient_keys = []
-    batch.queued_properties = next(iter(data_set.properties.values()))
+    batch.queued_properties = [*data_set]
     batch.validate()
 
     with tempfile.TemporaryDirectory() as directory:

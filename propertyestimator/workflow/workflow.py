@@ -105,7 +105,7 @@ class Workflow:
         schema = WorkflowSchema()
 
         schema.id = self.uuid
-        schema.protocol_schemas = [copy.deepcopy(x) for x in self._protocols]
+        schema.protocol_schemas = [copy.deepcopy(x.schema) for x in self._protocols]
 
         if self._final_value_source != UNDEFINED:
             schema.final_value_source = self._final_value_source.copy()
@@ -745,6 +745,49 @@ class Workflow:
         graph.add_workflow(self)
         return graph
 
+    @classmethod
+    def from_schema(cls, schema, metadata, unique_id=None):
+        """Creates a workflow from its schema blueprint, and the associated metadata.
+
+        Parameters
+        ----------
+        schema: WorkflowSchema
+            The schema blueprint for this workflow.
+        metadata: dict of str and Any
+            The metadata to make available to the workflow.
+        unique_id: str, optional
+            A unique identifier to assign to this workflow. This id will be appended
+            to the ids of the protocols of this workflow. If none is provided one will
+            be chosen at random.
+
+        Returns
+        -------
+        cls
+            The created workflow.
+        """
+        workflow = cls(metadata, unique_id)
+        workflow.schema = schema
+
+        return workflow
+
+    def execute(self, root_directory, backend):
+        """Executes the workflow.
+
+        Parameters
+        ----------
+        root_directory: str
+            The directory to execute the graph in.
+        backend: CalculationBackend, optional.
+            The backend to execute the graph on.
+
+        Returns
+        -------
+        Future of WorkflowResult:
+            A future references to the result of executing this workflow.
+        """
+        workflow_graph = self.to_graph()
+        return workflow_graph.execute(root_directory, backend)[0]
+
 
 class WorkflowResult(AttributeClass):
     """The result of executing a `Workflow` as part of a
@@ -862,7 +905,7 @@ class WorkflowGraph:
             workflow.replace_protocol(original_protocol, new_protocol)
 
     def execute(self, root_directory, backend):
-        """Submits the protocol graph to the backend of choice.
+        """Executes the workflow graph.
 
         Parameters
         ----------
@@ -873,8 +916,8 @@ class WorkflowGraph:
 
         Returns
         -------
-        list of Future:
-            The futures of the submitted protocols.
+        list of Future of WorkflowResult:
+            Future references to the workflow results.
         """
         protocol_outputs = self._protocol_graph.execute(root_directory, backend)
 
