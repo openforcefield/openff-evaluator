@@ -130,7 +130,7 @@ def test_to_pandas():
     data_set_pandas = data_set.to_pandas()
 
     assert data_set_pandas is not None
-    assert len(data_set_pandas) == 6
+    assert len(data_set_pandas) == 12
 
 
 def test_sources_substances():
