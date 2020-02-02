@@ -507,11 +507,8 @@ class EvaluatorClient:
             request.
         """
 
-        property_types = set()
-
         # Retrieve the types of properties in the data set.
-        for property_list in data_set.properties.values():
-            property_types.update([x.__class__.__name__ for x in property_list])
+        property_types = data_set.property_types
 
         if options.calculation_schemas == UNDEFINED:
             options.calculation_schemas = defaultdict(dict)

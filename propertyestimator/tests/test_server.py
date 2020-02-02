@@ -86,7 +86,7 @@ def test_launch_batch():
         "Density": {"QuickCalculationLayer": CalculationLayerSchema()}
     }
     batch.parameter_gradient_keys = []
-    batch.queued_properties = next(iter(data_set.properties.values()))
+    batch.queued_properties = [*data_set]
     batch.validate()
 
     with tempfile.TemporaryDirectory() as directory:

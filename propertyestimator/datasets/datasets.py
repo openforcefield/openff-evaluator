@@ -167,30 +167,31 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         """
         Constructs a new PhysicalPropertyDataSet object.
         """
-        self._properties = {}
-        self._sources = []
+        self._properties = []
 
     @property
     def properties(self):
+        """tuple of PhysicalProperty: A list of all of the properties
+        within this set.
         """
-        dict of str and list of PhysicalProperty: A list of all of the properties
-        within this set, partitioned by substance identifier.
+        return tuple(self._properties)
 
-        See Also
-        --------
-        Substance.identifier()
-        """
-        return self._properties
+    @property
+    def property_types(self):
+        """set of str: The types of property within this data set."""
+        return set([x.__class__.__name__ for x in self._properties])
+
+    @property
+    def substances(self):
+        """set of Substance: The substances for which the properties in this data set
+        were collected for."""
+        return set([x.substance for x in self._properties])
 
     @property
     def sources(self):
-        """list of Source: The list of sources from which the properties were gathered"""
-        return self._sources
-
-    @property
-    def number_of_properties(self):
-        """int: The number of properties in the data set."""
-        return sum([len(properties) for properties in self._properties.values()])
+        """set of Source: The sources from which the properties in this data set were
+        gathered."""
+        return set([x.source for x in self._properties])
 
     def merge(self, data_set):
         """Merge another data set into the current one.
@@ -203,33 +204,80 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         if data_set is None:
             return
 
-        # TODO: Do we need to check whether merging the same data set here?
-        for substance_hash in data_set.properties:
-
-            if substance_hash not in self._properties:
-                self._properties[substance_hash] = []
-
-            self._properties[substance_hash].extend(data_set.properties[substance_hash])
-
-        self._sources.extend(data_set.sources)
+        self.add_properties(*data_set)
 
     def add_properties(self, *physical_properties):
         """Adds a physical property to the data set.
 
         Parameters
         ----------
-        physical_properties: tuple of PhysicalProperty
+        physical_properties: *PhysicalProperty
             The physical property to add.
         """
 
+        all_ids = set(x.id for x in self)
+
+        # TODO: Do we need to check for adding the same property twice?
         for physical_property in physical_properties:
 
-            if physical_property.substance.identifier not in self._properties:
-                self._properties[physical_property.substance.identifier] = []
+            physical_property.validate()
 
-            self._properties[physical_property.substance.identifier].append(
-                physical_property
-            )
+            if physical_property.id in all_ids:
+
+                raise KeyError(
+                    f"A property with the unique id {physical_property.id} already "
+                    f"exists."
+                )
+
+            all_ids.add(physical_property.id)
+
+        self._properties.extend(physical_properties)
+
+    def properties_by_substance(self, substance):
+        """A generator which may be used to loop over all of the properties
+        which were measured for a particular substance.
+
+        Parameters
+        ----------
+        substance: Substance
+            The substance of interest.
+
+        Returns
+        -------
+        generator of PhysicalProperty
+        """
+
+        for physical_property in self._properties:
+
+            if physical_property.substance != substance:
+                continue
+
+            yield physical_property
+
+    def properties_by_type(self, property_type):
+        """A generator which may be used to loop over all of properties
+        of a particular type, e.g. all "Density" properties.
+
+        Parameters
+        ----------
+        property_type: str or type of PhysicalProperty
+            The type of property of interest. This may either be the string
+            class name of the property or the class type.
+
+        Returns
+        -------
+        generator of PhysicalProperty
+        """
+
+        if not isinstance(property_type, str):
+            property_type = property_type.__name__
+
+        for physical_property in self._properties:
+
+            if physical_property.__class__.__name__ != property_type:
+                continue
+
+            yield physical_property
 
     def filter_by_function(self, filter_function):
         """Filter the data set using a given filter function.
@@ -239,33 +287,14 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         filter_function : lambda
             The filter function.
         """
+        self._properties = list(filter(filter_function, self._properties))
 
-        filtered_properties = {}
-
-        # This works for now - if we wish to be able to undo a filter then
-        # a 'filtered' list needs to be maintained separately to the main list.
-        for substance_id in self._properties:
-
-            substance_properties = list(
-                filter(filter_function, self._properties[substance_id])
-            )
-
-            if len(substance_properties) <= 0:
-                continue
-
-            filtered_properties[substance_id] = substance_properties
-
-        self._properties = {}
-
-        for substance_id in filtered_properties:
-            self._properties[substance_id] = filtered_properties[substance_id]
-
-    def filter_by_property_types(self, *property_type):
+    def filter_by_property_types(self, *property_types):
         """Filter the data set based on the type of property (e.g Density).
 
         Parameters
         ----------
-        property_type : PropertyType or str
+        property_types : PropertyType or str
             The type of property which should be retained.
 
         Examples
@@ -284,17 +313,13 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
         >>> data_set.filter_by_property_types('Density', 'DielectricConstant')
         """
-        property_types = []
 
-        for type_to_retain in property_type:
-
-            if isinstance(type_to_retain, str):
-                property_types.append(type_to_retain)
-            else:
-                property_types.append(type_to_retain.__name__)
+        property_types = [
+            x if isinstance(x, str) else x.__name__ for x in property_types
+        ]
 
         def filter_function(x):
-            return type(x).__name__ in property_types
+            return x.__class__.__name__ in property_types
 
         self.filter_by_function(filter_function)
 
@@ -384,7 +409,8 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         self.filter_by_function(filter_function)
 
     def filter_by_components(self, number_of_components):
-        """Filter the data set based on a minimum and maximum temperature.
+        """Filter the data set based on the number of components present
+        in the substance the data points were collected for.
 
         Parameters
         ----------
@@ -502,42 +528,24 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         pandas.DataFrame
             The create data frame.
         """
+
+        if len(self) == 0:
+            return pandas.DataFrame()
+
         # Determine the maximum number of components for any
         # given measurements.
-        maximum_number_of_components = 0
-        all_property_types = set()
-
-        for substance_id in self._properties:
-
-            if len(self._properties[substance_id]) == 0:
-                continue
-
-            substance = self._properties[substance_id][0].substance
-            maximum_number_of_components = max(
-                maximum_number_of_components, substance.number_of_components
-            )
-
-            for physical_property in self._properties[substance_id]:
-                all_property_types.add(type(physical_property))
-
-        # Make sure the maximum number of components is not zero.
-        if maximum_number_of_components <= 0 < len(self._properties):
-
-            raise ValueError(
-                "The data set did not contain any substances with "
-                "one or more components."
-            )
+        maximum_number_of_components = max(
+            x.number_of_components for x in self.substances
+        )
 
         data_rows = []
 
         # Extract the data from the data set.
-        for substance_id in self._properties:
+        for substance in self.substances:
 
             data_points_by_state = defaultdict(dict)
 
-            for physical_property in self._properties[substance_id]:
-
-                all_property_types.add(type(physical_property))
+            for physical_property in self.properties_by_substance(substance):
 
                 # Extract the measured state.
                 temperature = physical_property.thermodynamic_state.temperature.to(
@@ -635,26 +643,40 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             data_columns.append(f"Component {index + 1}")
             data_columns.append(f"Mole Fraction {index + 1}")
 
-        for property_type in all_property_types:
-            data_columns.append(f"{property_type.__name__} Value")
-            data_columns.append(f"{property_type.__name__} Uncertainty")
+        for property_type in self.property_types:
+            data_columns.append(f"{property_type} Value")
+            data_columns.append(f"{property_type} Uncertainty")
 
         data_frame = pandas.DataFrame(data_rows, columns=data_columns)
         return data_frame
 
     def __len__(self):
-        return self.number_of_properties
+        return len(self._properties)
+
+    def __iter__(self):
+        return iter(self._properties)
 
     def __getstate__(self):
-
-        return {"properties": self._properties, "sources": self._sources}
+        return {"properties": self._properties}
 
     def __setstate__(self, state):
 
         self._properties = state["properties"]
-        self._sources = state["sources"]
 
-        for key in self._properties:
-            assert all(isinstance(x, PhysicalProperty) for x in self._properties[key])
+        assert all(isinstance(x, PhysicalProperty) for x in self)
 
-        assert all(isinstance(x, Source) for x in self._sources)
+        for physical_property in self:
+            physical_property.validate()
+
+        # Ensure each property has a unique id.
+        all_ids = set(x.id for x in self)
+        assert len(all_ids) == len(self)
+
+    def __str__(self):
+        return (
+            f"n_properties={len(self)} n_substances={len(self.substances)} "
+            f"n_sources={len(self.sources)}"
+        )
+
+    def __repr__(self):
+        return f"<PhysicalPropertyDataSet {str(self)}>"

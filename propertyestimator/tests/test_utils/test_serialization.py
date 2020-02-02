@@ -6,7 +6,6 @@ from datetime import datetime
 from enum import Enum, IntEnum
 
 import numpy as np
-import pint
 import pytest
 
 from propertyestimator import unit
@@ -216,7 +215,7 @@ def test_dimensionless_quantity_serialization():
 
     assert test_value == deserialized_value
 
-    test_value = pint.Quantity(1.0)
+    test_value = 1.0 * unit.dimensionless
 
     serialized_value = serialize_quantity(test_value)
     deserialized_value = deserialize_quantity(serialized_value)

@@ -207,9 +207,7 @@ def create_filterable_data_set():
     )
 
     data_set = PhysicalPropertyDataSet()
-    data_set.properties[carbon_substance.identifier] = [density_property]
-    data_set.properties[nitrogen_substance.identifier] = [dielectric_property]
-    data_set.properties[oxygen_substance.identifier] = [enthalpy_property]
+    data_set.add_properties(density_property, dielectric_property, enthalpy_property)
 
     return data_set
 

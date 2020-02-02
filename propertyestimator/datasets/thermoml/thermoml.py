@@ -2071,7 +2071,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
             data_set = cls._from_url(doi_url, MeasurementSource(doi=doi))
 
-            if data_set is None or len(data_set.properties) == 0:
+            if data_set is None or len(data_set) == 0:
                 continue
 
             if return_value is None:
@@ -2102,7 +2102,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
             data_set = cls._from_url(url)
 
-            if data_set is None or len(data_set.properties) == 0:
+            if data_set is None or len(data_set) == 0:
                 continue
 
             if return_value is None:
@@ -2166,7 +2166,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
             counter += 1
 
-            if data_set is None or len(data_set.properties) == 0:
+            if data_set is None or len(data_set) == 0:
                 continue
 
             if return_value is None:
@@ -2263,11 +2263,6 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
             for measured_property in properties:
 
-                substance_id = measured_property.substance.identifier
-
-                if substance_id not in return_value._properties:
-                    return_value._properties[substance_id] = []
-
                 registered_plugin = ThermoMLDataSet.registered_properties[
                     measured_property.type_string
                 ]
@@ -2276,8 +2271,6 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
                     measured_property
                 )
                 mapped_property.source = source
-                return_value._properties[substance_id].append(mapped_property)
-
-        return_value._sources.append(source)
+                return_value.add_properties(mapped_property)
 
         return return_value
