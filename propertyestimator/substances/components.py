@@ -60,7 +60,8 @@ class Component(AttributeClass):
         role: Component.Role
             The role of this component in the system.
         """
-        smiles = self._standardize_smiles(smiles)
+        if smiles != UNDEFINED:
+            smiles = self._standardize_smiles(smiles)
 
         self._set_value("smiles", smiles)
         self._set_value("role", role)
