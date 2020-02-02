@@ -1,8 +1,6 @@
 """
 An API for defining and creating substances.
 """
-from collections import abc
-
 import numpy as np
 
 from propertyestimator import unit
@@ -99,12 +97,14 @@ class Substance(AttributeClass):
         """Creates a new `Substance` object from a list of components.
         This method assumes that all components should be present with
         equal mole fractions.
+
         Parameters
         ----------
         components: Component or str
             The components to add to the substance. These may either be full
             `Component` objects or just the smiles representation
             of the component.
+
         Returns
         -------
         Substance
@@ -131,6 +131,7 @@ class Substance(AttributeClass):
         """Add a component to the Substance. If the component is already present in
         the substance, then the mole fraction will be added to the current mole
         fraction of that component.
+
         Parameters
         ----------
         component : Component
@@ -150,6 +151,7 @@ class Substance(AttributeClass):
             total_mole_fraction = amount.value
 
             for component_identifier in self.amounts:
+
                 total_mole_fraction += sum(
                     [
                         amount.value
@@ -162,11 +164,13 @@ class Substance(AttributeClass):
                 total_mole_fraction = 1.0
 
             if total_mole_fraction > 1.0:
+
                 raise ValueError(
                     f"The total mole fraction of this substance {total_mole_fraction} exceeds 1.0"
                 )
 
         if component.identifier not in self.amounts:
+
             components = (*self.components, component)
             self._set_value("components", components)
 
@@ -184,6 +188,7 @@ class Substance(AttributeClass):
         for existing_amount in all_amounts:
 
             if not type(existing_amount) is type(amount):
+
                 remaining_amounts.append(existing_amount)
                 continue
 
@@ -191,6 +196,7 @@ class Substance(AttributeClass):
             break
 
         if existing_amount_of_type is not None:
+
             # Append any existing amounts to the new amount.
             amount = type(amount)(existing_amount_of_type.value + amount.value)
 
