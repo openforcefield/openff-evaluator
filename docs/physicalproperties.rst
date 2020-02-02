@@ -50,6 +50,21 @@ sources, such as the |thermoml_data_set| (see :doc:`thermomldatasets`) which pro
 from the `NIST ThermoML Archive <http://trc.nist.gov/ThermoML.html>`_ and converting it into the standard framework
 objects.
 
+Data set objects are directly iterable::
+
+    for physical_property in data_set:
+        ...
+
+or can be iterated over for a specific substance::
+
+    for physical_property in data_set.properties_by_substance(substance):
+        ...
+
+or for a specific type of property::
+
+    for physical_property in data_set.properties_by_type("Density"):
+        ...
+
 Physical Properties
 -------------------
 
