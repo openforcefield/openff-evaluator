@@ -495,9 +495,10 @@ class StorageBackend(abc.ABC):
 
         Returns
         -------
-        dict of tuple and list of tuple of str and str
-            The data that matches the query partitioned
-            by the matched values..
+        dict of tuple and list of tuple of str, BaseStoredData and str
+            The data that matches the query partitioned by the
+            matched values. The list values take the form
+            (storage_key, data_object, data_directory_path).
         """
         with self._lock:
             return self._query(data_query)

@@ -33,3 +33,4 @@ dependencies:
   - requests
   - requests-mock # For testing http requests.
   - cmiles
+  - python-dateutil

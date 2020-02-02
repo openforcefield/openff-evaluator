@@ -252,7 +252,6 @@ class StoredSimulationData(ReplaceableData):
             is None
         ):
             return None
-
         if (
             stored_data_1.statistical_inefficiency
             < stored_data_2.statistical_inefficiency

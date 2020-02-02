@@ -6,8 +6,10 @@ import importlib
 import inspect
 import json
 from abc import ABC, abstractmethod
+from datetime import datetime
 from enum import Enum
 
+import dateutil.parser
 import numpy as np
 import pint
 
@@ -284,6 +286,7 @@ class TypedJSONEncoder(json.JSONEncoder):
         np.int32: lambda x: {"value": int(x)},
         np.int64: lambda x: {"value": int(x)},
         np.ndarray: lambda x: {"value": x.tolist()},
+        datetime: lambda x: {"value": x.isoformat()},
     }
 
     def default(self, value_to_serialize):
@@ -381,6 +384,7 @@ class TypedJSONDecoder(json.JSONDecoder):
         np.int32: lambda x: np.int32(x["value"]),
         np.int64: lambda x: np.int64(x["value"]),
         np.ndarray: lambda x: np.array(x["value"]),
+        datetime: lambda x: dateutil.parser.parse(x["value"]),
     }
 
     @staticmethod

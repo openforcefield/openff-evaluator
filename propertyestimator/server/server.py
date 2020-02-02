@@ -272,7 +272,7 @@ class EvaluatorServer:
 
         # Batch properties to be estimated for the same substance
         # into one chunk
-        for substance_identifier in submission.dataset.properties:
+        for substance in submission.dataset.substances:
 
             batch = _Batch()
             batch.force_field_id = force_field_id
@@ -285,8 +285,8 @@ class EvaluatorServer:
 
                 batch.id = str(uuid.uuid4()).replace("-", "")
 
-            batch.queued_properties = submission.dataset.properties[
-                substance_identifier
+            batch.queued_properties = [
+                x for x in submission.dataset.properties_by_substance(substance)
             ]
             batch.options = RequestOptions.parse_json(submission.options.json())
 
