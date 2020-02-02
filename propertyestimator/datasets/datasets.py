@@ -507,7 +507,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             - 'Temperature'
             - 'Pressure'
             - 'Phase'
-            - 'Number Of Components'
+            - 'N Components'
             - 'Component 1'
             - 'Role 1'
             - 'Mole Fraction 1'
@@ -606,10 +606,10 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
                 if isinstance(physical_property.source, MeasurementSource):
 
-                    source = physical_property.source.reference
+                    source = physical_property.source.doi
 
-                    if source is None:
-                        source = physical_property.source.doi
+                    if source is None or len(source) == 0:
+                        source = physical_property.source.reference
 
                 elif isinstance(physical_property.source, CalculationSource):
                     source = physical_property.source.fidelity
@@ -619,7 +619,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
                     "Temperature": str(temperature),
                     "Pressure": str(pressure),
                     "Phase": phase,
-                    "Number Of Components": number_of_components,
+                    "N Components": number_of_components,
                 }
 
                 for index in range(len(components)):
@@ -646,12 +646,14 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             "Temperature",
             "Pressure",
             "Phase",
-            "Number Of Components",
+            "N Components",
         ]
 
         for index in range(maximum_number_of_components):
             data_columns.append(f"Component {index + 1}")
+            data_columns.append(f"Role {index + 1}")
             data_columns.append(f"Mole Fraction {index + 1}")
+            data_columns.append(f"Exact Amount {index + 1}")
 
         for property_type in self.property_types:
             data_columns.append(f"{property_type} Value")
