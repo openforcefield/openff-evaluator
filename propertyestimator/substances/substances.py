@@ -331,6 +331,12 @@ class Substance(AttributeClass):
 
         super(Substance, self).__setstate__(state)
 
+    def __len__(self):
+        return len(self.components)
+
+    def __iter__(self):
+        return iter(self.components)
+
     def validate(self, attribute_type=None):
         super(Substance, self).validate(attribute_type)
 
@@ -344,6 +350,7 @@ class Substance(AttributeClass):
         assert all(len(x) > 0 for x in self.amounts.values())
 
         for component in self.components:
+
             component.validate(attribute_type)
             amounts = self.amounts[component.identifier]
 
@@ -351,3 +358,28 @@ class Substance(AttributeClass):
 
             for amount in amounts:
                 amount.validate(attribute_type)
+
+        contains_mole_fraction = any(
+            isinstance(x, MoleFraction) for y in self.amounts.values() for x in y
+        )
+
+        if contains_mole_fraction:
+
+            total_mole_fraction = 0.0
+
+            for component_identifier in self.amounts:
+
+                total_mole_fraction += sum(
+                    [
+                        amount.value
+                        for amount in self.amounts[component_identifier]
+                        if isinstance(amount, MoleFraction)
+                    ]
+                )
+
+            if not np.isclose(total_mole_fraction, 1.0):
+
+                raise ValueError(
+                    f"The total mole fraction of this substance "
+                    f"({total_mole_fraction}) must equal 1.0"
+                )

@@ -2,8 +2,24 @@
 Units tests for propertyestimator.substances
 """
 import numpy as np
+import pytest
 
 from propertyestimator.substances import Component, ExactAmount, MoleFraction, Substance
+
+
+@pytest.mark.parametrize(
+    "smiles,expected",
+    [
+        ("C1=CC=CC=C1", "c1ccccc1"),
+        ("c1ccccc1", "c1ccccc1"),
+        ("[C@H](F)(Cl)Br", "[C@H](F)(Cl)Br"),
+        ("C(F)(Cl)Br", "C(F)(Cl)Br"),
+    ],
+)
+def test_component_standardization(smiles, expected):
+
+    component = Component(smiles=smiles)
+    assert component.smiles == expected
 
 
 def test_add_mole_fractions():
@@ -52,3 +68,9 @@ def test_multiple_amounts():
 
     assert molecule_counts[sodium.identifier] == 4
     assert molecule_counts[chloride.identifier] == 2
+
+
+def test_substance_len():
+
+    substance = Substance.from_components("C", "CC", "CCC", "CCC")
+    assert len(substance) == 3
