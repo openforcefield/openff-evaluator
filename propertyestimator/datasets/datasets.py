@@ -11,7 +11,7 @@ import pint
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
 from propertyestimator.datasets import CalculationSource, MeasurementSource, Source
-from propertyestimator.substances import MoleFraction, Substance, ExactAmount
+from propertyestimator.substances import ExactAmount, MoleFraction, Substance
 from propertyestimator.thermodynamics import ThermodynamicState
 from propertyestimator.utils.serialization import TypedBaseModel
 
@@ -575,10 +575,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
                     physical_property.substance.components
                 ):
 
-                    component_amounts = {
-                        MoleFraction: None,
-                        ExactAmount: None
-                    }
+                    component_amounts = {MoleFraction: None, ExactAmount: None}
 
                     for x in physical_property.substance.get_amounts(component):
 
@@ -626,7 +623,9 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
                     data_row[f"Component {index + 1}"] = components[index]
                     data_row[f"Role {index + 1}"] = roles[index]
-                    data_row[f"Mole Fraction {index + 1}"] = amounts[index][MoleFraction]
+                    data_row[f"Mole Fraction {index + 1}"] = amounts[index][
+                        MoleFraction
+                    ]
                     data_row[f"Exact Amount {index + 1}"] = amounts[index][ExactAmount]
 
                 data_row[f"{type(physical_property).__name__} Value"] = value

@@ -60,8 +60,41 @@ class Component(AttributeClass):
         role: Component.Role
             The role of this component in the system.
         """
+        smiles = self._standardize_smiles(smiles)
+
         self._set_value("smiles", smiles)
         self._set_value("role", role)
+
+    @staticmethod
+    def _standardize_smiles(smiles):
+        """Standardizes a SMILES pattern to be canonical (but not necessarily isomeric)
+        using the `cmiles` library.
+
+        Parameters
+        ----------
+        smiles: str
+            The SMILES pattern to standardize.
+
+        Returns
+        -------
+        The standardized SMILES pattern.
+        """
+        from cmiles.utils import load_molecule, mol_to_smiles
+
+        molecule = load_molecule(smiles)
+
+        try:
+            # Try to make the smiles isomeric.
+            smiles = mol_to_smiles(
+                molecule, isomeric=True, explicit_hydrogen=False, mapped=False
+            )
+        except ValueError:
+            # Fall-back to non-isomeric.
+            smiles = mol_to_smiles(
+                molecule, isomeric=False, explicit_hydrogen=False, mapped=False
+            )
+
+        return smiles
 
     def __str__(self):
         return self.identifier
@@ -77,3 +110,8 @@ class Component(AttributeClass):
 
     def __ne__(self, other):
         return not (self == other)
+
+    def __setstate__(self, state):
+        # Make sure the smiles pattern is standardized.
+        state["smiles"] = Component._standardize_smiles(state["smiles"])
+        super(Component, self).__setstate__(state)
