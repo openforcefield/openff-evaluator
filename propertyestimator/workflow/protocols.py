@@ -935,7 +935,7 @@ class ProtocolGraph:
 
     def execute(
         self,
-        root_directory,
+        root_directory="",
         calculation_backend=None,
         compute_resources=None,
         enable_checkpointing=True,
@@ -970,6 +970,9 @@ class ProtocolGraph:
             If executed using a calculation backend, these will be `Future` objects
             which will return the output paths on calling `future.result()`.
         """
+
+        if len(root_directory) > 0:
+            os.makedirs(root_directory, exist_ok=True)
 
         assert (calculation_backend is None and compute_resources is not None) or (
             calculation_backend is not None and compute_resources is None

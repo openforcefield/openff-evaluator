@@ -12,6 +12,7 @@ from shutil import copy as file_copy
 import pint
 
 from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
+from propertyestimator.backends import ComputeResources
 from propertyestimator.forcefield import (
     ForceFieldSource,
     ParameterGradient,
@@ -770,23 +771,38 @@ class Workflow:
 
         return workflow
 
-    def execute(self, root_directory, backend):
+    def execute(
+        self, root_directory="", calculation_backend=None, compute_resources=None
+    ):
         """Executes the workflow.
 
         Parameters
         ----------
         root_directory: str
             The directory to execute the graph in.
-        backend: CalculationBackend, optional.
-            The backend to execute the graph on.
+        calculation_backend: CalculationBackend, optional.
+            The backend to execute the graph on. This parameter
+            is mutually exclusive with `compute_resources`.
+        compute_resources: CalculationBackend, optional.
+            The compute resources to run using. If None and no
+            `calculation_backend` is specified, the workflow will
+            be executed on a single CPU thread. This parameter
+            is mutually exclusive with `calculation_backend`.
 
         Returns
         -------
-        Future of WorkflowResult:
-            A future references to the result of executing this workflow.
+        WorkflowResult or Future of WorkflowResult:
+          The result of executing this workflow. If executed on a
+          `calculation_backend`, the result will be wrapped in a
+          `Future` object.
         """
+        if calculation_backend is None and compute_resources is None:
+            compute_resources = ComputeResources(number_of_threads=1)
+
         workflow_graph = self.to_graph()
-        return workflow_graph.execute(root_directory, backend)[0]
+        return workflow_graph.execute(
+            root_directory, calculation_backend, compute_resources
+        )[0]
 
 
 class WorkflowResult(AttributeClass):
@@ -904,22 +920,36 @@ class WorkflowGraph:
 
             workflow.replace_protocol(original_protocol, new_protocol)
 
-    def execute(self, root_directory, backend):
+    def execute(
+        self, root_directory="", calculation_backend=None, compute_resources=None
+    ):
         """Executes the workflow graph.
 
         Parameters
         ----------
         root_directory: str
             The directory to execute the graph in.
-        backend: CalculationBackend, optional.
-            The backend to execute the graph on.
+        calculation_backend: CalculationBackend, optional.
+            The backend to execute the graph on. This parameter
+            is mutually exclusive with `compute_resources`.
+        compute_resources: CalculationBackend, optional.
+            The compute resources to run using. If None and no
+            `calculation_backend` is specified, the workflow will
+            be executed on a single CPU thread. This parameter
+            is mutually exclusive with `calculation_backend`.
 
         Returns
         -------
-        list of Future of WorkflowResult:
-            Future references to the workflow results.
+        list of WorkflowResult or list of Future of WorkflowResult:
+            The results of executing the graph. If a `calculation_backend`
+            is specified, these results will be wrapped in a `Future`.
         """
-        protocol_outputs = self._protocol_graph.execute(root_directory, backend)
+        if calculation_backend is None and compute_resources is None:
+            compute_resources = ComputeResources(number_of_threads=1)
+
+        protocol_outputs = self._protocol_graph.execute(
+            root_directory, calculation_backend, compute_resources
+        )
 
         value_futures = []
 
@@ -963,17 +993,32 @@ class WorkflowGraph:
             if len(data_futures) == 0:
                 data_futures = [*protocol_outputs.values()]
 
-            value_futures.append(
-                backend.submit_task(
-                    WorkflowGraph._gather_results,
-                    root_directory,
-                    workflow.uuid,
-                    workflow.final_value_source,
-                    workflow.gradients_sources,
-                    workflow.outputs_to_store,
-                    *data_futures,
+            if calculation_backend is None:
+
+                value_futures.append(
+                    WorkflowGraph._gather_results(
+                        root_directory,
+                        workflow.uuid,
+                        workflow.final_value_source,
+                        workflow.gradients_sources,
+                        workflow.outputs_to_store,
+                        *data_futures,
+                    )
                 )
-            )
+
+            else:
+
+                value_futures.append(
+                    calculation_backend.submit_task(
+                        WorkflowGraph._gather_results,
+                        root_directory,
+                        workflow.uuid,
+                        workflow.final_value_source,
+                        workflow.gradients_sources,
+                        workflow.outputs_to_store,
+                        *data_futures,
+                    )
+                )
 
         return value_futures
 

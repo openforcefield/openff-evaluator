@@ -3,9 +3,11 @@ Units tests for propertyestimator.layers.simulation
 """
 import tempfile
 
+import pytest
+
 from propertyestimator import unit
 from propertyestimator.attributes import UNDEFINED
-from propertyestimator.backends import DaskLocalCluster
+from propertyestimator.backends import ComputeResources, DaskLocalCluster
 from propertyestimator.protocols.groups import ConditionalGroup
 from propertyestimator.tests.test_workflow.utils import DummyInputOutputProtocol
 from propertyestimator.thermodynamics import ThermodynamicState
@@ -14,7 +16,16 @@ from propertyestimator.workflow.schemas import ProtocolReplicator
 from propertyestimator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
-def test_simple_workflow_graph():
+@pytest.mark.parametrize(
+    "calculation_backend, compute_resources, exception",
+    [
+        (None, None, False),
+        (None, ComputeResources(number_of_threads=1), False),
+        (DaskLocalCluster(), None, False),
+        (DaskLocalCluster(), ComputeResources(number_of_threads=1), True),
+    ],
+)
+def test_simple_workflow_graph(calculation_backend, compute_resources, exception):
 
     expected_value = (1 * unit.kelvin).plus_minus(0.1 * unit.kelvin)
 
@@ -35,12 +46,44 @@ def test_simple_workflow_graph():
 
     with tempfile.TemporaryDirectory() as directory:
 
-        with DaskLocalCluster() as calculation_backend:
+        if calculation_backend is not None:
 
-            results_futures = workflow_graph.execute(directory, calculation_backend)
+            with DaskLocalCluster() as calculation_backend:
 
-            assert len(results_futures) == 1
-            result = results_futures[0].result()
+                if exception:
+
+                    with pytest.raises(AssertionError):
+
+                        workflow_graph.execute(
+                            directory, calculation_backend, compute_resources
+                        )
+
+                    return
+
+                else:
+
+                    results_futures = workflow_graph.execute(
+                        directory, calculation_backend, compute_resources
+                    )
+
+                assert len(results_futures) == 1
+                result = results_futures[0].result()
+
+        else:
+
+            result = workflow_graph.execute(
+                directory, calculation_backend, compute_resources
+            )[0]
+
+            if exception:
+
+                with pytest.raises(AssertionError):
+
+                    workflow_graph.execute(
+                        directory, calculation_backend, compute_resources
+                    )
+
+                return
 
         assert isinstance(result, WorkflowResult)
         assert result.value.value == expected_value.value
