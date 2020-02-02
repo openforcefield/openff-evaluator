@@ -12,6 +12,7 @@ from shutil import copy as file_copy
 import pint
 
 from propertyestimator.attributes import UNDEFINED, Attribute, AttributeClass
+from propertyestimator.backends import ComputeResources
 from propertyestimator.forcefield import (
     ForceFieldSource,
     ParameterGradient,
@@ -783,14 +784,21 @@ class Workflow:
             The backend to execute the graph on. This parameter
             is mutually exclusive with `compute_resources`.
         compute_resources: CalculationBackend, optional.
-            The compute resources to run using. This parameter
+            The compute resources to run using. If None and no
+            `calculation_backend` is specified, the workflow will
+            be executed on a single CPU thread. This parameter
             is mutually exclusive with `calculation_backend`.
 
         Returns
         -------
-        Future of WorkflowResult:
-            A future references to the result of executing this workflow.
+        WorkflowResult or Future of WorkflowResult:
+          The result of executing this workflow. If executed on a
+          `calculation_backend`, the result will be wrapped in a
+          `Future` object.
         """
+        if calculation_backend is None and compute_resources is None:
+            compute_resources = ComputeResources(number_of_threads=1)
+
         workflow_graph = self.to_graph()
         return workflow_graph.execute(
             root_directory, calculation_backend, compute_resources
@@ -925,7 +933,9 @@ class WorkflowGraph:
             The backend to execute the graph on. This parameter
             is mutually exclusive with `compute_resources`.
         compute_resources: CalculationBackend, optional.
-            The compute resources to run using. This parameter
+            The compute resources to run using. If None and no
+            `calculation_backend` is specified, the workflow will
+            be executed on a single CPU thread. This parameter
             is mutually exclusive with `calculation_backend`.
 
         Returns
@@ -934,6 +944,9 @@ class WorkflowGraph:
             The results of executing the graph. If a `calculation_backend`
             is specified, these results will be wrapped in a `Future`.
         """
+        if calculation_backend is None and compute_resources is None:
+            compute_resources = ComputeResources(number_of_threads=1)
+
         protocol_outputs = self._protocol_graph.execute(
             root_directory, calculation_backend, compute_resources
         )
