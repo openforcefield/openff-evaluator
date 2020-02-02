@@ -13,9 +13,33 @@ from propertyestimator.substances import Amount, Component, ExactAmount, MoleFra
 class Substance(AttributeClass):
     """Defines the components, their amounts, and their roles in a system.
 
-    See Also
+    Examples
     --------
-    physicalproperties
+    A neat liquid containing only a single component:
+
+    >>> from propertyestimator.substances import Component, ExactAmount, MoleFraction
+    >>> liquid = Substance()
+    >>> liquid.add_component(Component(smiles='O'), MoleFraction(1.0))
+
+    A binary mixture containing two components, where the mole fractions are explicitly stated:
+
+    >>> binary_mixture = Substance()
+    >>> binary_mixture.add_component(Component(smiles='O'), MoleFraction(0.2))
+    >>> binary_mixture.add_component(Component(smiles='CO'), MoleFraction(0.8))
+
+    The infinite dilution of one molecule within a bulk solvent or mixture may also be specified
+    by defining the exact number of copies of that molecule, rather than a mole fraction:
+
+    >>> benzene = Component(smiles='C1=CC=CC=C1', role=Component.Role.Solute)
+    >>> water = Component(smiles='O', role=Component.Role.Solvent)
+    >>>
+    >>> infinite_dilution = Substance()
+    >>> infinite_dilution.add_component(component=benzene, amount=ExactAmount(1)) # Infinite dilution.
+    >>> infinite_dilution.add_component(component=water, amount=MoleFraction(1.0))
+
+    In this example we explicitly flag benzene as being the solute and the water component the solvent.
+    This enables workflow's to easily identify key molecules of interest, such as the molecule which should
+    be 'grown' into solution during solvation free energy calculations.
     """
 
     components = Attribute(
@@ -71,119 +95,42 @@ class Substance(AttributeClass):
         return "|".join(identifier_split)
 
     @classmethod
-    def from_smiles(cls, *smiles, amounts=None):
-        """Creates a new `Substance` object from a list of SMILES strings
-        and optionally their amounts.
-
-        Parameters
-        ----------
-        smiles: str
-            The SMILES representation of the components to add to the substance.
-        amounts: dict of str and Amount or iterable of Amount, optional
-            The amount of each component being added. Each key should correspond to one
-            of the passed `smiles`, and the value should be the amount(s) of that
-            component. If `None`, it will be assumed each component is present with
-            an equal mole fraction.
-
-        Returns
-        -------
-        Substance
-            The substance containing the requested components in equal amounts.
-
-        See Also
-        --------
-        physicalproperties
-        """
-
-        if len(smiles) == 0:
-            raise ValueError("At least one component must be specified")
-
-        if not all(isinstance(x, str) for x in smiles):
-            raise ValueError("The SMILES patterns must all be strings.")
-
-        # Convert the smiles to components
-        components = [Component(smiles=x) for x in smiles]
-
-        if amounts is not None:
-
-            if not all(x in amounts for x in smiles):
-                raise ValueError("Each component must have a corresponding amount defined.")
-
-            # Update the amounts dictionary to use the new components as keys.
-            component_map = {x: y for x, y in zip(smiles, components)}
-            amounts = {component_map[x]: amounts[x] for x in amounts}
-
-        return cls.from_components(*components, amounts=amounts)
-
-    @classmethod
-    def from_components(cls, *components, amounts=None):
+    def from_components(cls, *components):
         """Creates a new `Substance` object from a list of components.
-
+        This method assumes that all components should be present with
+        equal mole fractions.
         Parameters
         ----------
-        components: Component
-            The components to add to the substance.
-        amounts: dict of Component and Amount or iterable of Amount, optional
-            The amount of each component being added. Each key should correspond to one
-            of the passed `components`, and the value should be the amount(s) of that
-            component. If `None`, it will be assumed each component is present with
-            an equal mole fraction.
-
+        components: Component or str
+            The components to add to the substance. These may either be full
+            `Component` objects or just the smiles representation
+            of the component.
         Returns
         -------
         Substance
             The substance containing the requested components in equal amounts.
-
-        See Also
-        --------
-        physicalproperties
         """
 
         if len(components) == 0:
             raise ValueError("At least one component must be specified")
 
-        if not all(isinstance(x, Component) for x in components):
-            raise ValueError("The components must be `Component` objects")
-
-        # Make sure all of the components have at least one amount defined
-        if amounts is None:
-
-            mole_fraction = 1.0 / len(components)
-            amounts = {x: MoleFraction(mole_fraction) for x in components}
-
-        if not all(x in amounts for x in components):
-            raise ValueError("Each component must have a corresponding amount defined.")
-
-        # Validate the amounts.
-        for amount_key, amount_value in amounts.items():
-
-            if amount_key not in components:
-
-                raise ValueError(
-                    f"The amounts dictionary contained amounts for an undefined "
-                    f"component ({amount_key})."
-                )
-
-            assert isinstance(amount_value, (Amount, abc.Iterable))
-
-            if isinstance(amount_value, Amount):
-                amount_value = [amount_value]
-
-            assert all(isinstance(x, Amount) for x in amount_value)
-            amounts[amount_key] = amount_value
+        mole_fraction = 1.0 / len(components)
 
         return_substance = cls()
 
         for component in components:
-            for amount in amounts[component]:
-                return_substance._add_component(component, amount)
+
+            if isinstance(component, str):
+                component = Component(smiles=component)
+
+            return_substance.add_component(component, MoleFraction(mole_fraction))
 
         return return_substance
 
-    def _add_component(self, component, amount):
+    def add_component(self, component, amount):
         """Add a component to the Substance. If the component is already present in
-        the substance, then the amount will be added to the current amount of that component.
-
+        the substance, then the mole fraction will be added to the current mole
+        fraction of that component.
         Parameters
         ----------
         component : Component
@@ -198,8 +145,28 @@ class Substance(AttributeClass):
         component.validate()
         amount.validate()
 
-        if component.identifier not in self.amounts:
+        if isinstance(amount, MoleFraction):
 
+            total_mole_fraction = amount.value
+
+            for component_identifier in self.amounts:
+                total_mole_fraction += sum(
+                    [
+                        amount.value
+                        for amount in self.amounts[component_identifier]
+                        if isinstance(amount, MoleFraction)
+                    ]
+                )
+
+            if np.isclose(total_mole_fraction, 1.0):
+                total_mole_fraction = 1.0
+
+            if total_mole_fraction > 1.0:
+                raise ValueError(
+                    f"The total mole fraction of this substance {total_mole_fraction} exceeds 1.0"
+                )
+
+        if component.identifier not in self.amounts:
             components = (*self.components, component)
             self._set_value("components", components)
 
@@ -217,7 +184,6 @@ class Substance(AttributeClass):
         for existing_amount in all_amounts:
 
             if not type(existing_amount) is type(amount):
-
                 remaining_amounts.append(existing_amount)
                 continue
 
@@ -225,7 +191,6 @@ class Substance(AttributeClass):
             break
 
         if existing_amount_of_type is not None:
-
             # Append any existing amounts to the new amount.
             amount = type(amount)(existing_amount_of_type.value + amount.value)
 
