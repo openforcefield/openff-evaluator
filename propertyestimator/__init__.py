@@ -11,6 +11,7 @@ from ._version import get_versions
 from .plugins import register_default_plugins, register_external_plugins
 
 unit = pint.UnitRegistry()
+unit.default_format = "~"
 pint.set_application_registry(unit)
 
 with warnings.catch_warnings():
