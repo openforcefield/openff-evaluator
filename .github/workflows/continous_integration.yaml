@@ -19,10 +19,6 @@ jobs:
         os: [ubuntu-latest]
         python-version: [3.6]
 
-    env:
-      OE_LICENSE: $HOME/secrets/oe_license.txt
-      TEST_FILE: $HOME/secrets/test.txt
-
     steps:
       - uses: actions/checkout@v1
       - name: Additional info about the build
@@ -39,12 +35,17 @@ jobs:
 
       - name: Decrypt test.txt license
         shell: bash
-        run: ./devtools/scripts/decrypt_test.sh
         env:
+          OE_LICENSE: $HOME/secrets/oe_license.txt
+          TEST_FILE: $HOME/secrets/test.txt
           TEST_PASSPHRASE: ${{ secrets.TEST_PASSPHRASE }}
+        run: ./devtools/scripts/decrypt_test.sh
 
       - name: Print test file.
         shell: bash
+        env:
+          OE_LICENSE: $HOME/secrets/oe_license.txt
+          TEST_FILE: $HOME/secrets/test.txt
         run: |
           echo $TEST_FILE
           echo $HOME/secrets/oe_license.txt
