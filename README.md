@@ -2,12 +2,11 @@ propertyestimator
 ==============================
 [//]: # (Badges)
 
-[![Travis Build Status](https://travis-ci.com/openforcefield/propertyestimator.svg?branch=master)](https://travis-ci.com/openforcefield/propertyestimator)
+[![Test Status](https://github.com/openforcefield/propertyestimator/workflows/tests/badge.svg)](https://github.com/openforcefield/propertyestimator/actions)
 [![Documentation Status](https://readthedocs.org/projects/property-estimator/badge/?version=latest)](https://property-estimator.readthedocs.io/en/latest/?badge=latest)
 [![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/openforcefield/propertyestimator.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/openforcefield/propertyestimator/context:python)
 [![codecov](https://codecov.io/gh/openforcefield/propertyestimator/branch/master/graph/badge.svg)](https://codecov.io/gh/openforcefield/propertyestimator/branch/master)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
 
 A distributed, automated property estimation toolkit from the Open Force Field Consortium. See the 
 [documentation](https://property-estimator.readthedocs.io) for more information.
