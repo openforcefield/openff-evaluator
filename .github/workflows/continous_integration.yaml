@@ -22,7 +22,7 @@ jobs:
     env:
 
       OE_LICENSE: $HOME/secrets/oe_license.txt
-      TEST_FILE: ./test.txt
+      TEST_FILE: ${{ env.HOME }}/test.txt
 
     steps:
       - uses: actions/checkout@v1
