@@ -79,6 +79,12 @@ jobs:
           conda activate test
           pytest -v --cov=propertyestimator propertyestimator/tests/
 
+      - name: Code coverage
+        run: |
+          . devtools/scripts/initialize_conda.sh
+          conda activate test
+          codecov --token=${{ secrets.CODECOV_TOKEN }}
+
   lint:
 
     runs-on: ubuntu-latest
