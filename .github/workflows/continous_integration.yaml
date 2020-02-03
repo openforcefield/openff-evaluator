@@ -12,7 +12,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     env:
-      OE_LICENSE: "$HOME/oe_license.txt"
+      OE_LICENSE: $HOME/oe_license.txt
 
     strategy:
 
@@ -33,6 +33,11 @@ jobs:
         run: |
           sudo chown -R $USER:staff $HOME/.conda
           sudo chown -R $USER:staff $CONDA
+
+      - name: Decrypt the OE license
+        run: ./devtools/scripts/decrypt_oe_license.sh
+        env:
+          OE_LICENSE_PASSPHRASE: ${{ secrets.OE_LICENSE_PASSPHRASE }}
 
       - name: Configure conda
         run: |
@@ -61,11 +66,6 @@ jobs:
           . devtools/scripts/initialize_conda.sh
           conda activate test
           python setup.py develop --no-deps
-
-      - name: Decrypt the OE license
-        run: ./devtools/scripts/decrypt_oe_license.sh
-        env:
-          OE_LICENSE_PASSPHRASE: ${{ secrets.OE_LICENSE_PASSPHRASE }}
 
       - name: Run tests
         run: |
