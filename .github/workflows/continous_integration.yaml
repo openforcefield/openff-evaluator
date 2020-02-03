@@ -20,8 +20,8 @@ jobs:
         python-version: [3.6]
 
     env:
-      OE_LICENSE: "$HOME/secrets/oe_license.txt"
-      TEST_FILE: "$HOME/secrets/test.txt"
+      OE_LICENSE: $HOME/secrets/oe_license.txt
+      TEST_FILE: $HOME/secrets/test.txt
 
     steps:
       - uses: actions/checkout@v1
@@ -46,7 +46,8 @@ jobs:
       - name: Print test file.
         shell: bash
         run: |
-          cat $(echo $TEST_FILE)
+          echo $TEST_FILE
+          echo $HOME/secrets/oe_license.txt
           cat $TEST_FILE
 
 #      - name: Configure conda
