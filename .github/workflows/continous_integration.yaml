@@ -60,10 +60,6 @@ jobs:
 
           python devtools/scripts/create_conda_env.py -n=test -p=${{ matrix.python-version }} devtools/conda-envs/test_env.yaml
 
-      - name: Decrypt the OpenEye license
-        run:
-
-
       - name: Install OpenEye toolkit.
         run: |
 
