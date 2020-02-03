@@ -12,7 +12,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     env:
-      OE_LICENSE: $HOME/oe_license.txt
+      OE_LICENSE: $HOME/secrets/oe_license.txt
 
     strategy:
 
