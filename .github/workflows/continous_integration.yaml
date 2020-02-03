@@ -13,6 +13,7 @@ jobs:
 
     env:
       OE_LICENSE: $HOME/secrets/oe_license.txt
+      TEST_FILE: $HOME/secrets/test.txt
 
     strategy:
 
@@ -36,56 +37,65 @@ jobs:
           sudo chown -R $USER:staff $HOME/.conda
           sudo chown -R $USER:staff $CONDA
 
-      - name: Configure conda
-        run: |
-          . devtools/scripts/initialize_conda.sh
-          conda activate
-
-          conda config --add channels conda-forge
-
-          conda config --set always_yes True
-
-          conda install conda conda-build jinja2 anaconda-client
-          conda update --quiet --all
-
+      - name: Decrypt test.txt license
+        run: ./devtools/scripts/decrypt_test.sh
         env:
-          OPERATING_SYSTEM: ${{ matrix.os }}
+          TEST_PASSPHRASE: ${{ secrets.TEST_PASSPHRASE }}
 
-      - name: Create test environment
-        shell: bash
+      - name: Print test file.
         run: |
-          . devtools/scripts/initialize_conda.sh
-          conda activate
-          python devtools/scripts/create_conda_env.py -n=test -p=${{ matrix.python-version }} devtools/conda-envs/test_env.yaml
+          cat $TEST_FILE
 
-      - name: Decrypt the OpenEye license
-        run: ./devtools/scripts/decrypt_oe_license.sh
-        env:
-          OE_LICENSE_PASSPHRASE: ${{ secrets.OE_LICENSE_PASSPHRASE }}
-
-      - name: Install OpenEye toolkit.
-        run: |
-          . devtools/scripts/initialize_conda.sh
-          conda activate test
-          conda install -c openeye openeye-toolkits
-
-          python -c 'from openeye import oechem; oechem.OEMol()'
-
-      - name: Install package
-        run: |
-          . devtools/scripts/initialize_conda.sh
-          conda activate test
-          python setup.py develop --no-deps
-
-      - name: Run tests
-        run: |
-          . devtools/scripts/initialize_conda.sh
-          conda activate test
-
-          python -c 'import propertyestimator'
-          python -c 'import openeye'
-
-          pytest --no-cov -v propertyestimator/tests/
+#      - name: Configure conda
+#        run: |
+#          . devtools/scripts/initialize_conda.sh
+#          conda activate
+#
+#          conda config --add channels conda-forge
+#
+#          conda config --set always_yes True
+#
+#          conda install conda conda-build jinja2 anaconda-client
+#          conda update --quiet --all
+#
+#        env:
+#          OPERATING_SYSTEM: ${{ matrix.os }}
+#
+#      - name: Create test environment
+#        shell: bash
+#        run: |
+#          . devtools/scripts/initialize_conda.sh
+#          conda activate
+#          python devtools/scripts/create_conda_env.py -n=test -p=${{ matrix.python-version }} devtools/conda-envs/test_env.yaml
+#
+#      - name: Decrypt the OpenEye license
+#        run: ./devtools/scripts/decrypt_oe_license.sh
+#        env:
+#          OE_LICENSE_PASSPHRASE: ${{ secrets.OE_LICENSE_PASSPHRASE }}
+#
+#      - name: Install OpenEye toolkit.
+#        run: |
+#          . devtools/scripts/initialize_conda.sh
+#          conda activate test
+#          conda install -c openeye openeye-toolkits
+#
+#          python -c 'from openeye import oechem; oechem.OEMol()'
+#
+#      - name: Install package
+#        run: |
+#          . devtools/scripts/initialize_conda.sh
+#          conda activate test
+#          python setup.py develop --no-deps
+#
+#      - name: Run tests
+#        run: |
+#          . devtools/scripts/initialize_conda.sh
+#          conda activate test
+#
+#          python -c 'import propertyestimator'
+#          python -c 'import openeye'
+#
+#          pytest --no-cov -v propertyestimator/tests/
 #
 #  lint:
 #
