@@ -21,9 +21,8 @@ jobs:
 
     env:
 
-      HOME: $HOME
       OE_LICENSE: $HOME/secrets/oe_license.txt
-      TEST_FILE: $HOME/secrets/test.txt
+      TEST_FILE: ./test.txt
 
     steps:
       - uses: actions/checkout@v1
@@ -49,7 +48,7 @@ jobs:
         shell: bash
         run: |
           echo $TEST_FILE
-          echo $HOME/secrets/oe_license.txt
+          echo ./oe_license.txt
           cat $TEST_FILE
 
 #      - name: Configure conda
