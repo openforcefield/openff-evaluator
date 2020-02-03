@@ -34,7 +34,7 @@ jobs:
           sudo chown -R $USER:staff $HOME/.conda
           sudo chown -R $USER:staff $CONDA
 
-      - name: Decrypt the OE license
+      - name: Decrypt the OpenEye license
         run: ./devtools/scripts/decrypt_oe_license.sh
         env:
           OE_LICENSE_PASSPHRASE: ${{ secrets.OE_LICENSE_PASSPHRASE }}
@@ -60,6 +60,12 @@ jobs:
           . devtools/scripts/initialize_conda.sh
           conda activate
           python devtools/scripts/create_conda_env.py -n=test -p=${{ matrix.python-version }} devtools/conda-envs/test_env.yaml
+
+      - name: Install OpenEye toolkit.
+        run: |
+          . devtools/scripts/initialize_conda.sh
+          conda activate test
+          conda install -c openeye openeye-toolkits
 
       - name: Install package
         run: |
