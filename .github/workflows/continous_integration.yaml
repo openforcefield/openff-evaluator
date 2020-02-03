@@ -24,6 +24,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Additional info about the build
         run: |
+
           uname -a
           df -h
           ulimit -a
@@ -31,13 +32,9 @@ jobs:
       - name: Set MacOS permissions
         if: startsWith(matrix.os, 'macOS')
         run: |
+
           sudo chown -R $USER:staff $HOME/.conda
           sudo chown -R $USER:staff $CONDA
-
-      - name: Decrypt the OpenEye license
-        run: ./devtools/scripts/decrypt_oe_license.sh
-        env:
-          OE_LICENSE_PASSPHRASE: ${{ secrets.OE_LICENSE_PASSPHRASE }}
 
       - name: Configure conda
         run: |
@@ -57,32 +54,50 @@ jobs:
       - name: Create test environment
         shell: bash
         run: |
+
           . devtools/scripts/initialize_conda.sh
           conda activate
+
           python devtools/scripts/create_conda_env.py -n=test -p=${{ matrix.python-version }} devtools/conda-envs/test_env.yaml
+
+      - name: Decrypt the OpenEye license
+        run:
+
 
       - name: Install OpenEye toolkit.
         run: |
+
           . devtools/scripts/initialize_conda.sh
           conda activate test
+
+          ./devtools/scripts/decrypt_oe_license.sh
           conda install -c openeye openeye-toolkits
+
+        env:
+          OE_LICENSE_PASSPHRASE: ${{ secrets.OE_LICENSE_PASSPHRASE }}
 
       - name: Install package
         run: |
+
           . devtools/scripts/initialize_conda.sh
           conda activate test
+
           python setup.py develop --no-deps
 
       - name: Run tests
         run: |
+
           . devtools/scripts/initialize_conda.sh
           conda activate test
+
           pytest -v --cov=propertyestimator propertyestimator/tests/
 
       - name: Code coverage
         run: |
+
           . devtools/scripts/initialize_conda.sh
           conda activate test
+
           codecov --token=${{ secrets.CODECOV_TOKEN }}
 
   lint:
