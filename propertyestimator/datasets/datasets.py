@@ -210,7 +210,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
         Parameters
         ----------
-        physical_properties: *PhysicalProperty
+        physical_properties: PhysicalProperty
             The physical property to add.
         """
 
