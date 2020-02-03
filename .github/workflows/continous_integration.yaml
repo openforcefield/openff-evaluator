@@ -38,11 +38,13 @@ jobs:
           sudo chown -R $USER:staff $CONDA
 
       - name: Decrypt test.txt license
+        shell: bash
         run: ./devtools/scripts/decrypt_test.sh
         env:
           TEST_PASSPHRASE: ${{ secrets.TEST_PASSPHRASE }}
 
       - name: Print test file.
+        shell: bash
         run: |
           cat $TEST_FILE
 
