@@ -80,7 +80,7 @@ jobs:
 
           python -c 'import propertyestimator'
 
-          pytest -v --cov=propertyestimator propertyestimator/tests/
+          pytest --no-cov -v propertyestimator/tests/
 
   lint:
 
