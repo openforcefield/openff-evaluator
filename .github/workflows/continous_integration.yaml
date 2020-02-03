@@ -46,6 +46,7 @@ jobs:
       - name: Print test file.
         shell: bash
         run: |
+          cat $(echo $HOME/secrets/test.txt)
           cat $TEST_FILE
 
 #      - name: Configure conda
