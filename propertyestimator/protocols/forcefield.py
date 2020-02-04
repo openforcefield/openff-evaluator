@@ -3,7 +3,6 @@ A collection of protocols for assigning force field parameters to molecular
 systems.
 """
 import abc
-import copy
 import io
 import logging
 import os
@@ -82,56 +81,6 @@ class BaseBuildSystem(Protocol, abc.ABC):
     system_path = OutputAttribute(
         docstring="The path to the assigned system object.", type_hint=str
     )
-
-    @staticmethod
-    def _build_tip3p_system(topology_molecule, cutoff, cell_vectors):
-        """Builds a `simtk.openmm.System` object containing a single water model
-
-        Parameters
-        ----------
-        topology_molecule: openforcefield.topology.TopologyMolecule
-            The topology molecule which represents the water molecule
-            in the full system.
-        cutoff: simtk.pint.Quantity
-            The non-bonded cutoff.
-        cell_vectors: simtk.pint.Quantity
-            The full system's cell vectors.
-
-        Returns
-        -------
-        simtk.openmm.System
-            The created system.
-        """
-
-        topology_atoms = list(topology_molecule.atoms)
-
-        # Make sure the topology molecule is in the order we expect.
-        assert len(topology_atoms) == 3
-
-        assert topology_atoms[0].atom.element.symbol == "O"
-        assert topology_atoms[1].atom.element.symbol == "H"
-        assert topology_atoms[2].atom.element.symbol == "H"
-
-        force_field_path = get_data_filename("forcefield/tip3p.xml")
-        water_pdb_path = get_data_filename("forcefield/tip3p.pdb")
-
-        component_pdb_file = app.PDBFile(water_pdb_path)
-        component_topology = component_pdb_file.topology
-        component_topology.setUnitCellDimensions(cell_vectors)
-
-        # Create the system object.
-        force_field_template = app.ForceField(force_field_path)
-
-        component_system = force_field_template.createSystem(
-            topology=component_topology,
-            nonbondedMethod=app.PME,
-            nonbondedCutoff=cutoff,
-            constraints=app.HBonds,
-            rigidWater=True,
-            removeCMMotion=False,
-        )
-
-        return component_system
 
     @staticmethod
     def _append_system(existing_system, system_to_append, index_map=None):
@@ -319,6 +268,176 @@ class BaseBuildSystem(Protocol, abc.ABC):
 
 
 @workflow_protocol()
+class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
+    """A base protocol for any protocol which assign parameters to a system
+    by first assigning parameters to each individual component of the system,
+    and then replicating those templates for each instance of the component.
+    """
+
+    @staticmethod
+    def _build_tip3p_system(cutoff, cell_vectors):
+        """Builds a `simtk.openmm.System` object containing a single water model
+
+        Parameters
+        ----------
+        cutoff: simtk.pint.Quantity
+            The non-bonded cutoff.
+        cell_vectors: simtk.pint.Quantity
+            The full system's cell vectors.
+
+        Returns
+        -------
+        simtk.openmm.System
+            The created system.
+        """
+
+        force_field_path = get_data_filename("forcefield/tip3p.xml")
+        water_pdb_path = get_data_filename("forcefield/tip3p.pdb")
+
+        component_pdb_file = app.PDBFile(water_pdb_path)
+        component_topology = component_pdb_file.topology
+        component_topology.setUnitCellDimensions(cell_vectors)
+
+        # Create the system object.
+        force_field_template = app.ForceField(force_field_path)
+
+        component_system = force_field_template.createSystem(
+            topology=component_topology,
+            nonbondedMethod=app.PME,
+            nonbondedCutoff=cutoff,
+            constraints=app.HBonds,
+            rigidWater=True,
+            removeCMMotion=False,
+        )
+
+        return component_system
+
+    @staticmethod
+    def _create_empty_system(cutoff):
+        """Creates an empty system object with stub forces.
+
+        Parameters
+        ----------
+        cutoff: simtk.unit
+            The non-bonded cutoff.
+
+        Returns
+        -------
+        simtk.openmm.System
+            The created system object.
+        """
+
+        system = openmm.System()
+
+        system.addForce(openmm.HarmonicBondForce())
+        system.addForce(openmm.HarmonicAngleForce())
+        system.addForce(openmm.PeriodicTorsionForce())
+
+        nonbonded_force = openmm.NonbondedForce()
+        nonbonded_force.setCutoffDistance(cutoff)
+        nonbonded_force.setNonbondedMethod(openmm.NonbondedForce.PME)
+
+        system.addForce(nonbonded_force)
+
+        return system
+
+    @abc.abstractmethod
+    def _parameterize_molecule(self, molecule, force_field_source, cutoff):
+        """Parameterize the specified molecule.
+
+        Parameters
+        ----------
+        molecule: openforcefield.topology.Molecule
+            The molecule to parameterize.
+        force_field_source: ForceFieldSource
+            The tleap source which describes which parameters to apply.
+        cutoff: simtk.unit
+            The non-bonded cutoff.
+
+        Returns
+        -------
+        simtk.openmm.System
+            The parameterized system.
+        """
+        raise NotImplementedError()
+
+    def _execute(self, directory, available_resources):
+
+        from openforcefield.topology import Molecule, Topology
+
+        force_field_source = ForceFieldSource.from_json(self.force_field_path)
+        cutoff = pint_quantity_to_openmm(force_field_source.cutoff)
+
+        # Load in the systems topology
+        openmm_pdb_file = app.PDBFile(self.coordinate_file_path)
+
+        # Create an OFF topology for better insight into the layout of the system
+        # topology.
+        unique_molecules = {}
+
+        for component in self.substance:
+            unique_molecule = Molecule.from_smiles(component.smiles)
+            unique_molecules[unique_molecule.to_smiles()] = unique_molecule
+
+        # Parameterize each component in the system.
+        system_templates = {}
+
+        for index, (smiles, unique_molecule) in enumerate(unique_molecules.items()):
+
+            if smiles in ["O", "[H]O[H]"]:
+
+                component_system = self._build_tip3p_system(
+                    cutoff, openmm_pdb_file.topology.getUnitCellDimensions(),
+                )
+
+            else:
+
+                component_directory = os.path.join(directory, str(index))
+                os.makedirs(component_directory, exist_ok=True)
+
+                with temporarily_change_directory(component_directory):
+
+                    component_system = self._parameterize_molecule(
+                        unique_molecule, force_field_source, cutoff
+                    )
+
+            if openmm_pdb_file.topology.getPeriodicBoxVectors() is not None:
+
+                component_system.setDefaultPeriodicBoxVectors(
+                    *openmm_pdb_file.topology.getPeriodicBoxVectors()
+                )
+
+            system_templates[smiles] = component_system
+
+        # Apply the parameters to the topology.
+        topology = Topology.from_openmm(
+            openmm_pdb_file.topology, unique_molecules.values()
+        )
+
+        # Create the full system object from the component templates.
+        system = self._create_empty_system(cutoff)
+
+        for topology_molecule in topology.topology_molecules:
+
+            smiles = topology_molecule.reference_molecule.to_smiles()
+            system_template = system_templates[smiles]
+
+            index_map = {}
+
+            for index, topology_atom in enumerate(topology_molecule.atoms):
+                index_map[topology_atom.atom.molecule_particle_index] = index
+
+            # Append the component template to the full system.
+            self._append_system(system, system_template, index_map)
+
+        # Serialize the system object.
+        self.system_path = os.path.join(directory, "system.xml")
+
+        with open(self.system_path, "w") as file:
+            file.write(openmm.XmlSerializer.serialize(system))
+
+
+@workflow_protocol()
 class BuildSmirnoffSystem(BaseBuildSystem):
     """Parametrise a set of molecules with a given smirnoff force field
     using the `OpenFF toolkit <https://github.com/openforcefield/openforcefield>`_.
@@ -444,7 +563,7 @@ class BuildSmirnoffSystem(BaseBuildSystem):
 
 
 @workflow_protocol()
-class BuildLigParGenSystem(BaseBuildSystem):
+class BuildLigParGenSystem(TemplateBuildSystem):
     """Parametrise a set of molecules with the OPLS-AA/M force field.
     using a `LigParGen server <http://zarbi.chem.yale.edu/ligpargen/>`_.
 
@@ -467,34 +586,24 @@ class BuildLigParGenSystem(BaseBuildSystem):
     """
 
     @staticmethod
-    def _parameterize_smiles(smiles_pattern, force_field_source, directory):
-        """Uses the `LigParGen` server to apply a set of parameters to
-        a molecule defined by a smiles pattern.
+    def _built_template(molecule, force_field_source):
+        """Builds a force field template object.
 
         Parameters
         ----------
-        smiles_pattern: str
-            The smiles pattern which encodes the molecule to
-            parametrize.
+        molecule: openforcefield.topology.Molecule
+            The molecule to templatize.
         force_field_source: LigParGenForceFieldSource
-            The parameters to use in the parameterization.
-        directory: str
-            The directory to save the results in.
+            The tleap source which describes which parameters to apply.
 
         Returns
         -------
-        str
-            A file path to the `simtk.openmm.app.ForceField` template.
-        str
-            A file path to the pdb file containing the coordinates and topology
-            of the molecule.
+        simtk.openmm.app.ForceField
+            The force field template.
         """
-        from openforcefield.topology import Molecule
-
         initial_request_url = force_field_source.request_url
         empty_stream = io.BytesIO(b"\r\n")
 
-        molecule = Molecule.from_smiles(smiles_pattern)
         total_charge = molecule.total_charge
 
         charge_model = "cm1abcc"
@@ -511,7 +620,6 @@ class BuildLigParGenSystem(BaseBuildSystem):
                 force_field_source.preferred_charge_model
                 != LigParGenForceFieldSource.ChargeModel.CM1A_1_14
             ):
-
                 logger.warning(
                     f"The preferred charge model is {str(force_field_source.preferred_charge_model)}, "
                     f"however the system is charged and so the "
@@ -520,7 +628,7 @@ class BuildLigParGenSystem(BaseBuildSystem):
                 )
 
         data_body = {
-            "smiData": (None, smiles_pattern),
+            "smiData": (None, molecule.to_smiles()),
             "molpdbfile": ("", empty_stream),
             "checkopt": (None, 0),
             "chargetype": (None, charge_model),
@@ -564,12 +672,50 @@ class BuildLigParGenSystem(BaseBuildSystem):
             return f"The request to download the system xml file failed with return code {request.status_code}."
 
         force_field_response = request.content
-        force_field_path = os.path.join(directory, f"{smiles_pattern}.xml")
+        force_field_path = "template.xml"
 
         with open(force_field_path, "wb") as file:
             file.write(force_field_response)
 
-        return force_field_path
+        return app.ForceField(force_field_path)
+
+    def _parameterize_molecule(self, molecule, force_field_source, cutoff):
+        """Parameterize the specified molecule.
+
+        Parameters
+        ----------
+        force_field_source: LigParGenForceFieldSource
+            The tleap source which describes which parameters to apply.
+
+        Returns
+        -------
+        simtk.openmm.System
+            The parameterized system.
+        """
+        from simtk import unit as simtk_unit
+
+        template = self._built_template(molecule, force_field_source)
+
+        off_topology = molecule.to_topology()
+
+        box_vectors = np.eye(3) * 10.0
+
+        openmm_topology = off_topology.to_openmm()
+        openmm_topology.setPeriodicBoxVectors(box_vectors * simtk_unit.nanometer)
+
+        system = template.createSystem(
+            topology=openmm_topology,
+            nonbondedMethod=app.PME,
+            nonbondedCutoff=cutoff,
+            constraints=app.HBonds,
+            rigidWater=True,
+            removeCMMotion=False,
+        )
+
+        with open(f"component.xml", "w") as file:
+            file.write(openmm.XmlSerializer.serialize(system))
+
+        return system
 
     @staticmethod
     def _apply_opls_mixing_rules(system):
@@ -659,9 +805,6 @@ class BuildLigParGenSystem(BaseBuildSystem):
 
     def _execute(self, directory, available_resources):
 
-        import mdtraj
-        from openforcefield.topology import Molecule, Topology
-
         with open(self.force_field_path) as file:
             force_field_source = ForceFieldSource.parse_json(file.read())
 
@@ -671,121 +814,20 @@ class BuildLigParGenSystem(BaseBuildSystem):
                 "Only LigParGen force field sources are supported by this protocol."
             )
 
-        # Load in the systems coordinates / topology
-        openmm_pdb_file = app.PDBFile(self.coordinate_file_path)
+        super(BuildLigParGenSystem, self)._execute(directory, available_resources)
 
-        # Create an OFF topology for better insight into the layout of the system topology.
-        unique_molecules = [
-            Molecule.from_smiles(component.smiles)
-            for component in self.substance.components
-        ]
-
-        # Create a dictionary of representative topology molecules for each component.
-        topology = Topology.from_openmm(openmm_pdb_file.topology, unique_molecules)
-
-        # Create the template system objects for each component in the system.
-        system_templates = {}
-
-        cutoff = pint_quantity_to_openmm(force_field_source.cutoff)
-
-        for index, component in enumerate(self.substance.components):
-
-            reference_topology_molecule = None
-
-            # Create temporary pdb files for each molecule type in the system, with their constituent
-            # atoms ordered in the same way that they would be in the full system.
-            topology_molecule = None
-
-            for topology_molecule in topology.topology_molecules:
-
-                if (
-                    topology_molecule.reference_molecule.to_smiles()
-                    != unique_molecules[index].to_smiles()
-                ):
-                    continue
-
-                reference_topology_molecule = topology_molecule
-                break
-
-            if reference_topology_molecule is None or topology_molecule is None:
-
-                raise ValueError(
-                    "A topology molecule could not be matched to its reference."
-                )
-
-            # Create the force field template using the LigParGen server.
-            if component.smiles != "O" and component.smiles != "[H]O[H]":
-
-                force_field_path = self._parameterize_smiles(
-                    component.smiles, force_field_source, directory
-                )
-
-                start_index = reference_topology_molecule.atom_start_topology_index
-                end_index = start_index + reference_topology_molecule.n_atoms
-                index_range = list(range(start_index, end_index))
-
-                component_pdb_file = mdtraj.load_pdb(
-                    self.coordinate_file_path, atom_indices=index_range
-                )
-                component_topology = component_pdb_file.topology.to_openmm()
-                component_topology.setUnitCellDimensions(
-                    openmm_pdb_file.topology.getUnitCellDimensions()
-                )
-
-                # Create the system object.
-                # noinspection PyTypeChecker
-                force_field_template = app.ForceField(force_field_path)
-
-                component_system = force_field_template.createSystem(
-                    topology=component_topology,
-                    nonbondedMethod=app.PME,
-                    nonbondedCutoff=cutoff,
-                    constraints=app.HBonds,
-                    rigidWater=True,
-                    removeCMMotion=False,
-                )
-            else:
-
-                component_system = self._build_tip3p_system(
-                    topology_molecule,
-                    cutoff,
-                    openmm_pdb_file.topology.getUnitCellDimensions(),
-                )
-
-            system_templates[unique_molecules[index].to_smiles()] = component_system
-
-        # Create the full system object from the component templates.
-        system = None
-
-        for topology_molecule in topology.topology_molecules:
-
-            system_template = system_templates[
-                topology_molecule.reference_molecule.to_smiles()
-            ]
-
-            if system is None:
-
-                # If no system has been set up yet, just use the first template.
-                system = copy.deepcopy(system_template)
-                continue
-
-            # Append the component template to the full system.
-            self._append_system(system, system_template)
+        with open(self.system_path) as file:
+            system = openmm.XmlSerializer.deserialize(file.read())
 
         # Apply the OPLS mixing rules.
         self._apply_opls_mixing_rules(system)
 
-        # Serialize the system object.
-        system_xml = openmm.XmlSerializer.serialize(system)
-
-        self.system_path = os.path.join(directory, "system.xml")
-
         with open(self.system_path, "w") as file:
-            file.write(system_xml)
+            file.write(openmm.XmlSerializer.serialize(system))
 
 
 @workflow_protocol()
-class BuildTLeapSystem(BaseBuildSystem):
+class BuildTLeapSystem(TemplateBuildSystem):
     """Parametrise a set of molecules with an Amber based force field.
     using the `tleap package <http://ambermd.org/AmberTools.php>`_.
 
@@ -793,7 +835,7 @@ class BuildTLeapSystem(BaseBuildSystem):
     -----
     * This protocol is currently a work in progress and as such has limited
       functionality compared to the more established `BuildSmirnoffSystem` protocol.
-    * This protocol requires the optional `ambertools ==19.0` dependency to be installed.
+    * This protocol requires the optional `ambertools >=19.0` dependency to be installed.
     """
 
     class ChargeBackend(Enum):
@@ -810,40 +852,6 @@ class BuildTLeapSystem(BaseBuildSystem):
         if has_openeye()
         else BuildTLeapSystem.ChargeBackend.AmberTools,
     )
-
-    def _generate_charges(self, molecule):
-        """Generates a set of partial charges for a molecule using
-        the specified charge backend.
-
-        Parameters
-        ----------
-        molecule: openforcefield.topology.Molecule
-            The molecule to assign charges to.
-        """
-
-        if self.charge_backend == BuildTLeapSystem.ChargeBackend.OpenEye:
-
-            from openforcefield.utils.toolkits import OpenEyeToolkitWrapper
-
-            toolkit_wrapper = OpenEyeToolkitWrapper()
-
-        elif self.charge_backend == BuildTLeapSystem.ChargeBackend.AmberTools:
-
-            from openforcefield.utils.toolkits import (
-                RDKitToolkitWrapper,
-                AmberToolsToolkitWrapper,
-                ToolkitRegistry,
-            )
-
-            toolkit_wrapper = ToolkitRegistry(
-                toolkit_precedence=[RDKitToolkitWrapper, AmberToolsToolkitWrapper]
-            )
-
-        else:
-            raise ValueError(f"Invalid toolkit specification.")
-
-        molecule.generate_conformers(toolkit_registry=toolkit_wrapper)
-        molecule.compute_partial_charges_am1bcc(toolkit_registry=toolkit_wrapper)
 
     @staticmethod
     def _run_tleap(molecule, force_field_source, directory):
@@ -918,10 +926,10 @@ class BuildTLeapSystem(BaseBuildSystem):
                     "no",
                     "-pf",
                     "yes",
+                    "-c",
+                    "rc",
                     "-cf",
                     "charges.txt",
-                    "-c"
-                    "rc"
                 ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -1037,9 +1045,75 @@ class BuildTLeapSystem(BaseBuildSystem):
             os.path.join(directory, rst7_file_name),
         )
 
-    def _execute(self, directory, available_resources):
+    def _generate_charges(self, molecule):
+        """Generates a set of partial charges for a molecule using
+        the specified charge backend.
 
-        from openforcefield.topology import Molecule, Topology
+        Parameters
+        ----------
+        molecule: openforcefield.topology.Molecule
+            The molecule to assign charges to.
+        """
+
+        if self.charge_backend == BuildTLeapSystem.ChargeBackend.OpenEye:
+
+            from openforcefield.utils.toolkits import OpenEyeToolkitWrapper
+
+            toolkit_wrapper = OpenEyeToolkitWrapper()
+
+        elif self.charge_backend == BuildTLeapSystem.ChargeBackend.AmberTools:
+
+            from openforcefield.utils.toolkits import (
+                RDKitToolkitWrapper,
+                AmberToolsToolkitWrapper,
+                ToolkitRegistry,
+            )
+
+            toolkit_wrapper = ToolkitRegistry(
+                toolkit_precedence=[RDKitToolkitWrapper, AmberToolsToolkitWrapper]
+            )
+
+        else:
+            raise ValueError(f"Invalid toolkit specification.")
+
+        molecule.generate_conformers(toolkit_registry=toolkit_wrapper)
+        molecule.compute_partial_charges_am1bcc(toolkit_registry=toolkit_wrapper)
+
+    def _parameterize_molecule(self, molecule, force_field_source, cutoff):
+        """Parameterize the specified molecule.
+
+        Parameters
+        ----------
+        molecule: openforcefield.topology.Molecule
+            The molecule to parameterize.
+        force_field_source: TLeapForceFieldSource
+            The tleap source which describes which parameters to apply.
+
+        Returns
+        -------
+        simtk.openmm.System
+            The parameterized system.
+        """
+
+        self._generate_charges(molecule)
+
+        prmtop_path, _ = BuildTLeapSystem._run_tleap(molecule, force_field_source, "")
+        prmtop_file = openmm.app.AmberPrmtopFile(prmtop_path)
+
+        system = prmtop_file.createSystem(
+            nonbondedMethod=app.PME,
+            nonbondedCutoff=cutoff,
+            constraints=app.HBonds,
+            rigidWater=True,
+            removeCMMotion=False,
+        )
+
+        with open(f"component.xml", "w") as file:
+            file.write(openmm.XmlSerializer.serialize(system))
+
+        return system
+
+    def _execute(self, directory, available_resources):
 
         force_field_source = ForceFieldSource.from_json(self.force_field_path)
 
@@ -1049,82 +1123,4 @@ class BuildTLeapSystem(BaseBuildSystem):
                 "Only TLeap force field sources are supported by this protocol."
             )
 
-        cutoff = pint_quantity_to_openmm(force_field_source.cutoff)
-
-        # Load in the systems topology
-        openmm_pdb_file = app.PDBFile(self.coordinate_file_path)
-
-        # Create an OFF topology for better insight into the layout of the system topology.
-        unique_molecules = {
-            x.smiles: Molecule.from_smiles(x.smiles) for x in self.substance
-        }
-
-        # Parameterize each component in the system.
-        system_templates = {}
-
-        for index, smiles, unique_molecule in enumerate(unique_molecules.items()):
-
-            self._generate_charges(unique_molecules[smiles])
-
-            if smiles in ["O", "[H]O[H]"]:
-
-                component_system = self._build_tip3p_system(
-                    unique_molecule,
-                    cutoff,
-                    openmm_pdb_file.topology.getUnitCellDimensions(),
-                )
-
-            else:
-
-                tleap_directory = os.path.join(directory, str(index))
-                os.makedirs(tleap_directory, exist_ok=True)
-
-                prmtop_path, _ = self._run_tleap(
-                    unique_molecule, force_field_source, tleap_directory
-                )
-
-                prmtop_file = openmm.app.AmberPrmtopFile(prmtop_path)
-
-                component_system = prmtop_file.createSystem(
-                    nonbondedMethod=app.PME,
-                    nonbondedCutoff=cutoff,
-                    constraints=app.HBonds,
-                    rigidWater=True,
-                    removeCMMotion=False,
-                )
-
-                if openmm_pdb_file.topology.getPeriodicBoxVectors() is not None:
-
-                    component_system.setDefaultPeriodicBoxVectors(
-                        *openmm_pdb_file.topology.getPeriodicBoxVectors()
-                    )
-
-                with open(os.path.join(tleap_directory, f"component.xml"), "w") as file:
-                    file.write(openmm.XmlSerializer.serialize(component_system))
-
-            system_templates[smiles] = component_system
-
-        # Apply the parameters to the topology.
-        topology = Topology.from_openmm(openmm_pdb_file.topology, unique_molecules)
-
-        # Create the full system object from the component templates.
-        system = None
-
-        for topology_molecule in topology.topology_molecules:
-
-            smiles = topology_molecule.reference_molecule.to_smiles()
-            system_template = system_templates[smiles]
-
-            index_map = {}
-
-            for index, topology_atom in enumerate(topology_molecule.atoms):
-                index_map[topology_atom.atom.molecule_particle_index] = index
-
-            # Append the component template to the full system.
-            self._append_system(system, system_template, index_map)
-
-        # Serialize the system object.
-        self.system_path = os.path.join(directory, "system.xml")
-
-        with open(self.system_path, "w") as file:
-            file.write(openmm.XmlSerializer.serialize(system))
+        super(BuildTLeapSystem, self)._execute(directory, available_resources)
