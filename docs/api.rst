@@ -145,8 +145,6 @@ Calculation Layers API
     calculation_layer
     register_calculation_layer
     register_calculation_schema
-    registered_calculation_layers
-    registered_calculation_schemas
 
 **Built-in Calculation Layers**
 
@@ -273,7 +271,6 @@ Workflow API
     ProtocolGroup
     workflow_protocol
     register_workflow_protocol
-    registered_workflow_protocols
 
 **Schemas**
 
