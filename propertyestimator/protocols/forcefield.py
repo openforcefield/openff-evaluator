@@ -401,12 +401,6 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
                         unique_molecule, force_field_source, cutoff
                     )
 
-            if openmm_pdb_file.topology.getPeriodicBoxVectors() is not None:
-
-                component_system.setDefaultPeriodicBoxVectors(
-                    *openmm_pdb_file.topology.getPeriodicBoxVectors()
-                )
-
             system_templates[smiles] = component_system
 
         # Apply the parameters to the topology.
@@ -429,6 +423,12 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
 
             # Append the component template to the full system.
             self._append_system(system, system_template, index_map)
+
+        if openmm_pdb_file.topology.getPeriodicBoxVectors() is not None:
+
+            system.setDefaultPeriodicBoxVectors(
+                *openmm_pdb_file.topology.getPeriodicBoxVectors()
+            )
 
         # Serialize the system object.
         self.system_path = os.path.join(directory, "system.xml")
