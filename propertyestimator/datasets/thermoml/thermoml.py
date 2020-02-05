@@ -418,7 +418,7 @@ class _Compound:
         if thermoml_string is None:
             raise ValueError("The string cannot be `None`.")
 
-        molecule = load_molecule(thermoml_string)
+        molecule = load_molecule(thermoml_string, toolkit="rdkit")
         return mol_to_smiles(molecule, explicit_hydrogen=False, mapped=False)
 
     @staticmethod
@@ -444,7 +444,7 @@ class _Compound:
         try:
 
             molecule = Molecule.from_iupac(common_name, allow_undefined_stereo=True)
-            cmiles_molecule = load_molecule(molecule.to_smiles())
+            cmiles_molecule = load_molecule(molecule.to_smiles(), toolkit="rdkit")
             smiles = mol_to_smiles(
                 cmiles_molecule, explicit_hydrogen=False, mapped=False
             )
