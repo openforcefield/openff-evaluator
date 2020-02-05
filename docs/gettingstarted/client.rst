@@ -1,16 +1,21 @@
-.. |evaluator_server|       replace:: :py:class:`~propertyestimator.server.EvaluatorServer`
-.. |evaluator_client|       replace:: :py:class:`~propertyestimator.client.EvaluatorClient`
-.. |evaluator_exception|    replace:: :py:class:`~propertyestimator.utils.exceptions.EvaluatorException`
-.. |connection_options|     replace:: :py:class:`~propertyestimator.client.ConnectionOptions`
+.. |evaluator_server|           replace:: :py:class:`~propertyestimator.server.EvaluatorServer`
+.. |evaluator_client|           replace:: :py:class:`~propertyestimator.client.EvaluatorClient`
+.. |evaluator_exception|        replace:: :py:class:`~propertyestimator.utils.exceptions.EvaluatorException`
+.. |connection_options|         replace:: :py:class:`~propertyestimator.client.ConnectionOptions`
 
-.. |request|                replace:: :py:class:`~propertyestimator.client.Request`
-.. |request_result|         replace:: :py:class:`~propertyestimator.client.RequestResult`
+.. |request|                    replace:: :py:class:`~propertyestimator.client.Request`
+.. |request_result|             replace:: :py:class:`~propertyestimator.client.RequestResult`
+.. |request_options|            replace:: :py:class:`~propertyestimator.client.RequestOptions`
 
-.. |force_field_source|     replace:: :py:class:`~propertyestimator.forcefield.ForceFieldSource`
+.. |force_field_source|         replace:: :py:class:`~propertyestimator.forcefield.ForceFieldSource`
 
-.. |request_estimate|       replace:: :py:meth:`~propertyestimator.client.EvaluatorClient.request_estimate`
+.. |request_estimate|           replace:: :py:meth:`~propertyestimator.client.EvaluatorClient.request_estimate`
+.. |default_request_options|    replace:: :py:meth:`~propertyestimator.client.EvaluatorClient.default_request_options`
 
-.. |future|                 replace:: :py:class:`~asyncio.Future`
+.. |calculation_layers|         replace:: :py:class:`~propertyestimator.client.RequestOptions.calculation_layers`
+.. |calculation_schemas|        replace:: :py:class:`~propertyestimator.client.RequestOptions.calculation_schemas`
+
+.. |future|                     replace:: :py:class:`~asyncio.Future`
 
 .. |smirnoff_force_field_source|       replace:: :py:class:`~propertyestimator.forcefield.SmirnoffForceFieldSource`
 .. |lig_par_gen_force_field_source|    replace:: :py:class:`~propertyestimator.forcefield.LigParGenForceFieldSource`
@@ -49,7 +54,7 @@ The client can request the estimation of a data set of properties using the |req
     force_field = SmirnoffForceFieldSource.from_path("smirnoff99Frosst-1.1.0.offxml")
 
     # Specify some estimation options (optional).
-    options = default_request_options(data_set, force_field)
+    options = client.default_request_options(data_set, force_field)
 
     # Specify the parameters to differentiate with respect to (optional).
     gradient_keys = [
@@ -105,15 +110,29 @@ making it easy to keep track of any open requests.
 Estimation Options
 ------------------
 
-Lorem ipsum.
+The |request_options| object allows greater control over how properties are estimated by the server. It currently allows
+control over:
+
+.. rst-class:: spaced-list
+
+    * |calculation_layers|: The :doc:`calculation layers <../layers/calculationlayers>` which the server should attempt
+      to use when estimating the data set. The order which the layers are specified in this list is the order which
+      the server will attempt to use each layer.
+    * |calculation_schemas|: The :ref:`calculation schemas <layers/calculationlayers:Defining a Calculation Layer>` to
+      use for each allowed calculation layer per class of property. These will be automatically populated in the cases
+      where no user specified schema is provided, and where a default schema has been registered with the plugin system
+      for the particular layer and property type.
+
+If no options are passed to |request_estimate| a default set will be generated through a call to
+|default_request_options|.
 
 Force Field Sources
 -------------------
 
 Different force field representations (e.g. ``SMIRNOFF``, ``TLeap``, ``LigParGen``) are defined within the framework as
 |force_field_source| objects. A force field source should specify exactly all of the options which would be required by
-a particular source of force fields, such as the non-bonded cutoff or the charge scheme if not specified directly in the
-force field itself.
+a particular force field, such as the non-bonded cutoff or the charge scheme if not specified directly in the force
+field itself.
 
 Currently the framework has built in support for force fields applied via:
 
