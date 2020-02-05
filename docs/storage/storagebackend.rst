@@ -73,11 +73,13 @@ A |storage_backend| must at minimum implement a structure of::
 
 where
 
-* |_store_object| must store a |base_stored_data| object as well as optionally its ancillary data directory, and return
-  a unique key assigned to that object.
-* |_retrieve_object| must return the |base_stored_data| object which has been assigned a given key if the object exists
-  in the system, as well as the file path to ancillary data directory if it exists.
-* |_object_exists| should return whether any object still exists in the storage system with a given key.
+.. rst-class:: spaced-list
+
+    * |_store_object| must store a |base_stored_data| object as well as optionally its ancillary data directory, and
+      return a unique key assigned to that object.
+    * |_retrieve_object| must return the |base_stored_data| object which has been assigned a given key if the object
+      exists in the system, as well as the file path to ancillary data directory if it exists.
+    * |_object_exists| should return whether any object still exists in the storage system with a given key.
 
 All of these methods will be called under a `reentrant thread lock <https://docs.python.org/2/library/threading.
 html#rlock-objects>`_ and may be considered as thread safe.

@@ -168,10 +168,12 @@ coordinates.
 Protocols have built-in support for comparing whether they are performing the same task / calculation as another
 protocol through the |can_merge| and |merge| functions:
 
-* The |can_merge| function checks to see whether two protocols are performing an identical task and hence whether
-  they should be merged or not.
+.. rst-class:: spaced-list
 
-* The |merge| function handles the actual merging of two protocols which can be merged.
+    * The |can_merge| function checks to see whether two protocols are performing an identical task and hence whether
+      they should be merged or not.
+
+    * The |merge| function handles the actual merging of two protocols which can be merged.
 
 The default |can_merge| function takes advantage of the ``merge_behvaiour`` attribute of the different input
 descriptors. The ``merge_behvaiour`` attribute describes how each input should be considered when checking to see

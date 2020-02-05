@@ -13,8 +13,8 @@ for user created plug-ins built into their core.
     curation and preparation of data sets, and a 'server-side' which performs the estimation of the data sets.
 
 The framework is implemented as a *client-server* architecture. This design allows users to spin up :doc:`server`
-instances on whichever compute resources they may have available (from a single machine up to a large HPC cluster) to
-which :doc:`client` objects may connect to both request that data sets be estimated, and to query and retrieve the
+instances on whichever compute resources they may have available (from a single machine up to a large HPC cluster), and
+to which :doc:`client` objects may connect to both request that data sets be estimated, and to query and retrieve the
 results of those requests.
 
 The *client-side* of the framework is predominantly responsible for providing APIs and objects for:

@@ -25,11 +25,13 @@ with the frameworks plug-in system, and does not currently load the full set of 
 
 Currently the framework has built-in support for extracting:
 
-* *Mass density, kg/m3* (|density|)
-* *Excess molar volume, m3/mol* (|excess_molar_volume|)
-* *Relative permittivity at zero frequency* (|dielectric_constant|)
-* *Excess molar enthalpy (molar enthalpy of mixing), kJ/mol* (|enthalpy_of_mixing|)
-* *Molar enthalpy of vaporization or sublimation, kJ/mol* (|enthalpy_of_vaporization|)
+.. rst-class:: spaced-list
+
+    * *Mass density, kg/m3* (|density|)
+    * *Excess molar volume, m3/mol* (|excess_molar_volume|)
+    * *Relative permittivity at zero frequency* (|dielectric_constant|)
+    * *Excess molar enthalpy (molar enthalpy of mixing), kJ/mol* (|enthalpy_of_mixing|)
+    * *Molar enthalpy of vaporization or sublimation, kJ/mol* (|enthalpy_of_vaporization|)
 
 where here both the ThermoML property name (as defined by the `IUPAC XML schema <https://trc.nist.gov/ThermoML.xsd>`_)
 and the built-in framework class are listed.
@@ -40,9 +42,11 @@ Registering Properties
 Properties to be extracted from ThermoML archives must have a corresponding class representation to be loading into.
 This class representation must both:
 
-* inherit from the frameworks |physical_property| class and
-* be registered with the frameworks plug-in system using either the |thermoml_property| decorator or the
-  |register_thermoml_property| method.
+.. rst-class:: spaced-list
+
+    * inherit from the frameworks |physical_property| class and
+    * be registered with the frameworks plug-in system using either the |thermoml_property| decorator or the
+      |register_thermoml_property| method.
 
 As an example, a class representation of the ThermoML *'Mass density, kg/m3'* property could be defined and registered
 with the plug-in system using::

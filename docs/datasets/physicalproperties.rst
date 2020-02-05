@@ -71,17 +71,21 @@ Physical Properties
 The |physical_property| object is a base class for any object which describes a measured property of substance, and is
 defined by a combination of:
 
-* the observed value of the property.
-* |substance| specifying the substance that the measurement was collected for.
-* |property_phase| specifying the phase that the measurement was collected in.
-* |thermodynamic_state| specifying the thermodynamic conditions under which the measurement was performed
+.. rst-class:: spaced-list
+
+    * the observed value of the property.
+    * |substance| specifying the substance that the measurement was collected for.
+    * |property_phase| specifying the phase that the measurement was collected in.
+    * |thermodynamic_state| specifying the thermodynamic conditions under which the measurement was performed
 
 as well as optionally
 
-* the uncertainty in the value of the property.
-* a list of |parameter_gradient| which defines the gradient of the property with respect to the model parameters
-  if it was computationally estimated.
-* a |source| specifying the source (either experimental or computational) and provenance of the measurement.
+.. rst-class:: spaced-list
+
+    * the uncertainty in the value of the property.
+    * a list of |parameter_gradient| which defines the gradient of the property with respect to the model parameters
+      if it was computationally estimated.
+    * a |source| specifying the source (either experimental or computational) and provenance of the measurement.
 
 Each type of property supported by the framework, such as a density of an enthalpy of vaporization, must have it's own
 class representation which inherits from |physical_property|::

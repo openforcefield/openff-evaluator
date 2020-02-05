@@ -28,14 +28,16 @@ Data Classes and Queries
 All data which is to be stored within a |storage_backend| must inherit from the |base_stored_data| class. More broadly
 there are typically two types of data which are expected to be stored:
 
-* |hashable_stored_data| - data which is readily hashable and can be quickly queried for in a storage backend.
-  The prime examples of such data are |force_field_data|, whose hash can be easily computed from the file
-  representation of a force field.
+.. rst-class:: spaced-list
 
-* |replaceable_data| - data which should be replaced in a storage backend when new data of the same type, but which
-  has a higher information content, is stored in the backend. An example of this is when storing a piece
-  of |stored_simulation_data| in the backend which was generated for a particular |substance| and at the same
-  |thermodynamic_state| as an existing piece of data, but which stores many more uncorrelated configurations.
+    * |hashable_stored_data| - data which is readily hashable and can be quickly queried for in a storage backend.
+      The prime examples of such data are |force_field_data|, whose hash can be easily computed from the file
+      representation of a force field.
+
+    * |replaceable_data| - data which should be replaced in a storage backend when new data of the same type, but which
+      has a higher information content, is stored in the backend. An example of this is when storing a piece
+      of |stored_simulation_data| in the backend which was generated for a particular |substance| and at the same
+      |thermodynamic_state| as an existing piece of data, but which stores many more uncorrelated configurations.
 
 Every data class **must** be paired with a corresponding data query class which inherits from the |base_data_query|
 class. In addition, each data object must implement a |to_storage_query| function which returns the data query
@@ -69,10 +71,12 @@ that future calaculations can simply discard the data which cannot be used (i.e.
 It has a corresponding |simulation_data_query| class which can be used to query for simulation data which matches a set
 of particular criteria within a storage backend, which in part includes querying for data collected:
 
-* at a given ``thermodynamic_state`` (i.e temperature and pressure).
-* for a given ``property_phase`` (e.g. gas, liquid, liquid+gas coexisting, ...).
-* using a given set of force field parameters identified by their unique ``force_field_id`` assigned by the storage
-  system
+.. rst-class:: spaced-list
+
+    * at a given ``thermodynamic_state`` (i.e temperature and pressure).
+    * for a given ``property_phase`` (e.g. gas, liquid, liquid+gas coexisting, ...).
+    * using a given set of force field parameters identified by their unique ``force_field_id`` assigned by the storage
+      system
 
 Included is not only the ability to find data generated for a particular ``substance`` (e.g. only data for methanol),
 but also the ability to return data for each component of a given substance by setting the |substance_query_attr|

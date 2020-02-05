@@ -27,14 +27,18 @@
 
 .. |workflow_calculation_schema|       replace:: :py:class:`~propertyestimator.layers.workflow.WorkflowCalculationSchema`
 
+.. |calculation_layer_schema|          replace:: :py:class:`~propertyestimator.layers.CalculationLayerSchema`
+.. |register_calculation_schema|       replace:: :py:meth:`~propertyestimator.layers.register_calculation_schema`
+.. |registered_calculation_schemas|    replace:: :py:attr:`~propertyestimator.layers.registered_calculation_schemas`
+
 Evaluator Client
 ================
 
-The |evaluator_client| object is responsible for both submitting all requests to estimate a data set of properties to
-a running :doc:`server` instance, and for pulling back the results of that request when complete.
+The |evaluator_client| object is responsible for both submitting requests to estimate a data set of properties to
+a running :doc:`server` instance, and for pulling back the results of those requests when complete.
 
 An |evaluator_client| object may optionally be created using a set of |connection_options| which specifies the network
-address of a running |evaluator_server| instance to connect to::
+address of the running :doc:`server` instance to connect to::
 
     # Specify the address of a server running on the local machine.
     connection_options = ConnectionOptions(server_address="localhost", server_port=8000)
@@ -71,21 +75,27 @@ The client can request the estimation of a data set of properties using the |req
 
 A request must at minimum specify:
 
-* the :doc:`data set <../datasets/physicalproperties>` of physical properties to estimate.
-* the :ref:`force field parameters <gettingstarted/client:Force Field Sources>` to estimate the data set using.
+.. rst-class:: spaced-list
+
+    * the :doc:`data set <../datasets/physicalproperties>` of physical properties to estimate.
+    * the :ref:`force field parameters <gettingstarted/client:Force Field Sources>` to estimate the data set using.
 
 and may also optionally specify:
 
-* the :ref:`options <gettingstarted/client:Estimation Options>` to use when estimating the property set.
-* the parameters to differentiate each physical property estimate with respect to.
+.. rst-class:: spaced-list
 
-.. note:: Gradients can currently only be computed when using a set of `SMIRNOFF <https://open-forcefield-toolkit.
-  readthedocs.io/en/latest/smirnoff.html>`_ based force fields.
+    * the :ref:`options <gettingstarted/client:Request Options>` to use when estimating the property set.
+    * the parameters to differentiate each physical property estimate with respect to.
+
+.. note:: Gradients can currently only be computed for requests using a `SMIRNOFF <https://open-forcefield-toolkit.
+  readthedocs.io/en/latest/smirnoff.html>`_ based force field.
 
 The |request_estimate| function returns back two objects:
 
-* a |request| object which can be used to retrieve the results of the request and,
-* an |evaluator_exception| object which will be populated if any errors occured while submitting the request.
+.. rst-class:: spaced-list
+
+    * a |request| object which can be used to retrieve the results of the request and,
+    * an |evaluator_exception| object which will be populated if any errors occured while submitting the request.
 
 The |request| object is similar to a |future| object, in that it is an object which can be used to query the current
 status of a request either asynchronously::
@@ -107,8 +117,8 @@ The |request| object is fully JSON serializable::
 
 making it easy to keep track of any open requests.
 
-Estimation Options
-------------------
+Request Options
+---------------
 
 The |request_options| object allows greater control over how properties are estimated by the server. It currently allows
 control over:
@@ -126,11 +136,27 @@ control over:
 If no options are passed to |request_estimate| a default set will be generated through a call to
 |default_request_options|.
 
+Default schemas for each pair of a calculation layer and a type of physical properties are registered through the
+|register_calculation_schema|::
+
+    # Register the default schema to use for density measurements being estimated
+    # by the direct simulation calculation layer.
+    register_calculation_schema(
+        property_class=Density,
+        layer_class=SimulationLayer,
+        schema=Density.default_simulation_schema
+    )
+
+where the schema object should either be an instance of a |calculation_layer_schema|, or a function with no required
+arguments which returns a |calculation_layer_schema|.
+
+A list of the registered schemas is provided by the |registered_calculation_schemas| module attribute.
+
 Force Field Sources
 -------------------
 
 Different force field representations (e.g. ``SMIRNOFF``, ``TLeap``, ``LigParGen``) are defined within the framework as
-|force_field_source| objects. A force field source should specify exactly all of the options which would be required by
+|force_field_source| objects. A force field source should specify *all* of the options which would be required by
 a particular force field, such as the non-bonded cutoff or the charge scheme if not specified directly in the force
 field itself.
 
