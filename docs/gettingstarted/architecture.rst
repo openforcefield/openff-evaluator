@@ -37,3 +37,6 @@ while the *server-side* is responsible for:
     * executing those requests across the available :doc:`compute resources <../backends/calculationbackend>` following
       the calculation schemas provided by the client
     * :doc:`caching data <../storage/storagebackend>` from any calculations which may be useful for future calculations.
+
+All communication between servers and clients is handled through the `TCP <https://en.wikipedia.org/wiki/Transmission_
+Control_Protocol>`_ protocol.

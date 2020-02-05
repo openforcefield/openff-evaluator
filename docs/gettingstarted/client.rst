@@ -51,7 +51,7 @@ The client can request the estimation of a data set of properties using the |req
     data_set.add_properties(...)
 
     # Specify the force field source.
-    force_field = SmirnoffForceFieldSource.from_path("smirnoff99Frosst-1.1.0.offxml")
+    force_field = SmirnoffForceFieldSource.from_path("openff-1.0.0.offxml")
 
     # Specify some estimation options (optional).
     options = client.default_request_options(data_set, force_field)

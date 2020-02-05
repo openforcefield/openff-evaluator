@@ -35,6 +35,7 @@ Server Side API
     :toctree: api/generated/
 
     EvaluatorServer
+    Batch
 
 Physical Property API
 ---------------------
