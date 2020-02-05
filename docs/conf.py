@@ -60,6 +60,8 @@ autodoc_default_options = {
     'member-order': 'bysource',
 }
 
+autodoc_mock_imports = ['simtk']
+
 # Autolabel settings
 autosectionlabel_maxdepth = 3
 autosectionlabel_prefix_document = True
