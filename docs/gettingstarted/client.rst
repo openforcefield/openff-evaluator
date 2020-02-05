@@ -27,10 +27,6 @@
 
 .. |workflow_calculation_schema|       replace:: :py:class:`~propertyestimator.layers.workflow.WorkflowCalculationSchema`
 
-.. |calculation_layer_schema|          replace:: :py:class:`~propertyestimator.layers.CalculationLayerSchema`
-.. |register_calculation_schema|       replace:: :py:meth:`~propertyestimator.layers.register_calculation_schema`
-.. |registered_calculation_schemas|    replace:: :py:attr:`~propertyestimator.layers.registered_calculation_schemas`
-
 Evaluator Client
 ================
 
@@ -134,23 +130,8 @@ control over:
       for the particular layer and property type.
 
 If no options are passed to |request_estimate| a default set will be generated through a call to
-|default_request_options|.
-
-Default schemas for each pair of a calculation layer and a type of physical properties are registered through the
-|register_calculation_schema|::
-
-    # Register the default schema to use for density measurements being estimated
-    # by the direct simulation calculation layer.
-    register_calculation_schema(
-        property_class=Density,
-        layer_class=SimulationLayer,
-        schema=Density.default_simulation_schema
-    )
-
-where the schema object should either be an instance of a |calculation_layer_schema|, or a function with no required
-arguments which returns a |calculation_layer_schema|.
-
-A list of the registered schemas is provided by the |registered_calculation_schemas| module attribute.
+|default_request_options|. For more information about how default calculation schemas are registered, see the
+:ref:`layers/calculationlayers:Default Schemas` section.
 
 Force Field Sources
 -------------------

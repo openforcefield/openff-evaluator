@@ -10,6 +10,8 @@
 
 .. |_schedule_calculation|       replace:: :py:meth:`~propertyestimator.layers.CalculationLayer._schedule_calculation`
 
+.. |register_calculation_schema|       replace:: :py:meth:`~propertyestimator.layers.register_calculation_schema`
+.. |registered_calculation_schemas|    replace:: :py:attr:`~propertyestimator.layers.registered_calculation_schemas`
 
 Calculation Layers
 ==================
@@ -140,3 +142,21 @@ As a minimal example of a method which returns one such object::
         results.physical_property = physical_property
         return results
 
+Default Schemas
+---------------
+
+Default schemas for each pair of a calculation layer and a type of physical property may be registered using the
+|register_calculation_schema| function::
+
+    # Register the default schema to use for density measurements being estimated
+    # by the direct simulation calculation layer.
+    register_calculation_schema(
+        property_class=Density,
+        layer_class=SimulationLayer,
+        schema=Density.default_simulation_schema
+    )
+
+where the schema object should either be an instance of a |calculation_layer_schema|, or a function with no required
+arguments which returns a |calculation_layer_schema|.
+
+A list of the registered schemas is provided by the |registered_calculation_schemas| module attribute.
