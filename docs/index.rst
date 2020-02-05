@@ -121,6 +121,16 @@ field optimisation.
 .. toctree::
   :maxdepth: 2
   :hidden:
+  :caption: Calculation Layers
+
+  Overview <layers/calculationlayers>
+  Workflow Layers <layers/workflowlayer>
+  Direct Simulation <layers/simulationlayer>
+  MBAR Reweighting <layers/reweightinglayer>
+
+.. toctree::
+  :maxdepth: 2
+  :hidden:
   :caption: Workflows
 
   Overview <workflows/workflows>
@@ -128,16 +138,6 @@ field optimisation.
   workflows/workflowgraphs
   workflows/protocols
   workflows/protocolgroups
-
-.. toctree::
-  :maxdepth: 2
-  :hidden:
-  :caption: Calculation Layers
-
-  Overview <layers/calculationlayers>
-  Workflow Layers <layers/workflowlayer>
-  Direct Simulation <layers/simulationlayer>
-  MBAR Reweighting <layers/reweightinglayer>
 
 .. toctree::
   :maxdepth: 2
