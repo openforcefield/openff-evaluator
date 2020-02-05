@@ -12,8 +12,8 @@ from propertyestimator.substances import Component, ExactAmount, MoleFraction, S
     [
         ("C1=CC=CC=C1", "c1ccccc1"),
         ("c1ccccc1", "c1ccccc1"),
-        ("[C@H](F)(Cl)Br", "[C@H](F)(Cl)Br"),
-        ("C(F)(Cl)Br", "C(F)(Cl)Br"),
+        ("[C@H](F)(Cl)Br", "F[C@@H](Cl)Br"),
+        ("C(F)(Cl)Br", "FC(Cl)Br"),
     ],
 )
 def test_component_standardization(smiles, expected):

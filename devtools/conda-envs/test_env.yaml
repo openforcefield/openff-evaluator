@@ -32,5 +32,6 @@ dependencies:
   - pyyaml
   - requests
   - requests-mock # For testing http requests.
+  - rdkit
   - cmiles
   - python-dateutil
