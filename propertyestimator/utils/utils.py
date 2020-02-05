@@ -234,3 +234,27 @@ def temporarily_change_directory(file_path):
         yield
     finally:
         os.chdir(prev_dir)
+
+
+def has_openeye():
+    """Checks whether the `openeye` toolkits are available for use
+    Returns
+    -------
+    bool
+        True if the `openeye` toolkit can be imported and has a valid
+        license.
+    """
+
+    try:
+
+        from openeye import oechem
+
+        available = True
+
+        if not oechem.OEChemIsLicensed():
+            available = False
+
+    except ImportError:
+        available = False
+
+    return available
