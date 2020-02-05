@@ -60,3 +60,8 @@ ul.spaced-list li {
 .rst-content div.figure p.caption {
     margin-top: 14px;
 }
+
+.rst-content code.xref {
+    font-weight: normal;
+    color: #9B59B6;
+}

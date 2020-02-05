@@ -100,6 +100,8 @@ field optimisation.
   Overview <self>
   install
   gettingstarted/architecture
+  gettingstarted/client
+  gettingstarted/server
 
 .. toctree::
   :maxdepth: 2

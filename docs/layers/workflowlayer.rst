@@ -1,6 +1,6 @@
 .. |workflow_calculation_layer|     replace:: :py:class:`~propertyestimator.layers.workflow.WorkflowCalculationLayer`
 .. |workflow_calculation_schema|    replace:: :py:class:`~propertyestimator.layers.workflow.WorkflowCalculationSchema`
-.. |workflow_schema|                replace:: :py:attr:`~propertyestimator.layers.workflow.WorkflowCalculationSchema`
+.. |workflow_schema|                replace:: :py:class:`~propertyestimator.workflow.schemas.WorkflowSchema`
 
 .. |final_value_source|             replace:: :py:attr:`~propertyestimator.workflow.schemas.WorkflowSchema.final_value_source`
 .. |gradients_sources|              replace:: :py:attr:`~propertyestimator.workflow.schemas.WorkflowSchema.gradients_sources`
