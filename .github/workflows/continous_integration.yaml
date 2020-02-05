@@ -62,7 +62,7 @@ jobs:
           python devtools/scripts/create_conda_env.py -n=test -p=${{ matrix.python-version }} devtools/conda-envs/test_env.yaml
 
       - name: Install OpenEye toolkit.
-        if: openeye
+        if: matrix.openeye
         run: |
 
           . devtools/scripts/initialize_conda.sh
