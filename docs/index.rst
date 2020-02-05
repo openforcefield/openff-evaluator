@@ -98,7 +98,7 @@ field optimisation.
 
   Overview <self>
   install
-  clientserver
+  architecture
 
 .. toctree::
   :maxdepth: 2
