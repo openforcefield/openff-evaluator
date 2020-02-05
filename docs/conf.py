@@ -19,9 +19,8 @@ sys.path.insert(0, os.path.abspath('.'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'Property Estimator'
-copyright = ("2019, Open Force Field Consortium. Project structure based on the "
-             "Computational Molecular Science Python Cookiecutter version 1.0")
+project = 'OpenFF Evaluator'
+copyright = ("2019, Open Force Field Consortium.")
 author = 'Open Force Field Consortium'
 
 # The short X.Y version
@@ -43,19 +42,33 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
     'sphinx.ext.autosummary',
+    'sphinx.ext.autosectionlabel',
     'sphinx.ext.doctest',
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'sphinx.ext.intersphinx',
     'nbsphinx',
-    'm2r'
 ]
 
 # Autodoc settings
 autosummary_generate = True
-autodoc_default_flags = ['members', 'inherited-members']
-autodoc_member_order = 'bysource' # preserve ordering in source
+
+autodoc_default_options = {
+    'members': True,
+    'inherited-members': True,
+    'member-order': 'bysource',
+}
+
+autodoc_mock_imports = ['simtk']
+
+# Autolabel settings
+autosectionlabel_maxdepth = 3
+autosectionlabel_prefix_document = True
+
+suppress_warnings = [
+    'autosectionlabel.releasehistory',
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -63,7 +76,7 @@ templates_path = ['_templates']
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
 #
-source_suffix = ['.rst', '.md']
+source_suffix = ['.rst']
 # source_suffix = '.rst'
 
 # The master toctree document.
@@ -82,7 +95,7 @@ language = None
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+pygments_style = 'default'
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
@@ -91,6 +104,7 @@ todo_include_todos = True
 intersphinx_mapping = {
     'python': ('https://docs.python.org/', None),
     'numpy': ('https://docs.scipy.org/doc/numpy/', None),
+    'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
     'mdtraj': ('http://mdtraj.org/latest/', None),
     'dask': ('http://docs.dask.org/en/latest/', None),
     'dask.distributed': ('https://distributed.dask.org/en/latest/', None),
@@ -110,7 +124,10 @@ html_theme = 'sphinx_rtd_theme'
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-# html_theme_options = {}
+html_theme_options = {
+    'prev_next_buttons_location': None,
+    'sticky_navigation': False
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -119,7 +136,7 @@ html_static_path = ['_static']
 
 html_context = {
     'css_files': [
-        '_static/theme_overrides.css',  # override wide tables in RTD theme
+        '_static/css/theme_overrides.css',  # override wide tables in RTD theme
     ],
 }
 

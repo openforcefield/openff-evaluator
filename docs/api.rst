@@ -17,6 +17,15 @@ Client Side API
     RequestOptions
     RequestResult
 
+**Exceptions**
+
+.. currentmodule:: propertyestimator.utils.exceptions
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    EvaluatorException
+
 Server Side API
 ---------------
 
@@ -26,6 +35,7 @@ Server Side API
     :toctree: api/generated/
 
     EvaluatorServer
+    Batch
 
 Physical Property API
 ---------------------
@@ -136,8 +146,6 @@ Calculation Layers API
     calculation_layer
     register_calculation_layer
     register_calculation_schema
-    registered_calculation_layers
-    registered_calculation_schemas
 
 **Built-in Calculation Layers**
 
@@ -176,19 +184,20 @@ Calculation Backends API
 
     CalculationBackend
     ComputeResources
-    QueueWorkerResources
 
 **Dask Backends**
 
-.. currentmodule:: propertyestimator.backends
+.. currentmodule:: propertyestimator.backends.dask
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
     BaseDaskBackend
+    BaseDaskJobQueueBackend
     DaskLocalCluster
     DaskLSFBackend
     DaskPBSBackend
+    QueueWorkerResources
 
 Storage API
 -----------
@@ -263,7 +272,6 @@ Workflow API
     ProtocolGroup
     workflow_protocol
     register_workflow_protocol
-    registered_workflow_protocols
 
 **Schemas**
 
@@ -455,10 +463,10 @@ Attribute Utilities
     UNDEFINED
     PlaceholderValue
 
-Plugin Utilities
-----------------
+Plug-in Utilities
+-----------------
 
-**Plugins**
+**Plug-ins**
 
 .. currentmodule:: propertyestimator.plugins
 .. autosummary::

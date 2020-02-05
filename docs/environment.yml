@@ -4,21 +4,20 @@ channels:
     - omnia
 dependencies:
     # Base depends
-    - python ==3.6
+    - python
     - setuptools
 
     # Sphinx specific
-    - numpydoc
     - nbsphinx
-    - m2r >=0.2.1
     - sphinx_rtd_theme
+    - pandoc
+    - ipython
 
     # Standard dependencies
     - numpy
     - pandas
     - lxml
     - icu 58*  # REQUIRED - DO NOT REMOVE.
-    - openmm
     - pint >=0.10.1
     - packmol
     - pymbar >=3.0.5
