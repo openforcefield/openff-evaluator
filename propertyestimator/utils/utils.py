@@ -238,7 +238,6 @@ def temporarily_change_directory(file_path):
 
 def has_openeye():
     """Checks whether the `openeye` toolkits are available for use
-
     Returns
     -------
     bool
@@ -250,12 +249,12 @@ def has_openeye():
 
         from openeye import oechem
 
-        has_openeye = True
+        available = True
 
         if not oechem.OEChemIsLicensed():
-            has_openeye = False
+            available = False
 
     except ImportError:
-        has_openeye = False
+        available = False
 
-    return has_openeye
+    return available
