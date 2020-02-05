@@ -1,3 +1,3 @@
-from .server import EvaluatorServer
+from .server import Batch, EvaluatorServer
 
-__all__ = [EvaluatorServer]
+__all__ = [Batch, EvaluatorServer]
