@@ -14,7 +14,7 @@ from propertyestimator.layers import (
 )
 from propertyestimator.layers.layers import CalculationLayerResult
 from propertyestimator.properties import Density
-from propertyestimator.server.server import EvaluatorServer, Batch
+from propertyestimator.server.server import Batch, EvaluatorServer
 from propertyestimator.tests.utils import create_dummy_property
 from propertyestimator.utils.utils import temporarily_change_directory
 
