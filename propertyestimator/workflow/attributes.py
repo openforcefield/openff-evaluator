@@ -3,7 +3,6 @@ A collection of descriptors used to mark-up class fields which
 hold importance to the workflow engine, such as the inputs or
 outputs of workflow protocols.
 """
-import copy
 from enum import Enum
 
 from propertyestimator.attributes import UNDEFINED, Attribute
@@ -122,24 +121,6 @@ class InputAttribute(Attribute):
         super().__init__(docstring, type_hint, default_value, optional)
 
         self.merge_behavior = merge_behavior
-
-    def __get__(self, instance, owner=None):
-
-        if instance is None:
-            # Handle the case where this is called on the class directly,
-            # rather than an instance.
-            return self
-
-        if not hasattr(instance, self._private_attribute_name):
-            # Make sure to only ever pass a copy of the default value to ensure
-            # mutable values such as lists don't get set by reference.
-            setattr(
-                instance,
-                self._private_attribute_name,
-                copy.deepcopy(self._default_value),
-            )
-
-        return getattr(instance, self._private_attribute_name)
 
 
 class OutputAttribute(Attribute):
