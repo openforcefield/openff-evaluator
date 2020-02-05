@@ -19,6 +19,7 @@ jobs:
       matrix:
         os: [macOS-latest, ubuntu-latest]
         python-version: [3.6, 3.7]
+        openeye: [true, false]
 
     steps:
       - uses: actions/checkout@v2
@@ -61,6 +62,7 @@ jobs:
           python devtools/scripts/create_conda_env.py -n=test -p=${{ matrix.python-version }} devtools/conda-envs/test_env.yaml
 
       - name: Install OpenEye toolkit.
+        if: openeye
         run: |
 
           . devtools/scripts/initialize_conda.sh

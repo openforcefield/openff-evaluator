@@ -82,7 +82,7 @@ class Component(AttributeClass):
         """
         from cmiles.utils import load_molecule, mol_to_smiles
 
-        molecule = load_molecule(smiles)
+        molecule = load_molecule(smiles, toolkit="rdkit")
 
         try:
             # Try to make the smiles isomeric.

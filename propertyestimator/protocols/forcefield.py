@@ -384,7 +384,7 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
 
         for index, (smiles, unique_molecule) in enumerate(unique_molecules.items()):
 
-            if smiles in ["O", "[H]O[H]"]:
+            if smiles in ["O", "[H]O[H]", "[H][O][H]"]:
 
                 component_system = self._build_tip3p_system(
                     cutoff, openmm_pdb_file.topology.getUnitCellDimensions(),

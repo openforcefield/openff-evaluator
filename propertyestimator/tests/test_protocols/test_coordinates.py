@@ -13,7 +13,7 @@ from propertyestimator.protocols.coordinates import (
     SolvateExistingStructure,
 )
 from propertyestimator.substances import Component, ExactAmount, MoleFraction, Substance
-from propertyestimator.utils import get_data_filename
+from propertyestimator.utils import get_data_filename, has_openeye
 
 
 def _build_input_output_substances():
@@ -105,6 +105,9 @@ def test_solvate_existing_structure_protocol():
 
 def test_build_docked_coordinates_protocol():
     """Tests docking a methanol molecule into alpha-Cyclodextrin."""
+
+    if not has_openeye():
+        pytest.skip("The `BuildDockedCoordinates` protocol requires OpenEye.")
 
     ligand_substance = Substance()
     ligand_substance.add_component(
