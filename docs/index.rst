@@ -11,8 +11,8 @@ OpenFF Evaluator
 .. |delta|   unicode:: U+0394
 .. |ast|     replace:: :ignore-width:`*`
 
-.. |simulation|     replace:: :doc:`Direct Simulation <simulationlayer>`
-.. |reweighting|     replace:: :doc:`MBAR Reweighting <reweightinglayer>`
+.. |simulation|     replace:: :doc:`Direct Simulation <layers/simulationlayer>`
+.. |reweighting|     replace:: :doc:`MBAR Reweighting <layers/reweightinglayer>`
 
 *An automated and scalable framework for curating, manipulating, and computing data sets of physical properties
 from molecular simulation and simulation data.*
@@ -47,12 +47,13 @@ www.alchemistry.org/wiki/Multistate_Bennett_Acceptance_Ratio>`_, or evaluating `
 .org/doi/abs/10.1021/acs.jctc.8b00223>`_ trained upon cached data. The most rapid approach which may accurately
 estimate a set of properties is automatically determined by the framework on the fly.
 
-Each approach supported by the framework is implemented as a :doc:`calculation layer <calculationlayers>`. Two such
-layers are currently supported (although new calculation layers can be readily added via the plug-in system):
+Each approach supported by the framework is implemented as a :doc:`calculation layer <layers/calculationlayers>`. Two
+such layers are currently supported (although new calculation layers can be readily added via the plug-in system):
 
-* evaluating physical properties directly from molecular simulation using the :doc:`SimulationLayer <simulationlayer>`.
+* evaluating physical properties directly from molecular simulation using the :doc:`SimulationLayer
+  <layers/simulationlayer>`.
 * reprocessing cached simulation data with `MBAR reweighting <http://www.alchemistry.org/wiki/
-  Multistate_Bennett_Acceptance_Ratio>`_ using the :doc:`ReweightingLayer <reweightinglayer>`.
+  Multistate_Bennett_Acceptance_Ratio>`_ using the :doc:`ReweightingLayer <layers/reweightinglayer>`.
 
 Supported Physical Properties
 -----------------------------
@@ -98,67 +99,67 @@ field optimisation.
 
   Overview <self>
   install
-  architecture
+  gettingstarted/architecture
 
 .. toctree::
   :maxdepth: 2
   :hidden:
   :caption: Tutorials
 
-  tutorial01
+  tutorials/tutorial01
 
 .. toctree::
   :maxdepth: 2
   :hidden:
   :caption: Data Sets
 
-  physicalproperties
-  thermomldatasets
+  datasets/physicalproperties
+  datasets/thermomldatasets
 
 .. toctree::
   :maxdepth: 2
   :hidden:
   :caption: Workflows
 
-  Overview <workflows>
-  replicators
-  workflowgraphs
-  protocols
-  protocolgroups
+  Overview <workflows/workflows>
+  workflows/replicators
+  workflows/workflowgraphs
+  workflows/protocols
+  workflows/protocolgroups
 
 .. toctree::
   :maxdepth: 2
   :hidden:
   :caption: Calculation Layers
 
-  Overview <calculationlayers>
-  Workflow Layers <workflowlayer>
-  Direct Simulation <simulationlayer>
-  MBAR Reweighting <reweightinglayer>
+  Overview <layers/calculationlayers>
+  Workflow Layers <layers/workflowlayer>
+  Direct Simulation <layers/simulationlayer>
+  MBAR Reweighting <layers/reweightinglayer>
 
 .. toctree::
   :maxdepth: 2
   :hidden:
   :caption: Calculation Backends
 
-  Overview <calculationbackend>
-  daskbackends
+  Overview <backends/calculationbackend>
+  backends/daskbackends
 
 .. toctree::
   :maxdepth: 2
   :hidden:
   :caption: Storage Backends
 
-  Overview <storagebackend>
-  dataclasses
-  Local File Backend <localstorage>
+  Overview <storage/storagebackend>
+  storage/dataclasses
+  Local File Backend <storage/localstorage>
 
 .. toctree::
   :maxdepth: 2
   :hidden:
   :caption: Developer Documentation
 
-  builddocs
+  developer/builddocs
   api
   releasehistory
-  releaseprocess
+  developer/releaseprocess

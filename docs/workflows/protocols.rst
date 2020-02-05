@@ -44,10 +44,10 @@ Inputs and Outputs
 ------------------
 
 Each protocol exposes a set of the required inputs as well as the produced outputs. These inputs may either be set as a
-constant directly, or if used as part of a :doc:`workflow <workflows>`, can take their value from one of the outputs
-of another protocol.
+constant directly, or if used as part of a :doc:`workflow <workflows>`, can take their value from one of the outputs of
+another protocol.
 
-.. figure:: _static/img/protocol.svg
+.. figure:: ../_static/img/protocol.svg
     :align: center
     :width: 30%
 

@@ -31,14 +31,14 @@ Workflows
 =========
 
 The framework offers a lightweight workflow engine for executing graphs of tasks using the available :doc:`calculation
-backends <calculationbackend>`. While lightweight, it offers a large amount of extensibility and flexibility, and is
-currently used by both the :doc:`simulation <simulationlayer>` and :doc:`reweighting <reweightinglayer>` layers to
-perform their required calculations.
+backends <../backends/calculationbackend>`. While lightweight, it offers a large amount of extensibility and flexibility,
+and is currently used by both the :doc:`simulation <../layers/simulationlayer>` and :doc:`reweighting
+<../layers/reweightinglayer>` layers to perform their required calculations.
 
 A workflow is a wrapper around a collection of tasks that should be executed in succession, and whose outputs should be
 made available as the input to others.
 
-.. figure:: _static/img/workflow.svg
+.. figure:: ../_static/img/workflow.svg
     :align: center
     :width: 85%
 
@@ -52,8 +52,8 @@ Building Workflows
 ------------------
 
 At its core a workflow must define the tasks which need to be executed, and where the inputs to those tasks should be
-sourced from. Each task to be executed is represented by a :doc:`protocol object <protocols>`, with each protocol
-requiring a specific set of user specified inputs::
+sourced from. Each task to be executed is represented by a :doc:`protocol object <protocols>`, with each
+protocol requiring a specific set of user specified inputs::
 
     # Define a protocol which will build some coordinates for a system.
     build_coordinates = BuildCoordinatesPackmol("build_coordinates")
@@ -79,7 +79,7 @@ the value of that output once that protocol has been executed by the workflow en
 * the unique id of the protocol to take the output from.
 
 To turn these tasks into a valid workflow which can be automatically executed, they must first be converted to a
-:ref:`workflow schema <workflows:Workflow Schemas>`::
+:ref:`workflow schema <workflows/workflows:Workflow Schemas>`::
 
     # Create the schema object.
     schema = WorkflowSchema()
@@ -99,7 +99,8 @@ or asynchronously using a calculation backend yielding a ``Future`` like object 
     with DaskLocalCluster() as calculation_backend:
         result_future = workflow.execute(calculation_backend=calculation_backend)
 
-In addition, a workflow may be add to, and executed as part as a larger :doc:`workflow graphs <workflowgraphs>`.
+In addition, a workflow may be add to, and executed as part as a larger :doc:`workflow graphs
+<workflowgraphs>`.
 
 Workflow Schemas
 ----------------
@@ -113,10 +114,10 @@ tasks which compose the workflow, but may optionally define:
       main observable calculated by the workflow.
     - |gradients_sources|: A list of references to the protocol outputs which correspond to the gradients of the
       main observable with respect to a set of force field parameters.
-    - |outputs_to_store|: A list of :doc:`data classes <dataclasses>` whose values will be populated from protocol
-      outputs.
-    - |protocol_replicators|: A set of :doc:`replicators <replicators>` which are used to flag parts of a workflow which
-      should be replicated.
+    - |outputs_to_store|: A list of :doc:`data classes <../storage/dataclasses>` whose values will be populated from
+      protocol outputs.
+    - |protocol_replicators|: A set of :doc:`replicators <replicators>` which are used to flag parts of a
+      workflow which should be replicated.
 
 Each of these attributes will control whether the |result_value|, |result_gradients| and |result_data_to_store|
 attributes of the |workflow_result| results object will be populated respectively when executing a workflow.

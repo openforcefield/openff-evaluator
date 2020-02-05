@@ -15,8 +15,8 @@ Protocol Groups
 ===============
 
 The |protocol_group| class represents a collection of :doc:`protocols <protocols>` which have been grouped together. All
-protocols within a group will be executed together on a single compute resources, i.e. there is currently no support
-for executing protocols within a group in parallel.
+protocols within a group will be executed together on a single compute resources, i.e. there is currently no support for
+executing protocols within a group in parallel.
 
 Protocol groups have a specialised |protocol_group_schema| which is essentially a collection of |protocol_schema|
 objects.

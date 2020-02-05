@@ -8,7 +8,7 @@ The evaluator framework is constructed as a collection of modular components, ea
 estimation of physical property data sets. These components are designed to be as extensible as possible, with support
 for user created plug-ins built into their core.
 
-.. figure:: _static/img/architecture.svg
+.. figure:: ../_static/img/architecture.svg
     :align: center
     :width: 85%
 
@@ -24,9 +24,9 @@ The *client-side* of the framework is predominantly responsible for providing AP
 
 .. rst-class:: spaced-list
 
-    * curating :doc:`data sets <physicalproperties>` of physical properties from open data sources.
-    * specifing custom :doc:`calculation schemas <calculationlayers>` which describe how individual properties should be
-      computed.
+    * curating :doc:`data sets <../datasets/physicalproperties>` of physical properties from open data sources.
+    * specifing custom :doc:`calculation schemas <../layers/calculationlayers>` which describe how individual properties
+      should be computed.
     * requesting that data sets be estimated by a running |evaluator_server| instance.
     * retrieving the results of estimation requests from a running |evaluator_server| instance.
 
@@ -35,8 +35,8 @@ while the *server-side* is responsible for:
 .. rst-class:: spaced-list
 
     * receiving estimation requests from an |evaluator_client| object.
-    * automatically determining which :doc:`calculation approach <calculationlayers>` to use for each property in the
-      request.
-    * executing those requests across the available :doc:`compute resources <calculationbackend>` following the calculation
-      schemas provided by the client
-    * :doc:`caching data <storagebackend>` from any calculations which may be useful for future calculations.
+    * automatically determining which :doc:`calculation approach <../layers/calculationlayers>` to use for each property
+      in the request.
+    * executing those requests across the available :doc:`compute resources <../backends/calculationbackend>` following
+      the calculation schemas provided by the client
+    * :doc:`caching data <../storage/storagebackend>` from any calculations which may be useful for future calculations.

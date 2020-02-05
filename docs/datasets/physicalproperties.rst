@@ -16,8 +16,8 @@
 Property Data Sets
 ==================
 
-A |physical_property_data_set| is a collection of measured physical properties encapsulated as :ref:`physical property
-<physicalproperties:Physical Properties>` objects. They may be created from scratch::
+A |physical_property_data_set| is a collection of measured physical properties encapsulated as
+:ref:`physical property <datasets/physicalproperties:Physical Properties>` objects. They may be created from scratch::
 
     # Define a density measurement
     density = Density(

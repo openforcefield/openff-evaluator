@@ -17,9 +17,8 @@ The |thermoml_data_set| object offers an API for extracting physical properties 
 <http://trc.nist.gov/ThermoML.html>`_, both directly from the archive itself or from files stored in the IUPAC-
 standard `ThermoML <http://trc.nist.gov/ThermoMLRecommendations.pdf>`_ format.
 
-The API only supports extracting those properties which have been :ref:`registered
-<thermomldatasets:Registering Properties>` with the frameworks plug-in system, and does not currently load the full set
-of metadata available in the archive files.
+The API only supports extracting those properties which have been :ref:`registered <datasets/thermomldatasets:Registering Properties>`
+with the frameworks plug-in system, and does not currently load the full set of metadata available in the archive files.
 
 .. note:: If the metadata you require is not currently exposed, please open an issue on the `GitHub issue tracker
    <https://github.com/openforcefield/propertyestimator/issues>`_ to request it.

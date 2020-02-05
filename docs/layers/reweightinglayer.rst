@@ -16,12 +16,12 @@ The |reweighting_layer| is a calculation layer which employs the `Multistate Ben
 alchemistry.org/wiki/Multistate_Bennett_Acceptance_Ratio>`_ (MBAR) method to calculate observables at states which have
 not been previously simulated, but for which simulations have been previously run at similar states and their data
 cached. It inherits the |workflow_calculation_layer| base layer, and primarily makes use of the built-in
-:doc:`workflow <workflows>` engine to perform the required calculations.
+:doc:`workflow <../workflows/workflows>` engine to perform the required calculations.
 
 Because MBAR is a technique which reprocesses exisiting simulation data rather than re-running new simulations, it is
 typically several fold faster than the :doc:`simulation layer <simulationlayer>` provided it has cached simulation data
-(made accessible via a :doc:`storage backend <storagebackend>`) available. Any properties for which the required data
-(see :ref:`reweightinglayer:Calculation Schema`) is not available will be skipped.
+(made accessible via a :doc:`storage backend <../storage/storagebackend>`) available. Any properties for which the
+required data (see :ref:`layers/reweightinglayer:Calculation Schema`) is not available will be skipped.
 
 Theory
 ------
@@ -42,7 +42,7 @@ key of a piece of metadata made available to the property workflows.
 Default Metadata
 ----------------
 The reweighting layer makes available the default metadata provided by the :ref:`parent workflow layer
-<workflowlayer:Default Metadata>` in addition to any cached data retrieved via the schemas |storage_queries|.
+<layers/workflowlayer:Default Metadata>` in addition to any cached data retrieved via the schemas |storage_queries|.
 
 When building the metadata for each property, a copy of the query will be made and any of the supported attributes
 (currently only |substance_attr|) whose values are set as |placeholder_value| objects will have their values updated
