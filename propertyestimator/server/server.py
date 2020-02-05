@@ -30,17 +30,15 @@ from propertyestimator.utils.tcp import (
 logger = logging.getLogger(__name__)
 
 
-class _Batch(AttributeClass):
-    """Represents a batch of physical properties which are
-    being estimated by the server for a given set of force
-    field parameters.
+class Batch(AttributeClass):
+    """Represents a batch of physical properties which are being estimated by
+    the server for a given set of force field parameters.
 
-    The expectation is that this object will be passed between
-    calculation layers, whereby each layer will attempt to
-    estimate each of the `queued_properties`. Those properties
-    which can be estimated will be moved to the `estimated_properties`
-    set, while those that couldn't will remain in the `queued_properties`
-    set ready for the next layer.
+    The expectation is that this object will be passed between calculation layers,
+    whereby each layer will attempt to estimate each of the `queued_properties`.
+    Those properties which can be estimated will be moved to the `estimated_properties`
+    set, while those that couldn't will remain in the `queued_properties` set ready
+    for the next layer.
     """
 
     id = Attribute(
@@ -87,7 +85,7 @@ class _Batch(AttributeClass):
     )
 
     def validate(self, attribute_type=None):
-        super(_Batch, self).validate(attribute_type)
+        super(Batch, self).validate(attribute_type)
 
         assert all(isinstance(x, PhysicalProperty) for x in self.queued_properties)
         assert all(isinstance(x, PhysicalProperty) for x in self.estimated_properties)
@@ -261,7 +259,7 @@ class EvaluatorServer:
 
         Returns
         -------
-        list of _Batch
+        list of Batch
             A list of the batches to launch.
         """
 
@@ -274,7 +272,7 @@ class EvaluatorServer:
         # into one chunk
         for substance in submission.dataset.substances:
 
-            batch = _Batch()
+            batch = Batch()
             batch.force_field_id = force_field_id
 
             # Make sure we don't somehow generate the same uuid
@@ -309,7 +307,7 @@ class EvaluatorServer:
 
         Parameters
         ----------
-        batch : _Batch
+        batch : Batch
             The batch to launch.
         """
 
