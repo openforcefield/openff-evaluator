@@ -26,8 +26,8 @@ from propertyestimator.substances import Substance
 from propertyestimator.utils.openmm import pint_quantity_to_openmm
 from propertyestimator.utils.utils import (
     get_data_filename,
-    temporarily_change_directory,
     has_openeye,
+    temporarily_change_directory,
 )
 from propertyestimator.workflow.attributes import InputAttribute, OutputAttribute
 from propertyestimator.workflow.plugins import workflow_protocol
