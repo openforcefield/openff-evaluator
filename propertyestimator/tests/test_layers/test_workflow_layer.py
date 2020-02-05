@@ -42,7 +42,7 @@ def test_workflow_layer():
     options = RequestOptions()
     options.add_schema("SimulationLayer", "Density", layer_schema)
 
-    batch = server._Batch()
+    batch = server.Batch()
     batch.queued_properties = properties_to_estimate
     batch.options = options
 

@@ -14,7 +14,7 @@ from propertyestimator.layers import (
 )
 from propertyestimator.layers.layers import CalculationLayerResult
 from propertyestimator.properties import Density
-from propertyestimator.server.server import EvaluatorServer, _Batch
+from propertyestimator.server.server import EvaluatorServer, Batch
 from propertyestimator.tests.utils import create_dummy_property
 from propertyestimator.utils.utils import temporarily_change_directory
 
@@ -78,7 +78,7 @@ def test_launch_batch():
         create_dummy_property(Density), create_dummy_property(Density)
     )
 
-    batch = _Batch()
+    batch = Batch()
     batch.force_field_id = ""
     batch.options = RequestOptions()
     batch.options.calculation_layers = ["QuickCalculationLayer"]

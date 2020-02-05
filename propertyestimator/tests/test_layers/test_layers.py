@@ -129,7 +129,7 @@ def test_base_layer():
 
     dummy_options = RequestOptions()
 
-    batch = server._Batch()
+    batch = server.Batch()
     batch.queued_properties = properties_to_estimate
     batch.options = dummy_options
     batch.force_field_id = ""

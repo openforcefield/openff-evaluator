@@ -137,7 +137,7 @@ class CalculationLayer(abc.ABC):
             The backend to the submit the calculations to.
         storage_backend: StorageBackend
             The backend used to store / retrieve data from previous calculations.
-        batch: _Batch
+        batch: Batch
             The request object which spawned the awaited results.
         callback: function
             The function to call when the backend returns the results (or an error).
@@ -168,7 +168,7 @@ class CalculationLayer(abc.ABC):
 
         Parameters
         ----------
-        batch: _Batch
+        batch: Batch
             The request which generated the cached data.
         returned_output: CalculationLayerResult
             The layer result which contains the cached data.
@@ -211,7 +211,7 @@ class CalculationLayer(abc.ABC):
         ----------
         results_future: distributed.Future
             The future object which will hold the results.
-        batch: _Batch
+        batch: Batch
             The batch which spawned the awaited results.
         layer_name: str
             The name of the layer processing the results.
@@ -361,7 +361,7 @@ class CalculationLayer(abc.ABC):
         layer_directory: str
             The directory in which to store all temporary calculation data from this
             layer.
-        batch: _Batch
+        batch: Batch
             The batch of properties to estimate with the layer.
 
         Returns
@@ -393,7 +393,7 @@ class CalculationLayer(abc.ABC):
         layer_directory: str
             The directory in which to store all temporary calculation data from this
             layer.
-        batch: _Batch
+        batch: Batch
             The batch of properties to estimate with the layer.
         callback: function
             The function to call when the backend returns the results (or an error).
