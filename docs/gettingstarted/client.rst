@@ -1,31 +1,31 @@
-.. |evaluator_server|           replace:: :py:class:`~propertyestimator.server.EvaluatorServer`
-.. |evaluator_client|           replace:: :py:class:`~propertyestimator.client.EvaluatorClient`
-.. |evaluator_exception|        replace:: :py:class:`~propertyestimator.utils.exceptions.EvaluatorException`
-.. |connection_options|         replace:: :py:class:`~propertyestimator.client.ConnectionOptions`
+.. |evaluator_server|           replace:: :py:class:`~evaluator.server.EvaluatorServer`
+.. |evaluator_client|           replace:: :py:class:`~evaluator.client.EvaluatorClient`
+.. |evaluator_exception|        replace:: :py:class:`~evaluator.utils.exceptions.EvaluatorException`
+.. |connection_options|         replace:: :py:class:`~evaluator.client.ConnectionOptions`
 
-.. |request|                    replace:: :py:class:`~propertyestimator.client.Request`
-.. |request_result|             replace:: :py:class:`~propertyestimator.client.RequestResult`
-.. |request_options|            replace:: :py:class:`~propertyestimator.client.RequestOptions`
+.. |request|                    replace:: :py:class:`~evaluator.client.Request`
+.. |request_result|             replace:: :py:class:`~evaluator.client.RequestResult`
+.. |request_options|            replace:: :py:class:`~evaluator.client.RequestOptions`
 
-.. |force_field_source|         replace:: :py:class:`~propertyestimator.forcefield.ForceFieldSource`
+.. |force_field_source|         replace:: :py:class:`~evaluator.forcefield.ForceFieldSource`
 
-.. |request_estimate|           replace:: :py:meth:`~propertyestimator.client.EvaluatorClient.request_estimate`
-.. |default_request_options|    replace:: :py:meth:`~propertyestimator.client.EvaluatorClient.default_request_options`
+.. |request_estimate|           replace:: :py:meth:`~evaluator.client.EvaluatorClient.request_estimate`
+.. |default_request_options|    replace:: :py:meth:`~evaluator.client.EvaluatorClient.default_request_options`
 
-.. |calculation_layers|         replace:: :py:class:`~propertyestimator.client.RequestOptions.calculation_layers`
-.. |calculation_schemas|        replace:: :py:class:`~propertyestimator.client.RequestOptions.calculation_schemas`
+.. |calculation_layers|         replace:: :py:class:`~evaluator.client.RequestOptions.calculation_layers`
+.. |calculation_schemas|        replace:: :py:class:`~evaluator.client.RequestOptions.calculation_schemas`
 
 .. |future|                     replace:: :py:class:`~asyncio.Future`
 
-.. |smirnoff_force_field_source|       replace:: :py:class:`~propertyestimator.forcefield.SmirnoffForceFieldSource`
-.. |lig_par_gen_force_field_source|    replace:: :py:class:`~propertyestimator.forcefield.LigParGenForceFieldSource`
-.. |tleap_force_field_source|          replace:: :py:class:`~propertyestimator.forcefield.TLeapForceFieldSource`
+.. |smirnoff_force_field_source|       replace:: :py:class:`~evaluator.forcefield.SmirnoffForceFieldSource`
+.. |lig_par_gen_force_field_source|    replace:: :py:class:`~evaluator.forcefield.LigParGenForceFieldSource`
+.. |tleap_force_field_source|          replace:: :py:class:`~evaluator.forcefield.TLeapForceFieldSource`
 
-.. |build_smirnoff_system|             replace:: :py:class:`~propertyestimator.protocols.forcefield.BuildSmirnoffSystem`
-.. |build_tleap_system|                replace:: :py:class:`~propertyestimator.protocols.forcefield.BuildTLeapSystem`
-.. |build_lig_par_gen_system|          replace:: :py:class:`~propertyestimator.protocols.forcefield.BuildLigParGenSystem`
+.. |build_smirnoff_system|             replace:: :py:class:`~evaluator.protocols.forcefield.BuildSmirnoffSystem`
+.. |build_tleap_system|                replace:: :py:class:`~evaluator.protocols.forcefield.BuildTLeapSystem`
+.. |build_lig_par_gen_system|          replace:: :py:class:`~evaluator.protocols.forcefield.BuildLigParGenSystem`
 
-.. |workflow_calculation_schema|       replace:: :py:class:`~propertyestimator.layers.workflow.WorkflowCalculationSchema`
+.. |workflow_calculation_schema|       replace:: :py:class:`~evaluator.layers.workflow.WorkflowCalculationSchema`
 
 Evaluator Client
 ================

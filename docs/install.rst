@@ -12,9 +12,9 @@ followed and conda is available on your machine.
 Installation from Conda
 -----------------------
 
-To install the ``propertyestimator`` from the ``omnia`` channel, simply run::
+To install the ``openff-evaluator`` from the ``omnia`` channel, simply run::
 
-    conda install -c omnia propertyestimator
+    conda install -c omnia openff-evaluator
 
 Recommended Dependencies
 ------------------------
@@ -34,15 +34,15 @@ Installation from Source
 ------------------------
 
 To install the OpenFF Evaluator from source begin by cloning the repository from `github
-<https://github.com/openforcefield/propertyestimator>`_::
+<https://github.com/openforcefield/openff-evaluator>`_::
 
-    git clone https://github.com/openforcefield/propertyestimator.git
-    cd propertyestimator
+    git clone https://github.com/openforcefield/openff-evaluator.git
+    cd openff-evaluator
 
 Create a custom conda environment which contains the required dependencies and activate it::
 
-    conda env create --name propertyestimator --file devtools/conda-envs/test_env.yaml
-    conda activate propertyestimator
+    conda env create --name openff-evaluator --file devtools/conda-envs/test_env.yaml
+    conda activate openff-evaluator
 
 Finally, install the estimator itself::
 

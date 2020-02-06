@@ -1,30 +1,30 @@
-.. |workflow_calculation_layer|     replace:: :py:class:`~propertyestimator.layers.workflow.WorkflowCalculationLayer`
-.. |workflow_calculation_schema|    replace:: :py:class:`~propertyestimator.layers.workflow.WorkflowCalculationSchema`
-.. |workflow_schema|                replace:: :py:class:`~propertyestimator.workflow.schemas.WorkflowSchema`
+.. |workflow_calculation_layer|     replace:: :py:class:`~evaluator.layers.workflow.WorkflowCalculationLayer`
+.. |workflow_calculation_schema|    replace:: :py:class:`~evaluator.layers.workflow.WorkflowCalculationSchema`
+.. |workflow_schema|                replace:: :py:class:`~evaluator.workflow.schemas.WorkflowSchema`
 
-.. |final_value_source|             replace:: :py:attr:`~propertyestimator.workflow.schemas.WorkflowSchema.final_value_source`
-.. |gradients_sources|              replace:: :py:attr:`~propertyestimator.workflow.schemas.WorkflowSchema.gradients_sources`
-.. |outputs_to_store|               replace:: :py:attr:`~propertyestimator.workflow.schemas.WorkflowSchema.outputs_to_store`
+.. |final_value_source|             replace:: :py:attr:`~evaluator.workflow.schemas.WorkflowSchema.final_value_source`
+.. |gradients_sources|              replace:: :py:attr:`~evaluator.workflow.schemas.WorkflowSchema.gradients_sources`
+.. |outputs_to_store|               replace:: :py:attr:`~evaluator.workflow.schemas.WorkflowSchema.outputs_to_store`
 
-.. |_schedule_calculation|          replace:: :py:meth:`~propertyestimator.layers.CalculationLayer._schedule_calculation`
+.. |_schedule_calculation|          replace:: :py:meth:`~evaluator.layers.CalculationLayer._schedule_calculation`
 
-.. |_get_workflow_metadata|         replace:: :py:meth:`~propertyestimator.layers.workflow.WorkflowCalculationLayer._get_workflow_metadata`
-.. |_build_workflow_graph|          replace:: :py:meth:`~propertyestimator.layers.workflow.WorkflowCalculationLayer._build_workflow_graph`
-.. |workflow_to_layer_result|       replace:: :py:meth:`~propertyestimator.layers.workflow.WorkflowCalculationLayer.workflow_to_layer_result`
+.. |_get_workflow_metadata|         replace:: :py:meth:`~evaluator.layers.workflow.WorkflowCalculationLayer._get_workflow_metadata`
+.. |_build_workflow_graph|          replace:: :py:meth:`~evaluator.layers.workflow.WorkflowCalculationLayer._build_workflow_graph`
+.. |workflow_to_layer_result|       replace:: :py:meth:`~evaluator.layers.workflow.WorkflowCalculationLayer.workflow_to_layer_result`
 
-.. |workflow_result|                replace:: :py:class:`~propertyestimator.workflow.WorkflowResult`
-.. |calculation_layer_result|       replace:: :py:class:`~propertyestimator.layers.CalculationLayerResult`
+.. |workflow_result|                replace:: :py:class:`~evaluator.workflow.WorkflowResult`
+.. |calculation_layer_result|       replace:: :py:class:`~evaluator.layers.CalculationLayerResult`
 
-.. |calculation_source|             replace:: :py:class:`~propertyestimator.datasets.CalculationSource`
-.. |fidelity|                       replace:: :py:attr:`~propertyestimator.datasets.CalculationSource.fidelity`
-.. |provenance|                     replace:: :py:class:`~propertyestimator.datasets.CalculationSource.provenance`
+.. |calculation_source|             replace:: :py:class:`~evaluator.datasets.CalculationSource`
+.. |fidelity|                       replace:: :py:attr:`~evaluator.datasets.CalculationSource.fidelity`
+.. |provenance|                     replace:: :py:class:`~evaluator.datasets.CalculationSource.provenance`
 
-.. |generate_default_metadata|      replace:: :py:meth:`~propertyestimator.workflow.Workflow.generate_default_metadata`
+.. |generate_default_metadata|      replace:: :py:meth:`~evaluator.workflow.Workflow.generate_default_metadata`
 
-.. |substance|                    replace:: :py:class:`~propertyestimator.substances.Substance`
-.. |thermodynamic_state|          replace:: :py:class:`~propertyestimator.thermodynamics.ThermodynamicState`
+.. |substance|                    replace:: :py:class:`~evaluator.substances.Substance`
+.. |thermodynamic_state|          replace:: :py:class:`~evaluator.thermodynamics.ThermodynamicState`
 
-.. |parameter_gradient_key|       replace:: :py:class:`~propertyestimator.forcefield.ParameterGradientKey`
+.. |parameter_gradient_key|       replace:: :py:class:`~evaluator.forcefield.ParameterGradientKey`
 
 .. |quantity|                     replace:: :py:class:`~pint.Quantity`
 

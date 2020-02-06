@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 import logging
 
-from propertyestimator import client
-from propertyestimator.datasets.thermoml import ThermoMLDataSet
-from propertyestimator.utils import get_data_filename, setup_timestamp_logging
+from evaluator import client
+from evaluator.datasets.thermoml import ThermoMLDataSet
+from evaluator.utils import get_data_filename, setup_timestamp_logging
 
 logger = logging.getLogger(__name__)
 

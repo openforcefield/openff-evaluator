@@ -1,8 +1,8 @@
-.. |dask_local_cluster|             replace:: :py:class:`~propertyestimator.backends.dask.DaskLocalCluster`
-.. |base_dask_job_queue_backend|    replace:: :py:class:`~propertyestimator.backends.dask.BaseDaskJobQueueBackend`
-.. |dask_lsf_backend|               replace:: :py:class:`~propertyestimator.backends.dask.DaskLSFBackend`
-.. |dask_pbs_backend|               replace:: :py:class:`~propertyestimator.backends.dask.DaskPBSBackend`
-.. |queue_worker_resources|         replace:: :py:class:`~propertyestimator.backends.dask.QueueWorkerResources`
+.. |dask_local_cluster|             replace:: :py:class:`~evaluator.backends.dask.DaskLocalCluster`
+.. |base_dask_job_queue_backend|    replace:: :py:class:`~evaluator.backends.dask.BaseDaskJobQueueBackend`
+.. |dask_lsf_backend|               replace:: :py:class:`~evaluator.backends.dask.DaskLSFBackend`
+.. |dask_pbs_backend|               replace:: :py:class:`~evaluator.backends.dask.DaskPBSBackend`
+.. |queue_worker_resources|         replace:: :py:class:`~evaluator.backends.dask.QueueWorkerResources`
 
 Dask Backends
 =============
@@ -55,7 +55,7 @@ latest/worker.html>`_, which in turn then execute tasks on the available compute
 
     # Create the backend object.
     setup_script_commands = [
-        f"conda activate openff-evaluator",
+        f"conda activate evaluator",
         f"module load cuda/10.1",
     ]
 

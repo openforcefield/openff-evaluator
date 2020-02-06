@@ -1,31 +1,31 @@
-.. |protocol|           replace:: :py:class:`~propertyestimator.workflow.Protocol`
-.. |protocol_schema|    replace:: :py:class:`~propertyestimator.workflow.schemas.ProtocolSchema`
-.. |protocol_graph|     replace:: :py:class:`~propertyestimator.workflow.ProtocolGraph`
-.. |protocol_path|      replace:: :py:class:`~propertyestimator.workflow.utils.ProtocolPath`
-.. |workflow|           replace:: :py:class:`~propertyestimator.workflow.Workflow`
-.. |workflow_schema|    replace:: :py:class:`~propertyestimator.workflow.schemas.WorkflowSchema`
-.. |workflow_graph|     replace:: :py:class:`~propertyestimator.workflow.WorkflowGraph`
-.. |workflow_result|    replace:: :py:class:`~propertyestimator.workflow.WorkflowResult`
+.. |protocol|           replace:: :py:class:`~evaluator.workflow.Protocol`
+.. |protocol_schema|    replace:: :py:class:`~evaluator.workflow.schemas.ProtocolSchema`
+.. |protocol_graph|     replace:: :py:class:`~evaluator.workflow.ProtocolGraph`
+.. |protocol_path|      replace:: :py:class:`~evaluator.workflow.utils.ProtocolPath`
+.. |workflow|           replace:: :py:class:`~evaluator.workflow.Workflow`
+.. |workflow_schema|    replace:: :py:class:`~evaluator.workflow.schemas.WorkflowSchema`
+.. |workflow_graph|     replace:: :py:class:`~evaluator.workflow.WorkflowGraph`
+.. |workflow_result|    replace:: :py:class:`~evaluator.workflow.WorkflowResult`
 
-.. |generate_default_metadata|    replace:: :py:meth:`~propertyestimator.workflow.Workflow.generate_default_metadata`
+.. |generate_default_metadata|    replace:: :py:meth:`~evaluator.workflow.Workflow.generate_default_metadata`
 
-.. |build_coordinates_packmol|    replace:: :py:class:`~propertyestimator.protocols.coordinates.BuildCoordinatesPackmol`
-.. |build_smirnoff_system|        replace:: :py:class:`~propertyestimator.protocols.forcefield.BuildSmirnoffSystem`
+.. |build_coordinates_packmol|    replace:: :py:class:`~evaluator.protocols.coordinates.BuildCoordinatesPackmol`
+.. |build_smirnoff_system|        replace:: :py:class:`~evaluator.protocols.forcefield.BuildSmirnoffSystem`
 
-.. |protocol_schemas|             replace:: :py:attr:`~propertyestimator.workflow.schemas.WorkflowSchema.protocol_schemas`
-.. |final_value_source|           replace:: :py:attr:`~propertyestimator.workflow.schemas.WorkflowSchema.final_value_source`
-.. |gradients_sources|            replace:: :py:attr:`~propertyestimator.workflow.schemas.WorkflowSchema.gradients_sources`
-.. |outputs_to_store|             replace:: :py:attr:`~propertyestimator.workflow.schemas.WorkflowSchema.outputs_to_store`
-.. |protocol_replicators|         replace:: :py:attr:`~propertyestimator.workflow.schemas.WorkflowSchema.protocol_replicators`
+.. |protocol_schemas|             replace:: :py:attr:`~evaluator.workflow.schemas.WorkflowSchema.protocol_schemas`
+.. |final_value_source|           replace:: :py:attr:`~evaluator.workflow.schemas.WorkflowSchema.final_value_source`
+.. |gradients_sources|            replace:: :py:attr:`~evaluator.workflow.schemas.WorkflowSchema.gradients_sources`
+.. |outputs_to_store|             replace:: :py:attr:`~evaluator.workflow.schemas.WorkflowSchema.outputs_to_store`
+.. |protocol_replicators|         replace:: :py:attr:`~evaluator.workflow.schemas.WorkflowSchema.protocol_replicators`
 
-.. |result_value|                 replace:: :py:attr:`~propertyestimator.workflow.WorkflowResult.value`
-.. |result_gradients|             replace:: :py:attr:`~propertyestimator.workflow.WorkflowResult.gradients`
-.. |result_data_to_store|         replace:: :py:attr:`~propertyestimator.workflow.WorkflowResult.data_to_store`
+.. |result_value|                 replace:: :py:attr:`~evaluator.workflow.WorkflowResult.value`
+.. |result_gradients|             replace:: :py:attr:`~evaluator.workflow.WorkflowResult.gradients`
+.. |result_data_to_store|         replace:: :py:attr:`~evaluator.workflow.WorkflowResult.data_to_store`
 
-.. |property_name|                replace:: :py:attr:`~propertyestimator.workflow.utils.ProtocolPath.property_name`
+.. |property_name|                replace:: :py:attr:`~evaluator.workflow.utils.ProtocolPath.property_name`
 
-.. |protocol_replicator|          replace:: :py:class:`~propertyestimator.workflow.schemas.ProtocolReplicator`
-.. |replicator_value|             replace:: :py:class:`~propertyestimator.workflow.utils.ReplicatorValue`
+.. |protocol_replicator|          replace:: :py:class:`~evaluator.workflow.schemas.ProtocolReplicator`
+.. |replicator_value|             replace:: :py:class:`~evaluator.workflow.utils.ReplicatorValue`
 
 Workflows
 =========

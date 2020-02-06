@@ -6,7 +6,7 @@ Documentation for each of the classes contained within the evaluator framework.
 Client Side API
 ---------------
 
-.. currentmodule:: propertyestimator.client
+.. currentmodule:: evaluator.client
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -19,7 +19,7 @@ Client Side API
 
 **Exceptions**
 
-.. currentmodule:: propertyestimator.utils.exceptions
+.. currentmodule:: evaluator.utils.exceptions
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -29,7 +29,7 @@ Client Side API
 Server Side API
 ---------------
 
-.. currentmodule:: propertyestimator.server
+.. currentmodule:: evaluator.server
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -40,7 +40,7 @@ Server Side API
 Physical Property API
 ---------------------
 
-.. currentmodule:: propertyestimator.datasets
+.. currentmodule:: evaluator.datasets
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -53,7 +53,7 @@ Physical Property API
 
 **Built-in Properties**
 
-.. currentmodule:: propertyestimator.properties
+.. currentmodule:: evaluator.properties
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -68,7 +68,7 @@ Physical Property API
 
 **Substance Definition**
 
-.. currentmodule:: propertyestimator.substances
+.. currentmodule:: evaluator.substances
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -81,7 +81,7 @@ Physical Property API
 
 **State Definition**
 
-.. currentmodule:: propertyestimator.thermodynamics
+.. currentmodule:: evaluator.thermodynamics
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -91,7 +91,7 @@ Physical Property API
 Data Set API
 ------------
 
-.. currentmodule:: propertyestimator.datasets
+.. currentmodule:: evaluator.datasets
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -100,7 +100,7 @@ Data Set API
 
 **NIST ThermoML Archive**
 
-.. currentmodule:: propertyestimator.datasets.thermoml
+.. currentmodule:: evaluator.datasets.thermoml
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -112,7 +112,7 @@ Data Set API
 Force Field API
 ---------------
 
-.. currentmodule:: propertyestimator.forcefield
+.. currentmodule:: evaluator.forcefield
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -124,7 +124,7 @@ Force Field API
 
 **Gradient Estimation**
 
-.. currentmodule:: propertyestimator.forcefield
+.. currentmodule:: evaluator.forcefield
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -135,7 +135,7 @@ Force Field API
 Calculation Layers API
 ----------------------
 
-.. currentmodule:: propertyestimator.layers
+.. currentmodule:: evaluator.layers
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -149,7 +149,7 @@ Calculation Layers API
 
 **Built-in Calculation Layers**
 
-.. currentmodule:: propertyestimator.layers.workflow
+.. currentmodule:: evaluator.layers.workflow
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -157,7 +157,7 @@ Calculation Layers API
     WorkflowCalculationLayer
     WorkflowCalculationSchema
 
-.. currentmodule:: propertyestimator.layers.simulation
+.. currentmodule:: evaluator.layers.simulation
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -165,7 +165,7 @@ Calculation Layers API
     SimulationLayer
     SimulationSchema
 
-.. currentmodule:: propertyestimator.layers.reweighting
+.. currentmodule:: evaluator.layers.reweighting
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -177,7 +177,7 @@ Calculation Layers API
 Calculation Backends API
 ------------------------
 
-.. currentmodule:: propertyestimator.backends
+.. currentmodule:: evaluator.backends
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -187,7 +187,7 @@ Calculation Backends API
 
 **Dask Backends**
 
-.. currentmodule:: propertyestimator.backends.dask
+.. currentmodule:: evaluator.backends.dask
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -202,7 +202,7 @@ Calculation Backends API
 Storage API
 -----------
 
-.. currentmodule:: propertyestimator.storage
+.. currentmodule:: evaluator.storage
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -211,7 +211,7 @@ Storage API
 
 **Built-in Storage Backends**
 
-.. currentmodule:: propertyestimator.storage
+.. currentmodule:: evaluator.storage
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -220,7 +220,7 @@ Storage API
 
 **Data Classes**
 
-.. currentmodule:: propertyestimator.storage.data
+.. currentmodule:: evaluator.storage.data
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -233,7 +233,7 @@ Storage API
 
 **Data Queries**
 
-.. currentmodule:: propertyestimator.storage.query
+.. currentmodule:: evaluator.storage.query
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -245,7 +245,7 @@ Storage API
 
 **Attributes**
 
-.. currentmodule:: propertyestimator.storage.attributes
+.. currentmodule:: evaluator.storage.attributes
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -258,7 +258,7 @@ Storage API
 Workflow API
 ------------
 
-.. currentmodule:: propertyestimator.workflow
+.. currentmodule:: evaluator.workflow
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -275,7 +275,7 @@ Workflow API
 
 **Schemas**
 
-.. currentmodule:: propertyestimator.workflow.schemas
+.. currentmodule:: evaluator.workflow.schemas
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -287,7 +287,7 @@ Workflow API
 
 **Attributes**
 
-.. currentmodule:: propertyestimator.workflow.attributes
+.. currentmodule:: evaluator.workflow.attributes
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -300,7 +300,7 @@ Workflow API
 
 *Placeholder Values*
 
-.. currentmodule:: propertyestimator.workflow.utils
+.. currentmodule:: evaluator.workflow.utils
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -313,7 +313,7 @@ Built-in Workflow Protocols
 
 **Analysis**
 
-.. currentmodule:: propertyestimator.protocols.analysis
+.. currentmodule:: evaluator.protocols.analysis
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -327,7 +327,7 @@ Built-in Workflow Protocols
 
 **Coordinate Generation**
 
-.. currentmodule:: propertyestimator.protocols.coordinates
+.. currentmodule:: evaluator.protocols.coordinates
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -338,7 +338,7 @@ Built-in Workflow Protocols
 
 **Force Field Assignment**
 
-.. currentmodule:: propertyestimator.protocols.forcefield
+.. currentmodule:: evaluator.protocols.forcefield
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -350,7 +350,7 @@ Built-in Workflow Protocols
 
 **Gradients**
 
-.. currentmodule:: propertyestimator.protocols.gradients
+.. currentmodule:: evaluator.protocols.gradients
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -360,7 +360,7 @@ Built-in Workflow Protocols
 
 **Groups**
 
-.. currentmodule:: propertyestimator.protocols.groups
+.. currentmodule:: evaluator.protocols.groups
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -369,7 +369,7 @@ Built-in Workflow Protocols
 
 **Miscellaneous**
 
-.. currentmodule:: propertyestimator.protocols.miscellaneous
+.. currentmodule:: evaluator.protocols.miscellaneous
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -383,7 +383,7 @@ Built-in Workflow Protocols
 
 **OpenMM**
 
-.. currentmodule:: propertyestimator.protocols.openmm
+.. currentmodule:: evaluator.protocols.openmm
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -395,7 +395,7 @@ Built-in Workflow Protocols
 
 **Reweighting**
 
-.. currentmodule:: propertyestimator.protocols.reweighting
+.. currentmodule:: evaluator.protocols.reweighting
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -408,7 +408,7 @@ Built-in Workflow Protocols
 
 **Simulation**
 
-.. currentmodule:: propertyestimator.protocols.simulation
+.. currentmodule:: evaluator.protocols.simulation
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -418,7 +418,7 @@ Built-in Workflow Protocols
 
 **Storage**
 
-.. currentmodule:: propertyestimator.protocols.storage
+.. currentmodule:: evaluator.protocols.storage
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -427,7 +427,7 @@ Built-in Workflow Protocols
 
 **YANK Free Energies**
 
-.. currentmodule:: propertyestimator.protocols.yank
+.. currentmodule:: evaluator.protocols.yank
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -439,7 +439,7 @@ Built-in Workflow Protocols
 Workflow Construction Utilities
 -------------------------------
 
-.. currentmodule:: propertyestimator.protocols.utils
+.. currentmodule:: evaluator.protocols.utils
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -453,7 +453,7 @@ Workflow Construction Utilities
 Attribute Utilities
 -------------------
 
-.. currentmodule:: propertyestimator.attributes
+.. currentmodule:: evaluator.attributes
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -468,7 +468,7 @@ Plug-in Utilities
 
 **Plug-ins**
 
-.. currentmodule:: propertyestimator.plugins
+.. currentmodule:: evaluator.plugins
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/

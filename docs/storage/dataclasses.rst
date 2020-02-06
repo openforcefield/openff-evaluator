@@ -1,26 +1,26 @@
-.. |storage_backend|           replace:: :py:class:`~propertyestimator.storage.StorageBackend`
+.. |storage_backend|           replace:: :py:class:`~evaluator.storage.StorageBackend`
 
-.. |base_stored_data|          replace:: :py:class:`~propertyestimator.storage.data.BaseStoredData`
-.. |base_data_query|           replace:: :py:class:`~propertyestimator.storage.query.BaseDataQuery`
-.. |hashable_stored_data|      replace:: :py:class:`~propertyestimator.storage.data.HashableStoredData`
-.. |replaceable_data|          replace:: :py:class:`~propertyestimator.storage.data.ReplaceableData`
+.. |base_stored_data|          replace:: :py:class:`~evaluator.storage.data.BaseStoredData`
+.. |base_data_query|           replace:: :py:class:`~evaluator.storage.query.BaseDataQuery`
+.. |hashable_stored_data|      replace:: :py:class:`~evaluator.storage.data.HashableStoredData`
+.. |replaceable_data|          replace:: :py:class:`~evaluator.storage.data.ReplaceableData`
 
-.. |force_field_data|          replace:: :py:class:`~propertyestimator.storage.data.ForceFieldData`
-.. |force_field_query|         replace:: :py:class:`~propertyestimator.storage.query.ForceFieldQuery`
+.. |force_field_data|          replace:: :py:class:`~evaluator.storage.data.ForceFieldData`
+.. |force_field_query|         replace:: :py:class:`~evaluator.storage.query.ForceFieldQuery`
 
-.. |stored_simulation_data|    replace:: :py:class:`~propertyestimator.storage.data.StoredSimulationData`
-.. |simulation_data_query|     replace:: :py:class:`~propertyestimator.storage.query.SimulationDataQuery`
-.. |substance_query|           replace:: :py:class:`~propertyestimator.storage.query.SubstanceQuery`
+.. |stored_simulation_data|    replace:: :py:class:`~evaluator.storage.data.StoredSimulationData`
+.. |simulation_data_query|     replace:: :py:class:`~evaluator.storage.query.SimulationDataQuery`
+.. |substance_query|           replace:: :py:class:`~evaluator.storage.query.SubstanceQuery`
 
-.. |property_phase|            replace:: :py:class:`~propertyestimator.datasets.PropertyPhase`
-.. |substance|                 replace:: :py:class:`~propertyestimator.substances.Substance`
-.. |thermodynamic_state|       replace:: :py:class:`~propertyestimator.thermodynamics.ThermodynamicState`
-.. |force_field_source|        replace:: :py:class:`~propertyestimator.forcefield.ForceFieldSource`
+.. |property_phase|            replace:: :py:class:`~evaluator.datasets.PropertyPhase`
+.. |substance|                 replace:: :py:class:`~evaluator.substances.Substance`
+.. |thermodynamic_state|       replace:: :py:class:`~evaluator.thermodynamics.ThermodynamicState`
+.. |force_field_source|        replace:: :py:class:`~evaluator.forcefield.ForceFieldSource`
 
-.. |to_storage_query|          replace:: :py:meth:`~propertyestimator.storage.data.BaseStoredData.to_storage_query`
+.. |to_storage_query|          replace:: :py:meth:`~evaluator.storage.data.BaseStoredData.to_storage_query`
 
-.. |substance_query_attr|      replace:: :py:attr:`~propertyestimator.storage.query.SimulationDataQuery.substance_query`
-.. |components_only|           replace:: :py:attr:`~propertyestimator.storage.query.SubstanceQuery.components_only`
+.. |substance_query_attr|      replace:: :py:attr:`~evaluator.storage.query.SimulationDataQuery.substance_query`
+.. |components_only|           replace:: :py:attr:`~evaluator.storage.query.SubstanceQuery.components_only`
 
 Data Classes and Queries
 ========================

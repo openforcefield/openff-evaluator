@@ -1,5 +1,5 @@
-.. |workflow|           replace:: :py:class:`~propertyestimator.workflow.Workflow`
-.. |workflow_graph|     replace:: :py:class:`~propertyestimator.workflow.WorkflowGraph`
+.. |workflow|           replace:: :py:class:`~evaluator.workflow.Workflow`
+.. |workflow_graph|     replace:: :py:class:`~evaluator.workflow.WorkflowGraph`
 
 Workflow Graphs
 ===============

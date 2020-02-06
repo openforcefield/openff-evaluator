@@ -1,11 +1,11 @@
-.. |storage_backend|     replace:: :py:class:`~propertyestimator.storage.StorageBackend`
-.. |base_stored_data|    replace:: :py:class:`~propertyestimator.storage.data.BaseStoredData`
-.. |base_data_query|     replace:: :py:class:`~propertyestimator.storage.query.BaseDataQuery`
-.. |substance|           replace:: :py:class:`~propertyestimator.substances.Substance`
+.. |storage_backend|     replace:: :py:class:`~evaluator.storage.StorageBackend`
+.. |base_stored_data|    replace:: :py:class:`~evaluator.storage.data.BaseStoredData`
+.. |base_data_query|     replace:: :py:class:`~evaluator.storage.query.BaseDataQuery`
+.. |substance|           replace:: :py:class:`~evaluator.substances.Substance`
 
-.. |_store_object|       replace:: :py:meth:`~propertyestimator.storage.StorageBackend._store_object`
-.. |_retrieve_object|    replace:: :py:meth:`~propertyestimator.storage.StorageBackend._retrieve_object`
-.. |_object_exists|      replace:: :py:meth:`~propertyestimator.storage.StorageBackend._object_exists`
+.. |_store_object|       replace:: :py:meth:`~evaluator.storage.StorageBackend._store_object`
+.. |_retrieve_object|    replace:: :py:meth:`~evaluator.storage.StorageBackend._retrieve_object`
+.. |_object_exists|      replace:: :py:meth:`~evaluator.storage.StorageBackend._object_exists`
 
 
 

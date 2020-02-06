@@ -154,7 +154,7 @@ html_context = {
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'propertyestimatordoc'
+htmlhelp_basename = 'evaluatordoc'
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -181,8 +181,8 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'propertyestimator.tex', 'propertyestimator Documentation',
-     'propertyestimator', 'manual'),
+    (master_doc, 'evaluator.tex', 'OpenFF Evaluator Documentation',
+     'openff-evaluator', 'manual'),
 ]
 
 
@@ -191,7 +191,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'propertyestimator', 'propertyestimator Documentation',
+    (master_doc, 'openff-evaluator', 'OpenFF Evaluator Documentation',
      [author], 1)
 ]
 
@@ -202,8 +202,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'propertyestimator', 'propertyestimator Documentation',
-     author, 'propertyestimator', 'Property calculation toolkit from the Open Forcefield Consortium.',
+    (master_doc, 'openff-evaluator', 'OpenFF Evaluator Documentation',
+     author, 'openff-evaluator', 'A physical property evaulation toolkit from the Open Forcefield Consortium.',
      'Miscellaneous'),
 ]
 

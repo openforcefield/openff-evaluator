@@ -1,7 +1,7 @@
 Release Process
 ===============
 
-This document aims to outline the steps needed to release the ``propertyestimator`` on ``omnia``. This
+This document aims to outline the steps needed to release the ``evaluator`` on ``omnia``. This
 should only be done with the approval of the core maintainers.
 
 1. Update the Release History
@@ -63,7 +63,7 @@ To cut a new release on GitHub:
     See our [installation instructions](https://property-estimator.readthedocs.io/en/latest/install.html).
 
     Please report bugs, request features, or ask questions through our
-    [issue tracker](https://github.com/openforcefield/propertyestimator/issues).
+    [issue tracker](https://github.com/openforcefield/openff-evaluator/issues).
 
     **Please note that this is a pre-alpha release and there will still be major changes to the API
     prior to a stable 1.0.0 release.**
@@ -75,8 +75,8 @@ To cut a new release on GitHub:
 
 To trigger the build in ``omnia``:
 
-1) Create branch or fork of omnia-md/conda-recipes with the following changes to propertyestimator in
-`meta.yaml <https://github.com/omnia-md/conda-recipes/blob/master/propertyestimator/meta.yaml>`_:
+1) Create branch or fork of omnia-md/conda-recipes with the following changes to evaluator in
+`meta.yaml <https://github.com/omnia-md/conda-recipes/blob/master/openff-evaluator/meta.yaml>`_:
 
   a) Set ``git_tag`` to match the git release tag
   b) Update the ``version`` to match the release (this will go into the conda package name)
@@ -86,7 +86,7 @@ To trigger the build in ``omnia``:
 
 2) Open PR to merge branch or fork into omnia-md master:
 
-  a) The PR title should have the format ``[propertyestimator] X.Y.Z (label: rc)``
+  a) The PR title should have the format ``[openff-evaluator] X.Y.Z (label: rc)``
   b) No PR body text is needed
   c) Travis will run on this PR (~30 minutes) and attempt to build the package. Under no conditions will the package
      be uploaded before the PR is merged. This step is just to ensure that building doesn't crash.
@@ -96,11 +96,11 @@ To trigger the build in ``omnia``:
 
 3) Test the ``omnia`` package:
 
-  a) ``conda install -c omnia/label/rc propertyestimator``
+  a) ``conda install -c omnia openff-evaluator``
 
 *Note: Omnia builds take about 30 minutes to run. When you open a PR the build will run, and you can check the bottom
 of the travis logs for "package failed to build" listings. Some packages always fail (protons, assaytools), but
-propertyestimator shouldn't be there. Ctrl-F for ``propertyestimator`` to ensure that it did build at all though.*
+``openff-evaluator`` shouldn't be there. Ctrl-F for ``openff-evaluator`` to ensure that it did build at all though.*
 
 4: Update the ReadTheDocs Build Versions
 --------------------------------------------
