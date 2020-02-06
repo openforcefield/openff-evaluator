@@ -19,6 +19,6 @@
 conda activate evaluator
 module load cuda/10.1
 
-rm -rf all && mkdir all && cd all
+rm -rf pure_binary && mkdir pure_binary && cd pure_binary
 cp ../pure_data_set.json . && cp ../binary_data_set.json .
-python ../all_properties.py &> all_properties_console_output.log
+python ../pure_binary.py &> pure_binary.log
