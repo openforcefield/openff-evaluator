@@ -2,6 +2,12 @@ name: tests
 
 on:
   push:
+    paths:
+      - 'evaluator/**'
+      - '.github/**'
+      - 'devtools/**'
+      - 'oe_license.txt.gpg'
+      - 'setup.py'
   schedule:
     - cron: '0 0 * * *'
 
@@ -97,33 +103,3 @@ jobs:
           conda activate test
 
           codecov --token=${{ secrets.CODECOV_TOKEN }}
-
-  lint:
-
-    runs-on: ubuntu-latest
-
-    steps:
-
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v1
-        with:
-          python-version: '3.7'
-      - name: Install the package
-        run: |
-          python setup.py develop --no-deps
-
-      - name: Install isort / flake8 / black
-        run: |
-          pip install isort flake8 black
-
-      - name: Run isort
-        run: |
-          isort --recursive --check-only evaluator
-
-      - name: Run black
-        run: |
-          black evaluator --check
-
-      - name: Run flake8
-        run: |
-          flake8 evaluator
