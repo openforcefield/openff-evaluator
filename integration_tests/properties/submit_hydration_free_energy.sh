@@ -9,7 +9,8 @@
 #BSUB -e  %J.e
 #
 # Set any gpu options.
-#BSUB -q cpuqueue
+#BSUB -q gpuqueue
+#BSUB -gpu num=1:j_exclusive=yes:mode=shared:mps=no:
 
 # Enable conda
 . ~/.bashrc
@@ -18,6 +19,6 @@
 conda activate evaluator
 module load cuda/10.1
 
-rm -rf solvation_free_energies && mkdir solvation_free_energies && cd solvation_free_energies
-cp ../pure_data_set.json . && cp ../binary_data_set.json .
-python ../solvation_free_energies.py &> g_solv_console_output.log
+rm -rf hydration_free_energy && mkdir hydration_free_energy && cd hydration_free_energy
+cp ../hydration_data_set.json .
+python ../hydration_free_energy.py &> hydration_free_energy.log
