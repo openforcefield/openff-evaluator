@@ -9,6 +9,7 @@ from enum import Enum, IntEnum, IntFlag
 
 import pint
 
+from evaluator import unit
 from evaluator.attributes.typing import is_instance_of_type, is_supported_type
 from evaluator.utils.serialization import TypedBaseModel
 
@@ -187,6 +188,8 @@ class AttributeClass(TypedBaseModel):
 
     def __setstate__(self, state):
 
+        import pint
+
         attribute_names = self.get_attributes()
 
         for name in attribute_names:
@@ -201,6 +204,22 @@ class AttributeClass(TypedBaseModel):
 
             elif attribute.optional and name not in state:
                 state[name] = UNDEFINED
+
+            if isinstance(state[name], pint.Measurement) and not isinstance(
+                state[name], unit.Measurement
+            ):
+
+                state[name] = unit.Measurement.__new__(
+                    unit.Measurement, state[name].value, state[name].error
+                )
+
+            elif isinstance(state[name], pint.Quantity) and not isinstance(
+                state[name], unit.Quantity
+            ):
+
+                state[name] = unit.Quantity.__new__(
+                    unit.Quantity, state[name].magnitude, state[name].units
+                )
 
             self._set_value(name, state[name])
 
