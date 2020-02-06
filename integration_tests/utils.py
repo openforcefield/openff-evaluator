@@ -1,7 +1,7 @@
 from enum import Enum
 
-from propertyestimator import server, unit
-from propertyestimator.backends import (
+from evaluator import server, unit
+from evaluator.backends import (
     ComputeResources,
     DaskLocalCluster,
     DaskLSFBackend,
@@ -19,7 +19,7 @@ class BackendType(Enum):
 def setup_server(
     backend_type=BackendType.LocalCPU,
     max_number_of_workers=1,
-    conda_environment="propertyestimator",
+    conda_environment="evaluator",
     worker_memory=4 * unit.gigabyte,
     port=8000,
     cuda_version="10.1",
@@ -35,7 +35,7 @@ def setup_server(
         The maximum number of workers to adaptively insert into
         the queuing system.
     conda_environment: str
-        The name of the conda environment in which the propertyestimator
+        The name of the conda environment in which the evaluator
         package is installed.
     worker_memory: pint.Quantity
         The maximum amount of memory to request per worker.

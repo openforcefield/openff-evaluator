@@ -1,9 +1,9 @@
-.. |calculation_backend|    replace:: :py:class:`~propertyestimator.backends.CalculationBackend`
-.. |compute_resources|      replace:: :py:class:`~propertyestimator.backends.ComputeResources`
+.. |calculation_backend|    replace:: :py:class:`~evaluator.backends.CalculationBackend`
+.. |compute_resources|      replace:: :py:class:`~evaluator.backends.ComputeResources`
 
-.. |start|                  replace:: :py:meth:`~propertyestimator.backends.CalculationBackend.start`
-.. |stop|                   replace:: :py:meth:`~propertyestimator.backends.CalculationBackend.stop`
-.. |submit_task|            replace:: :py:meth:`~propertyestimator.backends.CalculationBackend.submit_task`
+.. |start|                  replace:: :py:meth:`~evaluator.backends.CalculationBackend.start`
+.. |stop|                   replace:: :py:meth:`~evaluator.backends.CalculationBackend.stop`
+.. |submit_task|            replace:: :py:meth:`~evaluator.backends.CalculationBackend.submit_task`
 
 submit_task
 

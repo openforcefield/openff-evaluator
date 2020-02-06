@@ -1,9 +1,9 @@
 from integration_tests.utils import BackendType, setup_server
-from propertyestimator.client import ConnectionOptions, EvaluatorClient, RequestOptions
-from propertyestimator.datasets import PhysicalPropertyDataSet
-from propertyestimator.forcefield import SmirnoffForceFieldSource
-from propertyestimator.properties.solvation import SolvationFreeEnergy
-from propertyestimator.utils import setup_timestamp_logging
+from evaluator.client import ConnectionOptions, EvaluatorClient, RequestOptions
+from evaluator.datasets import PhysicalPropertyDataSet
+from evaluator.forcefield import SmirnoffForceFieldSource
+from evaluator.properties.solvation import SolvationFreeEnergy
+from evaluator.utils import setup_timestamp_logging
 
 
 def _get_fixed_lambda_schema():

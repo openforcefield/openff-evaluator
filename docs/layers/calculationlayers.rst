@@ -1,17 +1,17 @@
-.. |calculation_layer_result|    replace:: :py:class:`~propertyestimator.layers.CalculationLayerResult`
-.. |calculation_layer|           replace:: :py:class:`~propertyestimator.layers.CalculationLayer`
-.. |calculation_layer_schema|    replace:: :py:class:`~propertyestimator.layers.CalculationLayerSchema`
-.. |layer_decorator|             replace:: :py:meth:`~propertyestimator.layers.calculation_layer`
+.. |calculation_layer_result|    replace:: :py:class:`~evaluator.layers.CalculationLayerResult`
+.. |calculation_layer|           replace:: :py:class:`~evaluator.layers.CalculationLayer`
+.. |calculation_layer_schema|    replace:: :py:class:`~evaluator.layers.CalculationLayerSchema`
+.. |layer_decorator|             replace:: :py:meth:`~evaluator.layers.calculation_layer`
 
-.. |evaluator_exception|         replace:: :py:class:`~propertyestimator.utils.exceptions.EvaluatorException`
-.. |undefined|                   replace:: :py:class:`~propertyestimator.attributes.UNDEFINED`
+.. |evaluator_exception|         replace:: :py:class:`~evaluator.utils.exceptions.EvaluatorException`
+.. |undefined|                   replace:: :py:class:`~evaluator.attributes.UNDEFINED`
 
-.. |batch|                       replace:: :py:class:`~propertyestimator.server.Batch`
+.. |batch|                       replace:: :py:class:`~evaluator.server.Batch`
 
-.. |_schedule_calculation|       replace:: :py:meth:`~propertyestimator.layers.CalculationLayer._schedule_calculation`
+.. |_schedule_calculation|       replace:: :py:meth:`~evaluator.layers.CalculationLayer._schedule_calculation`
 
-.. |register_calculation_schema|       replace:: :py:meth:`~propertyestimator.layers.register_calculation_schema`
-.. |registered_calculation_schemas|    replace:: :py:attr:`~propertyestimator.layers.registered_calculation_schemas`
+.. |register_calculation_schema|       replace:: :py:meth:`~evaluator.layers.register_calculation_schema`
+.. |registered_calculation_schemas|    replace:: :py:attr:`~evaluator.layers.registered_calculation_schemas`
 
 Calculation Layers
 ==================

@@ -1,6 +1,6 @@
 """
-propertyestimator
-Property calculation toolkit from the Open Forcefield Consortium.
+openff-evaluator
+A physical property evaulation toolkit from the Open Forcefield Consortium.
 """
 from setuptools import setup, find_packages
 import versioneer
@@ -16,7 +16,7 @@ except IOError:
 
 setup(
     # Self-descriptive entries which should always be present
-    name='propertyestimator',
+    name='openff-evaluator',
     author='Open Force Field Consortium',
     author_email='john.chodera@choderalab.org',
     description=short_description[0],

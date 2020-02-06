@@ -12,10 +12,10 @@ to build a local version such as when
 
 In these cases, the docs can be built locally by doing the following::
 
-    git clone https://github.com/openforcefield/propertyestimator.git
-    cd propertyestimator/docs
-    conda env create --name propertyestimator-docs --file environment.yaml
-    conda activate propertyestimator-docs
+    git clone https://github.com/openforcefield/openff-evaluator.git
+    cd openff-evaluator/docs
+    conda env create --name openff-evaluator-docs --file environment.yaml
+    conda activate openff-evaluator-docs
     rm -rf api && make clean && make html
 
 The above will yield a new directory named `_build` which will contain the built

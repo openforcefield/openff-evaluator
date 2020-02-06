@@ -2,9 +2,9 @@
 import argparse
 import logging
 
-from propertyestimator.backends import ComputeResources, DaskLocalCluster
-from propertyestimator.server import EvaluatorServer
-from propertyestimator.utils import setup_timestamp_logging
+from evaluator.backends import ComputeResources, DaskLocalCluster
+from evaluator.server import EvaluatorServer
+from evaluator.utils import setup_timestamp_logging
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +84,7 @@ def main(n_workers, cpus_per_worker, gpus_per_worker):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
-        description="Start a PropertyEstimatorServer with a "
+        description="Start an EvaluatorServer with a "
         "specified number of workers, each with "
         "access to the specified compute resources.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,

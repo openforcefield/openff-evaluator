@@ -1,7 +1,7 @@
-.. |evaluator_server|      replace:: :py:class:`~propertyestimator.server.EvaluatorServer`
-.. |batch|                 replace:: :py:class:`~propertyestimator.server.Batch`
+.. |evaluator_server|      replace:: :py:class:`~evaluator.server.EvaluatorServer`
+.. |batch|                 replace:: :py:class:`~evaluator.server.Batch`
 
-.. |local_file_storage|    replace:: :py:class:`~propertyestimator.storage.LocalFileStorage`
+.. |local_file_storage|    replace:: :py:class:`~evaluator.storage.LocalFileStorage`
 
 Evaluator Server
 ================

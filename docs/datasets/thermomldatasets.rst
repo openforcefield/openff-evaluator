@@ -1,14 +1,14 @@
-.. |register_thermoml_property|    replace:: :py:meth:`~propertyestimator.datasets.thermoml.register_thermoml_property`
-.. |thermoml_property|             replace:: :py:meth:`~propertyestimator.datasets.thermoml.thermoml_property`
-.. |thermoml_data_set|             replace:: :py:class:`~propertyestimator.datasets.thermoml.ThermoMLDataSet`
+.. |register_thermoml_property|    replace:: :py:meth:`~evaluator.datasets.thermoml.register_thermoml_property`
+.. |thermoml_property|             replace:: :py:meth:`~evaluator.datasets.thermoml.thermoml_property`
+.. |thermoml_data_set|             replace:: :py:class:`~evaluator.datasets.thermoml.ThermoMLDataSet`
 
-.. |physical_property|             replace:: :py:class:`~propertyestimator.datasets.PhysicalProperty`
+.. |physical_property|             replace:: :py:class:`~evaluator.datasets.PhysicalProperty`
 
-.. |density|                       replace:: :py:class:`~propertyestimator.properties.Density`
-.. |dielectric_constant|           replace:: :py:class:`~propertyestimator.properties.DielectricConstant`
-.. |enthalpy_of_mixing|            replace:: :py:class:`~propertyestimator.properties.EnthalpyOfMixing`
-.. |enthalpy_of_vaporization|      replace:: :py:class:`~propertyestimator.properties.EnthalpyOfVaporization`
-.. |excess_molar_volume|           replace:: :py:class:`~propertyestimator.properties.ExcessMolarVolume`
+.. |density|                       replace:: :py:class:`~evaluator.properties.Density`
+.. |dielectric_constant|           replace:: :py:class:`~evaluator.properties.DielectricConstant`
+.. |enthalpy_of_mixing|            replace:: :py:class:`~evaluator.properties.EnthalpyOfMixing`
+.. |enthalpy_of_vaporization|      replace:: :py:class:`~evaluator.properties.EnthalpyOfVaporization`
+.. |excess_molar_volume|           replace:: :py:class:`~evaluator.properties.ExcessMolarVolume`
 
 ThermoML Data Sets
 ==================
@@ -21,7 +21,7 @@ The API only supports extracting those properties which have been :ref:`register
 with the frameworks plug-in system, and does not currently load the full set of metadata available in the archive files.
 
 .. note:: If the metadata you require is not currently exposed, please open an issue on the `GitHub issue tracker
-   <https://github.com/openforcefield/propertyestimator/issues>`_ to request it.
+   <https://github.com/openforcefield/evaluator/issues>`_ to request it.
 
 Currently the framework has built-in support for extracting:
 
@@ -132,7 +132,7 @@ from the International Journal of Thermophysics::
     file_names = glob.glob("ijt_files/*.xml")
 
     # Create the data set object
-    from propertyestimator.datasets.thermoml import ThermoMLDataSet
+    from evaluator.datasets.thermoml import ThermoMLDataSet
     data_set = ThermoMLDataSet.from_file(*file_names)
 
     # Save the data set to a JSON object

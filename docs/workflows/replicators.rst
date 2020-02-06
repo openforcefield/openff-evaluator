@@ -1,37 +1,37 @@
-.. |protocol|           replace:: :py:class:`~propertyestimator.workflow.Protocol`
-.. |protocol_schema|    replace:: :py:class:`~propertyestimator.workflow.schemas.ProtocolSchema`
-.. |protocol_graph|     replace:: :py:class:`~propertyestimator.workflow.ProtocolGraph`
-.. |protocol_path|      replace:: :py:class:`~propertyestimator.workflow.utils.ProtocolPath`
-.. |workflow|           replace:: :py:class:`~propertyestimator.workflow.Workflow`
-.. |workflow_schema|    replace:: :py:class:`~propertyestimator.workflow.schemas.WorkflowSchema`
-.. |workflow_graph|     replace:: :py:class:`~propertyestimator.workflow.WorkflowGraph`
-.. |workflow_result|    replace:: :py:class:`~propertyestimator.workflow.WorkflowResult`
+.. |protocol|           replace:: :py:class:`~evaluator.workflow.Protocol`
+.. |protocol_schema|    replace:: :py:class:`~evaluator.workflow.schemas.ProtocolSchema`
+.. |protocol_graph|     replace:: :py:class:`~evaluator.workflow.ProtocolGraph`
+.. |protocol_path|      replace:: :py:class:`~evaluator.workflow.utils.ProtocolPath`
+.. |workflow|           replace:: :py:class:`~evaluator.workflow.Workflow`
+.. |workflow_schema|    replace:: :py:class:`~evaluator.workflow.schemas.WorkflowSchema`
+.. |workflow_graph|     replace:: :py:class:`~evaluator.workflow.WorkflowGraph`
+.. |workflow_result|    replace:: :py:class:`~evaluator.workflow.WorkflowResult`
 
-.. |generate_default_metadata|    replace:: :py:meth:`~propertyestimator.workflow.Workflow.generate_default_metadata`
+.. |generate_default_metadata|    replace:: :py:meth:`~evaluator.workflow.Workflow.generate_default_metadata`
 
-.. |substance|                    replace:: :py:class:`~propertyestimator.substances.Substance`
-.. |thermodynamic_state|          replace:: :py:class:`~propertyestimator.thermodynamics.ThermodynamicState`
+.. |substance|                    replace:: :py:class:`~evaluator.substances.Substance`
+.. |thermodynamic_state|          replace:: :py:class:`~evaluator.thermodynamics.ThermodynamicState`
 
-.. |parameter_gradient_key|       replace:: :py:class:`~propertyestimator.forcefield.ParameterGradientKey`
+.. |parameter_gradient_key|       replace:: :py:class:`~evaluator.forcefield.ParameterGradientKey`
 
-.. |build_coordinates_packmol|    replace:: :py:class:`~propertyestimator.protocols.coordinates.BuildCoordinatesPackmol`
-.. |build_smirnoff_system|        replace:: :py:class:`~propertyestimator.protocols.forcefield.BuildSmirnoffSystem`
+.. |build_coordinates_packmol|    replace:: :py:class:`~evaluator.protocols.coordinates.BuildCoordinatesPackmol`
+.. |build_smirnoff_system|        replace:: :py:class:`~evaluator.protocols.forcefield.BuildSmirnoffSystem`
 
-.. |protocol_schemas|             replace:: :py:attr:`~propertyestimator.workflow.schemas.WorkflowSchema.protocol_schemas`
-.. |final_value_source|           replace:: :py:attr:`~propertyestimator.workflow.schemas.WorkflowSchema.final_value_source`
-.. |gradients_sources|            replace:: :py:attr:`~propertyestimator.workflow.schemas.WorkflowSchema.gradients_sources`
-.. |outputs_to_store|             replace:: :py:attr:`~propertyestimator.workflow.schemas.WorkflowSchema.outputs_to_store`
-.. |protocol_replicators|         replace:: :py:attr:`~propertyestimator.workflow.schemas.WorkflowSchema.protocol_replicators`
+.. |protocol_schemas|             replace:: :py:attr:`~evaluator.workflow.schemas.WorkflowSchema.protocol_schemas`
+.. |final_value_source|           replace:: :py:attr:`~evaluator.workflow.schemas.WorkflowSchema.final_value_source`
+.. |gradients_sources|            replace:: :py:attr:`~evaluator.workflow.schemas.WorkflowSchema.gradients_sources`
+.. |outputs_to_store|             replace:: :py:attr:`~evaluator.workflow.schemas.WorkflowSchema.outputs_to_store`
+.. |protocol_replicators|         replace:: :py:attr:`~evaluator.workflow.schemas.WorkflowSchema.protocol_replicators`
 
-.. |result_value|                 replace:: :py:attr:`~propertyestimator.workflow.WorkflowResult.value`
-.. |result_gradients|             replace:: :py:attr:`~propertyestimator.workflow.WorkflowResult.gradients`
-.. |result_data_to_store|         replace:: :py:attr:`~propertyestimator.workflow.WorkflowResult.data_to_store`
+.. |result_value|                 replace:: :py:attr:`~evaluator.workflow.WorkflowResult.value`
+.. |result_gradients|             replace:: :py:attr:`~evaluator.workflow.WorkflowResult.gradients`
+.. |result_data_to_store|         replace:: :py:attr:`~evaluator.workflow.WorkflowResult.data_to_store`
 
-.. |property_name|                replace:: :py:attr:`~propertyestimator.workflow.utils.ProtocolPath.property_name`
+.. |property_name|                replace:: :py:attr:`~evaluator.workflow.utils.ProtocolPath.property_name`
 
-.. |protocol_replicator|          replace:: :py:class:`~propertyestimator.workflow.schemas.ProtocolReplicator`
-.. |replicator_value|             replace:: :py:class:`~propertyestimator.workflow.utils.ReplicatorValue`
-.. |placeholder_id|               replace:: :py:attr:`~propertyestimator.workflow.schemas.ProtocolReplicator.placeholder_id`
+.. |protocol_replicator|          replace:: :py:class:`~evaluator.workflow.schemas.ProtocolReplicator`
+.. |replicator_value|             replace:: :py:class:`~evaluator.workflow.utils.ReplicatorValue`
+.. |placeholder_id|               replace:: :py:attr:`~evaluator.workflow.schemas.ProtocolReplicator.placeholder_id`
 
 .. |quantity|                     replace:: :py:class:`~pint.Quantity`
 
@@ -77,24 +77,24 @@ contents of this schema can be easily inspected by printing its JSON representat
 .. code-block:: json
 
     {
-        "@type": "propertyestimator.workflow.schemas.WorkflowSchema",
+        "@type": "evaluator.workflow.schemas.WorkflowSchema",
         "protocol_replicators": [
             {
-                "@type": "propertyestimator.workflow.schemas.ProtocolReplicator",
+                "@type": "evaluator.workflow.schemas.ProtocolReplicator",
                 "id": "component_replicator",
                 "template_values": {
-                    "@type": "propertyestimator.workflow.utils.ProtocolPath",
+                    "@type": "evaluator.workflow.utils.ProtocolPath",
                     "full_path": "global.substance.components"
                 }
             }
         ],
         "protocol_schemas": [
             {
-                "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+                "@type": "evaluator.workflow.schemas.ProtocolSchema",
                 "id": "build_coords_$(component_replicator)",
                 "inputs": {
                     ".substance": {
-                        "@type": "propertyestimator.workflow.utils.ReplicatorValue",
+                        "@type": "evaluator.workflow.utils.ReplicatorValue",
                         "replicator_id": "component_replicator"
                     }
                 },
@@ -120,25 +120,25 @@ component in the substance passed as metadata:
 .. code-block:: json
 
     {
-        "@type": "propertyestimator.workflow.schemas.WorkflowSchema",
+        "@type": "evaluator.workflow.schemas.WorkflowSchema",
         "protocol_schemas": [
             {
-                "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+                "@type": "evaluator.workflow.schemas.ProtocolSchema",
                 "id": "build_coords_0",
                 "inputs": {
                     ".substance": {
-                        "@type": "propertyestimator.substances.components.Component",
+                        "@type": "evaluator.substances.components.Component",
                         "smiles": "O"
                     }
                 },
                 "type": "BuildCoordinatesPackmol"
             },
             {
-                "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+                "@type": "evaluator.workflow.schemas.ProtocolSchema",
                 "id": "build_coords_1",
                 "inputs": {
                     ".substance": {
-                        "@type": "propertyestimator.substances.components.Component",
+                        "@type": "evaluator.substances.components.Component",
                         "smiles": "CO"
                     }
                 },
@@ -210,27 +210,27 @@ as an index into the ``n_mols`` array. This results in the following schema as d
 .. code-block:: json
 
     {
-        "@type": "propertyestimator.workflow.schemas.WorkflowSchema",
+        "@type": "evaluator.workflow.schemas.WorkflowSchema",
         "protocol_schemas": [
             {
-                "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+                "@type": "evaluator.workflow.schemas.ProtocolSchema",
                 "id": "build_coordinates_0_0",
                 "inputs": {
                     ".max_molecules": 1000,
                     ".substance": {
-                        "@type": "propertyestimator.substances.components.Component",
+                        "@type": "evaluator.substances.components.Component",
                         "smiles": "O"
                     }
                 },
                 "type": "BuildCoordinatesPackmol"
             },
             {
-                "@type": "propertyestimator.workflow.schemas.ProtocolSchema",
+                "@type": "evaluator.workflow.schemas.ProtocolSchema",
                 "id": "build_coordinates_1_0",
                 "inputs": {
                     ".max_molecules": 500,
                     ".substance": {
-                        "@type": "propertyestimator.substances.components.Component",
+                        "@type": "evaluator.substances.components.Component",
                         "smiles": "CO"
                     }
                 },

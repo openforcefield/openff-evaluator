@@ -1,4 +1,4 @@
-name: propertyestimator
+name: evaluator
 channels:
     - conda-forge
     - omnia

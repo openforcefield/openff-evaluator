@@ -88,7 +88,7 @@ jobs:
           . devtools/scripts/initialize_conda.sh
           conda activate test
 
-          pytest -v --cov=propertyestimator propertyestimator/tests/
+          pytest -v --cov=evaluator evaluator/tests/
 
       - name: Code coverage
         run: |
@@ -118,12 +118,12 @@ jobs:
 
       - name: Run isort
         run: |
-          isort --recursive --check-only propertyestimator
+          isort --recursive --check-only evaluator
 
       - name: Run black
         run: |
-          black propertyestimator --check
+          black evaluator --check
 
       - name: Run flake8
         run: |
-          flake8 propertyestimator
+          flake8 evaluator

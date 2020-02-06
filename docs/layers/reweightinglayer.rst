@@ -1,13 +1,13 @@
-.. |reweighting_layer|              replace:: :py:class:`~propertyestimator.layers.reweighting.ReweightingLayer`
-.. |reweighting_schema|             replace:: :py:class:`~propertyestimator.layers.reweighting.ReweightingSchema`
-.. |workflow_calculation_layer|     replace:: :py:class:`~propertyestimator.layers.workflow.WorkflowCalculationLayer`
-.. |workflow_calculation_schema|    replace:: :py:class:`~propertyestimator.layers.workflow.WorkflowCalculationSchema`
+.. |reweighting_layer|              replace:: :py:class:`~evaluator.layers.reweighting.ReweightingLayer`
+.. |reweighting_schema|             replace:: :py:class:`~evaluator.layers.reweighting.ReweightingSchema`
+.. |workflow_calculation_layer|     replace:: :py:class:`~evaluator.layers.workflow.WorkflowCalculationLayer`
+.. |workflow_calculation_schema|    replace:: :py:class:`~evaluator.layers.workflow.WorkflowCalculationSchema`
 
-.. |storage_queries|                replace:: :py:attr:`~propertyestimator.layers.reweighting.ReweightingSchema.storage_queries`
-.. |simulation_data_query|          replace:: :py:class:`~propertyestimator.storage.query.SimulationDataQuery`
-.. |substance_attr|                 replace:: :py:attr:`~propertyestimator.storage.query.SimulationDataQuery.substance`
+.. |storage_queries|                replace:: :py:attr:`~evaluator.layers.reweighting.ReweightingSchema.storage_queries`
+.. |simulation_data_query|          replace:: :py:class:`~evaluator.storage.query.SimulationDataQuery`
+.. |substance_attr|                 replace:: :py:attr:`~evaluator.storage.query.SimulationDataQuery.substance`
 
-.. |placeholder_value|              replace:: :py:class:`~propertyestimator.attributes.PlaceholderValue`
+.. |placeholder_value|              replace:: :py:class:`~evaluator.attributes.PlaceholderValue`
 
 The MBAR Reweighting Layer
 ==========================
