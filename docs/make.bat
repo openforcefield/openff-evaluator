@@ -9,7 +9,7 @@ if "%SPHINXBUILD%" == "" (
 )
 set SOURCEDIR=.
 set BUILDDIR=_build
-set SPHINXPROJ=propertyestimator
+set SPHINXPROJ=evaluator
 
 if "%1" == "" goto help
 
