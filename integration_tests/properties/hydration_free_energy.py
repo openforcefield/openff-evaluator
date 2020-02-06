@@ -109,17 +109,17 @@ def main():
             "SimulationLayer", "SolvationFreeEnergy", _get_fixed_lambda_schema()
         )
 
-        request = property_estimator.request_estimate(
+        request, _ = property_estimator.request_estimate(
             property_set=data_set,
             force_field_source=force_field_source,
             options=options,
         )
 
         # Wait for the results.
-        results = request.results(True, 5)
+        results = request.results(True, 60)
 
         # Save the result to file.
-        results.json(f"hydration_free_energy_simulation_layer.json", True)
+        results.json(f"results.json", True)
 
 
 if __name__ == "__main__":

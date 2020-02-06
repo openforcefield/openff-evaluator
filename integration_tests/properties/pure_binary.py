@@ -21,7 +21,7 @@ def main():
 
     # Set up a server object to run the calculations using.
     server = setup_server(
-        backend_type=BackendType.LocalGPU, max_number_of_workers=1, port=8001
+        backend_type=BackendType.LocalCPU, max_number_of_workers=1, port=8001
     )
 
     with server:
