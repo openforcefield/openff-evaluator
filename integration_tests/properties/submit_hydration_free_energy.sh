@@ -15,7 +15,7 @@
 . ~/.bashrc
 
 # Use the right conda environment
-conda activate propertyestimator
+conda activate evaluator
 module load cuda/10.1
 
 rm -rf solvation_free_energies && mkdir solvation_free_energies && cd solvation_free_energies

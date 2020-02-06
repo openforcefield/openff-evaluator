@@ -16,7 +16,7 @@
 . ~/.bashrc
 
 # Use the right conda environment
-conda activate propertyestimator
+conda activate evaluator
 module load cuda/10.1
 
 rm -rf all && mkdir all && cd all

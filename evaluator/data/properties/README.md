@@ -1,6 +1,6 @@
-# Property Estimator Data
+# OpenFF Evaluator Data
 
-This directory contains data for running the PropertyEstimator class. 
+This directory contains data for the OpenFF Evaluator module. 
 
 ## Manifest
 
