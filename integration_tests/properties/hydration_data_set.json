@@ -1,46 +1,46 @@
 {
-  "@type": "propertyestimator.datasets.datasets.PhysicalPropertyDataSet",
+  "@type": "evaluator.datasets.datasets.PhysicalPropertyDataSet",
   "properties": {
     "CCC(=O)OC{sol}{n=1}|O{solv}{x=1.000000}": [
       {
-        "@type": "propertyestimator.properties.solvation.SolvationFreeEnergy",
+        "@type": "evaluator.properties.solvation.SolvationFreeEnergy",
         "gradients": [],
         "id": "5a6173cbd5dd46329cac001b65dcf576",
         "phase": 2,
         "source": {
-          "@type": "propertyestimator.datasets.provenance.MeasurementSource",
+          "@type": "evaluator.datasets.provenance.MeasurementSource",
           "doi": " 10.1021/ct050097l",
           "reference": ""
         },
         "substance": {
-          "@type": "propertyestimator.substances.substances.Substance",
+          "@type": "evaluator.substances.substances.Substance",
           "amounts": {
             "CCC(=O)OC{sol}": [
               {
-                "@type": "propertyestimator.substances.amounts.ExactAmount",
+                "@type": "evaluator.substances.amounts.ExactAmount",
                 "value": 1
               }
             ],
             "O{solv}": [
               {
-                "@type": "propertyestimator.substances.amounts.MoleFraction",
+                "@type": "evaluator.substances.amounts.MoleFraction",
                 "value": 1.0
               }
             ]
           },
           "components": [
             {
-              "@type": "propertyestimator.substances.components.Component",
+              "@type": "evaluator.substances.components.Component",
               "role": {
-                "@type": "propertyestimator.substances.components.Component.Role",
+                "@type": "evaluator.substances.components.Component.Role",
                 "value": "sol"
               },
               "smiles": "CCC(=O)OC"
             },
             {
-              "@type": "propertyestimator.substances.components.Component",
+              "@type": "evaluator.substances.components.Component",
               "role": {
-                "@type": "propertyestimator.substances.components.Component.Role",
+                "@type": "evaluator.substances.components.Component.Role",
                 "value": "solv"
               },
               "smiles": "O"
@@ -48,25 +48,25 @@
           ]
         },
         "thermodynamic_state": {
-          "@type": "propertyestimator.thermodynamics.ThermodynamicState",
+          "@type": "evaluator.thermodynamics.ThermodynamicState",
           "pressure": {
-            "@type": "propertyestimator.unit.Quantity",
+            "@type": "evaluator.unit.Quantity",
             "unit": "standard_atmosphere",
             "value": 1.0
           },
           "temperature": {
-            "@type": "propertyestimator.unit.Quantity",
+            "@type": "evaluator.unit.Quantity",
             "unit": "kelvin",
             "value": 298.15
           }
         },
         "uncertainty": {
-          "@type": "propertyestimator.unit.Quantity",
+          "@type": "evaluator.unit.Quantity",
           "unit": "kilocalorie / mole",
           "value": 0.6
         },
         "value": {
-          "@type": "propertyestimator.unit.Quantity",
+          "@type": "evaluator.unit.Quantity",
           "unit": "kilocalorie / mole",
           "value": -2.93
         }
@@ -74,44 +74,44 @@
     ],
     "CCCCO{sol}{n=1}|O{solv}{x=1.000000}": [
       {
-        "@type": "propertyestimator.properties.solvation.SolvationFreeEnergy",
+        "@type": "evaluator.properties.solvation.SolvationFreeEnergy",
         "gradients": [],
         "id": "599ba8f9b9814302a6a226e9e18922a0",
         "phase": 2,
         "source": {
-          "@type": "propertyestimator.datasets.provenance.MeasurementSource",
+          "@type": "evaluator.datasets.provenance.MeasurementSource",
           "doi": " 10.1021/ct050097l",
           "reference": ""
         },
         "substance": {
-          "@type": "propertyestimator.substances.substances.Substance",
+          "@type": "evaluator.substances.substances.Substance",
           "amounts": {
             "CCCCO{sol}": [
               {
-                "@type": "propertyestimator.substances.amounts.ExactAmount",
+                "@type": "evaluator.substances.amounts.ExactAmount",
                 "value": 1
               }
             ],
             "O{solv}": [
               {
-                "@type": "propertyestimator.substances.amounts.MoleFraction",
+                "@type": "evaluator.substances.amounts.MoleFraction",
                 "value": 1.0
               }
             ]
           },
           "components": [
             {
-              "@type": "propertyestimator.substances.components.Component",
+              "@type": "evaluator.substances.components.Component",
               "role": {
-                "@type": "propertyestimator.substances.components.Component.Role",
+                "@type": "evaluator.substances.components.Component.Role",
                 "value": "sol"
               },
               "smiles": "CCCCO"
             },
             {
-              "@type": "propertyestimator.substances.components.Component",
+              "@type": "evaluator.substances.components.Component",
               "role": {
-                "@type": "propertyestimator.substances.components.Component.Role",
+                "@type": "evaluator.substances.components.Component.Role",
                 "value": "solv"
               },
               "smiles": "O"
@@ -119,25 +119,25 @@
           ]
         },
         "thermodynamic_state": {
-          "@type": "propertyestimator.thermodynamics.ThermodynamicState",
+          "@type": "evaluator.thermodynamics.ThermodynamicState",
           "pressure": {
-            "@type": "propertyestimator.unit.Quantity",
+            "@type": "evaluator.unit.Quantity",
             "unit": "standard_atmosphere",
             "value": 1.0
           },
           "temperature": {
-            "@type": "propertyestimator.unit.Quantity",
+            "@type": "evaluator.unit.Quantity",
             "unit": "kelvin",
             "value": 298.15
           }
         },
         "uncertainty": {
-          "@type": "propertyestimator.unit.Quantity",
+          "@type": "evaluator.unit.Quantity",
           "unit": "kilocalorie / mole",
           "value": 0.6
         },
         "value": {
-          "@type": "propertyestimator.unit.Quantity",
+          "@type": "evaluator.unit.Quantity",
           "unit": "kilocalorie / mole",
           "value": -4.72
         }
@@ -145,44 +145,44 @@
     ],
     "O{solv}{x=1.000000}|c1ccc(cc1)C(=O)N{sol}{n=1}": [
       {
-        "@type": "propertyestimator.properties.solvation.SolvationFreeEnergy",
+        "@type": "evaluator.properties.solvation.SolvationFreeEnergy",
         "gradients": [],
         "id": "0b8990c1711b4ace82e2c8d3d19f41fc",
         "phase": 2,
         "source": {
-          "@type": "propertyestimator.datasets.provenance.MeasurementSource",
+          "@type": "evaluator.datasets.provenance.MeasurementSource",
           "doi": " 10.1021/ct050097l",
           "reference": ""
         },
         "substance": {
-          "@type": "propertyestimator.substances.substances.Substance",
+          "@type": "evaluator.substances.substances.Substance",
           "amounts": {
             "O{solv}": [
               {
-                "@type": "propertyestimator.substances.amounts.MoleFraction",
+                "@type": "evaluator.substances.amounts.MoleFraction",
                 "value": 1.0
               }
             ],
             "c1ccc(cc1)C(=O)N{sol}": [
               {
-                "@type": "propertyestimator.substances.amounts.ExactAmount",
+                "@type": "evaluator.substances.amounts.ExactAmount",
                 "value": 1
               }
             ]
           },
           "components": [
             {
-              "@type": "propertyestimator.substances.components.Component",
+              "@type": "evaluator.substances.components.Component",
               "role": {
-                "@type": "propertyestimator.substances.components.Component.Role",
+                "@type": "evaluator.substances.components.Component.Role",
                 "value": "sol"
               },
               "smiles": "c1ccc(cc1)C(=O)N"
             },
             {
-              "@type": "propertyestimator.substances.components.Component",
+              "@type": "evaluator.substances.components.Component",
               "role": {
-                "@type": "propertyestimator.substances.components.Component.Role",
+                "@type": "evaluator.substances.components.Component.Role",
                 "value": "solv"
               },
               "smiles": "O"
@@ -190,25 +190,25 @@
           ]
         },
         "thermodynamic_state": {
-          "@type": "propertyestimator.thermodynamics.ThermodynamicState",
+          "@type": "evaluator.thermodynamics.ThermodynamicState",
           "pressure": {
-            "@type": "propertyestimator.unit.Quantity",
+            "@type": "evaluator.unit.Quantity",
             "unit": "standard_atmosphere",
             "value": 1.0
           },
           "temperature": {
-            "@type": "propertyestimator.unit.Quantity",
+            "@type": "evaluator.unit.Quantity",
             "unit": "kelvin",
             "value": 298.15
           }
         },
         "uncertainty": {
-          "@type": "propertyestimator.unit.Quantity",
+          "@type": "evaluator.unit.Quantity",
           "unit": "kilocalorie / mole",
           "value": 0.2
         },
         "value": {
-          "@type": "propertyestimator.unit.Quantity",
+          "@type": "evaluator.unit.Quantity",
           "unit": "kilocalorie / mole",
           "value": -11.0
         }
