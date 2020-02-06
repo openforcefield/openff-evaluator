@@ -1,10 +1,10 @@
 import re
 
-from integration_tests.utils import BackendType, setup_server
 from evaluator.client import ConnectionOptions, EvaluatorClient, RequestOptions
 from evaluator.datasets import PhysicalPropertyDataSet
 from evaluator.forcefield import ParameterGradientKey, SmirnoffForceFieldSource
 from evaluator.utils import setup_timestamp_logging
+from integration_tests.utils import BackendType, setup_server
 
 
 def main():

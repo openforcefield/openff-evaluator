@@ -1,9 +1,9 @@
-from integration_tests.utils import BackendType, setup_server
 from evaluator.client import ConnectionOptions, EvaluatorClient, RequestOptions
 from evaluator.datasets import PhysicalPropertyDataSet
 from evaluator.forcefield import SmirnoffForceFieldSource
 from evaluator.properties.solvation import SolvationFreeEnergy
 from evaluator.utils import setup_timestamp_logging
+from integration_tests.utils import BackendType, setup_server
 
 
 def _get_fixed_lambda_schema():
@@ -116,7 +116,7 @@ def main():
         )
 
         # Wait for the results.
-        results = request.results(True, 60)
+        results, _ = request.results(True, 60)
 
         # Save the result to file.
         results.json(f"results.json", True)
