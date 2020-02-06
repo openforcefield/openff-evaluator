@@ -13,6 +13,7 @@ import shutil
 import string
 import subprocess
 import tempfile
+from collections import defaultdict
 from distutils.spawn import find_executable
 from functools import reduce
 
@@ -113,7 +114,6 @@ def pack_box(
         raise ValueError("Either a `box_size` or `mass_density` must be specified.")
 
     if box_size is not None and len(box_size) != 3:
-
         raise ValueError("`box_size` must be a pint.Quantity wrapped list of length 3")
 
     if mass_density is not None and box_aspect_ratio is None:
@@ -122,10 +122,11 @@ def pack_box(
     if box_aspect_ratio is not None:
 
         assert len(box_aspect_ratio) == 3
-        assert box_aspect_ratio[0] * box_aspect_ratio[1] * box_aspect_ratio[2] > 0
+        assert all(x > 0.0 for x in box_aspect_ratio)
 
     # noinspection PyTypeChecker
     if len(molecules) != len(number_of_copies):
+
         raise ValueError(
             "Length of `molecules` and `number_of_copies` must be identical."
         )
@@ -488,6 +489,7 @@ def _create_pdb_and_topology(molecule, file_path):
     topology = Topology.from_molecules([molecule])
 
     with tempfile.NamedTemporaryFile(mode="r+", suffix=".pdb") as pdb_file:
+
         PDBFile.writeFile(topology.to_openmm(), molecule.conformers[0], pdb_file)
         pdb_file.flush()
         mdtraj_molecule = mdtraj.load_pdb(pdb_file.name)
@@ -533,6 +535,18 @@ def _create_pdb_and_topology(molecule, file_path):
 
             for atom in residue.atoms:
                 atom.name = "Na+"
+
+        else:
+
+            # Assign unique atom names as the OpenFF toolkit does not.
+            element_counter = defaultdict(int)
+
+            for atom in residue.atoms:
+
+                atom.name = (
+                    f"{atom.element.symbol}{element_counter[atom.element.symbol] + 1}"
+                )
+                element_counter[atom.element.symbol] += 1
 
     for original_residue_name in residue_map:
 
