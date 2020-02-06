@@ -145,7 +145,7 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
             workflow_graph.add_workflow(workflow)
 
             provenance[physical_property.id] = CalculationSource(
-                fidelity=cls.__name__, provenance=workflow.schema.json()
+                fidelity=cls.__name__, provenance=workflow.schema
             )
 
         return workflow_graph, provenance
