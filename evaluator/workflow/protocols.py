@@ -1117,6 +1117,7 @@ class ProtocolGraph:
                     if (
                         target_path.start_protocol == input_path.start_protocol
                         or target_path.start_protocol == protocol.id
+                        or target_path.start_protocol is None
                     ):
                         # The protocol takes input from itself / a nested protocol.
                         # This is handled by the protocol directly so we can skip here.
@@ -1392,7 +1393,10 @@ class ProtocolGroup(Protocol):
 
             for input_path, value_reference in value_references.items():
 
-                if value_reference.protocol_path != self.id:
+                if (
+                    value_reference.protocol_path != self.id
+                    and value_reference.start_protocol is not None
+                ):
                     continue
 
                 value = self.get_value(value_reference)
