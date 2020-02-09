@@ -109,6 +109,7 @@ field optimisation.
   :caption: Tutorials
 
   tutorials/tutorial01
+  tutorials/tutorial02
 
 .. toctree::
   :maxdepth: 2
