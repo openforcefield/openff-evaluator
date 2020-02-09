@@ -11,7 +11,7 @@ import traceback
 
 import dask
 from dask import distributed
-from dask_jobqueue import LSFCluster, PBSCluster
+# from dask_jobqueue import LSFCluster, PBSCluster
 from distributed import get_worker
 
 import evaluator
@@ -473,196 +473,196 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
         )
 
 
-class DaskLSFBackend(BaseDaskJobQueueBackend):
-    """An evaluator backend which uses a `dask_jobqueue.LSFCluster`
-    object to run calculations within an existing LSF queue.
-
-    See Also
-    --------
-    dask_jobqueue.LSFCluster
-    DaskPBSBackend
-    """
-
-    def __init__(
-        self,
-        minimum_number_of_workers=1,
-        maximum_number_of_workers=1,
-        resources_per_worker=QueueWorkerResources(),
-        queue_name="default",
-        setup_script_commands=None,
-        extra_script_options=None,
-        adaptive_interval="10000ms",
-        disable_nanny_process=False,
-        adaptive_class=None,
-    ):
-
-        """Constructs a new DaskLSFBackend object
-
-        Examples
-        --------
-        To create an LSF queueing compute backend which will attempt to spin up
-        workers which have access to a single GPU.
-
-        >>> # Create a resource object which will request a worker with
-        >>> # one gpu which will stay alive for five hours.
-        >>> from evaluator.backends import QueueWorkerResources
-        >>>
-        >>> resources = QueueWorkerResources(number_of_threads=1,
-        >>>                                  number_of_gpus=1,
-        >>>                                  preferred_gpu_toolkit=QueueWorkerResources.GPUToolkit.CUDA,
-        >>>                                  wallclock_time_limit='05:00')
-        >>>
-        >>> # Define the set of commands which will set up the correct environment
-        >>> # for each of the workers.
-        >>> setup_script_commands = [
-        >>>     'module load cuda/9.2',
-        >>> ]
-        >>>
-        >>> # Define extra options to only run on certain node groups
-        >>> extra_script_options = [
-        >>>     '-m "ls-gpu lt-gpu"'
-        >>> ]
-        >>>
-        >>>
-        >>> # Create the backend which will adaptively try to spin up between one and
-        >>> # ten workers with the requested resources depending on the calculation load.
-        >>> from evaluator.backends import DaskLSFBackend
-        >>>
-        >>> lsf_backend = DaskLSFBackend(minimum_number_of_workers=1,
-        >>>                              maximum_number_of_workers=10,
-        >>>                              resources_per_worker=resources,
-        >>>                              queue_name='gpuqueue',
-        >>>                              setup_script_commands=setup_script_commands,
-        >>>                              extra_script_options=extra_script_options)
-        """
-
-        super().__init__(
-            minimum_number_of_workers,
-            maximum_number_of_workers,
-            resources_per_worker,
-            queue_name,
-            setup_script_commands,
-            extra_script_options,
-            adaptive_interval,
-            disable_nanny_process,
-            cluster_type="lsf",
-            adaptive_class=adaptive_class,
-        )
-
-    def _get_job_extra(self):
-
-        job_extra = super(DaskLSFBackend, self)._get_job_extra()
-
-        if self._resources_per_worker.number_of_gpus > 0:
-
-            job_extra.append(
-                "-gpu num={}:j_exclusive=yes:mode=shared:mps=no:".format(
-                    self._resources_per_worker.number_of_gpus
-                )
-            )
-
-        return job_extra
-
-    def _get_extra_cluster_kwargs(self):
-
-        requested_memory = self._resources_per_worker.per_thread_memory_limit
-        memory_bytes = requested_memory.to(evaluator.unit.byte).magnitude
-
-        extra_kwargs = super(DaskLSFBackend, self)._get_extra_cluster_kwargs()
-        extra_kwargs.update({"mem": memory_bytes})
-
-        return extra_kwargs
-
-    def _get_cluster_class(self):
-        return LSFCluster
-
-
-class DaskPBSBackend(BaseDaskJobQueueBackend):
-    """An evaluator backend which uses a `dask_jobqueue.PBSCluster`
-    object to run calculations within an existing PBS queue.
-
-    See Also
-    --------
-    dask_jobqueue.LSFCluster
-    DaskLSFBackend
-    """
-
-    def __init__(
-        self,
-        minimum_number_of_workers=1,
-        maximum_number_of_workers=1,
-        resources_per_worker=QueueWorkerResources(),
-        queue_name="default",
-        setup_script_commands=None,
-        extra_script_options=None,
-        adaptive_interval="10000ms",
-        disable_nanny_process=False,
-        resource_line=None,
-        adaptive_class=None,
-    ):
-
-        """Constructs a new DaskLSFBackend object
-
-        Parameters
-        ----------
-        resource_line: str
-            The string to pass to the `#PBS -l` line.
-
-        Examples
-        --------
-        To create a PBS queueing compute backend which will attempt to spin up
-        workers which have access to a single GPU.
-
-        >>> # Create a resource object which will request a worker with
-        >>> # one gpu which will stay alive for five hours.
-        >>> from evaluator.backends import QueueWorkerResources
-        >>>
-        >>> resources = QueueWorkerResources(number_of_threads=1,
-        >>>                                  number_of_gpus=1,
-        >>>                                  preferred_gpu_toolkit=QueueWorkerResources.GPUToolkit.CUDA,
-        >>>                                  wallclock_time_limit='05:00')
-        >>>
-        >>> # Define the set of commands which will set up the correct environment
-        >>> # for each of the workers.
-        >>> setup_script_commands = [
-        >>>     'module load cuda/9.2',
-        >>> ]
-        >>>
-        >>> # Create the backend which will adaptively try to spin up between one and
-        >>> # ten workers with the requested resources depending on the calculation load.
-        >>> from evaluator.backends import DaskPBSBackend
-        >>>
-        >>> pbs_backend = DaskPBSBackend(minimum_number_of_workers=1,
-        >>>                              maximum_number_of_workers=10,
-        >>>                              resources_per_worker=resources,
-        >>>                              queue_name='gpuqueue',
-        >>>                              setup_script_commands=setup_script_commands)
-        """
-
-        super().__init__(
-            minimum_number_of_workers,
-            maximum_number_of_workers,
-            resources_per_worker,
-            queue_name,
-            setup_script_commands,
-            extra_script_options,
-            adaptive_interval,
-            disable_nanny_process,
-            cluster_type="pbs",
-            adaptive_class=adaptive_class,
-        )
-
-        self._resource_line = resource_line
-
-    def _get_extra_cluster_kwargs(self):
-
-        extra_kwargs = super(DaskPBSBackend, self)._get_extra_cluster_kwargs()
-        extra_kwargs.update({"resource_spec": self._resource_line})
-
-        return extra_kwargs
-
-    def _get_cluster_class(self):
-        return PBSCluster
+# class DaskLSFBackend(BaseDaskJobQueueBackend):
+#     """An evaluator backend which uses a `dask_jobqueue.LSFCluster`
+#     object to run calculations within an existing LSF queue.
+#
+#     See Also
+#     --------
+#     dask_jobqueue.LSFCluster
+#     DaskPBSBackend
+#     """
+#
+#     def __init__(
+#         self,
+#         minimum_number_of_workers=1,
+#         maximum_number_of_workers=1,
+#         resources_per_worker=QueueWorkerResources(),
+#         queue_name="default",
+#         setup_script_commands=None,
+#         extra_script_options=None,
+#         adaptive_interval="10000ms",
+#         disable_nanny_process=False,
+#         adaptive_class=None,
+#     ):
+#
+#         """Constructs a new DaskLSFBackend object
+#
+#         Examples
+#         --------
+#         To create an LSF queueing compute backend which will attempt to spin up
+#         workers which have access to a single GPU.
+#
+#         >>> # Create a resource object which will request a worker with
+#         >>> # one gpu which will stay alive for five hours.
+#         >>> from evaluator.backends import QueueWorkerResources
+#         >>>
+#         >>> resources = QueueWorkerResources(number_of_threads=1,
+#         >>>                                  number_of_gpus=1,
+#         >>>                                  preferred_gpu_toolkit=QueueWorkerResources.GPUToolkit.CUDA,
+#         >>>                                  wallclock_time_limit='05:00')
+#         >>>
+#         >>> # Define the set of commands which will set up the correct environment
+#         >>> # for each of the workers.
+#         >>> setup_script_commands = [
+#         >>>     'module load cuda/9.2',
+#         >>> ]
+#         >>>
+#         >>> # Define extra options to only run on certain node groups
+#         >>> extra_script_options = [
+#         >>>     '-m "ls-gpu lt-gpu"'
+#         >>> ]
+#         >>>
+#         >>>
+#         >>> # Create the backend which will adaptively try to spin up between one and
+#         >>> # ten workers with the requested resources depending on the calculation load.
+#         >>> from evaluator.backends import DaskLSFBackend
+#         >>>
+#         >>> lsf_backend = DaskLSFBackend(minimum_number_of_workers=1,
+#         >>>                              maximum_number_of_workers=10,
+#         >>>                              resources_per_worker=resources,
+#         >>>                              queue_name='gpuqueue',
+#         >>>                              setup_script_commands=setup_script_commands,
+#         >>>                              extra_script_options=extra_script_options)
+#         """
+#
+#         super().__init__(
+#             minimum_number_of_workers,
+#             maximum_number_of_workers,
+#             resources_per_worker,
+#             queue_name,
+#             setup_script_commands,
+#             extra_script_options,
+#             adaptive_interval,
+#             disable_nanny_process,
+#             cluster_type="lsf",
+#             adaptive_class=adaptive_class,
+#         )
+#
+#     def _get_job_extra(self):
+#
+#         job_extra = super(DaskLSFBackend, self)._get_job_extra()
+#
+#         if self._resources_per_worker.number_of_gpus > 0:
+#
+#             job_extra.append(
+#                 "-gpu num={}:j_exclusive=yes:mode=shared:mps=no:".format(
+#                     self._resources_per_worker.number_of_gpus
+#                 )
+#             )
+#
+#         return job_extra
+#
+#     def _get_extra_cluster_kwargs(self):
+#
+#         requested_memory = self._resources_per_worker.per_thread_memory_limit
+#         memory_bytes = requested_memory.to(evaluator.unit.byte).magnitude
+#
+#         extra_kwargs = super(DaskLSFBackend, self)._get_extra_cluster_kwargs()
+#         extra_kwargs.update({"mem": memory_bytes})
+#
+#         return extra_kwargs
+#
+#     def _get_cluster_class(self):
+#         return LSFCluster
+#
+#
+# class DaskPBSBackend(BaseDaskJobQueueBackend):
+#     """An evaluator backend which uses a `dask_jobqueue.PBSCluster`
+#     object to run calculations within an existing PBS queue.
+#
+#     See Also
+#     --------
+#     dask_jobqueue.LSFCluster
+#     DaskLSFBackend
+#     """
+#
+#     def __init__(
+#         self,
+#         minimum_number_of_workers=1,
+#         maximum_number_of_workers=1,
+#         resources_per_worker=QueueWorkerResources(),
+#         queue_name="default",
+#         setup_script_commands=None,
+#         extra_script_options=None,
+#         adaptive_interval="10000ms",
+#         disable_nanny_process=False,
+#         resource_line=None,
+#         adaptive_class=None,
+#     ):
+#
+#         """Constructs a new DaskLSFBackend object
+#
+#         Parameters
+#         ----------
+#         resource_line: str
+#             The string to pass to the `#PBS -l` line.
+#
+#         Examples
+#         --------
+#         To create a PBS queueing compute backend which will attempt to spin up
+#         workers which have access to a single GPU.
+#
+#         >>> # Create a resource object which will request a worker with
+#         >>> # one gpu which will stay alive for five hours.
+#         >>> from evaluator.backends import QueueWorkerResources
+#         >>>
+#         >>> resources = QueueWorkerResources(number_of_threads=1,
+#         >>>                                  number_of_gpus=1,
+#         >>>                                  preferred_gpu_toolkit=QueueWorkerResources.GPUToolkit.CUDA,
+#         >>>                                  wallclock_time_limit='05:00')
+#         >>>
+#         >>> # Define the set of commands which will set up the correct environment
+#         >>> # for each of the workers.
+#         >>> setup_script_commands = [
+#         >>>     'module load cuda/9.2',
+#         >>> ]
+#         >>>
+#         >>> # Create the backend which will adaptively try to spin up between one and
+#         >>> # ten workers with the requested resources depending on the calculation load.
+#         >>> from evaluator.backends import DaskPBSBackend
+#         >>>
+#         >>> pbs_backend = DaskPBSBackend(minimum_number_of_workers=1,
+#         >>>                              maximum_number_of_workers=10,
+#         >>>                              resources_per_worker=resources,
+#         >>>                              queue_name='gpuqueue',
+#         >>>                              setup_script_commands=setup_script_commands)
+#         """
+#
+#         super().__init__(
+#             minimum_number_of_workers,
+#             maximum_number_of_workers,
+#             resources_per_worker,
+#             queue_name,
+#             setup_script_commands,
+#             extra_script_options,
+#             adaptive_interval,
+#             disable_nanny_process,
+#             cluster_type="pbs",
+#             adaptive_class=adaptive_class,
+#         )
+#
+#         self._resource_line = resource_line
+#
+#     def _get_extra_cluster_kwargs(self):
+#
+#         extra_kwargs = super(DaskPBSBackend, self)._get_extra_cluster_kwargs()
+#         extra_kwargs.update({"resource_spec": self._resource_line})
+#
+#         return extra_kwargs
+#
+#     def _get_cluster_class(self):
+#         return PBSCluster
 
 
 class DaskLocalCluster(BaseDaskBackend):
