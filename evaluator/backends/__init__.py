@@ -1,5 +1,5 @@
 from .backends import CalculationBackend, ComputeResources, QueueWorkerResources
-from .dask import BaseDaskBackend, DaskLocalCluster
+from .dask import BaseDaskBackend, DaskLocalCluster, DaskLSFBackend, DaskPBSBackend
 
 __all__ = [
     ComputeResources,
@@ -7,6 +7,6 @@ __all__ = [
     QueueWorkerResources,
     BaseDaskBackend,
     DaskLocalCluster,
-    # DaskLSFBackend,
-    # DaskPBSBackend,
+    DaskLSFBackend,
+    DaskPBSBackend,
 ]
