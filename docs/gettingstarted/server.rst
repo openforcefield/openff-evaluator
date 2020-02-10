@@ -3,6 +3,10 @@
 
 .. |local_file_storage|    replace:: :py:class:`~evaluator.storage.LocalFileStorage`
 
+.. |same_components|        replace:: :py:attr:`~evaluator.client.BatchMode.SameComponents`
+.. |shared_components|     replace:: :py:attr:`~evaluator.client.BatchMode.SharedComponents`
+.. |batch_mode_attr|       replace:: :py:attr:`~evaluator.client.RequestOptions.batch_mode`
+
 Evaluator Server
 ================
 
@@ -55,11 +59,20 @@ it can be interacted with directly by a client in the same script::
 
 Estimation Batches
 ------------------
-By default when a server recieves a request from a client, it will attempt to split the requested set of properties into
-smaller batches, represented by the |batch| object. The current behaviour is to batch together all properties which
-were measured for the same substance.
+When a server recieves a request from a client, it will attempt to split the requested set of properties into
+smaller batches, represented by the |batch| object. The server is currently only able to mark entire batches of
+estimated properties as being completed, as opposed to individual properties.
 
-This splitting into smaller batches allows the server to return back batches of properties as they complete, rather than
-needing to wait for a full request to complete.
+Currently the server supports two ways of batching properties:
 
-.. note:: This batching behaviour will be built upon and expanded in future versions of the evaluator framework.
+.. rst-class:: spaced-list
+
+    * |same_components|: All properties measured for the substance containing the *same* components will be batched
+      together. As an example, the density of a 80:20 and a 20:80 mix of ethanol and water would be batched together,
+      but the density of pure ethanol and the density of pure water would be placed into separate batches.
+
+    * |shared_components|: All properties measured for substances containing at least one common component will be
+      batched together. As an example, the densities of 80:20 and 20:80 mixtures of ethanol and water, and the pure
+      densities of ethanol and water would be batched together.
+
+The mode of batching is set by the client using the |batch_mode_attr| attribute of the request options.

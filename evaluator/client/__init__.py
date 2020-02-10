@@ -1,4 +1,5 @@
 from .client import (
+    BatchMode,
     ConnectionOptions,
     EvaluatorClient,
     Request,
@@ -7,6 +8,7 @@ from .client import (
 )
 
 __all__ = [
+    BatchMode,
     ConnectionOptions,
     EvaluatorClient,
     Request,

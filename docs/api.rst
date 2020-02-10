@@ -11,8 +11,9 @@ Client Side API
     :nosignatures:
     :toctree: api/generated/
 
-    ConnectionOptions
     EvaluatorClient
+    BatchMode
+    ConnectionOptions
     Request
     RequestOptions
     RequestResult

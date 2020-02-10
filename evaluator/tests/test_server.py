@@ -4,14 +4,17 @@ Units tests for the evaluator.server module.
 import tempfile
 from time import sleep
 
+from evaluator import unit
 from evaluator.backends import DaskLocalCluster
-from evaluator.client import RequestOptions
+from evaluator.client import EvaluatorClient, RequestOptions
 from evaluator.datasets import PhysicalPropertyDataSet
 from evaluator.layers import CalculationLayer, CalculationLayerSchema, calculation_layer
 from evaluator.layers.layers import CalculationLayerResult
-from evaluator.properties import Density
+from evaluator.properties import Density, EnthalpyOfVaporization
 from evaluator.server.server import Batch, EvaluatorServer
+from evaluator.substances import Substance
 from evaluator.tests.utils import create_dummy_property
+from evaluator.thermodynamics import ThermodynamicState
 from evaluator.utils.utils import temporarily_change_directory
 
 
@@ -104,3 +107,95 @@ def test_launch_batch():
 
                 assert len(batch.estimated_properties) == 1
                 assert len(batch.unsuccessful_properties) == 1
+
+
+def test_same_component_batching():
+
+    thermodynamic_state = ThermodynamicState(
+        temperature=1.0 * unit.kelvin, pressure=1.0 * unit.atmosphere
+    )
+
+    data_set = PhysicalPropertyDataSet()
+    data_set.add_properties(
+        Density(
+            thermodynamic_state=thermodynamic_state,
+            substance=Substance.from_components("O", "C"),
+            value=0.0 * unit.kilogram / unit.meter ** 3,
+        ),
+        EnthalpyOfVaporization(
+            thermodynamic_state=thermodynamic_state,
+            substance=Substance.from_components("O", "C"),
+            value=0.0 * unit.kilojoule / unit.mole,
+        ),
+        Density(
+            thermodynamic_state=thermodynamic_state,
+            substance=Substance.from_components("O", "CO"),
+            value=0.0 * unit.kilogram / unit.meter ** 3,
+        ),
+        EnthalpyOfVaporization(
+            thermodynamic_state=thermodynamic_state,
+            substance=Substance.from_components("O", "CO"),
+            value=0.0 * unit.kilojoule / unit.mole,
+        ),
+    )
+
+    options = RequestOptions()
+
+    submission = EvaluatorClient._Submission()
+    submission.dataset = data_set
+    submission.options = options
+
+    with DaskLocalCluster() as calculation_backend:
+
+        server = EvaluatorServer(calculation_backend)
+        batches = server._batch_by_same_component(submission, "")
+
+    assert len(batches) == 2
+
+    assert len(batches[0].queued_properties) == 2
+    assert len(batches[1].queued_properties) == 2
+
+
+def test_shared_component_batching():
+
+    thermodynamic_state = ThermodynamicState(
+        temperature=1.0 * unit.kelvin, pressure=1.0 * unit.atmosphere
+    )
+
+    data_set = PhysicalPropertyDataSet()
+    data_set.add_properties(
+        Density(
+            thermodynamic_state=thermodynamic_state,
+            substance=Substance.from_components("O", "C"),
+            value=0.0 * unit.kilogram / unit.meter ** 3,
+        ),
+        EnthalpyOfVaporization(
+            thermodynamic_state=thermodynamic_state,
+            substance=Substance.from_components("O", "C"),
+            value=0.0 * unit.kilojoule / unit.mole,
+        ),
+        Density(
+            thermodynamic_state=thermodynamic_state,
+            substance=Substance.from_components("O", "CO"),
+            value=0.0 * unit.kilogram / unit.meter ** 3,
+        ),
+        EnthalpyOfVaporization(
+            thermodynamic_state=thermodynamic_state,
+            substance=Substance.from_components("O", "CO"),
+            value=0.0 * unit.kilojoule / unit.mole,
+        ),
+    )
+
+    options = RequestOptions()
+
+    submission = EvaluatorClient._Submission()
+    submission.dataset = data_set
+    submission.options = options
+
+    with DaskLocalCluster() as calculation_backend:
+
+        server = EvaluatorServer(calculation_backend)
+        batches = server._batch_by_shared_component(submission, "")
+
+    assert len(batches) == 1
+    assert len(batches[0].queued_properties) == 4

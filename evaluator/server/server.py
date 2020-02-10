@@ -12,8 +12,11 @@ import threading
 import traceback
 import uuid
 
+import networkx
+
 from evaluator.attributes import Attribute, AttributeClass
 from evaluator.client import EvaluatorClient, RequestOptions, RequestResult
+from evaluator.client.client import BatchMode
 from evaluator.datasets import PhysicalProperty
 from evaluator.forcefield import ParameterGradientKey
 from evaluator.layers import registered_calculation_layers
@@ -236,6 +239,145 @@ class EvaluatorServer:
 
         return request_results, None
 
+    def _batch_by_same_component(self, submission, force_field_id):
+        """Batches a set of requested properties based on which substance they were
+        measured for. Properties which were measured for substances containing the
+        exact same components (but not necessarily in the same amounts) will be placed
+        into the same batch.
+
+        Parameters
+        ----------
+        submission: EvaluatorClient._Submission
+            The full request submission.
+        force_field_id: str
+            The unique id of the force field to use.
+
+        Returns
+        -------
+        list of Batch
+            The property batches.
+        """
+
+        reserved_batch_ids = {
+            *self._queued_batches.keys(),
+            *self._finished_batches.keys(),
+        }
+
+        batches = []
+
+        for substance in submission.dataset.substances:
+
+            batch = Batch()
+            batch.force_field_id = force_field_id
+
+            # Make sure we don't somehow generate the same uuid
+            # twice (although this is very unlikely to ever happen).
+            while batch.id in reserved_batch_ids:
+                batch.id = str(uuid.uuid4()).replace("-", "")
+
+            batch.queued_properties = [
+                x for x in submission.dataset.properties_by_substance(substance)
+            ]
+            batch.options = RequestOptions.parse_json(submission.options.json())
+
+            batch.parameter_gradient_keys = copy.deepcopy(
+                submission.parameter_gradient_keys
+            )
+
+            reserved_batch_ids.add(batch.id)
+            batches.append(batch)
+
+        return batches
+
+    def _batch_by_shared_component(self, submission, force_field_id):
+        """Batches a set of requested properties based on which substance they were
+        measured for. Properties which were measured for substances sharing at least
+        one common component (defined only by its smiles pattern and not necessarily
+        in the same amount) will be placed into the same batch.
+
+        Parameters
+        ----------
+        submission: EvaluatorClient._Submission
+            The full request submission.
+        force_field_id: str
+            The unique id of the force field to use.
+
+        Returns
+        -------
+        list of Batch
+            The property batches.
+        """
+
+        reserved_batch_ids = {
+            *self._queued_batches.keys(),
+            *self._finished_batches.keys(),
+        }
+
+        all_smiles = set(x.smiles for y in submission.dataset.substances for x in y)
+
+        # Build a graph containing all of the different component
+        # smiles patterns as nodes.
+        substance_graph = networkx.Graph()
+        substance_graph.add_nodes_from(all_smiles)
+
+        # Add edges to the graph based on which substances contain
+        # the different component nodes.
+        for substance in submission.dataset.substances:
+
+            if len(substance) < 2:
+                continue
+
+            smiles = [x.smiles for x in substance]
+
+            for smiles_a, smiles_b in zip(smiles, smiles[1:]):
+                substance_graph.add_edge(smiles_a, smiles_b)
+
+        # Find clustered islands of those smiles which exist in
+        # overlapping substances.
+        islands = [
+            substance_graph.subgraph(c)
+            for c in networkx.connected_components(substance_graph)
+        ]
+
+        # Create one batch per island
+        batches = []
+
+        for _ in range(len(islands)):
+
+            batch = Batch()
+            batch.force_field_id = force_field_id
+
+            # Make sure we don't somehow generate the same uuid
+            # twice (although this is very unlikely to ever happen).
+            while batch.id in reserved_batch_ids:
+                batch.id = str(uuid.uuid4()).replace("-", "")
+
+            batch.options = RequestOptions.parse_json(submission.options.json())
+
+            batch.parameter_gradient_keys = copy.deepcopy(
+                submission.parameter_gradient_keys
+            )
+
+            reserved_batch_ids.add(batch.id)
+            batches.append(batch)
+
+        for physical_property in submission.dataset:
+
+            smiles = [x.smiles for x in physical_property.substance]
+
+            island_id = 0
+
+            for island_id, island in enumerate(islands):
+
+                if not any(x in island for x in smiles):
+                    continue
+
+                break
+
+            batches[island_id].queued_properties.append(physical_property)
+
+        return batches
+
     def _prepare_batches(self, submission, request_id):
         """Turns an estimation request into chunked batches to
         calculate separately.
@@ -261,33 +403,16 @@ class EvaluatorServer:
         force_field_source = submission.force_field_source
         force_field_id = self._storage_backend.store_force_field(force_field_source)
 
-        batches = []
+        batch_mode = submission.options.batch_mode
 
-        # Batch properties to be estimated for the same substance
-        # into one chunk
-        for substance in submission.dataset.substances:
+        if batch_mode == BatchMode.SameComponents:
+            batches = self._batch_by_same_component(submission, force_field_id)
+        elif batch_mode == BatchMode.SharedComponents:
+            batches = self._batch_by_shared_component(submission, force_field_id)
+        else:
+            raise NotImplementedError()
 
-            batch = Batch()
-            batch.force_field_id = force_field_id
-
-            # Make sure we don't somehow generate the same uuid
-            # twice (although this is very unlikely to ever happen).
-            while (
-                batch.id in self._queued_batches or batch.id in self._finished_batches
-            ):
-
-                batch.id = str(uuid.uuid4()).replace("-", "")
-
-            batch.queued_properties = [
-                x for x in submission.dataset.properties_by_substance(substance)
-            ]
-            batch.options = RequestOptions.parse_json(submission.options.json())
-
-            batch.parameter_gradient_keys = copy.deepcopy(
-                submission.parameter_gradient_keys
-            )
-
-            batches.append(batch)
+        for batch in batches:
 
             self._queued_batches[batch.id] = batch
             self._batch_ids_per_client_id[request_id].append(batch.id)
