@@ -1,0 +1,215 @@
+{
+  "@type": "evaluator.datasets.thermoml.thermoml.ThermoMLDataSet",
+  "properties": [
+    {
+      "@type": "evaluator.properties.density.Density",
+      "gradients": [],
+      "id": "68eb36c69b394018a6846d22d8db0b57",
+      "phase": 2,
+      "source": {
+        "@type": "evaluator.datasets.provenance.MeasurementSource",
+        "doi": "10.1016/j.fluid.2013.10.034",
+        "reference": ""
+      },
+      "substance": {
+        "@type": "evaluator.substances.substances.Substance",
+        "amounts": {
+          "CC(C)O{solv}": [
+            {
+              "@type": "evaluator.substances.amounts.MoleFraction",
+              "value": 1.0
+            }
+          ]
+        },
+        "components": [
+          {
+            "@type": "evaluator.substances.components.Component",
+            "role": {
+              "@type": "evaluator.substances.components.Component.Role",
+              "value": "solv"
+            },
+            "smiles": "CC(C)O"
+          }
+        ]
+      },
+      "thermodynamic_state": {
+        "@type": "evaluator.thermodynamics.ThermodynamicState",
+        "pressure": {
+          "@type": "evaluator.unit.Quantity",
+          "unit": "kPa",
+          "value": 101.325
+        },
+        "temperature": {
+          "@type": "evaluator.unit.Quantity",
+          "unit": "K",
+          "value": 298.15
+        }
+      },
+      "value": {
+        "@type": "evaluator.unit.Quantity",
+        "unit": "kg / m ** 3",
+        "value": 782.7
+      }
+    },
+    {
+      "@type": "evaluator.properties.density.Density",
+      "gradients": [],
+      "id": "f0266bed1ffe4c6d87d20485df60e02b",
+      "phase": 2,
+      "source": {
+        "@type": "evaluator.datasets.provenance.MeasurementSource",
+        "doi": "10.1021/je1013476",
+        "reference": ""
+      },
+      "substance": {
+        "@type": "evaluator.substances.substances.Substance",
+        "amounts": {
+          "CCO{solv}": [
+            {
+              "@type": "evaluator.substances.amounts.MoleFraction",
+              "value": 1.0
+            }
+          ]
+        },
+        "components": [
+          {
+            "@type": "evaluator.substances.components.Component",
+            "role": {
+              "@type": "evaluator.substances.components.Component.Role",
+              "value": "solv"
+            },
+            "smiles": "CCO"
+          }
+        ]
+      },
+      "thermodynamic_state": {
+        "@type": "evaluator.thermodynamics.ThermodynamicState",
+        "pressure": {
+          "@type": "evaluator.unit.Quantity",
+          "unit": "kPa",
+          "value": 101.325
+        },
+        "temperature": {
+          "@type": "evaluator.unit.Quantity",
+          "unit": "K",
+          "value": 298.15
+        }
+      },
+      "value": {
+        "@type": "evaluator.unit.Quantity",
+        "unit": "kg / m ** 3",
+        "value": 785.07
+      }
+    },
+    {
+      "@type": "evaluator.properties.enthalpy.EnthalpyOfVaporization",
+      "gradients": [],
+      "id": "b112cae1e1d14071b015000b160188f6",
+      "phase": 2,
+      "source": {
+        "@type": "evaluator.datasets.provenance.MeasurementSource",
+        "doi": "10.1016/S0021-9614(71)80108-8",
+        "reference": ""
+      },
+      "substance": {
+        "@type": "evaluator.substances.substances.Substance",
+        "amounts": {
+          "CCO{solv}": [
+            {
+              "@type": "evaluator.substances.amounts.MoleFraction",
+              "value": 1.0
+            }
+          ]
+        },
+        "components": [
+          {
+            "@type": "evaluator.substances.components.Component",
+            "role": {
+              "@type": "evaluator.substances.components.Component.Role",
+              "value": "solv"
+            },
+            "smiles": "CCO"
+          }
+        ]
+      },
+      "thermodynamic_state": {
+        "@type": "evaluator.thermodynamics.ThermodynamicState",
+        "pressure": {
+          "@type": "evaluator.unit.Quantity",
+          "unit": "atm",
+          "value": 1.0
+        },
+        "temperature": {
+          "@type": "evaluator.unit.Quantity",
+          "unit": "K",
+          "value": 298.15
+        }
+      },
+      "uncertainty": {
+        "@type": "evaluator.unit.Quantity",
+        "unit": "kJ / mol",
+        "value": 0.02
+      },
+      "value": {
+        "@type": "evaluator.unit.Quantity",
+        "unit": "kJ / mol",
+        "value": 42.26
+      }
+    },
+    {
+      "@type": "evaluator.properties.enthalpy.EnthalpyOfVaporization",
+      "gradients": [],
+      "id": "9c0f1981deea46139a982327eb54654f",
+      "phase": 2,
+      "source": {
+        "@type": "evaluator.datasets.provenance.MeasurementSource",
+        "doi": "10.1016/S0021-9614(71)80108-8",
+        "reference": ""
+      },
+      "substance": {
+        "@type": "evaluator.substances.substances.Substance",
+        "amounts": {
+          "CC(C)O{solv}": [
+            {
+              "@type": "evaluator.substances.amounts.MoleFraction",
+              "value": 1.0
+            }
+          ]
+        },
+        "components": [
+          {
+            "@type": "evaluator.substances.components.Component",
+            "role": {
+              "@type": "evaluator.substances.components.Component.Role",
+              "value": "solv"
+            },
+            "smiles": "CC(C)O"
+          }
+        ]
+      },
+      "thermodynamic_state": {
+        "@type": "evaluator.thermodynamics.ThermodynamicState",
+        "pressure": {
+          "@type": "evaluator.unit.Quantity",
+          "unit": "atm",
+          "value": 1.0
+        },
+        "temperature": {
+          "@type": "evaluator.unit.Quantity",
+          "unit": "K",
+          "value": 298.15
+        }
+      },
+      "uncertainty": {
+        "@type": "evaluator.unit.Quantity",
+        "unit": "kJ / mol",
+        "value": 0.02
+      },
+      "value": {
+        "@type": "evaluator.unit.Quantity",
+        "unit": "kJ / mol",
+        "value": 45.34
+      }
+    }
+  ]
+}
