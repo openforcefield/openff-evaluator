@@ -114,7 +114,7 @@ class EvaluatorServer:
     and a local file storage backend:
 
     >>> # Create the backend which will be responsible for distributing the calculations
-    >>> from evaluator.backends import DaskLocalCluster, ComputeResources
+    >>> from evaluator.backends.dask import DaskLocalCluster
     >>> calculation_backend = DaskLocalCluster()
     >>> calculation_backend.start()
     >>>

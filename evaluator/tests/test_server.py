@@ -4,7 +4,7 @@ Units tests for the evaluator.server module.
 import tempfile
 from time import sleep
 
-from evaluator.backends import DaskLocalCluster
+from evaluator.backends.dask import DaskLocalCluster
 from evaluator.client import RequestOptions
 from evaluator.datasets import PhysicalPropertyDataSet
 from evaluator.layers import CalculationLayer, CalculationLayerSchema, calculation_layer

@@ -2,7 +2,7 @@ import os
 import tempfile
 
 from evaluator import unit
-from evaluator.backends import DaskLocalCluster
+from evaluator.backends.dask import DaskLocalCluster
 from evaluator.client import RequestOptions
 from evaluator.forcefield import SmirnoffForceFieldSource
 from evaluator.layers.simulation import SimulationLayer, SimulationSchema
