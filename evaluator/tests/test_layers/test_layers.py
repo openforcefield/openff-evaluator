@@ -2,7 +2,7 @@ import json
 import tempfile
 from os import makedirs, path
 
-from evaluator.backends import DaskLocalCluster
+from evaluator.backends.dask import DaskLocalCluster
 from evaluator.client import RequestOptions
 from evaluator.layers import CalculationLayer, CalculationLayerSchema, calculation_layer
 from evaluator.layers.layers import CalculationLayerResult

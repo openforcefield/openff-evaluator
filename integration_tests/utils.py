@@ -1,12 +1,8 @@
 from enum import Enum
 
 from evaluator import server, unit
-from evaluator.backends import (
-    ComputeResources,
-    DaskLocalCluster,
-    DaskLSFBackend,
-    QueueWorkerResources,
-)
+from evaluator.backends import ComputeResources, QueueWorkerResources
+from evaluator.backends.dask import DaskLocalCluster, DaskLSFBackend
 
 
 class BackendType(Enum):

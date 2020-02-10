@@ -5,7 +5,7 @@ import tempfile
 from time import sleep
 
 from evaluator import unit
-from evaluator.backends import DaskLocalCluster
+from evaluator.backends.dask import DaskLocalCluster
 from evaluator.client import EvaluatorClient, RequestOptions
 from evaluator.datasets import PhysicalPropertyDataSet
 from evaluator.layers import CalculationLayer, CalculationLayerSchema, calculation_layer

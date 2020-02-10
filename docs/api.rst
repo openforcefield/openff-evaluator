@@ -185,6 +185,7 @@ Calculation Backends API
 
     CalculationBackend
     ComputeResources
+    QueueWorkerResources
 
 **Dask Backends**
 
@@ -198,7 +199,6 @@ Calculation Backends API
     DaskLocalCluster
     DaskLSFBackend
     DaskPBSBackend
-    QueueWorkerResources
 
 Storage API
 -----------

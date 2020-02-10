@@ -7,7 +7,8 @@ import pytest
 
 from evaluator import unit
 from evaluator.attributes import UNDEFINED
-from evaluator.backends import ComputeResources, DaskLocalCluster
+from evaluator.backends import ComputeResources
+from evaluator.backends.dask import DaskLocalCluster
 from evaluator.protocols.groups import ConditionalGroup
 from evaluator.tests.test_workflow.utils import DummyInputOutputProtocol
 from evaluator.thermodynamics import ThermodynamicState
