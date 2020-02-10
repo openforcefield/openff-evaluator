@@ -18,6 +18,7 @@ dependencies:
     - pandas
     - lxml
     - icu 58*  # REQUIRED - DO NOT REMOVE.
+    - networkx
     - pint >=0.10.1
     - packmol
     - pymbar >=3.0.5
