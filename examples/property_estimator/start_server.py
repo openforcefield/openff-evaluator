@@ -2,7 +2,8 @@
 import argparse
 import logging
 
-from evaluator.backends import ComputeResources, DaskLocalCluster
+from evaluator.backends import ComputeResources
+from evaluator.backends.dask import DaskLocalCluster
 from evaluator.server import EvaluatorServer
 from evaluator.utils import setup_timestamp_logging
 

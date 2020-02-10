@@ -11,7 +11,6 @@ import traceback
 
 import dask
 from dask import distributed
-from dask_jobqueue import LSFCluster, PBSCluster
 from distributed import get_worker
 
 import evaluator
@@ -526,7 +525,7 @@ class DaskLSFBackend(BaseDaskJobQueueBackend):
         >>>
         >>> # Create the backend which will adaptively try to spin up between one and
         >>> # ten workers with the requested resources depending on the calculation load.
-        >>> from evaluator.backends import DaskLSFBackend
+        >>> from evaluator.backends.dask import DaskLSFBackend
         >>>
         >>> lsf_backend = DaskLSFBackend(minimum_number_of_workers=1,
         >>>                              maximum_number_of_workers=10,
@@ -574,6 +573,8 @@ class DaskLSFBackend(BaseDaskJobQueueBackend):
         return extra_kwargs
 
     def _get_cluster_class(self):
+        from dask_jobqueue import LSFCluster
+
         return LSFCluster
 
 
@@ -630,7 +631,7 @@ class DaskPBSBackend(BaseDaskJobQueueBackend):
         >>>
         >>> # Create the backend which will adaptively try to spin up between one and
         >>> # ten workers with the requested resources depending on the calculation load.
-        >>> from evaluator.backends import DaskPBSBackend
+        >>> from evaluator.backends.dask import DaskPBSBackend
         >>>
         >>> pbs_backend = DaskPBSBackend(minimum_number_of_workers=1,
         >>>                              maximum_number_of_workers=10,
@@ -662,6 +663,8 @@ class DaskPBSBackend(BaseDaskJobQueueBackend):
         return extra_kwargs
 
     def _get_cluster_class(self):
+        from dask_jobqueue import PBSCluster
+
         return PBSCluster
 
 
