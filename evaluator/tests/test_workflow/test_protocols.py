@@ -7,7 +7,8 @@ import tempfile
 import pytest
 
 from evaluator import unit
-from evaluator.backends import ComputeResources, DaskLocalCluster
+from evaluator.backends import ComputeResources
+from evaluator.backends.dask import DaskLocalCluster
 from evaluator.protocols.miscellaneous import AddValues
 from evaluator.tests.test_workflow.utils import DummyInputOutputProtocol
 from evaluator.utils.serialization import TypedJSONDecoder

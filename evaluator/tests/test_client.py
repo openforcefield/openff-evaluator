@@ -5,7 +5,7 @@ import tempfile
 
 import pytest
 
-from evaluator.backends import DaskLocalCluster
+from evaluator.backends.dask import DaskLocalCluster
 from evaluator.client import EvaluatorClient, Request, RequestResult
 from evaluator.datasets import PhysicalPropertyDataSet
 from evaluator.forcefield import (

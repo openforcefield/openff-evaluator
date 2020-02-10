@@ -1,7 +1,7 @@
 import pytest
 
-from evaluator.backends import DaskLSFBackend, DaskPBSBackend, QueueWorkerResources
-from evaluator.backends.dask import _Multiprocessor
+from evaluator.backends import QueueWorkerResources
+from evaluator.backends.dask import DaskLSFBackend, DaskPBSBackend, _Multiprocessor
 from evaluator.workflow.plugins import registered_workflow_protocols
 
 
