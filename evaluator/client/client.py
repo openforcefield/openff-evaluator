@@ -7,6 +7,7 @@ import logging
 import socket
 import traceback
 from collections import defaultdict
+from enum import Enum
 from time import sleep
 
 from evaluator.attributes import UNDEFINED, Attribute, AttributeClass
@@ -59,6 +60,30 @@ class ConnectionOptions(AttributeClass):
             self.server_address = server_address
         if server_port is not None:
             self.server_port = server_port
+
+
+class BatchMode(Enum):
+    """The different modes in which a server can batch together properties
+    to estimate.
+
+    This enum may take values of
+
+    * SameComponents: All properties measured for substances containing exactly
+      the same components will be placed into a single batch. E.g. The density of
+      a 80:20 and a 20:80 mix of ethanol and water would be batched together, but
+      the density of pure ethanol and the density of pure water would be placed into
+      separate batches.
+    * SharedComponents: All properties measured for substances containing at least
+      common component will be batched together. E.g.The densities of 80:20 and 20:80
+      mixtures of ethanol and water, and the pure densities of ethanol and water would
+      be batched together.
+
+    Properties will only be marked as estimated by the server when all properties in a
+    single batch are completed.
+    """
+
+    SameComponents = "SameComponents"
+    SharedComponents = "SharedComponents"
 
 
 class Request(AttributeClass):
@@ -157,6 +182,15 @@ class RequestOptions(AttributeClass):
         "use when estimating the set of physical properties. The "
         "dictionary should be of the form [property_type][layer_type].",
         type_hint=dict,
+        optional=True,
+    )
+
+    batch_mode = Attribute(
+        docstring="The way in which the server should batch together "
+        "properties to estimate. Properties will only be marked as finished "
+        "when all properties in a single batch are completed.",
+        type_hint=BatchMode,
+        default_value=BatchMode.SharedComponents,
         optional=True,
     )
 
