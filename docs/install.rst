@@ -14,7 +14,7 @@ Installation from Conda
 
 To install the ``openff-evaluator`` from the ``omnia`` channel, simply run::
 
-    conda install -c omnia openff-evaluator
+    conda install -c omnia/label/beta openff-evaluator
 
 Recommended Dependencies
 ------------------------
