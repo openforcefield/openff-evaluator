@@ -449,6 +449,9 @@ class _Compound:
                 cmiles_molecule, explicit_hydrogen=False, mapped=False
             )
 
+            if isinstance(smiles, str) and len(smiles) == 0:
+                smiles = None
+
         except LicenseError:
             smiles = None
         except ValueError:
