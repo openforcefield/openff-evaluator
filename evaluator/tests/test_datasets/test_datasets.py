@@ -122,6 +122,24 @@ def test_to_pandas():
 
     data_set_pandas = data_set.to_pandas()
 
+    required_columns = [
+        "Temperature",
+        "Pressure",
+        "Phase",
+        "N Components",
+        "Source",
+        "Component 1",
+        "Role 1",
+        "Mole Fraction 1",
+        "Exact Amount 1",
+        "Component 2",
+        "Role 2",
+        "Mole Fraction 2",
+        "Exact Amount 2",
+    ]
+
+    assert all(x in data_set_pandas for x in required_columns)
+
     assert data_set_pandas is not None
     assert len(data_set_pandas) == 12
 
