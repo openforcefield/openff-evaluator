@@ -38,7 +38,7 @@ def test_register_external_plugins(caplog):
 
     # Add the mapping to the fake EntryPoint
     distribution._ep_map = {
-        "openff-evaluator.plugins": {
+        "openff_evaluator.plugins": {
             "dummy_1": valid_entry_point,
             "dummy_2": bad_entry_point,
         }

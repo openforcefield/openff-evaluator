@@ -36,7 +36,7 @@ def register_external_plugins():
     plugin system.
     """
 
-    for entry_point in pkg_resources.iter_entry_points("openff-evaluator.plugins"):
+    for entry_point in pkg_resources.iter_entry_points("openff_evaluator.plugins"):
 
         try:
             entry_point.load()
