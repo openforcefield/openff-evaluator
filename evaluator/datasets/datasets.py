@@ -35,6 +35,43 @@ class PropertyPhase(IntFlag):
     Liquid = 0x02
     Gas = 0x04
 
+    @classmethod
+    def from_string(cls, enum_string):
+        """Parses a phase enum from its string representation.
+
+        Parameters
+        ----------
+        enum_string: str
+            The str representation of a `PropertyPhase`
+
+        Returns
+        -------
+        PropertyPhase
+            The created enum
+
+        Examples
+        --------
+        To round-trip convert a phase enum:
+        >>> phase = PropertyPhase.Liquid | PropertyPhase.Gas
+        >>> phase_str = str(phase)
+        >>> parsed_phase = PropertyPhase.from_string(phase_str)
+        """
+
+        if len(enum_string) == 0:
+            return PropertyPhase.Undefined
+
+        components = [cls[x] for x in enum_string.split(" + ")]
+
+        if len(components) == 0:
+            return PropertyPhase.Undefined
+
+        enum_value = components[0]
+
+        for component in components[1:]:
+            enum_value |= component
+
+        return enum_value
+
     def __str__(self):
         return " + ".join([phase.name for phase in PropertyPhase if self & phase])
 
@@ -556,14 +593,14 @@ class PhysicalPropertyDataSet(TypedBaseModel):
                     unit.kilopascal
                 )
 
-            phase = physical_property.phase.name
+            phase = str(physical_property.phase)
 
             # Extract the component data.
             components = []
             amounts = []
             roles = []
 
-            for index, component in enumerate(physical_property.substance.components):
+            for index, component in enumerate(physical_property.substance):
 
                 component_amounts = {MoleFraction: None, ExactAmount: None}
 
