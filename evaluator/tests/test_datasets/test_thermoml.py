@@ -19,7 +19,6 @@ register_default_plugins()
 
 @thermoml_property("Osmotic coefficient", supported_phases=PropertyPhase.Liquid)
 class OsmoticCoefficient(PhysicalProperty):
-
     def default_unit(cls):
         return unit.dimensionless
 
@@ -29,14 +28,12 @@ class OsmoticCoefficient(PhysicalProperty):
     supported_phases=PropertyPhase.Liquid | PropertyPhase.Gas,
 )
 class VaporPressure(PhysicalProperty):
-
     def default_unit(cls):
         return unit.kilopascal
 
 
 @thermoml_property("Activity coefficient", supported_phases=PropertyPhase.Liquid)
 class ActivityCoefficient(PhysicalProperty):
-
     def default_unit(cls):
         return unit.dimensionless
 

@@ -203,7 +203,10 @@ class PhysicalProperty(AttributeClass, abc.ABC):
         assert self.value.units.dimensionality == self.default_unit().dimensionality
 
         if self.uncertainty != UNDEFINED:
-            assert self.uncertainty.units.dimensionality == self.default_unit().dimensionality
+            assert (
+                self.uncertainty.units.dimensionality
+                == self.default_unit().dimensionality
+            )
 
 
 class PhysicalPropertyDataSet(TypedBaseModel):
@@ -557,8 +560,8 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         """Converts a `PhysicalPropertyDataSet` to a `pandas.DataFrame` object
         with columns of
 
-            - 'Temperature / K'
-            - 'Pressure / kPa'
+            - 'Temperature (K)'
+            - 'Pressure (kPa)'
             - 'Phase'
             - 'N Components'
             - 'Component 1'
@@ -570,11 +573,11 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             - 'Role N'
             - 'Mole Fraction N'
             - 'Exact Amount N'
-            - '<Property 1> Value / <default unit>'
-            - '<Property 1> Uncertainty / <default unit>'
+            - '<Property 1> Value (<default unit>)'
+            - '<Property 1> Uncertainty / (<default unit>)'
             - ...
-            - '<Property N> Value / <default unit>'
-            - '<Property N> Uncertainty / <default unit>'
+            - '<Property N> Value / (<default unit>)'
+            - '<Property N> Uncertainty / (<default unit>)'
             - `'Source'`
 
         where 'Component X' is a column containing the smiles representation of component X.
@@ -661,8 +664,8 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
             # Create the data row.
             data_row = {
-                "Temperature / K": temperature,
-                "Pressure / kPa": pressure,
+                "Temperature (K)": temperature,
+                "Pressure (kPa)": pressure,
                 "Phase": phase,
                 "N Components": len(physical_property.substance),
             }
@@ -674,8 +677,12 @@ class PhysicalPropertyDataSet(TypedBaseModel):
                 data_row[f"Mole Fraction {index + 1}"] = amounts[index][MoleFraction]
                 data_row[f"Exact Amount {index + 1}"] = amounts[index][ExactAmount]
 
-            data_row[f"{type(physical_property).__name__} Value"] = value
-            data_row[f"{type(physical_property).__name__} Uncertainty"] = uncertainty
+            data_row[
+                f"{type(physical_property).__name__} Value ({default_unit:~})"
+            ] = value
+            data_row[
+                f"{type(physical_property).__name__} Uncertainty ({default_unit:~})"
+            ] = uncertainty
 
             data_row["Source"] = source
 
@@ -690,8 +697,8 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             return None
 
         data_columns = [
-            "Temperature / K",
-            "Pressure / kPa",
+            "Temperature (K)",
+            "Pressure (kPa)",
             "Phase",
             "N Components",
         ]
@@ -706,8 +713,8 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
             default_unit = default_units[property_type]
 
-            data_columns.append(f"{property_type} Value / {default_unit:~}")
-            data_columns.append(f"{property_type} Uncertainty / {default_unit:~}")
+            data_columns.append(f"{property_type} Value ({default_unit:~})")
+            data_columns.append(f"{property_type} Uncertainty ({default_unit:~})")
 
         data_columns.append("Source")
 
