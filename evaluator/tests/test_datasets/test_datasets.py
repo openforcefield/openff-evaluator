@@ -122,6 +122,24 @@ def test_to_pandas():
 
     data_set_pandas = data_set.to_pandas()
 
+    required_columns = [
+        "Temperature",
+        "Pressure",
+        "Phase",
+        "N Components",
+        "Source",
+        "Component 1",
+        "Role 1",
+        "Mole Fraction 1",
+        "Exact Amount 1",
+        "Component 2",
+        "Role 2",
+        "Mole Fraction 2",
+        "Exact Amount 2",
+    ]
+
+    assert all(x in data_set_pandas for x in required_columns)
+
     assert data_set_pandas is not None
     assert len(data_set_pandas) == 12
 
@@ -306,3 +324,21 @@ def test_filter_by_smiles():
     assert len(data_set) == 1
     assert methanol_substance in data_set.substances
     assert ethanol_substance not in data_set.substances
+
+
+def test_phase_from_string():
+
+    assert PropertyPhase.from_string("") == PropertyPhase.Undefined
+
+    phase_enums = [
+        PropertyPhase.Undefined,
+        PropertyPhase.Solid,
+        PropertyPhase.Liquid,
+        PropertyPhase.Gas,
+        PropertyPhase.Solid | PropertyPhase.Liquid,
+        PropertyPhase.Solid | PropertyPhase.Gas,
+        PropertyPhase.Liquid | PropertyPhase.Gas,
+        PropertyPhase.Solid | PropertyPhase.Liquid | PropertyPhase.Gas,
+    ]
+
+    assert all(x == PropertyPhase.from_string(str(x)) for x in phase_enums)

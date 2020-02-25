@@ -35,6 +35,43 @@ class PropertyPhase(IntFlag):
     Liquid = 0x02
     Gas = 0x04
 
+    @classmethod
+    def from_string(cls, enum_string):
+        """Parses a phase enum from its string representation.
+
+        Parameters
+        ----------
+        enum_string: str
+            The str representation of a `PropertyPhase`
+
+        Returns
+        -------
+        PropertyPhase
+            The created enum
+
+        Examples
+        --------
+        To round-trip convert a phase enum:
+        >>> phase = PropertyPhase.Liquid | PropertyPhase.Gas
+        >>> phase_str = str(phase)
+        >>> parsed_phase = PropertyPhase.from_string(phase_str)
+        """
+
+        if len(enum_string) == 0:
+            return PropertyPhase.Undefined
+
+        components = [cls[x] for x in enum_string.split(" + ")]
+
+        if len(components) == 0:
+            return PropertyPhase.Undefined
+
+        enum_value = components[0]
+
+        for component in components[1:]:
+            enum_value |= component
+
+        return enum_value
+
     def __str__(self):
         return " + ".join([phase.name for phase in PropertyPhase if self & phase])
 
@@ -542,100 +579,90 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         data_rows = []
 
         # Extract the data from the data set.
-        for substance in self.substances:
+        for physical_property in self:
 
-            number_of_components = substance.number_of_components
+            # Extract the measured state.
+            temperature = physical_property.thermodynamic_state.temperature.to(
+                unit.kelvin
+            )
+            pressure = None
 
-            maximum_number_of_components = max(
-                maximum_number_of_components, number_of_components
+            if physical_property.thermodynamic_state.pressure != UNDEFINED:
+
+                pressure = physical_property.thermodynamic_state.pressure.to(
+                    unit.kilopascal
+                )
+
+            phase = str(physical_property.phase)
+
+            # Extract the component data.
+            components = []
+            amounts = []
+            roles = []
+
+            for index, component in enumerate(physical_property.substance):
+
+                component_amounts = {MoleFraction: None, ExactAmount: None}
+
+                for x in physical_property.substance.get_amounts(component):
+
+                    assert isinstance(x, (MoleFraction, ExactAmount))
+                    component_amounts[type(x)] = x.value
+
+                components.append(component.smiles)
+                amounts.append(component_amounts)
+                roles.append(component.role.name)
+
+            # Extract the value data as a string.
+            value = (
+                None
+                if physical_property.value == UNDEFINED
+                else str(physical_property.value)
+            )
+            uncertainty = (
+                None
+                if physical_property.uncertainty == UNDEFINED
+                else str(physical_property.uncertainty)
             )
 
-            for physical_property in self.properties_by_substance(substance):
+            # Extract the data source.
+            source = None
 
-                # Extract the measured state.
-                temperature = physical_property.thermodynamic_state.temperature.to(
-                    unit.kelvin
-                )
-                pressure = None
+            if isinstance(physical_property.source, MeasurementSource):
 
-                if physical_property.thermodynamic_state.pressure != UNDEFINED:
+                source = physical_property.source.doi
 
-                    pressure = physical_property.thermodynamic_state.pressure.to(
-                        unit.kilopascal
-                    )
+                if source is None or len(source) == 0:
+                    source = physical_property.source.reference
 
-                phase = physical_property.phase.name
+            elif isinstance(physical_property.source, CalculationSource):
+                source = physical_property.source.fidelity
 
-                # Extract the component data.
-                components = []
-                amounts = []
-                roles = []
+            # Create the data row.
+            data_row = {
+                "Temperature": str(temperature),
+                "Pressure": str(pressure),
+                "Phase": phase,
+                "N Components": len(physical_property.substance),
+            }
 
-                for index, component in enumerate(
-                    physical_property.substance.components
-                ):
+            for index in range(len(components)):
 
-                    component_amounts = {MoleFraction: None, ExactAmount: None}
+                data_row[f"Component {index + 1}"] = components[index]
+                data_row[f"Role {index + 1}"] = roles[index]
+                data_row[f"Mole Fraction {index + 1}"] = amounts[index][MoleFraction]
+                data_row[f"Exact Amount {index + 1}"] = amounts[index][ExactAmount]
 
-                    for x in physical_property.substance.get_amounts(component):
+            data_row[f"{type(physical_property).__name__} Value"] = value
+            data_row[f"{type(physical_property).__name__} Uncertainty"] = uncertainty
 
-                        assert isinstance(x, (MoleFraction, ExactAmount))
-                        component_amounts[type(x)] = x.value
+            data_row["Source"] = source
 
-                    components.append(component.smiles)
-                    amounts.append(component_amounts)
-                    roles.append(component.role.name)
+            data_rows.append(data_row)
 
-                # Extract the value data as a string.
-                value = (
-                    None
-                    if physical_property.value == UNDEFINED
-                    else str(physical_property.value)
-                )
-                uncertainty = (
-                    None
-                    if physical_property.uncertainty == UNDEFINED
-                    else str(physical_property.uncertainty)
-                )
-
-                # Extract the data source.
-                source = None
-
-                if isinstance(physical_property.source, MeasurementSource):
-
-                    source = physical_property.source.doi
-
-                    if source is None or len(source) == 0:
-                        source = physical_property.source.reference
-
-                elif isinstance(physical_property.source, CalculationSource):
-                    source = physical_property.source.fidelity
-
-                # Create the data row.
-                data_row = {
-                    "Temperature": str(temperature),
-                    "Pressure": str(pressure),
-                    "Phase": phase,
-                    "N Components": number_of_components,
-                }
-
-                for index in range(len(components)):
-
-                    data_row[f"Component {index + 1}"] = components[index]
-                    data_row[f"Role {index + 1}"] = roles[index]
-                    data_row[f"Mole Fraction {index + 1}"] = amounts[index][
-                        MoleFraction
-                    ]
-                    data_row[f"Exact Amount {index + 1}"] = amounts[index][ExactAmount]
-
-                data_row[f"{type(physical_property).__name__} Value"] = value
-                data_row[
-                    f"{type(physical_property).__name__} Uncertainty"
-                ] = uncertainty
-
-                data_row["Source"] = source
-
-                data_rows.append(data_row)
+            maximum_number_of_components = max(
+                maximum_number_of_components, len(physical_property.substance)
+            )
 
         # Set up the column headers.
         if len(data_rows) == 0:
