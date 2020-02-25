@@ -31,6 +31,10 @@ from evaluator.workflow.utils import ProtocolPath, ReplicatorValue
 class EnthalpyOfMixing(PhysicalProperty):
     """A class representation of an enthalpy of mixing property"""
 
+    @classmethod
+    def default_unit(cls):
+        return unit.kilojoule / unit.mole
+
     EnthalpyWorkflow = namedtuple(
         "EnthalpySchema",
         "build_coordinates "
@@ -774,6 +778,10 @@ class EnthalpyOfMixing(PhysicalProperty):
 )
 class EnthalpyOfVaporization(PhysicalProperty):
     """A class representation of an enthalpy of vaporization property"""
+
+    @classmethod
+    def default_unit(cls):
+        return unit.kilojoule / unit.mole
 
     @staticmethod
     def _default_reweighting_storage_query():

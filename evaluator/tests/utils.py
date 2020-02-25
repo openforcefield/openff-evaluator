@@ -51,7 +51,7 @@ def create_dummy_property(property_class):
 
     Parameters
     ----------
-    property_class : type
+    property_class : type of PhysicalProperty
         The type of property, e.g. Density, DielectricConstant...
 
     Returns
@@ -67,8 +67,8 @@ def create_dummy_property(property_class):
         ),
         phase=PropertyPhase.Liquid,
         substance=substance,
-        value=10 * unit.gram,
-        uncertainty=1 * unit.gram,
+        value=10.0 * property_class.default_unit(),
+        uncertainty=1.0 * property_class.default_unit(),
     )
 
     dummy_property.source = CalculationSource(fidelity="dummy", provenance={})

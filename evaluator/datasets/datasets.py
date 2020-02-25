@@ -2,6 +2,7 @@
 An API for defining, storing, and loading sets of physical
 property data.
 """
+import abc
 import uuid
 from enum import IntFlag, unique
 
@@ -79,7 +80,7 @@ class PropertyPhase(IntFlag):
         return f"<PropertyPhase {str(self)}>"
 
 
-class PhysicalProperty(AttributeClass):
+class PhysicalProperty(AttributeClass, abc.ABC):
     """Represents the value of any physical property and it's uncertainty
     if provided.
 
@@ -88,6 +89,13 @@ class PhysicalProperty(AttributeClass):
     the composition of the observed system, and metadata about how the
     property was collected.
     """
+
+    @classmethod
+    @abc.abstractmethod
+    def default_unit(cls):
+        """pint.Unit: The default unit (e.g. g / mol) associated with this
+        class of property."""
+        raise NotImplementedError()
 
     id = Attribute(
         docstring="A unique identifier string assigned to this property",
@@ -188,6 +196,17 @@ class PhysicalProperty(AttributeClass):
             state["id"] = str(uuid.uuid4()).replace("-", "")
 
         super(PhysicalProperty, self).__setstate__(state)
+
+    def validate(self, attribute_type=None):
+        super(PhysicalProperty, self).validate(attribute_type)
+
+        assert self.value.units.dimensionality == self.default_unit().dimensionality
+
+        if self.uncertainty != UNDEFINED:
+            assert (
+                self.uncertainty.units.dimensionality
+                == self.default_unit().dimensionality
+            )
 
 
 class PhysicalPropertyDataSet(TypedBaseModel):
@@ -541,8 +560,8 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         """Converts a `PhysicalPropertyDataSet` to a `pandas.DataFrame` object
         with columns of
 
-            - 'Temperature'
-            - 'Pressure'
+            - 'Temperature (K)'
+            - 'Pressure (kPa)'
             - 'Phase'
             - 'N Components'
             - 'Component 1'
@@ -554,11 +573,11 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             - 'Role N'
             - 'Mole Fraction N'
             - 'Exact Amount N'
-            - '<Property 1> Value'
-            - '<Property 1> Uncertainty'
+            - '<Property 1> Value (<default unit>)'
+            - '<Property 1> Uncertainty / (<default unit>)'
             - ...
-            - '<Property N> Value'
-            - '<Property N> Uncertainty'
+            - '<Property N> Value / (<default unit>)'
+            - '<Property N> Uncertainty / (<default unit>)'
             - `'Source'`
 
         where 'Component X' is a column containing the smiles representation of component X.
@@ -579,19 +598,21 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         data_rows = []
 
         # Extract the data from the data set.
+        default_units = {}
+
         for physical_property in self:
 
             # Extract the measured state.
             temperature = physical_property.thermodynamic_state.temperature.to(
                 unit.kelvin
-            )
+            ).magnitude
             pressure = None
 
             if physical_property.thermodynamic_state.pressure != UNDEFINED:
 
                 pressure = physical_property.thermodynamic_state.pressure.to(
                     unit.kilopascal
-                )
+                ).magnitude
 
             phase = str(physical_property.phase)
 
@@ -614,15 +635,18 @@ class PhysicalPropertyDataSet(TypedBaseModel):
                 roles.append(component.role.name)
 
             # Extract the value data as a string.
+            default_unit = physical_property.default_unit()
+            default_units[physical_property.__class__.__name__] = default_unit
+
             value = (
                 None
                 if physical_property.value == UNDEFINED
-                else str(physical_property.value)
+                else physical_property.value.to(default_unit).magnitude
             )
             uncertainty = (
                 None
                 if physical_property.uncertainty == UNDEFINED
-                else str(physical_property.uncertainty)
+                else physical_property.uncertainty.to(default_unit).magnitude
             )
 
             # Extract the data source.
@@ -640,8 +664,8 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
             # Create the data row.
             data_row = {
-                "Temperature": str(temperature),
-                "Pressure": str(pressure),
+                "Temperature (K)": temperature,
+                "Pressure (kPa)": pressure,
                 "Phase": phase,
                 "N Components": len(physical_property.substance),
             }
@@ -653,8 +677,12 @@ class PhysicalPropertyDataSet(TypedBaseModel):
                 data_row[f"Mole Fraction {index + 1}"] = amounts[index][MoleFraction]
                 data_row[f"Exact Amount {index + 1}"] = amounts[index][ExactAmount]
 
-            data_row[f"{type(physical_property).__name__} Value"] = value
-            data_row[f"{type(physical_property).__name__} Uncertainty"] = uncertainty
+            data_row[
+                f"{type(physical_property).__name__} Value ({default_unit:~})"
+            ] = value
+            data_row[
+                f"{type(physical_property).__name__} Uncertainty ({default_unit:~})"
+            ] = uncertainty
 
             data_row["Source"] = source
 
@@ -669,8 +697,8 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             return None
 
         data_columns = [
-            "Temperature",
-            "Pressure",
+            "Temperature (K)",
+            "Pressure (kPa)",
             "Phase",
             "N Components",
         ]
@@ -682,8 +710,11 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             data_columns.append(f"Exact Amount {index + 1}")
 
         for property_type in self.property_types:
-            data_columns.append(f"{property_type} Value")
-            data_columns.append(f"{property_type} Uncertainty")
+
+            default_unit = default_units[property_type]
+
+            data_columns.append(f"{property_type} Value ({default_unit:~})")
+            data_columns.append(f"{property_type} Uncertainty ({default_unit:~})")
 
         data_columns.append("Source")
 

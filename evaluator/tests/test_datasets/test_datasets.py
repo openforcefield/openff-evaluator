@@ -123,8 +123,8 @@ def test_to_pandas():
     data_set_pandas = data_set.to_pandas()
 
     required_columns = [
-        "Temperature",
-        "Pressure",
+        "Temperature (K)",
+        "Pressure (kPa)",
         "Phase",
         "N Components",
         "Source",
@@ -141,7 +141,10 @@ def test_to_pandas():
     assert all(x in data_set_pandas for x in required_columns)
 
     assert data_set_pandas is not None
-    assert len(data_set_pandas) == 12
+    assert data_set_pandas.shape == (12, 21)
+
+    data_set_without_na = data_set_pandas.dropna(axis=1, how="all")
+    assert data_set_without_na.shape == (12, 19)
 
 
 def test_sources_substances():

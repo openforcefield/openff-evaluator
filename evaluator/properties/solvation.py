@@ -24,6 +24,10 @@ from evaluator.workflow.utils import ProtocolPath
 class SolvationFreeEnergy(PhysicalProperty):
     """A class representation of a solvation free energy property."""
 
+    @classmethod
+    def default_unit(cls):
+        return unit.kilojoule / unit.mole
+
     @staticmethod
     def default_simulation_schema(
         absolute_tolerance=UNDEFINED, relative_tolerance=UNDEFINED, n_molecules=2000
