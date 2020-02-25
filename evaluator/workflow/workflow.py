@@ -521,7 +521,7 @@ class Workflow:
 
         schema.protocol_replicators = replicators
 
-    def replace_protocol(self, old_protocol, new_protocol):
+    def replace_protocol(self, old_protocol, new_protocol, update_paths_only=False):
         """Replaces an existing protocol with a new one, while
         updating all input and local references to point to the
         new protocol.
@@ -535,6 +535,10 @@ class Workflow:
             The protocol (or its id) to replace.
         new_protocol : Protocol or ProtocolPath
             The new protocol (or its id) to use.
+        update_paths_only: bool
+            Whether only update the `final_value_source`, `gradients_sources`
+            and `outputs_to_store` attributes, or to also update all of the
+            protocols in `protocols`.
         """
 
         new_id = (
@@ -554,8 +558,10 @@ class Workflow:
             self._protocols.append(new_protocol)
             new_protocol = new_protocol.id
 
-        for protocol in self._protocols:
-            protocol.replace_protocol(old_protocol, new_protocol)
+        if not update_paths_only:
+
+            for protocol in self._protocols:
+                protocol.replace_protocol(old_protocol, new_protocol)
 
         if self._final_value_source != UNDEFINED:
             self._final_value_source.replace_protocol(old_protocol, new_protocol)
@@ -918,7 +924,7 @@ class WorkflowGraph:
                 original_protocol = workflow.protocols[original_id]
                 new_protocol = self._protocol_graph.protocols[new_id]
 
-            workflow.replace_protocol(original_protocol, new_protocol)
+            workflow.replace_protocol(original_protocol, new_protocol, True)
 
     def execute(
         self, root_directory="", calculation_backend=None, compute_resources=None

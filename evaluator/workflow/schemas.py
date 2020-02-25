@@ -624,9 +624,7 @@ class WorkflowSchema(AttributeClass):
         ProtocolPath
             The truncated path.
         """
-        property_name, protocol_ids = ProtocolPath.to_components(
-            protocol_path.full_path
-        )
+        property_name = protocol_path.property_name
 
         # Remove any nested property names from the path
         if protocol_path.property_name.find(".") >= 0:
@@ -636,7 +634,7 @@ class WorkflowSchema(AttributeClass):
         if protocol_path.property_name.find("[") >= 0:
             property_name = property_name.split("[")[0]
 
-        return ProtocolPath(property_name, *protocol_ids)
+        return ProtocolPath(property_name, *protocol_path.protocol_ids)
 
     def _validate_replicators(self, schemas_by_id):
 
