@@ -4,6 +4,7 @@ physical properties.
 """
 import abc
 import copy
+import logging
 import os
 
 from evaluator.attributes import UNDEFINED, Attribute
@@ -14,6 +15,8 @@ from evaluator.layers import (
     CalculationLayerSchema,
 )
 from evaluator.workflow import Workflow, WorkflowGraph, WorkflowSchema
+
+logger = logging.getLogger(__name__)
 
 
 class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
@@ -107,7 +110,9 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         workflow_graph = WorkflowGraph()
         provenance = {}
 
-        for physical_property in properties:
+        for index, physical_property in enumerate(properties):
+
+            logger.info(f"Building workflow {index} of {len(properties)}")
 
             property_type = type(physical_property).__name__
 

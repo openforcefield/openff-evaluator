@@ -31,7 +31,20 @@ from evaluator.workflow.utils import ProtocolPath
 logger = logging.getLogger(__name__)
 
 
-class Protocol(AttributeClass, abc.ABC):
+class ProtocolMeta(abc.ABCMeta):
+    def __init__(cls, name, bases, dct):
+
+        super().__init__(name, bases, dct)
+
+        cls._input_attributes = [
+            ProtocolPath(x) for x in cls.get_attributes(InputAttribute)
+        ]
+        cls._output_attributes = [
+            ProtocolPath(x) for x in cls.get_attributes(OutputAttribute)
+        ]
+
+
+class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
     """The base class for a protocol which would form one
     step of a larger property calculation workflow.
 
@@ -82,8 +95,7 @@ class Protocol(AttributeClass, abc.ABC):
     @property
     def required_inputs(self):
         """list of ProtocolPath: The inputs which must be set on this protocol."""
-        input_attributes = self.get_attributes(InputAttribute)
-        return [ProtocolPath(x) for x in input_attributes]
+        return [x.copy() for x in self._input_attributes]
 
     @property
     def outputs(self):
@@ -91,8 +103,8 @@ class Protocol(AttributeClass, abc.ABC):
 
         outputs = {}
 
-        for output_attribute in self.get_attributes(OutputAttribute):
-            outputs[ProtocolPath(output_attribute)] = getattr(self, output_attribute)
+        for output_attribute in self._output_attributes:
+            outputs[output_attribute] = getattr(self, output_attribute.property_name)
 
         return outputs
 
@@ -469,8 +481,6 @@ class Protocol(AttributeClass, abc.ABC):
 
             return {}
 
-        property_name, protocols_ids = ProtocolPath.to_components(input_path.full_path)
-
         return_paths = {}
 
         if isinstance(input_value, list) or isinstance(input_value, tuple):
@@ -481,7 +491,7 @@ class Protocol(AttributeClass, abc.ABC):
                     continue
 
                 path_index = ProtocolPath(
-                    property_name + "[{}]".format(index), *protocols_ids
+                    input_path.property_name + f"[{index}]", *input_path.protocol_ids
                 )
                 return_paths[path_index] = list_value
 
@@ -493,7 +503,7 @@ class Protocol(AttributeClass, abc.ABC):
                     continue
 
                 path_index = ProtocolPath(
-                    property_name + "[{}]".format(dict_key), *protocols_ids
+                    input_path.property_name + f"[{dict_key}]", *input_path.protocol_ids
                 )
                 return_paths[path_index] = input_value[dict_key]
 
@@ -760,7 +770,12 @@ class ProtocolGraph:
         return dependants_graph
 
     def _add_protocol(
-        self, protocol_id, protocols_to_add, parent_protocol_ids, exclusion_list,
+        self,
+        protocol_id,
+        protocols_to_add,
+        dependant_ids,
+        parent_protocol_ids,
+        exclusion_list,
     ):
         """Adds a protocol into the graph.
 
@@ -771,9 +786,12 @@ class ProtocolGraph:
         protocols_to_add: dict of str and Protocol
             A dictionary of all of the protocols currently being
             added to the graph.
+        dependant_ids: list of str
+            The ids of the protocols which depend on the output of the
+            protocol to be inserted.
         parent_protocol_ids : `list` of str
-            The ids of the new parents of the node to be inserted. If None,
-            the protocol will be added as a new parent node.
+            The ids of the parents of the node to be inserted. If None,
+            the protocol will be added as a new root node.
         exclusion_list: set
             The protocols which have already been merged.
 
@@ -838,8 +856,8 @@ class ProtocolGraph:
 
             for old_id, new_id in merged_ids.items():
 
-                for protocol in protocols_to_add.values():
-                    protocol.replace_protocol(old_id, new_id)
+                for dependant_id in dependant_ids:
+                    protocols_to_add[dependant_id].replace_protocol(old_id, new_id)
 
         else:
 
@@ -913,7 +931,11 @@ class ProtocolGraph:
 
             parent_ids = parent_protocol_ids.get(protocol_id) or []
             inserted_id, new_ids = self._add_protocol(
-                protocol_id, protocols_by_id, parent_ids, exclusion_list
+                protocol_id,
+                protocols_by_id,
+                dependants_graph[protocol_id],
+                parent_ids,
+                exclusion_list,
             )
 
             # Keep a track of already merged protocols.
@@ -1139,9 +1161,7 @@ class ProtocolGraph:
                             property_name
                         )
 
-                    _, target_protocol_ids = ProtocolPath.to_components(
-                        target_path.full_path
-                    )
+                    target_protocol_ids = target_path.protocol_ids
 
                     target_value = previous_outputs[
                         ProtocolPath(property_name, *target_protocol_ids)
@@ -1371,10 +1391,12 @@ class ProtocolGroup(Protocol):
         super(ProtocolGroup, self).replace_protocol(old_id, new_id)
 
         # Rebuild the inner graph
-        self._inner_graph = ProtocolGraph()
-        self._inner_graph.add_protocols(
-            *self._protocols, allow_external_dependencies=True
-        )
+        if old_id in self.protocols:
+
+            self._inner_graph = ProtocolGraph()
+            self._inner_graph.add_protocols(
+                *self._protocols, allow_external_dependencies=True
+            )
 
     def _execute(self, directory, available_resources):
 
