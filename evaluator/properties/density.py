@@ -26,6 +26,10 @@ from evaluator.workflow.utils import ProtocolPath, ReplicatorValue
 class Density(PhysicalProperty):
     """A class representation of a density property"""
 
+    @classmethod
+    def default_unit(cls):
+        return unit.gram / unit.millilitre
+
     @staticmethod
     def default_simulation_schema(
         absolute_tolerance=UNDEFINED, relative_tolerance=UNDEFINED, n_molecules=1000
@@ -217,6 +221,10 @@ class Density(PhysicalProperty):
 @thermoml_property("Excess molar volume, m3/mol", supported_phases=PropertyPhase.Liquid)
 class ExcessMolarVolume(PhysicalProperty):
     """A class representation of an excess molar volume property"""
+
+    @classmethod
+    def default_unit(cls):
+        return unit.centimeter ** 3 / unit.mole
 
     @staticmethod
     def _get_simulation_protocols(

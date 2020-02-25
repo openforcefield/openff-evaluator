@@ -4,6 +4,7 @@ Units tests for evaluator.datasets
 import pint
 import pytest
 
+from evaluator import unit
 from evaluator.datasets import PhysicalProperty, PropertyPhase
 from evaluator.datasets.thermoml.plugins import thermoml_property
 from evaluator.datasets.thermoml.thermoml import (
@@ -18,7 +19,9 @@ register_default_plugins()
 
 @thermoml_property("Osmotic coefficient", supported_phases=PropertyPhase.Liquid)
 class OsmoticCoefficient(PhysicalProperty):
-    pass
+
+    def default_unit(cls):
+        return unit.dimensionless
 
 
 @thermoml_property(
@@ -26,12 +29,16 @@ class OsmoticCoefficient(PhysicalProperty):
     supported_phases=PropertyPhase.Liquid | PropertyPhase.Gas,
 )
 class VaporPressure(PhysicalProperty):
-    pass
+
+    def default_unit(cls):
+        return unit.kilopascal
 
 
 @thermoml_property("Activity coefficient", supported_phases=PropertyPhase.Liquid)
 class ActivityCoefficient(PhysicalProperty):
-    pass
+
+    def default_unit(cls):
+        return unit.dimensionless
 
 
 supported_units = [

@@ -347,6 +347,10 @@ class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
 class DielectricConstant(PhysicalProperty):
     """A class representation of a dielectric property"""
 
+    @classmethod
+    def default_unit(cls):
+        return unit.dimensionless
+
     @staticmethod
     def default_simulation_schema(
         absolute_tolerance=UNDEFINED, relative_tolerance=UNDEFINED, n_molecules=1000

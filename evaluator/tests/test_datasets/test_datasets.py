@@ -123,8 +123,8 @@ def test_to_pandas():
     data_set_pandas = data_set.to_pandas()
 
     required_columns = [
-        "Temperature",
-        "Pressure",
+        "Temperature / K",
+        "Pressure / kPa",
         "Phase",
         "N Components",
         "Source",

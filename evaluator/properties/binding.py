@@ -3,6 +3,7 @@ A collection of density physical property definitions.
 """
 import copy
 
+from evaluator import unit
 from evaluator.datasets import PhysicalProperty
 from evaluator.layers.simulation import SimulationSchema
 from evaluator.protocols import coordinates, forcefield, miscellaneous, yank
@@ -13,6 +14,10 @@ from evaluator.workflow.utils import ProtocolPath
 
 class HostGuestBindingAffinity(PhysicalProperty):
     """A class representation of a host-guest binding affinity property"""
+
+    @classmethod
+    def default_unit(cls):
+        return unit.kilojoule / unit.mole
 
     @staticmethod
     def default_simulation_schema(existing_schema=None):
