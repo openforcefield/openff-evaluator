@@ -13,7 +13,7 @@ from molecular simulation and molecular simulation data.
 
 See the [documentation](https://openff-evaluator.readthedocs.io) for more information.
 
-#### Tutorials
+#### Getting Started
 
 The best place to get acquainted with the framework is through the mini-tutorial series:
 
