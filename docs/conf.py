@@ -206,7 +206,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'openff-evaluator', 'OpenFF Evaluator Documentation',
-     author, 'openff-evaluator', 'A physical property evaulation toolkit from the Open Forcefield Consortium.',
+     author, 'openff-evaluator', 'A physical property evaluation toolkit from the Open Forcefield Consortium.',
      'Miscellaneous'),
 ]
 

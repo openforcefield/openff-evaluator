@@ -1,6 +1,6 @@
 """
 openff-evaluator
-A physical property evaulation toolkit from the Open Forcefield Consortium.
+A physical property evaluation toolkit from the Open Forcefield Consortium.
 """
 from setuptools import setup, find_packages
 import versioneer
@@ -18,7 +18,7 @@ setup(
     # Self-descriptive entries which should always be present
     name='openff-evaluator',
     author='Open Force Field Consortium',
-    author_email='john.chodera@choderalab.org',
+    author_email='simon.boothroyd@openforcefield.org',
     description=short_description[0],
     long_description=long_description,
     long_description_content_type="text/markdown",
