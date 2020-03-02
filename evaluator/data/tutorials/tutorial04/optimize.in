@@ -15,10 +15,10 @@ penalty_type L2
 jobtype optimize
 
 # (list) The names of force fields, corresponding to directory forcefields/file_name.(itp|gen)
-forcefield openff-1.0.0.offxml
+forcefield openff-1.0.0-tagged.offxml
 
 # (int) Maximum number of steps in an optimization
-maxstep 100
+maxstep 4
 
 # (float) Convergence criterion of step size (just needs to fall below this threshold)
 convergence_step 0.1
