@@ -1,6 +1,6 @@
 """
 evaluator
-A physical property evaulation toolkit from the Open Forcefield Consortium.
+A physical property evaluation toolkit from the Open Forcefield Consortium.
 """
 
 import warnings
