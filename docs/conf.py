@@ -60,7 +60,12 @@ autodoc_default_options = {
     'member-order': 'bysource',
 }
 
-autodoc_mock_imports = ['simtk']
+autodoc_mock_imports = [
+    'dask',
+    'dask_jobqueue',
+    'distributed',
+    'simtk'
+]
 
 # Autolabel settings
 autosectionlabel_maxdepth = 3
@@ -111,6 +116,8 @@ intersphinx_mapping = {
     'mdtraj': ('http://mdtraj.org/latest/', None),
     'dask': ('http://docs.dask.org/en/latest/', None),
     'dask.distributed': ('https://distributed.dask.org/en/latest/', None),
+    'distributed': ('https://distributed.dask.org/en/latest/', None),
+    'dask_jobqueue': ('https://jobqueue.dask.org/en/latest/', None),
     'openforcefield': ('https://open-forcefield-toolkit.readthedocs.io/en/latest/', None),
     'pint': ('https://pint.readthedocs.io/en/latest/', None)
 }

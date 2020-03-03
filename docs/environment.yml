@@ -22,7 +22,4 @@ dependencies:
     - pint >=0.10.1
     - packmol
     - pymbar >=3.0.5
-    - dask >=2.7.0
-    - distributed >=2.7.0
-    - dask-jobqueue >=0.7.0
     - uncertainties
