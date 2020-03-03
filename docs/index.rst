@@ -106,11 +106,18 @@ field optimisation.
 .. toctree::
   :maxdepth: 2
   :hidden:
-  :caption: Tutorials
+  :caption: Beginner Tutorials
 
-  tutorials/tutorial01
-  tutorials/tutorial02
-  tutorials/tutorial03
+  01 - Loading Data Sets <tutorials/tutorial01>
+  02 - Estimating Data Sets <tutorials/tutorial02>
+  03 - Analysing Data Sets <tutorials/tutorial03>
+
+.. toctree::
+  :maxdepth: 2
+  :hidden:
+  :caption: Intermediate Tutorials
+
+  04 - Optimizing Force Fields <tutorials/tutorial04>
 
 .. toctree::
   :maxdepth: 2

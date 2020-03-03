@@ -15,11 +15,17 @@ See the [documentation](https://openff-evaluator.readthedocs.io) for more inform
 
 #### Getting Started
 
-The best place to get acquainted with the framework is through the mini-tutorial series:
+The best place to get acquainted with the framework is through the mini-tutorial series.
+
+##### Beginner Tutorials:
 
 * [Tutorial 01 - Loading Data Sets](https://openff-evaluator.readthedocs.io/en/latest/tutorials/tutorial01.html)
 * [Tutorial 02 - Estimating Data Sets](https://openff-evaluator.readthedocs.io/en/latest/tutorials/tutorial02.html)
 * [Tutorial 03 - Analysing Data Sets](https://openff-evaluator.readthedocs.io/en/latest/tutorials/tutorial03.html) 
+
+##### Intermediate Tutorials:
+
+* [Tutorial 04 - Optimizing Force Fields](https://openff-evaluator.readthedocs.io/en/latest/tutorials/tutorial04.html)
 
 #### Quick Installation
 
