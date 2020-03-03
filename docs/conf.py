@@ -64,6 +64,8 @@ autodoc_mock_imports = [
     'dask',
     'dask_jobqueue',
     'distributed',
+    'packmol',
+    'pymbar',
     'simtk'
 ]
 

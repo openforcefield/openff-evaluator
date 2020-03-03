@@ -1,7 +1,6 @@
 name: evaluator
 channels:
     - conda-forge
-    - omnia
 dependencies:
     # Base depends
     - python
@@ -20,6 +19,4 @@ dependencies:
     - icu 58*  # REQUIRED - DO NOT REMOVE.
     - networkx
     - pint >=0.10.1
-    - packmol
-    - pymbar >=3.0.5
     - uncertainties
