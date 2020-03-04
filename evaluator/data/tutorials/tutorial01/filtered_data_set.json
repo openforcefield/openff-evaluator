@@ -1,215 +1,215 @@
 {
-  "@type": "evaluator.datasets.thermoml.thermoml.ThermoMLDataSet",
   "properties": [
     {
-      "@type": "evaluator.properties.density.Density",
-      "gradients": [],
-      "id": "68eb36c69b394018a6846d22d8db0b57",
+      "id": "a5fcce555c2449a7ab42bd8166a23173",
+      "substance": {
+        "components": [
+          {
+            "smiles": "CC(C)O",
+            "role": {
+              "value": "solv",
+              "@type": "evaluator.substances.components.Component.Role"
+            },
+            "@type": "evaluator.substances.components.Component"
+          }
+        ],
+        "amounts": {
+          "CC(C)O{solv}": [
+            {
+              "value": 1.0,
+              "@type": "evaluator.substances.amounts.MoleFraction"
+            }
+          ]
+        },
+        "@type": "evaluator.substances.substances.Substance"
+      },
       "phase": 2,
+      "thermodynamic_state": {
+        "temperature": {
+          "value": 298.15,
+          "unit": "K",
+          "@type": "evaluator.unit.Quantity"
+        },
+        "pressure": {
+          "value": 101.325,
+          "unit": "kPa",
+          "@type": "evaluator.unit.Quantity"
+        },
+        "@type": "evaluator.thermodynamics.ThermodynamicState"
+      },
+      "value": {
+        "value": 782.7,
+        "unit": "kg / m ** 3",
+        "@type": "evaluator.unit.Quantity"
+      },
       "source": {
-        "@type": "evaluator.datasets.provenance.MeasurementSource",
         "doi": "10.1016/j.fluid.2013.10.034",
-        "reference": ""
+        "reference": "",
+        "@type": "evaluator.datasets.provenance.MeasurementSource"
       },
+      "gradients": [],
+      "@type": "evaluator.properties.density.Density"
+    },
+    {
+      "id": "3b3bf3f008084e1bbe2ea698dee7509e",
       "substance": {
-        "@type": "evaluator.substances.substances.Substance",
+        "components": [
+          {
+            "smiles": "CCO",
+            "role": {
+              "value": "solv",
+              "@type": "evaluator.substances.components.Component.Role"
+            },
+            "@type": "evaluator.substances.components.Component"
+          }
+        ],
         "amounts": {
-          "CC(C)O{solv}": [
+          "CCO{solv}": [
             {
-              "@type": "evaluator.substances.amounts.MoleFraction",
-              "value": 1.0
+              "value": 1.0,
+              "@type": "evaluator.substances.amounts.MoleFraction"
             }
           ]
         },
-        "components": [
-          {
-            "@type": "evaluator.substances.components.Component",
-            "role": {
-              "@type": "evaluator.substances.components.Component.Role",
-              "value": "solv"
-            },
-            "smiles": "CC(C)O"
-          }
-        ]
+        "@type": "evaluator.substances.substances.Substance"
       },
+      "phase": 2,
       "thermodynamic_state": {
-        "@type": "evaluator.thermodynamics.ThermodynamicState",
-        "pressure": {
-          "@type": "evaluator.unit.Quantity",
-          "unit": "kPa",
-          "value": 101.325
-        },
         "temperature": {
-          "@type": "evaluator.unit.Quantity",
+          "value": 298.15,
           "unit": "K",
-          "value": 298.15
-        }
+          "@type": "evaluator.unit.Quantity"
+        },
+        "pressure": {
+          "value": 101.325,
+          "unit": "kPa",
+          "@type": "evaluator.unit.Quantity"
+        },
+        "@type": "evaluator.thermodynamics.ThermodynamicState"
       },
       "value": {
-        "@type": "evaluator.unit.Quantity",
+        "value": 785.07,
         "unit": "kg / m ** 3",
-        "value": 782.7
-      }
-    },
-    {
-      "@type": "evaluator.properties.density.Density",
-      "gradients": [],
-      "id": "f0266bed1ffe4c6d87d20485df60e02b",
-      "phase": 2,
+        "@type": "evaluator.unit.Quantity"
+      },
       "source": {
-        "@type": "evaluator.datasets.provenance.MeasurementSource",
         "doi": "10.1021/je1013476",
-        "reference": ""
+        "reference": "",
+        "@type": "evaluator.datasets.provenance.MeasurementSource"
       },
-      "substance": {
-        "@type": "evaluator.substances.substances.Substance",
-        "amounts": {
-          "CCO{solv}": [
-            {
-              "@type": "evaluator.substances.amounts.MoleFraction",
-              "value": 1.0
-            }
-          ]
-        },
-        "components": [
-          {
-            "@type": "evaluator.substances.components.Component",
-            "role": {
-              "@type": "evaluator.substances.components.Component.Role",
-              "value": "solv"
-            },
-            "smiles": "CCO"
-          }
-        ]
-      },
-      "thermodynamic_state": {
-        "@type": "evaluator.thermodynamics.ThermodynamicState",
-        "pressure": {
-          "@type": "evaluator.unit.Quantity",
-          "unit": "kPa",
-          "value": 101.325
-        },
-        "temperature": {
-          "@type": "evaluator.unit.Quantity",
-          "unit": "K",
-          "value": 298.15
-        }
-      },
-      "value": {
-        "@type": "evaluator.unit.Quantity",
-        "unit": "kg / m ** 3",
-        "value": 785.07
-      }
+      "gradients": [],
+      "@type": "evaluator.properties.density.Density"
     },
     {
-      "@type": "evaluator.properties.enthalpy.EnthalpyOfVaporization",
-      "gradients": [],
-      "id": "b112cae1e1d14071b015000b160188f6",
-      "phase": 2,
-      "source": {
-        "@type": "evaluator.datasets.provenance.MeasurementSource",
-        "doi": "10.1016/S0021-9614(71)80108-8",
-        "reference": ""
-      },
+      "id": "4f0b3bf451bf417395857db8401a004f",
       "substance": {
-        "@type": "evaluator.substances.substances.Substance",
+        "components": [
+          {
+            "smiles": "CCO",
+            "role": {
+              "value": "solv",
+              "@type": "evaluator.substances.components.Component.Role"
+            },
+            "@type": "evaluator.substances.components.Component"
+          }
+        ],
         "amounts": {
           "CCO{solv}": [
             {
-              "@type": "evaluator.substances.amounts.MoleFraction",
-              "value": 1.0
+              "value": 1.0,
+              "@type": "evaluator.substances.amounts.MoleFraction"
             }
           ]
         },
-        "components": [
-          {
-            "@type": "evaluator.substances.components.Component",
-            "role": {
-              "@type": "evaluator.substances.components.Component.Role",
-              "value": "solv"
-            },
-            "smiles": "CCO"
-          }
-        ]
+        "@type": "evaluator.substances.substances.Substance"
       },
+      "phase": 6,
       "thermodynamic_state": {
-        "@type": "evaluator.thermodynamics.ThermodynamicState",
-        "pressure": {
-          "@type": "evaluator.unit.Quantity",
-          "unit": "atm",
-          "value": 1.0
-        },
         "temperature": {
-          "@type": "evaluator.unit.Quantity",
+          "value": 298.15,
           "unit": "K",
-          "value": 298.15
-        }
+          "@type": "evaluator.unit.Quantity"
+        },
+        "pressure": {
+          "value": 1.0,
+          "unit": "atm",
+          "@type": "evaluator.unit.Quantity"
+        },
+        "@type": "evaluator.thermodynamics.ThermodynamicState"
+      },
+      "value": {
+        "value": 42.26,
+        "unit": "kJ / mol",
+        "@type": "evaluator.unit.Quantity"
       },
       "uncertainty": {
-        "@type": "evaluator.unit.Quantity",
+        "value": 0.02,
         "unit": "kJ / mol",
-        "value": 0.02
+        "@type": "evaluator.unit.Quantity"
       },
-      "value": {
-        "@type": "evaluator.unit.Quantity",
-        "unit": "kJ / mol",
-        "value": 42.26
-      }
+      "source": {
+        "doi": "10.1016/S0021-9614(71)80108-8",
+        "reference": "",
+        "@type": "evaluator.datasets.provenance.MeasurementSource"
+      },
+      "gradients": [],
+      "@type": "evaluator.properties.enthalpy.EnthalpyOfVaporization"
     },
     {
-      "@type": "evaluator.properties.enthalpy.EnthalpyOfVaporization",
-      "gradients": [],
-      "id": "9c0f1981deea46139a982327eb54654f",
-      "phase": 2,
-      "source": {
-        "@type": "evaluator.datasets.provenance.MeasurementSource",
-        "doi": "10.1016/S0021-9614(71)80108-8",
-        "reference": ""
-      },
+      "id": "bafbf024a5154fe199b62a907d36d0f2",
       "substance": {
-        "@type": "evaluator.substances.substances.Substance",
+        "components": [
+          {
+            "smiles": "CC(C)O",
+            "role": {
+              "value": "solv",
+              "@type": "evaluator.substances.components.Component.Role"
+            },
+            "@type": "evaluator.substances.components.Component"
+          }
+        ],
         "amounts": {
           "CC(C)O{solv}": [
             {
-              "@type": "evaluator.substances.amounts.MoleFraction",
-              "value": 1.0
+              "value": 1.0,
+              "@type": "evaluator.substances.amounts.MoleFraction"
             }
           ]
         },
-        "components": [
-          {
-            "@type": "evaluator.substances.components.Component",
-            "role": {
-              "@type": "evaluator.substances.components.Component.Role",
-              "value": "solv"
-            },
-            "smiles": "CC(C)O"
-          }
-        ]
+        "@type": "evaluator.substances.substances.Substance"
       },
+      "phase": 6,
       "thermodynamic_state": {
-        "@type": "evaluator.thermodynamics.ThermodynamicState",
-        "pressure": {
-          "@type": "evaluator.unit.Quantity",
-          "unit": "atm",
-          "value": 1.0
-        },
         "temperature": {
-          "@type": "evaluator.unit.Quantity",
+          "value": 298.15,
           "unit": "K",
-          "value": 298.15
-        }
-      },
-      "uncertainty": {
-        "@type": "evaluator.unit.Quantity",
-        "unit": "kJ / mol",
-        "value": 0.02
+          "@type": "evaluator.unit.Quantity"
+        },
+        "pressure": {
+          "value": 1.0,
+          "unit": "atm",
+          "@type": "evaluator.unit.Quantity"
+        },
+        "@type": "evaluator.thermodynamics.ThermodynamicState"
       },
       "value": {
-        "@type": "evaluator.unit.Quantity",
+        "value": 45.34,
         "unit": "kJ / mol",
-        "value": 45.34
-      }
+        "@type": "evaluator.unit.Quantity"
+      },
+      "uncertainty": {
+        "value": 0.02,
+        "unit": "kJ / mol",
+        "@type": "evaluator.unit.Quantity"
+      },
+      "source": {
+        "doi": "10.1016/S0021-9614(71)80108-8",
+        "reference": "",
+        "@type": "evaluator.datasets.provenance.MeasurementSource"
+      },
+      "gradients": [],
+      "@type": "evaluator.properties.enthalpy.EnthalpyOfVaporization"
     }
-  ]
+  ],
+  "@type": "evaluator.datasets.thermoml.thermoml.ThermoMLDataSet"
 }

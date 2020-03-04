@@ -1,2247 +1,2247 @@
 {
-  "@type": "evaluator.datasets.datasets.PhysicalPropertyDataSet",
   "properties": [
     {
-      "@type": "evaluator.properties.density.Density",
-      "gradients": [],
-      "id": "68eb36c69b394018a6846d22d8db0b57",
+      "id": "3b3bf3f008084e1bbe2ea698dee7509e",
+      "substance": {
+        "components": [
+          {
+            "smiles": "CCO",
+            "role": {
+              "value": "solv",
+              "@type": "evaluator.substances.components.Component.Role"
+            },
+            "@type": "evaluator.substances.components.Component"
+          }
+        ],
+        "amounts": {
+          "CCO{solv}": [
+            {
+              "value": 1.0,
+              "@type": "evaluator.substances.amounts.MoleFraction"
+            }
+          ]
+        },
+        "@type": "evaluator.substances.substances.Substance"
+      },
       "phase": 2,
+      "thermodynamic_state": {
+        "temperature": {
+          "value": 298.15,
+          "unit": "K",
+          "@type": "evaluator.unit.Quantity"
+        },
+        "pressure": {
+          "value": 101.325,
+          "unit": "kPa",
+          "@type": "evaluator.unit.Quantity"
+        },
+        "@type": "evaluator.thermodynamics.ThermodynamicState"
+      },
+      "value": {
+        "value": 0.7917671748838991,
+        "unit": "g / ml",
+        "@type": "evaluator.unit.Quantity"
+      },
+      "uncertainty": {
+        "value": 0.0007050528407913673,
+        "unit": "g / ml",
+        "@type": "evaluator.unit.Quantity"
+      },
       "source": {
-        "@type": "evaluator.datasets.provenance.CalculationSource",
         "fidelity": "SimulationLayer",
         "provenance": {
-          "@type": "evaluator.workflow.schemas.WorkflowSchema",
-          "final_value_source": {
-            "@type": "evaluator.workflow.utils.ProtocolPath",
-            "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/68eb36c69b394018a6846d22d8db0b57|extract_density.value"
-          },
-          "gradients_sources": [],
-          "outputs_to_store": {
-            "full_system": {
-              "@type": "evaluator.storage.data.StoredSimulationData",
-              "coordinate_file_name": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/68eb36c69b394018a6846d22d8db0b57|production_simulation.output_coordinate_file"
-              },
-              "force_field_id": {
-                "@type": "evaluator.attributes.attributes.PlaceholderValue"
-              },
-              "number_of_molecules": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "68eb36c69b394018a6846d22d8db0b57|build_coordinates.output_number_of_molecules"
-              },
-              "property_phase": 2,
-              "source_calculation_id": {
-                "@type": "evaluator.attributes.attributes.PlaceholderValue"
-              },
-              "statistical_inefficiency": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/68eb36c69b394018a6846d22d8db0b57|extract_density.statistical_inefficiency"
-              },
-              "statistics_file_name": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "68eb36c69b394018a6846d22d8db0b57|extract_stats.output_statistics_path"
-              },
-              "substance": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "68eb36c69b394018a6846d22d8db0b57|build_coordinates.output_substance"
-              },
-              "thermodynamic_state": {
-                "@type": "evaluator.thermodynamics.ThermodynamicState",
-                "pressure": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "kPa",
-                  "value": 101.325
-                },
-                "temperature": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "K",
-                  "value": 298.15
-                }
-              },
-              "trajectory_file_name": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "68eb36c69b394018a6846d22d8db0b57|extract_traj.output_trajectory_path"
-              }
-            }
-          },
           "protocol_schemas": [
             {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "68eb36c69b394018a6846d22d8db0b57|build_coordinates",
+              "id": "3b3bf3f008084e1bbe2ea698dee7509e|build_coordinates",
+              "type": "BuildCoordinatesPackmol",
               "inputs": {
                 ".allow_merging": true,
+                ".max_molecules": 256,
+                ".mass_density": {
+                  "value": 0.95,
+                  "unit": "g / ml",
+                  "@type": "evaluator.unit.Quantity"
+                },
                 ".box_aspect_ratio": [
                   1.0,
                   1.0,
                   1.0
                 ],
-                ".mass_density": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "g / ml",
-                  "value": 0.95
-                },
-                ".max_molecules": 256,
-                ".retain_packmol_files": false,
                 ".substance": {
-                  "@type": "evaluator.substances.substances.Substance",
+                  "components": [
+                    {
+                      "smiles": "CCO",
+                      "role": {
+                        "value": "solv",
+                        "@type": "evaluator.substances.components.Component.Role"
+                      },
+                      "@type": "evaluator.substances.components.Component"
+                    }
+                  ],
                   "amounts": {
-                    "CC(C)O{solv}": [
+                    "CCO{solv}": [
                       {
-                        "@type": "evaluator.substances.amounts.MoleFraction",
-                        "value": 1.0
+                        "value": 1.0,
+                        "@type": "evaluator.substances.amounts.MoleFraction"
                       }
                     ]
                   },
-                  "components": [
-                    {
-                      "@type": "evaluator.substances.components.Component",
-                      "role": {
-                        "@type": "evaluator.substances.components.Component.Role",
-                        "value": "solv"
-                      },
-                      "smiles": "CC(C)O"
-                    }
-                  ]
+                  "@type": "evaluator.substances.substances.Substance"
                 },
-                ".verbose_packmol": false
+                ".verbose_packmol": false,
+                ".retain_packmol_files": false
               },
-              "type": "BuildCoordinatesPackmol"
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
             },
             {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "68eb36c69b394018a6846d22d8db0b57|energy_minimisation",
+              "id": "3b3bf3f008084e1bbe2ea698dee7509e|energy_minimisation",
+              "type": "OpenMMEnergyMinimisation",
               "inputs": {
                 ".allow_merging": true,
-                ".enable_pbc": true,
                 ".input_coordinate_file": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|build_coordinates.coordinate_file_path"
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|build_coordinates.coordinate_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
                 },
-                ".max_iterations": 0,
                 ".system_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|assign_parameters.system_path"
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|assign_parameters.system_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
                 },
                 ".tolerance": {
-                  "@type": "evaluator.unit.Quantity",
+                  "value": 10.0,
                   "unit": "kJ / mol",
-                  "value": 10.0
-                }
+                  "@type": "evaluator.unit.Quantity"
+                },
+                ".max_iterations": 0,
+                ".enable_pbc": true
               },
-              "type": "OpenMMEnergyMinimisation"
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
             },
             {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "68eb36c69b394018a6846d22d8db0b57|equilibration_simulation",
+              "id": "3b3bf3f008084e1bbe2ea698dee7509e|equilibration_simulation",
+              "type": "OpenMMSimulation",
               "inputs": {
-                ".allow_gpu_platforms": true,
                 ".allow_merging": true,
-                ".checkpoint_frequency": 10,
-                ".enable_pbc": true,
-                ".ensemble": {
-                  "@type": "evaluator.thermodynamics.Ensemble",
-                  "value": "NPT"
-                },
-                ".high_precision": false,
-                ".input_coordinate_file": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|energy_minimisation.output_coordinate_file"
-                },
-                ".output_frequency": 5000,
                 ".steps_per_iteration": 100000,
-                ".system_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|assign_parameters.system_path"
+                ".total_number_of_iterations": 1,
+                ".output_frequency": 5000,
+                ".checkpoint_frequency": 10,
+                ".timestep": {
+                  "value": 2.0,
+                  "unit": "fs",
+                  "@type": "evaluator.unit.Quantity"
                 },
                 ".thermodynamic_state": {
-                  "@type": "evaluator.thermodynamics.ThermodynamicState",
-                  "pressure": {
-                    "@type": "evaluator.unit.Quantity",
-                    "unit": "kPa",
-                    "value": 101.325
-                  },
                   "temperature": {
-                    "@type": "evaluator.unit.Quantity",
+                    "value": 298.15,
                     "unit": "K",
-                    "value": 298.15
-                  }
+                    "@type": "evaluator.unit.Quantity"
+                  },
+                  "pressure": {
+                    "value": 101.325,
+                    "unit": "kPa",
+                    "@type": "evaluator.unit.Quantity"
+                  },
+                  "@type": "evaluator.thermodynamics.ThermodynamicState"
+                },
+                ".ensemble": {
+                  "value": "NPT",
+                  "@type": "evaluator.thermodynamics.Ensemble"
                 },
                 ".thermostat_friction": {
-                  "@type": "evaluator.unit.Quantity",
+                  "value": 1.0,
                   "unit": "1 / ps",
-                  "value": 1.0
+                  "@type": "evaluator.unit.Quantity"
                 },
-                ".timestep": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "fs",
-                  "value": 2.0
+                ".input_coordinate_file": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|energy_minimisation.output_coordinate_file",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
                 },
-                ".total_number_of_iterations": 1
+                ".system_path": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|assign_parameters.system_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".enable_pbc": true,
+                ".allow_gpu_platforms": true,
+                ".high_precision": false
               },
-              "type": "OpenMMSimulation"
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
             },
             {
-              "@type": "evaluator.workflow.schemas.ProtocolGroupSchema",
-              "id": "68eb36c69b394018a6846d22d8db0b57|conditional_group",
+              "id": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group",
+              "type": "ConditionalGroup",
               "inputs": {
                 ".allow_merging": true,
                 ".conditions": [],
                 ".max_iterations": 100
               },
               "protocol_schemas": {
-                "68eb36c69b394018a6846d22d8db0b57|extract_density": {
-                  "@type": "evaluator.workflow.schemas.ProtocolSchema",
-                  "id": "68eb36c69b394018a6846d22d8db0b57|extract_density",
+                "3b3bf3f008084e1bbe2ea698dee7509e|production_simulation": {
+                  "id": "3b3bf3f008084e1bbe2ea698dee7509e|production_simulation",
+                  "type": "OpenMMSimulation",
+                  "inputs": {
+                    ".allow_merging": true,
+                    ".steps_per_iteration": 1000000,
+                    ".total_number_of_iterations": 1,
+                    ".output_frequency": 2000,
+                    ".checkpoint_frequency": 10,
+                    ".timestep": {
+                      "value": 2.0,
+                      "unit": "fs",
+                      "@type": "evaluator.unit.Quantity"
+                    },
+                    ".thermodynamic_state": {
+                      "temperature": {
+                        "value": 298.15,
+                        "unit": "K",
+                        "@type": "evaluator.unit.Quantity"
+                      },
+                      "pressure": {
+                        "value": 101.325,
+                        "unit": "kPa",
+                        "@type": "evaluator.unit.Quantity"
+                      },
+                      "@type": "evaluator.thermodynamics.ThermodynamicState"
+                    },
+                    ".ensemble": {
+                      "value": "NPT",
+                      "@type": "evaluator.thermodynamics.Ensemble"
+                    },
+                    ".thermostat_friction": {
+                      "value": 1.0,
+                      "unit": "1 / ps",
+                      "@type": "evaluator.unit.Quantity"
+                    },
+                    ".input_coordinate_file": {
+                      "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|equilibration_simulation.output_coordinate_file",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
+                    },
+                    ".system_path": {
+                      "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|assign_parameters.system_path",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
+                    },
+                    ".enable_pbc": true,
+                    ".allow_gpu_platforms": true,
+                    ".high_precision": false
+                  },
+                  "@type": "evaluator.workflow.schemas.ProtocolSchema"
+                },
+                "3b3bf3f008084e1bbe2ea698dee7509e|extract_density": {
+                  "id": "3b3bf3f008084e1bbe2ea698dee7509e|extract_density",
+                  "type": "ExtractAverageStatistic",
                   "inputs": {
                     ".allow_merging": true,
                     ".bootstrap_iterations": 250,
                     ".bootstrap_sample_size": 1.0,
-                    ".divisor": 1.0,
                     ".statistics_path": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "68eb36c69b394018a6846d22d8db0b57|production_simulation.statistics_file_path"
+                      "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|production_simulation.statistics_file_path",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
                     },
                     ".statistics_type": {
-                      "@type": "evaluator.utils.statistics.ObservableType",
-                      "value": "Density"
-                    }
+                      "value": "Density",
+                      "@type": "evaluator.utils.statistics.ObservableType"
+                    },
+                    ".divisor": 1.0
                   },
-                  "type": "ExtractAverageStatistic"
-                },
-                "68eb36c69b394018a6846d22d8db0b57|production_simulation": {
-                  "@type": "evaluator.workflow.schemas.ProtocolSchema",
-                  "id": "68eb36c69b394018a6846d22d8db0b57|production_simulation",
-                  "inputs": {
-                    ".allow_gpu_platforms": true,
-                    ".allow_merging": true,
-                    ".checkpoint_frequency": 10,
-                    ".enable_pbc": true,
-                    ".ensemble": {
-                      "@type": "evaluator.thermodynamics.Ensemble",
-                      "value": "NPT"
-                    },
-                    ".high_precision": false,
-                    ".input_coordinate_file": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "68eb36c69b394018a6846d22d8db0b57|equilibration_simulation.output_coordinate_file"
-                    },
-                    ".output_frequency": 2000,
-                    ".steps_per_iteration": 1000000,
-                    ".system_path": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "68eb36c69b394018a6846d22d8db0b57|assign_parameters.system_path"
-                    },
-                    ".thermodynamic_state": {
-                      "@type": "evaluator.thermodynamics.ThermodynamicState",
-                      "pressure": {
-                        "@type": "evaluator.unit.Quantity",
-                        "unit": "kPa",
-                        "value": 101.325
-                      },
-                      "temperature": {
-                        "@type": "evaluator.unit.Quantity",
-                        "unit": "K",
-                        "value": 298.15
-                      }
-                    },
-                    ".thermostat_friction": {
-                      "@type": "evaluator.unit.Quantity",
-                      "unit": "1 / ps",
-                      "value": 1.0
-                    },
-                    ".timestep": {
-                      "@type": "evaluator.unit.Quantity",
-                      "unit": "fs",
-                      "value": 2.0
-                    },
-                    ".total_number_of_iterations": 1
-                  },
-                  "type": "OpenMMSimulation"
+                  "@type": "evaluator.workflow.schemas.ProtocolSchema"
                 }
               },
-              "type": "ConditionalGroup"
+              "@type": "evaluator.workflow.schemas.ProtocolGroupSchema"
             },
             {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "68eb36c69b394018a6846d22d8db0b57|extract_traj",
+              "id": "3b3bf3f008084e1bbe2ea698dee7509e|extract_traj",
+              "type": "ExtractUncorrelatedTrajectoryData",
               "inputs": {
                 ".allow_merging": true,
                 ".equilibration_index": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/68eb36c69b394018a6846d22d8db0b57|extract_density.equilibration_index"
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/3b3bf3f008084e1bbe2ea698dee7509e|extract_density.equilibration_index",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".statistical_inefficiency": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/3b3bf3f008084e1bbe2ea698dee7509e|extract_density.statistical_inefficiency",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
                 },
                 ".input_coordinate_file": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/68eb36c69b394018a6846d22d8db0b57|production_simulation.output_coordinate_file"
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/3b3bf3f008084e1bbe2ea698dee7509e|production_simulation.output_coordinate_file",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
                 },
                 ".input_trajectory_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/68eb36c69b394018a6846d22d8db0b57|production_simulation.trajectory_file_path"
-                },
-                ".statistical_inefficiency": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/68eb36c69b394018a6846d22d8db0b57|extract_density.statistical_inefficiency"
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/3b3bf3f008084e1bbe2ea698dee7509e|production_simulation.trajectory_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
                 }
               },
-              "type": "ExtractUncorrelatedTrajectoryData"
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
             },
             {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "68eb36c69b394018a6846d22d8db0b57|extract_stats",
+              "id": "3b3bf3f008084e1bbe2ea698dee7509e|extract_stats",
+              "type": "ExtractUncorrelatedStatisticsData",
               "inputs": {
                 ".allow_merging": true,
                 ".equilibration_index": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/68eb36c69b394018a6846d22d8db0b57|extract_density.equilibration_index"
-                },
-                ".input_statistics_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/68eb36c69b394018a6846d22d8db0b57|production_simulation.statistics_file_path"
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/3b3bf3f008084e1bbe2ea698dee7509e|extract_density.equilibration_index",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
                 },
                 ".statistical_inefficiency": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/68eb36c69b394018a6846d22d8db0b57|extract_density.statistical_inefficiency"
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/3b3bf3f008084e1bbe2ea698dee7509e|extract_density.statistical_inefficiency",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".input_statistics_path": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/3b3bf3f008084e1bbe2ea698dee7509e|production_simulation.statistics_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
                 }
               },
-              "type": "ExtractUncorrelatedStatisticsData"
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
             },
             {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "68eb36c69b394018a6846d22d8db0b57|assign_parameters",
+              "id": "3b3bf3f008084e1bbe2ea698dee7509e|assign_parameters",
+              "type": "BuildSmirnoffSystem",
               "inputs": {
                 ".allow_merging": true,
-                ".apply_known_charges": true,
-                ".charged_molecule_paths": [],
+                ".force_field_path": "working-data/SimulationLayer/554c6ba738354ff4b2acb229e391c9ba/9986d70088f44018a0098758f0c6f12b",
                 ".coordinate_file_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|build_coordinates.coordinate_file_path"
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|build_coordinates.coordinate_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
                 },
-                ".force_field_path": "working-data/SimulationLayer/2176717769ac4cf0a6ff1e2a843faa22/d80e15b006ac463eb9279a092150195d",
                 ".substance": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|build_coordinates.output_substance"
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|build_coordinates.output_substance",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
                 },
                 ".water_model": {
-                  "@type": "evaluator.protocols.forcefield.BaseBuildSystem.WaterModel",
-                  "value": "TIP3P"
-                }
+                  "value": "TIP3P",
+                  "@type": "evaluator.protocols.forcefield.BaseBuildSystem.WaterModel"
+                },
+                ".charged_molecule_paths": [],
+                ".apply_known_charges": true
               },
-              "type": "BuildSmirnoffSystem"
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
             }
-          ]
-        }
-      },
-      "substance": {
-        "@type": "evaluator.substances.substances.Substance",
-        "amounts": {
-          "CC(C)O{solv}": [
-            {
-              "@type": "evaluator.substances.amounts.MoleFraction",
-              "value": 1.0
-            }
-          ]
-        },
-        "components": [
-          {
-            "@type": "evaluator.substances.components.Component",
-            "role": {
-              "@type": "evaluator.substances.components.Component.Role",
-              "value": "solv"
-            },
-            "smiles": "CC(C)O"
-          }
-        ]
-      },
-      "thermodynamic_state": {
-        "@type": "evaluator.thermodynamics.ThermodynamicState",
-        "pressure": {
-          "@type": "evaluator.unit.Quantity",
-          "unit": "kPa",
-          "value": 101.325
-        },
-        "temperature": {
-          "@type": "evaluator.unit.Quantity",
-          "unit": "K",
-          "value": 298.15
-        }
-      },
-      "uncertainty": {
-        "@type": "evaluator.unit.Quantity",
-        "unit": "g / ml",
-        "value": 0.00064094532111253
-      },
-      "value": {
-        "@type": "evaluator.unit.Quantity",
-        "unit": "g / ml",
-        "value": 0.8037040199927107
-      }
-    },
-    {
-      "@type": "evaluator.properties.enthalpy.EnthalpyOfVaporization",
-      "gradients": [],
-      "id": "9c0f1981deea46139a982327eb54654f",
-      "phase": 2,
-      "source": {
-        "@type": "evaluator.datasets.provenance.CalculationSource",
-        "fidelity": "SimulationLayer",
-        "provenance": {
-          "@type": "evaluator.workflow.schemas.WorkflowSchema",
+          ],
           "final_value_source": {
-            "@type": "evaluator.workflow.utils.ProtocolPath",
-            "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/9c0f1981deea46139a982327eb54654f|enthalpy_of_vaporization.result"
+            "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/3b3bf3f008084e1bbe2ea698dee7509e|extract_density.value",
+            "@type": "evaluator.workflow.utils.ProtocolPath"
           },
           "gradients_sources": [],
           "outputs_to_store": {
-            "gas_data": {
-              "@type": "evaluator.storage.data.StoredSimulationData",
-              "coordinate_file_name": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/9c0f1981deea46139a982327eb54654f|production_simulation_gas.output_coordinate_file"
+            "full_system": {
+              "substance": {
+                "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|build_coordinates.output_substance",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "thermodynamic_state": {
+                "temperature": {
+                  "value": 298.15,
+                  "unit": "K",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                "pressure": {
+                  "value": 101.325,
+                  "unit": "kPa",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                "@type": "evaluator.thermodynamics.ThermodynamicState"
+              },
+              "property_phase": 2,
+              "source_calculation_id": {
+                "@type": "evaluator.attributes.attributes.PlaceholderValue"
               },
               "force_field_id": {
                 "@type": "evaluator.attributes.attributes.PlaceholderValue"
               },
+              "coordinate_file_name": {
+                "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/3b3bf3f008084e1bbe2ea698dee7509e|production_simulation.output_coordinate_file",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "trajectory_file_name": {
+                "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|extract_traj.output_trajectory_path",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "statistics_file_name": {
+                "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|extract_stats.output_statistics_path",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "statistical_inefficiency": {
+                "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/3b3bf3f008084e1bbe2ea698dee7509e|extract_density.statistical_inefficiency",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
               "number_of_molecules": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "9c0f1981deea46139a982327eb54654f|build_coordinates_gas.output_number_of_molecules"
+                "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|build_coordinates.output_number_of_molecules",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "@type": "evaluator.storage.data.StoredSimulationData"
+            }
+          },
+          "@type": "evaluator.workflow.schemas.WorkflowSchema"
+        },
+        "@type": "evaluator.datasets.provenance.CalculationSource"
+      },
+      "gradients": [],
+      "@type": "evaluator.properties.density.Density"
+    },
+    {
+      "id": "4f0b3bf451bf417395857db8401a004f",
+      "substance": {
+        "components": [
+          {
+            "smiles": "CCO",
+            "role": {
+              "value": "solv",
+              "@type": "evaluator.substances.components.Component.Role"
+            },
+            "@type": "evaluator.substances.components.Component"
+          }
+        ],
+        "amounts": {
+          "CCO{solv}": [
+            {
+              "value": 1.0,
+              "@type": "evaluator.substances.amounts.MoleFraction"
+            }
+          ]
+        },
+        "@type": "evaluator.substances.substances.Substance"
+      },
+      "phase": 6,
+      "thermodynamic_state": {
+        "temperature": {
+          "value": 298.15,
+          "unit": "K",
+          "@type": "evaluator.unit.Quantity"
+        },
+        "pressure": {
+          "value": 1.0,
+          "unit": "atm",
+          "@type": "evaluator.unit.Quantity"
+        },
+        "@type": "evaluator.thermodynamics.ThermodynamicState"
+      },
+      "value": {
+        "value": 39.43482044940974,
+        "unit": "kJ / mol",
+        "@type": "evaluator.unit.Quantity"
+      },
+      "uncertainty": {
+        "value": 0.1703559942282894,
+        "unit": "kJ / mol",
+        "@type": "evaluator.unit.Quantity"
+      },
+      "source": {
+        "fidelity": "SimulationLayer",
+        "provenance": {
+          "protocol_schemas": [
+            {
+              "id": "4f0b3bf451bf417395857db8401a004f|build_coordinates_gas",
+              "type": "BuildCoordinatesPackmol",
+              "inputs": {
+                ".allow_merging": true,
+                ".max_molecules": 1,
+                ".mass_density": {
+                  "value": 0.95,
+                  "unit": "g / ml",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                ".box_aspect_ratio": [
+                  1.0,
+                  1.0,
+                  1.0
+                ],
+                ".substance": {
+                  "components": [
+                    {
+                      "smiles": "CCO",
+                      "role": {
+                        "value": "solv",
+                        "@type": "evaluator.substances.components.Component.Role"
+                      },
+                      "@type": "evaluator.substances.components.Component"
+                    }
+                  ],
+                  "amounts": {
+                    "CCO{solv}": [
+                      {
+                        "value": 1.0,
+                        "@type": "evaluator.substances.amounts.MoleFraction"
+                      }
+                    ]
+                  },
+                  "@type": "evaluator.substances.substances.Substance"
+                },
+                ".verbose_packmol": false,
+                ".retain_packmol_files": false
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "4f0b3bf451bf417395857db8401a004f|energy_minimisation_gas",
+              "type": "OpenMMEnergyMinimisation",
+              "inputs": {
+                ".allow_merging": true,
+                ".input_coordinate_file": {
+                  "full_path": "4f0b3bf451bf417395857db8401a004f|build_coordinates_gas.coordinate_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".system_path": {
+                  "full_path": "4f0b3bf451bf417395857db8401a004f|assign_parameters_gas.system_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".tolerance": {
+                  "value": 10.0,
+                  "unit": "kJ / mol",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                ".max_iterations": 0,
+                ".enable_pbc": false
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "4f0b3bf451bf417395857db8401a004f|equilibration_simulation_gas",
+              "type": "OpenMMSimulation",
+              "inputs": {
+                ".allow_merging": true,
+                ".steps_per_iteration": 100000,
+                ".total_number_of_iterations": 1,
+                ".output_frequency": 5000,
+                ".checkpoint_frequency": 10,
+                ".timestep": {
+                  "value": 2.0,
+                  "unit": "fs",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                ".thermodynamic_state": {
+                  "temperature": {
+                    "value": 298.15,
+                    "unit": "K",
+                    "@type": "evaluator.unit.Quantity"
+                  },
+                  "pressure": {
+                    "value": 1.0,
+                    "unit": "atm",
+                    "@type": "evaluator.unit.Quantity"
+                  },
+                  "@type": "evaluator.thermodynamics.ThermodynamicState"
+                },
+                ".ensemble": {
+                  "value": "NVT",
+                  "@type": "evaluator.thermodynamics.Ensemble"
+                },
+                ".thermostat_friction": {
+                  "value": 1.0,
+                  "unit": "1 / ps",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                ".input_coordinate_file": {
+                  "full_path": "4f0b3bf451bf417395857db8401a004f|energy_minimisation_gas.output_coordinate_file",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".system_path": {
+                  "full_path": "4f0b3bf451bf417395857db8401a004f|assign_parameters_gas.system_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".enable_pbc": false,
+                ".allow_gpu_platforms": false,
+                ".high_precision": true
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "4f0b3bf451bf417395857db8401a004f|extract_traj_liquid",
+              "type": "ExtractUncorrelatedTrajectoryData",
+              "inputs": {
+                ".allow_merging": true,
+                ".equilibration_index": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/4f0b3bf451bf417395857db8401a004f|extract_liquid_energy.equilibration_index",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".statistical_inefficiency": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/4f0b3bf451bf417395857db8401a004f|extract_liquid_energy.statistical_inefficiency",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".input_coordinate_file": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/3b3bf3f008084e1bbe2ea698dee7509e|production_simulation.output_coordinate_file",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".input_trajectory_path": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/3b3bf3f008084e1bbe2ea698dee7509e|production_simulation.trajectory_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                }
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "4f0b3bf451bf417395857db8401a004f|extract_stats_liquid",
+              "type": "ExtractUncorrelatedStatisticsData",
+              "inputs": {
+                ".allow_merging": true,
+                ".equilibration_index": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/4f0b3bf451bf417395857db8401a004f|extract_liquid_energy.equilibration_index",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".statistical_inefficiency": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/4f0b3bf451bf417395857db8401a004f|extract_liquid_energy.statistical_inefficiency",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".input_statistics_path": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/3b3bf3f008084e1bbe2ea698dee7509e|production_simulation.statistics_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                }
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "4f0b3bf451bf417395857db8401a004f|extract_traj_gas",
+              "type": "ExtractUncorrelatedTrajectoryData",
+              "inputs": {
+                ".allow_merging": true,
+                ".equilibration_index": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/4f0b3bf451bf417395857db8401a004f|extract_gas_energy.equilibration_index",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".statistical_inefficiency": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/4f0b3bf451bf417395857db8401a004f|extract_gas_energy.statistical_inefficiency",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".input_coordinate_file": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/4f0b3bf451bf417395857db8401a004f|production_simulation_gas.output_coordinate_file",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".input_trajectory_path": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/4f0b3bf451bf417395857db8401a004f|production_simulation_gas.trajectory_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                }
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "4f0b3bf451bf417395857db8401a004f|extract_stats_gas",
+              "type": "ExtractUncorrelatedStatisticsData",
+              "inputs": {
+                ".allow_merging": true,
+                ".equilibration_index": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/4f0b3bf451bf417395857db8401a004f|extract_gas_energy.equilibration_index",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".statistical_inefficiency": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/4f0b3bf451bf417395857db8401a004f|extract_gas_energy.statistical_inefficiency",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".input_statistics_path": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/4f0b3bf451bf417395857db8401a004f|production_simulation_gas.statistics_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                }
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "4f0b3bf451bf417395857db8401a004f|assign_parameters_gas",
+              "type": "BuildSmirnoffSystem",
+              "inputs": {
+                ".allow_merging": true,
+                ".force_field_path": "working-data/SimulationLayer/554c6ba738354ff4b2acb229e391c9ba/9986d70088f44018a0098758f0c6f12b",
+                ".coordinate_file_path": {
+                  "full_path": "4f0b3bf451bf417395857db8401a004f|build_coordinates_gas.coordinate_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".substance": {
+                  "full_path": "4f0b3bf451bf417395857db8401a004f|build_coordinates_gas.output_substance",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".water_model": {
+                  "value": "TIP3P",
+                  "@type": "evaluator.protocols.forcefield.BaseBuildSystem.WaterModel"
+                },
+                ".charged_molecule_paths": [],
+                ".apply_known_charges": true
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "3b3bf3f008084e1bbe2ea698dee7509e|build_coordinates",
+              "type": "BuildCoordinatesPackmol",
+              "inputs": {
+                ".allow_merging": true,
+                ".max_molecules": 256,
+                ".mass_density": {
+                  "value": 0.95,
+                  "unit": "g / ml",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                ".box_aspect_ratio": [
+                  1.0,
+                  1.0,
+                  1.0
+                ],
+                ".substance": {
+                  "components": [
+                    {
+                      "smiles": "CCO",
+                      "role": {
+                        "value": "solv",
+                        "@type": "evaluator.substances.components.Component.Role"
+                      },
+                      "@type": "evaluator.substances.components.Component"
+                    }
+                  ],
+                  "amounts": {
+                    "CCO{solv}": [
+                      {
+                        "value": 1.0,
+                        "@type": "evaluator.substances.amounts.MoleFraction"
+                      }
+                    ]
+                  },
+                  "@type": "evaluator.substances.substances.Substance"
+                },
+                ".verbose_packmol": false,
+                ".retain_packmol_files": false
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "3b3bf3f008084e1bbe2ea698dee7509e|assign_parameters",
+              "type": "BuildSmirnoffSystem",
+              "inputs": {
+                ".allow_merging": true,
+                ".force_field_path": "working-data/SimulationLayer/554c6ba738354ff4b2acb229e391c9ba/9986d70088f44018a0098758f0c6f12b",
+                ".coordinate_file_path": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|build_coordinates.coordinate_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".substance": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|build_coordinates.output_substance",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".water_model": {
+                  "value": "TIP3P",
+                  "@type": "evaluator.protocols.forcefield.BaseBuildSystem.WaterModel"
+                },
+                ".charged_molecule_paths": [],
+                ".apply_known_charges": true
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "3b3bf3f008084e1bbe2ea698dee7509e|energy_minimisation",
+              "type": "OpenMMEnergyMinimisation",
+              "inputs": {
+                ".allow_merging": true,
+                ".input_coordinate_file": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|build_coordinates.coordinate_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".system_path": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|assign_parameters.system_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".tolerance": {
+                  "value": 10.0,
+                  "unit": "kJ / mol",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                ".max_iterations": 0,
+                ".enable_pbc": true
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "3b3bf3f008084e1bbe2ea698dee7509e|equilibration_simulation",
+              "type": "OpenMMSimulation",
+              "inputs": {
+                ".allow_merging": true,
+                ".steps_per_iteration": 100000,
+                ".total_number_of_iterations": 1,
+                ".output_frequency": 5000,
+                ".checkpoint_frequency": 10,
+                ".timestep": {
+                  "value": 2.0,
+                  "unit": "fs",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                ".thermodynamic_state": {
+                  "temperature": {
+                    "value": 298.15,
+                    "unit": "K",
+                    "@type": "evaluator.unit.Quantity"
+                  },
+                  "pressure": {
+                    "value": 101.325,
+                    "unit": "kPa",
+                    "@type": "evaluator.unit.Quantity"
+                  },
+                  "@type": "evaluator.thermodynamics.ThermodynamicState"
+                },
+                ".ensemble": {
+                  "value": "NPT",
+                  "@type": "evaluator.thermodynamics.Ensemble"
+                },
+                ".thermostat_friction": {
+                  "value": 1.0,
+                  "unit": "1 / ps",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                ".input_coordinate_file": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|energy_minimisation.output_coordinate_file",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".system_path": {
+                  "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|assign_parameters.system_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".enable_pbc": true,
+                ".allow_gpu_platforms": true,
+                ".high_precision": false
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group",
+              "type": "ConditionalGroup",
+              "inputs": {
+                ".allow_merging": true,
+                ".conditions": [],
+                ".max_iterations": 100
+              },
+              "protocol_schemas": {
+                "3b3bf3f008084e1bbe2ea698dee7509e|production_simulation": {
+                  "id": "3b3bf3f008084e1bbe2ea698dee7509e|production_simulation",
+                  "type": "OpenMMSimulation",
+                  "inputs": {
+                    ".allow_merging": true,
+                    ".steps_per_iteration": 1000000,
+                    ".total_number_of_iterations": 1,
+                    ".output_frequency": 2000,
+                    ".checkpoint_frequency": 10,
+                    ".timestep": {
+                      "value": 2.0,
+                      "unit": "fs",
+                      "@type": "evaluator.unit.Quantity"
+                    },
+                    ".thermodynamic_state": {
+                      "temperature": {
+                        "value": 298.15,
+                        "unit": "K",
+                        "@type": "evaluator.unit.Quantity"
+                      },
+                      "pressure": {
+                        "value": 101.325,
+                        "unit": "kPa",
+                        "@type": "evaluator.unit.Quantity"
+                      },
+                      "@type": "evaluator.thermodynamics.ThermodynamicState"
+                    },
+                    ".ensemble": {
+                      "value": "NPT",
+                      "@type": "evaluator.thermodynamics.Ensemble"
+                    },
+                    ".thermostat_friction": {
+                      "value": 1.0,
+                      "unit": "1 / ps",
+                      "@type": "evaluator.unit.Quantity"
+                    },
+                    ".input_coordinate_file": {
+                      "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|equilibration_simulation.output_coordinate_file",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
+                    },
+                    ".system_path": {
+                      "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|assign_parameters.system_path",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
+                    },
+                    ".enable_pbc": true,
+                    ".allow_gpu_platforms": true,
+                    ".high_precision": false
+                  },
+                  "@type": "evaluator.workflow.schemas.ProtocolSchema"
+                },
+                "3b3bf3f008084e1bbe2ea698dee7509e|extract_density": {
+                  "id": "3b3bf3f008084e1bbe2ea698dee7509e|extract_density",
+                  "type": "ExtractAverageStatistic",
+                  "inputs": {
+                    ".allow_merging": true,
+                    ".bootstrap_iterations": 250,
+                    ".bootstrap_sample_size": 1.0,
+                    ".statistics_path": {
+                      "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|production_simulation.statistics_file_path",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
+                    },
+                    ".statistics_type": {
+                      "value": "Density",
+                      "@type": "evaluator.utils.statistics.ObservableType"
+                    },
+                    ".divisor": 1.0
+                  },
+                  "@type": "evaluator.workflow.schemas.ProtocolSchema"
+                },
+                "4f0b3bf451bf417395857db8401a004f|ideal_volume": {
+                  "id": "4f0b3bf451bf417395857db8401a004f|ideal_volume",
+                  "type": "MultiplyValue",
+                  "inputs": {
+                    ".allow_merging": true,
+                    ".value": {
+                      "value": 1.0,
+                      "unit": "R",
+                      "@type": "evaluator.unit.Quantity"
+                    },
+                    ".multiplier": {
+                      "value": 298.15,
+                      "unit": "K",
+                      "@type": "evaluator.unit.Quantity"
+                    }
+                  },
+                  "@type": "evaluator.workflow.schemas.ProtocolSchema"
+                },
+                "4f0b3bf451bf417395857db8401a004f|production_simulation_gas": {
+                  "id": "4f0b3bf451bf417395857db8401a004f|production_simulation_gas",
+                  "type": "OpenMMSimulation",
+                  "inputs": {
+                    ".allow_merging": true,
+                    ".steps_per_iteration": 15000000,
+                    ".total_number_of_iterations": 1,
+                    ".output_frequency": 5000,
+                    ".checkpoint_frequency": 100,
+                    ".timestep": {
+                      "value": 2.0,
+                      "unit": "fs",
+                      "@type": "evaluator.unit.Quantity"
+                    },
+                    ".thermodynamic_state": {
+                      "temperature": {
+                        "value": 298.15,
+                        "unit": "K",
+                        "@type": "evaluator.unit.Quantity"
+                      },
+                      "pressure": {
+                        "value": 1.0,
+                        "unit": "atm",
+                        "@type": "evaluator.unit.Quantity"
+                      },
+                      "@type": "evaluator.thermodynamics.ThermodynamicState"
+                    },
+                    ".ensemble": {
+                      "value": "NVT",
+                      "@type": "evaluator.thermodynamics.Ensemble"
+                    },
+                    ".thermostat_friction": {
+                      "value": 1.0,
+                      "unit": "1 / ps",
+                      "@type": "evaluator.unit.Quantity"
+                    },
+                    ".input_coordinate_file": {
+                      "full_path": "4f0b3bf451bf417395857db8401a004f|equilibration_simulation_gas.output_coordinate_file",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
+                    },
+                    ".system_path": {
+                      "full_path": "4f0b3bf451bf417395857db8401a004f|assign_parameters_gas.system_path",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
+                    },
+                    ".enable_pbc": false,
+                    ".allow_gpu_platforms": false,
+                    ".high_precision": true
+                  },
+                  "@type": "evaluator.workflow.schemas.ProtocolSchema"
+                },
+                "4f0b3bf451bf417395857db8401a004f|extract_gas_energy": {
+                  "id": "4f0b3bf451bf417395857db8401a004f|extract_gas_energy",
+                  "type": "ExtractAverageStatistic",
+                  "inputs": {
+                    ".allow_merging": true,
+                    ".bootstrap_iterations": 250,
+                    ".bootstrap_sample_size": 1.0,
+                    ".statistics_path": {
+                      "full_path": "4f0b3bf451bf417395857db8401a004f|production_simulation_gas.statistics_file_path",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
+                    },
+                    ".statistics_type": {
+                      "value": "PotentialEnergy",
+                      "@type": "evaluator.utils.statistics.ObservableType"
+                    },
+                    ".divisor": 1.0
+                  },
+                  "@type": "evaluator.workflow.schemas.ProtocolSchema"
+                },
+                "4f0b3bf451bf417395857db8401a004f|extract_liquid_energy": {
+                  "id": "4f0b3bf451bf417395857db8401a004f|extract_liquid_energy",
+                  "type": "ExtractAverageStatistic",
+                  "inputs": {
+                    ".allow_merging": true,
+                    ".bootstrap_iterations": 250,
+                    ".bootstrap_sample_size": 1.0,
+                    ".statistics_path": {
+                      "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|production_simulation.statistics_file_path",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
+                    },
+                    ".statistics_type": {
+                      "value": "PotentialEnergy",
+                      "@type": "evaluator.utils.statistics.ObservableType"
+                    },
+                    ".divisor": 256
+                  },
+                  "@type": "evaluator.workflow.schemas.ProtocolSchema"
+                },
+                "4f0b3bf451bf417395857db8401a004f|energy_of_vaporization": {
+                  "id": "4f0b3bf451bf417395857db8401a004f|energy_of_vaporization",
+                  "type": "SubtractValues",
+                  "inputs": {
+                    ".allow_merging": true,
+                    ".value_a": {
+                      "full_path": "4f0b3bf451bf417395857db8401a004f|extract_liquid_energy.value",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
+                    },
+                    ".value_b": {
+                      "full_path": "4f0b3bf451bf417395857db8401a004f|extract_gas_energy.value",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
+                    }
+                  },
+                  "@type": "evaluator.workflow.schemas.ProtocolSchema"
+                },
+                "4f0b3bf451bf417395857db8401a004f|enthalpy_of_vaporization": {
+                  "id": "4f0b3bf451bf417395857db8401a004f|enthalpy_of_vaporization",
+                  "type": "AddValues",
+                  "inputs": {
+                    ".allow_merging": true,
+                    ".values": [
+                      {
+                        "full_path": "4f0b3bf451bf417395857db8401a004f|energy_of_vaporization.result",
+                        "@type": "evaluator.workflow.utils.ProtocolPath"
+                      },
+                      {
+                        "full_path": "4f0b3bf451bf417395857db8401a004f|ideal_volume.result",
+                        "@type": "evaluator.workflow.utils.ProtocolPath"
+                      }
+                    ]
+                  },
+                  "@type": "evaluator.workflow.schemas.ProtocolSchema"
+                }
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolGroupSchema"
+            }
+          ],
+          "final_value_source": {
+            "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/4f0b3bf451bf417395857db8401a004f|enthalpy_of_vaporization.result",
+            "@type": "evaluator.workflow.utils.ProtocolPath"
+          },
+          "gradients_sources": [],
+          "outputs_to_store": {
+            "liquid_data": {
+              "substance": {
+                "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|build_coordinates.output_substance",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "thermodynamic_state": {
+                "temperature": {
+                  "value": 298.15,
+                  "unit": "K",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                "pressure": {
+                  "value": 1.0,
+                  "unit": "atm",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                "@type": "evaluator.thermodynamics.ThermodynamicState"
+              },
+              "property_phase": 2,
+              "source_calculation_id": {
+                "@type": "evaluator.attributes.attributes.PlaceholderValue"
+              },
+              "force_field_id": {
+                "@type": "evaluator.attributes.attributes.PlaceholderValue"
+              },
+              "coordinate_file_name": {
+                "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/3b3bf3f008084e1bbe2ea698dee7509e|production_simulation.output_coordinate_file",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "trajectory_file_name": {
+                "full_path": "4f0b3bf451bf417395857db8401a004f|extract_traj_liquid.output_trajectory_path",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "statistics_file_name": {
+                "full_path": "4f0b3bf451bf417395857db8401a004f|extract_stats_liquid.output_statistics_path",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "statistical_inefficiency": {
+                "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/4f0b3bf451bf417395857db8401a004f|extract_liquid_energy.statistical_inefficiency",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "number_of_molecules": {
+                "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|build_coordinates.output_number_of_molecules",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "@type": "evaluator.storage.data.StoredSimulationData"
+            },
+            "gas_data": {
+              "substance": {
+                "full_path": "4f0b3bf451bf417395857db8401a004f|build_coordinates_gas.output_substance",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "thermodynamic_state": {
+                "temperature": {
+                  "value": 298.15,
+                  "unit": "K",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                "pressure": {
+                  "value": 1.0,
+                  "unit": "atm",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                "@type": "evaluator.thermodynamics.ThermodynamicState"
               },
               "property_phase": 4,
               "source_calculation_id": {
                 "@type": "evaluator.attributes.attributes.PlaceholderValue"
               },
-              "statistical_inefficiency": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/9c0f1981deea46139a982327eb54654f|extract_gas_energy.statistical_inefficiency"
-              },
-              "statistics_file_name": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "9c0f1981deea46139a982327eb54654f|extract_stats_gas.output_statistics_path"
-              },
-              "substance": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "9c0f1981deea46139a982327eb54654f|build_coordinates_gas.output_substance"
-              },
-              "thermodynamic_state": {
-                "@type": "evaluator.thermodynamics.ThermodynamicState",
-                "pressure": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "atm",
-                  "value": 1.0
-                },
-                "temperature": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "K",
-                  "value": 298.15
-                }
-              },
-              "trajectory_file_name": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "9c0f1981deea46139a982327eb54654f|extract_traj_gas.output_trajectory_path"
-              }
-            },
-            "liquid_data": {
-              "@type": "evaluator.storage.data.StoredSimulationData",
-              "coordinate_file_name": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/68eb36c69b394018a6846d22d8db0b57|production_simulation.output_coordinate_file"
-              },
               "force_field_id": {
                 "@type": "evaluator.attributes.attributes.PlaceholderValue"
               },
-              "number_of_molecules": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "68eb36c69b394018a6846d22d8db0b57|build_coordinates.output_number_of_molecules"
-              },
-              "property_phase": 2,
-              "source_calculation_id": {
-                "@type": "evaluator.attributes.attributes.PlaceholderValue"
-              },
-              "statistical_inefficiency": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/9c0f1981deea46139a982327eb54654f|extract_liquid_energy.statistical_inefficiency"
-              },
-              "statistics_file_name": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "9c0f1981deea46139a982327eb54654f|extract_stats_liquid.output_statistics_path"
-              },
-              "substance": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "68eb36c69b394018a6846d22d8db0b57|build_coordinates.output_substance"
-              },
-              "thermodynamic_state": {
-                "@type": "evaluator.thermodynamics.ThermodynamicState",
-                "pressure": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "atm",
-                  "value": 1.0
-                },
-                "temperature": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "K",
-                  "value": 298.15
-                }
+              "coordinate_file_name": {
+                "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/4f0b3bf451bf417395857db8401a004f|production_simulation_gas.output_coordinate_file",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
               },
               "trajectory_file_name": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "9c0f1981deea46139a982327eb54654f|extract_traj_liquid.output_trajectory_path"
-              }
+                "full_path": "4f0b3bf451bf417395857db8401a004f|extract_traj_gas.output_trajectory_path",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "statistics_file_name": {
+                "full_path": "4f0b3bf451bf417395857db8401a004f|extract_stats_gas.output_statistics_path",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "statistical_inefficiency": {
+                "full_path": "3b3bf3f008084e1bbe2ea698dee7509e|conditional_group/4f0b3bf451bf417395857db8401a004f|extract_gas_energy.statistical_inefficiency",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "number_of_molecules": {
+                "full_path": "4f0b3bf451bf417395857db8401a004f|build_coordinates_gas.output_number_of_molecules",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "@type": "evaluator.storage.data.StoredSimulationData"
             }
           },
+          "@type": "evaluator.workflow.schemas.WorkflowSchema"
+        },
+        "@type": "evaluator.datasets.provenance.CalculationSource"
+      },
+      "gradients": [],
+      "@type": "evaluator.properties.enthalpy.EnthalpyOfVaporization"
+    },
+    {
+      "id": "a5fcce555c2449a7ab42bd8166a23173",
+      "substance": {
+        "components": [
+          {
+            "smiles": "CC(C)O",
+            "role": {
+              "value": "solv",
+              "@type": "evaluator.substances.components.Component.Role"
+            },
+            "@type": "evaluator.substances.components.Component"
+          }
+        ],
+        "amounts": {
+          "CC(C)O{solv}": [
+            {
+              "value": 1.0,
+              "@type": "evaluator.substances.amounts.MoleFraction"
+            }
+          ]
+        },
+        "@type": "evaluator.substances.substances.Substance"
+      },
+      "phase": 2,
+      "thermodynamic_state": {
+        "temperature": {
+          "value": 298.15,
+          "unit": "K",
+          "@type": "evaluator.unit.Quantity"
+        },
+        "pressure": {
+          "value": 101.325,
+          "unit": "kPa",
+          "@type": "evaluator.unit.Quantity"
+        },
+        "@type": "evaluator.thermodynamics.ThermodynamicState"
+      },
+      "value": {
+        "value": 0.8041584330993737,
+        "unit": "g / ml",
+        "@type": "evaluator.unit.Quantity"
+      },
+      "uncertainty": {
+        "value": 0.0006799176708441867,
+        "unit": "g / ml",
+        "@type": "evaluator.unit.Quantity"
+      },
+      "source": {
+        "fidelity": "SimulationLayer",
+        "provenance": {
           "protocol_schemas": [
             {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "9c0f1981deea46139a982327eb54654f|build_coordinates_gas",
+              "id": "a5fcce555c2449a7ab42bd8166a23173|build_coordinates",
+              "type": "BuildCoordinatesPackmol",
               "inputs": {
                 ".allow_merging": true,
-                ".box_aspect_ratio": [
-                  1.0,
-                  1.0,
-                  1.0
-                ],
-                ".mass_density": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "g / ml",
-                  "value": 0.95
-                },
-                ".max_molecules": 1,
-                ".retain_packmol_files": false,
-                ".substance": {
-                  "@type": "evaluator.substances.substances.Substance",
-                  "amounts": {
-                    "CC(C)O{solv}": [
-                      {
-                        "@type": "evaluator.substances.amounts.MoleFraction",
-                        "value": 1.0
-                      }
-                    ]
-                  },
-                  "components": [
-                    {
-                      "@type": "evaluator.substances.components.Component",
-                      "role": {
-                        "@type": "evaluator.substances.components.Component.Role",
-                        "value": "solv"
-                      },
-                      "smiles": "CC(C)O"
-                    }
-                  ]
-                },
-                ".verbose_packmol": false
-              },
-              "type": "BuildCoordinatesPackmol"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "9c0f1981deea46139a982327eb54654f|energy_minimisation_gas",
-              "inputs": {
-                ".allow_merging": true,
-                ".enable_pbc": false,
-                ".input_coordinate_file": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "9c0f1981deea46139a982327eb54654f|build_coordinates_gas.coordinate_file_path"
-                },
-                ".max_iterations": 0,
-                ".system_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "9c0f1981deea46139a982327eb54654f|assign_parameters_gas.system_path"
-                },
-                ".tolerance": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "kJ / mol",
-                  "value": 10.0
-                }
-              },
-              "type": "OpenMMEnergyMinimisation"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "9c0f1981deea46139a982327eb54654f|equilibration_simulation_gas",
-              "inputs": {
-                ".allow_gpu_platforms": false,
-                ".allow_merging": true,
-                ".checkpoint_frequency": 10,
-                ".enable_pbc": false,
-                ".ensemble": {
-                  "@type": "evaluator.thermodynamics.Ensemble",
-                  "value": "NVT"
-                },
-                ".high_precision": true,
-                ".input_coordinate_file": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "9c0f1981deea46139a982327eb54654f|energy_minimisation_gas.output_coordinate_file"
-                },
-                ".output_frequency": 5000,
-                ".steps_per_iteration": 100000,
-                ".system_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "9c0f1981deea46139a982327eb54654f|assign_parameters_gas.system_path"
-                },
-                ".thermodynamic_state": {
-                  "@type": "evaluator.thermodynamics.ThermodynamicState",
-                  "pressure": {
-                    "@type": "evaluator.unit.Quantity",
-                    "unit": "atm",
-                    "value": 1.0
-                  },
-                  "temperature": {
-                    "@type": "evaluator.unit.Quantity",
-                    "unit": "K",
-                    "value": 298.15
-                  }
-                },
-                ".thermostat_friction": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "1 / ps",
-                  "value": 1.0
-                },
-                ".timestep": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "fs",
-                  "value": 2.0
-                },
-                ".total_number_of_iterations": 1
-              },
-              "type": "OpenMMSimulation"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "9c0f1981deea46139a982327eb54654f|extract_traj_liquid",
-              "inputs": {
-                ".allow_merging": true,
-                ".equilibration_index": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/9c0f1981deea46139a982327eb54654f|extract_liquid_energy.equilibration_index"
-                },
-                ".input_coordinate_file": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/68eb36c69b394018a6846d22d8db0b57|production_simulation.output_coordinate_file"
-                },
-                ".input_trajectory_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/68eb36c69b394018a6846d22d8db0b57|production_simulation.trajectory_file_path"
-                },
-                ".statistical_inefficiency": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/9c0f1981deea46139a982327eb54654f|extract_liquid_energy.statistical_inefficiency"
-                }
-              },
-              "type": "ExtractUncorrelatedTrajectoryData"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "9c0f1981deea46139a982327eb54654f|extract_stats_liquid",
-              "inputs": {
-                ".allow_merging": true,
-                ".equilibration_index": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/9c0f1981deea46139a982327eb54654f|extract_liquid_energy.equilibration_index"
-                },
-                ".input_statistics_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/68eb36c69b394018a6846d22d8db0b57|production_simulation.statistics_file_path"
-                },
-                ".statistical_inefficiency": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/9c0f1981deea46139a982327eb54654f|extract_liquid_energy.statistical_inefficiency"
-                }
-              },
-              "type": "ExtractUncorrelatedStatisticsData"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "9c0f1981deea46139a982327eb54654f|extract_traj_gas",
-              "inputs": {
-                ".allow_merging": true,
-                ".equilibration_index": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/9c0f1981deea46139a982327eb54654f|extract_gas_energy.equilibration_index"
-                },
-                ".input_coordinate_file": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/9c0f1981deea46139a982327eb54654f|production_simulation_gas.output_coordinate_file"
-                },
-                ".input_trajectory_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/9c0f1981deea46139a982327eb54654f|production_simulation_gas.trajectory_file_path"
-                },
-                ".statistical_inefficiency": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/9c0f1981deea46139a982327eb54654f|extract_gas_energy.statistical_inefficiency"
-                }
-              },
-              "type": "ExtractUncorrelatedTrajectoryData"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "9c0f1981deea46139a982327eb54654f|extract_stats_gas",
-              "inputs": {
-                ".allow_merging": true,
-                ".equilibration_index": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/9c0f1981deea46139a982327eb54654f|extract_gas_energy.equilibration_index"
-                },
-                ".input_statistics_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/9c0f1981deea46139a982327eb54654f|production_simulation_gas.statistics_file_path"
-                },
-                ".statistical_inefficiency": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|conditional_group/9c0f1981deea46139a982327eb54654f|extract_gas_energy.statistical_inefficiency"
-                }
-              },
-              "type": "ExtractUncorrelatedStatisticsData"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "9c0f1981deea46139a982327eb54654f|assign_parameters_gas",
-              "inputs": {
-                ".allow_merging": true,
-                ".apply_known_charges": true,
-                ".charged_molecule_paths": [],
-                ".coordinate_file_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "9c0f1981deea46139a982327eb54654f|build_coordinates_gas.coordinate_file_path"
-                },
-                ".force_field_path": "working-data/SimulationLayer/2176717769ac4cf0a6ff1e2a843faa22/d80e15b006ac463eb9279a092150195d",
-                ".substance": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "9c0f1981deea46139a982327eb54654f|build_coordinates_gas.output_substance"
-                },
-                ".water_model": {
-                  "@type": "evaluator.protocols.forcefield.BaseBuildSystem.WaterModel",
-                  "value": "TIP3P"
-                }
-              },
-              "type": "BuildSmirnoffSystem"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "68eb36c69b394018a6846d22d8db0b57|build_coordinates",
-              "inputs": {
-                ".allow_merging": true,
-                ".box_aspect_ratio": [
-                  1.0,
-                  1.0,
-                  1.0
-                ],
-                ".mass_density": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "g / ml",
-                  "value": 0.95
-                },
                 ".max_molecules": 256,
-                ".retain_packmol_files": false,
+                ".mass_density": {
+                  "value": 0.95,
+                  "unit": "g / ml",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                ".box_aspect_ratio": [
+                  1.0,
+                  1.0,
+                  1.0
+                ],
                 ".substance": {
-                  "@type": "evaluator.substances.substances.Substance",
+                  "components": [
+                    {
+                      "smiles": "CC(C)O",
+                      "role": {
+                        "value": "solv",
+                        "@type": "evaluator.substances.components.Component.Role"
+                      },
+                      "@type": "evaluator.substances.components.Component"
+                    }
+                  ],
                   "amounts": {
                     "CC(C)O{solv}": [
                       {
-                        "@type": "evaluator.substances.amounts.MoleFraction",
-                        "value": 1.0
+                        "value": 1.0,
+                        "@type": "evaluator.substances.amounts.MoleFraction"
                       }
                     ]
                   },
-                  "components": [
-                    {
-                      "@type": "evaluator.substances.components.Component",
-                      "role": {
-                        "@type": "evaluator.substances.components.Component.Role",
-                        "value": "solv"
-                      },
-                      "smiles": "CC(C)O"
-                    }
-                  ]
+                  "@type": "evaluator.substances.substances.Substance"
                 },
-                ".verbose_packmol": false
+                ".verbose_packmol": false,
+                ".retain_packmol_files": false
               },
-              "type": "BuildCoordinatesPackmol"
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
             },
             {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "68eb36c69b394018a6846d22d8db0b57|assign_parameters",
+              "id": "a5fcce555c2449a7ab42bd8166a23173|energy_minimisation",
+              "type": "OpenMMEnergyMinimisation",
               "inputs": {
                 ".allow_merging": true,
-                ".apply_known_charges": true,
-                ".charged_molecule_paths": [],
-                ".coordinate_file_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|build_coordinates.coordinate_file_path"
-                },
-                ".force_field_path": "working-data/SimulationLayer/2176717769ac4cf0a6ff1e2a843faa22/d80e15b006ac463eb9279a092150195d",
-                ".substance": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|build_coordinates.output_substance"
-                },
-                ".water_model": {
-                  "@type": "evaluator.protocols.forcefield.BaseBuildSystem.WaterModel",
-                  "value": "TIP3P"
-                }
-              },
-              "type": "BuildSmirnoffSystem"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "68eb36c69b394018a6846d22d8db0b57|energy_minimisation",
-              "inputs": {
-                ".allow_merging": true,
-                ".enable_pbc": true,
                 ".input_coordinate_file": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|build_coordinates.coordinate_file_path"
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|build_coordinates.coordinate_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
                 },
-                ".max_iterations": 0,
                 ".system_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|assign_parameters.system_path"
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|assign_parameters.system_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
                 },
                 ".tolerance": {
-                  "@type": "evaluator.unit.Quantity",
+                  "value": 10.0,
                   "unit": "kJ / mol",
-                  "value": 10.0
-                }
+                  "@type": "evaluator.unit.Quantity"
+                },
+                ".max_iterations": 0,
+                ".enable_pbc": true
               },
-              "type": "OpenMMEnergyMinimisation"
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
             },
             {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "68eb36c69b394018a6846d22d8db0b57|equilibration_simulation",
+              "id": "a5fcce555c2449a7ab42bd8166a23173|equilibration_simulation",
+              "type": "OpenMMSimulation",
               "inputs": {
-                ".allow_gpu_platforms": true,
                 ".allow_merging": true,
-                ".checkpoint_frequency": 10,
-                ".enable_pbc": true,
-                ".ensemble": {
-                  "@type": "evaluator.thermodynamics.Ensemble",
-                  "value": "NPT"
-                },
-                ".high_precision": false,
-                ".input_coordinate_file": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|energy_minimisation.output_coordinate_file"
-                },
-                ".output_frequency": 5000,
                 ".steps_per_iteration": 100000,
-                ".system_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "68eb36c69b394018a6846d22d8db0b57|assign_parameters.system_path"
+                ".total_number_of_iterations": 1,
+                ".output_frequency": 5000,
+                ".checkpoint_frequency": 10,
+                ".timestep": {
+                  "value": 2.0,
+                  "unit": "fs",
+                  "@type": "evaluator.unit.Quantity"
                 },
                 ".thermodynamic_state": {
-                  "@type": "evaluator.thermodynamics.ThermodynamicState",
-                  "pressure": {
-                    "@type": "evaluator.unit.Quantity",
-                    "unit": "kPa",
-                    "value": 101.325
-                  },
                   "temperature": {
-                    "@type": "evaluator.unit.Quantity",
+                    "value": 298.15,
                     "unit": "K",
-                    "value": 298.15
-                  }
+                    "@type": "evaluator.unit.Quantity"
+                  },
+                  "pressure": {
+                    "value": 101.325,
+                    "unit": "kPa",
+                    "@type": "evaluator.unit.Quantity"
+                  },
+                  "@type": "evaluator.thermodynamics.ThermodynamicState"
+                },
+                ".ensemble": {
+                  "value": "NPT",
+                  "@type": "evaluator.thermodynamics.Ensemble"
                 },
                 ".thermostat_friction": {
-                  "@type": "evaluator.unit.Quantity",
+                  "value": 1.0,
                   "unit": "1 / ps",
-                  "value": 1.0
+                  "@type": "evaluator.unit.Quantity"
                 },
-                ".timestep": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "fs",
-                  "value": 2.0
+                ".input_coordinate_file": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|energy_minimisation.output_coordinate_file",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
                 },
-                ".total_number_of_iterations": 1
+                ".system_path": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|assign_parameters.system_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".enable_pbc": true,
+                ".allow_gpu_platforms": true,
+                ".high_precision": false
               },
-              "type": "OpenMMSimulation"
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
             },
             {
-              "@type": "evaluator.workflow.schemas.ProtocolGroupSchema",
-              "id": "68eb36c69b394018a6846d22d8db0b57|conditional_group",
+              "id": "a5fcce555c2449a7ab42bd8166a23173|conditional_group",
+              "type": "ConditionalGroup",
               "inputs": {
                 ".allow_merging": true,
                 ".conditions": [],
                 ".max_iterations": 100
               },
               "protocol_schemas": {
-                "68eb36c69b394018a6846d22d8db0b57|extract_density": {
-                  "@type": "evaluator.workflow.schemas.ProtocolSchema",
-                  "id": "68eb36c69b394018a6846d22d8db0b57|extract_density",
+                "a5fcce555c2449a7ab42bd8166a23173|production_simulation": {
+                  "id": "a5fcce555c2449a7ab42bd8166a23173|production_simulation",
+                  "type": "OpenMMSimulation",
                   "inputs": {
                     ".allow_merging": true,
-                    ".bootstrap_iterations": 250,
-                    ".bootstrap_sample_size": 1.0,
-                    ".divisor": 1.0,
-                    ".statistics_path": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "68eb36c69b394018a6846d22d8db0b57|production_simulation.statistics_file_path"
-                    },
-                    ".statistics_type": {
-                      "@type": "evaluator.utils.statistics.ObservableType",
-                      "value": "Density"
-                    }
-                  },
-                  "type": "ExtractAverageStatistic"
-                },
-                "68eb36c69b394018a6846d22d8db0b57|production_simulation": {
-                  "@type": "evaluator.workflow.schemas.ProtocolSchema",
-                  "id": "68eb36c69b394018a6846d22d8db0b57|production_simulation",
-                  "inputs": {
-                    ".allow_gpu_platforms": true,
-                    ".allow_merging": true,
-                    ".checkpoint_frequency": 10,
-                    ".enable_pbc": true,
-                    ".ensemble": {
-                      "@type": "evaluator.thermodynamics.Ensemble",
-                      "value": "NPT"
-                    },
-                    ".high_precision": false,
-                    ".input_coordinate_file": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "68eb36c69b394018a6846d22d8db0b57|equilibration_simulation.output_coordinate_file"
-                    },
-                    ".output_frequency": 2000,
                     ".steps_per_iteration": 1000000,
-                    ".system_path": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "68eb36c69b394018a6846d22d8db0b57|assign_parameters.system_path"
+                    ".total_number_of_iterations": 1,
+                    ".output_frequency": 2000,
+                    ".checkpoint_frequency": 10,
+                    ".timestep": {
+                      "value": 2.0,
+                      "unit": "fs",
+                      "@type": "evaluator.unit.Quantity"
                     },
                     ".thermodynamic_state": {
-                      "@type": "evaluator.thermodynamics.ThermodynamicState",
+                      "temperature": {
+                        "value": 298.15,
+                        "unit": "K",
+                        "@type": "evaluator.unit.Quantity"
+                      },
                       "pressure": {
-                        "@type": "evaluator.unit.Quantity",
+                        "value": 101.325,
                         "unit": "kPa",
-                        "value": 101.325
+                        "@type": "evaluator.unit.Quantity"
                       },
-                      "temperature": {
-                        "@type": "evaluator.unit.Quantity",
-                        "unit": "K",
-                        "value": 298.15
-                      }
+                      "@type": "evaluator.thermodynamics.ThermodynamicState"
                     },
-                    ".thermostat_friction": {
-                      "@type": "evaluator.unit.Quantity",
-                      "unit": "1 / ps",
-                      "value": 1.0
-                    },
-                    ".timestep": {
-                      "@type": "evaluator.unit.Quantity",
-                      "unit": "fs",
-                      "value": 2.0
-                    },
-                    ".total_number_of_iterations": 1
-                  },
-                  "type": "OpenMMSimulation"
-                },
-                "9c0f1981deea46139a982327eb54654f|energy_of_vaporization": {
-                  "@type": "evaluator.workflow.schemas.ProtocolSchema",
-                  "id": "9c0f1981deea46139a982327eb54654f|energy_of_vaporization",
-                  "inputs": {
-                    ".allow_merging": true,
-                    ".value_a": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "9c0f1981deea46139a982327eb54654f|extract_liquid_energy.value"
-                    },
-                    ".value_b": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "9c0f1981deea46139a982327eb54654f|extract_gas_energy.value"
-                    }
-                  },
-                  "type": "SubtractValues"
-                },
-                "9c0f1981deea46139a982327eb54654f|enthalpy_of_vaporization": {
-                  "@type": "evaluator.workflow.schemas.ProtocolSchema",
-                  "id": "9c0f1981deea46139a982327eb54654f|enthalpy_of_vaporization",
-                  "inputs": {
-                    ".allow_merging": true,
-                    ".values": [
-                      {
-                        "@type": "evaluator.workflow.utils.ProtocolPath",
-                        "full_path": "9c0f1981deea46139a982327eb54654f|energy_of_vaporization.result"
-                      },
-                      {
-                        "@type": "evaluator.workflow.utils.ProtocolPath",
-                        "full_path": "9c0f1981deea46139a982327eb54654f|ideal_volume.result"
-                      }
-                    ]
-                  },
-                  "type": "AddValues"
-                },
-                "9c0f1981deea46139a982327eb54654f|extract_gas_energy": {
-                  "@type": "evaluator.workflow.schemas.ProtocolSchema",
-                  "id": "9c0f1981deea46139a982327eb54654f|extract_gas_energy",
-                  "inputs": {
-                    ".allow_merging": true,
-                    ".bootstrap_iterations": 250,
-                    ".bootstrap_sample_size": 1.0,
-                    ".divisor": 1.0,
-                    ".statistics_path": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "9c0f1981deea46139a982327eb54654f|production_simulation_gas.statistics_file_path"
-                    },
-                    ".statistics_type": {
-                      "@type": "evaluator.utils.statistics.ObservableType",
-                      "value": "PotentialEnergy"
-                    }
-                  },
-                  "type": "ExtractAverageStatistic"
-                },
-                "9c0f1981deea46139a982327eb54654f|extract_liquid_energy": {
-                  "@type": "evaluator.workflow.schemas.ProtocolSchema",
-                  "id": "9c0f1981deea46139a982327eb54654f|extract_liquid_energy",
-                  "inputs": {
-                    ".allow_merging": true,
-                    ".bootstrap_iterations": 250,
-                    ".bootstrap_sample_size": 1.0,
-                    ".divisor": 256,
-                    ".statistics_path": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "68eb36c69b394018a6846d22d8db0b57|production_simulation.statistics_file_path"
-                    },
-                    ".statistics_type": {
-                      "@type": "evaluator.utils.statistics.ObservableType",
-                      "value": "PotentialEnergy"
-                    }
-                  },
-                  "type": "ExtractAverageStatistic"
-                },
-                "9c0f1981deea46139a982327eb54654f|ideal_volume": {
-                  "@type": "evaluator.workflow.schemas.ProtocolSchema",
-                  "id": "9c0f1981deea46139a982327eb54654f|ideal_volume",
-                  "inputs": {
-                    ".allow_merging": true,
-                    ".multiplier": {
-                      "@type": "evaluator.unit.Quantity",
-                      "unit": "K",
-                      "value": 298.15
-                    },
-                    ".value": {
-                      "@type": "evaluator.unit.Quantity",
-                      "unit": "R",
-                      "value": 1.0
-                    }
-                  },
-                  "type": "MultiplyValue"
-                },
-                "9c0f1981deea46139a982327eb54654f|production_simulation_gas": {
-                  "@type": "evaluator.workflow.schemas.ProtocolSchema",
-                  "id": "9c0f1981deea46139a982327eb54654f|production_simulation_gas",
-                  "inputs": {
-                    ".allow_gpu_platforms": false,
-                    ".allow_merging": true,
-                    ".checkpoint_frequency": 100,
-                    ".enable_pbc": false,
                     ".ensemble": {
-                      "@type": "evaluator.thermodynamics.Ensemble",
-                      "value": "NVT"
-                    },
-                    ".high_precision": true,
-                    ".input_coordinate_file": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "9c0f1981deea46139a982327eb54654f|equilibration_simulation_gas.output_coordinate_file"
-                    },
-                    ".output_frequency": 5000,
-                    ".steps_per_iteration": 15000000,
-                    ".system_path": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "9c0f1981deea46139a982327eb54654f|assign_parameters_gas.system_path"
-                    },
-                    ".thermodynamic_state": {
-                      "@type": "evaluator.thermodynamics.ThermodynamicState",
-                      "pressure": {
-                        "@type": "evaluator.unit.Quantity",
-                        "unit": "atm",
-                        "value": 1.0
-                      },
-                      "temperature": {
-                        "@type": "evaluator.unit.Quantity",
-                        "unit": "K",
-                        "value": 298.15
-                      }
+                      "value": "NPT",
+                      "@type": "evaluator.thermodynamics.Ensemble"
                     },
                     ".thermostat_friction": {
-                      "@type": "evaluator.unit.Quantity",
+                      "value": 1.0,
                       "unit": "1 / ps",
-                      "value": 1.0
+                      "@type": "evaluator.unit.Quantity"
                     },
-                    ".timestep": {
-                      "@type": "evaluator.unit.Quantity",
-                      "unit": "fs",
-                      "value": 2.0
+                    ".input_coordinate_file": {
+                      "full_path": "a5fcce555c2449a7ab42bd8166a23173|equilibration_simulation.output_coordinate_file",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
                     },
-                    ".total_number_of_iterations": 1
+                    ".system_path": {
+                      "full_path": "a5fcce555c2449a7ab42bd8166a23173|assign_parameters.system_path",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
+                    },
+                    ".enable_pbc": true,
+                    ".allow_gpu_platforms": true,
+                    ".high_precision": false
                   },
-                  "type": "OpenMMSimulation"
+                  "@type": "evaluator.workflow.schemas.ProtocolSchema"
+                },
+                "a5fcce555c2449a7ab42bd8166a23173|extract_density": {
+                  "id": "a5fcce555c2449a7ab42bd8166a23173|extract_density",
+                  "type": "ExtractAverageStatistic",
+                  "inputs": {
+                    ".allow_merging": true,
+                    ".bootstrap_iterations": 250,
+                    ".bootstrap_sample_size": 1.0,
+                    ".statistics_path": {
+                      "full_path": "a5fcce555c2449a7ab42bd8166a23173|production_simulation.statistics_file_path",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
+                    },
+                    ".statistics_type": {
+                      "value": "Density",
+                      "@type": "evaluator.utils.statistics.ObservableType"
+                    },
+                    ".divisor": 1.0
+                  },
+                  "@type": "evaluator.workflow.schemas.ProtocolSchema"
                 }
               },
-              "type": "ConditionalGroup"
-            }
-          ]
-        }
-      },
-      "substance": {
-        "@type": "evaluator.substances.substances.Substance",
-        "amounts": {
-          "CC(C)O{solv}": [
-            {
-              "@type": "evaluator.substances.amounts.MoleFraction",
-              "value": 1.0
-            }
-          ]
-        },
-        "components": [
-          {
-            "@type": "evaluator.substances.components.Component",
-            "role": {
-              "@type": "evaluator.substances.components.Component.Role",
-              "value": "solv"
+              "@type": "evaluator.workflow.schemas.ProtocolGroupSchema"
             },
-            "smiles": "CC(C)O"
-          }
-        ]
-      },
-      "thermodynamic_state": {
-        "@type": "evaluator.thermodynamics.ThermodynamicState",
-        "pressure": {
-          "@type": "evaluator.unit.Quantity",
-          "unit": "atm",
-          "value": 1.0
-        },
-        "temperature": {
-          "@type": "evaluator.unit.Quantity",
-          "unit": "K",
-          "value": 298.15
-        }
-      },
-      "uncertainty": {
-        "@type": "evaluator.unit.Quantity",
-        "unit": "kJ / mol",
-        "value": 0.20448559923210105
-      },
-      "value": {
-        "@type": "evaluator.unit.Quantity",
-        "unit": "kJ / mol",
-        "value": 45.412329430981764
-      }
-    },
-    {
-      "@type": "evaluator.properties.density.Density",
-      "gradients": [],
-      "id": "f0266bed1ffe4c6d87d20485df60e02b",
-      "phase": 2,
-      "source": {
-        "@type": "evaluator.datasets.provenance.CalculationSource",
-        "fidelity": "SimulationLayer",
-        "provenance": {
-          "@type": "evaluator.workflow.schemas.WorkflowSchema",
+            {
+              "id": "a5fcce555c2449a7ab42bd8166a23173|extract_traj",
+              "type": "ExtractUncorrelatedTrajectoryData",
+              "inputs": {
+                ".allow_merging": true,
+                ".equilibration_index": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/a5fcce555c2449a7ab42bd8166a23173|extract_density.equilibration_index",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".statistical_inefficiency": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/a5fcce555c2449a7ab42bd8166a23173|extract_density.statistical_inefficiency",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".input_coordinate_file": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/a5fcce555c2449a7ab42bd8166a23173|production_simulation.output_coordinate_file",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".input_trajectory_path": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/a5fcce555c2449a7ab42bd8166a23173|production_simulation.trajectory_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                }
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "a5fcce555c2449a7ab42bd8166a23173|extract_stats",
+              "type": "ExtractUncorrelatedStatisticsData",
+              "inputs": {
+                ".allow_merging": true,
+                ".equilibration_index": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/a5fcce555c2449a7ab42bd8166a23173|extract_density.equilibration_index",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".statistical_inefficiency": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/a5fcce555c2449a7ab42bd8166a23173|extract_density.statistical_inefficiency",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".input_statistics_path": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/a5fcce555c2449a7ab42bd8166a23173|production_simulation.statistics_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                }
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "a5fcce555c2449a7ab42bd8166a23173|assign_parameters",
+              "type": "BuildSmirnoffSystem",
+              "inputs": {
+                ".allow_merging": true,
+                ".force_field_path": "working-data/SimulationLayer/dec88ff2f9e24a12b117a41f9e75e957/9986d70088f44018a0098758f0c6f12b",
+                ".coordinate_file_path": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|build_coordinates.coordinate_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".substance": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|build_coordinates.output_substance",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".water_model": {
+                  "value": "TIP3P",
+                  "@type": "evaluator.protocols.forcefield.BaseBuildSystem.WaterModel"
+                },
+                ".charged_molecule_paths": [],
+                ".apply_known_charges": true
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            }
+          ],
           "final_value_source": {
-            "@type": "evaluator.workflow.utils.ProtocolPath",
-            "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/f0266bed1ffe4c6d87d20485df60e02b|extract_density.value"
+            "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/a5fcce555c2449a7ab42bd8166a23173|extract_density.value",
+            "@type": "evaluator.workflow.utils.ProtocolPath"
           },
           "gradients_sources": [],
           "outputs_to_store": {
             "full_system": {
-              "@type": "evaluator.storage.data.StoredSimulationData",
-              "coordinate_file_name": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/f0266bed1ffe4c6d87d20485df60e02b|production_simulation.output_coordinate_file"
+              "substance": {
+                "full_path": "a5fcce555c2449a7ab42bd8166a23173|build_coordinates.output_substance",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
               },
-              "force_field_id": {
-                "@type": "evaluator.attributes.attributes.PlaceholderValue"
-              },
-              "number_of_molecules": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "f0266bed1ffe4c6d87d20485df60e02b|build_coordinates.output_number_of_molecules"
+              "thermodynamic_state": {
+                "temperature": {
+                  "value": 298.15,
+                  "unit": "K",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                "pressure": {
+                  "value": 101.325,
+                  "unit": "kPa",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                "@type": "evaluator.thermodynamics.ThermodynamicState"
               },
               "property_phase": 2,
               "source_calculation_id": {
                 "@type": "evaluator.attributes.attributes.PlaceholderValue"
               },
-              "statistical_inefficiency": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/f0266bed1ffe4c6d87d20485df60e02b|extract_density.statistical_inefficiency"
+              "force_field_id": {
+                "@type": "evaluator.attributes.attributes.PlaceholderValue"
               },
-              "statistics_file_name": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "f0266bed1ffe4c6d87d20485df60e02b|extract_stats.output_statistics_path"
-              },
-              "substance": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "f0266bed1ffe4c6d87d20485df60e02b|build_coordinates.output_substance"
-              },
-              "thermodynamic_state": {
-                "@type": "evaluator.thermodynamics.ThermodynamicState",
-                "pressure": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "kPa",
-                  "value": 101.325
-                },
-                "temperature": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "K",
-                  "value": 298.15
-                }
+              "coordinate_file_name": {
+                "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/a5fcce555c2449a7ab42bd8166a23173|production_simulation.output_coordinate_file",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
               },
               "trajectory_file_name": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "f0266bed1ffe4c6d87d20485df60e02b|extract_traj.output_trajectory_path"
-              }
+                "full_path": "a5fcce555c2449a7ab42bd8166a23173|extract_traj.output_trajectory_path",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "statistics_file_name": {
+                "full_path": "a5fcce555c2449a7ab42bd8166a23173|extract_stats.output_statistics_path",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "statistical_inefficiency": {
+                "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/a5fcce555c2449a7ab42bd8166a23173|extract_density.statistical_inefficiency",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "number_of_molecules": {
+                "full_path": "a5fcce555c2449a7ab42bd8166a23173|build_coordinates.output_number_of_molecules",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "@type": "evaluator.storage.data.StoredSimulationData"
             }
           },
+          "@type": "evaluator.workflow.schemas.WorkflowSchema"
+        },
+        "@type": "evaluator.datasets.provenance.CalculationSource"
+      },
+      "gradients": [],
+      "@type": "evaluator.properties.density.Density"
+    },
+    {
+      "id": "bafbf024a5154fe199b62a907d36d0f2",
+      "substance": {
+        "components": [
+          {
+            "smiles": "CC(C)O",
+            "role": {
+              "value": "solv",
+              "@type": "evaluator.substances.components.Component.Role"
+            },
+            "@type": "evaluator.substances.components.Component"
+          }
+        ],
+        "amounts": {
+          "CC(C)O{solv}": [
+            {
+              "value": 1.0,
+              "@type": "evaluator.substances.amounts.MoleFraction"
+            }
+          ]
+        },
+        "@type": "evaluator.substances.substances.Substance"
+      },
+      "phase": 6,
+      "thermodynamic_state": {
+        "temperature": {
+          "value": 298.15,
+          "unit": "K",
+          "@type": "evaluator.unit.Quantity"
+        },
+        "pressure": {
+          "value": 1.0,
+          "unit": "atm",
+          "@type": "evaluator.unit.Quantity"
+        },
+        "@type": "evaluator.thermodynamics.ThermodynamicState"
+      },
+      "value": {
+        "value": 45.64997940036531,
+        "unit": "kJ / mol",
+        "@type": "evaluator.unit.Quantity"
+      },
+      "uncertainty": {
+        "value": 0.2343936216052824,
+        "unit": "kJ / mol",
+        "@type": "evaluator.unit.Quantity"
+      },
+      "source": {
+        "fidelity": "SimulationLayer",
+        "provenance": {
           "protocol_schemas": [
             {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "f0266bed1ffe4c6d87d20485df60e02b|build_coordinates",
+              "id": "bafbf024a5154fe199b62a907d36d0f2|build_coordinates_gas",
+              "type": "BuildCoordinatesPackmol",
               "inputs": {
                 ".allow_merging": true,
+                ".max_molecules": 1,
+                ".mass_density": {
+                  "value": 0.95,
+                  "unit": "g / ml",
+                  "@type": "evaluator.unit.Quantity"
+                },
                 ".box_aspect_ratio": [
                   1.0,
                   1.0,
                   1.0
                 ],
-                ".mass_density": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "g / ml",
-                  "value": 0.95
-                },
-                ".max_molecules": 256,
-                ".retain_packmol_files": false,
                 ".substance": {
-                  "@type": "evaluator.substances.substances.Substance",
+                  "components": [
+                    {
+                      "smiles": "CC(C)O",
+                      "role": {
+                        "value": "solv",
+                        "@type": "evaluator.substances.components.Component.Role"
+                      },
+                      "@type": "evaluator.substances.components.Component"
+                    }
+                  ],
                   "amounts": {
-                    "CCO{solv}": [
+                    "CC(C)O{solv}": [
                       {
-                        "@type": "evaluator.substances.amounts.MoleFraction",
-                        "value": 1.0
+                        "value": 1.0,
+                        "@type": "evaluator.substances.amounts.MoleFraction"
                       }
                     ]
                   },
-                  "components": [
-                    {
-                      "@type": "evaluator.substances.components.Component",
-                      "role": {
-                        "@type": "evaluator.substances.components.Component.Role",
-                        "value": "solv"
-                      },
-                      "smiles": "CCO"
-                    }
-                  ]
+                  "@type": "evaluator.substances.substances.Substance"
                 },
-                ".verbose_packmol": false
+                ".verbose_packmol": false,
+                ".retain_packmol_files": false
               },
-              "type": "BuildCoordinatesPackmol"
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
             },
             {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "f0266bed1ffe4c6d87d20485df60e02b|energy_minimisation",
+              "id": "bafbf024a5154fe199b62a907d36d0f2|energy_minimisation_gas",
+              "type": "OpenMMEnergyMinimisation",
               "inputs": {
                 ".allow_merging": true,
-                ".enable_pbc": true,
                 ".input_coordinate_file": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|build_coordinates.coordinate_file_path"
+                  "full_path": "bafbf024a5154fe199b62a907d36d0f2|build_coordinates_gas.coordinate_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
                 },
-                ".max_iterations": 0,
                 ".system_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|assign_parameters.system_path"
+                  "full_path": "bafbf024a5154fe199b62a907d36d0f2|assign_parameters_gas.system_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
                 },
                 ".tolerance": {
-                  "@type": "evaluator.unit.Quantity",
+                  "value": 10.0,
                   "unit": "kJ / mol",
-                  "value": 10.0
-                }
+                  "@type": "evaluator.unit.Quantity"
+                },
+                ".max_iterations": 0,
+                ".enable_pbc": false
               },
-              "type": "OpenMMEnergyMinimisation"
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
             },
             {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "f0266bed1ffe4c6d87d20485df60e02b|equilibration_simulation",
+              "id": "bafbf024a5154fe199b62a907d36d0f2|equilibration_simulation_gas",
+              "type": "OpenMMSimulation",
               "inputs": {
-                ".allow_gpu_platforms": true,
                 ".allow_merging": true,
-                ".checkpoint_frequency": 10,
-                ".enable_pbc": true,
-                ".ensemble": {
-                  "@type": "evaluator.thermodynamics.Ensemble",
-                  "value": "NPT"
-                },
-                ".high_precision": false,
-                ".input_coordinate_file": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|energy_minimisation.output_coordinate_file"
-                },
-                ".output_frequency": 5000,
                 ".steps_per_iteration": 100000,
-                ".system_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|assign_parameters.system_path"
+                ".total_number_of_iterations": 1,
+                ".output_frequency": 5000,
+                ".checkpoint_frequency": 10,
+                ".timestep": {
+                  "value": 2.0,
+                  "unit": "fs",
+                  "@type": "evaluator.unit.Quantity"
                 },
                 ".thermodynamic_state": {
-                  "@type": "evaluator.thermodynamics.ThermodynamicState",
-                  "pressure": {
-                    "@type": "evaluator.unit.Quantity",
-                    "unit": "kPa",
-                    "value": 101.325
-                  },
                   "temperature": {
-                    "@type": "evaluator.unit.Quantity",
+                    "value": 298.15,
                     "unit": "K",
-                    "value": 298.15
-                  }
+                    "@type": "evaluator.unit.Quantity"
+                  },
+                  "pressure": {
+                    "value": 1.0,
+                    "unit": "atm",
+                    "@type": "evaluator.unit.Quantity"
+                  },
+                  "@type": "evaluator.thermodynamics.ThermodynamicState"
+                },
+                ".ensemble": {
+                  "value": "NVT",
+                  "@type": "evaluator.thermodynamics.Ensemble"
                 },
                 ".thermostat_friction": {
-                  "@type": "evaluator.unit.Quantity",
+                  "value": 1.0,
                   "unit": "1 / ps",
-                  "value": 1.0
+                  "@type": "evaluator.unit.Quantity"
                 },
-                ".timestep": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "fs",
-                  "value": 2.0
+                ".input_coordinate_file": {
+                  "full_path": "bafbf024a5154fe199b62a907d36d0f2|energy_minimisation_gas.output_coordinate_file",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
                 },
-                ".total_number_of_iterations": 1
+                ".system_path": {
+                  "full_path": "bafbf024a5154fe199b62a907d36d0f2|assign_parameters_gas.system_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".enable_pbc": false,
+                ".allow_gpu_platforms": false,
+                ".high_precision": true
               },
-              "type": "OpenMMSimulation"
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
             },
             {
-              "@type": "evaluator.workflow.schemas.ProtocolGroupSchema",
-              "id": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group",
+              "id": "bafbf024a5154fe199b62a907d36d0f2|extract_traj_liquid",
+              "type": "ExtractUncorrelatedTrajectoryData",
+              "inputs": {
+                ".allow_merging": true,
+                ".equilibration_index": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/bafbf024a5154fe199b62a907d36d0f2|extract_liquid_energy.equilibration_index",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".statistical_inefficiency": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/bafbf024a5154fe199b62a907d36d0f2|extract_liquid_energy.statistical_inefficiency",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".input_coordinate_file": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/a5fcce555c2449a7ab42bd8166a23173|production_simulation.output_coordinate_file",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".input_trajectory_path": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/a5fcce555c2449a7ab42bd8166a23173|production_simulation.trajectory_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                }
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "bafbf024a5154fe199b62a907d36d0f2|extract_stats_liquid",
+              "type": "ExtractUncorrelatedStatisticsData",
+              "inputs": {
+                ".allow_merging": true,
+                ".equilibration_index": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/bafbf024a5154fe199b62a907d36d0f2|extract_liquid_energy.equilibration_index",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".statistical_inefficiency": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/bafbf024a5154fe199b62a907d36d0f2|extract_liquid_energy.statistical_inefficiency",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".input_statistics_path": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/a5fcce555c2449a7ab42bd8166a23173|production_simulation.statistics_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                }
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "bafbf024a5154fe199b62a907d36d0f2|extract_traj_gas",
+              "type": "ExtractUncorrelatedTrajectoryData",
+              "inputs": {
+                ".allow_merging": true,
+                ".equilibration_index": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/bafbf024a5154fe199b62a907d36d0f2|extract_gas_energy.equilibration_index",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".statistical_inefficiency": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/bafbf024a5154fe199b62a907d36d0f2|extract_gas_energy.statistical_inefficiency",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".input_coordinate_file": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/bafbf024a5154fe199b62a907d36d0f2|production_simulation_gas.output_coordinate_file",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".input_trajectory_path": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/bafbf024a5154fe199b62a907d36d0f2|production_simulation_gas.trajectory_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                }
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "bafbf024a5154fe199b62a907d36d0f2|extract_stats_gas",
+              "type": "ExtractUncorrelatedStatisticsData",
+              "inputs": {
+                ".allow_merging": true,
+                ".equilibration_index": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/bafbf024a5154fe199b62a907d36d0f2|extract_gas_energy.equilibration_index",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".statistical_inefficiency": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/bafbf024a5154fe199b62a907d36d0f2|extract_gas_energy.statistical_inefficiency",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".input_statistics_path": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/bafbf024a5154fe199b62a907d36d0f2|production_simulation_gas.statistics_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                }
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "bafbf024a5154fe199b62a907d36d0f2|assign_parameters_gas",
+              "type": "BuildSmirnoffSystem",
+              "inputs": {
+                ".allow_merging": true,
+                ".force_field_path": "working-data/SimulationLayer/dec88ff2f9e24a12b117a41f9e75e957/9986d70088f44018a0098758f0c6f12b",
+                ".coordinate_file_path": {
+                  "full_path": "bafbf024a5154fe199b62a907d36d0f2|build_coordinates_gas.coordinate_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".substance": {
+                  "full_path": "bafbf024a5154fe199b62a907d36d0f2|build_coordinates_gas.output_substance",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".water_model": {
+                  "value": "TIP3P",
+                  "@type": "evaluator.protocols.forcefield.BaseBuildSystem.WaterModel"
+                },
+                ".charged_molecule_paths": [],
+                ".apply_known_charges": true
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "a5fcce555c2449a7ab42bd8166a23173|build_coordinates",
+              "type": "BuildCoordinatesPackmol",
+              "inputs": {
+                ".allow_merging": true,
+                ".max_molecules": 256,
+                ".mass_density": {
+                  "value": 0.95,
+                  "unit": "g / ml",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                ".box_aspect_ratio": [
+                  1.0,
+                  1.0,
+                  1.0
+                ],
+                ".substance": {
+                  "components": [
+                    {
+                      "smiles": "CC(C)O",
+                      "role": {
+                        "value": "solv",
+                        "@type": "evaluator.substances.components.Component.Role"
+                      },
+                      "@type": "evaluator.substances.components.Component"
+                    }
+                  ],
+                  "amounts": {
+                    "CC(C)O{solv}": [
+                      {
+                        "value": 1.0,
+                        "@type": "evaluator.substances.amounts.MoleFraction"
+                      }
+                    ]
+                  },
+                  "@type": "evaluator.substances.substances.Substance"
+                },
+                ".verbose_packmol": false,
+                ".retain_packmol_files": false
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "a5fcce555c2449a7ab42bd8166a23173|assign_parameters",
+              "type": "BuildSmirnoffSystem",
+              "inputs": {
+                ".allow_merging": true,
+                ".force_field_path": "working-data/SimulationLayer/dec88ff2f9e24a12b117a41f9e75e957/9986d70088f44018a0098758f0c6f12b",
+                ".coordinate_file_path": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|build_coordinates.coordinate_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".substance": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|build_coordinates.output_substance",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".water_model": {
+                  "value": "TIP3P",
+                  "@type": "evaluator.protocols.forcefield.BaseBuildSystem.WaterModel"
+                },
+                ".charged_molecule_paths": [],
+                ".apply_known_charges": true
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "a5fcce555c2449a7ab42bd8166a23173|energy_minimisation",
+              "type": "OpenMMEnergyMinimisation",
+              "inputs": {
+                ".allow_merging": true,
+                ".input_coordinate_file": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|build_coordinates.coordinate_file_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".system_path": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|assign_parameters.system_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".tolerance": {
+                  "value": 10.0,
+                  "unit": "kJ / mol",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                ".max_iterations": 0,
+                ".enable_pbc": true
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "a5fcce555c2449a7ab42bd8166a23173|equilibration_simulation",
+              "type": "OpenMMSimulation",
+              "inputs": {
+                ".allow_merging": true,
+                ".steps_per_iteration": 100000,
+                ".total_number_of_iterations": 1,
+                ".output_frequency": 5000,
+                ".checkpoint_frequency": 10,
+                ".timestep": {
+                  "value": 2.0,
+                  "unit": "fs",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                ".thermodynamic_state": {
+                  "temperature": {
+                    "value": 298.15,
+                    "unit": "K",
+                    "@type": "evaluator.unit.Quantity"
+                  },
+                  "pressure": {
+                    "value": 101.325,
+                    "unit": "kPa",
+                    "@type": "evaluator.unit.Quantity"
+                  },
+                  "@type": "evaluator.thermodynamics.ThermodynamicState"
+                },
+                ".ensemble": {
+                  "value": "NPT",
+                  "@type": "evaluator.thermodynamics.Ensemble"
+                },
+                ".thermostat_friction": {
+                  "value": 1.0,
+                  "unit": "1 / ps",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                ".input_coordinate_file": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|energy_minimisation.output_coordinate_file",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".system_path": {
+                  "full_path": "a5fcce555c2449a7ab42bd8166a23173|assign_parameters.system_path",
+                  "@type": "evaluator.workflow.utils.ProtocolPath"
+                },
+                ".enable_pbc": true,
+                ".allow_gpu_platforms": true,
+                ".high_precision": false
+              },
+              "@type": "evaluator.workflow.schemas.ProtocolSchema"
+            },
+            {
+              "id": "a5fcce555c2449a7ab42bd8166a23173|conditional_group",
+              "type": "ConditionalGroup",
               "inputs": {
                 ".allow_merging": true,
                 ".conditions": [],
                 ".max_iterations": 100
               },
               "protocol_schemas": {
-                "f0266bed1ffe4c6d87d20485df60e02b|extract_density": {
-                  "@type": "evaluator.workflow.schemas.ProtocolSchema",
-                  "id": "f0266bed1ffe4c6d87d20485df60e02b|extract_density",
+                "a5fcce555c2449a7ab42bd8166a23173|production_simulation": {
+                  "id": "a5fcce555c2449a7ab42bd8166a23173|production_simulation",
+                  "type": "OpenMMSimulation",
+                  "inputs": {
+                    ".allow_merging": true,
+                    ".steps_per_iteration": 1000000,
+                    ".total_number_of_iterations": 1,
+                    ".output_frequency": 2000,
+                    ".checkpoint_frequency": 10,
+                    ".timestep": {
+                      "value": 2.0,
+                      "unit": "fs",
+                      "@type": "evaluator.unit.Quantity"
+                    },
+                    ".thermodynamic_state": {
+                      "temperature": {
+                        "value": 298.15,
+                        "unit": "K",
+                        "@type": "evaluator.unit.Quantity"
+                      },
+                      "pressure": {
+                        "value": 101.325,
+                        "unit": "kPa",
+                        "@type": "evaluator.unit.Quantity"
+                      },
+                      "@type": "evaluator.thermodynamics.ThermodynamicState"
+                    },
+                    ".ensemble": {
+                      "value": "NPT",
+                      "@type": "evaluator.thermodynamics.Ensemble"
+                    },
+                    ".thermostat_friction": {
+                      "value": 1.0,
+                      "unit": "1 / ps",
+                      "@type": "evaluator.unit.Quantity"
+                    },
+                    ".input_coordinate_file": {
+                      "full_path": "a5fcce555c2449a7ab42bd8166a23173|equilibration_simulation.output_coordinate_file",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
+                    },
+                    ".system_path": {
+                      "full_path": "a5fcce555c2449a7ab42bd8166a23173|assign_parameters.system_path",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
+                    },
+                    ".enable_pbc": true,
+                    ".allow_gpu_platforms": true,
+                    ".high_precision": false
+                  },
+                  "@type": "evaluator.workflow.schemas.ProtocolSchema"
+                },
+                "a5fcce555c2449a7ab42bd8166a23173|extract_density": {
+                  "id": "a5fcce555c2449a7ab42bd8166a23173|extract_density",
+                  "type": "ExtractAverageStatistic",
                   "inputs": {
                     ".allow_merging": true,
                     ".bootstrap_iterations": 250,
                     ".bootstrap_sample_size": 1.0,
-                    ".divisor": 1.0,
                     ".statistics_path": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "f0266bed1ffe4c6d87d20485df60e02b|production_simulation.statistics_file_path"
+                      "full_path": "a5fcce555c2449a7ab42bd8166a23173|production_simulation.statistics_file_path",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
                     },
                     ".statistics_type": {
-                      "@type": "evaluator.utils.statistics.ObservableType",
-                      "value": "Density"
+                      "value": "Density",
+                      "@type": "evaluator.utils.statistics.ObservableType"
+                    },
+                    ".divisor": 1.0
+                  },
+                  "@type": "evaluator.workflow.schemas.ProtocolSchema"
+                },
+                "bafbf024a5154fe199b62a907d36d0f2|ideal_volume": {
+                  "id": "bafbf024a5154fe199b62a907d36d0f2|ideal_volume",
+                  "type": "MultiplyValue",
+                  "inputs": {
+                    ".allow_merging": true,
+                    ".value": {
+                      "value": 1.0,
+                      "unit": "R",
+                      "@type": "evaluator.unit.Quantity"
+                    },
+                    ".multiplier": {
+                      "value": 298.15,
+                      "unit": "K",
+                      "@type": "evaluator.unit.Quantity"
                     }
                   },
-                  "type": "ExtractAverageStatistic"
+                  "@type": "evaluator.workflow.schemas.ProtocolSchema"
                 },
-                "f0266bed1ffe4c6d87d20485df60e02b|production_simulation": {
-                  "@type": "evaluator.workflow.schemas.ProtocolSchema",
-                  "id": "f0266bed1ffe4c6d87d20485df60e02b|production_simulation",
+                "bafbf024a5154fe199b62a907d36d0f2|production_simulation_gas": {
+                  "id": "bafbf024a5154fe199b62a907d36d0f2|production_simulation_gas",
+                  "type": "OpenMMSimulation",
                   "inputs": {
-                    ".allow_gpu_platforms": true,
                     ".allow_merging": true,
-                    ".checkpoint_frequency": 10,
-                    ".enable_pbc": true,
-                    ".ensemble": {
-                      "@type": "evaluator.thermodynamics.Ensemble",
-                      "value": "NPT"
-                    },
-                    ".high_precision": false,
-                    ".input_coordinate_file": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "f0266bed1ffe4c6d87d20485df60e02b|equilibration_simulation.output_coordinate_file"
-                    },
-                    ".output_frequency": 2000,
-                    ".steps_per_iteration": 1000000,
-                    ".system_path": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "f0266bed1ffe4c6d87d20485df60e02b|assign_parameters.system_path"
+                    ".steps_per_iteration": 15000000,
+                    ".total_number_of_iterations": 1,
+                    ".output_frequency": 5000,
+                    ".checkpoint_frequency": 100,
+                    ".timestep": {
+                      "value": 2.0,
+                      "unit": "fs",
+                      "@type": "evaluator.unit.Quantity"
                     },
                     ".thermodynamic_state": {
-                      "@type": "evaluator.thermodynamics.ThermodynamicState",
-                      "pressure": {
-                        "@type": "evaluator.unit.Quantity",
-                        "unit": "kPa",
-                        "value": 101.325
-                      },
                       "temperature": {
-                        "@type": "evaluator.unit.Quantity",
+                        "value": 298.15,
                         "unit": "K",
-                        "value": 298.15
-                      }
+                        "@type": "evaluator.unit.Quantity"
+                      },
+                      "pressure": {
+                        "value": 1.0,
+                        "unit": "atm",
+                        "@type": "evaluator.unit.Quantity"
+                      },
+                      "@type": "evaluator.thermodynamics.ThermodynamicState"
+                    },
+                    ".ensemble": {
+                      "value": "NVT",
+                      "@type": "evaluator.thermodynamics.Ensemble"
                     },
                     ".thermostat_friction": {
-                      "@type": "evaluator.unit.Quantity",
+                      "value": 1.0,
                       "unit": "1 / ps",
-                      "value": 1.0
+                      "@type": "evaluator.unit.Quantity"
                     },
-                    ".timestep": {
-                      "@type": "evaluator.unit.Quantity",
-                      "unit": "fs",
-                      "value": 2.0
+                    ".input_coordinate_file": {
+                      "full_path": "bafbf024a5154fe199b62a907d36d0f2|equilibration_simulation_gas.output_coordinate_file",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
                     },
-                    ".total_number_of_iterations": 1
+                    ".system_path": {
+                      "full_path": "bafbf024a5154fe199b62a907d36d0f2|assign_parameters_gas.system_path",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
+                    },
+                    ".enable_pbc": false,
+                    ".allow_gpu_platforms": false,
+                    ".high_precision": true
                   },
-                  "type": "OpenMMSimulation"
+                  "@type": "evaluator.workflow.schemas.ProtocolSchema"
+                },
+                "bafbf024a5154fe199b62a907d36d0f2|extract_gas_energy": {
+                  "id": "bafbf024a5154fe199b62a907d36d0f2|extract_gas_energy",
+                  "type": "ExtractAverageStatistic",
+                  "inputs": {
+                    ".allow_merging": true,
+                    ".bootstrap_iterations": 250,
+                    ".bootstrap_sample_size": 1.0,
+                    ".statistics_path": {
+                      "full_path": "bafbf024a5154fe199b62a907d36d0f2|production_simulation_gas.statistics_file_path",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
+                    },
+                    ".statistics_type": {
+                      "value": "PotentialEnergy",
+                      "@type": "evaluator.utils.statistics.ObservableType"
+                    },
+                    ".divisor": 1.0
+                  },
+                  "@type": "evaluator.workflow.schemas.ProtocolSchema"
+                },
+                "bafbf024a5154fe199b62a907d36d0f2|extract_liquid_energy": {
+                  "id": "bafbf024a5154fe199b62a907d36d0f2|extract_liquid_energy",
+                  "type": "ExtractAverageStatistic",
+                  "inputs": {
+                    ".allow_merging": true,
+                    ".bootstrap_iterations": 250,
+                    ".bootstrap_sample_size": 1.0,
+                    ".statistics_path": {
+                      "full_path": "a5fcce555c2449a7ab42bd8166a23173|production_simulation.statistics_file_path",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
+                    },
+                    ".statistics_type": {
+                      "value": "PotentialEnergy",
+                      "@type": "evaluator.utils.statistics.ObservableType"
+                    },
+                    ".divisor": 256
+                  },
+                  "@type": "evaluator.workflow.schemas.ProtocolSchema"
+                },
+                "bafbf024a5154fe199b62a907d36d0f2|energy_of_vaporization": {
+                  "id": "bafbf024a5154fe199b62a907d36d0f2|energy_of_vaporization",
+                  "type": "SubtractValues",
+                  "inputs": {
+                    ".allow_merging": true,
+                    ".value_a": {
+                      "full_path": "bafbf024a5154fe199b62a907d36d0f2|extract_liquid_energy.value",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
+                    },
+                    ".value_b": {
+                      "full_path": "bafbf024a5154fe199b62a907d36d0f2|extract_gas_energy.value",
+                      "@type": "evaluator.workflow.utils.ProtocolPath"
+                    }
+                  },
+                  "@type": "evaluator.workflow.schemas.ProtocolSchema"
+                },
+                "bafbf024a5154fe199b62a907d36d0f2|enthalpy_of_vaporization": {
+                  "id": "bafbf024a5154fe199b62a907d36d0f2|enthalpy_of_vaporization",
+                  "type": "AddValues",
+                  "inputs": {
+                    ".allow_merging": true,
+                    ".values": [
+                      {
+                        "full_path": "bafbf024a5154fe199b62a907d36d0f2|energy_of_vaporization.result",
+                        "@type": "evaluator.workflow.utils.ProtocolPath"
+                      },
+                      {
+                        "full_path": "bafbf024a5154fe199b62a907d36d0f2|ideal_volume.result",
+                        "@type": "evaluator.workflow.utils.ProtocolPath"
+                      }
+                    ]
+                  },
+                  "@type": "evaluator.workflow.schemas.ProtocolSchema"
                 }
               },
-              "type": "ConditionalGroup"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "f0266bed1ffe4c6d87d20485df60e02b|extract_traj",
-              "inputs": {
-                ".allow_merging": true,
-                ".equilibration_index": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/f0266bed1ffe4c6d87d20485df60e02b|extract_density.equilibration_index"
-                },
-                ".input_coordinate_file": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/f0266bed1ffe4c6d87d20485df60e02b|production_simulation.output_coordinate_file"
-                },
-                ".input_trajectory_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/f0266bed1ffe4c6d87d20485df60e02b|production_simulation.trajectory_file_path"
-                },
-                ".statistical_inefficiency": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/f0266bed1ffe4c6d87d20485df60e02b|extract_density.statistical_inefficiency"
-                }
-              },
-              "type": "ExtractUncorrelatedTrajectoryData"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "f0266bed1ffe4c6d87d20485df60e02b|extract_stats",
-              "inputs": {
-                ".allow_merging": true,
-                ".equilibration_index": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/f0266bed1ffe4c6d87d20485df60e02b|extract_density.equilibration_index"
-                },
-                ".input_statistics_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/f0266bed1ffe4c6d87d20485df60e02b|production_simulation.statistics_file_path"
-                },
-                ".statistical_inefficiency": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/f0266bed1ffe4c6d87d20485df60e02b|extract_density.statistical_inefficiency"
-                }
-              },
-              "type": "ExtractUncorrelatedStatisticsData"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "f0266bed1ffe4c6d87d20485df60e02b|assign_parameters",
-              "inputs": {
-                ".allow_merging": true,
-                ".apply_known_charges": true,
-                ".charged_molecule_paths": [],
-                ".coordinate_file_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|build_coordinates.coordinate_file_path"
-                },
-                ".force_field_path": "working-data/SimulationLayer/9e5498ae98d74e4ab66fc52bc0237169/d80e15b006ac463eb9279a092150195d",
-                ".substance": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|build_coordinates.output_substance"
-                },
-                ".water_model": {
-                  "@type": "evaluator.protocols.forcefield.BaseBuildSystem.WaterModel",
-                  "value": "TIP3P"
-                }
-              },
-              "type": "BuildSmirnoffSystem"
+              "@type": "evaluator.workflow.schemas.ProtocolGroupSchema"
             }
-          ]
-        }
-      },
-      "substance": {
-        "@type": "evaluator.substances.substances.Substance",
-        "amounts": {
-          "CCO{solv}": [
-            {
-              "@type": "evaluator.substances.amounts.MoleFraction",
-              "value": 1.0
-            }
-          ]
-        },
-        "components": [
-          {
-            "@type": "evaluator.substances.components.Component",
-            "role": {
-              "@type": "evaluator.substances.components.Component.Role",
-              "value": "solv"
-            },
-            "smiles": "CCO"
-          }
-        ]
-      },
-      "thermodynamic_state": {
-        "@type": "evaluator.thermodynamics.ThermodynamicState",
-        "pressure": {
-          "@type": "evaluator.unit.Quantity",
-          "unit": "kPa",
-          "value": 101.325
-        },
-        "temperature": {
-          "@type": "evaluator.unit.Quantity",
-          "unit": "K",
-          "value": 298.15
-        }
-      },
-      "uncertainty": {
-        "@type": "evaluator.unit.Quantity",
-        "unit": "g / ml",
-        "value": 0.0006351508582454262
-      },
-      "value": {
-        "@type": "evaluator.unit.Quantity",
-        "unit": "g / ml",
-        "value": 0.79306223834769
-      }
-    },
-    {
-      "@type": "evaluator.properties.enthalpy.EnthalpyOfVaporization",
-      "gradients": [],
-      "id": "b112cae1e1d14071b015000b160188f6",
-      "phase": 2,
-      "source": {
-        "@type": "evaluator.datasets.provenance.CalculationSource",
-        "fidelity": "SimulationLayer",
-        "provenance": {
-          "@type": "evaluator.workflow.schemas.WorkflowSchema",
+          ],
           "final_value_source": {
-            "@type": "evaluator.workflow.utils.ProtocolPath",
-            "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/b112cae1e1d14071b015000b160188f6|enthalpy_of_vaporization.result"
+            "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/bafbf024a5154fe199b62a907d36d0f2|enthalpy_of_vaporization.result",
+            "@type": "evaluator.workflow.utils.ProtocolPath"
           },
           "gradients_sources": [],
           "outputs_to_store": {
-            "gas_data": {
-              "@type": "evaluator.storage.data.StoredSimulationData",
-              "coordinate_file_name": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/b112cae1e1d14071b015000b160188f6|production_simulation_gas.output_coordinate_file"
+            "liquid_data": {
+              "substance": {
+                "full_path": "a5fcce555c2449a7ab42bd8166a23173|build_coordinates.output_substance",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "thermodynamic_state": {
+                "temperature": {
+                  "value": 298.15,
+                  "unit": "K",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                "pressure": {
+                  "value": 1.0,
+                  "unit": "atm",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                "@type": "evaluator.thermodynamics.ThermodynamicState"
+              },
+              "property_phase": 2,
+              "source_calculation_id": {
+                "@type": "evaluator.attributes.attributes.PlaceholderValue"
               },
               "force_field_id": {
                 "@type": "evaluator.attributes.attributes.PlaceholderValue"
               },
+              "coordinate_file_name": {
+                "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/a5fcce555c2449a7ab42bd8166a23173|production_simulation.output_coordinate_file",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "trajectory_file_name": {
+                "full_path": "bafbf024a5154fe199b62a907d36d0f2|extract_traj_liquid.output_trajectory_path",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "statistics_file_name": {
+                "full_path": "bafbf024a5154fe199b62a907d36d0f2|extract_stats_liquid.output_statistics_path",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "statistical_inefficiency": {
+                "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/bafbf024a5154fe199b62a907d36d0f2|extract_liquid_energy.statistical_inefficiency",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
               "number_of_molecules": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "b112cae1e1d14071b015000b160188f6|build_coordinates_gas.output_number_of_molecules"
+                "full_path": "a5fcce555c2449a7ab42bd8166a23173|build_coordinates.output_number_of_molecules",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "@type": "evaluator.storage.data.StoredSimulationData"
+            },
+            "gas_data": {
+              "substance": {
+                "full_path": "bafbf024a5154fe199b62a907d36d0f2|build_coordinates_gas.output_substance",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "thermodynamic_state": {
+                "temperature": {
+                  "value": 298.15,
+                  "unit": "K",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                "pressure": {
+                  "value": 1.0,
+                  "unit": "atm",
+                  "@type": "evaluator.unit.Quantity"
+                },
+                "@type": "evaluator.thermodynamics.ThermodynamicState"
               },
               "property_phase": 4,
               "source_calculation_id": {
                 "@type": "evaluator.attributes.attributes.PlaceholderValue"
               },
-              "statistical_inefficiency": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/b112cae1e1d14071b015000b160188f6|extract_gas_energy.statistical_inefficiency"
-              },
-              "statistics_file_name": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "b112cae1e1d14071b015000b160188f6|extract_stats_gas.output_statistics_path"
-              },
-              "substance": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "b112cae1e1d14071b015000b160188f6|build_coordinates_gas.output_substance"
-              },
-              "thermodynamic_state": {
-                "@type": "evaluator.thermodynamics.ThermodynamicState",
-                "pressure": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "atm",
-                  "value": 1.0
-                },
-                "temperature": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "K",
-                  "value": 298.15
-                }
-              },
-              "trajectory_file_name": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "b112cae1e1d14071b015000b160188f6|extract_traj_gas.output_trajectory_path"
-              }
-            },
-            "liquid_data": {
-              "@type": "evaluator.storage.data.StoredSimulationData",
-              "coordinate_file_name": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/f0266bed1ffe4c6d87d20485df60e02b|production_simulation.output_coordinate_file"
-              },
               "force_field_id": {
                 "@type": "evaluator.attributes.attributes.PlaceholderValue"
               },
-              "number_of_molecules": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "f0266bed1ffe4c6d87d20485df60e02b|build_coordinates.output_number_of_molecules"
-              },
-              "property_phase": 2,
-              "source_calculation_id": {
-                "@type": "evaluator.attributes.attributes.PlaceholderValue"
-              },
-              "statistical_inefficiency": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/b112cae1e1d14071b015000b160188f6|extract_liquid_energy.statistical_inefficiency"
-              },
-              "statistics_file_name": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "b112cae1e1d14071b015000b160188f6|extract_stats_liquid.output_statistics_path"
-              },
-              "substance": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "f0266bed1ffe4c6d87d20485df60e02b|build_coordinates.output_substance"
-              },
-              "thermodynamic_state": {
-                "@type": "evaluator.thermodynamics.ThermodynamicState",
-                "pressure": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "atm",
-                  "value": 1.0
-                },
-                "temperature": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "K",
-                  "value": 298.15
-                }
+              "coordinate_file_name": {
+                "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/bafbf024a5154fe199b62a907d36d0f2|production_simulation_gas.output_coordinate_file",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
               },
               "trajectory_file_name": {
-                "@type": "evaluator.workflow.utils.ProtocolPath",
-                "full_path": "b112cae1e1d14071b015000b160188f6|extract_traj_liquid.output_trajectory_path"
-              }
+                "full_path": "bafbf024a5154fe199b62a907d36d0f2|extract_traj_gas.output_trajectory_path",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "statistics_file_name": {
+                "full_path": "bafbf024a5154fe199b62a907d36d0f2|extract_stats_gas.output_statistics_path",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "statistical_inefficiency": {
+                "full_path": "a5fcce555c2449a7ab42bd8166a23173|conditional_group/bafbf024a5154fe199b62a907d36d0f2|extract_gas_energy.statistical_inefficiency",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "number_of_molecules": {
+                "full_path": "bafbf024a5154fe199b62a907d36d0f2|build_coordinates_gas.output_number_of_molecules",
+                "@type": "evaluator.workflow.utils.ProtocolPath"
+              },
+              "@type": "evaluator.storage.data.StoredSimulationData"
             }
           },
-          "protocol_schemas": [
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "b112cae1e1d14071b015000b160188f6|build_coordinates_gas",
-              "inputs": {
-                ".allow_merging": true,
-                ".box_aspect_ratio": [
-                  1.0,
-                  1.0,
-                  1.0
-                ],
-                ".mass_density": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "g / ml",
-                  "value": 0.95
-                },
-                ".max_molecules": 1,
-                ".retain_packmol_files": false,
-                ".substance": {
-                  "@type": "evaluator.substances.substances.Substance",
-                  "amounts": {
-                    "CCO{solv}": [
-                      {
-                        "@type": "evaluator.substances.amounts.MoleFraction",
-                        "value": 1.0
-                      }
-                    ]
-                  },
-                  "components": [
-                    {
-                      "@type": "evaluator.substances.components.Component",
-                      "role": {
-                        "@type": "evaluator.substances.components.Component.Role",
-                        "value": "solv"
-                      },
-                      "smiles": "CCO"
-                    }
-                  ]
-                },
-                ".verbose_packmol": false
-              },
-              "type": "BuildCoordinatesPackmol"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "b112cae1e1d14071b015000b160188f6|energy_minimisation_gas",
-              "inputs": {
-                ".allow_merging": true,
-                ".enable_pbc": false,
-                ".input_coordinate_file": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "b112cae1e1d14071b015000b160188f6|build_coordinates_gas.coordinate_file_path"
-                },
-                ".max_iterations": 0,
-                ".system_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "b112cae1e1d14071b015000b160188f6|assign_parameters_gas.system_path"
-                },
-                ".tolerance": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "kJ / mol",
-                  "value": 10.0
-                }
-              },
-              "type": "OpenMMEnergyMinimisation"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "b112cae1e1d14071b015000b160188f6|equilibration_simulation_gas",
-              "inputs": {
-                ".allow_gpu_platforms": false,
-                ".allow_merging": true,
-                ".checkpoint_frequency": 10,
-                ".enable_pbc": false,
-                ".ensemble": {
-                  "@type": "evaluator.thermodynamics.Ensemble",
-                  "value": "NVT"
-                },
-                ".high_precision": true,
-                ".input_coordinate_file": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "b112cae1e1d14071b015000b160188f6|energy_minimisation_gas.output_coordinate_file"
-                },
-                ".output_frequency": 5000,
-                ".steps_per_iteration": 100000,
-                ".system_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "b112cae1e1d14071b015000b160188f6|assign_parameters_gas.system_path"
-                },
-                ".thermodynamic_state": {
-                  "@type": "evaluator.thermodynamics.ThermodynamicState",
-                  "pressure": {
-                    "@type": "evaluator.unit.Quantity",
-                    "unit": "atm",
-                    "value": 1.0
-                  },
-                  "temperature": {
-                    "@type": "evaluator.unit.Quantity",
-                    "unit": "K",
-                    "value": 298.15
-                  }
-                },
-                ".thermostat_friction": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "1 / ps",
-                  "value": 1.0
-                },
-                ".timestep": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "fs",
-                  "value": 2.0
-                },
-                ".total_number_of_iterations": 1
-              },
-              "type": "OpenMMSimulation"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "b112cae1e1d14071b015000b160188f6|extract_traj_liquid",
-              "inputs": {
-                ".allow_merging": true,
-                ".equilibration_index": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/b112cae1e1d14071b015000b160188f6|extract_liquid_energy.equilibration_index"
-                },
-                ".input_coordinate_file": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/f0266bed1ffe4c6d87d20485df60e02b|production_simulation.output_coordinate_file"
-                },
-                ".input_trajectory_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/f0266bed1ffe4c6d87d20485df60e02b|production_simulation.trajectory_file_path"
-                },
-                ".statistical_inefficiency": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/b112cae1e1d14071b015000b160188f6|extract_liquid_energy.statistical_inefficiency"
-                }
-              },
-              "type": "ExtractUncorrelatedTrajectoryData"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "b112cae1e1d14071b015000b160188f6|extract_stats_liquid",
-              "inputs": {
-                ".allow_merging": true,
-                ".equilibration_index": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/b112cae1e1d14071b015000b160188f6|extract_liquid_energy.equilibration_index"
-                },
-                ".input_statistics_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/f0266bed1ffe4c6d87d20485df60e02b|production_simulation.statistics_file_path"
-                },
-                ".statistical_inefficiency": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/b112cae1e1d14071b015000b160188f6|extract_liquid_energy.statistical_inefficiency"
-                }
-              },
-              "type": "ExtractUncorrelatedStatisticsData"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "b112cae1e1d14071b015000b160188f6|extract_traj_gas",
-              "inputs": {
-                ".allow_merging": true,
-                ".equilibration_index": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/b112cae1e1d14071b015000b160188f6|extract_gas_energy.equilibration_index"
-                },
-                ".input_coordinate_file": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/b112cae1e1d14071b015000b160188f6|production_simulation_gas.output_coordinate_file"
-                },
-                ".input_trajectory_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/b112cae1e1d14071b015000b160188f6|production_simulation_gas.trajectory_file_path"
-                },
-                ".statistical_inefficiency": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/b112cae1e1d14071b015000b160188f6|extract_gas_energy.statistical_inefficiency"
-                }
-              },
-              "type": "ExtractUncorrelatedTrajectoryData"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "b112cae1e1d14071b015000b160188f6|extract_stats_gas",
-              "inputs": {
-                ".allow_merging": true,
-                ".equilibration_index": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/b112cae1e1d14071b015000b160188f6|extract_gas_energy.equilibration_index"
-                },
-                ".input_statistics_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/b112cae1e1d14071b015000b160188f6|production_simulation_gas.statistics_file_path"
-                },
-                ".statistical_inefficiency": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group/b112cae1e1d14071b015000b160188f6|extract_gas_energy.statistical_inefficiency"
-                }
-              },
-              "type": "ExtractUncorrelatedStatisticsData"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "b112cae1e1d14071b015000b160188f6|assign_parameters_gas",
-              "inputs": {
-                ".allow_merging": true,
-                ".apply_known_charges": true,
-                ".charged_molecule_paths": [],
-                ".coordinate_file_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "b112cae1e1d14071b015000b160188f6|build_coordinates_gas.coordinate_file_path"
-                },
-                ".force_field_path": "working-data/SimulationLayer/9e5498ae98d74e4ab66fc52bc0237169/d80e15b006ac463eb9279a092150195d",
-                ".substance": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "b112cae1e1d14071b015000b160188f6|build_coordinates_gas.output_substance"
-                },
-                ".water_model": {
-                  "@type": "evaluator.protocols.forcefield.BaseBuildSystem.WaterModel",
-                  "value": "TIP3P"
-                }
-              },
-              "type": "BuildSmirnoffSystem"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "f0266bed1ffe4c6d87d20485df60e02b|build_coordinates",
-              "inputs": {
-                ".allow_merging": true,
-                ".box_aspect_ratio": [
-                  1.0,
-                  1.0,
-                  1.0
-                ],
-                ".mass_density": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "g / ml",
-                  "value": 0.95
-                },
-                ".max_molecules": 256,
-                ".retain_packmol_files": false,
-                ".substance": {
-                  "@type": "evaluator.substances.substances.Substance",
-                  "amounts": {
-                    "CCO{solv}": [
-                      {
-                        "@type": "evaluator.substances.amounts.MoleFraction",
-                        "value": 1.0
-                      }
-                    ]
-                  },
-                  "components": [
-                    {
-                      "@type": "evaluator.substances.components.Component",
-                      "role": {
-                        "@type": "evaluator.substances.components.Component.Role",
-                        "value": "solv"
-                      },
-                      "smiles": "CCO"
-                    }
-                  ]
-                },
-                ".verbose_packmol": false
-              },
-              "type": "BuildCoordinatesPackmol"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "f0266bed1ffe4c6d87d20485df60e02b|assign_parameters",
-              "inputs": {
-                ".allow_merging": true,
-                ".apply_known_charges": true,
-                ".charged_molecule_paths": [],
-                ".coordinate_file_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|build_coordinates.coordinate_file_path"
-                },
-                ".force_field_path": "working-data/SimulationLayer/9e5498ae98d74e4ab66fc52bc0237169/d80e15b006ac463eb9279a092150195d",
-                ".substance": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|build_coordinates.output_substance"
-                },
-                ".water_model": {
-                  "@type": "evaluator.protocols.forcefield.BaseBuildSystem.WaterModel",
-                  "value": "TIP3P"
-                }
-              },
-              "type": "BuildSmirnoffSystem"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "f0266bed1ffe4c6d87d20485df60e02b|energy_minimisation",
-              "inputs": {
-                ".allow_merging": true,
-                ".enable_pbc": true,
-                ".input_coordinate_file": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|build_coordinates.coordinate_file_path"
-                },
-                ".max_iterations": 0,
-                ".system_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|assign_parameters.system_path"
-                },
-                ".tolerance": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "kJ / mol",
-                  "value": 10.0
-                }
-              },
-              "type": "OpenMMEnergyMinimisation"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolSchema",
-              "id": "f0266bed1ffe4c6d87d20485df60e02b|equilibration_simulation",
-              "inputs": {
-                ".allow_gpu_platforms": true,
-                ".allow_merging": true,
-                ".checkpoint_frequency": 10,
-                ".enable_pbc": true,
-                ".ensemble": {
-                  "@type": "evaluator.thermodynamics.Ensemble",
-                  "value": "NPT"
-                },
-                ".high_precision": false,
-                ".input_coordinate_file": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|energy_minimisation.output_coordinate_file"
-                },
-                ".output_frequency": 5000,
-                ".steps_per_iteration": 100000,
-                ".system_path": {
-                  "@type": "evaluator.workflow.utils.ProtocolPath",
-                  "full_path": "f0266bed1ffe4c6d87d20485df60e02b|assign_parameters.system_path"
-                },
-                ".thermodynamic_state": {
-                  "@type": "evaluator.thermodynamics.ThermodynamicState",
-                  "pressure": {
-                    "@type": "evaluator.unit.Quantity",
-                    "unit": "kPa",
-                    "value": 101.325
-                  },
-                  "temperature": {
-                    "@type": "evaluator.unit.Quantity",
-                    "unit": "K",
-                    "value": 298.15
-                  }
-                },
-                ".thermostat_friction": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "1 / ps",
-                  "value": 1.0
-                },
-                ".timestep": {
-                  "@type": "evaluator.unit.Quantity",
-                  "unit": "fs",
-                  "value": 2.0
-                },
-                ".total_number_of_iterations": 1
-              },
-              "type": "OpenMMSimulation"
-            },
-            {
-              "@type": "evaluator.workflow.schemas.ProtocolGroupSchema",
-              "id": "f0266bed1ffe4c6d87d20485df60e02b|conditional_group",
-              "inputs": {
-                ".allow_merging": true,
-                ".conditions": [],
-                ".max_iterations": 100
-              },
-              "protocol_schemas": {
-                "b112cae1e1d14071b015000b160188f6|energy_of_vaporization": {
-                  "@type": "evaluator.workflow.schemas.ProtocolSchema",
-                  "id": "b112cae1e1d14071b015000b160188f6|energy_of_vaporization",
-                  "inputs": {
-                    ".allow_merging": true,
-                    ".value_a": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "b112cae1e1d14071b015000b160188f6|extract_liquid_energy.value"
-                    },
-                    ".value_b": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "b112cae1e1d14071b015000b160188f6|extract_gas_energy.value"
-                    }
-                  },
-                  "type": "SubtractValues"
-                },
-                "b112cae1e1d14071b015000b160188f6|enthalpy_of_vaporization": {
-                  "@type": "evaluator.workflow.schemas.ProtocolSchema",
-                  "id": "b112cae1e1d14071b015000b160188f6|enthalpy_of_vaporization",
-                  "inputs": {
-                    ".allow_merging": true,
-                    ".values": [
-                      {
-                        "@type": "evaluator.workflow.utils.ProtocolPath",
-                        "full_path": "b112cae1e1d14071b015000b160188f6|energy_of_vaporization.result"
-                      },
-                      {
-                        "@type": "evaluator.workflow.utils.ProtocolPath",
-                        "full_path": "b112cae1e1d14071b015000b160188f6|ideal_volume.result"
-                      }
-                    ]
-                  },
-                  "type": "AddValues"
-                },
-                "b112cae1e1d14071b015000b160188f6|extract_gas_energy": {
-                  "@type": "evaluator.workflow.schemas.ProtocolSchema",
-                  "id": "b112cae1e1d14071b015000b160188f6|extract_gas_energy",
-                  "inputs": {
-                    ".allow_merging": true,
-                    ".bootstrap_iterations": 250,
-                    ".bootstrap_sample_size": 1.0,
-                    ".divisor": 1.0,
-                    ".statistics_path": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "b112cae1e1d14071b015000b160188f6|production_simulation_gas.statistics_file_path"
-                    },
-                    ".statistics_type": {
-                      "@type": "evaluator.utils.statistics.ObservableType",
-                      "value": "PotentialEnergy"
-                    }
-                  },
-                  "type": "ExtractAverageStatistic"
-                },
-                "b112cae1e1d14071b015000b160188f6|extract_liquid_energy": {
-                  "@type": "evaluator.workflow.schemas.ProtocolSchema",
-                  "id": "b112cae1e1d14071b015000b160188f6|extract_liquid_energy",
-                  "inputs": {
-                    ".allow_merging": true,
-                    ".bootstrap_iterations": 250,
-                    ".bootstrap_sample_size": 1.0,
-                    ".divisor": 256,
-                    ".statistics_path": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "f0266bed1ffe4c6d87d20485df60e02b|production_simulation.statistics_file_path"
-                    },
-                    ".statistics_type": {
-                      "@type": "evaluator.utils.statistics.ObservableType",
-                      "value": "PotentialEnergy"
-                    }
-                  },
-                  "type": "ExtractAverageStatistic"
-                },
-                "b112cae1e1d14071b015000b160188f6|ideal_volume": {
-                  "@type": "evaluator.workflow.schemas.ProtocolSchema",
-                  "id": "b112cae1e1d14071b015000b160188f6|ideal_volume",
-                  "inputs": {
-                    ".allow_merging": true,
-                    ".multiplier": {
-                      "@type": "evaluator.unit.Quantity",
-                      "unit": "K",
-                      "value": 298.15
-                    },
-                    ".value": {
-                      "@type": "evaluator.unit.Quantity",
-                      "unit": "R",
-                      "value": 1.0
-                    }
-                  },
-                  "type": "MultiplyValue"
-                },
-                "b112cae1e1d14071b015000b160188f6|production_simulation_gas": {
-                  "@type": "evaluator.workflow.schemas.ProtocolSchema",
-                  "id": "b112cae1e1d14071b015000b160188f6|production_simulation_gas",
-                  "inputs": {
-                    ".allow_gpu_platforms": false,
-                    ".allow_merging": true,
-                    ".checkpoint_frequency": 100,
-                    ".enable_pbc": false,
-                    ".ensemble": {
-                      "@type": "evaluator.thermodynamics.Ensemble",
-                      "value": "NVT"
-                    },
-                    ".high_precision": true,
-                    ".input_coordinate_file": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "b112cae1e1d14071b015000b160188f6|equilibration_simulation_gas.output_coordinate_file"
-                    },
-                    ".output_frequency": 5000,
-                    ".steps_per_iteration": 15000000,
-                    ".system_path": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "b112cae1e1d14071b015000b160188f6|assign_parameters_gas.system_path"
-                    },
-                    ".thermodynamic_state": {
-                      "@type": "evaluator.thermodynamics.ThermodynamicState",
-                      "pressure": {
-                        "@type": "evaluator.unit.Quantity",
-                        "unit": "atm",
-                        "value": 1.0
-                      },
-                      "temperature": {
-                        "@type": "evaluator.unit.Quantity",
-                        "unit": "K",
-                        "value": 298.15
-                      }
-                    },
-                    ".thermostat_friction": {
-                      "@type": "evaluator.unit.Quantity",
-                      "unit": "1 / ps",
-                      "value": 1.0
-                    },
-                    ".timestep": {
-                      "@type": "evaluator.unit.Quantity",
-                      "unit": "fs",
-                      "value": 2.0
-                    },
-                    ".total_number_of_iterations": 1
-                  },
-                  "type": "OpenMMSimulation"
-                },
-                "f0266bed1ffe4c6d87d20485df60e02b|extract_density": {
-                  "@type": "evaluator.workflow.schemas.ProtocolSchema",
-                  "id": "f0266bed1ffe4c6d87d20485df60e02b|extract_density",
-                  "inputs": {
-                    ".allow_merging": true,
-                    ".bootstrap_iterations": 250,
-                    ".bootstrap_sample_size": 1.0,
-                    ".divisor": 1.0,
-                    ".statistics_path": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "f0266bed1ffe4c6d87d20485df60e02b|production_simulation.statistics_file_path"
-                    },
-                    ".statistics_type": {
-                      "@type": "evaluator.utils.statistics.ObservableType",
-                      "value": "Density"
-                    }
-                  },
-                  "type": "ExtractAverageStatistic"
-                },
-                "f0266bed1ffe4c6d87d20485df60e02b|production_simulation": {
-                  "@type": "evaluator.workflow.schemas.ProtocolSchema",
-                  "id": "f0266bed1ffe4c6d87d20485df60e02b|production_simulation",
-                  "inputs": {
-                    ".allow_gpu_platforms": true,
-                    ".allow_merging": true,
-                    ".checkpoint_frequency": 10,
-                    ".enable_pbc": true,
-                    ".ensemble": {
-                      "@type": "evaluator.thermodynamics.Ensemble",
-                      "value": "NPT"
-                    },
-                    ".high_precision": false,
-                    ".input_coordinate_file": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "f0266bed1ffe4c6d87d20485df60e02b|equilibration_simulation.output_coordinate_file"
-                    },
-                    ".output_frequency": 2000,
-                    ".steps_per_iteration": 1000000,
-                    ".system_path": {
-                      "@type": "evaluator.workflow.utils.ProtocolPath",
-                      "full_path": "f0266bed1ffe4c6d87d20485df60e02b|assign_parameters.system_path"
-                    },
-                    ".thermodynamic_state": {
-                      "@type": "evaluator.thermodynamics.ThermodynamicState",
-                      "pressure": {
-                        "@type": "evaluator.unit.Quantity",
-                        "unit": "kPa",
-                        "value": 101.325
-                      },
-                      "temperature": {
-                        "@type": "evaluator.unit.Quantity",
-                        "unit": "K",
-                        "value": 298.15
-                      }
-                    },
-                    ".thermostat_friction": {
-                      "@type": "evaluator.unit.Quantity",
-                      "unit": "1 / ps",
-                      "value": 1.0
-                    },
-                    ".timestep": {
-                      "@type": "evaluator.unit.Quantity",
-                      "unit": "fs",
-                      "value": 2.0
-                    },
-                    ".total_number_of_iterations": 1
-                  },
-                  "type": "OpenMMSimulation"
-                }
-              },
-              "type": "ConditionalGroup"
-            }
-          ]
-        }
-      },
-      "substance": {
-        "@type": "evaluator.substances.substances.Substance",
-        "amounts": {
-          "CCO{solv}": [
-            {
-              "@type": "evaluator.substances.amounts.MoleFraction",
-              "value": 1.0
-            }
-          ]
+          "@type": "evaluator.workflow.schemas.WorkflowSchema"
         },
-        "components": [
-          {
-            "@type": "evaluator.substances.components.Component",
-            "role": {
-              "@type": "evaluator.substances.components.Component.Role",
-              "value": "solv"
-            },
-            "smiles": "CCO"
-          }
-        ]
+        "@type": "evaluator.datasets.provenance.CalculationSource"
       },
-      "thermodynamic_state": {
-        "@type": "evaluator.thermodynamics.ThermodynamicState",
-        "pressure": {
-          "@type": "evaluator.unit.Quantity",
-          "unit": "atm",
-          "value": 1.0
-        },
-        "temperature": {
-          "@type": "evaluator.unit.Quantity",
-          "unit": "K",
-          "value": 298.15
-        }
-      },
-      "uncertainty": {
-        "@type": "evaluator.unit.Quantity",
-        "unit": "kJ / mol",
-        "value": 0.1367673630610498
-      },
-      "value": {
-        "@type": "evaluator.unit.Quantity",
-        "unit": "kJ / mol",
-        "value": 39.48635367254331
-      }
+      "gradients": [],
+      "@type": "evaluator.properties.enthalpy.EnthalpyOfVaporization"
     }
-  ]
+  ],
+  "@type": "evaluator.datasets.datasets.PhysicalPropertyDataSet"
 }

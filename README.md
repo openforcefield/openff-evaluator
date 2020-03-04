@@ -19,13 +19,13 @@ The best place to get acquainted with the framework is through the mini-tutorial
 
 ##### Beginner Tutorials:
 
-* [Tutorial 01 - Loading Data Sets](https://openff-evaluator.readthedocs.io/en/latest/tutorials/tutorial01.html)
-* [Tutorial 02 - Estimating Data Sets](https://openff-evaluator.readthedocs.io/en/latest/tutorials/tutorial02.html)
-* [Tutorial 03 - Analysing Data Sets](https://openff-evaluator.readthedocs.io/en/latest/tutorials/tutorial03.html) 
+* [Tutorial 01 - Loading Data Sets](https://openff-evaluator.readthedocs.io/en/latest/tutorials/tutorial01.html) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/openforcefield/openff-evaluator/blob/master/docs/tutorials/tutorial01.ipynb)
+* [Tutorial 02 - Estimating Data Sets](https://openff-evaluator.readthedocs.io/en/latest/tutorials/tutorial02.html) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/openforcefield/openff-evaluator/blob/master/docs/tutorials/tutorial02.ipynb)
+* [Tutorial 03 - Analysing Data Sets](https://openff-evaluator.readthedocs.io/en/latest/tutorials/tutorial03.html) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/openforcefield/openff-evaluator/blob/master/docs/tutorials/tutorial03.ipynb)
 
 ##### Intermediate Tutorials:
 
-* [Tutorial 04 - Optimizing Force Fields](https://openff-evaluator.readthedocs.io/en/latest/tutorials/tutorial04.html)
+* [Tutorial 04 - Optimizing Force Fields](https://openff-evaluator.readthedocs.io/en/latest/tutorials/tutorial04.html) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/openforcefield/openff-evaluator/blob/master/docs/tutorials/tutorial04.ipynb)
 
 #### Quick Installation
 
