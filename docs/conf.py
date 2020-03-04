@@ -66,7 +66,8 @@ autodoc_mock_imports = [
     'distributed',
     'packmol',
     'pymbar',
-    'simtk'
+    'simtk',
+    'yaml',
 ]
 
 # Autolabel settings
