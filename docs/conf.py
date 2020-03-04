@@ -66,6 +66,7 @@ autodoc_mock_imports = [
     'distributed',
     'packmol',
     'pymbar',
+    'scipy',
     'simtk',
     'yaml',
 ]
