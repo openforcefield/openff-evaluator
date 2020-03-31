@@ -18,7 +18,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     env:
-      OE_LICENSE: ./oe_license.txt
+      OE_LICENSE: ${{ github.workspace }}/oe_license.txt
 
     strategy:
 
