@@ -76,6 +76,8 @@ jobs:
 
           ./devtools/scripts/decrypt_oe_license.sh
           conda install -c openeye openeye-toolkits
+          
+          python -c "from openeye import oechem; assert oechem.OEChemIsLicensed()"
 
         env:
           OE_LICENSE_PASSPHRASE: ${{ secrets.OE_LICENSE_PASSPHRASE }}
