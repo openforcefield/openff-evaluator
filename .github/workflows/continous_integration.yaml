@@ -18,7 +18,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     env:
-      OE_LICENSE: ./oe_license.txt
+      OE_LICENSE: ${{ github.workspace }}/oe_license.txt
 
     strategy:
 
@@ -76,6 +76,8 @@ jobs:
 
           ./devtools/scripts/decrypt_oe_license.sh
           conda install -c openeye openeye-toolkits
+          
+          python -c "from openeye import oechem; assert oechem.OEChemIsLicensed()"
 
         env:
           OE_LICENSE_PASSPHRASE: ${{ secrets.OE_LICENSE_PASSPHRASE }}
