@@ -874,14 +874,6 @@ class WorkflowGraph:
         take input from the other grouped protocols."""
         return self._protocol_graph.root_protocols
 
-    @property
-    def dependants_graph(self):
-        """dict of str and str: A dictionary of which stores which grouped protocols
-        are dependant on other grouped protocols. Each key in the dictionary is the
-        id of a grouped protocol, and each value is the id of a protocol which depends
-        on the protocol by the key."""
-        return self._protocol_graph.dependants_graph
-
     def __init__(self):
 
         super(WorkflowGraph, self).__init__()

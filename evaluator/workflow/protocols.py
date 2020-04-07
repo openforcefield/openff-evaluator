@@ -224,7 +224,13 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
         value : str
             The uuid to prepend.
         """
-        if self.id.find(value) >= 0:
+
+        if len(value) == 0:
+            return
+
+        id_with_uuid = graph.append_uuid(self.id, value)
+
+        if self.id == id_with_uuid:
             return
 
         self.id = graph.append_uuid(self.id, value)
@@ -710,22 +716,17 @@ class ProtocolGraph:
         take input from the other grouped protocols."""
         return self._root_protocols
 
-    @property
-    def dependants_graph(self):
-        """dict of str and str: A dictionary of which stores which grouped protocols
-        are dependant on other grouped protocols. Each key in the dictionary is the
-        id of a grouped protocol, and each value is the id of a protocol which depends
-        on the protocol by the key."""
-        return self._dependants_graph
-
     def __init__(self):
+
         self._protocols_by_id = {}
-
         self._root_protocols = []
-        self._dependants_graph = {}
 
-    @staticmethod
-    def _build_dependants_graph(protocols, allow_external_dependencies):
+    def _build_dependants_graph(
+        self,
+        protocols,
+        allow_external_dependencies,
+        apply_reduction=False
+    ):
         """Builds a dictionary of key value pairs where each key
         is the id of a protocol in the graph and each value is a
         list ids of protocols which depend on this protocol.
@@ -737,8 +738,13 @@ class ProtocolGraph:
         allow_external_dependencies: bool
             If `False`, an exception will be raised if a protocol
             has a dependency outside of this graph.
+        apply_reduction: bool
+            Whether or not to apply transitive reduction to the
+            graph.
         """
-        dependants_graph = {}
+        internal_protocol_ids = {*protocols, *self._protocols_by_id}
+
+        dependants_graph = defaultdict(set)
 
         for protocol_id in protocols:
             dependants_graph[protocol_id] = set()
@@ -748,7 +754,7 @@ class ProtocolGraph:
             for dependency in protocol.dependencies:
 
                 # Check for external dependencies.
-                if dependency.start_protocol not in protocols:
+                if dependency.start_protocol not in internal_protocol_ids:
 
                     if allow_external_dependencies:
                         continue
@@ -767,6 +773,14 @@ class ProtocolGraph:
                 dependants_graph[dependency.start_protocol].add(protocol.id)
 
         dependants_graph = {key: list(value) for key, value in dependants_graph.items()}
+
+        if not graph.is_acyclic(dependants_graph):
+            raise ValueError("The protocols in this graph have cyclical dependencies.")
+
+        if apply_reduction:
+            # Remove any redundant connections from the graph.
+            graph.apply_transitive_reduction(dependants_graph)
+
         return dependants_graph
 
     def _add_protocol(
@@ -776,6 +790,7 @@ class ProtocolGraph:
         dependant_ids,
         parent_protocol_ids,
         exclusion_list,
+        existing_parents
     ):
         """Adds a protocol into the graph.
 
@@ -794,6 +809,9 @@ class ProtocolGraph:
             the protocol will be added as a new root node.
         exclusion_list: set
             The protocols which have already been merged.
+        existing_parents: dict of str and list of str
+            The children of existing protocols in the graph which
+            the new protocol may possibly merge with.
 
         Returns
         -------
@@ -818,11 +836,12 @@ class ProtocolGraph:
 
             existing_protocols.extend(
                 x
-                for x in self._dependants_graph[parent_protocol_id]
+                for x in existing_parents[parent_protocol_id]
                 if x not in existing_protocols
             )
 
         existing_protocols = [x for x in existing_protocols if x not in exclusion_list]
+        assert len(set(existing_protocols)) == len(existing_protocols)
 
         protocol_to_insert = protocols_to_add[protocol_id]
         existing_protocol = None
@@ -859,19 +878,29 @@ class ProtocolGraph:
                 for dependant_id in dependant_ids:
                     protocols_to_add[dependant_id].replace_protocol(old_id, new_id)
 
+            for parent_id in parent_protocol_ids:
+
+                if parent_id not in protocols_to_add:
+                    continue
+
+                if existing_protocol.id not in existing_parents[parent_id]:
+                    existing_parents[parent_id].append(existing_protocol.id)
+
         else:
 
             # Add the protocol as a new protocol in the graph.
             self._protocols_by_id[protocol_id] = protocol_to_insert
             existing_protocol = self._protocols_by_id[protocol_id]
 
-            self._dependants_graph[protocol_id] = []
+            existing_parents[protocol_id] = []
 
             if len(parent_protocol_ids) == 0:
                 self._root_protocols.append(protocol_id)
 
             for parent_id in parent_protocol_ids:
-                self._dependants_graph[parent_id].append(protocol_id)
+
+                if protocol_id not in existing_parents[parent_id]:
+                    existing_parents[parent_id].append(protocol_id)
 
         return existing_protocol.id, merged_ids
 
@@ -892,6 +921,7 @@ class ProtocolGraph:
             A mapping between the original protocols and protocols which
             were merged over the course of adding the new protocols.
         """
+
         conflicting_ids = [x.id for x in protocols if x.id in self._protocols_by_id]
 
         # Make sure we aren't trying to add protocols with conflicting ids.
@@ -904,28 +934,48 @@ class ProtocolGraph:
         # Add the protocols to the graph
         protocols_by_id = {x.id: x for x in protocols}
 
-        # Build a dependencies graph to check if the protocols
-        # contain any cyclic dependencies
+        # Build a the dependants graph of the protocols to add,
+        # and determine the order that they would be executed in.
+        # This is the order we should try to insert them in.
         dependants_graph = self._build_dependants_graph(
-            protocols_by_id, allow_external_dependencies
+            protocols_by_id, allow_external_dependencies, apply_reduction=False
         )
 
-        if not graph.is_acyclic(dependants_graph):
-            raise ValueError("The protocols to add contain cyclic dependencies.")
+        # Determine if any of the protocols to add depend on protocols which
+        # are already in the graph.
+        existing_parents = {
+            x: set(y) for x, y in dependants_graph.items() if x in self._protocols_by_id
+        }
+        child_to_existing_parents = graph.dependants_to_dependencies(existing_parents)
+        child_to_existing_parents = {
+            x: y for x, y in child_to_existing_parents.items() if x in protocols_by_id
+        }
+
+        # Compute the reduced new graph to add.
+        dependants_graph = {
+            x: y for x, y in dependants_graph.items() if x in protocols_by_id
+        }
+
+        reduced_dependants_graph = {x: [*y] for x, y in dependants_graph.items()}
+        graph.apply_transitive_reduction(reduced_dependants_graph)
 
         # Determine the order in which the new protocols would execute.
         # This will be the order we attempt to insert them into the graph.
         protocol_execution_order = graph.topological_sort(dependants_graph)
 
-        # Remove any redundant connections from the graph.
-        reduced_graph = copy.deepcopy(dependants_graph)
-        graph.apply_transitive_reduction(reduced_graph)
-
-        parent_protocol_ids = defaultdict(list)
-        exclusion_list = set()
+        # Construct the full dependants graph which will be used to find the
+        # children of existing parent protocols
+        full_dependants_graph = self._build_dependants_graph(
+            self._protocols_by_id, allow_external_dependencies, apply_reduction=True
+        )
 
         # Store a mapping between original and merged protocols.
         merged_ids = {}
+
+        parent_protocol_ids = defaultdict(set)
+        parent_protocol_ids.update(child_to_existing_parents)
+
+        exclusion_list = set()
 
         for protocol_id in protocol_execution_order:
 
@@ -936,6 +986,7 @@ class ProtocolGraph:
                 dependants_graph[protocol_id],
                 parent_ids,
                 exclusion_list,
+                full_dependants_graph,
             )
 
             # Keep a track of already merged protocols.
@@ -945,13 +996,16 @@ class ProtocolGraph:
             merged_ids.update(new_ids)
 
             # Update the parent graph
-            for dependant in reduced_graph[protocol_id]:
-                parent_protocol_ids[dependant].append(inserted_id)
+            for dependant in reduced_dependants_graph[protocol_id]:
+                parent_protocol_ids[dependant].add(inserted_id)
 
-        # Rebuild the dependants graph
-        self._dependants_graph = self._build_dependants_graph(
-            self._protocols_by_id, allow_external_dependencies
+        expected_dependants = self._build_dependants_graph(
+            self._protocols_by_id, allow_external_dependencies, apply_reduction=True
         )
+        expected_dependants = {x: set(y) for x, y in expected_dependants.items()}
+        full_dependants_graph = {x: set(y) for x, y in full_dependants_graph.items()}
+
+        assert full_dependants_graph == expected_dependants
 
         return merged_ids
 
@@ -1002,11 +1056,15 @@ class ProtocolGraph:
 
         # Determine the order in which to submit the protocols, such
         # that all dependencies are satisfied.
-        execution_order = graph.topological_sort(self._dependants_graph)
+        dependants_graph = self._build_dependants_graph(
+            self._protocols_by_id, False, False
+        )
+
+        execution_order = graph.topological_sort(dependants_graph)
 
         # Build a dependency graph from the dependants graph so that
         # futures can easily be passed in the correct place.
-        dependencies = graph.dependants_to_dependencies(self._dependants_graph)
+        dependencies = graph.dependants_to_dependencies(dependants_graph)
 
         protocol_outputs = {}
 

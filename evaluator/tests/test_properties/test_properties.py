@@ -96,9 +96,16 @@ def test_workflow_schema_merging(calculation_layer, property_type):
     workflow_graph_a = workflow_a.to_graph()
     workflow_graph_b = workflow_b.to_graph()
 
-    ordered_dict_a = OrderedDict(sorted(workflow_graph_a.dependants_graph.items()))
+    dependants_graph_a = workflow_graph_a._protocol_graph._build_dependants_graph(
+        workflow_graph_a.protocols, False, apply_reduction=True
+    )
+    dependants_graph_b = workflow_graph_b._protocol_graph._build_dependants_graph(
+        workflow_graph_b.protocols, False, apply_reduction=True
+    )
+
+    ordered_dict_a = OrderedDict(sorted(dependants_graph_a.items()))
     ordered_dict_a = {key: sorted(value) for key, value in ordered_dict_a.items()}
-    ordered_dict_b = OrderedDict(sorted(workflow_graph_b.dependants_graph.items()))
+    ordered_dict_b = OrderedDict(sorted(dependants_graph_b.items()))
     ordered_dict_b = {key: sorted(value) for key, value in ordered_dict_b.items()}
 
     merge_order_a = graph.topological_sort(ordered_dict_a)
@@ -168,8 +175,15 @@ def test_density_dielectric_merging():
     density_workflow_graph = density_workflow.to_graph()
     dielectric_workflow_graph = dielectric_workflow.to_graph()
 
-    merge_order_a = graph.topological_sort(density_workflow_graph.dependants_graph)
-    merge_order_b = graph.topological_sort(dielectric_workflow_graph.dependants_graph)
+    dependants_graph_a = density_workflow_graph._protocol_graph._build_dependants_graph(
+        density_workflow_graph.protocols, False, apply_reduction=True
+    )
+    dependants_graph_b = dielectric_workflow_graph._protocol_graph._build_dependants_graph(
+        dielectric_workflow_graph.protocols, False, apply_reduction=True
+    )
+
+    merge_order_a = graph.topological_sort(dependants_graph_a)
+    merge_order_b = graph.topological_sort(dependants_graph_b)
 
     for protocol_id_A, protocol_id_B in zip(merge_order_a, merge_order_b):
 
