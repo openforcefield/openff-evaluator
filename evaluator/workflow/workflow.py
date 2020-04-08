@@ -750,7 +750,7 @@ class Workflow:
             The graph representation of this workflow.
         """
         graph = WorkflowGraph()
-        graph.add_workflow(self)
+        graph.add_workflows(self)
         return graph
 
     @classmethod
@@ -882,7 +882,7 @@ class WorkflowGraph:
         self._workflows_to_execute = {}
         self._protocol_graph = ProtocolGraph()
 
-    def add_workflow(self, *workflows):
+    def add_workflows(self, *workflows):
         """Insert a set of workflows into the workflow graph.
 
         Parameters

@@ -155,7 +155,7 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
             )
 
         workflow_graph = WorkflowGraph()
-        workflow_graph.add_workflow(*workflows)
+        workflow_graph.add_workflows(*workflows)
 
         return workflow_graph, provenance
 

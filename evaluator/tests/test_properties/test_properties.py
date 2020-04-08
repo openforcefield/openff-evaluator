@@ -37,15 +37,15 @@ def workflow_merge_functions():
 
         workflow_graph = WorkflowGraph()
 
-        workflow_graph.add_workflow(workflow_a)
-        workflow_graph.add_workflow(workflow_b)
+        workflow_graph.add_workflows(workflow_a)
+        workflow_graph.add_workflows(workflow_b)
 
         return workflow_graph
 
     def function_b(workflow_a, workflow_b):
 
         workflow_graph = WorkflowGraph()
-        workflow_graph.add_workflow(workflow_a, workflow_b)
+        workflow_graph.add_workflows(workflow_a, workflow_b)
 
         return workflow_graph
 

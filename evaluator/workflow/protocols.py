@@ -786,7 +786,7 @@ class ProtocolGraph:
         protocols_to_add,
         dependant_ids,
         parent_protocol_ids,
-        existing_parents,
+        full_dependants_graph,
     ):
         """Adds a protocol into the graph.
 
@@ -803,9 +803,10 @@ class ProtocolGraph:
         parent_protocol_ids : `list` of str
             The ids of the parents of the node to be inserted. If None,
             the protocol will be added as a new root node.
-        existing_parents: dict of str and list of str
-            The children of existing protocols in the graph which
-            the new protocol may possibly merge with.
+        full_dependants_graph: dict of str and list of str
+            The current dependants graph of the entire workflow
+            graph. This will be used to find the child protocols
+            of existing protocols in the graph.
 
         Returns
         -------
@@ -830,11 +831,9 @@ class ProtocolGraph:
 
             existing_protocols.extend(
                 x
-                for x in existing_parents[parent_protocol_id]
+                for x in full_dependants_graph[parent_protocol_id]
                 if x not in existing_protocols
             )
-
-        # existing_protocols = [x for x in existing_protocols if x not in exclusion_list]
 
         # Don't merge protocols from the same workflow / batch
         existing_protocols = [
@@ -843,8 +842,6 @@ class ProtocolGraph:
             if x not in protocols_to_add
             or graph.retrieve_uuid(x) != graph.retrieve_uuid(protocol_id)
         ]
-
-        assert len(set(existing_protocols)) == len(existing_protocols)
 
         protocol_to_insert = protocols_to_add[protocol_id]
         existing_protocol = None
@@ -883,8 +880,8 @@ class ProtocolGraph:
                 if parent_id not in protocols_to_add:
                     continue
 
-                if existing_protocol.id not in existing_parents[parent_id]:
-                    existing_parents[parent_id].append(existing_protocol.id)
+                if existing_protocol.id not in full_dependants_graph[parent_id]:
+                    full_dependants_graph[parent_id].append(existing_protocol.id)
 
         else:
 
@@ -892,15 +889,15 @@ class ProtocolGraph:
             self._protocols_by_id[protocol_id] = protocol_to_insert
             existing_protocol = self._protocols_by_id[protocol_id]
 
-            existing_parents[protocol_id] = []
+            full_dependants_graph[protocol_id] = []
 
             if len(parent_protocol_ids) == 0:
                 self._root_protocols.append(protocol_id)
 
             for parent_id in parent_protocol_ids:
 
-                if protocol_id not in existing_parents[parent_id]:
-                    existing_parents[parent_id].append(protocol_id)
+                if protocol_id not in full_dependants_graph[parent_id]:
+                    full_dependants_graph[parent_id].append(protocol_id)
 
         return existing_protocol.id, merged_ids
 
@@ -922,6 +919,7 @@ class ProtocolGraph:
             were merged over the course of adding the new protocols.
         """
 
+        # noinspection PyUnresolvedReferences
         conflicting_ids = [x.id for x in protocols if x.id in self._protocols_by_id]
 
         # Make sure we aren't trying to add protocols with conflicting ids.
@@ -932,6 +930,7 @@ class ProtocolGraph:
             )
 
         # Add the protocols to the graph
+        # noinspection PyUnresolvedReferences
         protocols_by_id = {x.id: x for x in protocols}
 
         # Build a the dependants graph of the protocols to add,
@@ -992,14 +991,6 @@ class ProtocolGraph:
             # Update the parent graph
             for dependant in reduced_dependants_graph[protocol_id]:
                 parent_protocol_ids[dependant].add(inserted_id)
-
-        expected_dependants = self._build_dependants_graph(
-            self._protocols_by_id, allow_external_dependencies, apply_reduction=True
-        )
-        expected_dependants = {x: set(y) for x, y in expected_dependants.items()}
-        full_dependants_graph = {x: set(y) for x, y in full_dependants_graph.items()}
-
-        assert full_dependants_graph == expected_dependants
 
         return merged_ids
 
@@ -1496,7 +1487,7 @@ class ProtocolGroup(Protocol):
         if not super(ProtocolGroup, self).can_merge(other, path_replacements):
             return False
 
-        # Ensure that the starting points in each group can be merged.
+        # Ensure that at least one root protocol from each group can be merged.
         for self_id in self._inner_graph.root_protocols:
             for other_id in other._inner_graph.root_protocols:
 
