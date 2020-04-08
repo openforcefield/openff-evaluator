@@ -107,8 +107,9 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         options: RequestOptions
             The options to run the workflows with.
         """
-        workflow_graph = WorkflowGraph()
+
         provenance = {}
+        workflows = []
 
         for index, physical_property in enumerate(properties):
 
@@ -147,11 +148,14 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
 
             workflow = Workflow(global_metadata, physical_property.id)
             workflow.schema = schema.workflow_schema
-            workflow_graph.add_workflow(workflow)
+            workflows.append(workflow)
 
             provenance[physical_property.id] = CalculationSource(
                 fidelity=cls.__name__, provenance=workflow.schema
             )
+
+        workflow_graph = WorkflowGraph()
+        workflow_graph.add_workflow(*workflows)
 
         return workflow_graph, provenance
 

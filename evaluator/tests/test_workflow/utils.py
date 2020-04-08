@@ -28,14 +28,27 @@ def create_dummy_metadata(dummy_property, calculation_layer):
         for key, query in schema.storage_queries.items():
 
             fake_data = [
-                (f"data_path_{index}", f"ff_path_{index}") for index in range(3)
+                (f"data_path_{index}_{key}", f"ff_path_{index}_{key}")
+                for index in range(3)
             ]
 
             if (
                 query.substance_query != UNDEFINED
                 and query.substance_query.components_only
             ):
-                fake_data = [fake_data for _ in dummy_property.substance.components]
+                fake_data = []
+
+                for component_index in enumerate(dummy_property.substance.components):
+
+                    fake_data.append(
+                        [
+                            (
+                                f"data_path_{index}_{key}_{component_index}",
+                                f"ff_path_{index}_{key}",
+                            )
+                            for index in range(3)
+                        ]
+                    )
 
             global_metadata[key] = fake_data
 

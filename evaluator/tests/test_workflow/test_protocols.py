@@ -117,7 +117,7 @@ def build_merge(prefix):
     protocol_b = DummyInputOutputProtocol(prefix + "protocol_b")
     protocol_b.input_value = ProtocolPath("output_value", protocol_a.id)
     protocol_c = DummyInputOutputProtocol(prefix + "protocol_c")
-    protocol_c.input_value = 1
+    protocol_c.input_value = 2
     protocol_d = DummyInputOutputProtocol(prefix + "protocol_d")
     protocol_d.input_value = ProtocolPath("output_value", protocol_c.id)
     protocol_e = DummyInputOutputProtocol(prefix + "protocol_e")
@@ -143,7 +143,7 @@ def build_fork(prefix):
     # g - h - |
     #          \ k - l
     protocol_g = DummyInputOutputProtocol(prefix + "protocol_g")
-    protocol_g.input_value = 1
+    protocol_g.input_value = 3
     protocol_h = DummyInputOutputProtocol(prefix + "protocol_h")
     protocol_h.input_value = ProtocolPath("output_value", protocol_g.id)
     protocol_i = DummyInputOutputProtocol(prefix + "protocol_i")
