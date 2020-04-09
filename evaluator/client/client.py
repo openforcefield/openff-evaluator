@@ -284,6 +284,10 @@ class RequestResult(AttributeClass):
         default_value=[],
     )
 
+    request_options = Attribute(
+        docstring="The "
+    )
+
     def validate(self, attribute_type=None):
         super(RequestResult, self).validate(attribute_type)
         assert all((isinstance(x, EvaluatorException) for x in self.exceptions))

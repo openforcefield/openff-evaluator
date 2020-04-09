@@ -1,27 +1,24 @@
 """A collection of classes to help track the provenance
 of measured / estimated properties.
 """
-from evaluator.utils.serialization import TypedBaseModel
+import abc
+
+from evaluator.attributes import AttributeClass, Attribute, UNDEFINED
 
 
-class Source(TypedBaseModel):
-    """Container class for information about how a property was measured / calculated.
-
-    .. todo:: Swap this out with a more general provenance class.
+class Source(AttributeClass, abc.ABC):
+    """The base class for objects which store information about how a
+    property was measured experimentally / estimated for simulation
+    data.
     """
-
-    def __getstate__(self):
-        return {}
-
-    def __setstate__(self, state):
-        pass
+    pass
 
 
 class MeasurementSource(Source):
-    """Contains any metadata about how a physical property was measured by experiment.
+    """Contains metadata about how a physical property was measured by experiment.
 
     This class contains either the DOI and/or the reference, but must contain at
-    least one as the observable must have a source, even if it was measured in lab.
+    least one.
 
     Attributes
     ----------
@@ -32,71 +29,99 @@ class MeasurementSource(Source):
         information is needed or wanted.
     """
 
-    def __init__(self, doi="", reference=""):
+    doi = Attribute(
+        docstring="The digital object identifier of the source from which this "
+        "measurement was obtained.",
+        type_hint=str,
+        default_value=UNDEFINED,
+        optional=True
+    )
+    reference = Attribute(
+        docstring="An alternative identifier of the source from which this "
+        "measurement was obtained, e.g. a URL.",
+        type_hint=str,
+        default_value=UNDEFINED,
+        optional=True
+    )
+
+    def __init__(self, doi=None, reference=None):
         """Constructs a new MeasurementSource object.
 
         Parameters
         ----------
-        doi : str or None, default None
-            The DOI for the source, preferred way to identify for source
+        doi : str, optional
+            The digital object identifier of the source from which this
+            measurement was obtained.
         reference : str
-            The long form description of the source if no DOI is available, or more
-            information is needed or wanted.
+            An alternative identifier of the source from which this
+            measurement was obtained, e.g. a URL.
         """
 
-        self.doi = doi
-        self.reference = reference
+        if doi is not None:
+            self.doi = doi
+        if reference is not None:
+            self.reference = reference
 
-    def __getstate__(self):
+    def validate(self, attribute_type=None):
 
-        return {
-            "doi": self.doi,
-            "reference": self.reference,
-        }
-
-    def __setstate__(self, state):
-
-        self.doi = state["doi"]
-        self.reference = state["reference"]
+        super(MeasurementSource, self).validate(attribute_type)
+        assert self.doi != UNDEFINED or self.reference != UNDEFINED
 
 
 class CalculationSource(Source):
-    """Contains any metadata about how a physical property was calculated.
+    """Contains information about how a physical property was estimated.
 
-    This includes at which fidelity the property was calculated at (e.g Direct
-    simulation, reweighting, ...) in addition to the parameters which were
-    used as part of the calculations.
+    This includes provenance such as the unique id of the estimation request
+    which produced this measurement, the unique id of the force field used in
+    the request, and the fidelity at which the property was estimated (e.g
+    direct simulation, cached simulation data reweighting, etc.).
 
     Attributes
     ----------
+    request_id: str
+        The unique id of the estimation request which produced this measurement
+    force_field_id: str
+        The unique id of the force field used in the request (as assigned by
+        an `EvaluatorServer`.
     fidelity : str
-        The fidelity at which the property was calculated
-    provenance : dict of str and Any
-        A dictionary containing information about how the property was calculated.
+        The fidelity at which the property was calculated.
     """
 
-    def __init__(self, fidelity=None, provenance=None):
+    request_id = Attribute(
+        docstring="The unique id of the estimation request which produced this "
+        "measurement.",
+        type_hint=str,
+        default_value=UNDEFINED,
+    )
+    force_field_id = Attribute(
+        docstring="The unique id of the force field used in the request (as assigned "
+        "by an `EvaluatorServer`.",
+        type_hint=str,
+        default_value=UNDEFINED,
+    )
+    fidelity = Attribute(
+        docstring="The fidelity at which the property was calculated.",
+        type_hint=str,
+        default_value=UNDEFINED,
+    )
+
+    def __init__(self, request_id=None, force_field_id=None, fidelity=None):
         """Constructs a new CalculationSource object.
 
         Parameters
         ----------
+        request_id: str
+            The unique id of the estimation request which produced this measurement
+        force_field_id: str
+            The unique id of the force field used in the request (as assigned by
+            an `EvaluatorServer`.
         fidelity : str
             The fidelity at which the property was calculated
-        provenance : dict of str and Any
-            A dictionary containing information about how the property was calculated.
         """
 
-        self.fidelity = fidelity
-        self.provenance = provenance
-
-    def __getstate__(self):
-
-        return {
-            "fidelity": self.fidelity,
-            "provenance": self.provenance,
-        }
-
-    def __setstate__(self, state):
-
-        self.fidelity = state["fidelity"]
-        self.provenance = state["provenance"]
+        if request_id is not None:
+            self.request_id = request_id
+        if force_field_id is not None:
+            self.force_field_id = force_field_id
+        if fidelity is not None:
+            self.fidelity = fidelity
