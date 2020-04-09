@@ -1099,6 +1099,15 @@ class ProtocolGraph:
             # Check if the output of this protocol already exists and
             # whether we allow returning the found output.
             if os.path.isfile(output_path) and enable_checkpointing:
+
+                with open(output_path) as file:
+                    outputs = json.load(file, cls=TypedJSONDecoder)
+
+                for protocol_path, output in outputs.items():
+
+                    protocol_path = ProtocolPath.from_string(protocol_path)
+                    protocol.set_value(protocol_path, output)
+
                 return protocol.id, output_path
 
             # Store the results of the relevant previous protocols in a

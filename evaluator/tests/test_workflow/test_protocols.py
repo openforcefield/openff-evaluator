@@ -2,11 +2,13 @@
 Units tests for evaluator.workflow
 """
 import json
+import os
 import tempfile
 
 import pytest
 
 from evaluator import unit
+from evaluator.attributes import UNDEFINED
 from evaluator.backends import ComputeResources
 from evaluator.backends.dask import DaskLocalCluster
 from evaluator.protocols.miscellaneous import AddValues
@@ -342,3 +344,53 @@ def test_protocol_group_exceptions():
     with tempfile.TemporaryDirectory() as directory:
         with pytest.raises(RuntimeError):
             protocol_group.execute(directory, ComputeResources())
+
+
+def test_protocol_group_resume():
+    """A test that protocol groups can recover after being killed
+    (e.g. by a worker being killed due to hitting a wallclock limit)
+    """
+
+    compute_resources = ComputeResources()
+
+    # Fake a protocol group which executes the first
+    # two protocols and then 'gets killed'.
+    protocol_a = DummyInputOutputProtocol("protocol_a")
+    protocol_a.input_value = 1
+    protocol_b = DummyInputOutputProtocol("protocol_b")
+    protocol_b.input_value = ProtocolPath("output_value", protocol_a.id)
+
+    protocol_group_a = ProtocolGroup("group_a")
+    protocol_group_a.add_protocols(protocol_a, protocol_b)
+
+    protocol_graph = ProtocolGraph()
+    protocol_graph.add_protocols(protocol_group_a)
+    protocol_graph.execute("graph_a", compute_resources=compute_resources)
+
+    # Remove the output file so it appears the the protocol group had not
+    # completed.
+    os.unlink(
+        os.path.join(
+            "graph_a", protocol_group_a.id, f"{protocol_group_a.id}_output.json"
+        )
+    )
+
+    # Build the 'full' group with the last two protocols which
+    # 'had not been exited' after the group was 'killed'
+    protocol_a = DummyInputOutputProtocol("protocol_a")
+    protocol_a.input_value = 1
+    protocol_b = DummyInputOutputProtocol("protocol_b")
+    protocol_b.input_value = ProtocolPath("output_value", protocol_a.id)
+    protocol_c = DummyInputOutputProtocol("protocol_c")
+    protocol_c.input_value = ProtocolPath("output_value", protocol_b.id)
+    protocol_d = DummyInputOutputProtocol("protocol_d")
+    protocol_d.input_value = ProtocolPath("output_value", protocol_c.id)
+
+    protocol_group_a = ProtocolGroup("group_a")
+    protocol_group_a.add_protocols(protocol_a, protocol_b, protocol_c, protocol_d)
+
+    protocol_graph = ProtocolGraph()
+    protocol_graph.add_protocols(protocol_group_a)
+    protocol_graph.execute("graph_a", compute_resources=compute_resources)
+
+    assert all(x != UNDEFINED for x in protocol_group_a.outputs.values())
