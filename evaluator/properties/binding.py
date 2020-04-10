@@ -6,7 +6,7 @@ import copy
 from evaluator import unit
 from evaluator.datasets import PhysicalProperty
 from evaluator.layers import register_calculation_schema
-from evaluator.layers.simulation import SimulationSchema, SimulationLayer
+from evaluator.layers.simulation import SimulationLayer, SimulationSchema
 from evaluator.protocols import coordinates, forcefield, miscellaneous, yank
 from evaluator.protocols.paprika import OpenMMPaprikaProtocol
 from evaluator.substances import Component
@@ -330,5 +330,5 @@ class HostGuestBindingAffinity(PhysicalProperty):
 register_calculation_schema(
     HostGuestBindingAffinity,
     SimulationLayer,
-    HostGuestBindingAffinity.default_paprika_schema
+    HostGuestBindingAffinity.default_paprika_schema,
 )
