@@ -361,6 +361,7 @@ def _build_input_file(
     molecule_file_names,
     molecule_counts,
     structure_to_solvate,
+    center_solute,
     box_size,
     tolerance,
     output_file_name,
@@ -375,6 +376,9 @@ def _build_input_file(
         The number of each molecule to add.
     structure_to_solvate: str, optional
         The path to the structure to solvate.
+    center_solute: str
+        If `True`, the structure to solvate will be centered in the
+        simulation box.
     box_size: pint.Quantity
         The lengths of each box vector.
     tolerance: pint.Quantity
@@ -399,19 +403,6 @@ def _build_input_file(
         "",
     ]
 
-    # Add a section for each type of molecule to add.
-    for file_name, count in zip(molecule_file_names, molecule_counts):
-
-        input_lines.extend(
-            [
-                f"structure {file_name}",
-                f"  number {count}",
-                f"  inside box 0. 0. 0. {box_size[0]} {box_size[1]} {box_size[2]}",
-                f"end structure",
-                "",
-            ]
-        )
-
     # Add the section of the molecule to solvate if provided.
     if structure_to_solvate is not None:
 
@@ -423,7 +414,20 @@ def _build_input_file(
                 f"{box_size[0] / 2.0} "
                 f"{box_size[1] / 2.0} "
                 f"{box_size[2] / 2.0} 0. 0. 0.",
-                f"  centerofmass",
+                "centerofmass" if center_solute else "",
+                f"end structure",
+                "",
+            ]
+        )
+
+    # Add a section for each type of molecule to add.
+    for file_name, count in zip(molecule_file_names, molecule_counts):
+
+        input_lines.extend(
+            [
+                f"structure {file_name}",
+                f"  number {count}",
+                f"  inside box 0. 0. 0. {box_size[0]} {box_size[1]} {box_size[2]}",
                 f"end structure",
                 "",
             ]
@@ -469,20 +473,23 @@ def _correct_packmol_output(
 
     trajectory = mdtraj.load(file_path)
 
-    all_topologies = [*molecule_topologies]
-    all_copies = [*number_of_copies]
+    all_topologies = []
+    all_n_copies = []
 
     if structure_to_solvate is not None:
 
         solvated_trajectory = mdtraj.load(structure_to_solvate)
 
         all_topologies.append(solvated_trajectory.topology)
-        all_copies.append(1)
+        all_n_copies.append(1)
+
+    all_topologies.extend(molecule_topologies)
+    all_n_copies.extend(number_of_copies)
 
     all_bonds = []
     offset = 0
 
-    for (molecule_topology, count) in zip(all_topologies, all_copies):
+    for (molecule_topology, count) in zip(all_topologies, all_n_copies):
 
         _, molecule_bonds = molecule_topology.to_dataframe()
 
@@ -533,6 +540,7 @@ def pack_box(
     molecules,
     number_of_copies,
     structure_to_solvate=None,
+    center_solute=True,
     tolerance=2.0 * unit.angstrom,
     box_size=None,
     mass_density=None,
@@ -553,6 +561,10 @@ def pack_box(
         equal to the length of `molecules`.
     structure_to_solvate: str, optional
         A file path to the PDB coordinates of the structure to be solvated.
+    center_solute: str
+        If `True`, the structure to solvate will be centered in the
+        simulation box. This option is only applied when `structure_to_solvate`
+        is set.
     tolerance : pint.Quantity
         The minimum spacing between molecules during packing in units
          compatible with angstroms.
@@ -663,6 +675,7 @@ def pack_box(
             pdb_file_names,
             number_of_copies,
             structure_to_solvate,
+            center_solute,
             box_size,
             tolerance,
             output_file_name,

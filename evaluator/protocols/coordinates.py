@@ -261,6 +261,12 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
         type_hint=str,
         default_value=UNDEFINED,
     )
+    center_solute_in_box = InputAttribute(
+        docstring="If `True`, the solute to solvate will be centered in the "
+        "simulation box.",
+        type_hint=bool,
+        default_value=True,
+    )
 
     def _execute(self, directory, available_resources):
 
@@ -273,6 +279,7 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
             molecules=molecules,
             number_of_copies=number_of_molecules,
             structure_to_solvate=self.solute_coordinate_file,
+            center_solute=self.center_solute_in_box,
             mass_density=self.mass_density,
             verbose=self.verbose_packmol,
             working_directory=packmol_directory,
