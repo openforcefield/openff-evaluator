@@ -1061,7 +1061,11 @@ class ProtocolGraph:
             for dependency in dependencies[protocol_id]:
                 parent_outputs.append(protocol_outputs[dependency])
 
-            directory = os.path.join(root_directory, protocol_id)
+            directory_name = protocol_id.replace("|", "_")
+            directory_name = directory_name.replace(":", "_")
+            directory_name = directory_name.replace(";", "_")
+
+            directory = os.path.join(root_directory, directory_name)
 
             if calculation_backend is not None:
 
