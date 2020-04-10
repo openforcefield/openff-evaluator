@@ -41,7 +41,7 @@ def main():
 
     # Run the calculation
     results = workflow.execute(
-        directory=f"{host}_{guest}",
+        root_directory=f"{host}_{guest}",
         compute_resources=ComputeResources(number_of_gpus=1),
     )
 
