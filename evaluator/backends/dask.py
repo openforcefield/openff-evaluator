@@ -6,6 +6,7 @@ import importlib
 import logging
 import multiprocessing
 import os
+import platform
 import shutil
 import traceback
 
@@ -78,11 +79,23 @@ class _Multiprocessor:
                 worker_logger = logging.getLogger()
 
                 if not len(worker_logger.handlers):
+
                     logger_handler = logging.FileHandler(logger_path)
                     logger_handler.setFormatter(formatter)
 
                     worker_logger.setLevel(logging.INFO)
                     worker_logger.addHandler(logger_handler)
+
+                    worker_logger.info(f"============================================")
+                    worker_logger.info(f"HOSTNAME: {platform.node()}")
+                    worker_logger.info(f"PLATFORM: {platform.platform()}")
+                    worker_logger.info(f"--------------------------------------------")
+                    worker_logger.info(
+                        f"PYTHON VERSION: "
+                        f"{platform.python_version()} - "
+                        f"{platform.python_implementation()}"
+                    )
+                    worker_logger.info(f"============================================")
 
             return_value = func(*args, **kwargs)
             queue.put(return_value)
