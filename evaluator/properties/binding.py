@@ -5,7 +5,8 @@ import copy
 
 from evaluator import unit
 from evaluator.datasets import PhysicalProperty
-from evaluator.layers.simulation import SimulationSchema
+from evaluator.layers import register_calculation_schema
+from evaluator.layers.simulation import SimulationSchema, SimulationLayer
 from evaluator.protocols import coordinates, forcefield, miscellaneous, yank
 from evaluator.protocols.paprika import OpenMMPaprikaProtocol
 from evaluator.substances import Component
@@ -302,7 +303,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         ]
 
         # Finally, combine all of the values together
-        combine_values = miscellaneous.AddBindingFreeEnergies("combine_values")
+        combine_values = miscellaneous.AverageFreeEnergies("combine_values")
         combine_values.values = ProtocolPath("result", sum_protocol.id)
         combine_values.thermodynamic_state = ProtocolPath(
             "thermodynamic_state", "global"
@@ -323,3 +324,11 @@ class HostGuestBindingAffinity(PhysicalProperty):
         schema.replicators = [orientation_replicator]
 
         return schema
+
+
+# Register the properties via the plugin system.
+register_calculation_schema(
+    HostGuestBindingAffinity,
+    SimulationLayer,
+    HostGuestBindingAffinity.default_paprika_schema
+)
