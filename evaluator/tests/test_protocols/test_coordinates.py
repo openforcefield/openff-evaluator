@@ -70,9 +70,20 @@ def test_build_coordinates_packmol(input_substance, expected):
     build_coordinates.substance = input_substance
 
     with tempfile.TemporaryDirectory() as directory:
-        build_coordinates.execute(directory, None)
+        build_coordinates.execute(directory)
 
     assert build_coordinates.output_substance == expected
+
+    for component in input_substance:
+
+        assert component.identifier in build_coordinates.assigned_residue_names
+
+        if component.smiles == "O":
+
+            assigned_name = build_coordinates.assigned_residue_names[
+                component.identifier
+            ]
+            assert assigned_name[:3] == "HOH"
 
 
 def test_solvate_existing_structure_protocol():

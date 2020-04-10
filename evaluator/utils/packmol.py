@@ -579,6 +579,9 @@ def pack_box(
     -------
     mdtraj.Trajectory
         The packed box encoded in an mdtraj trajectory.
+    list of str
+        The residue names which were assigned to each of the
+        molecules in the `molecules` list.
 
     Raises
     ------
@@ -632,6 +635,8 @@ def pack_box(
 
         structure_to_solvate = "solvate.pdb"
 
+    assigned_residue_names = []
+
     with temporarily_change_directory(working_directory):
 
         # Create PDB files for all of the molecules.
@@ -647,6 +652,9 @@ def pack_box(
 
             mdtraj_trajectory.save_pdb(pdb_file_name)
             mdtraj_topologies.append(mdtraj_trajectory.topology)
+
+            residue_name = mdtraj_trajectory.topology.residue(0).name
+            assigned_residue_names.append(residue_name)
 
         # Generate the input file.
         output_file_name = "packmol_output.pdb"
@@ -702,6 +710,7 @@ def pack_box(
             output_file_name, mdtraj_topologies, number_of_copies, structure_to_solvate
         )
         trajectory.unitcell_lengths = box_size
+        trajectory.unitcell_angles = [90.0] * 3
 
         if not retain_working_files:
             os.unlink(output_file_name)
@@ -709,4 +718,4 @@ def pack_box(
     if temporary_directory and not retain_working_files:
         shutil.rmtree(working_directory)
 
-    return trajectory
+    return trajectory, assigned_residue_names

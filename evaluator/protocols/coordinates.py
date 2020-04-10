@@ -77,6 +77,13 @@ class BuildCoordinatesPackmol(Protocol):
         type_hint=Substance,
     )
 
+    assigned_residue_names = OutputAttribute(
+        docstring="The residue names which were assigned to "
+        "each of the components. Each key corresponds to a "
+        "component identifier.",
+        type_hint=dict,
+    )
+
     coordinate_file_path = OutputAttribute(
         docstring="The file path to the created PDB coordinate file.", type_hint=str
     )
@@ -222,7 +229,7 @@ class BuildCoordinatesPackmol(Protocol):
         packmol_directory = path.join(directory, "packmol_files")
 
         # Create packed box
-        trajectory = packmol.pack_box(
+        trajectory, residue_names = packmol.pack_box(
             molecules=molecules,
             number_of_copies=number_of_molecules,
             mass_density=self.mass_density,
@@ -231,6 +238,11 @@ class BuildCoordinatesPackmol(Protocol):
             working_directory=packmol_directory,
             retain_working_files=self.retain_packmol_files,
         )
+
+        self.assigned_residue_names = dict()
+
+        for component, residue_name in zip(self.substance, residue_names):
+            self.assigned_residue_names[component.identifier] = residue_name
 
         if trajectory is None:
             raise RuntimeError("Packmol failed to complete.")
@@ -257,7 +269,7 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
         packmol_directory = path.join(directory, "packmol_files")
 
         # Create packed box
-        trajectory = packmol.pack_box(
+        trajectory, residue_names = packmol.pack_box(
             molecules=molecules,
             number_of_copies=number_of_molecules,
             structure_to_solvate=self.solute_coordinate_file,
@@ -269,6 +281,11 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
 
         if trajectory is None:
             raise RuntimeError("Packmol failed to complete.")
+
+        self.assigned_residue_names = dict()
+
+        for component, residue_name in zip(self.substance, residue_names):
+            self.assigned_residue_names[component.identifier] = residue_name
 
         self._save_results(directory, trajectory)
 
