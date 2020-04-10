@@ -70,16 +70,31 @@ def test_build_coordinates_packmol(input_substance, expected):
     build_coordinates.substance = input_substance
 
     with tempfile.TemporaryDirectory() as directory:
-        build_coordinates.execute(directory, None)
+        build_coordinates.execute(directory)
 
     assert build_coordinates.output_substance == expected
+
+    for component in input_substance:
+
+        assert component.identifier in build_coordinates.assigned_residue_names
+
+        if component.smiles == "O":
+
+            assigned_name = build_coordinates.assigned_residue_names[
+                component.identifier
+            ]
+            assert assigned_name[:3] == "HOH"
 
 
 def test_solvate_existing_structure_protocol():
     """Tests solvating a single methanol molecule in water."""
 
+    import mdtraj
+
+    methanol_component = Component("CO")
+
     methanol_substance = Substance()
-    methanol_substance.add_component(Component("CO"), ExactAmount(1))
+    methanol_substance.add_component(methanol_component, ExactAmount(1))
 
     water_substance = Substance()
     water_substance.add_component(Component("O"), MoleFraction(1.0))
@@ -91,6 +106,10 @@ def test_solvate_existing_structure_protocol():
         build_methanol_coordinates.substance = methanol_substance
         build_methanol_coordinates.execute(temporary_directory, ComputeResources())
 
+        methanol_residue_name = build_methanol_coordinates.assigned_residue_names[
+            methanol_component.identifier
+        ]
+
         solvate_coordinates = SolvateExistingStructure("solvate_methanol")
         solvate_coordinates.max_molecules = 9
         solvate_coordinates.substance = water_substance
@@ -98,9 +117,10 @@ def test_solvate_existing_structure_protocol():
             build_methanol_coordinates.coordinate_file_path
         )
         solvate_coordinates.execute(temporary_directory, ComputeResources())
-        solvated_pdb = PDBFile(solvate_coordinates.coordinate_file_path)
+        solvated_system = mdtraj.load_pdb(solvate_coordinates.coordinate_file_path)
 
-        assert solvated_pdb.topology.getNumResidues() == 10
+        assert solvated_system.n_residues == 10
+        assert solvated_system.top.residue(0).name == methanol_residue_name
 
 
 def test_build_docked_coordinates_protocol():
