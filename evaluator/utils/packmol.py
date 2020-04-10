@@ -379,7 +379,7 @@ def _build_input_file(
         The lengths of each box vector.
     tolerance: pint.Quantity
         The packmol convergence tolerance.
-    output_file_name:
+    output_file_name: str
         The path to save the packed pdb to.
 
     Returns
