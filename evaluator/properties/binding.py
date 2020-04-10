@@ -323,7 +323,10 @@ class HostGuestBindingAffinity(PhysicalProperty):
         schema.final_value_source = ProtocolPath("result", combine_values.id)
         schema.replicators = [orientation_replicator]
 
-        return schema
+        simulation_schema = SimulationSchema()
+        simulation_schema.workflow_schema = schema
+
+        return simulation_schema
 
 
 # Register the properties via the plugin system.

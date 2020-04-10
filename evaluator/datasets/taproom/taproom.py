@@ -2,6 +2,7 @@
 An API for importing a data set from the host-guest-benchmarks repository:
 https://github.com/slochower/host-guest-benchmarks
 """
+import logging
 
 import pkg_resources
 import yaml
@@ -11,6 +12,8 @@ from evaluator.datasets import PhysicalPropertyDataSet, PropertyPhase, Source
 from evaluator.properties import HostGuestBindingAffinity
 from evaluator.substances import Component, ExactAmount, MoleFraction, Substance
 from evaluator.thermodynamics import ThermodynamicState
+
+logger = logging.getLogger(__name__)
 
 
 class TaproomSource(Source):
@@ -198,6 +201,8 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         measurements = installed_benchmarks["host_guest_measurements"]
         systems = installed_benchmarks["host_guest_systems"]
 
+        all_properties = []
+
         for host_name in measurements:
 
             for guest_name in measurements[host_name]:
@@ -218,6 +223,13 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 uncertainty = unit.Quantity(
                     measurement_yaml["measurement"]["delta_G_uncertainty"]
                 )
+
+                if value.units == unit.dimensionless:
+                    logger.info(
+                        f"The measurement for {host_name}-{guest_name} has no units and "
+                        f"so will be skipped."
+                    )
+                    continue
 
                 source = TaproomSource(
                     doi=measurement_yaml["provenance"]["doi"],
@@ -274,10 +286,9 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                     "guest_identifier": guest_name,
                 }
 
-                if substance.identifier not in self._properties:
-                    self._properties[substance.identifier] = []
+                all_properties.append(measured_property)
 
-                self._properties[substance.identifier].append(measured_property)
+        self.add_properties(*all_properties)
 
     def filter_by_host_identifiers(self, *host_identifiers):
         """Filters out those properties which were measured for

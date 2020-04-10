@@ -38,6 +38,8 @@ from evaluator.workflow.attributes import (
 )
 from evaluator.workflow.utils import ProtocolPath
 
+logger = logging.getLogger(__name__)
+
 
 @workflow_protocol()
 class BasePaprikaProtocol(Protocol):
@@ -212,7 +214,7 @@ class BasePaprikaProtocol(Protocol):
         # Na+, Cl-...)
         filter_solvent = miscellaneous.FilterSubstanceByRole("filter_solvent")
         filter_solvent.input_substance = self.substance
-        filter_solvent.component_roles = [Component.Role.Solvent]
+        filter_solvent.component_role = Component.Role.Solvent
 
         filter_solvent.execute(directory, available_resources)
 
@@ -231,7 +233,7 @@ class BasePaprikaProtocol(Protocol):
 
             if os.path.isfile(self._solvated_coordinate_paths[index]):
 
-                logging.info(
+                logger.info(
                     f"Skipping the setup of window {index + 1} as "
                     f"{self._solvated_coordinate_paths[index]} already "
                     f"exists."
@@ -259,7 +261,7 @@ class BasePaprikaProtocol(Protocol):
                 index, solvate_complex.coordinate_file_path, reference_structure_path
             )
 
-            logging.info(
+            logger.info(
                 f"Set up window {index + 1} of "
                 f"{len(self._paprika_setup.desolvated_window_paths)}"
             )
@@ -497,7 +499,7 @@ class BasePaprikaProtocol(Protocol):
 
             for window_index in sorted(window_indices)[chunk[0] : chunk[1]]:
 
-                logging.info(
+                logger.info(
                     f"Running window {window_index + 1} out of {len(self._paprika_setup.window_list)}"
                 )
                 resources = ComputeResources(number_of_threads=1)
@@ -1190,7 +1192,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             devices_string = ",".join(visible_devices)
             environment["CUDA_VISIBLE_DEVICES"] = f"{devices_string}"
 
-            logging.info(
+            logger.info(
                 f"Starting a set of Amber simulations on GPUs {devices_string}"
             )
 

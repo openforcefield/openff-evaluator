@@ -302,7 +302,7 @@ class Substance(AttributeClass):
         )
 
         ionic_mole_fraction = ionic_strength / (ionic_strength + water_molarity)
-        return ionic_mole_fraction
+        return ionic_mole_fraction.magnitude
 
     def __str__(self):
         return self.identifier
