@@ -28,7 +28,7 @@ dependencies:
   - dask-jobqueue >=0.7.0
   - coverage >=4.4
   - uncertainties
-  - openmmtools >=0.18.2
+  - openmmtools
   - yank >=0.24.1
   - pyyaml
   - requests
