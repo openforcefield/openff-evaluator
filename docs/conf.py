@@ -19,9 +19,8 @@ sys.path.insert(0, os.path.abspath('.'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'Property Estimator'
-copyright = ("2019, Open Force Field Consortium. Project structure based on the "
-             "Computational Molecular Science Python Cookiecutter version 1.0")
+project = 'OpenFF Evaluator'
+copyright = ("2019, Open Force Field Consortium.")
 author = 'Open Force Field Consortium'
 
 # The short X.Y version
@@ -43,19 +42,45 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
     'sphinx.ext.autosummary',
+    'sphinx.ext.autosectionlabel',
     'sphinx.ext.doctest',
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'sphinx.ext.intersphinx',
     'nbsphinx',
-    'm2r'
 ]
 
 # Autodoc settings
 autosummary_generate = True
-autodoc_default_flags = ['members', 'inherited-members']
-autodoc_member_order = 'bysource' # preserve ordering in source
+
+autodoc_default_options = {
+    'members': True,
+    'inherited-members': True,
+    'member-order': 'bysource',
+}
+
+autodoc_mock_imports = [
+    'dask',
+    'dask_jobqueue',
+    'distributed',
+    'packmol',
+    'pymbar',
+    'scipy',
+    'simtk',
+    'yaml',
+]
+
+# Autolabel settings
+autosectionlabel_maxdepth = 3
+autosectionlabel_prefix_document = True
+
+suppress_warnings = [
+    'autosectionlabel.releasehistory',
+]
+
+# nbsphinx settings
+nbsphinx_execute = 'never'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -63,7 +88,7 @@ templates_path = ['_templates']
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
 #
-source_suffix = ['.rst', '.md']
+source_suffix = ['.rst']
 # source_suffix = '.rst'
 
 # The master toctree document.
@@ -82,7 +107,7 @@ language = None
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+pygments_style = 'default'
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
@@ -91,11 +116,14 @@ todo_include_todos = True
 intersphinx_mapping = {
     'python': ('https://docs.python.org/', None),
     'numpy': ('https://docs.scipy.org/doc/numpy/', None),
+    'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
     'mdtraj': ('http://mdtraj.org/latest/', None),
-    'tornado': ('https://www.tornadoweb.org/en/stable/', None),
     'dask': ('http://docs.dask.org/en/latest/', None),
     'dask.distributed': ('https://distributed.dask.org/en/latest/', None),
+    'distributed': ('https://distributed.dask.org/en/latest/', None),
+    'dask_jobqueue': ('https://jobqueue.dask.org/en/latest/', None),
     'openforcefield': ('https://open-forcefield-toolkit.readthedocs.io/en/latest/', None),
+    'pint': ('https://pint.readthedocs.io/en/latest/', None)
 }
 
 
@@ -110,12 +138,21 @@ html_theme = 'sphinx_rtd_theme'
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-# html_theme_options = {}
+html_theme_options = {
+    'prev_next_buttons_location': None,
+    'sticky_navigation': False
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+html_context = {
+    'css_files': [
+        '_static/css/theme_overrides.css',  # override wide tables in RTD theme
+    ],
+}
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -131,7 +168,7 @@ html_static_path = ['_static']
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'propertyestimatordoc'
+htmlhelp_basename = 'evaluatordoc'
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -158,8 +195,8 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'propertyestimator.tex', 'propertyestimator Documentation',
-     'propertyestimator', 'manual'),
+    (master_doc, 'evaluator.tex', 'OpenFF Evaluator Documentation',
+     'openff-evaluator', 'manual'),
 ]
 
 
@@ -168,7 +205,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'propertyestimator', 'propertyestimator Documentation',
+    (master_doc, 'openff-evaluator', 'OpenFF Evaluator Documentation',
      [author], 1)
 ]
 
@@ -179,8 +216,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'propertyestimator', 'propertyestimator Documentation',
-     author, 'propertyestimator', 'Property calculation toolkit from the Open Forcefield Consortium.',
+    (master_doc, 'openff-evaluator', 'OpenFF Evaluator Documentation',
+     author, 'openff-evaluator', 'A physical property evaluation toolkit from the Open Forcefield Consortium.',
      'Miscellaneous'),
 ]
 

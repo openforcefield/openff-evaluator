@@ -1,29 +1,22 @@
-name: propertyestimator
+name: evaluator
 channels:
     - conda-forge
-    - omnia
 dependencies:
     # Base depends
-    - python ==3.6
+    - python
     - setuptools
 
     # Sphinx specific
-    - numpydoc
     - nbsphinx
-    - m2r >=0.2.1
     - sphinx_rtd_theme
+    - pandoc
+    - ipython
 
     # Standard dependencies
     - numpy
     - pandas
     - lxml
     - icu 58*  # REQUIRED - DO NOT REMOVE.
-    - openmm
-    - pint
-    - packmol
-    - pymbar
-    - dask >=2.2
-    - distributed >=2.2
-    - dask-jobqueue >=0.6.2
-    - tornado <6
+    - networkx
+    - pint >=0.10.1
     - uncertainties

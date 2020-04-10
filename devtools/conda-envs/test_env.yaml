@@ -2,8 +2,6 @@ name: test
 channels:
   - conda-forge
   - omnia
-  - openeye
-  - ambermd
 dependencies:
     # Base depends
   - python
@@ -14,24 +12,20 @@ dependencies:
   - pytest-cov
   - codecov
 
-    # Commercial
-  - openeye-toolkits
-
     # Standard dependencies
-  - ambertools ==19.0
-  - openforcefield ==0.4.0
+  - openforcefield >=0.4.1
   - smirnoff99frosst
   - numpy
   - pandas
   - openmm
-  - pint
+  - networkx
+  - pint >= 0.10.1
   - packmol
-  - pymbar
-  - mdtraj
-  - dask >=2.6.0
-  - distributed >=2.6.0
+  - pymbar >=3.0.5
+  - mdtraj >=1.9.3
+  - dask >=2.7.0
+  - distributed >=2.7.0
   - dask-jobqueue >=0.7.0
-  - tornado
   - coverage >=4.4
   - uncertainties
   - openmmtools >=0.18.2
@@ -39,4 +33,6 @@ dependencies:
   - pyyaml
   - requests
   - requests-mock # For testing http requests.
-  - paprika
+  - rdkit
+  - cmiles
+  - python-dateutil

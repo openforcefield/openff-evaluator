@@ -1,25 +1,119 @@
 API
 ===
 
-A set of API documents for this projects classes and modules.
+Documentation for each of the classes contained within the evaluator framework.
 
 Client Side API
 ---------------
 
-.. currentmodule:: propertyestimator.client
+.. currentmodule:: evaluator.client
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
-    PropertyEstimatorClient
-    PropertyEstimatorOptions
-    PropertyEstimatorSubmission
-    PropertyEstimatorResult
+    EvaluatorClient
+    BatchMode
     ConnectionOptions
+    Request
+    RequestOptions
+    RequestResult
 
-**Force Field Sources**
+**Exceptions**
 
-.. currentmodule:: propertyestimator.forcefield
+.. currentmodule:: evaluator.utils.exceptions
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    EvaluatorException
+
+Server Side API
+---------------
+
+.. currentmodule:: evaluator.server
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    EvaluatorServer
+    Batch
+
+Physical Property API
+---------------------
+
+.. currentmodule:: evaluator.datasets
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    PhysicalProperty
+    PropertyPhase
+    Source
+    CalculationSource
+    MeasurementSource
+
+**Built-in Properties**
+
+.. currentmodule:: evaluator.properties
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    Density
+    ExcessMolarVolume
+    DielectricConstant
+    EnthalpyOfMixing
+    EnthalpyOfVaporization
+    SolvationFreeEnergy
+    HostGuestBindingAffinity
+
+**Substance Definition**
+
+.. currentmodule:: evaluator.substances
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    Substance
+    Component
+    Amount
+    ExactAmount
+    MoleFraction
+
+**State Definition**
+
+.. currentmodule:: evaluator.thermodynamics
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    ThermodynamicState
+
+Data Set API
+------------
+
+.. currentmodule:: evaluator.datasets
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    PhysicalPropertyDataSet
+
+**NIST ThermoML Archive**
+
+.. currentmodule:: evaluator.datasets.thermoml
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    ThermoMLDataSet
+    register_thermoml_property
+    thermoml_property
+
+Force Field API
+---------------
+
+.. currentmodule:: evaluator.forcefield
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -31,7 +125,7 @@ Client Side API
 
 **Gradient Estimation**
 
-.. currentmodule:: propertyestimator.properties
+.. currentmodule:: evaluator.forcefield
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -39,152 +133,86 @@ Client Side API
     ParameterGradientKey
     ParameterGradient
 
-
-Server Side API
----------------
-
-.. currentmodule:: propertyestimator.server
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    PropertyEstimatorServer
-
-Physical Property API
----------------------
-
-.. currentmodule:: propertyestimator.properties
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    PhysicalProperty
-    PropertyPhase
-    Source
-    MeasurementSource
-    CalculationSource
-
-**Built-in Properties**
-
-.. currentmodule:: propertyestimator.properties
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    Density
-    ExcessMolarVolume
-    DielectricConstant
-    EnthalpyOfMixing
-    EnthalpyOfVaporization
-    HostGuestBindingAffinity
-
-**Substance Definition**
-
-.. currentmodule:: propertyestimator.substances
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    Substance
-
-**State Definition**
-
-.. currentmodule:: propertyestimator.thermodynamics
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    ThermodynamicState
-
-**Metadata**
-
-.. currentmodule:: propertyestimator.properties
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    PropertyPhase
-    Source
-    MeasurementSource
-    CalculationSource
-
-Data Set API
-------------
-
-.. currentmodule:: propertyestimator.datasets
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    PhysicalPropertyDataSet
-
-**NIST ThermoML Archive**
-
-.. currentmodule:: propertyestimator.datasets
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    ThermoMLDataSet
-    register_thermoml_property
-
 Calculation Layers API
 ----------------------
 
-.. currentmodule:: propertyestimator.layers
+.. currentmodule:: evaluator.layers
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
-    PropertyCalculationLayer
+    CalculationLayer
+    CalculationLayerResult
+    CalculationLayerSchema
+    calculation_layer
     register_calculation_layer
+    register_calculation_schema
 
 **Built-in Calculation Layers**
 
-.. currentmodule:: propertyestimator.layers
+.. currentmodule:: evaluator.layers.workflow
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    WorkflowCalculationLayer
+    WorkflowCalculationSchema
+
+.. currentmodule:: evaluator.layers.simulation
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    SimulationLayer
+    SimulationSchema
+
+.. currentmodule:: evaluator.layers.reweighting
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
     ReweightingLayer
-    SimulationLayer
+    ReweightingSchema
+    default_storage_query
 
 Calculation Backends API
 ------------------------
 
-.. currentmodule:: propertyestimator.backends
+.. currentmodule:: evaluator.backends
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
-    PropertyEstimatorBackend
+    CalculationBackend
     ComputeResources
     QueueWorkerResources
 
 **Dask Backends**
 
-.. currentmodule:: propertyestimator.backends
+.. currentmodule:: evaluator.backends.dask
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
     BaseDaskBackend
+    BaseDaskJobQueueBackend
     DaskLocalCluster
     DaskLSFBackend
+    DaskPBSBackend
 
-Storage Backends API
---------------------
+Storage API
+-----------
 
-.. currentmodule:: propertyestimator.storage
+.. currentmodule:: evaluator.storage
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
-    PropertyEstimatorStorage
+    StorageBackend
 
 **Built-in Storage Backends**
 
-.. currentmodule:: propertyestimator.storage
+.. currentmodule:: evaluator.storage
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -193,82 +221,114 @@ Storage Backends API
 
 **Data Classes**
 
-.. currentmodule:: propertyestimator.storage.dataclasses
+.. currentmodule:: evaluator.storage.data
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
     BaseStoredData
+    HashableStoredData
+    ForceFieldData
+    ReplaceableData
     StoredSimulationData
-    StoredDataCollection
+
+**Data Queries**
+
+.. currentmodule:: evaluator.storage.query
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    BaseDataQuery
+    SubstanceQuery
+    ForceFieldQuery
+    SimulationDataQuery
+
+**Attributes**
+
+.. currentmodule:: evaluator.storage.attributes
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    FilePath
+    StorageAttribute
+    QueryAttribute
+
 
 Workflow API
 ------------
 
-.. currentmodule:: propertyestimator.workflow
+.. currentmodule:: evaluator.workflow
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
     Workflow
+    WorkflowException
     WorkflowGraph
-    WorkflowOptions
-    IWorkflowProperty
+    WorkflowResult
+    Protocol
+    ProtocolGraph
+    ProtocolGroup
+    workflow_protocol
+    register_workflow_protocol
 
-**Schema**
+**Schemas**
 
-.. currentmodule:: propertyestimator.workflow.schemas
+.. currentmodule:: evaluator.workflow.schemas
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
-    WorkflowSchema
     ProtocolSchema
     ProtocolGroupSchema
     ProtocolReplicator
-    WorkflowOutputToStore
-    WorkflowSimulationDataToStore
-    WorkflowDataCollectionToStore
+    WorkflowSchema
 
-**Base Protocol API**
+**Attributes**
 
-.. currentmodule:: propertyestimator.workflow.protocols
+.. currentmodule:: evaluator.workflow.attributes
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
-    BaseProtocol
-
-*Input / Output Utilities*
-
-.. currentmodule:: propertyestimator.workflow.utils
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    PlaceholderInput
-    ReplicatorValue
-    ProtocolPath
-
-**Decorators**
-
-.. currentmodule:: propertyestimator.workflow.decorators
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    protocol_input
-    protocol_output
-    BaseProtocolAttribute
+    BaseMergeBehaviour
     MergeBehaviour
     InequalityMergeBehaviour
+    InputAttribute
+    OutputAttribute
+
+*Placeholder Values*
+
+.. currentmodule:: evaluator.workflow.utils
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    ReplicatorValue
+    ProtocolPath
 
 Built-in Workflow Protocols
 ---------------------------
 
+**Analysis**
+
+.. currentmodule:: evaluator.protocols.analysis
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    AveragePropertyProtocol
+    AverageTrajectoryProperty
+    ExtractAverageStatistic
+    ExtractUncorrelatedData
+    ExtractUncorrelatedTrajectoryData
+    ExtractUncorrelatedStatisticsData
+
 **Coordinate Generation**
 
-.. currentmodule:: propertyestimator.protocols.coordinates
+.. currentmodule:: evaluator.protocols.coordinates
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -279,23 +339,25 @@ Built-in Workflow Protocols
 
 **Force Field Assignment**
 
-.. currentmodule:: propertyestimator.protocols.forcefield
+.. currentmodule:: evaluator.protocols.forcefield
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
+    BaseBuildSystem
     BuildSmirnoffSystem
+    BuildLigParGenSystem
     BuildTLeapSystem
 
-**Simulation**
+**Gradients**
 
-.. currentmodule:: propertyestimator.protocols.simulation
+.. currentmodule:: evaluator.protocols.gradients
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
 
-    RunEnergyMinimisation
-    RunOpenMMSimulation
+    BaseGradientPotentials
+    CentralDifferenceGradient
 
 **pAPRika**
 
@@ -308,9 +370,76 @@ Built-in Workflow Protocols
     OpenMMPaprikaProtocol
     AmberPaprikaProtocol
 
+**Groups**
+
+.. currentmodule:: evaluator.protocols.groups
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    ConditionalGroup
+
+**Miscellaneous**
+
+.. currentmodule:: evaluator.protocols.miscellaneous
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    AddValues
+    SubtractValues
+    MultiplyValue
+    DivideValue
+    WeightByMoleFraction
+    FilterSubstanceByRole
+
+**OpenMM**
+
+.. currentmodule:: evaluator.protocols.openmm
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    OpenMMEnergyMinimisation
+    OpenMMSimulation
+    OpenMMReducedPotentials
+    OpenMMGradientPotentials
+
+**Reweighting**
+
+.. currentmodule:: evaluator.protocols.reweighting
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    ConcatenateTrajectories
+    ConcatenateStatistics
+    BaseReducedPotentials
+    BaseMBARProtocol
+    ReweightStatistics
+
+**Simulation**
+
+.. currentmodule:: evaluator.protocols.simulation
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    BaseEnergyMinimisation
+    BaseSimulation
+
+**Storage**
+
+.. currentmodule:: evaluator.protocols.storage
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    UnpackStoredSimulationData
+
 **YANK Free Energies**
 
-.. currentmodule:: propertyestimator.protocols.yank
+.. currentmodule:: evaluator.protocols.yank
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -319,89 +448,10 @@ Built-in Workflow Protocols
     LigandReceptorYankProtocol
     SolvationYankProtocol
 
-**Simulation Analysis**
-
-.. currentmodule:: propertyestimator.protocols.analysis
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    AveragePropertyProtocol
-    AverageTrajectoryProperty
-    ExtractAverageStatistic
-    ExtractUncorrelatedData
-    ExtractUncorrelatedTrajectoryData
-    ExtractUncorrelatedStatisticsData
-
-**Reweighting**
-
-.. currentmodule:: propertyestimator.protocols.reweighting
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    ConcatenateTrajectories
-    ConcatenateStatistics
-    CalculateReducedPotentialOpenMM
-    BaseMBARProtocol
-    ReweightStatistics
-
-**Gradients**
-
-.. currentmodule:: propertyestimator.protocols.gradients
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    GradientReducedPotentials
-    CentralDifferenceGradient
-
-**Groups**
-
-.. currentmodule:: propertyestimator.protocols.groups
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    ProtocolGroup
-    ConditionalGroup
-
-
-**Storage**
-
-.. currentmodule:: propertyestimator.protocols.storage
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-
-    UnpackStoredDataCollection
-    UnpackStoredSimulationData
-
-
-**Miscellaneous**
-
-.. currentmodule:: propertyestimator.protocols.miscellaneous
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-
-    AddValues
-    SubtractValues
-    MultiplyValue
-    DivideValue
-    FilterSubstanceByRole
-    BaseWeightByMoleFraction
-    WeightByMoleFraction
-    AddBindingFreeEnergies
-    AddBindingEnthalpies
-
-
 Workflow Construction Utilities
 -------------------------------
 
-.. currentmodule:: propertyestimator.protocols.utils
+.. currentmodule:: evaluator.protocols.utils
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -411,3 +461,29 @@ Workflow Construction Utilities
     generate_base_reweighting_protocols
     generate_base_simulation_protocols
     generate_gradient_protocol_group
+
+Attribute Utilities
+-------------------
+
+.. currentmodule:: evaluator.attributes
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    Attribute
+    AttributeClass
+    UNDEFINED
+    PlaceholderValue
+
+Plug-in Utilities
+-----------------
+
+**Plug-ins**
+
+.. currentmodule:: evaluator.plugins
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    register_default_plugins
+    register_external_plugins
