@@ -229,7 +229,7 @@ def test_average_free_energies_protocol():
     sum_protocol.execute("", compute_resources)
 
     result_value = sum_protocol.result.value.to(unit.kilocalorie / unit.mole)
-    result_uncertainty = sum_protocol.result.uncertainty.to(
+    result_uncertainty = sum_protocol.result.error.to(
         unit.kilocalorie / unit.mole
     )
 

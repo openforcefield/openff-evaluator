@@ -268,7 +268,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         filter_host = miscellaneous.FilterSubstanceByRole("filter_host")
         filter_host.input_substance = ProtocolPath("substance", "global")
 
-        filter_host.component_roles = [
+        filter_host.component_role = [
             Component.Role.Solute,
             Component.Role.Solvent,
             Component.Role.Receptor,
@@ -304,20 +304,20 @@ class HostGuestBindingAffinity(PhysicalProperty):
 
         # Finally, combine all of the values together
         combine_values = miscellaneous.AverageFreeEnergies("combine_values")
-        combine_values.values = ProtocolPath("result", sum_protocol.id)
+        combine_values.values = [ProtocolPath("result", sum_protocol.id)]
         combine_values.thermodynamic_state = ProtocolPath(
             "thermodynamic_state", "global"
         )
 
         schema = WorkflowSchema()
 
-        schema.protocol_schemas = {
+        schema.protocol_schemas = [
             host_guest_protocol.schema,
             filter_host.schema,
             host_protocol.schema,
             sum_protocol.schema,
             combine_values.schema,
-        }
+        ]
 
         # Define where the final values come from.
         schema.final_value_source = ProtocolPath("result", combine_values.id)

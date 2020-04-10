@@ -228,7 +228,7 @@ class FilterSubstanceByRole(Protocol):
 
     component_role = InputAttribute(
         docstring="The role to filter substance components against.",
-        type_hint=Component.Role,
+        type_hint=typing.Union[Component.Role, list],
         default_value=UNDEFINED,
     )
 
@@ -246,12 +246,17 @@ class FilterSubstanceByRole(Protocol):
 
     def _execute(self, directory, available_resources):
 
+        component_roles = self.component_role
+
+        if not isinstance(component_roles, list):
+            component_roles = [component_roles]
+
         filtered_components = []
         total_mole_fraction = 0.0
 
         for component in self.input_substance.components:
 
-            if component.role != self.component_role:
+            if component.role not in component_roles:
                 continue
 
             filtered_components.append(component)
@@ -290,6 +295,14 @@ class FilterSubstanceByRole(Protocol):
                     amount = MoleFraction(amount.value * inverse_mole_fraction)
 
                 self.filtered_substance.add_component(component, amount)
+
+    def validate(self, attribute_type=None):
+        super(FilterSubstanceByRole, self).validate(attribute_type)
+
+        if isinstance(self.component_role, list):
+            assert all(isinstance(x, Component.Role) for x in self.component_role)
+        else:
+            assert isinstance(self.component_role, Component.Role)
 
 
 @workflow_protocol()
@@ -345,7 +358,7 @@ class AverageFreeEnergies(Protocol):
             for value_index, value in enumerate(self.values):
 
                 mean = value.value.to(default_unit).magnitude
-                sem = value.uncertainty.to(default_unit).magnitude
+                sem = value.error.to(default_unit).magnitude
 
                 sampled_value = np.random.normal(mean, sem) * default_unit
                 cycle_values[value_index] = (
@@ -355,8 +368,8 @@ class AverageFreeEnergies(Protocol):
             # ΔG° = -RT × Log[ Σ_{n} exp(-βΔG°_{n}) ]
             cycle_result[cycle_index] = np.log(np.sum(np.exp(cycle_values)))
 
-        mean = np.mean(-boltzmann_factor * cycle_result) * default_unit
-        sem = np.std(-boltzmann_factor * cycle_result) * default_unit
+        mean = np.mean(-boltzmann_factor * cycle_result)
+        sem = np.std(-boltzmann_factor * cycle_result)
 
         confidence_intervals = np.empty(2)
         sorted_statistics = np.sort(cycle_result)
