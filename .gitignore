@@ -115,10 +115,6 @@ examples/property_estimator/working_directory/
 evaluator/data/properties/JCT/
 *dask-worker-space/
 
-<<<<<<< HEAD
-propertyestimator/tests/**/*dat
-=======
 integration_tests/thermoml/checked_thermoml_files
 
 evaluator/tests/**/*dat
->>>>>>> origin/master

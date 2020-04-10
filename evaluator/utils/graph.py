@@ -242,20 +242,8 @@ def append_uuid(base_id, uuid):
     Returns
     -------
     str
-        The uuid appended id of the form uuid:base_id
+        The uuid appended id of the form uuid|base_id
     """
-<<<<<<< HEAD:propertyestimator/utils/graph.py
-    if base_id.find(':') >= 0:
-
-        base_id_split = base_id.split(':')
-
-        if len(base_id_split) != 2:
-            raise ValueError('A uuid appended protocol id should be of the form uuid:base_id')
-
-        base_id = base_id_split[1]
-
-    return '{}:{}'.format(uuid, base_id)
-=======
     if base_id.find("|") >= 0:
 
         base_id_split = base_id.split("|")
@@ -268,7 +256,6 @@ def append_uuid(base_id, uuid):
         base_id = base_id_split[1]
 
     return "{}|{}".format(uuid, base_id)
->>>>>>> origin/master:evaluator/utils/graph.py
 
 
 def retrieve_uuid(uuid_appended_id):
@@ -277,7 +264,7 @@ def retrieve_uuid(uuid_appended_id):
     Parameters
     ----------
     uuid_appended_id : str
-        A uuid appended id of the form uuid:base_id.
+        A uuid appended id of the form uuid|base_id.
 
     Returns
     -------
@@ -285,15 +272,6 @@ def retrieve_uuid(uuid_appended_id):
         The uuid portion of the appended id.
     """
 
-<<<<<<< HEAD:propertyestimator/utils/graph.py
-    if uuid_appended_id.find(':') < 0:
-        return None
-
-    id_split = uuid_appended_id.split(':')
-
-    if len(id_split) != 2:
-        raise ValueError('A uuid appended protocol id should be of the form uuid:base_id')
-=======
     if uuid_appended_id.find("|") < 0:
         return None
 
@@ -303,7 +281,6 @@ def retrieve_uuid(uuid_appended_id):
         raise ValueError(
             "A uuid appended protocol id should be of the form uuid|base_id"
         )
->>>>>>> origin/master:evaluator/utils/graph.py
 
     return_uuid = id_split[0]
 
