@@ -232,5 +232,5 @@ def test_average_free_energies_protocol():
     result_uncertainty = sum_protocol.result.error.to(unit.kilocalorie / unit.mole)
 
     assert isinstance(sum_protocol.result, unit.Measurement)
-    assert result_value.magnitude == pytest.approx(-20.0, abs=0.1)
-    assert result_uncertainty.magnitude == pytest.approx(2.0, abs=0.1)
+    assert result_value.magnitude == pytest.approx(-20.0, abs=0.2)
+    assert result_uncertainty.magnitude == pytest.approx(2.0, abs=0.2)

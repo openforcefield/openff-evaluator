@@ -304,7 +304,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
 
         # Finally, combine all of the values together
         combine_values = miscellaneous.AverageFreeEnergies("combine_values")
-        combine_values.values = [ProtocolPath("result", sum_protocol.id)]
+        combine_values.values = ProtocolPath("result", sum_protocol.id)
         combine_values.thermodynamic_state = ProtocolPath(
             "thermodynamic_state", "global"
         )
@@ -321,7 +321,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
 
         # Define where the final values come from.
         schema.final_value_source = ProtocolPath("result", combine_values.id)
-        schema.replicators = [orientation_replicator]
+        schema.protocol_replicators = [orientation_replicator]
 
         simulation_schema = SimulationSchema()
         simulation_schema.workflow_schema = schema

@@ -20,7 +20,7 @@ def test_filtering():
     data_set = TaproomDataSet()
 
     data_set.filter_by_host_identifiers("bcd", "acd")
-    data_set.filter_by_guest_identifiers("cbu")
+    data_set.filter_by_guest_identifiers("ham")
 
     assert data_set is not None
     assert len(data_set.properties) == 2
