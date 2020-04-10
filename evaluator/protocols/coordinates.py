@@ -198,31 +198,19 @@ class BuildCoordinatesPackmol(Protocol):
 
         return output_substance
 
-    def _save_results(self, directory, topology, positions):
+    def _save_results(self, directory, trajectory):
         """Save the results of running PACKMOL in the working directory
 
         Parameters
         ----------
         directory: str
             The directory to save the results in.
-        topology : simtk.openmm.Topology
-            The topology of the created system.
-        positions : pint.Quantity
-            A `pint.Quantity` wrapped `numpy.ndarray` (shape=[natoms,3])
-            which contains the created positions with units compatible with angstroms.
+        trajectory : mdtraj.Trajectory
+            The trajectory of the created system.
         """
 
-        from simtk import unit as simtk_unit
-
-        simtk_positions = positions.to(unit.angstrom).magnitude * simtk_unit.angstrom
-
         self.coordinate_file_path = path.join(directory, "output.pdb")
-
-        with open(self.coordinate_file_path, "w+") as minimised_file:
-            # noinspection PyTypeChecker
-            app.PDBFile.writeFile(topology, simtk_positions, minimised_file)
-
-        logger.info("Coordinates generated: " + self.substance.identifier)
+        trajectory.save_pdb(self.coordinate_file_path)
 
     def _execute(self, directory, available_resources):
 
@@ -234,7 +222,7 @@ class BuildCoordinatesPackmol(Protocol):
         packmol_directory = path.join(directory, "packmol_files")
 
         # Create packed box
-        topology, positions = packmol.pack_box(
+        trajectory = packmol.pack_box(
             molecules=molecules,
             number_of_copies=number_of_molecules,
             mass_density=self.mass_density,
@@ -244,10 +232,10 @@ class BuildCoordinatesPackmol(Protocol):
             retain_working_files=self.retain_packmol_files,
         )
 
-        if topology is None or positions is None:
+        if trajectory is None:
             raise RuntimeError("Packmol failed to complete.")
 
-        self._save_results(directory, topology, positions)
+        self._save_results(directory, trajectory)
 
 
 @workflow_protocol()
@@ -269,7 +257,7 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
         packmol_directory = path.join(directory, "packmol_files")
 
         # Create packed box
-        topology, positions = packmol.pack_box(
+        trajectory = packmol.pack_box(
             molecules=molecules,
             number_of_copies=number_of_molecules,
             structure_to_solvate=self.solute_coordinate_file,
@@ -279,10 +267,10 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
             retain_working_files=self.retain_packmol_files,
         )
 
-        if topology is None or positions is None:
+        if trajectory is None:
             raise RuntimeError("Packmol failed to complete.")
 
-        self._save_results(directory, topology, positions)
+        self._save_results(directory, trajectory)
 
 
 @workflow_protocol()
