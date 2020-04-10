@@ -7,9 +7,10 @@ from evaluator import unit
 from evaluator.datasets import PhysicalProperty
 from evaluator.layers.simulation import SimulationSchema
 from evaluator.protocols import coordinates, forcefield, miscellaneous, yank
+from evaluator.protocols.paprika import OpenMMPaprikaProtocol
 from evaluator.substances import Component
-from evaluator.workflow.schemas import WorkflowSchema
-from evaluator.workflow.utils import ProtocolPath
+from evaluator.workflow.schemas import ProtocolReplicator, WorkflowSchema
+from evaluator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
 class HostGuestBindingAffinity(PhysicalProperty):
@@ -22,7 +23,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
     @staticmethod
     def default_simulation_schema(existing_schema=None):
         """Returns the default calculation schema to use when estimating
-        this class of property from direct simulations.
+        this class of property from direct simulations using the YANK
+        free energy package.
 
         Parameters
         ----------
@@ -197,104 +199,127 @@ class HostGuestBindingAffinity(PhysicalProperty):
         return calculation_schema
 
     @staticmethod
-    def get_default_paprika_simulation_workflow_schema(options=None):
+    def default_paprika_schema(
+        n_solvent_molecules=2000,
+        n_equilibration_steps=200000,
+        n_production_steps=1000000,
+    ):
         """Returns the default workflow to use when estimating this property
-        from direct simulations.
+        using the attach, pull release (APR) method to predict a binding affinity.
+
+        This makes use of the optional `paprika` package.
 
         Parameters
         ----------
-        options: WorkflowOptions
-            The default options to use when setting up the estimation workflow.
+        n_solvent_molecules: int
+            The number of solvent molecules to add to the box.
+        n_equilibration_steps: int
+            The number of equilibration simulations steps to perform.
+            Sample generated during this step will be discarded.
+        n_production_steps: int
+            The number of production simulations steps to perform.
+            Sample generated during this step will be used in the final
+            free energy calculation.
 
         Returns
         -------
-        WorkflowSchema
+        SimulationSchema
             The schema to follow when estimating this property.
         """
 
-        if options.convergence_mode != WorkflowOptions.ConvergenceMode.NoChecks:
-
-            raise ValueError('Binding affinities cannot currently be estimated to within '
-                             'a target uncertainty.')
-
-        schema = WorkflowSchema(property_type=HostGuestBindingAffinity.__name__)
-        schema.id = '{}{}'.format(HostGuestBindingAffinity.__name__, 'Schema')
-
         # Set up a replicator which will perform the attach-pull calculation for
         # each of the guest orientations
-        orientation_replicator = ProtocolReplicator('orientation_replicator')
-        orientation_replicator.template_values = ProtocolPath('guest_orientations', 'global')
+        orientation_replicator = ProtocolReplicator("orientation_replicator")
+        orientation_replicator.template_values = ProtocolPath(
+            "guest_orientations", "global"
+        )
 
         # Create the protocol which will run the attach pull calculations
-        host_guest_protocol = OpenMMPaprikaProtocol(f'host_guest_free_energy_{orientation_replicator.placeholder_id}')
+        host_guest_protocol = OpenMMPaprikaProtocol(
+            f"host_guest_free_energy_{orientation_replicator.placeholder_id}"
+        )
 
-        host_guest_protocol.substance = ProtocolPath('substance', 'global')
-        host_guest_protocol.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
-        host_guest_protocol.force_field_path = ProtocolPath('force_field_path', 'global')
+        host_guest_protocol.substance = ProtocolPath("substance", "global")
+        host_guest_protocol.thermodynamic_state = ProtocolPath(
+            "thermodynamic_state", "global"
+        )
+        host_guest_protocol.force_field_path = ProtocolPath(
+            "force_field_path", "global"
+        )
+        host_guest_protocol.taproom_host_name = ProtocolPath(
+            "host_identifier", "global"
+        )
+        host_guest_protocol.taproom_guest_name = ProtocolPath(
+            "guest_identifier", "global"
+        )
+        host_guest_protocol.taproom_guest_orientation = ReplicatorValue(
+            orientation_replicator.id
+        )
 
-        host_guest_protocol.taproom_host_name = ProtocolPath('host_identifier', 'global')
-        host_guest_protocol.taproom_guest_name = ProtocolPath('guest_identifier', 'global')
-        host_guest_protocol.taproom_guest_orientation = ReplicatorValue(orientation_replicator.id)
-
-        host_guest_protocol.number_of_equilibration_steps = 200000
-        host_guest_protocol.number_of_production_steps = 1000000
+        host_guest_protocol.number_of_equilibration_steps = n_equilibration_steps
+        host_guest_protocol.number_of_production_steps = n_production_steps
         host_guest_protocol.equilibration_output_frequency = 5000
         host_guest_protocol.production_output_frequency = 5000
-        host_guest_protocol.number_of_solvent_molecules = 3000
+        host_guest_protocol.number_of_solvent_molecules = n_solvent_molecules
 
         # Retrieve a subset of the full substance which only contains the
         # host and the solvent.
-        filter_host = miscellaneous.FilterSubstanceByRole('filter_host')
-        filter_host.input_substance = ProtocolPath('substance', 'global')
+        filter_host = miscellaneous.FilterSubstanceByRole("filter_host")
+        filter_host.input_substance = ProtocolPath("substance", "global")
 
         filter_host.component_roles = [
-            Substance.ComponentRole.Solute,
-            Substance.ComponentRole.Solvent,
-            Substance.ComponentRole.Receptor
+            Component.Role.Solute,
+            Component.Role.Solvent,
+            Component.Role.Receptor,
         ]
 
         # Create the protocols which will run the release calculations
-        host_protocol = OpenMMPaprikaProtocol('host')
+        host_protocol = OpenMMPaprikaProtocol("host")
 
-        host_protocol.substance = ProtocolPath('filtered_substance', filter_host.id)
-        host_protocol.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
-        host_protocol.force_field_path = ProtocolPath('force_field_path', 'global')
+        host_protocol.substance = ProtocolPath("filtered_substance", filter_host.id)
+        host_protocol.thermodynamic_state = ProtocolPath(
+            "thermodynamic_state", "global"
+        )
+        host_protocol.force_field_path = ProtocolPath("force_field_path", "global")
+        host_protocol.taproom_host_name = ProtocolPath("host_identifier", "global")
 
-        host_protocol.taproom_host_name = ProtocolPath('host_identifier', 'global')
-
-        host_protocol.number_of_equilibration_steps = 200000
-        host_protocol.number_of_production_steps = 1000000
+        host_protocol.number_of_equilibration_steps = n_equilibration_steps
+        host_protocol.number_of_production_steps = n_production_steps
         host_protocol.equilibration_output_frequency = 5000
         host_protocol.production_output_frequency = 5000
-        host_protocol.number_of_solvent_molecules = 3000
+        host_protocol.number_of_solvent_molecules = n_solvent_molecules
 
         # Sum together the free energies of the individual orientations
-        sum_protocol = miscellaneous.AddValues(f'add_per_orientation_free_energies_'
-                                               f'{orientation_replicator.placeholder_id}')
+        sum_protocol = miscellaneous.AddValues(
+            f"add_per_orientation_free_energies_"
+            f"{orientation_replicator.placeholder_id}"
+        )
         sum_protocol.values = [
-            ProtocolPath('attach_free_energy', host_guest_protocol.id),
-            ProtocolPath('pull_free_energy', host_guest_protocol.id),
-            ProtocolPath('reference_free_energy', host_guest_protocol.id),
-            ProtocolPath('release_free_energy', host_protocol.id)
+            ProtocolPath("attach_free_energy", host_guest_protocol.id),
+            ProtocolPath("pull_free_energy", host_guest_protocol.id),
+            ProtocolPath("reference_free_energy", host_guest_protocol.id),
+            ProtocolPath("release_free_energy", host_protocol.id),
         ]
 
         # Finally, combine all of the values together
-        combine_values = miscellaneous.AddBindingFreeEnergies('combine_values')
-        combine_values.values = ProtocolPath('result', sum_protocol.id)
-        combine_values.thermodynamic_state = ProtocolPath('thermodynamic_state', 'global')
+        combine_values = miscellaneous.AddBindingFreeEnergies("combine_values")
+        combine_values.values = ProtocolPath("result", sum_protocol.id)
+        combine_values.thermodynamic_state = ProtocolPath(
+            "thermodynamic_state", "global"
+        )
 
-        schema.protocols = {
-            host_guest_protocol.id: host_guest_protocol.schema,
+        schema = WorkflowSchema()
 
-            filter_host.id: filter_host.schema,
-            host_protocol.id: host_protocol.schema,
-
-            sum_protocol.id: sum_protocol.schema,
-            combine_values.id: combine_values.schema
+        schema.protocol_schemas = {
+            host_guest_protocol.schema,
+            filter_host.schema,
+            host_protocol.schema,
+            sum_protocol.schema,
+            combine_values.schema,
         }
 
         # Define where the final values come from.
-        schema.final_value_source = ProtocolPath('result', combine_values.id)
+        schema.final_value_source = ProtocolPath("result", combine_values.id)
         schema.replicators = [orientation_replicator]
 
         return schema

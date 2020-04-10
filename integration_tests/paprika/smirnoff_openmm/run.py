@@ -1,28 +1,13 @@
 #!/usr/bin/env python
-import json
 
-from distributed import Adaptive
 from openforcefield.typing.engines import smirnoff
 
-from integration_tests.utils import setup_server, BackendType
-from propertyestimator.client import PropertyEstimatorClient, PropertyEstimatorOptions
-from propertyestimator.datasets.taproom import TaproomDataSet
-from propertyestimator.utils import setup_timestamp_logging, get_data_filename
-from propertyestimator.utils.serialization import TypedJSONEncoder
-from propertyestimator.workflow import WorkflowOptions
-
-
-class CustomAdaptive(Adaptive):
-    """A temporary work-around to attempt to fix
-    https://github.com/dask/distributed/issues/3154
-    """
-
-    async def recommendations(self, target: int) -> dict:
-        """
-        Make scale up/down recommendations based on current state and target
-        """
-        await self.cluster
-        return await super(CustomAdaptive, self).recommendations(target)
+from evaluator.backends import ComputeResources
+from evaluator.datasets.taproom import TaproomDataSet
+from evaluator.forcefield import SmirnoffForceFieldSource
+from evaluator.properties import HostGuestBindingAffinity
+from evaluator.utils import get_data_filename, setup_timestamp_logging
+from evaluator.workflow import Workflow
 
 
 def main():
@@ -30,49 +15,38 @@ def main():
     setup_timestamp_logging()
 
     # Load in the force field
-    force_field = smirnoff.ForceField('smirnoff99Frosst-1.1.0.offxml',
-                                      get_data_filename('forcefield/tip3p.offxml'))
+    force_field = smirnoff.ForceField(
+        "smirnoff99Frosst-1.1.0.offxml", get_data_filename("forcefield/tip3p.offxml")
+    )
+
+    force_field_source = SmirnoffForceFieldSource.from_object(force_field)
+    force_field_source.json("force_field.json")
 
     # Load in the data set, retaining only a specific host / guest pair.
-    host = 'acd'
-    guest = 'bam'
+    host = "acd"
+    guest = "bam"
 
     data_set = TaproomDataSet()
-
     data_set.filter_by_host_identifiers(host)
     data_set.filter_by_guest_identifiers(guest)
 
-    # Set up the server object which run the calculations.
-    setup_server(backend_type=BackendType.LocalGPU,
-                 max_number_of_workers=1,
-                 adaptive_class=CustomAdaptive)
+    # Pull out the sole physical property
+    binding_affinity = data_set.properties[0]
 
-    # Request the estimate of the host-guest binding affinity.
-    options = PropertyEstimatorOptions()
-    options.allowed_calculation_layers = ['SimulationLayer']
+    # Set up the calculation
+    schema = HostGuestBindingAffinity.default_paprika_schema().workflow_schema
+    metadata = Workflow.generate_default_metadata(binding_affinity, "force_field.json")
 
-    options.workflow_options = {
-        'HostGuestBindingAffinity': {
-            'SimulationLayer': WorkflowOptions(convergence_mode=WorkflowOptions.ConvergenceMode.NoChecks),
-        }
-    }
+    workflow = Workflow.from_schema(schema, metadata)
 
-    estimator_client = PropertyEstimatorClient()
+    # Run the calculation
+    results = workflow.execute(
+        directory=f"{host}_{guest}",
+        compute_resources=ComputeResources(number_of_gpus=1),
+    )
 
-    request = estimator_client.request_estimate(property_set=data_set,
-                                                force_field_source=force_field,
-                                                options=options)
-
-    # Wait for the results.
-    results = request.results(True, 30)
-
-    # Save the result to file.
-    with open('results.json', 'wb') as file:
-
-        json_results = json.dumps(results, sort_keys=True, indent=2,
-                                  separators=(',', ': '), cls=TypedJSONEncoder)
-
-        file.write(json_results.encode('utf-8'))
+    # Save the results
+    results.json(f"{host}_{guest}_results.json", format=True)
 
 
 if __name__ == "__main__":

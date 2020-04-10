@@ -82,6 +82,15 @@ jobs:
         env:
           OE_LICENSE_PASSPHRASE: ${{ secrets.OE_LICENSE_PASSPHRASE }}
 
+      - name: Install pAPRika
+        run: |
+
+          . devtools/scripts/initialize_conda.sh
+          conda activate test
+
+          conda install --yes -c conda-forge ambertools paprika
+          pip install git+https://github.com/slochower/host-guest-benchmarks
+
       - name: Install package
         run: |
 

@@ -1,23 +1,26 @@
 """
-An API for importing a ThermoML archive.
+An API for importing a data set from the host-guest-benchmarks repository:
+https://github.com/slochower/host-guest-benchmarks
 """
 
 import pkg_resources
 import yaml
 
-from propertyestimator import unit
-from propertyestimator.properties import PropertyPhase, Source, HostGuestBindingAffinity
-from propertyestimator.substances import Substance
-from propertyestimator.thermodynamics import ThermodynamicState
-from .datasets import PhysicalPropertyDataSet
+from evaluator import unit
+from evaluator.datasets import PhysicalPropertyDataSet, PropertyPhase, Source
+from evaluator.properties import HostGuestBindingAffinity
+from evaluator.substances import Component, ExactAmount, MoleFraction, Substance
+from evaluator.thermodynamics import ThermodynamicState
 
 
 class TaproomSource(Source):
-    """Contains any metadata about how a host-guest binding affinity was
-    measured by experiment.
+    """Contains any metadata about how a host-guest binding affinity
+    was measured by experiment.
     """
 
-    def __init__(self, doi='', comment='', technique='', host_identifier='', guest_identifier=''):
+    def __init__(
+        self, doi="", comment="", technique="", host_identifier="", guest_identifier=""
+    ):
         """Constructs a new MeasurementSource object.
 
         Parameters
@@ -44,28 +47,27 @@ class TaproomSource(Source):
     def __getstate__(self):
 
         return {
-            'doi': self.doi,
-            'comment': self.comment,
-            'technique': self.technique,
-
-            'host_identifier': self.host_identifier,
-            'guest_identifier': self.guest_identifier
+            "doi": self.doi,
+            "comment": self.comment,
+            "technique": self.technique,
+            "host_identifier": self.host_identifier,
+            "guest_identifier": self.guest_identifier,
         }
 
     def __setstate__(self, state):
 
-        self.doi = state['doi']
-        self.comment = state['comment']
-        self.technique = state['technique']
+        self.doi = state["doi"]
+        self.comment = state["comment"]
+        self.technique = state["technique"]
 
-        self.host_identifier = state['host_identifier']
-        self.guest_identifier = state['guest_identifier']
+        self.host_identifier = state["host_identifier"]
+        self.guest_identifier = state["guest_identifier"]
 
 
 class TaproomDataSet(PhysicalPropertyDataSet):
-    """A dataset of host-guest binding affinity measurements which sources its data
-    from the `host-guest-benchmarks <https://github.com/slochower/host-guest-benchmarks>`_
-    repository.
+    """A dataset of host-guest binding affinity measurements which sources
+    its data from the `host-guest-benchmarks <https://github.com/slochower/
+    host-guest-benchmarks>`_ repository.
     """
 
     def __init__(self, default_ionic_strength=150 * unit.millimolar):
@@ -96,7 +98,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         """
         from openforcefield.topology import Molecule
 
-        receptor_molecule = Molecule.from_file(file_path, 'MOL2')
+        receptor_molecule = Molecule.from_file(file_path, "MOL2")
         return receptor_molecule.to_smiles()
 
     @staticmethod
@@ -110,7 +112,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             The smiles descriptor of the guest.
         host_smiles: str
             The smiles descriptor of the host.
-        ionic_strength: simtk.unit.Quantity, optional
+        ionic_strength: pint.Quantity, optional
             The ionic strength of the aqueous solvent.
 
         Returns
@@ -124,38 +126,50 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
         if guest_smiles is not None:
 
-            guest = Substance.Component(smiles=guest_smiles, role=Substance.ComponentRole.Ligand)
-            substance.add_component(component=guest, amount=Substance.ExactAmount(1))
+            guest = Component(smiles=guest_smiles, role=Component.Role.Ligand)
+            substance.add_component(component=guest, amount=ExactAmount(1))
 
-        host = Substance.Component(smiles=host_smiles, role=Substance.ComponentRole.Receptor)
-        substance.add_component(component=host, amount=Substance.ExactAmount(1))
+        host = Component(smiles=host_smiles, role=Component.Role.Receptor)
+        substance.add_component(component=host, amount=ExactAmount(1))
 
-        water = Substance.Component(smiles='O', role=Substance.ComponentRole.Solvent)
-        sodium = Substance.Component(smiles='[Na+]', role=Substance.ComponentRole.Solvent)
-        chlorine = Substance.Component(smiles='[Cl-]', role=Substance.ComponentRole.Solvent)
+        water = Component(smiles="O", role=Component.Role.Solvent)
+        sodium = Component(smiles="[Na+]", role=Component.Role.Solvent)
+        chlorine = Component(smiles="[Cl-]", role=Component.Role.Solvent)
 
         water_mole_fraction = 1.0
 
         if ionic_strength is not None:
 
-            salt_mole_fraction = Substance.calculate_aqueous_ionic_mole_fraction(ionic_strength)
+            salt_mole_fraction = Substance.calculate_aqueous_ionic_mole_fraction(
+                ionic_strength
+            )
             water_mole_fraction = 1.0 - salt_mole_fraction
 
-            substance.add_component(component=sodium, amount=Substance.MoleFraction(salt_mole_fraction / 2.0))
-            substance.add_component(component=chlorine, amount=Substance.MoleFraction(salt_mole_fraction / 2.0))
+            substance.add_component(
+                component=sodium, amount=MoleFraction(salt_mole_fraction / 2.0),
+            )
+            substance.add_component(
+                component=chlorine, amount=MoleFraction(salt_mole_fraction / 2.0),
+            )
 
-        substance.add_component(component=water, amount=Substance.MoleFraction(water_mole_fraction))
+        substance.add_component(
+            component=water, amount=MoleFraction(water_mole_fraction)
+        )
 
         host_molecule_charge = Molecule.from_smiles(host_smiles).total_charge
-        guest_molecule_charge = 0.0 if guest_smiles is None else Molecule.from_smiles(guest_smiles).total_charge
+        guest_molecule_charge = (
+            0.0
+            if guest_smiles is None
+            else Molecule.from_smiles(guest_smiles).total_charge
+        )
 
         net_charge = host_molecule_charge + guest_molecule_charge
         counterions_needed = abs(int(net_charge))
 
         if net_charge <= -0.9999:
-            substance.add_component(sodium, Substance.ExactAmount(counterions_needed))
+            substance.add_component(sodium, ExactAmount(counterions_needed))
         elif net_charge >= 0.9999:
-            substance.add_component(chlorine, Substance.ExactAmount(counterions_needed))
+            substance.add_component(chlorine, ExactAmount(counterions_needed))
 
         return substance
 
@@ -176,11 +190,13 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
         if len(installed_benchmarks) == 0:
 
-            raise ValueError('No installed benchmarks could be found. Make sure the '
-                             '`host-guest-benchmarks` package is installed.')
+            raise ValueError(
+                "No installed benchmarks could be found. Make sure the "
+                "`host-guest-benchmarks` package is installed."
+            )
 
-        measurements = installed_benchmarks['host_guest_measurements']
-        systems = installed_benchmarks['host_guest_systems']
+        measurements = installed_benchmarks["host_guest_measurements"]
+        systems = installed_benchmarks["host_guest_systems"]
 
         for host_name in measurements:
 
@@ -190,30 +206,38 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 if host_name not in systems or guest_name not in systems[host_name]:
                     continue
 
-                measurement_path = measurements[host_name][guest_name]['yaml']
+                measurement_path = measurements[host_name][guest_name]["yaml"]
 
                 with open(measurement_path, "r") as file:
                     measurement_yaml = yaml.safe_load(file)
 
-                temperature = unit.Quantity(measurement_yaml['state']['temperature'])
-                pressure = unit.Quantity(measurement_yaml['state']['pressure'])
+                temperature = unit.Quantity(measurement_yaml["state"]["temperature"])
+                pressure = unit.Quantity(measurement_yaml["state"]["pressure"])
 
-                value = unit.Quantity(measurement_yaml['measurement']['delta_G'])
-                uncertainty = unit.Quantity(measurement_yaml['measurement']['delta_G_uncertainty'])
+                value = unit.Quantity(measurement_yaml["measurement"]["delta_G"])
+                uncertainty = unit.Quantity(
+                    measurement_yaml["measurement"]["delta_G_uncertainty"]
+                )
 
-                source = TaproomSource(doi=measurement_yaml['provenance']['doi'],
-                                       comment=measurement_yaml['provenance']['comment'],
-                                       technique=measurement_yaml['measurement']['technique'],
-                                       host_identifier=host_name,
-                                       guest_identifier=guest_name)
+                source = TaproomSource(
+                    doi=measurement_yaml["provenance"]["doi"],
+                    comment=measurement_yaml["provenance"]["comment"],
+                    technique=measurement_yaml["measurement"]["technique"],
+                    host_identifier=host_name,
+                    guest_identifier=guest_name,
+                )
 
-                orientations = [orientation for orientation in systems[host_name]["yaml"]]
+                orientations = [
+                    orientation for orientation in systems[host_name]["yaml"]
+                ]
                 host_yaml_path = systems[host_name]["yaml"][orientations[0]]
 
                 with open(host_yaml_path, "r") as file:
                     host_yaml = yaml.safe_load(file)
 
-                host_mol2_path = str(host_yaml_path.parent.joinpath(host_yaml['structure']))
+                host_mol2_path = str(
+                    host_yaml_path.parent.joinpath(host_yaml["structure"])
+                )
                 host_smiles = self._mol2_to_smiles(host_mol2_path)
 
                 guest_yaml_path = systems[host_name][guest_name]["yaml"]
@@ -221,29 +245,33 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 with open(guest_yaml_path, "r") as file:
                     guest_yaml = yaml.safe_load(file)
 
-                guest_mol2_path = str(host_yaml_path.parent.joinpath(
-                    guest_name).joinpath(
-                    guest_yaml['structure']))
+                guest_mol2_path = str(
+                    host_yaml_path.parent.joinpath(guest_name).joinpath(
+                        guest_yaml["structure"]
+                    )
+                )
 
                 guest_smiles = self._mol2_to_smiles(guest_mol2_path)
 
                 # TODO: Don't hard code the ionic strength. Is there a way to determine this
                 #       from the specified buffer?
-                substance = self._build_substance(guest_smiles, host_smiles,
-                                                  ionic_strength=ionic_strength)
+                substance = self._build_substance(
+                    guest_smiles, host_smiles, ionic_strength=ionic_strength
+                )
 
-                measured_property = HostGuestBindingAffinity(thermodynamic_state=ThermodynamicState(temperature,
-                                                                                                    pressure),
-                                                             phase=PropertyPhase.Liquid,
-                                                             substance=substance,
-                                                             value=value,
-                                                             uncertainty=uncertainty,
-                                                             source=source)
+                measured_property = HostGuestBindingAffinity(
+                    thermodynamic_state=ThermodynamicState(temperature, pressure),
+                    phase=PropertyPhase.Liquid,
+                    substance=substance,
+                    value=value,
+                    uncertainty=uncertainty,
+                    source=source,
+                )
 
                 measured_property.metadata = {
-                    'guest_orientations': orientations,
-                    'host_identifier': host_name,
-                    'guest_identifier': guest_name
+                    "guest_orientations": orientations,
+                    "host_identifier": host_name,
+                    "guest_identifier": guest_name,
                 }
 
                 if substance.identifier not in self._properties:
@@ -262,7 +290,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         """
 
         def filter_function(physical_property):
-            return physical_property.metadata['host_identifier'] in host_identifiers
+            return physical_property.metadata["host_identifier"] in host_identifiers
 
         self.filter_by_function(filter_function)
 
@@ -277,6 +305,6 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         """
 
         def filter_function(physical_property):
-            return physical_property.metadata['guest_identifier'] in guest_identifiers
+            return physical_property.metadata["guest_identifier"] in guest_identifiers
 
         self.filter_by_function(filter_function)
