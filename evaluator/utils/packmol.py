@@ -421,7 +421,7 @@ def _build_input_file(
                 f"  number 1",
                 f"  fixed "
                 f"{box_size[0] / 2.0} "
-                f"{box_size[1 / 2.0]} "
+                f"{box_size[1] / 2.0} "
                 f"{box_size[2] / 2.0} 0. 0. 0.",
                 f"  centerofmass",
                 f"end structure",

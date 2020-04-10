@@ -15,7 +15,7 @@ def test_packmol_box_size():
 
     molecules = [Molecule.from_smiles("O")]
 
-    trajectory = packmol.pack_box(molecules, [10], box_size=([20] * 3) * unit.angstrom)
+    trajectory, _ = packmol.pack_box(molecules, [10], box_size=([20] * 3) * unit.angstrom)
 
     assert trajectory is not None
 
@@ -55,7 +55,7 @@ def test_packmol_water():
 
     molecules = [Molecule.from_smiles("O")]
 
-    trajectory = packmol.pack_box(
+    trajectory, _ = packmol.pack_box(
         molecules, [10], mass_density=1.0 * unit.grams / unit.milliliters,
     )
 
@@ -79,7 +79,7 @@ def test_packmol_ions():
         Molecule.from_smiles("[K+]"),
     ]
 
-    trajectory = packmol.pack_box(
+    trajectory, _ = packmol.pack_box(
         molecules, [1, 1, 1], box_size=([20] * 3) * unit.angstrom
     )
 
@@ -106,7 +106,7 @@ def test_packmol_paracetamol():
     # Test something a bit more tricky than water
     molecules = [Molecule.from_smiles("CC(=O)NC1=CC=C(C=C1)O")]
 
-    trajectory = packmol.pack_box(molecules, [1], box_size=([20] * 3) * unit.angstrom)
+    trajectory, _ = packmol.pack_box(molecules, [1], box_size=([20] * 3) * unit.angstrom)
 
     assert trajectory is not None
 
@@ -149,7 +149,7 @@ def test_amino_acids():
     molecules = [Molecule.from_smiles(x) for x in smiles]
     counts = [1] * len(smiles)
 
-    trajectory = packmol.pack_box(
+    trajectory, _ = packmol.pack_box(
         molecules, counts, box_size=([1000] * 3) * unit.angstrom
     )
 
