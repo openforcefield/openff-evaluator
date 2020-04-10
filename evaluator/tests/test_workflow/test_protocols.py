@@ -119,7 +119,7 @@ def build_merge(prefix):
     protocol_b = DummyInputOutputProtocol(prefix + "protocol_b")
     protocol_b.input_value = ProtocolPath("output_value", protocol_a.id)
     protocol_c = DummyInputOutputProtocol(prefix + "protocol_c")
-    protocol_c.input_value = 1
+    protocol_c.input_value = 2
     protocol_d = DummyInputOutputProtocol(prefix + "protocol_d")
     protocol_d.input_value = ProtocolPath("output_value", protocol_c.id)
     protocol_e = DummyInputOutputProtocol(prefix + "protocol_e")
@@ -145,7 +145,7 @@ def build_fork(prefix):
     # g - h - |
     #          \ k - l
     protocol_g = DummyInputOutputProtocol(prefix + "protocol_g")
-    protocol_g.input_value = 1
+    protocol_g.input_value = 3
     protocol_h = DummyInputOutputProtocol(prefix + "protocol_h")
     protocol_h.input_value = ProtocolPath("output_value", protocol_g.id)
     protocol_i = DummyInputOutputProtocol(prefix + "protocol_i")
@@ -213,14 +213,22 @@ def test_protocol_graph_simple(protocols_a, protocols_b):
     protocol_graph = ProtocolGraph()
     protocol_graph.add_protocols(*protocols_a)
 
+    dependants_graph = protocol_graph._build_dependants_graph(
+        protocol_graph.protocols, False, apply_reduction=True
+    )
+
     assert len(protocol_graph.protocols) == len(protocols_a)
-    assert len(protocol_graph.dependants_graph) == len(protocols_a)
+    assert len(dependants_graph) == len(protocols_a)
     n_root_protocols = len(protocol_graph.root_protocols)
 
     protocol_graph.add_protocols(*protocols_b)
 
+    dependants_graph = protocol_graph._build_dependants_graph(
+        protocol_graph.protocols, False, apply_reduction=False
+    )
+
     assert len(protocol_graph.protocols) == len(protocols_a)
-    assert len(protocol_graph.dependants_graph) == len(protocols_a)
+    assert len(dependants_graph) == len(protocols_a)
     assert len(protocol_graph.root_protocols) == n_root_protocols
 
     # Currently the graph shouldn't merge with an
@@ -228,8 +236,12 @@ def test_protocol_graph_simple(protocols_a, protocols_b):
     protocol_graph = ProtocolGraph()
     protocol_graph.add_protocols(*protocols_a, *protocols_b)
 
+    dependants_graph = protocol_graph._build_dependants_graph(
+        protocol_graph.protocols, False, apply_reduction=False
+    )
+
     assert len(protocol_graph.protocols) == len(protocols_a) + len(protocols_b)
-    assert len(protocol_graph.dependants_graph) == len(protocols_a) + len(protocols_b)
+    assert len(dependants_graph) == len(protocols_a) + len(protocols_b)
     assert len(protocol_graph.root_protocols) == 2 * n_root_protocols
 
 

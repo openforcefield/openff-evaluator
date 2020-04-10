@@ -28,6 +28,30 @@ def calculation_schema_generator():
             yield calculation_layer, property_type
 
 
+def workflow_merge_functions():
+    """Returns functions which will merge two work flows into
+    a single graph.
+    """
+
+    def function_a(workflow_a, workflow_b):
+
+        workflow_graph = WorkflowGraph()
+
+        workflow_graph.add_workflows(workflow_a)
+        workflow_graph.add_workflows(workflow_b)
+
+        return workflow_graph
+
+    def function_b(workflow_a, workflow_b):
+
+        workflow_graph = WorkflowGraph()
+        workflow_graph.add_workflows(workflow_a, workflow_b)
+
+        return workflow_graph
+
+    return [function_a, function_b]
+
+
 @pytest.mark.parametrize(
     "calculation_layer, property_type", calculation_schema_generator()
 )
@@ -64,7 +88,10 @@ def test_schema_serialization(calculation_layer, property_type):
 @pytest.mark.parametrize(
     "calculation_layer, property_type", calculation_schema_generator()
 )
-def test_workflow_schema_merging(calculation_layer, property_type):
+@pytest.mark.parametrize("workflow_merge_function", workflow_merge_functions())
+def test_workflow_schema_merging(
+    calculation_layer, property_type, workflow_merge_function
+):
     """Tests that two of the exact the same calculations get merged into one
     by the `WorkflowGraph`."""
 
@@ -88,17 +115,21 @@ def test_workflow_schema_merging(calculation_layer, property_type):
     workflow_b = Workflow(global_metadata, "workflow_b")
     workflow_b.schema = schema.workflow_schema
 
-    workflow_graph = WorkflowGraph()
-
-    workflow_graph.add_workflow(workflow_a)
-    workflow_graph.add_workflow(workflow_b)
+    workflow_graph = workflow_merge_function(workflow_a, workflow_b)
 
     workflow_graph_a = workflow_a.to_graph()
     workflow_graph_b = workflow_b.to_graph()
 
-    ordered_dict_a = OrderedDict(sorted(workflow_graph_a.dependants_graph.items()))
+    dependants_graph_a = workflow_graph_a._protocol_graph._build_dependants_graph(
+        workflow_graph_a.protocols, False, apply_reduction=True
+    )
+    dependants_graph_b = workflow_graph_b._protocol_graph._build_dependants_graph(
+        workflow_graph_b.protocols, False, apply_reduction=True
+    )
+
+    ordered_dict_a = OrderedDict(sorted(dependants_graph_a.items()))
     ordered_dict_a = {key: sorted(value) for key, value in ordered_dict_a.items()}
-    ordered_dict_b = OrderedDict(sorted(workflow_graph_b.dependants_graph.items()))
+    ordered_dict_b = OrderedDict(sorted(dependants_graph_b.items()))
     ordered_dict_b = {key: sorted(value) for key, value in ordered_dict_b.items()}
 
     merge_order_a = graph.topological_sort(ordered_dict_a)
@@ -119,7 +150,8 @@ def test_workflow_schema_merging(calculation_layer, property_type):
         )
 
 
-def test_density_dielectric_merging():
+@pytest.mark.parametrize("workflow_merge_function", workflow_merge_functions())
+def test_density_dielectric_merging(workflow_merge_function):
 
     substance = Substance.from_components("C")
 
@@ -160,16 +192,20 @@ def test_density_dielectric_merging():
     dielectric_workflow = Workflow(dielectric_metadata)
     dielectric_workflow.schema = dielectric_schema
 
-    workflow_graph = WorkflowGraph()
-
-    workflow_graph.add_workflow(density_workflow)
-    workflow_graph.add_workflow(dielectric_workflow)
+    workflow_merge_function(density_workflow, dielectric_workflow)
 
     density_workflow_graph = density_workflow.to_graph()
     dielectric_workflow_graph = dielectric_workflow.to_graph()
 
-    merge_order_a = graph.topological_sort(density_workflow_graph.dependants_graph)
-    merge_order_b = graph.topological_sort(dielectric_workflow_graph.dependants_graph)
+    dependants_graph_a = density_workflow_graph._protocol_graph._build_dependants_graph(
+        density_workflow_graph.protocols, False, apply_reduction=True
+    )
+    dependants_graph_b = dielectric_workflow_graph._protocol_graph._build_dependants_graph(
+        dielectric_workflow_graph.protocols, False, apply_reduction=True
+    )
+
+    merge_order_a = graph.topological_sort(dependants_graph_a)
+    merge_order_b = graph.topological_sort(dependants_graph_b)
 
     for protocol_id_A, protocol_id_B in zip(merge_order_a, merge_order_b):
 

@@ -21,6 +21,7 @@ from evaluator.forcefield import (
 from evaluator.storage.attributes import FilePath, StorageAttribute
 from evaluator.substances import Substance
 from evaluator.utils.exceptions import EvaluatorException
+from evaluator.utils.graph import retrieve_uuid
 from evaluator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from evaluator.utils.utils import get_nested_attribute
 from evaluator.workflow.protocols import Protocol, ProtocolGraph
@@ -749,7 +750,7 @@ class Workflow:
             The graph representation of this workflow.
         """
         graph = WorkflowGraph()
-        graph.add_workflow(self)
+        graph.add_workflows(self)
         return graph
 
     @classmethod
@@ -874,14 +875,6 @@ class WorkflowGraph:
         take input from the other grouped protocols."""
         return self._protocol_graph.root_protocols
 
-    @property
-    def dependants_graph(self):
-        """dict of str and str: A dictionary of which stores which grouped protocols
-        are dependant on other grouped protocols. Each key in the dictionary is the
-        id of a grouped protocol, and each value is the id of a protocol which depends
-        on the protocol by the key."""
-        return self._protocol_graph.dependants_graph
-
     def __init__(self):
 
         super(WorkflowGraph, self).__init__()
@@ -889,23 +882,34 @@ class WorkflowGraph:
         self._workflows_to_execute = {}
         self._protocol_graph = ProtocolGraph()
 
-    def add_workflow(self, workflow):
-        """Insert a workflow into the workflow graph.
+    def add_workflows(self, *workflows):
+        """Insert a set of workflows into the workflow graph.
 
         Parameters
         ----------
-        workflow : Workflow
+        workflow: Workflow
             The workflow to insert.
         """
 
-        if workflow.uuid in self._workflows_to_execute:
+        workflow_uuids = [x.uuid for x in workflows]
+
+        if len(set(workflow_uuids)) != len(workflow_uuids):
+            raise ValueError("A number of workflows have the same uuid.")
+
+        existing_uuids = [x for x in workflow_uuids if x in self._workflows_to_execute]
+
+        if len(existing_uuids) > 0:
 
             raise ValueError(
-                f"A workflow with the uuid {workflow.uuid} is already in the graph."
+                f"Workflows with the uuids {existing_uuids} are already in the graph."
             )
 
-        original_protocols = [*workflow.protocols.values()]
-        self._workflows_to_execute[workflow.uuid] = workflow
+        original_protocols = []
+
+        for workflow in workflows:
+
+            original_protocols.extend(workflow.protocols.values())
+            self._workflows_to_execute[workflow.uuid] = workflow
 
         # Add the workflow protocols to the graph.
         merged_protocol_ids = self._protocol_graph.add_protocols(
@@ -918,13 +922,25 @@ class WorkflowGraph:
             original_protocol = original_id
             new_protocol = new_id
 
-            if original_protocol in workflow.protocols:
-                # Only retrieve the actual protocol if it isn't nested in
-                # a group.
-                original_protocol = workflow.protocols[original_id]
-                new_protocol = self._protocol_graph.protocols[new_id]
+            for workflow in workflows:
 
-            workflow.replace_protocol(original_protocol, new_protocol, True)
+                if (
+                    retrieve_uuid(
+                        original_protocol
+                        if isinstance(original_protocol, str)
+                        else original_protocol.id
+                    )
+                    != workflow.uuid
+                ):
+                    continue
+
+                if original_protocol in workflow.protocols:
+                    # Only retrieve the actual protocol if it isn't nested in
+                    # a group.
+                    original_protocol = workflow.protocols[original_id]
+                    new_protocol = self._protocol_graph.protocols[new_id]
+
+                workflow.replace_protocol(original_protocol, new_protocol, True)
 
     def execute(
         self, root_directory="", calculation_backend=None, compute_resources=None

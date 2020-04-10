@@ -20,8 +20,7 @@ same state point, for the same substance, and using the same force field paramet
     print(len(density_workflow.protocols), len(dielectric_workflow.protocols))
 
     workflow_graph = WorkflowGraph()
-    workflow_graph.add_workflow(density_workflow)
-    workflow_graph.add_workflow(dielectric_workflow)
+    workflow_graph.add_workflows(density_workflow, dielectric_workflow)
 
     print(len(workflow_graph.protocols))
 
