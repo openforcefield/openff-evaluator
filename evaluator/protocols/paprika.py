@@ -1192,9 +1192,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             devices_string = ",".join(visible_devices)
             environment["CUDA_VISIBLE_DEVICES"] = f"{devices_string}"
 
-            logger.info(
-                f"Starting a set of Amber simulations on GPUs {devices_string}"
-            )
+            logger.info(f"Starting a set of Amber simulations on GPUs {devices_string}")
 
             amber_simulation = Simulation()
 

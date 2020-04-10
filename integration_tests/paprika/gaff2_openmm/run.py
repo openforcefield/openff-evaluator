@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from evaluator import unit
+from evaluator.attributes import UNDEFINED
 from evaluator.backends import ComputeResources
 from evaluator.datasets.taproom import TaproomDataSet
 from evaluator.forcefield import TLeapForceFieldSource
@@ -32,7 +33,9 @@ def main():
 
     # Set up the calculation
     schema = HostGuestBindingAffinity.default_paprika_schema().workflow_schema
-    metadata = Workflow.generate_default_metadata(binding_affinity, "force_field.json")
+    metadata = Workflow.generate_default_metadata(
+        binding_affinity, "force_field.json", UNDEFINED
+    )
 
     workflow = Workflow.from_schema(schema, metadata)
 
