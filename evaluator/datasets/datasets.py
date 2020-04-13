@@ -562,6 +562,13 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
         self.filter_by_function(filter_function)
 
+    def validate(self):
+        """Checks to ensure that all properties within
+        the set are valid physical property object.
+        """
+        for physical_property in self._properties:
+            physical_property.validate()
+
     def to_pandas(self):
         """Converts a `PhysicalPropertyDataSet` to a `pandas.DataFrame` object
         with columns of
