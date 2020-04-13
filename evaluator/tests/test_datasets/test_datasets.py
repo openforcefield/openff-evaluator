@@ -356,7 +356,7 @@ def test_validate_data_set():
         PropertyPhase.Liquid,
         Substance.from_components("O"),
         0.0 * unit.gram / unit.milliliter,
-        0.0 * unit.gram / unit.milliliter
+        0.0 * unit.gram / unit.milliliter,
     )
 
     data_set = PhysicalPropertyDataSet()
@@ -369,7 +369,7 @@ def test_validate_data_set():
         PropertyPhase.Liquid,
         Substance.from_components("O"),
         0.0 * unit.gram / unit.milliliter,
-        0.0 * unit.gram / unit.milliliter
+        0.0 * unit.gram / unit.milliliter,
     )
 
     with pytest.raises(AssertionError):
