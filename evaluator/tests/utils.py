@@ -71,7 +71,7 @@ def create_dummy_property(property_class):
         uncertainty=1.0 * property_class.default_unit(),
     )
 
-    dummy_property.source = CalculationSource(fidelity="dummy", provenance={})
+    dummy_property.source = CalculationSource("request_id", "ff_id", "Dummy")
 
     # Make sure the property has the meta data required for more
     # involved properties.
@@ -162,7 +162,7 @@ def create_filterable_data_set():
         The created data set.
     """
 
-    source = CalculationSource("Dummy", {})
+    source = CalculationSource("request_id", "ff_id", "Dummy")
     carbon_substance = create_dummy_substance(number_of_components=1, elements=["C"])
 
     density_property = Density(

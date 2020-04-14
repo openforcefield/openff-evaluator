@@ -61,7 +61,7 @@ def test_serialization():
 def test_to_pandas():
     """A test to ensure that data sets are convertable to pandas objects."""
 
-    source = CalculationSource("Dummy", {})
+    source = CalculationSource("request_id", "ff_id", "Dummy")
 
     pure_substance = Substance.from_components("C")
     binary_substance = Substance.from_components("C", "O")

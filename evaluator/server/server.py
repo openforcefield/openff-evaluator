@@ -177,6 +177,7 @@ class EvaluatorServer:
         self._finished_batches = {}
 
         self._batch_ids_per_client_id = {}
+        self._request_options_per_client_id = {}
 
     def _query_request_status(self, client_request_id):
         """Queries the the current state of an estimation request
@@ -197,6 +198,11 @@ class EvaluatorServer:
         """
 
         request_results = RequestResult()
+
+        # Set the request options as provenance.
+        request_results.request_options = self._request_options_per_client_id[
+            client_request_id
+        ]
 
         for batch_id in self._batch_ids_per_client_id[client_request_id]:
 
@@ -527,6 +533,9 @@ class EvaluatorServer:
                 request_id = str(uuid.uuid4()).replace("-", "")
 
             self._batch_ids_per_client_id[request_id] = []
+            self._request_options_per_client_id[request_id] = copy.deepcopy(
+                submission.options
+            )
 
         # Pass the id of the submitted requests back to the client
         # as well as any error which may have occurred.

@@ -285,7 +285,7 @@ class RequestResult(AttributeClass):
     )
 
     request_options = Attribute(
-        docstring="The "
+        docstring="The options used to make the request.", type_hint=RequestOptions,
     )
 
     def validate(self, attribute_type=None):

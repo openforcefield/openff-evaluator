@@ -3,7 +3,7 @@ of measured / estimated properties.
 """
 import abc
 
-from evaluator.attributes import AttributeClass, Attribute, UNDEFINED
+from evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 
 
 class Source(AttributeClass, abc.ABC):
@@ -11,6 +11,7 @@ class Source(AttributeClass, abc.ABC):
     property was measured experimentally / estimated for simulation
     data.
     """
+
     pass
 
 
@@ -34,14 +35,14 @@ class MeasurementSource(Source):
         "measurement was obtained.",
         type_hint=str,
         default_value=UNDEFINED,
-        optional=True
+        optional=True,
     )
     reference = Attribute(
         docstring="An alternative identifier of the source from which this "
         "measurement was obtained, e.g. a URL.",
         type_hint=str,
         default_value=UNDEFINED,
-        optional=True
+        optional=True,
     )
 
     def __init__(self, doi=None, reference=None):
