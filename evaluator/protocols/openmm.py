@@ -540,7 +540,7 @@ class OpenMMSimulation(BaseSimulation):
         return checkpoint.current_step_number
 
     def _save_final_statistics(self, path, temperature, pressure):
-        """Converts the openmm statistic csv file into a evaluator
+        """Converts the openmm statistic csv file into an evaluator
         StatisticsArray csv file, making sure to fill in any missing entries.
 
         Parameters
@@ -616,6 +616,7 @@ class OpenMMSimulation(BaseSimulation):
             temperature=True,
             volume=True,
             density=True,
+            speed=True
         )
 
         # Create the object which will transfer simulation output to the
