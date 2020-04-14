@@ -541,7 +541,7 @@ def pack_box(
     number_of_copies,
     structure_to_solvate=None,
     center_solute=True,
-    tolerance=2.0 * unit.angstrom,
+    tolerance=2.4 * unit.angstrom,
     box_size=None,
     mass_density=None,
     box_aspect_ratio=None,
