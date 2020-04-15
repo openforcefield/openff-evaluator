@@ -47,8 +47,8 @@ class BaseYankProtocol(Protocol, abc.ABC):
     )
 
     number_of_equilibration_iterations = InputAttribute(
-        docstring="The number of iterations used for equilibration before production run. "
-        "Only post-equilibration iterations are written to file.",
+        docstring="The number of iterations used for equilibration before production "
+        "run. Only post-equilibration iterations are written to file.",
         type_hint=int,
         merge_behavior=InequalityMergeBehaviour.LargestValue,
         default_value=1,
@@ -559,10 +559,47 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         default_value=True,
     )
     restraint_type = InputAttribute(
-        docstring="The type of ligand restraint applied, provided that `apply_restraints` "
-        "is `True`",
+        docstring="The type of ligand restraint applied, provided that "
+        "`apply_restraints` is `True`",
         type_hint=RestraintType,
         default_value=RestraintType.Harmonic,
+    )
+
+    ligand_electrostatic_lambdas = InputAttribute(
+        docstring="The list of electrostatic alchemical states that YANK should sample "
+        "at when calculating the free energy of the solvated ligand. If no option is "
+        "set, YANK will use `trailblaze` algorithm to determine this option "
+        "automatically.",
+        type_hint=list,
+        optional=True,
+        default_value=UNDEFINED,
+    )
+    ligand_steric_lambdas = InputAttribute(
+        docstring="The list of steric alchemical states that YANK should sample "
+        "at when calculating the free energy of the solvated ligand. If no option is "
+        "set, YANK will use `trailblaze` algorithm to determine this option "
+        "automatically.",
+        type_hint=list,
+        optional=True,
+        default_value=UNDEFINED,
+    )
+    complex_electrostatic_lambdas = InputAttribute(
+        docstring="The list of electrostatic alchemical states that YANK should sample "
+        "at when calculating the free energy of the ligand in complex with the "
+        "receptor. If no option is set, YANK will use `trailblaze` algorithm to "
+        "determine this option automatically.",
+        type_hint=list,
+        optional=True,
+        default_value=UNDEFINED,
+    )
+    complex_steric_lambdas = InputAttribute(
+        docstring="The list of steric alchemical states that YANK should sample "
+        "at when calculating the free energy of the ligand in complex with the "
+        "receptor. If no option is set, YANK will use `trailblaze` algorithm to "
+        "determine this option automatically.",
+        type_hint=list,
+        optional=True,
+        default_value=UNDEFINED,
     )
 
     solvated_ligand_trajectory_path = OutputAttribute(
@@ -624,9 +661,61 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
 
     def _get_protocol_dictionary(self):
 
+        ligand_protocol_dictionary = {
+            "lambda_electrostatics": self.ligand_electrostatic_lambdas,
+            "lambda_sterics": self.ligand_steric_lambdas,
+        }
+
+        if (
+            self.ligand_electrostatic_lambdas == UNDEFINED
+            and self.ligand_steric_lambdas == UNDEFINED
+        ):
+
+            ligand_protocol_dictionary = "auto"
+
+        elif (
+                self.ligand_electrostatic_lambdas != UNDEFINED
+                and self.ligand_steric_lambdas == UNDEFINED
+        ) or (
+                self.ligand_electrostatic_lambdas == UNDEFINED
+                and self.ligand_steric_lambdas != UNDEFINED
+        ):
+
+            raise ValueError(
+                "Either both of `ligand_electrostatic_lambdas` and "
+                "`ligand_steric_lambdas` must be set, or neither "
+                "must be set."
+            )
+
+        complex_protocol_dictionary = {
+            "lambda_electrostatics": self.complex_electrostatic_lambdas,
+            "lambda_sterics": self.complex_steric_lambdas,
+        }
+
+        if (
+                self.complex_electrostatic_lambdas == UNDEFINED
+                and self.complex_steric_lambdas == UNDEFINED
+        ):
+
+            complex_protocol_dictionary = "auto"
+
+        elif (
+                self.complex_electrostatic_lambdas != UNDEFINED
+                and self.complex_steric_lambdas == UNDEFINED
+        ) or (
+                self.complex_electrostatic_lambdas == UNDEFINED
+                and self.complex_steric_lambdas != UNDEFINED
+        ):
+
+            raise ValueError(
+                "Either both of `complex_electrostatic_lambdas` and "
+                "`complex_steric_lambdas` must be set, or neither "
+                "must be set."
+            )
+
         absolute_binding_dictionary = {
-            "complex": {"alchemical_path": "auto"},
-            "solvent": {"alchemical_path": "auto"},
+            "complex": {"alchemical_path": complex_protocol_dictionary},
+            "solvent": {"alchemical_path": ligand_protocol_dictionary},
         }
 
         return {"absolute_binding_dictionary": absolute_binding_dictionary}
@@ -753,8 +842,8 @@ class SolvationYankProtocol(BaseYankProtocol):
     )
 
     electrostatic_lambdas_1 = InputAttribute(
-        docstring="The list of electrostatic alchemical states that YANK should sample at. "
-        "These values will be passed to the YANK `lambda_electrostatics` option. "
+        docstring="The list of electrostatic alchemical states that YANK should sample "
+        "at. These values will be passed to the YANK `lambda_electrostatics` option. "
         "If no option is set, YANK will use `trailblaze` algorithm to determine "
         "this option automatically.",
         type_hint=list,
@@ -771,8 +860,8 @@ class SolvationYankProtocol(BaseYankProtocol):
         default_value=UNDEFINED,
     )
     electrostatic_lambdas_2 = InputAttribute(
-        docstring="The list of electrostatic alchemical states that YANK should sample at. "
-        "These values will be passed to the YANK `lambda_electrostatics` option. "
+        docstring="The list of electrostatic alchemical states that YANK should sample "
+        "at. These values will be passed to the YANK `lambda_electrostatics` option. "
         "If no option is set, YANK will use `trailblaze` algorithm to determine "
         "this option automatically.",
         type_hint=list,
