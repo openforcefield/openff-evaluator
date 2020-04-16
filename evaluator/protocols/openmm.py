@@ -616,7 +616,7 @@ class OpenMMSimulation(BaseSimulation):
             temperature=True,
             volume=True,
             density=True,
-            speed=True
+            speed=True,
         )
 
         # Create the object which will transfer simulation output to the
