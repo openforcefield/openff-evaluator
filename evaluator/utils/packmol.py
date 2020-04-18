@@ -13,6 +13,7 @@ import shutil
 import string
 import subprocess
 import tempfile
+import warnings
 from collections import defaultdict
 from distutils.spawn import find_executable
 from functools import reduce
@@ -471,7 +472,16 @@ def _correct_packmol_output(
     """
     import mdtraj
 
-    trajectory = mdtraj.load(file_path)
+    with warnings.catch_warnings():
+
+        if structure_to_solvate is not None:
+
+            # Catch the known warning which is fixed in the next section.
+            warnings.filterwarnings(
+                "ignore", message="WARNING: two consecutive residues with same number"
+            )
+
+        trajectory = mdtraj.load(file_path)
 
     all_topologies = []
     all_n_copies = []
@@ -482,6 +492,16 @@ def _correct_packmol_output(
 
         all_topologies.append(solvated_trajectory.topology)
         all_n_copies.append(1)
+
+        # We have to split the topology to ensure the structure to solvate
+        # ends up in its own chain.
+        n_solvent_atoms = trajectory.n_atoms - solvated_trajectory.n_atoms
+        solvent_indices = np.arange(n_solvent_atoms) + solvated_trajectory.n_atoms
+
+        solvent_topology = trajectory.topology.subset(solvent_indices)
+
+        full_topology = solvated_trajectory.topology.join(solvent_topology)
+        trajectory.topology = full_topology
 
     all_topologies.extend(molecule_topologies)
     all_n_copies.extend(number_of_copies)
@@ -641,11 +661,12 @@ def pack_box(
     # Copy the structure to solvate if one is provided.
     if structure_to_solvate is not None:
 
-        shutil.copyfile(
-            structure_to_solvate, os.path.join(working_directory, "solvate.pdb"),
-        )
+        import mdtraj
+
+        trajectory = mdtraj.load_pdb(structure_to_solvate)
 
         structure_to_solvate = "solvate.pdb"
+        trajectory.save_pdb(os.path.join(working_directory, structure_to_solvate))
 
     assigned_residue_names = []
 
