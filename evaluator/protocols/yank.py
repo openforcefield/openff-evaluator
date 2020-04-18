@@ -674,11 +674,11 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
             ligand_protocol_dictionary = "auto"
 
         elif (
-                self.ligand_electrostatic_lambdas != UNDEFINED
-                and self.ligand_steric_lambdas == UNDEFINED
+            self.ligand_electrostatic_lambdas != UNDEFINED
+            and self.ligand_steric_lambdas == UNDEFINED
         ) or (
-                self.ligand_electrostatic_lambdas == UNDEFINED
-                and self.ligand_steric_lambdas != UNDEFINED
+            self.ligand_electrostatic_lambdas == UNDEFINED
+            and self.ligand_steric_lambdas != UNDEFINED
         ):
 
             raise ValueError(
@@ -693,18 +693,18 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         }
 
         if (
-                self.complex_electrostatic_lambdas == UNDEFINED
-                and self.complex_steric_lambdas == UNDEFINED
+            self.complex_electrostatic_lambdas == UNDEFINED
+            and self.complex_steric_lambdas == UNDEFINED
         ):
 
             complex_protocol_dictionary = "auto"
 
         elif (
-                self.complex_electrostatic_lambdas != UNDEFINED
-                and self.complex_steric_lambdas == UNDEFINED
+            self.complex_electrostatic_lambdas != UNDEFINED
+            and self.complex_steric_lambdas == UNDEFINED
         ) or (
-                self.complex_electrostatic_lambdas == UNDEFINED
-                and self.complex_steric_lambdas != UNDEFINED
+            self.complex_electrostatic_lambdas == UNDEFINED
+            and self.complex_steric_lambdas != UNDEFINED
         ):
 
             raise ValueError(
