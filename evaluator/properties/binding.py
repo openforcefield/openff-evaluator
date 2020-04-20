@@ -201,7 +201,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
 
     @staticmethod
     def default_paprika_schema(
-        n_solvent_molecules=2000,
+        n_solvent_molecules=2500,
         n_equilibration_steps=200000,
         n_production_steps=1000000,
     ):

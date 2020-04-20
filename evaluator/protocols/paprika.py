@@ -141,7 +141,12 @@ class BasePaprikaProtocol(Protocol):
         type_hint=int,
         default_value=3000,
     )
-
+    packmol_tolerance = InputAttribute(
+        docstring="The distance tolerance for packing molecules in packmol.",
+        type_hint=unit.Quantity,
+        merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        default_value=2.4 * unit.angstrom,
+    )
     simulation_box_aspect_ratio = InputAttribute(
         docstring="The aspect ratio of the box. This should be a list of three "
         "floats, corresponding to the relative length of each side of "
@@ -244,6 +249,7 @@ class BasePaprikaProtocol(Protocol):
             solvate_complex = coordinates.SolvateExistingStructure("solvate_window")
             solvate_complex.max_molecules = self.number_of_solvent_molecules
             solvate_complex.box_aspect_ratio = self.simulation_box_aspect_ratio
+            solvate_complex.tolerance = self.packmol_tolerance
             solvate_complex.center_solute_in_box = False
             if self.number_of_solvent_molecules < 20:
                 solvate_complex.mass_density = 0.005 * unit.grams / unit.milliliters
