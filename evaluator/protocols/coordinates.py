@@ -288,6 +288,7 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
             structure_to_solvate=self.solute_coordinate_file,
             center_solute=self.center_solute_in_box,
             mass_density=self.mass_density,
+            box_aspect_ratio=self.box_aspect_ratio,
             tolerance=self.tolerance,
             verbose=self.verbose_packmol,
             working_directory=packmol_directory,
