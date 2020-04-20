@@ -49,6 +49,12 @@ class BuildCoordinatesPackmol(Protocol):
         type_hint=Substance,
         default_value=UNDEFINED,
     )
+    tolerance = InputAttribute(
+        docstring="The packmol distance tolerance in units compatible "
+        "with angstroms.",
+        type_hint=pint.Quantity,
+        default_value=2.0 * unit.angstrom,
+    )
 
     verbose_packmol = InputAttribute(
         docstring="If True, packmol will print verbose information to the logger",
@@ -233,6 +239,7 @@ class BuildCoordinatesPackmol(Protocol):
             molecules=molecules,
             number_of_copies=number_of_molecules,
             mass_density=self.mass_density,
+            tolerance=self.tolerance,
             box_aspect_ratio=self.box_aspect_ratio,
             verbose=self.verbose_packmol,
             working_directory=packmol_directory,
@@ -281,6 +288,8 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
             structure_to_solvate=self.solute_coordinate_file,
             center_solute=self.center_solute_in_box,
             mass_density=self.mass_density,
+            box_aspect_ratio=self.box_aspect_ratio,
+            tolerance=self.tolerance,
             verbose=self.verbose_packmol,
             working_directory=packmol_directory,
             retain_working_files=self.retain_packmol_files,

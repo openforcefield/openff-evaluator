@@ -248,26 +248,31 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         gathered."""
         return set([x.source for x in self._properties])
 
-    def merge(self, data_set):
+    def merge(self, data_set, validate=True):
         """Merge another data set into the current one.
 
         Parameters
         ----------
         data_set : PhysicalPropertyDataSet
             The secondary data set to merge into this one.
+        validate: bool
+            Whether to validate the other data set before merging.
         """
         if data_set is None:
             return
 
-        self.add_properties(*data_set)
+        self.add_properties(*data_set, validate=validate)
 
-    def add_properties(self, *physical_properties):
+    def add_properties(self, *physical_properties, validate=True):
         """Adds a physical property to the data set.
 
         Parameters
         ----------
         physical_properties: PhysicalProperty
             The physical property to add.
+        validate: bool
+            Whether to validate the properties before adding them
+            to the set.
         """
 
         all_ids = set(x.id for x in self)
@@ -275,7 +280,8 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         # TODO: Do we need to check for adding the same property twice?
         for physical_property in physical_properties:
 
-            physical_property.validate()
+            if validate:
+                physical_property.validate()
 
             if physical_property.id in all_ids:
 
@@ -556,6 +562,13 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
         self.filter_by_function(filter_function)
 
+    def validate(self):
+        """Checks to ensure that all properties within
+        the set are valid physical property object.
+        """
+        for physical_property in self._properties:
+            physical_property.validate()
+
     def to_pandas(self):
         """Converts a `PhysicalPropertyDataSet` to a `pandas.DataFrame` object
         with columns of
@@ -735,9 +748,6 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         self._properties = state["properties"]
 
         assert all(isinstance(x, PhysicalProperty) for x in self)
-
-        for physical_property in self:
-            physical_property.validate()
 
         # Ensure each property has a unique id.
         all_ids = set(x.id for x in self)

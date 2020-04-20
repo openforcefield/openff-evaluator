@@ -884,6 +884,9 @@ class EnthalpyOfVaporization(PhysicalProperty):
 
         # Create only a single molecule in vacuum
         gas_protocols.build_coordinates.max_molecules = 1
+        gas_protocols.build_coordinates.mass_density = (
+            0.01 * unit.gram / unit.milliliter
+        )
         gas_output_to_store.property_phase = PropertyPhase.Gas
 
         # Run the gas phase simulations in the NVT ensemble
