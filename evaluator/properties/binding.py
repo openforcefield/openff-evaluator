@@ -202,6 +202,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
     @staticmethod
     def default_paprika_schema(
         n_solvent_molecules=2500,
+        n_thermalisation_steps=50000,
         n_equilibration_steps=200000,
         n_production_steps=1000000,
     ):
@@ -214,6 +215,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
         ----------
         n_solvent_molecules: int
             The number of solvent molecules to add to the box.
+        n_thermalisation_steps: int
+            The number of thermalisation simulations steps to perform.
+            Sample generated during this step will be discarded.
         n_equilibration_steps: int
             The number of equilibration simulations steps to perform.
             Sample generated during this step will be discarded.
@@ -257,9 +261,11 @@ class HostGuestBindingAffinity(PhysicalProperty):
             orientation_replicator.id
         )
 
+        host_guest_protocol.number_of_thermalisation_steps = n_thermalisation_steps
         host_guest_protocol.number_of_equilibration_steps = n_equilibration_steps
         host_guest_protocol.number_of_production_steps = n_production_steps
-        host_guest_protocol.equilibration_output_frequency = 5000
+        host_guest_protocol.thermalisation_output_frequency = 10000
+        host_guest_protocol.equilibration_output_frequency = 10000
         host_guest_protocol.production_output_frequency = 5000
         host_guest_protocol.number_of_solvent_molecules = n_solvent_molecules
 
@@ -284,9 +290,11 @@ class HostGuestBindingAffinity(PhysicalProperty):
         host_protocol.force_field_path = ProtocolPath("force_field_path", "global")
         host_protocol.taproom_host_name = ProtocolPath("host_identifier", "global")
 
+        host_protocol.number_of_thermalisation_steps = n_thermalisation_steps
         host_protocol.number_of_equilibration_steps = n_equilibration_steps
         host_protocol.number_of_production_steps = n_production_steps
-        host_protocol.equilibration_output_frequency = 5000
+        host_protocol.thermalisation_output_frequency = 10000
+        host_protocol.equilibration_output_frequency = 10000
         host_protocol.production_output_frequency = 5000
         host_protocol.number_of_solvent_molecules = n_solvent_molecules
 

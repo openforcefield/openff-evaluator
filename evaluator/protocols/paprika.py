@@ -99,12 +99,28 @@ class BasePaprikaProtocol(Protocol):
         merge_behavior=InequalityMergeBehaviour.SmallestValue,
         default_value=2.0 * unit.femtosecond,
     )
-
-    equilibration_timestep = InputAttribute(
-        docstring="The timestep to evolve the system during equilibration by at each step.",
+    thermalisation_timestep = InputAttribute(
+        docstring="The timestep to evolve the system during thermalisation "
+                  "by at each step.",
         type_hint=unit.Quantity,
         merge_behavior=InequalityMergeBehaviour.SmallestValue,
         default_value=1.0 * unit.femtosecond,
+    )
+
+    number_of_thermalisation_steps = InputAttribute(
+        docstring="The number of NPT thermalisation steps to take. Data from "
+                  "the equilibration simulations will be discarded.",
+        type_hint=int,
+        merge_behavior=InequalityMergeBehaviour.LargestValue,
+        default_value=50000,
+    )
+    thermalisation_output_frequency = InputAttribute(
+        docstring="The frequency with which to write statistics during "
+                  "thermalisation. Data from the thermalisation simulations "
+                  "will be discarded.",
+        type_hint=int,
+        merge_behavior=InequalityMergeBehaviour.LargestValue,
+        default_value=5000,
     )
 
     number_of_equilibration_steps = InputAttribute(
@@ -1060,7 +1076,9 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                 self._solvated_system_xml_paths[index],
                 self.thermodynamic_state,
                 self.timestep,
-                self.equilibration_timestep,
+                self.thermalisation_timestep,
+                self.number_of_thermalisation_steps,
+                self.thermalisation_output_frequency,
                 self.number_of_equilibration_steps,
                 self.equilibration_output_frequency,
                 self.number_of_production_steps,
@@ -1081,7 +1099,9 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                 window_system_path,
                 thermodynamic_state,
                 timestep,
-                equilibration_timestep,
+                thermalisation_timestep,
+                number_of_thermalisation_steps,
+                thermalisation_output_frequency,
                 number_of_equilibration_steps,
                 equilibration_output_frequency,
                 number_of_production_steps,
@@ -1127,22 +1147,35 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                 simulation_directory = os.path.join(window_directory, "simulations")
                 os.makedirs(simulation_directory, exist_ok=True)
 
-                # Equilibration
+                # Minimisation
                 energy_minimisation = openmm.OpenMMEnergyMinimisation(
                     "energy_minimisation"
                 )
                 energy_minimisation.input_coordinate_file = window_coordinate_path
                 energy_minimisation.system_path = window_system_path
 
+                # Thermalisation
+                npt_thermalisation = openmm.OpenMMSimulation("npt_thermalisation")
+                npt_thermalisation.steps_per_iteration = number_of_thermalisation_steps
+                npt_thermalisation.output_frequency = thermalisation_output_frequency
+                npt_thermalisation.timestep = thermalisation_timestep
+                npt_thermalisation.ensemble = Ensemble.NPT
+                npt_thermalisation.thermodynamic_state = thermodynamic_state
+                npt_thermalisation.system_path = window_system_path
+                npt_thermalisation.input_coordinate_file = ProtocolPath(
+                    "output_coordinate_file", energy_minimisation.id
+                )
+
+                # Equilibration
                 npt_equilibration = openmm.OpenMMSimulation("npt_equilibration")
                 npt_equilibration.steps_per_iteration = number_of_equilibration_steps
                 npt_equilibration.output_frequency = equilibration_output_frequency
-                npt_equilibration.timestep = equilibration_timestep
+                npt_equilibration.timestep = timestep
                 npt_equilibration.ensemble = Ensemble.NPT
                 npt_equilibration.thermodynamic_state = thermodynamic_state
                 npt_equilibration.system_path = window_system_path
                 npt_equilibration.input_coordinate_file = ProtocolPath(
-                    "output_coordinate_file", energy_minimisation.id
+                    "output_coordinate_file", npt_thermalisation.id
                 )
 
                 # Production
@@ -1159,7 +1192,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
                 simulation_protocol = groups.ProtocolGroup(f"simulation_{index}")
                 simulation_protocol.add_protocols(
-                    energy_minimisation, npt_equilibration, npt_production
+                    energy_minimisation, npt_thermalisation, npt_equilibration, npt_production
                 )
 
                 simulation_protocol.execute(simulation_directory, available_resources)
