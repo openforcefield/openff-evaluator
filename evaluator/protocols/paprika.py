@@ -67,28 +67,28 @@ class BasePaprikaProtocol(Protocol):
 
     water_model = InputAttribute(
         docstring="The water model to use for the calculation. This is "
-        "temporarily treated as separate from the force field "
-        "until the two are better integrated.",
+                  "temporarily treated as separate from the force field "
+                  "until the two are better integrated.",
         type_hint=forcefield.BaseBuildSystem.WaterModel,
         default_value=forcefield.BaseBuildSystem.WaterModel.TIP3P,
     )
 
     taproom_host_name = InputAttribute(
         docstring="The taproom three letter identifier of the host. This "
-        "is temporary until this protocol is decoupled from taproom.",
+                  "is temporary until this protocol is decoupled from taproom.",
         type_hint=str,
         default_value=UNDEFINED,
     )
     taproom_guest_name = InputAttribute(
         docstring="The taproom three letter identifier of the guest. This "
-        "is temporary until this protocol is decoupled from taproom.",
+                  "is temporary until this protocol is decoupled from taproom.",
         type_hint=typing.Union[str, None],
         default_value=None,
     )
     taproom_guest_orientation = InputAttribute(
         docstring="The taproom one letter identifier of the orientation of "
-        "the guest. This is temporary until this protocol is decoupled "
-        "from taproom.",
+                  "the guest. This is temporary until this protocol is decoupled "
+                  "from taproom.",
         type_hint=typing.Union[str, None],
         default_value=None,
     )
@@ -125,15 +125,15 @@ class BasePaprikaProtocol(Protocol):
 
     number_of_equilibration_steps = InputAttribute(
         docstring="The number of NPT equilibration steps to take. Data from "
-        "the equilibration simulations will be discarded.",
+                  "the equilibration simulations will be discarded.",
         type_hint=int,
         merge_behavior=InequalityMergeBehaviour.LargestValue,
         default_value=200000,
     )
     equilibration_output_frequency = InputAttribute(
         docstring="The frequency with which to write statistics during "
-        "equilibration. Data from the equilibration simulations "
-        "will be discarded.",
+                  "equilibration. Data from the equilibration simulations "
+                  "will be discarded.",
         type_hint=int,
         merge_behavior=InequalityMergeBehaviour.LargestValue,
         default_value=5000,
@@ -165,8 +165,8 @@ class BasePaprikaProtocol(Protocol):
     )
     simulation_box_aspect_ratio = InputAttribute(
         docstring="The aspect ratio of the box. This should be a list of three "
-        "floats, corresponding to the relative length of each side of "
-        "the box.",
+                  "floats, corresponding to the relative length of each side of "
+                  "the box.",
         type_hint=list,
         default_value=[1.0, 1.0, 2.0],
     )
@@ -242,7 +242,7 @@ class BasePaprikaProtocol(Protocol):
         reference_structure_path = None
 
         for index, window_file_path in enumerate(
-            self._paprika_setup.desolvated_window_paths
+                self._paprika_setup.desolvated_window_paths
         ):
 
             window_directory = os.path.dirname(window_file_path)
@@ -253,7 +253,6 @@ class BasePaprikaProtocol(Protocol):
             )
 
             if os.path.isfile(self._solvated_coordinate_paths[index]):
-
                 logger.info(
                     f"Skipping the setup of window {index + 1} as "
                     f"{self._solvated_coordinate_paths[index]} already "
@@ -379,7 +378,7 @@ class BasePaprikaProtocol(Protocol):
             )
 
     def _add_dummy_atoms(
-        self, index, solvated_structure_path, reference_structure_path
+            self, index, solvated_structure_path, reference_structure_path
     ):
 
         self._paprika_setup.add_dummy_atoms(
@@ -406,11 +405,11 @@ class BasePaprikaProtocol(Protocol):
             )
 
             for restraint in (
-                self._paprika_setup.static_restraints
-                + self._paprika_setup.conformational_restraints
-                + self._paprika_setup.symmetry_restraints
-                + self._paprika_setup.wall_restraints
-                + self._paprika_setup.guest_restraints
+                    self._paprika_setup.static_restraints
+                    + self._paprika_setup.conformational_restraints
+                    + self._paprika_setup.symmetry_restraints
+                    + self._paprika_setup.wall_restraints
+                    + self._paprika_setup.guest_restraints
             ):
 
                 restraint.index1 = index_from_mask(
@@ -449,9 +448,8 @@ class BasePaprikaProtocol(Protocol):
             return
 
         for index, window_file_path in enumerate(
-            self._paprika_setup.desolvated_window_paths
+                self._paprika_setup.desolvated_window_paths
         ):
-
             window_directory = os.path.dirname(window_file_path)
             self._build_amber_parameters(index, window_directory)
 
@@ -493,9 +491,8 @@ class BasePaprikaProtocol(Protocol):
         )
 
         for dummy_name in ["DM1", "DM2", "DM3"]:
-
             with open(
-                os.path.join(directory, f"{dummy_name.lower()}.mol2"), "w"
+                    os.path.join(directory, f"{dummy_name.lower()}.mol2"), "w"
             ) as file:
                 file.write(dummy_mol2_template.format(dummy_name))
 
@@ -576,7 +573,6 @@ class BasePaprikaProtocol(Protocol):
         load_guest_mol2 = ""
 
         if self.taproom_guest_name is not None:
-
             guest_frcmod = os.path.join(
                 window_directory_to_base,
                 f"{self._paprika_setup.guest}.{gaff_version}.frcmod",
@@ -641,7 +637,6 @@ class BasePaprikaProtocol(Protocol):
 
         # Start the threads.
         for _ in range(chunk_size):
-
             worker = Thread(target=self._run_window, args=(queue,))
             worker.setDaemon(True)
             worker.start()
@@ -656,14 +651,14 @@ class BasePaprikaProtocol(Protocol):
         # on the available compute resources.
         full_multiples = int(np.floor(len(window_indices) / chunk_size))
         chunks = [
-            [i * chunk_size, (i + 1) * chunk_size] for i in range(full_multiples)
-        ] + [[full_multiples * chunk_size, len(window_indices)]]
+                     [i * chunk_size, (i + 1) * chunk_size] for i in range(full_multiples)
+                 ] + [[full_multiples * chunk_size, len(window_indices)]]
 
         counter = 0
 
         for chunk in chunks:
 
-            for window_index in sorted(window_indices)[chunk[0] : chunk[1]]:
+            for window_index in sorted(window_indices)[chunk[0]: chunk[1]]:
 
                 logger.info(
                     f"Running window {window_index + 1} out of {len(self._paprika_setup.window_list)}"
@@ -671,7 +666,6 @@ class BasePaprikaProtocol(Protocol):
                 resources = ComputeResources(number_of_threads=1)
 
                 if available_resources.number_of_gpus > 0:
-
                     resources = ComputeResources(
                         number_of_threads=1,
                         number_of_gpus=1,
@@ -689,7 +683,6 @@ class BasePaprikaProtocol(Protocol):
                     counter = 0
 
                     if len(exceptions) > 0:
-
                         message = ", ".join(
                             [f"{exception.message}" for exception in exceptions]
                         )
@@ -699,7 +692,6 @@ class BasePaprikaProtocol(Protocol):
             queue.join()
 
         if len(exceptions) > 0:
-
             message = ", ".join([f"{exception.message}" for exception in exceptions])
             raise RuntimeError(message)
 
@@ -718,7 +710,6 @@ class BasePaprikaProtocol(Protocol):
             raise ValueError("The results dictionary is empty.")
 
         if "attach" in self._results_dictionary:
-
             self.attach_free_energy = unit.Measurement(
                 -self._results_dictionary["attach"]["ti-block"]["fe"]
                 * unit.kilocalorie
@@ -729,7 +720,6 @@ class BasePaprikaProtocol(Protocol):
             )
 
         if "pull" in self._results_dictionary:
-
             self.pull_free_energy = unit.Measurement(
                 -self._results_dictionary["pull"]["ti-block"]["fe"]
                 * unit.kilocalorie
@@ -740,7 +730,6 @@ class BasePaprikaProtocol(Protocol):
             )
 
         if "release" in self._results_dictionary:
-
             self.release_free_energy = unit.Measurement(
                 self._results_dictionary["release"]["ti-block"]["fe"]
                 * unit.kilocalorie
@@ -751,7 +740,6 @@ class BasePaprikaProtocol(Protocol):
             )
 
         if "ref_state_work" in self._results_dictionary:
-
             self.reference_free_energy = unit.Measurement(
                 -self._results_dictionary["ref_state_work"]
                 * unit.kilocalorie
@@ -791,7 +779,6 @@ class BasePaprikaProtocol(Protocol):
         self._solvate_windows(directory, available_resources)
 
         if len(self._solvated_coordinate_paths) == 0:
-
             raise RuntimeError(
                 "There were no defined windows to a/p/r the guest along.",
             )
@@ -805,10 +792,10 @@ class BasePaprikaProtocol(Protocol):
         # Save the restraints to a file, ready for analysis.
         save_restraints(
             restraint_list=self._paprika_setup.static_restraints
-            + self._paprika_setup.conformational_restraints
-            + self._paprika_setup.symmetry_restraints
-            + self._paprika_setup.wall_restraints
-            + self._paprika_setup.guest_restraints,
+                           + self._paprika_setup.conformational_restraints
+                           + self._paprika_setup.symmetry_restraints
+                           + self._paprika_setup.wall_restraints
+                           + self._paprika_setup.guest_restraints,
             filepath=restraints_path,
         )
 
@@ -855,14 +842,12 @@ class BasePaprikaProtocol(Protocol):
             )
 
             if not os.path.isfile(self._solvated_coordinate_paths[index]):
-
                 raise RuntimeError(
                     f"The {self._solvated_coordinate_paths[index]} file "
                     f"does not exist. Make sure setup ran successfully.",
                 )
 
             if not os.path.isfile(self._solvated_system_xml_paths[index]):
-
                 raise RuntimeError(
                     f"The {self._solvated_system_xml_paths[index]} file "
                     f"does not exist. Make sure setup ran successfully.",
@@ -876,7 +861,6 @@ class BasePaprikaProtocol(Protocol):
         import paprika
 
         if not self._paprika_setup:
-
             self._paprika_setup = paprika.setup(
                 host=self.taproom_host_name,
                 guest=self.taproom_guest_name,
@@ -893,11 +877,10 @@ class BasePaprikaProtocol(Protocol):
         # Make sure the available resources are commensurate with the
         # implemented parallelisation scheme.
         if (
-            available_resources.number_of_gpus > 0
-            and available_resources.number_of_gpus
-            != available_resources.number_of_threads
+                available_resources.number_of_gpus > 0
+                and available_resources.number_of_gpus
+                != available_resources.number_of_threads
         ):
-
             raise RuntimeError(
                 "The number of available CPUs must match the number"
                 "of available GPUs for this parallelisation scheme.",
@@ -908,9 +891,8 @@ class BasePaprikaProtocol(Protocol):
             self._force_field_source = ForceFieldSource.parse_json(file.read())
 
         if not isinstance(
-            self._force_field_source, SmirnoffForceFieldSource
+                self._force_field_source, SmirnoffForceFieldSource
         ) and not isinstance(self._force_field_source, TLeapForceFieldSource):
-
             raise RuntimeError(
                 "Only SMIRNOFF and TLeap based force fields may "
                 "be used with this protocol.",
@@ -947,7 +929,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
         self._solvated_system_xml_paths = {}
 
     def _add_dummy_atoms(
-        self, index, solvated_structure_path, reference_structure_path
+            self, index, solvated_structure_path, reference_structure_path
     ):
 
         # We pull the host charges from the specified mol2 file.
@@ -965,7 +947,6 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
         )
 
         if isinstance(self._force_field_source, SmirnoffForceFieldSource):
-
             # Assign force field parameters to the solvated complex system.
             # Because the openforcefield toolkit does not yet support dummy atoms,
             # we have to assign the smirnoff parameters before adding the dummy atoms.
@@ -1015,7 +996,6 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
             new_positions = []
 
             for position in pdb_file.positions:
-
                 position += cell_vectors[0] / 2.0
                 position += cell_vectors[1] / 2.0
                 position += cell_vectors[2] / 2.0
@@ -1034,8 +1014,8 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
             prmtop = AmberPrmtopFile(os.path.join(window_directory, "structure.prmtop"))
 
             cutoff = (
-                self._force_field_source.cutoff.to(unit.angstrom).magnitude
-                * simtk_unit.angstrom
+                    self._force_field_source.cutoff.to(unit.angstrom).magnitude
+                    * simtk_unit.angstrom
             )
 
             system = prmtop.createSystem(
@@ -1059,7 +1039,6 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
         # Apply the restraint forces to the solvated system xml files.
         for index, window in enumerate(self._paprika_setup.window_list):
-
             self._paprika_setup.initialize_calculation(
                 window,
                 self._solvated_coordinate_paths[index],
@@ -1118,20 +1097,18 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                 final_topology_path = os.path.join(window_directory, "input.pdb")
 
                 if os.path.isfile(final_trajectory_path) and os.path.isfile(
-                    final_topology_path
+                        final_topology_path
                 ):
-
                     queue.task_done()
                     continue
 
                 if (
-                    os.path.isfile(final_trajectory_path)
-                    and not os.path.isfile(final_topology_path)
+                        os.path.isfile(final_trajectory_path)
+                        and not os.path.isfile(final_topology_path)
                 ) or (
-                    not os.path.isfile(final_trajectory_path)
-                    and os.path.isfile(final_topology_path)
+                        not os.path.isfile(final_trajectory_path)
+                        and os.path.isfile(final_topology_path)
                 ):
-
                     exceptions.append(
                         EvaluatorException(
                             f"This window either has a trajectory but "
@@ -1218,7 +1195,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                 exceptions.append(
                     EvaluatorException(
                         message=f"An uncaught exception was raised: "
-                        f"{formatted_exception}",
+                                f"{formatted_exception}",
                     )
                 )
 
@@ -1250,6 +1227,12 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
     host and guest `taproom` style .yaml definition file.
     """
 
+    def __init__(self, protocol_id):
+        super().__init__(protocol_id)
+        self._solvated_system_top_paths = {}
+        self._force_field_source = None
+        self.gaff_cutoff = None
+
     def _setup_restraints(self):
 
         from paprika.restraints import amber
@@ -1273,12 +1256,11 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
                 value = ""
 
                 for restraint in (
-                    self._paprika_setup.static_restraints
-                    + self._paprika_setup.conformational_restraints
-                    + self._paprika_setup.wall_restraints
-                    + self._paprika_setup.guest_restraints
+                        self._paprika_setup.static_restraints
+                        + self._paprika_setup.conformational_restraints
+                        + self._paprika_setup.wall_restraints
+                        + self._paprika_setup.guest_restraints
                 ):
-
                     value += amber.amber_restraint_line(restraint, window)
 
                 file.write(value)
@@ -1298,7 +1280,9 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
                 self.thermodynamic_state,
                 self.gaff_cutoff,
                 self.timestep,
-                self.equilibration_timestep,
+                self.thermalisation_timestep,
+                self.number_of_thermalisation_steps,
+                self.thermalisation_output_frequency,
                 self.number_of_equilibration_steps,
                 self.equilibration_output_frequency,
                 self.number_of_production_steps,
@@ -1322,7 +1306,9 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
                 thermodynamic_state,
                 gaff_cutoff,
                 timestep,
-                equilibration_timestep,
+                thermalisation_timestep,
+                number_of_thermalisation_steps,
+                thermalisation_output_frequency,
                 number_of_equilibration_steps,
                 equilibration_output_frequency,
                 number_of_production_steps,
@@ -1336,7 +1322,6 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             environment = os.environ.copy()
 
             if available_resources.number_of_gpus < 1:
-
                 exceptions.append(
                     EvaluatorException(
                         message="Currently Amber may only be run" "on GPUs",
@@ -1347,8 +1332,8 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
                 continue
 
             if (
-                available_resources.preferred_gpu_toolkit
-                != ComputeResources.GPUToolkit.CUDA
+                    available_resources.preferred_gpu_toolkit
+                    != ComputeResources.GPUToolkit.CUDA
             ):
                 raise ValueError("Paprika can only be ran either on CPUs or CUDA GPUs.")
 
@@ -1358,7 +1343,6 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             ]
 
             if len(available_resources.gpu_device_indices) > len(devices_split):
-
                 raise ValueError(
                     f"The number of requested GPUs "
                     f"({len(available_resources.gpu_device_indices)}) "
@@ -1377,152 +1361,193 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
 
             logger.info(f"Starting a set of Amber simulations on GPUs {devices_string}")
 
+            simulation_directory = os.path.join(window_directory, "simulations")
+            os.makedirs(simulation_directory, exist_ok=True)
+
+            # Minimisation
+            minimise_directory = os.path.join(simulation_directory, "energy_minimisation")
+            topology_directory = os.path.relpath(window_directory, minimise_directory)
+            os.makedirs(minimise_directory, exist_ok=True)
+
             amber_simulation = Simulation()
+            amber_simulation.executable = "pmemd"
 
-            amber_simulation.path = f"{window_directory}/"
-            amber_simulation.prefix = "minimize"
+            amber_simulation.path = f"{minimise_directory}/"
+            amber_simulation.prefix = "minimise"
 
-            amber_simulation.inpcrd = "structure.rst7"
-            amber_simulation.ref = "structure.rst7"
-            amber_simulation.topology = "structure.prmtop"
-            amber_simulation.restraint_file = "disang.rest"
+            amber_simulation.inpcrd = f"{topology_directory}/structure.rst7"
+            amber_simulation.ref = f"{topology_directory}/structure.rst7"
+            amber_simulation.topology = f"{topology_directory}/structure.prmtop"
+            amber_simulation.restraint_file = f"{topology_directory}/disang.rest"
 
             amber_simulation.config_pbc_min()
 
             amber_simulation.cntrl["ntf"] = 2
             amber_simulation.cntrl["ntc"] = 2
-
             amber_simulation.cntrl["maxcyc"] = 5000
             amber_simulation.cntrl["ncyc"] = 1000
-
             amber_simulation.cntrl["ntr"] = 1
             amber_simulation.cntrl["restraint_wt"] = 50.0
             amber_simulation.cntrl["restraintmask"] = "'@DUM'"
 
-            amber_simulation._amber_write_input_file()
+            logging.info(f'Running minimisation with {amber_simulation.executable}')
+            amber_simulation.run()
 
-            Popen(
-                [
-                    "pmemd",
-                    "-O",
-                    "-p",
-                    "structure.prmtop",
-                    "-ref",
-                    "structure.rst7",
-                    "-c",
-                    "structure.rst7",
-                    "-i",
-                    "minimize.in",
-                    "-r",
-                    "minimize.rst7",
-                    "-o",
-                    "minimize.out",
-                    "-inf",
-                    "minimize.info",
-                ],
-                cwd=window_directory,
-                env=environment,
-            ).wait()
+            # Thermalisation
+            thermalisation_directory = os.path.join(simulation_directory, "npt_thermalisation")
+            input_directory = os.path.relpath(minimise_directory, thermalisation_directory)
+            os.makedirs(thermalisation_directory, exist_ok=True)
 
-            # Equilibration
             amber_simulation = Simulation()
-            amber_simulation.executable = "pmemd.cuda"
+            amber_simulation.executable = "pmemd.cuda -AllowSmallBox"
 
-            amber_simulation.path = f"{window_directory}/"
-            amber_simulation.prefix = "equilibration"
+            amber_simulation.path = f"{thermalisation_directory}/"
+            amber_simulation.prefix = "thermalisation"
 
-            amber_simulation.inpcrd = "minimize.rst7"
-            amber_simulation.ref = "minimize.rst7"
-            amber_simulation.topology = "structure.prmtop"
-            amber_simulation.restraint_file = "disang.rest"
+            amber_simulation.inpcrd = f"{input_directory}/minimise.rst7"
+            amber_simulation.ref = f"{topology_directory}/structure.rst7"
+            amber_simulation.topology = f"{topology_directory}/structure.prmtop"
+            amber_simulation.restraint_file = f"{topology_directory}/disang.rest"
 
             amber_simulation.config_pbc_md()
             amber_simulation.cntrl["ntr"] = 1
             amber_simulation.cntrl["restraint_wt"] = 50.0
             amber_simulation.cntrl["restraintmask"] = "'@DUM'"
-            amber_simulation.cntrl["dt"] = equilibration_timestep.to(
+            amber_simulation.cntrl["dt"] = thermalisation_timestep.to(
                 unit.picoseconds
             ).magnitude
-            amber_simulation.cntrl["nstlim"] = number_of_equilibration_steps
-            amber_simulation.cntrl["ntwx"] = equilibration_output_frequency
+            amber_simulation.cntrl["cut"] = gaff_cutoff.to(unit.angstrom).magnitude + 1.0  # necessary to relax box
+            amber_simulation.cntrl["nstlim"] = number_of_thermalisation_steps
+            amber_simulation.cntrl["ntpr"] = thermalisation_output_frequency
+            amber_simulation.cntrl["ntwx"] = thermalisation_output_frequency
+            amber_simulation.cntrl["ntwe"] = thermalisation_output_frequency
+            amber_simulation.cntrl["ntwr"] = thermalisation_output_frequency
             amber_simulation.cntrl["barostat"] = 2
 
-            amber_simulation._amber_write_input_file()
+            logging.info(f'Running thermalisation with {amber_simulation.executable}')
+            amber_simulation.run()
 
-            Popen(
-                [
-                    "pmemd.cuda",
-                    "-O",
-                    "-p",
-                    "structure.prmtop",
-                    "-ref",
-                    "minimize.rst7",
-                    "-c",
-                    "minimize.rst7",
-                    "-i",
-                    "equilibration.in",
-                    "-r",
-                    "equilibration.rst7",
-                    "-inf",
-                    "equilibration.info",
-                    "-o",
-                    "equilibration.out",
-                    "-x",
-                    "equilibration.nc",
-                ],
-                cwd=window_directory,
-                env=environment,
-            ).wait()
+            # Equilibration
+            equilibration_directory = os.path.join(simulation_directory, "npt_equilibration")
+            input_directory = os.path.relpath(thermalisation_directory, equilibration_directory)
+            os.makedirs(equilibration_directory, exist_ok=True)
 
-            # Production
             amber_simulation = Simulation()
             amber_simulation.executable = "pmemd.cuda"
 
-            amber_simulation.path = f"{window_directory}/"
-            amber_simulation.prefix = "production"
+            amber_simulation.path = f"{equilibration_directory}/"
+            amber_simulation.prefix = "equilibration"
 
-            amber_simulation.inpcrd = "equilibration.rst7"
-            amber_simulation.ref = "equilibration.rst7"
-            amber_simulation.topology = "structure.prmtop"
-            amber_simulation.restraint_file = "disang.rest"
+            amber_simulation.inpcrd = f"{input_directory}/thermalisation.rst7"
+            amber_simulation.ref = f"{topology_directory}/structure.rst7"
+            amber_simulation.topology = f"{topology_directory}/structure.prmtop"
+            amber_simulation.restraint_file = f"{topology_directory}/disang.rest"
 
             amber_simulation.config_pbc_md()
             amber_simulation.cntrl["ntr"] = 1
             amber_simulation.cntrl["restraint_wt"] = 50.0
             amber_simulation.cntrl["restraintmask"] = "'@DUM'"
             amber_simulation.cntrl["dt"] = timestep.to(unit.picoseconds).magnitude
-            amber_simulation.cntrl["nstlim"] = number_of_production_steps
-            amber_simulation.cntrl["ntwx"] = production_output_frequency
+            amber_simulation.cntrl["cut"] = gaff_cutoff.to(unit.angstrom).magnitude
+            amber_simulation.cntrl["nstlim"] = number_of_equilibration_steps
+            amber_simulation.cntrl["ntpr"] = equilibration_output_frequency
+            amber_simulation.cntrl["ntwx"] = equilibration_output_frequency
+            amber_simulation.cntrl["ntwe"] = equilibration_output_frequency
+            amber_simulation.cntrl["ntwr"] = equilibration_output_frequency
             amber_simulation.cntrl["barostat"] = 2
 
-            amber_simulation._amber_write_input_file()
+            logging.info(f'Running equilibration with {amber_simulation.executable}')
+            amber_simulation.run()
 
-            Popen(
-                [
-                    "pmemd.cuda",
-                    "-O",
-                    "-p",
-                    "structure.prmtop",
-                    "-ref",
-                    "equilibration.rst7",
-                    "-c",
-                    "equilibration.rst7",
-                    "-i",
-                    "production.in",
-                    "-r",
-                    "production.rst7",
-                    "-inf",
-                    "production.info",
-                    "-o",
-                    "production.out",
-                    "-x",
-                    "production.nc",
-                ],
-                cwd=window_directory,
-                env=environment,
-            ).wait()
+            # Production
+            production_directory = os.path.join(simulation_directory, "npt_production")
+            input_directory = os.path.relpath(equilibration_directory, production_directory)
+            os.makedirs(production_directory, exist_ok=True)
+
+            amber_simulation = Simulation()
+            amber_simulation.executable = "pmemd.cuda"
+
+            amber_simulation.path = f"{production_directory}/"
+            amber_simulation.prefix = "production"
+
+            amber_simulation.inpcrd = f"{input_directory}/equilibration.rst7"
+            amber_simulation.ref = f"{topology_directory}/structure.rst7"
+            amber_simulation.topology = f"{topology_directory}/structure.prmtop"
+            amber_simulation.restraint_file = f"{topology_directory}/disang.rest"
+
+            amber_simulation.config_pbc_md()
+            amber_simulation.cntrl["ntr"] = 1
+            amber_simulation.cntrl["restraint_wt"] = 50.0
+            amber_simulation.cntrl["restraintmask"] = "'@DUM'"
+            amber_simulation.cntrl["dt"] = timestep.to(unit.picoseconds).magnitude
+            amber_simulation.cntrl["cut"] = gaff_cutoff.to(unit.angstrom).magnitude
+            amber_simulation.cntrl["nstlim"] = number_of_production_steps
+            amber_simulation.cntrl["ntpr"] = production_output_frequency
+            amber_simulation.cntrl["ntwx"] = production_output_frequency
+            amber_simulation.cntrl["ntwe"] = production_output_frequency
+            amber_simulation.cntrl["ntwr"] = production_output_frequency
+            amber_simulation.cntrl["barostat"] = 2
+
+            logging.info(f'Running production with {amber_simulation.executable}')
+            amber_simulation.run()
+
+            # Clean up files
+            trajectory_path = os.path.join(production_directory, "production.nc")
+            final_trajectory_path = os.path.join(window_directory, "production.nc")
+
+            shutil.move(trajectory_path, final_trajectory_path)
+            # shutil.rmtree(simulation_directory)
 
             queue.task_done()
+
+    def _simulate(self, directory, available_resources):
+        import paprika
+
+        if not self._paprika_setup:
+            self._paprika_setup = paprika.setup(
+                host=self.taproom_host_name,
+                guest=self.taproom_guest_name,
+                guest_orientation=self.taproom_guest_orientation,
+                build=False,
+                directory_path=directory
+            )
+
+            base_path = os.path.join(
+                directory,
+                self._paprika_setup.host,
+                f"{self._paprika_setup.guest}-{self.taproom_guest_orientation}"
+                if self._paprika_setup.guest else "",
+                'windows'
+            )
+
+            window_directories = [
+                os.path.join(base_path, window) for window in self._paprika_setup.window_list
+            ]
+
+        else:
+            window_directories = [
+                os.path.dirname(window) for window in self._paprika_setup.desolvated_window_paths
+            ]
+
+        for index, window_directory in enumerate(window_directories):
+            self._solvated_coordinate_paths[index] = os.path.join(window_directory, "structure.rst7")
+            self._solvated_system_top_paths[index] = os.path.join(window_directory, "structure.prmtop")
+
+            if not os.path.isfile(self._solvated_system_top_paths[index]):
+                return EvaluatorException(
+                    directory,
+                    f"The {self._solvated_coordinate_paths[index]} file"
+                    f"does not exist. Make sure setup ran succesfully"
+                )
+
+            if not os.path.isfile(self._solvated_system_top_paths[index]):
+                return EvaluatorException(
+                    directory,
+                    f"The {self._solvated_system_top_paths[index]} file"
+                    f"does not exist. Make sure setup ran successfully"
+                )
+
+        self._run_windows(available_resources)
 
     def _perform_analysis(self, directory):
 
@@ -1532,7 +1557,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             host=self._paprika_setup.host,
             guest=self._paprika_setup.guest,
             guest_orientation=self.taproom_guest_orientation,
-            topology_file="restrained.pdb",
+            topology_file="structure.prmtop",
             trajectory_mask="production.nc",
             directory_path=directory,
             guest_residue_name=self._paprika_setup.guest_yaml["name"]
@@ -1548,15 +1573,16 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             self._force_field_source = ForceFieldSource.parse_json(file.read())
 
         if not isinstance(
-            self._force_field_source, TLeapForceFieldSource
+                self._force_field_source, TLeapForceFieldSource
         ) or self._force_field_source.leap_source not in [
             "leaprc.gaff",
             "leaprc.gaff2",
         ]:
-
             raise RuntimeError(
                 message="Currently GAFF(1/2) are the only force fields "
-                "supported with the AmberPaprikaProtocol.",
+                        "supported with the AmberPaprikaProtocol.",
             )
+
+        self.gaff_cutoff = self._force_field_source.cutoff
 
         super(AmberPaprikaProtocol, self)._execute(directory, available_resources)
