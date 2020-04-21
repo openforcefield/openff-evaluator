@@ -198,7 +198,7 @@ def test_substance_filtering_protocol(filter_role):
     filter_protocol = FilterSubstanceByRole("filter_protocol")
     filter_protocol.input_substance = create_substance()
 
-    filter_protocol.component_role = filter_role
+    filter_protocol.component_roles = [filter_role]
     filter_protocol.execute("", ComputeResources())
 
     assert len(filter_protocol.filtered_substance.components) == 1

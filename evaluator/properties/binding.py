@@ -51,7 +51,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         filter_ligand = miscellaneous.FilterSubstanceByRole("filter_ligand")
         filter_ligand.input_substance = ProtocolPath("substance", "global")
 
-        filter_ligand.component_role = Component.Role.Ligand
+        filter_ligand.component_roles = [Component.Role.Ligand]
         # We only support substances with a single guest ligand.
         filter_ligand.expected_components = 1
 
@@ -62,7 +62,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         filter_receptor = miscellaneous.FilterSubstanceByRole("filter_receptor")
         filter_receptor.input_substance = ProtocolPath("substance", "global")
 
-        filter_receptor.component_role = Component.Role.Receptor
+        filter_receptor.component_roles = [Component.Role.Receptor]
         # We only support substances with a single host receptor.
         filter_receptor.expected_components = 1
 
@@ -83,7 +83,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         # Solvate the docked structure using packmol
         filter_solvent = miscellaneous.FilterSubstanceByRole("filter_solvent")
         filter_solvent.input_substance = ProtocolPath("substance", "global")
-        filter_solvent.component_role = Component.Role.Solvent
+        filter_solvent.component_roles = [Component.Role.Solvent]
 
         schema.protocols[filter_solvent.id] = filter_solvent.schema
 

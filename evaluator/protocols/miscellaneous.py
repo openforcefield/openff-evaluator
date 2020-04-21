@@ -224,9 +224,9 @@ class FilterSubstanceByRole(Protocol):
         default_value=UNDEFINED,
     )
 
-    component_role = InputAttribute(
-        docstring="The role to filter substance components against.",
-        type_hint=Component.Role,
+    component_roles = InputAttribute(
+        docstring="The roles to filter substance components against.",
+        type_hint=list,
         default_value=UNDEFINED,
     )
 
@@ -249,7 +249,7 @@ class FilterSubstanceByRole(Protocol):
 
         for component in self.input_substance.components:
 
-            if component.role != self.component_role:
+            if component.role not in self.component_roles:
                 continue
 
             filtered_components.append(component)
@@ -288,3 +288,8 @@ class FilterSubstanceByRole(Protocol):
                     amount = MoleFraction(amount.value * inverse_mole_fraction)
 
                 self.filtered_substance.add_component(component, amount)
+
+    def validate(self, attribute_type=None):
+
+        super(FilterSubstanceByRole, self).validate(attribute_type)
+        assert all(isinstance(x, Component.Role) for x in self.component_roles)
