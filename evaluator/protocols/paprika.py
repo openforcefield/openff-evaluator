@@ -202,7 +202,7 @@ class BasePaprikaProtocol(Protocol):
         gaff_version = "gaff2"
 
         if generate_gaff_files:
-            gaff_version = self._force_field_source.leap_source.replace("leaprc.")
+            gaff_version = self._force_field_source.leap_source.replace("leaprc.", "")
 
         self._paprika_setup = paprika.Setup(
             host=self.taproom_host_name,
@@ -266,6 +266,96 @@ class BasePaprikaProtocol(Protocol):
             self._add_dummy_atoms(
                 index, solvate_complex.coordinate_file_path, reference_structure_path
             )
+
+            # Extra step to create GAFF1/2 structures properly
+            if isinstance(self._force_field_source, TLeapForceFieldSource):
+
+                # Fix atom names of guest molecule for Tleap processing
+                if self._paprika_setup.guest is self.taproom_guest_name:
+                    import parmed as pmd
+
+                    structure_mol = pmd.load_file(
+                        os.path.join(
+                            window_directory[:len(window_directory) - 13],
+                            f"{self._paprika_setup.guest}.gaff.mol2"
+                        )
+                    )
+                    structure_pdb = pmd.load_file(
+                        self._solvated_coordinate_paths[index]
+                    )
+
+                    # Get atom names of guest molecule from restrained.pdb and *.gaff.mol2
+                    mol_name = []
+                    pdb_name = []
+                    for original, guest in zip(
+                            structure_mol,
+                            structure_pdb[f":{self._paprika_setup.guest.upper()}"]
+                    ):
+                        mol_name.append(original.name)
+                        pdb_name.append(guest.name)
+
+                    # Change guest atom names of restrained.pdb to that of *.gaff.mol2
+                    fin = open(self._solvated_coordinate_paths[index], "r")
+                    pdb_lines = fin.readlines()
+                    i_atom = 0
+                    i_file = 0
+                    for line in pdb_lines:
+                        if line.startswith("HETATM"):
+                            if line.split()[3].upper() == f"{self._paprika_setup.guest.upper()}":
+                                if len(pdb_name[i_atom]) - len(mol_name[i_atom]) == 2:
+                                    pdb_lines[i_file] = line.replace(
+                                        pdb_name[i_atom],
+                                        ' ' + mol_name[i_atom] + ' '
+                                    )
+                                elif len(pdb_name[i_atom]) - len(mol_name[i_atom]) == 1:
+                                    pdb_lines[i_file] = line.replace(
+                                        pdb_name[i_atom],
+                                        ' ' + mol_name[i_atom]
+                                    )
+                                elif len(pdb_name[i_atom]) < len(mol_name[i_atom]):
+                                    pdb_lines[i_file] = line.replace(
+                                        pdb_name[i_atom] + ' ',
+                                        mol_name[i_atom]
+                                    )
+                                else:
+                                    pdb_lines[i_file] = line.replace(
+                                        pdb_name[i_atom],
+                                        mol_name[i_atom]
+                                    )
+                                i_atom += 1
+                        i_file += 1
+                    fin.close()
+
+                    # Overwrite restrained.pdb with the correct guest atom names
+                    fout = open(self._solvated_coordinate_paths[index], "w")
+                    for line in pdb_lines:
+                        fout.writelines(line)
+                    fout.close()
+
+                # Extract water and ions from restrained.pdb
+                import pytraj as pt
+                structure = pt.iterload(self._solvated_coordinate_paths[index])
+                water_ions_sel = f"!@DUM&!:MGO&!:{self._paprika_setup.guest.upper()}"
+                structure[water_ions_sel].save(
+                    os.path.join(window_directory, "water_ions.pdb")
+                )
+
+                # Create *.mol2 file for water and ions
+                from paprika.tleap import System
+                system = System()
+                system.output_path = window_directory
+                system.pbc_type = None
+                system.neutralize = False
+                system.template_lines = [
+                    f"source leaprc.water.tip3p",
+                    f"HOH = loadpdb water_ions.pdb",
+                    f"savemol2 HOH water_ions.mol2 1",
+                    f"quit",
+                ]
+                system.build()
+
+                # Delete water_ions.pdb
+                os.remove(os.path.join(window_directory, "water_ions.pdb"))
 
             logger.info(
                 f"Set up window {index + 1} of "
@@ -414,21 +504,58 @@ class BasePaprikaProtocol(Protocol):
         system.pbc_type = None
         system.neutralize = False
 
-        gaff_version = self._force_field_source.leap_source.replace("leaprc.")
+        gaff_version = self._force_field_source.leap_source.replace("leaprc.", "")
 
+        # Host definition
         host_frcmod = os.path.join(
             window_directory_to_base,
             f"{self._paprika_setup.host}.{gaff_version}.frcmod",
         )
         host_mol2 = os.path.join(
-            window_directory_to_base, f"{self._paprika_setup.host}.{gaff_version}.mol2"
+            window_directory_to_base,
+            f"{self._paprika_setup.host}.{gaff_version}.mol2"
         )
 
         load_host_frcmod = f"loadamberparams {host_frcmod}"
         load_host_mol2 = (
             f'{self._paprika_setup.host_yaml["resname"].upper()} = loadmol2 {host_mol2}'
         )
+        load_host_def = [
+            load_host_mol2,
+            "set MGO name \"MGO\"",
+            "set MGO head MGO.1.C4",
+            "set MGO tail MGO.1.O1",
+            "set MGO.1 connect0 MGO.1.C4",
+            "set MGO.1 connect1 MGO.1.O1",
+            "set MGO.1 restype saccharide",
+            "set MGO.1 name \"MGO\"",
+        ]
+        load_host_chain = ""
+        model_bond = ""
+        if self._paprika_setup.host.lower() == "acd":
+            load_host_chain = [
+                "ACDOH = sequence {MGO MGO MGO MGO MGO MGO MGO}",
+                "set ACDOH head ACDOH.1.C4",
+                "set ACDOH tail ACDOH.6.O1",
+                "impose ACDOH {1 2 3 4 5 6} {{O5 C1 O1 C4 90.0} {C1 O1 C4 C5 -95.0}}",
+                "bond ACDOH.1.C4 ACDOH.6.O1",
+            ]
+            model_bond = "bond model.1.C4 model.6.O1"
 
+        elif self._paprika_setup.host.lower() == "bcd":
+            load_host_chain = [
+                "BCDOH = sequence {MGO MGO MGO MGO MGO MGO MGO MGO}",
+                "set BCDOH head BCDOH.1.C4",
+                "set BCDOH tail BCDOH.7.O1",
+                "impose BCDOH {1 2 3 4 5 6 7} {{O5 C1 O1 C4 98.0} {C1 O1 C4 C5 -103.0}}",
+                "bond BCDOH.1.C4 BCDOH.7.O1",
+            ]
+            model_bond = "bond model.1.C4 model.7.O1"
+
+        # Solvent definition
+        load_solvent_mol2 = f"SOL = loadmol2 water_ions.mol2"
+
+        # Guest definition
         load_guest_frcmod = ""
         load_guest_mol2 = ""
 
@@ -449,28 +576,45 @@ class BasePaprikaProtocol(Protocol):
         # window_pdb_file = PDBFile(self._solvated_coordinate_paths[index])
         # cell_vectors = window_pdb_file.topology.getPeriodicBoxVectors()
 
-        system.template_lines = [
+        force_field_lines = [
             f"source leaprc.{gaff_version}",
             f"source leaprc.water.tip3p",
             f"source leaprc.protein.ff14SB",
             load_host_frcmod,
             load_guest_frcmod,
             f"loadamberparams {os.path.join(window_directory_to_base, 'dummy.frcmod')}",
-            load_host_mol2,
+        ]
+
+        host_def_lines = load_host_def + load_host_chain
+
+        hetatom_lines = [
             load_guest_mol2,
+            load_solvent_mol2,
             f"DM1 = loadmol2 {os.path.join(window_directory_to_base, 'dm1.mol2')}",
             f"DM2 = loadmol2 {os.path.join(window_directory_to_base, 'dm2.mol2')}",
             f"DM3 = loadmol2 {os.path.join(window_directory_to_base, 'dm3.mol2')}",
+        ]
+
+        model_lines = [
             f"model = loadpdb {window_coordinates}",
-            # f"set model box {{{cell_vectors[0][0].value_in_unit(unit.angstrom)} "
-            #                 f"{cell_vectors[1][1].value_in_unit(unit.angstrom)} "
-            #                 f"{cell_vectors[2][2].value_in_unit(unit.angstrom)}}}",
-            f'setBox model "centers"',
+            model_bond,
+            f"setBox model \"centers\"",
             "check model",
+        ]
+
+        save_structure_lines = [
             "saveamberparm model structure.prmtop structure.rst7",
         ]
 
+        system.template_lines = force_field_lines + \
+                                host_def_lines + \
+                                hetatom_lines + \
+                                model_lines + \
+                                save_structure_lines
         system.build()
+
+        # Delete water_ions.mol2
+        os.remove(os.path.join(window_directory, "water_ions.mol2"))
 
     def _run_windows(self, available_resources):
 
