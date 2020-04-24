@@ -270,6 +270,9 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 substance = self._build_substance(
                     guest_smiles, host_smiles, ionic_strength=ionic_strength
                 )
+                host_only_substance = self._build_substance(
+                    None, host_smiles, ionic_strength=ionic_strength
+                )
 
                 measured_property = HostGuestBindingAffinity(
                     thermodynamic_state=ThermodynamicState(temperature, pressure),
@@ -283,6 +286,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 measured_property.metadata = {
                     "guest_orientations": orientations,
                     "host_identifier": host_name,
+                    "host_substance": host_only_substance,
                     "guest_identifier": guest_name,
                 }
 

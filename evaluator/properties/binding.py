@@ -269,21 +269,10 @@ class HostGuestBindingAffinity(PhysicalProperty):
         host_guest_protocol.production_output_frequency = 5000
         host_guest_protocol.number_of_solvent_molecules = n_solvent_molecules
 
-        # Retrieve a subset of the full substance which only contains the
-        # host and the solvent.
-        filter_host = miscellaneous.FilterSubstanceByRole("filter_host")
-        filter_host.input_substance = ProtocolPath("substance", "global")
-
-        filter_host.component_roles = [
-            Component.Role.Solute,
-            Component.Role.Solvent,
-            Component.Role.Receptor,
-        ]
-
         # Create the protocols which will run the release calculations
         host_protocol = OpenMMPaprikaProtocol("host")
 
-        host_protocol.substance = ProtocolPath("filtered_substance", filter_host.id)
+        host_protocol.substance = ProtocolPath("host_substance", "global")
         host_protocol.thermodynamic_state = ProtocolPath(
             "thermodynamic_state", "global"
         )
@@ -321,7 +310,6 @@ class HostGuestBindingAffinity(PhysicalProperty):
 
         schema.protocol_schemas = [
             host_guest_protocol.schema,
-            filter_host.schema,
             host_protocol.schema,
             sum_protocol.schema,
             combine_values.schema,
