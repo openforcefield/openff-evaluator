@@ -9,7 +9,6 @@ import shutil
 import traceback
 import typing
 from queue import Queue
-from subprocess import Popen
 from threading import Thread
 
 import numpy as np
@@ -67,28 +66,28 @@ class BasePaprikaProtocol(Protocol):
 
     water_model = InputAttribute(
         docstring="The water model to use for the calculation. This is "
-                  "temporarily treated as separate from the force field "
-                  "until the two are better integrated.",
+        "temporarily treated as separate from the force field "
+        "until the two are better integrated.",
         type_hint=forcefield.BaseBuildSystem.WaterModel,
         default_value=forcefield.BaseBuildSystem.WaterModel.TIP3P,
     )
 
     taproom_host_name = InputAttribute(
         docstring="The taproom three letter identifier of the host. This "
-                  "is temporary until this protocol is decoupled from taproom.",
+        "is temporary until this protocol is decoupled from taproom.",
         type_hint=str,
         default_value=UNDEFINED,
     )
     taproom_guest_name = InputAttribute(
         docstring="The taproom three letter identifier of the guest. This "
-                  "is temporary until this protocol is decoupled from taproom.",
+        "is temporary until this protocol is decoupled from taproom.",
         type_hint=typing.Union[str, None],
         default_value=None,
     )
     taproom_guest_orientation = InputAttribute(
         docstring="The taproom one letter identifier of the orientation of "
-                  "the guest. This is temporary until this protocol is decoupled "
-                  "from taproom.",
+        "the guest. This is temporary until this protocol is decoupled "
+        "from taproom.",
         type_hint=typing.Union[str, None],
         default_value=None,
     )
@@ -101,7 +100,7 @@ class BasePaprikaProtocol(Protocol):
     )
     thermalisation_timestep = InputAttribute(
         docstring="The timestep to evolve the system during thermalisation "
-                  "by at each step.",
+        "by at each step.",
         type_hint=unit.Quantity,
         merge_behavior=InequalityMergeBehaviour.SmallestValue,
         default_value=1.0 * unit.femtosecond,
@@ -109,15 +108,15 @@ class BasePaprikaProtocol(Protocol):
 
     number_of_thermalisation_steps = InputAttribute(
         docstring="The number of NPT thermalisation steps to take. Data from "
-                  "the equilibration simulations will be discarded.",
+        "the equilibration simulations will be discarded.",
         type_hint=int,
         merge_behavior=InequalityMergeBehaviour.LargestValue,
         default_value=50000,
     )
     thermalisation_output_frequency = InputAttribute(
         docstring="The frequency with which to write statistics during "
-                  "thermalisation. Data from the thermalisation simulations "
-                  "will be discarded.",
+        "thermalisation. Data from the thermalisation simulations "
+        "will be discarded.",
         type_hint=int,
         merge_behavior=InequalityMergeBehaviour.LargestValue,
         default_value=5000,
@@ -125,15 +124,15 @@ class BasePaprikaProtocol(Protocol):
 
     number_of_equilibration_steps = InputAttribute(
         docstring="The number of NPT equilibration steps to take. Data from "
-                  "the equilibration simulations will be discarded.",
+        "the equilibration simulations will be discarded.",
         type_hint=int,
         merge_behavior=InequalityMergeBehaviour.LargestValue,
         default_value=200000,
     )
     equilibration_output_frequency = InputAttribute(
         docstring="The frequency with which to write statistics during "
-                  "equilibration. Data from the equilibration simulations "
-                  "will be discarded.",
+        "equilibration. Data from the equilibration simulations "
+        "will be discarded.",
         type_hint=int,
         merge_behavior=InequalityMergeBehaviour.LargestValue,
         default_value=5000,
@@ -165,8 +164,8 @@ class BasePaprikaProtocol(Protocol):
     )
     simulation_box_aspect_ratio = InputAttribute(
         docstring="The aspect ratio of the box. This should be a list of three "
-                  "floats, corresponding to the relative length of each side of "
-                  "the box.",
+        "floats, corresponding to the relative length of each side of "
+        "the box.",
         type_hint=list,
         default_value=[1.0, 1.0, 2.0],
     )
@@ -235,14 +234,14 @@ class BasePaprikaProtocol(Protocol):
         # Na+, Cl-...)
         filter_solvent = miscellaneous.FilterSubstanceByRole("filter_solvent")
         filter_solvent.input_substance = self.substance
-        filter_solvent.component_role = Component.Role.Solvent
+        filter_solvent.component_roles = [Component.Role.Solvent]
 
         filter_solvent.execute(directory, available_resources)
 
         reference_structure_path = None
 
         for index, window_file_path in enumerate(
-                self._paprika_setup.desolvated_window_paths
+            self._paprika_setup.desolvated_window_paths
         ):
 
             window_directory = os.path.dirname(window_file_path)
@@ -291,8 +290,8 @@ class BasePaprikaProtocol(Protocol):
 
                     structure_mol = pmd.load_file(
                         os.path.join(
-                            window_directory[:len(window_directory) - 13],
-                            f"{self._paprika_setup.guest}.gaff.mol2"
+                            window_directory[: len(window_directory) - 13],
+                            f"{self._paprika_setup.guest}.gaff.mol2",
                         )
                     )
                     structure_pdb = pmd.load_file(
@@ -303,8 +302,8 @@ class BasePaprikaProtocol(Protocol):
                     mol_name = []
                     pdb_name = []
                     for original, guest in zip(
-                            structure_mol,
-                            structure_pdb[f":{self._paprika_setup.guest.upper()}"]
+                        structure_mol,
+                        structure_pdb[f":{self._paprika_setup.guest.upper()}"],
                     ):
                         mol_name.append(original.name)
                         pdb_name.append(guest.name)
@@ -316,26 +315,25 @@ class BasePaprikaProtocol(Protocol):
                     i_file = 0
                     for line in pdb_lines:
                         if line.startswith("HETATM"):
-                            if line.split()[3].upper() == f"{self._paprika_setup.guest.upper()}":
+                            if (
+                                line.split()[3].upper()
+                                == f"{self._paprika_setup.guest.upper()}"
+                            ):
                                 if len(pdb_name[i_atom]) - len(mol_name[i_atom]) == 2:
                                     pdb_lines[i_file] = line.replace(
-                                        pdb_name[i_atom],
-                                        ' ' + mol_name[i_atom] + ' '
+                                        pdb_name[i_atom], " " + mol_name[i_atom] + " "
                                     )
                                 elif len(pdb_name[i_atom]) - len(mol_name[i_atom]) == 1:
                                     pdb_lines[i_file] = line.replace(
-                                        pdb_name[i_atom],
-                                        ' ' + mol_name[i_atom]
+                                        pdb_name[i_atom], " " + mol_name[i_atom]
                                     )
                                 elif len(pdb_name[i_atom]) < len(mol_name[i_atom]):
                                     pdb_lines[i_file] = line.replace(
-                                        pdb_name[i_atom] + ' ',
-                                        mol_name[i_atom]
+                                        pdb_name[i_atom] + " ", mol_name[i_atom]
                                     )
                                 else:
                                     pdb_lines[i_file] = line.replace(
-                                        pdb_name[i_atom],
-                                        mol_name[i_atom]
+                                        pdb_name[i_atom], mol_name[i_atom]
                                     )
                                 i_atom += 1
                         i_file += 1
@@ -349,6 +347,7 @@ class BasePaprikaProtocol(Protocol):
 
                 # Extract water and ions from restrained.pdb
                 import pytraj as pt
+
                 structure = pt.iterload(self._solvated_coordinate_paths[index])
                 water_ions_sel = f"!@DUM&!:MGO&!:{self._paprika_setup.guest.upper()}"
                 structure[water_ions_sel].save(
@@ -357,6 +356,7 @@ class BasePaprikaProtocol(Protocol):
 
                 # Create *.mol2 file for water and ions
                 from paprika.tleap import System
+
                 system = System()
                 system.output_path = window_directory
                 system.pbc_type = None
@@ -378,7 +378,7 @@ class BasePaprikaProtocol(Protocol):
             )
 
     def _add_dummy_atoms(
-            self, index, solvated_structure_path, reference_structure_path
+        self, index, solvated_structure_path, reference_structure_path
     ):
 
         self._paprika_setup.add_dummy_atoms(
@@ -405,11 +405,11 @@ class BasePaprikaProtocol(Protocol):
             )
 
             for restraint in (
-                    self._paprika_setup.static_restraints
-                    + self._paprika_setup.conformational_restraints
-                    + self._paprika_setup.symmetry_restraints
-                    + self._paprika_setup.wall_restraints
-                    + self._paprika_setup.guest_restraints
+                self._paprika_setup.static_restraints
+                + self._paprika_setup.conformational_restraints
+                + self._paprika_setup.symmetry_restraints
+                + self._paprika_setup.wall_restraints
+                + self._paprika_setup.guest_restraints
             ):
 
                 restraint.index1 = index_from_mask(
@@ -448,7 +448,7 @@ class BasePaprikaProtocol(Protocol):
             return
 
         for index, window_file_path in enumerate(
-                self._paprika_setup.desolvated_window_paths
+            self._paprika_setup.desolvated_window_paths
         ):
             window_directory = os.path.dirname(window_file_path)
             self._build_amber_parameters(index, window_directory)
@@ -492,7 +492,7 @@ class BasePaprikaProtocol(Protocol):
 
         for dummy_name in ["DM1", "DM2", "DM3"]:
             with open(
-                    os.path.join(directory, f"{dummy_name.lower()}.mol2"), "w"
+                os.path.join(directory, f"{dummy_name.lower()}.mol2"), "w"
             ) as file:
                 file.write(dummy_mol2_template.format(dummy_name))
 
@@ -525,8 +525,7 @@ class BasePaprikaProtocol(Protocol):
             f"{self._paprika_setup.host}.{gaff_version}.frcmod",
         )
         host_mol2 = os.path.join(
-            window_directory_to_base,
-            f"{self._paprika_setup.host}.{gaff_version}.mol2"
+            window_directory_to_base, f"{self._paprika_setup.host}.{gaff_version}.mol2"
         )
 
         load_host_frcmod = f"loadamberparams {host_frcmod}"
@@ -535,13 +534,13 @@ class BasePaprikaProtocol(Protocol):
         )
         load_host_def = [
             load_host_mol2,
-            "set MGO name \"MGO\"",
+            'set MGO name "MGO"',
             "set MGO head MGO.1.C4",
             "set MGO tail MGO.1.O1",
             "set MGO.1 connect0 MGO.1.C4",
             "set MGO.1 connect1 MGO.1.O1",
             "set MGO.1 restype saccharide",
-            "set MGO.1 name \"MGO\"",
+            'set MGO.1 name "MGO"',
         ]
         load_host_chain = ""
         model_bond = ""
@@ -610,7 +609,7 @@ class BasePaprikaProtocol(Protocol):
         model_lines = [
             f"model = loadpdb {window_coordinates}",
             model_bond,
-            f"setBox model \"centers\"",
+            f'setBox model "centers"',
             "check model",
         ]
 
@@ -618,11 +617,13 @@ class BasePaprikaProtocol(Protocol):
             "saveamberparm model structure.prmtop structure.rst7",
         ]
 
-        system.template_lines = force_field_lines + \
-                                host_def_lines + \
-                                hetatom_lines + \
-                                model_lines + \
-                                save_structure_lines
+        system.template_lines = (
+            force_field_lines
+            + host_def_lines
+            + hetatom_lines
+            + model_lines
+            + save_structure_lines
+        )
         system.build()
 
         # Delete water_ions.mol2
@@ -651,14 +652,14 @@ class BasePaprikaProtocol(Protocol):
         # on the available compute resources.
         full_multiples = int(np.floor(len(window_indices) / chunk_size))
         chunks = [
-                     [i * chunk_size, (i + 1) * chunk_size] for i in range(full_multiples)
-                 ] + [[full_multiples * chunk_size, len(window_indices)]]
+            [i * chunk_size, (i + 1) * chunk_size] for i in range(full_multiples)
+        ] + [[full_multiples * chunk_size, len(window_indices)]]
 
         counter = 0
 
         for chunk in chunks:
 
-            for window_index in sorted(window_indices)[chunk[0]: chunk[1]]:
+            for window_index in sorted(window_indices)[chunk[0] : chunk[1]]:
 
                 logger.info(
                     f"Running window {window_index + 1} out of {len(self._paprika_setup.window_list)}"
@@ -792,10 +793,10 @@ class BasePaprikaProtocol(Protocol):
         # Save the restraints to a file, ready for analysis.
         save_restraints(
             restraint_list=self._paprika_setup.static_restraints
-                           + self._paprika_setup.conformational_restraints
-                           + self._paprika_setup.symmetry_restraints
-                           + self._paprika_setup.wall_restraints
-                           + self._paprika_setup.guest_restraints,
+            + self._paprika_setup.conformational_restraints
+            + self._paprika_setup.symmetry_restraints
+            + self._paprika_setup.wall_restraints
+            + self._paprika_setup.guest_restraints,
             filepath=restraints_path,
         )
 
@@ -877,9 +878,9 @@ class BasePaprikaProtocol(Protocol):
         # Make sure the available resources are commensurate with the
         # implemented parallelisation scheme.
         if (
-                available_resources.number_of_gpus > 0
-                and available_resources.number_of_gpus
-                != available_resources.number_of_threads
+            available_resources.number_of_gpus > 0
+            and available_resources.number_of_gpus
+            != available_resources.number_of_threads
         ):
             raise RuntimeError(
                 "The number of available CPUs must match the number"
@@ -891,7 +892,7 @@ class BasePaprikaProtocol(Protocol):
             self._force_field_source = ForceFieldSource.parse_json(file.read())
 
         if not isinstance(
-                self._force_field_source, SmirnoffForceFieldSource
+            self._force_field_source, SmirnoffForceFieldSource
         ) and not isinstance(self._force_field_source, TLeapForceFieldSource):
             raise RuntimeError(
                 "Only SMIRNOFF and TLeap based force fields may "
@@ -929,7 +930,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
         self._solvated_system_xml_paths = {}
 
     def _add_dummy_atoms(
-            self, index, solvated_structure_path, reference_structure_path
+        self, index, solvated_structure_path, reference_structure_path
     ):
 
         # We pull the host charges from the specified mol2 file.
@@ -1014,8 +1015,8 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
             prmtop = AmberPrmtopFile(os.path.join(window_directory, "structure.prmtop"))
 
             cutoff = (
-                    self._force_field_source.cutoff.to(unit.angstrom).magnitude
-                    * simtk_unit.angstrom
+                self._force_field_source.cutoff.to(unit.angstrom).magnitude
+                * simtk_unit.angstrom
             )
 
             system = prmtop.createSystem(
@@ -1097,17 +1098,17 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                 final_topology_path = os.path.join(window_directory, "input.pdb")
 
                 if os.path.isfile(final_trajectory_path) and os.path.isfile(
-                        final_topology_path
+                    final_topology_path
                 ):
                     queue.task_done()
                     continue
 
                 if (
-                        os.path.isfile(final_trajectory_path)
-                        and not os.path.isfile(final_topology_path)
+                    os.path.isfile(final_trajectory_path)
+                    and not os.path.isfile(final_topology_path)
                 ) or (
-                        not os.path.isfile(final_trajectory_path)
-                        and os.path.isfile(final_topology_path)
+                    not os.path.isfile(final_trajectory_path)
+                    and os.path.isfile(final_topology_path)
                 ):
                     exceptions.append(
                         EvaluatorException(
@@ -1169,7 +1170,10 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
                 simulation_protocol = groups.ProtocolGroup(f"simulation_{index}")
                 simulation_protocol.add_protocols(
-                    energy_minimisation, npt_thermalisation, npt_equilibration, npt_production
+                    energy_minimisation,
+                    npt_thermalisation,
+                    npt_equilibration,
+                    npt_production,
                 )
 
                 simulation_protocol.execute(simulation_directory, available_resources)
@@ -1195,7 +1199,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                 exceptions.append(
                     EvaluatorException(
                         message=f"An uncaught exception was raised: "
-                                f"{formatted_exception}",
+                        f"{formatted_exception}",
                     )
                 )
 
@@ -1256,10 +1260,10 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
                 value = ""
 
                 for restraint in (
-                        self._paprika_setup.static_restraints
-                        + self._paprika_setup.conformational_restraints
-                        + self._paprika_setup.wall_restraints
-                        + self._paprika_setup.guest_restraints
+                    self._paprika_setup.static_restraints
+                    + self._paprika_setup.conformational_restraints
+                    + self._paprika_setup.wall_restraints
+                    + self._paprika_setup.guest_restraints
                 ):
                     value += amber.amber_restraint_line(restraint, window)
 
@@ -1332,8 +1336,8 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
                 continue
 
             if (
-                    available_resources.preferred_gpu_toolkit
-                    != ComputeResources.GPUToolkit.CUDA
+                available_resources.preferred_gpu_toolkit
+                != ComputeResources.GPUToolkit.CUDA
             ):
                 raise ValueError("Paprika can only be ran either on CPUs or CUDA GPUs.")
 
@@ -1365,7 +1369,9 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             os.makedirs(simulation_directory, exist_ok=True)
 
             # Minimisation
-            minimise_directory = os.path.join(simulation_directory, "energy_minimisation")
+            minimise_directory = os.path.join(
+                simulation_directory, "energy_minimisation"
+            )
             topology_directory = os.path.relpath(window_directory, minimise_directory)
             os.makedirs(minimise_directory, exist_ok=True)
 
@@ -1390,12 +1396,16 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             amber_simulation.cntrl["restraint_wt"] = 50.0
             amber_simulation.cntrl["restraintmask"] = "'@DUM'"
 
-            logging.info(f'Running minimisation with {amber_simulation.executable}')
+            logging.info(f"Running minimisation with {amber_simulation.executable}")
             amber_simulation.run()
 
             # Thermalisation
-            thermalisation_directory = os.path.join(simulation_directory, "npt_thermalisation")
-            input_directory = os.path.relpath(minimise_directory, thermalisation_directory)
+            thermalisation_directory = os.path.join(
+                simulation_directory, "npt_thermalisation"
+            )
+            input_directory = os.path.relpath(
+                minimise_directory, thermalisation_directory
+            )
             os.makedirs(thermalisation_directory, exist_ok=True)
 
             amber_simulation = Simulation()
@@ -1416,7 +1426,9 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             amber_simulation.cntrl["dt"] = thermalisation_timestep.to(
                 unit.picoseconds
             ).magnitude
-            amber_simulation.cntrl["cut"] = gaff_cutoff.to(unit.angstrom).magnitude + 1.0  # necessary to relax box
+            amber_simulation.cntrl["cut"] = (
+                gaff_cutoff.to(unit.angstrom).magnitude + 1.0
+            )  # necessary to relax box
             amber_simulation.cntrl["nstlim"] = number_of_thermalisation_steps
             amber_simulation.cntrl["ntpr"] = thermalisation_output_frequency
             amber_simulation.cntrl["ntwx"] = thermalisation_output_frequency
@@ -1424,12 +1436,16 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             amber_simulation.cntrl["ntwr"] = thermalisation_output_frequency
             amber_simulation.cntrl["barostat"] = 2
 
-            logging.info(f'Running thermalisation with {amber_simulation.executable}')
+            logging.info(f"Running thermalisation with {amber_simulation.executable}")
             amber_simulation.run()
 
             # Equilibration
-            equilibration_directory = os.path.join(simulation_directory, "npt_equilibration")
-            input_directory = os.path.relpath(thermalisation_directory, equilibration_directory)
+            equilibration_directory = os.path.join(
+                simulation_directory, "npt_equilibration"
+            )
+            input_directory = os.path.relpath(
+                thermalisation_directory, equilibration_directory
+            )
             os.makedirs(equilibration_directory, exist_ok=True)
 
             amber_simulation = Simulation()
@@ -1456,12 +1472,14 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             amber_simulation.cntrl["ntwr"] = equilibration_output_frequency
             amber_simulation.cntrl["barostat"] = 2
 
-            logging.info(f'Running equilibration with {amber_simulation.executable}')
+            logging.info(f"Running equilibration with {amber_simulation.executable}")
             amber_simulation.run()
 
             # Production
             production_directory = os.path.join(simulation_directory, "npt_production")
-            input_directory = os.path.relpath(equilibration_directory, production_directory)
+            input_directory = os.path.relpath(
+                equilibration_directory, production_directory
+            )
             os.makedirs(production_directory, exist_ok=True)
 
             amber_simulation = Simulation()
@@ -1488,7 +1506,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             amber_simulation.cntrl["ntwr"] = production_output_frequency
             amber_simulation.cntrl["barostat"] = 2
 
-            logging.info(f'Running production with {amber_simulation.executable}')
+            logging.info(f"Running production with {amber_simulation.executable}")
             amber_simulation.run()
 
             # Clean up files
@@ -1509,42 +1527,49 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
                 guest=self.taproom_guest_name,
                 guest_orientation=self.taproom_guest_orientation,
                 build=False,
-                directory_path=directory
+                directory_path=directory,
             )
 
             base_path = os.path.join(
                 directory,
                 self._paprika_setup.host,
                 f"{self._paprika_setup.guest}-{self.taproom_guest_orientation}"
-                if self._paprika_setup.guest else "",
-                'windows'
+                if self._paprika_setup.guest
+                else "",
+                "windows",
             )
 
             window_directories = [
-                os.path.join(base_path, window) for window in self._paprika_setup.window_list
+                os.path.join(base_path, window)
+                for window in self._paprika_setup.window_list
             ]
 
         else:
             window_directories = [
-                os.path.dirname(window) for window in self._paprika_setup.desolvated_window_paths
+                os.path.dirname(window)
+                for window in self._paprika_setup.desolvated_window_paths
             ]
 
         for index, window_directory in enumerate(window_directories):
-            self._solvated_coordinate_paths[index] = os.path.join(window_directory, "structure.rst7")
-            self._solvated_system_top_paths[index] = os.path.join(window_directory, "structure.prmtop")
+            self._solvated_coordinate_paths[index] = os.path.join(
+                window_directory, "structure.rst7"
+            )
+            self._solvated_system_top_paths[index] = os.path.join(
+                window_directory, "structure.prmtop"
+            )
 
             if not os.path.isfile(self._solvated_system_top_paths[index]):
                 return EvaluatorException(
                     directory,
                     f"The {self._solvated_coordinate_paths[index]} file"
-                    f"does not exist. Make sure setup ran succesfully"
+                    f"does not exist. Make sure setup ran succesfully",
                 )
 
             if not os.path.isfile(self._solvated_system_top_paths[index]):
                 return EvaluatorException(
                     directory,
                     f"The {self._solvated_system_top_paths[index]} file"
-                    f"does not exist. Make sure setup ran successfully"
+                    f"does not exist. Make sure setup ran successfully",
                 )
 
         self._run_windows(available_resources)
@@ -1573,14 +1598,14 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             self._force_field_source = ForceFieldSource.parse_json(file.read())
 
         if not isinstance(
-                self._force_field_source, TLeapForceFieldSource
+            self._force_field_source, TLeapForceFieldSource
         ) or self._force_field_source.leap_source not in [
             "leaprc.gaff",
             "leaprc.gaff2",
         ]:
             raise RuntimeError(
                 message="Currently GAFF(1/2) are the only force fields "
-                        "supported with the AmberPaprikaProtocol.",
+                "supported with the AmberPaprikaProtocol.",
             )
 
         self.gaff_cutoff = self._force_field_source.cutoff

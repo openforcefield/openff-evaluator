@@ -226,9 +226,9 @@ class FilterSubstanceByRole(Protocol):
         default_value=UNDEFINED,
     )
 
-    component_role = InputAttribute(
-        docstring="The role to filter substance components against.",
-        type_hint=typing.Union[Component.Role, list],
+    component_roles = InputAttribute(
+        docstring="The roles to filter substance components against.",
+        type_hint=list,
         default_value=UNDEFINED,
     )
 
@@ -246,17 +246,12 @@ class FilterSubstanceByRole(Protocol):
 
     def _execute(self, directory, available_resources):
 
-        component_roles = self.component_role
-
-        if not isinstance(component_roles, list):
-            component_roles = [component_roles]
-
         filtered_components = []
         total_mole_fraction = 0.0
 
         for component in self.input_substance.components:
 
-            if component.role not in component_roles:
+            if component.role not in self.component_roles:
                 continue
 
             filtered_components.append(component)
@@ -298,11 +293,7 @@ class FilterSubstanceByRole(Protocol):
 
     def validate(self, attribute_type=None):
         super(FilterSubstanceByRole, self).validate(attribute_type)
-
-        if isinstance(self.component_role, list):
-            assert all(isinstance(x, Component.Role) for x in self.component_role)
-        else:
-            assert isinstance(self.component_role, Component.Role)
+        assert all(isinstance(x, Component.Role) for x in self.component_roles)
 
 
 @workflow_protocol()
