@@ -205,6 +205,10 @@ class HostGuestBindingAffinity(PhysicalProperty):
         n_thermalisation_steps=50000,
         n_equilibration_steps=200000,
         n_production_steps=1000000,
+        dt_thermalisation=1.0,
+        dt_equilibration=2.0,
+        dt_production=2.0,
+        hydrogen_mass=1.008,
     ):
         """Returns the default workflow to use when estimating this property
         using the attach, pull release (APR) method to predict a binding affinity.
@@ -225,12 +229,26 @@ class HostGuestBindingAffinity(PhysicalProperty):
             The number of production simulations steps to perform.
             Sample generated during this step will be used in the final
             free energy calculation.
+        dt_thermalisation: float
+            The integration timestep during thermalisation
+        dt_equilibration: float
+            The integration timestep during equilibration
+        dt_production: float
+            The integration timestep during production
+        hydrogen_mass: float
+            Specify the mass of Hydrogen atoms. Used for repartitioning
+            to enable a longer integration timestep.
 
         Returns
         -------
         SimulationSchema
             The schema to follow when estimating this property.
         """
+        if hydrogen_mass < 1.008:
+            raise RuntimeError(
+                "Hydrogen mass is smaller than the default value. "
+                "Please use a mass equal to or larger than 1.008 amu."
+            )
 
         # Set up a replicator which will perform the attach-pull calculation for
         # each of the guest orientations
@@ -264,10 +282,18 @@ class HostGuestBindingAffinity(PhysicalProperty):
         host_guest_protocol.number_of_thermalisation_steps = n_thermalisation_steps
         host_guest_protocol.number_of_equilibration_steps = n_equilibration_steps
         host_guest_protocol.number_of_production_steps = n_production_steps
+        host_guest_protocol.number_of_solvent_molecules = n_solvent_molecules
         host_guest_protocol.thermalisation_output_frequency = 10000
         host_guest_protocol.equilibration_output_frequency = 10000
         host_guest_protocol.production_output_frequency = 5000
-        host_guest_protocol.number_of_solvent_molecules = n_solvent_molecules
+        host_guest_protocol.thermalisation_timestep = (
+            dt_thermalisation * unit.femtosecond
+        )
+        host_guest_protocol.equilibration_timestep = dt_equilibration * unit.femtosecond
+        host_guest_protocol.production_timestep = dt_production * unit.femtosecond
+        host_guest_protocol.hydrogen_mass = hydrogen_mass
+        if dt_production == 4.0:
+            host_guest_protocol.production_output_frequency = 2500
 
         # Create the protocols which will run the release calculations
         host_protocol = OpenMMPaprikaProtocol("host")
@@ -282,10 +308,16 @@ class HostGuestBindingAffinity(PhysicalProperty):
         host_protocol.number_of_thermalisation_steps = n_thermalisation_steps
         host_protocol.number_of_equilibration_steps = n_equilibration_steps
         host_protocol.number_of_production_steps = n_production_steps
+        host_protocol.number_of_solvent_molecules = n_solvent_molecules
         host_protocol.thermalisation_output_frequency = 10000
         host_protocol.equilibration_output_frequency = 10000
         host_protocol.production_output_frequency = 5000
-        host_protocol.number_of_solvent_molecules = n_solvent_molecules
+        host_protocol.thermalisation_timestep = dt_thermalisation * unit.femtosecond
+        host_protocol.equilibration_timestep = dt_equilibration * unit.femtosecond
+        host_protocol.production_timestep = dt_production * unit.femtosecond
+        host_protocol.hydrogen_mass = hydrogen_mass
+        if dt_production == 4.0:
+            host_protocol.production_output_frequency = 2500
 
         # Sum together the free energies of the individual orientations
         sum_protocol = miscellaneous.AddValues(

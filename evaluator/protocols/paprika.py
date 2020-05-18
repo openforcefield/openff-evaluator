@@ -12,6 +12,7 @@ from queue import Queue
 from threading import Thread
 
 import numpy as np
+import parmed as pmd
 import pint
 from simtk.openmm import XmlSerializer
 from simtk.openmm.app import PME, AmberPrmtopFile, HBonds, PDBFile
@@ -28,6 +29,7 @@ from evaluator.protocols import coordinates, forcefield, groups, miscellaneous, 
 from evaluator.substances import Component, Substance
 from evaluator.thermodynamics import Ensemble, ThermodynamicState
 from evaluator.utils.exceptions import EvaluatorException
+from evaluator.utils.openmm import pint_unit_to_openmm
 from evaluator.utils.utils import temporarily_change_directory
 from evaluator.workflow import Protocol, workflow_protocol
 from evaluator.workflow.attributes import (
@@ -92,18 +94,24 @@ class BasePaprikaProtocol(Protocol):
         default_value=None,
     )
 
-    timestep = InputAttribute(
-        docstring="The timestep to evolve the system by at each step.",
-        type_hint=unit.Quantity,
-        merge_behavior=InequalityMergeBehaviour.SmallestValue,
-        default_value=2.0 * unit.femtosecond,
-    )
     thermalisation_timestep = InputAttribute(
         docstring="The timestep to evolve the system during thermalisation "
         "by at each step.",
         type_hint=unit.Quantity,
         merge_behavior=InequalityMergeBehaviour.SmallestValue,
         default_value=1.0 * unit.femtosecond,
+    )
+    equilibration_timestep = InputAttribute(
+        docstring="The timestep to evolve the system by at each step.",
+        type_hint=unit.Quantity,
+        merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        default_value=2.0 * unit.femtosecond,
+    )
+    production_timestep = InputAttribute(
+        docstring="The timestep to evolve the system by at each step.",
+        type_hint=unit.Quantity,
+        merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        default_value=2.0 * unit.femtosecond,
     )
 
     number_of_thermalisation_steps = InputAttribute(
@@ -168,6 +176,13 @@ class BasePaprikaProtocol(Protocol):
         "the box.",
         type_hint=list,
         default_value=[1.0, 1.0, 2.0],
+    )
+
+    hydrogen_mass = InputAttribute(
+        docstring="The mass of hydrogen atoms for the host and guest. This is variable is used for hydrogen mass repartitioning.",
+        type_hint=float,
+        merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        default_value=1.008,
     )
 
     attach_free_energy = OutputAttribute(
@@ -286,12 +301,15 @@ class BasePaprikaProtocol(Protocol):
 
                 # Fix atom names of guest molecule for Tleap processing
                 if self._paprika_setup.guest is self.taproom_guest_name:
-                    import parmed as pmd
+
+                    gaff_version = self._force_field_source.leap_source.replace(
+                        "leaprc.", ""
+                    )
 
                     structure_mol = pmd.load_file(
                         os.path.join(
                             window_directory[: len(window_directory) - 13],
-                            f"{self._paprika_setup.guest}.gaff.mol2",
+                            f"{self._paprika_setup.guest}.{gaff_version}.mol2",
                         )
                     )
                     structure_pdb = pmd.load_file(
@@ -391,7 +409,6 @@ class BasePaprikaProtocol(Protocol):
 
     def _apply_restraint_masks(self, use_amber_indices):
 
-        import parmed as pmd
         from paprika.utils import index_from_mask
 
         for index, window in enumerate(self._paprika_setup.window_list):
@@ -401,7 +418,7 @@ class BasePaprikaProtocol(Protocol):
             )
 
             build_pdb_file = pmd.load_file(
-                f"{window_directory}/build.pdb", structure=True
+                os.path.join(window_directory, "structure.pdb"), structure=True
             )
 
             for restraint in (
@@ -514,6 +531,7 @@ class BasePaprikaProtocol(Protocol):
 
         system = System()
         system.output_path = window_directory
+        system.output_prefix = "structure"
         system.pbc_type = None
         system.neutralize = False
 
@@ -613,18 +631,14 @@ class BasePaprikaProtocol(Protocol):
             "check model",
         ]
 
-        save_structure_lines = [
-            "saveamberparm model structure.prmtop structure.rst7",
-        ]
-
         system.template_lines = (
-            force_field_lines
-            + host_def_lines
-            + hetatom_lines
-            + model_lines
-            + save_structure_lines
+            force_field_lines + host_def_lines + hetatom_lines + model_lines
         )
         system.build()
+
+        # HMR
+        if self.hydrogen_mass > 1.008:
+            system.repartition_hydrogen_mass(options=f"{self.hydrogen_mass}")
 
         # Delete water_ions.mol2
         os.remove(os.path.join(window_directory, "water_ions.mol2"))
@@ -854,6 +868,40 @@ class BasePaprikaProtocol(Protocol):
                     f"does not exist. Make sure setup ran successfully.",
                 )
 
+            # HMR
+            if self.hydrogen_mass > 1.008:
+                # Load 'restrained.xml' and 'restrained.pdb'
+                with open(self._solvated_system_xml_paths[index], "r") as file:
+                    system = XmlSerializer.deserialize(file.read())
+                structure = pmd.load_file(
+                    self._solvated_coordinate_paths[index], structure=True
+                )
+
+                # Repartition masses
+                for bond in structure.bonds:
+                    if (
+                        bond.atom1.residue.name != "HOH"
+                        or bond.atom2.residue.name != "HOH"
+                    ):
+                        if bond.atom1.element == 1:
+                            (bond.atom1, bond.atom2) = (bond.atom2, bond.atom1)
+                        if bond.atom2.element == 1 and bond.atom1.element != 1:
+                            transfer_mass = self.hydrogen_mass - system.getParticleMass(
+                                bond.atom2.idx
+                            ) / pint_unit_to_openmm(unit.dalton)
+                            system.setParticleMass(bond.atom2.idx, self.hydrogen_mass)
+                            system.setParticleMass(
+                                bond.atom1.idx,
+                                system.getParticleMass(bond.atom1.idx)
+                                / pint_unit_to_openmm(unit.dalton)
+                                - transfer_mass,
+                            )
+
+                # Overwrite 'restrained.xml' with modified masses
+                system_xml = XmlSerializer.serialize(system)
+                with open(self._solvated_system_xml_paths[index], "w") as file:
+                    file.write(system_xml)
+
         # Run the simulations
         self._run_windows(available_resources)
 
@@ -987,7 +1035,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
 
             # Make sure to use the reordered pdb file as the new input
             shutil.copyfile(
-                os.path.join(window_directory, "build.pdb"),
+                os.path.join(window_directory, "structure.pdb"),
                 self._solvated_coordinate_paths[index],
             )
 
@@ -1055,8 +1103,9 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                 self._solvated_coordinate_paths[index],
                 self._solvated_system_xml_paths[index],
                 self.thermodynamic_state,
-                self.timestep,
                 self.thermalisation_timestep,
+                self.equilibration_timestep,
+                self.production_timestep,
                 self.number_of_thermalisation_steps,
                 self.thermalisation_output_frequency,
                 self.number_of_equilibration_steps,
@@ -1078,8 +1127,9 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                 window_coordinate_path,
                 window_system_path,
                 thermodynamic_state,
-                timestep,
                 thermalisation_timestep,
+                equilibration_timestep,
+                production_timestep,
                 number_of_thermalisation_steps,
                 thermalisation_output_frequency,
                 number_of_equilibration_steps,
@@ -1148,7 +1198,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                 npt_equilibration = openmm.OpenMMSimulation("npt_equilibration")
                 npt_equilibration.steps_per_iteration = number_of_equilibration_steps
                 npt_equilibration.output_frequency = equilibration_output_frequency
-                npt_equilibration.timestep = timestep
+                npt_equilibration.timestep = equilibration_timestep
                 npt_equilibration.ensemble = Ensemble.NPT
                 npt_equilibration.thermodynamic_state = thermodynamic_state
                 npt_equilibration.system_path = window_system_path
@@ -1160,7 +1210,7 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                 npt_production = openmm.OpenMMSimulation("npt_production")
                 npt_production.steps_per_iteration = number_of_production_steps
                 npt_production.output_frequency = production_output_frequency
-                npt_production.timestep = timestep
+                npt_production.timestep = production_timestep
                 npt_production.ensemble = Ensemble.NPT
                 npt_production.thermodynamic_state = thermodynamic_state
                 npt_production.system_path = window_system_path
@@ -1283,8 +1333,9 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
                 None,
                 self.thermodynamic_state,
                 self.gaff_cutoff,
-                self.timestep,
                 self.thermalisation_timestep,
+                self.equilibration_timestep,
+                self.production_timestep,
                 self.number_of_thermalisation_steps,
                 self.thermalisation_output_frequency,
                 self.number_of_equilibration_steps,
@@ -1309,8 +1360,9 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
                 window_system_path,
                 thermodynamic_state,
                 gaff_cutoff,
-                timestep,
                 thermalisation_timestep,
+                equilibration_timestep,
+                production_timestep,
                 number_of_thermalisation_steps,
                 thermalisation_output_frequency,
                 number_of_equilibration_steps,
@@ -1463,7 +1515,9 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             amber_simulation.cntrl["ntr"] = 1
             amber_simulation.cntrl["restraint_wt"] = 50.0
             amber_simulation.cntrl["restraintmask"] = "'@DUM'"
-            amber_simulation.cntrl["dt"] = timestep.to(unit.picoseconds).magnitude
+            amber_simulation.cntrl["dt"] = equilibration_timestep.to(
+                unit.picoseconds
+            ).magnitude
             amber_simulation.cntrl["cut"] = gaff_cutoff.to(unit.angstrom).magnitude
             amber_simulation.cntrl["nstlim"] = number_of_equilibration_steps
             amber_simulation.cntrl["ntpr"] = equilibration_output_frequency
@@ -1497,7 +1551,9 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             amber_simulation.cntrl["ntr"] = 1
             amber_simulation.cntrl["restraint_wt"] = 50.0
             amber_simulation.cntrl["restraintmask"] = "'@DUM'"
-            amber_simulation.cntrl["dt"] = timestep.to(unit.picoseconds).magnitude
+            amber_simulation.cntrl["dt"] = production_timestep.to(
+                unit.picoseconds
+            ).magnitude
             amber_simulation.cntrl["cut"] = gaff_cutoff.to(unit.angstrom).magnitude
             amber_simulation.cntrl["nstlim"] = number_of_production_steps
             amber_simulation.cntrl["ntpr"] = production_output_frequency
