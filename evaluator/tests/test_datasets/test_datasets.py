@@ -3,6 +3,8 @@ Units tests for evaluator.datasets
 """
 import json
 
+import pytest
+
 from evaluator import unit
 from evaluator.datasets import CalculationSource, PhysicalPropertyDataSet, PropertyPhase
 from evaluator.properties import (
@@ -345,3 +347,35 @@ def test_phase_from_string():
     ]
 
     assert all(x == PropertyPhase.from_string(str(x)) for x in phase_enums)
+
+
+def test_validate_data_set():
+
+    valid_property = Density(
+        ThermodynamicState(298 * unit.kelvin, 1 * unit.atmosphere),
+        PropertyPhase.Liquid,
+        Substance.from_components("O"),
+        0.0 * unit.gram / unit.milliliter,
+        0.0 * unit.gram / unit.milliliter,
+    )
+
+    data_set = PhysicalPropertyDataSet()
+    data_set.add_properties(valid_property)
+
+    data_set.validate()
+
+    invalid_property = Density(
+        ThermodynamicState(-1 * unit.kelvin, 1 * unit.atmosphere),
+        PropertyPhase.Liquid,
+        Substance.from_components("O"),
+        0.0 * unit.gram / unit.milliliter,
+        0.0 * unit.gram / unit.milliliter,
+    )
+
+    with pytest.raises(AssertionError):
+        data_set.add_properties(invalid_property)
+
+    data_set.add_properties(invalid_property, validate=False)
+
+    with pytest.raises(AssertionError):
+        data_set.validate()

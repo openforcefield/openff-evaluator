@@ -32,7 +32,7 @@ The best place to get acquainted with the framework is through the mini-tutorial
 To install the OpenFF Evaluator from conda, simply run
 
 ```
-conda install -c conda-forge -c omnia openff-evaluator
+conda install -c conda-forge -c omnia -c omnia/label/beta openff-evaluator
 ```
 
 #### License
