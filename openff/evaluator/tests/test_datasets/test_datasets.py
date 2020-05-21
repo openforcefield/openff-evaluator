@@ -132,6 +132,7 @@ def test_to_pandas():
     data_set_pandas = data_set.to_pandas()
 
     required_columns = [
+        "Id",
         "Temperature (K)",
         "Pressure (kPa)",
         "Phase",
