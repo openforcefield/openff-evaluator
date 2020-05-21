@@ -106,6 +106,10 @@ def _type_to_type_string(object_type):
     qualified_name = object_type.__qualname__
 
     return_value = "{}.{}".format(object_type.__module__, qualified_name)
+
+    if return_value.startswith("evaluator."):
+        return_value = return_value.replace("evaluator.", "openff.evaluator.")
+
     return return_value
 
 
