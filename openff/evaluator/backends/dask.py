@@ -130,7 +130,7 @@ class _Multiprocessor:
         """
 
         # An unpleasant way to ensure that codecov works correctly
-        # when testing on travis.
+        # when testing on GHA.
         if hasattr(evaluator, "_called_from_test"):
             return function(*args, **kwargs)
 
