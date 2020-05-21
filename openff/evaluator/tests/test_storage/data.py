@@ -1,4 +1,4 @@
-from openff.evaluator.storage.attributes import StorageAttribute, QueryAttribute
+from openff.evaluator.storage.attributes import QueryAttribute, StorageAttribute
 from openff.evaluator.storage.data import BaseStoredData, HashableStoredData
 from openff.evaluator.storage.query import BaseDataQuery
 
