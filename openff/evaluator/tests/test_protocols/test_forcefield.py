@@ -34,7 +34,7 @@ def test_build_smirnoff_system():
         build_coordinates.substance = substance
         build_coordinates.execute(directory, None)
 
-        assign_parameters = BuildSmirnoffSystem(f"assign_parameters")
+        assign_parameters = BuildSmirnoffSystem("assign_parameters")
         assign_parameters.force_field_path = force_field_path
         assign_parameters.coordinate_file_path = build_coordinates.coordinate_file_path
         assign_parameters.substance = substance
@@ -58,7 +58,7 @@ def test_build_tleap_system():
         build_coordinates.substance = substance
         build_coordinates.execute(directory, None)
 
-        assign_parameters = BuildTLeapSystem(f"assign_parameters")
+        assign_parameters = BuildTLeapSystem("assign_parameters")
         assign_parameters.force_field_path = force_field_path
         assign_parameters.coordinate_file_path = build_coordinates.coordinate_file_path
         assign_parameters.substance = substance
@@ -158,7 +158,7 @@ phase2="3.141592653589793" phase3="0.00" phase4="3.141592653589793"/>
         build_coordinates.substance = substance
         build_coordinates.execute(directory, None)
 
-        assign_parameters = BuildLigParGenSystem(f"assign_parameters")
+        assign_parameters = BuildLigParGenSystem("assign_parameters")
         assign_parameters.force_field_path = force_field_path
         assign_parameters.coordinate_file_path = build_coordinates.coordinate_file_path
         assign_parameters.substance = substance

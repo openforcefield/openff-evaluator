@@ -687,7 +687,7 @@ class ReweightStatistics(BaseMBARProtocol):
             )
 
         if self.statistics_type == ObservableType.KineticEnergy:
-            raise ValueError(f"Kinetic energies cannot be reweighted.")
+            raise ValueError("Kinetic energies cannot be reweighted.")
 
         statistics_arrays = [
             StatisticsArray.from_pandas_csv(file_path)

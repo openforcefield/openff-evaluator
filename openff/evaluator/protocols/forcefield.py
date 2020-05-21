@@ -711,7 +711,7 @@ class BuildLigParGenSystem(TemplateBuildSystem):
             removeCMMotion=False,
         )
 
-        with open(f"component.xml", "w") as file:
+        with open("component.xml", "w") as file:
             file.write(openmm.XmlSerializer.serialize(system))
 
         return system
@@ -1002,7 +1002,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
             template_lines.extend(
                 [
                     f"MOL = loadmol2 {processed_mol2_path}",
-                    f'setBox MOL "centers"',
+                    'setBox MOL "centers"',
                     "check MOL",
                     f"saveamberparm MOL {prmtop_file_name} {rst7_file_name}",
                 ]
@@ -1028,7 +1028,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
             if not os.path.isfile(prmtop_file_name) or not os.path.isfile(
                 rst7_file_name
             ):
-                raise RuntimeError(f"tleap failed to execute.")
+                raise RuntimeError("tleap failed to execute.")
 
             with open("leap.log", "r") as file:
 
@@ -1037,7 +1037,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
                     file.read(),
                 ):
 
-                    raise RuntimeError(f"tleap failed to execute.")
+                    raise RuntimeError("tleap failed to execute.")
 
         return (
             os.path.join(directory, prmtop_file_name),
@@ -1073,7 +1073,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
             )
 
         else:
-            raise ValueError(f"Invalid toolkit specification.")
+            raise ValueError("Invalid toolkit specification.")
 
         molecule.generate_conformers(toolkit_registry=toolkit_wrapper)
         molecule.compute_partial_charges_am1bcc(toolkit_registry=toolkit_wrapper)
@@ -1107,7 +1107,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
             removeCMMotion=False,
         )
 
-        with open(f"component.xml", "w") as file:
+        with open("component.xml", "w") as file:
             file.write(openmm.XmlSerializer.serialize(system))
 
         return system

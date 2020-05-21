@@ -77,13 +77,13 @@ def test_calculate_reduced_potential_openmm():
         build_coordinates.substance = substance
         build_coordinates.execute(directory, None)
 
-        assign_parameters = BuildSmirnoffSystem(f"assign_parameters")
+        assign_parameters = BuildSmirnoffSystem("assign_parameters")
         assign_parameters.force_field_path = force_field_path
         assign_parameters.coordinate_file_path = build_coordinates.coordinate_file_path
         assign_parameters.substance = substance
         assign_parameters.execute(directory, None)
 
-        reduced_potentials = OpenMMReducedPotentials(f"reduced_potentials")
+        reduced_potentials = OpenMMReducedPotentials("reduced_potentials")
         reduced_potentials.substance = substance
         reduced_potentials.thermodynamic_state = thermodynamic_state
         reduced_potentials.reference_force_field_paths = [force_field_path]
@@ -128,7 +128,7 @@ def test_reweight_statistics():
         statistics_array[ObservableType.PotentialEnergy] = potentials
         statistics_array.to_pandas_csv(statistics_path)
 
-        reweight_protocol = ReweightStatistics(f"reduced_potentials")
+        reweight_protocol = ReweightStatistics("reduced_potentials")
         reweight_protocol.statistics_type = ObservableType.PotentialEnergy
         reweight_protocol.statistics_paths = statistics_path
         reweight_protocol.reference_reduced_potentials = statistics_path

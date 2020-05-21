@@ -41,7 +41,7 @@ def _setup_dummy_system(directory):
     build_coordinates.substance = substance
     build_coordinates.execute(directory, None)
 
-    assign_parameters = BuildSmirnoffSystem(f"assign_parameters")
+    assign_parameters = BuildSmirnoffSystem("assign_parameters")
     assign_parameters.force_field_path = force_field_path
     assign_parameters.coordinate_file_path = build_coordinates.coordinate_file_path
     assign_parameters.substance = substance
@@ -159,7 +159,7 @@ def test_gradient_reduced_potentials(use_subset):
         with open(force_field_path, "w") as file:
             file.write(build_tip3p_smirnoff_force_field().json())
 
-        reduced_potentials = OpenMMGradientPotentials(f"reduced_potentials")
+        reduced_potentials = OpenMMGradientPotentials("reduced_potentials")
         reduced_potentials.substance = substance
         reduced_potentials.thermodynamic_state = thermodynamic_state
         reduced_potentials.statistics_path = get_data_filename(

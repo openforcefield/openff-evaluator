@@ -399,7 +399,7 @@ def _build_input_file(
     # Add the global header options.
     input_lines = [
         f"tolerance {tolerance:f}",
-        f"filetype pdb",
+        "filetype pdb",
         f"output {output_file_name}",
         "",
     ]
@@ -410,13 +410,13 @@ def _build_input_file(
         input_lines.extend(
             [
                 f"structure {structure_to_solvate}",
-                f"  number 1",
-                f"  fixed "
+                "  number 1",
+                "  fixed "
                 f"{box_size[0] / 2.0} "
                 f"{box_size[1] / 2.0} "
                 f"{box_size[2] / 2.0} 0. 0. 0.",
                 "centerofmass" if center_solute else "",
-                f"end structure",
+                "end structure",
                 "",
             ]
         )
@@ -429,7 +429,7 @@ def _build_input_file(
                 f"structure {file_name}",
                 f"  number {count}",
                 f"  inside box 0. 0. 0. {box_size[0]} {box_size[1]} {box_size[2]}",
-                f"end structure",
+                "end structure",
                 "",
             ]
         )

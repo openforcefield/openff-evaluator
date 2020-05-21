@@ -845,7 +845,7 @@ class EnthalpyOfVaporization(PhysicalProperty):
         )
 
         # Define a custom conditional group.
-        converge_uncertainty = groups.ConditionalGroup(f"converge_uncertainty")
+        converge_uncertainty = groups.ConditionalGroup("converge_uncertainty")
         converge_uncertainty.max_iterations = 100
 
         # Define the protocols to perform the simulation in the liquid phase.

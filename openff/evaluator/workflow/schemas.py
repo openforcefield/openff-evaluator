@@ -194,8 +194,8 @@ class ProtocolReplicator(TypedBaseModel):
         ):
 
             raise ValueError(
-                f"Either the template values array must be set, or a specific "
-                f"template index and value must be passed."
+                "Either the template values array must be set, or a specific "
+                "template index and value must be passed."
             )
 
         replicated_protocols = {}

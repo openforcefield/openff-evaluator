@@ -32,7 +32,7 @@ def test_simple_replicators():
         "output_value", dummy_replicated_protocol.id
     )
 
-    dummy_protocol_list_value = AddValues(f"dummy_list")
+    dummy_protocol_list_value = AddValues("dummy_list")
     dummy_protocol_list_value.values = ProtocolPath(
         "output_value", dummy_replicated_protocol.id
     )
@@ -109,7 +109,7 @@ def test_group_replicators():
         "output_value", dummy_group.id, dummy_replicated_protocol.id
     )
 
-    dummy_protocol_list_value = AddValues(f"dummy_list")
+    dummy_protocol_list_value = AddValues("dummy_list")
     dummy_protocol_list_value.values = ProtocolPath(
         "output_value", dummy_group.id, dummy_replicated_protocol.id
     )

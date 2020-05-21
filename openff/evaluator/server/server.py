@@ -648,7 +648,7 @@ class EvaluatorServer:
                         to_read.remove(data)
 
         except Exception:
-            logger.exception(f"Fatal error in the main server loop")
+            logger.exception("Fatal error in the main server loop")
 
     def start(self, asynchronous=False):
         """Instructs the server to begin listening for incoming

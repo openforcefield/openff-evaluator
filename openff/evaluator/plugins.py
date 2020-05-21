@@ -18,14 +18,14 @@ def register_default_plugins():
     """
 
     # Import the default properties.
-    importlib.import_module(f"openff.evaluator.properties")
+    importlib.import_module("openff.evaluator.properties")
 
     # Import the default layers
-    importlib.import_module(f"openff.evaluator.layers.simulation")
-    importlib.import_module(f"openff.evaluator.layers.reweighting")
+    importlib.import_module("openff.evaluator.layers.simulation")
+    importlib.import_module("openff.evaluator.layers.reweighting")
 
     # Import the default workflow protocols.
-    protocols_module = importlib.import_module(f"openff.evaluator.protocols")
+    protocols_module = importlib.import_module("openff.evaluator.protocols")
 
     for _, module_name, _ in pkgutil.iter_modules(protocols_module.__path__):
         importlib.import_module(f"openff.evaluator.protocols.{module_name}")

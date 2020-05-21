@@ -168,7 +168,7 @@ class Density(PhysicalProperty):
         )
         density_calculation.statistics_type = ObservableType.Density
 
-        reweight_density = reweighting.ReweightStatistics(f"reweight_density")
+        reweight_density = reweighting.ReweightStatistics("reweight_density")
         reweight_density.statistics_type = ObservableType.Density
         reweight_density.required_effective_samples = n_effective_samples
 

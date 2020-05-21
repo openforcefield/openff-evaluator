@@ -29,7 +29,7 @@ def _setup_dummy_system(directory, substance, number_of_molecules, force_field_p
     build_coordinates.max_molecules = number_of_molecules
     build_coordinates.execute(directory, None)
 
-    assign_parameters = BuildSmirnoffSystem(f"assign_parameters")
+    assign_parameters = BuildSmirnoffSystem("assign_parameters")
     assign_parameters.force_field_path = force_field_path
     assign_parameters.coordinate_file_path = build_coordinates.coordinate_file_path
     assign_parameters.substance = substance

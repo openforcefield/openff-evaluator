@@ -68,7 +68,7 @@ class SolvationFreeEnergy(PhysicalProperty):
         build_full_coordinates.max_molecules = n_molecules
 
         assign_full_parameters = forcefield.BaseBuildSystem(
-            f"assign_solvated_parameters"
+            "assign_solvated_parameters"
         )
         assign_full_parameters.force_field_path = ProtocolPath(
             "force_field_path", "global"
@@ -122,7 +122,7 @@ class SolvationFreeEnergy(PhysicalProperty):
         )
         build_vacuum_coordinates.max_molecules = 1
 
-        assign_vacuum_parameters = forcefield.BaseBuildSystem(f"assign_parameters")
+        assign_vacuum_parameters = forcefield.BaseBuildSystem("assign_parameters")
         assign_vacuum_parameters.force_field_path = ProtocolPath(
             "force_field_path", "global"
         )
@@ -156,7 +156,7 @@ class SolvationFreeEnergy(PhysicalProperty):
 
         # Set up the group which will run yank until the free energy has been determined to within
         # a given uncertainty
-        conditional_group = groups.ConditionalGroup(f"conditional_group")
+        conditional_group = groups.ConditionalGroup("conditional_group")
         conditional_group.max_iterations = 20
 
         if use_target_uncertainty:

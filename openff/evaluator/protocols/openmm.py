@@ -1004,7 +1004,7 @@ class OpenMMGradientPotentials(BaseGradientPotentials):
 
             target_system, _ = self._build_reduced_system(force_field, topology)
 
-            subset_potentials_path = os.path.join(directory, f"subset.csv")
+            subset_potentials_path = os.path.join(directory, "subset.csv")
             subset_potentials = self._evaluate_reduced_potential(
                 target_system, trajectory, subset_potentials_path, available_resources
             )

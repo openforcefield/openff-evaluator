@@ -94,16 +94,16 @@ class _Multiprocessor:
                         or os.stat(logger_path).st_size == 0
                     ):
 
-                        worker_logger.info(f"=========================================")
+                        worker_logger.info("=========================================")
                         worker_logger.info(f"HOSTNAME: {platform.node()}")
                         worker_logger.info(f"PLATFORM: {platform.platform()}")
-                        worker_logger.info(f"-----------------------------------------")
+                        worker_logger.info("-----------------------------------------")
                         worker_logger.info(
-                            f"PYTHON VERSION: "
+                            "PYTHON VERSION: "
                             f"{platform.python_version()} - "
                             f"{platform.python_implementation()}"
                         )
-                        worker_logger.info(f"=========================================")
+                        worker_logger.info("=========================================")
 
             return_value = func(*args, **kwargs)
             queue.put(return_value)
