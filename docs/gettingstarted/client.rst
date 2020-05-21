@@ -1,31 +1,31 @@
-.. |evaluator_server|           replace:: :py:class:`~evaluator.server.EvaluatorServer`
-.. |evaluator_client|           replace:: :py:class:`~evaluator.client.EvaluatorClient`
-.. |evaluator_exception|        replace:: :py:class:`~evaluator.utils.exceptions.EvaluatorException`
-.. |connection_options|         replace:: :py:class:`~evaluator.client.ConnectionOptions`
+.. |evaluator_server|           replace:: :py:class:`~openff.evaluator.server.EvaluatorServer`
+.. |evaluator_client|           replace:: :py:class:`~openff.evaluator.client.EvaluatorClient`
+.. |evaluator_exception|        replace:: :py:class:`~openff.evaluator.utils.exceptions.EvaluatorException`
+.. |connection_options|         replace:: :py:class:`~openff.evaluator.client.ConnectionOptions`
 
-.. |request|                    replace:: :py:class:`~evaluator.client.Request`
-.. |request_result|             replace:: :py:class:`~evaluator.client.RequestResult`
-.. |request_options|            replace:: :py:class:`~evaluator.client.RequestOptions`
+.. |request|                    replace:: :py:class:`~openff.evaluator.client.Request`
+.. |request_result|             replace:: :py:class:`~openff.evaluator.client.RequestResult`
+.. |request_options|            replace:: :py:class:`~openff.evaluator.client.RequestOptions`
 
-.. |force_field_source|         replace:: :py:class:`~evaluator.forcefield.ForceFieldSource`
+.. |force_field_source|         replace:: :py:class:`~openff.evaluator.forcefield.ForceFieldSource`
 
-.. |request_estimate|           replace:: :py:meth:`~evaluator.client.EvaluatorClient.request_estimate`
-.. |default_request_options|    replace:: :py:meth:`~evaluator.client.EvaluatorClient.default_request_options`
+.. |request_estimate|           replace:: :py:meth:`~openff.evaluator.client.EvaluatorClient.request_estimate`
+.. |default_request_options|    replace:: :py:meth:`~openff.evaluator.client.EvaluatorClient.default_request_options`
 
-.. |calculation_layers|         replace:: :py:class:`~evaluator.client.RequestOptions.calculation_layers`
-.. |calculation_schemas|        replace:: :py:class:`~evaluator.client.RequestOptions.calculation_schemas`
+.. |calculation_layers|         replace:: :py:class:`~openff.evaluator.client.RequestOptions.calculation_layers`
+.. |calculation_schemas|        replace:: :py:class:`~openff.evaluator.client.RequestOptions.calculation_schemas`
 
 .. |future|                     replace:: :py:class:`~asyncio.Future`
 
-.. |smirnoff_force_field_source|       replace:: :py:class:`~evaluator.forcefield.SmirnoffForceFieldSource`
-.. |lig_par_gen_force_field_source|    replace:: :py:class:`~evaluator.forcefield.LigParGenForceFieldSource`
-.. |tleap_force_field_source|          replace:: :py:class:`~evaluator.forcefield.TLeapForceFieldSource`
+.. |smirnoff_force_field_source|       replace:: :py:class:`~openff.evaluator.forcefield.SmirnoffForceFieldSource`
+.. |lig_par_gen_force_field_source|    replace:: :py:class:`~openff.evaluator.forcefield.LigParGenForceFieldSource`
+.. |tleap_force_field_source|          replace:: :py:class:`~openff.evaluator.forcefield.TLeapForceFieldSource`
 
-.. |build_smirnoff_system|             replace:: :py:class:`~evaluator.protocols.forcefield.BuildSmirnoffSystem`
-.. |build_tleap_system|                replace:: :py:class:`~evaluator.protocols.forcefield.BuildTLeapSystem`
-.. |build_lig_par_gen_system|          replace:: :py:class:`~evaluator.protocols.forcefield.BuildLigParGenSystem`
+.. |build_smirnoff_system|             replace:: :py:class:`~openff.evaluator.protocols.forcefield.BuildSmirnoffSystem`
+.. |build_tleap_system|                replace:: :py:class:`~openff.evaluator.protocols.forcefield.BuildTLeapSystem`
+.. |build_lig_par_gen_system|          replace:: :py:class:`~openff.evaluator.protocols.forcefield.BuildLigParGenSystem`
 
-.. |workflow_calculation_schema|       replace:: :py:class:`~evaluator.layers.workflow.WorkflowCalculationSchema`
+.. |workflow_calculation_schema|       replace:: :py:class:`~openff.evaluator.layers.workflow.WorkflowCalculationSchema`
 
 Evaluator Client
 ================

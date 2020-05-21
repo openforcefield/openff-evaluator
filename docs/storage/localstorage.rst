@@ -1,4 +1,4 @@
-.. |local_file_storage|    replace:: :py:class:`~evaluator.storage.LocalFileStorage`
+.. |local_file_storage|    replace:: :py:class:`~openff.evaluator.storage.LocalFileStorage`
 
 Local File Storage
 ==================

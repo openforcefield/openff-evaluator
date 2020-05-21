@@ -1,14 +1,14 @@
-.. |register_thermoml_property|    replace:: :py:meth:`~evaluator.datasets.thermoml.register_thermoml_property`
-.. |thermoml_property|             replace:: :py:meth:`~evaluator.datasets.thermoml.thermoml_property`
-.. |thermoml_data_set|             replace:: :py:class:`~evaluator.datasets.thermoml.ThermoMLDataSet`
+.. |register_thermoml_property|    replace:: :py:meth:`~openff.evaluator.datasets.thermoml.register_thermoml_property`
+.. |thermoml_property|             replace:: :py:meth:`~openff.evaluator.datasets.thermoml.thermoml_property`
+.. |thermoml_data_set|             replace:: :py:class:`~openff.evaluator.datasets.thermoml.ThermoMLDataSet`
 
-.. |physical_property|             replace:: :py:class:`~evaluator.datasets.PhysicalProperty`
+.. |physical_property|             replace:: :py:class:`~openff.evaluator.datasets.PhysicalProperty`
 
-.. |density|                       replace:: :py:class:`~evaluator.properties.Density`
-.. |dielectric_constant|           replace:: :py:class:`~evaluator.properties.DielectricConstant`
-.. |enthalpy_of_mixing|            replace:: :py:class:`~evaluator.properties.EnthalpyOfMixing`
-.. |enthalpy_of_vaporization|      replace:: :py:class:`~evaluator.properties.EnthalpyOfVaporization`
-.. |excess_molar_volume|           replace:: :py:class:`~evaluator.properties.ExcessMolarVolume`
+.. |density|                       replace:: :py:class:`~openff.evaluator.properties.Density`
+.. |dielectric_constant|           replace:: :py:class:`~openff.evaluator.properties.DielectricConstant`
+.. |enthalpy_of_mixing|            replace:: :py:class:`~openff.evaluator.properties.EnthalpyOfMixing`
+.. |enthalpy_of_vaporization|      replace:: :py:class:`~openff.evaluator.properties.EnthalpyOfVaporization`
+.. |excess_molar_volume|           replace:: :py:class:`~openff.evaluator.properties.ExcessMolarVolume`
 
 ThermoML Data Sets
 ==================
@@ -132,7 +132,7 @@ from the International Journal of Thermophysics::
     file_names = glob.glob("ijt_files/*.xml")
 
     # Create the data set object
-    from evaluator.datasets.thermoml import ThermoMLDataSet
+    from openff.evaluator.datasets.thermoml import ThermoMLDataSet
     data_set = ThermoMLDataSet.from_file(*file_names)
 
     # Save the data set to a JSON object

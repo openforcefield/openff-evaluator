@@ -1,17 +1,17 @@
-.. |calculation_layer_result|    replace:: :py:class:`~evaluator.layers.CalculationLayerResult`
-.. |calculation_layer|           replace:: :py:class:`~evaluator.layers.CalculationLayer`
-.. |calculation_layer_schema|    replace:: :py:class:`~evaluator.layers.CalculationLayerSchema`
-.. |layer_decorator|             replace:: :py:meth:`~evaluator.layers.calculation_layer`
+.. |calculation_layer_result|    replace:: :py:class:`~openff.evaluator.layers.CalculationLayerResult`
+.. |calculation_layer|           replace:: :py:class:`~openff.evaluator.layers.CalculationLayer`
+.. |calculation_layer_schema|    replace:: :py:class:`~openff.evaluator.layers.CalculationLayerSchema`
+.. |layer_decorator|             replace:: :py:meth:`~openff.evaluator.layers.calculation_layer`
 
-.. |evaluator_exception|         replace:: :py:class:`~evaluator.utils.exceptions.EvaluatorException`
-.. |undefined|                   replace:: :py:class:`~evaluator.attributes.UNDEFINED`
+.. |evaluator_exception|         replace:: :py:class:`~openff.evaluator.utils.exceptions.EvaluatorException`
+.. |undefined|                   replace:: :py:class:`~openff.evaluator.attributes.UNDEFINED`
 
-.. |batch|                       replace:: :py:class:`~evaluator.server.Batch`
+.. |batch|                       replace:: :py:class:`~openff.evaluator.server.Batch`
 
-.. |_schedule_calculation|       replace:: :py:meth:`~evaluator.layers.CalculationLayer._schedule_calculation`
+.. |_schedule_calculation|       replace:: :py:meth:`~openff.evaluator.layers.CalculationLayer._schedule_calculation`
 
-.. |register_calculation_schema|       replace:: :py:meth:`~evaluator.layers.register_calculation_schema`
-.. |registered_calculation_schemas|    replace:: :py:attr:`~evaluator.layers.registered_calculation_schemas`
+.. |register_calculation_schema|       replace:: :py:meth:`~openff.evaluator.layers.register_calculation_schema`
+.. |registered_calculation_schemas|    replace:: :py:attr:`~openff.evaluator.layers.registered_calculation_schemas`
 
 Calculation Layers
 ==================

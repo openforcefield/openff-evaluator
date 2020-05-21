@@ -1,12 +1,12 @@
 API
 ===
 
-Documentation for each of the classes contained within the evaluator framework.
+Documentation for each of the classes contained within the `openff.evaluator` framework.
 
 Client Side API
 ---------------
 
-.. currentmodule:: evaluator.client
+.. currentmodule:: openff.evaluator.client
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -20,7 +20,7 @@ Client Side API
 
 **Exceptions**
 
-.. currentmodule:: evaluator.utils.exceptions
+.. currentmodule:: openff.evaluator.utils.exceptions
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -30,7 +30,7 @@ Client Side API
 Server Side API
 ---------------
 
-.. currentmodule:: evaluator.server
+.. currentmodule:: openff.evaluator.server
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -41,7 +41,7 @@ Server Side API
 Physical Property API
 ---------------------
 
-.. currentmodule:: evaluator.datasets
+.. currentmodule:: openff.evaluator.datasets
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -54,7 +54,7 @@ Physical Property API
 
 **Built-in Properties**
 
-.. currentmodule:: evaluator.properties
+.. currentmodule:: openff.evaluator.properties
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -69,7 +69,7 @@ Physical Property API
 
 **Substance Definition**
 
-.. currentmodule:: evaluator.substances
+.. currentmodule:: openff.evaluator.substances
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -82,7 +82,7 @@ Physical Property API
 
 **State Definition**
 
-.. currentmodule:: evaluator.thermodynamics
+.. currentmodule:: openff.evaluator.thermodynamics
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -92,7 +92,7 @@ Physical Property API
 Data Set API
 ------------
 
-.. currentmodule:: evaluator.datasets
+.. currentmodule:: openff.evaluator.datasets
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -101,7 +101,7 @@ Data Set API
 
 **NIST ThermoML Archive**
 
-.. currentmodule:: evaluator.datasets.thermoml
+.. currentmodule:: openff.evaluator.datasets.thermoml
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -113,7 +113,7 @@ Data Set API
 Force Field API
 ---------------
 
-.. currentmodule:: evaluator.forcefield
+.. currentmodule:: openff.evaluator.forcefield
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -125,7 +125,7 @@ Force Field API
 
 **Gradient Estimation**
 
-.. currentmodule:: evaluator.forcefield
+.. currentmodule:: openff.evaluator.forcefield
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -136,7 +136,7 @@ Force Field API
 Calculation Layers API
 ----------------------
 
-.. currentmodule:: evaluator.layers
+.. currentmodule:: openff.evaluator.layers
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -150,7 +150,7 @@ Calculation Layers API
 
 **Built-in Calculation Layers**
 
-.. currentmodule:: evaluator.layers.workflow
+.. currentmodule:: openff.evaluator.layers.workflow
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -158,7 +158,7 @@ Calculation Layers API
     WorkflowCalculationLayer
     WorkflowCalculationSchema
 
-.. currentmodule:: evaluator.layers.simulation
+.. currentmodule:: openff.evaluator.layers.simulation
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -166,7 +166,7 @@ Calculation Layers API
     SimulationLayer
     SimulationSchema
 
-.. currentmodule:: evaluator.layers.reweighting
+.. currentmodule:: openff.evaluator.layers.reweighting
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -178,7 +178,7 @@ Calculation Layers API
 Calculation Backends API
 ------------------------
 
-.. currentmodule:: evaluator.backends
+.. currentmodule:: openff.evaluator.backends
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -189,7 +189,7 @@ Calculation Backends API
 
 **Dask Backends**
 
-.. currentmodule:: evaluator.backends.dask
+.. currentmodule:: openff.evaluator.backends.dask
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -203,7 +203,7 @@ Calculation Backends API
 Storage API
 -----------
 
-.. currentmodule:: evaluator.storage
+.. currentmodule:: openff.evaluator.storage
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -212,7 +212,7 @@ Storage API
 
 **Built-in Storage Backends**
 
-.. currentmodule:: evaluator.storage
+.. currentmodule:: openff.evaluator.storage
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -221,7 +221,7 @@ Storage API
 
 **Data Classes**
 
-.. currentmodule:: evaluator.storage.data
+.. currentmodule:: openff.evaluator.storage.data
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -234,7 +234,7 @@ Storage API
 
 **Data Queries**
 
-.. currentmodule:: evaluator.storage.query
+.. currentmodule:: openff.evaluator.storage.query
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -246,7 +246,7 @@ Storage API
 
 **Attributes**
 
-.. currentmodule:: evaluator.storage.attributes
+.. currentmodule:: openff.evaluator.storage.attributes
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -259,7 +259,7 @@ Storage API
 Workflow API
 ------------
 
-.. currentmodule:: evaluator.workflow
+.. currentmodule:: openff.evaluator.workflow
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -276,7 +276,7 @@ Workflow API
 
 **Schemas**
 
-.. currentmodule:: evaluator.workflow.schemas
+.. currentmodule:: openff.evaluator.workflow.schemas
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -288,7 +288,7 @@ Workflow API
 
 **Attributes**
 
-.. currentmodule:: evaluator.workflow.attributes
+.. currentmodule:: openff.evaluator.workflow.attributes
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -301,7 +301,7 @@ Workflow API
 
 *Placeholder Values*
 
-.. currentmodule:: evaluator.workflow.utils
+.. currentmodule:: openff.evaluator.workflow.utils
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -314,7 +314,7 @@ Built-in Workflow Protocols
 
 **Analysis**
 
-.. currentmodule:: evaluator.protocols.analysis
+.. currentmodule:: openff.evaluator.protocols.analysis
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -328,7 +328,7 @@ Built-in Workflow Protocols
 
 **Coordinate Generation**
 
-.. currentmodule:: evaluator.protocols.coordinates
+.. currentmodule:: openff.evaluator.protocols.coordinates
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -339,7 +339,7 @@ Built-in Workflow Protocols
 
 **Force Field Assignment**
 
-.. currentmodule:: evaluator.protocols.forcefield
+.. currentmodule:: openff.evaluator.protocols.forcefield
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -351,7 +351,7 @@ Built-in Workflow Protocols
 
 **Gradients**
 
-.. currentmodule:: evaluator.protocols.gradients
+.. currentmodule:: openff.evaluator.protocols.gradients
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -361,7 +361,7 @@ Built-in Workflow Protocols
 
 **Groups**
 
-.. currentmodule:: evaluator.protocols.groups
+.. currentmodule:: openff.evaluator.protocols.groups
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -370,7 +370,7 @@ Built-in Workflow Protocols
 
 **Miscellaneous**
 
-.. currentmodule:: evaluator.protocols.miscellaneous
+.. currentmodule:: openff.evaluator.protocols.miscellaneous
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -384,7 +384,7 @@ Built-in Workflow Protocols
 
 **OpenMM**
 
-.. currentmodule:: evaluator.protocols.openmm
+.. currentmodule:: openff.evaluator.protocols.openmm
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -396,7 +396,7 @@ Built-in Workflow Protocols
 
 **Reweighting**
 
-.. currentmodule:: evaluator.protocols.reweighting
+.. currentmodule:: openff.evaluator.protocols.reweighting
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -409,7 +409,7 @@ Built-in Workflow Protocols
 
 **Simulation**
 
-.. currentmodule:: evaluator.protocols.simulation
+.. currentmodule:: openff.evaluator.protocols.simulation
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -419,7 +419,7 @@ Built-in Workflow Protocols
 
 **Storage**
 
-.. currentmodule:: evaluator.protocols.storage
+.. currentmodule:: openff.evaluator.protocols.storage
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -428,7 +428,7 @@ Built-in Workflow Protocols
 
 **YANK Free Energies**
 
-.. currentmodule:: evaluator.protocols.yank
+.. currentmodule:: openff.evaluator.protocols.yank
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -440,7 +440,7 @@ Built-in Workflow Protocols
 Workflow Construction Utilities
 -------------------------------
 
-.. currentmodule:: evaluator.protocols.utils
+.. currentmodule:: openff.evaluator.protocols.utils
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -454,7 +454,7 @@ Workflow Construction Utilities
 Attribute Utilities
 -------------------
 
-.. currentmodule:: evaluator.attributes
+.. currentmodule:: openff.evaluator.attributes
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/
@@ -469,7 +469,7 @@ Plug-in Utilities
 
 **Plug-ins**
 
-.. currentmodule:: evaluator.plugins
+.. currentmodule:: openff.evaluator.plugins
 .. autosummary::
     :nosignatures:
     :toctree: api/generated/

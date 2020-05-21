@@ -1,15 +1,15 @@
-.. |physical_property_data_set|    replace:: :py:class:`~evaluator.datasets.PhysicalPropertyDataSet`
-.. |physical_property|             replace:: :py:class:`~evaluator.datasets.PhysicalProperty`
-.. |property_phase|                replace:: :py:class:`~evaluator.datasets.PropertyPhase`
-.. |source|                        replace:: :py:class:`~evaluator.datasets.Source`
+.. |physical_property_data_set|    replace:: :py:class:`~openff.evaluator.datasets.PhysicalPropertyDataSet`
+.. |physical_property|             replace:: :py:class:`~openff.evaluator.datasets.PhysicalProperty`
+.. |property_phase|                replace:: :py:class:`~openff.evaluator.datasets.PropertyPhase`
+.. |source|                        replace:: :py:class:`~openff.evaluator.datasets.Source`
 
-.. |thermoml_data_set|             replace:: :py:class:`~evaluator.datasets.thermoml.ThermoMLDataSet`
+.. |thermoml_data_set|             replace:: :py:class:`~openff.evaluator.datasets.thermoml.ThermoMLDataSet`
 
-.. |substance|                     replace:: :py:class:`~evaluator.substances.Substance`
-.. |thermodynamic_state|           replace:: :py:class:`~evaluator.thermodynamics.ThermodynamicState`
-.. |force_field_source|            replace:: :py:class:`~evaluator.forcefield.ForceFieldSource`
+.. |substance|                     replace:: :py:class:`~openff.evaluator.substances.Substance`
+.. |thermodynamic_state|           replace:: :py:class:`~openff.evaluator.thermodynamics.ThermodynamicState`
+.. |force_field_source|            replace:: :py:class:`~openff.evaluator.forcefield.ForceFieldSource`
 
-.. |parameter_gradient|            replace:: :py:class:`~evaluator.forcefield.ParameterGradient`
+.. |parameter_gradient|            replace:: :py:class:`~openff.evaluator.forcefield.ParameterGradient`
 
 .. |data_frame|                    replace:: :py:class:`~pandas.DataFrame`
 

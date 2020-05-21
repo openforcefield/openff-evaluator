@@ -1,15 +1,15 @@
-.. |protocol_group|           replace:: :py:class:`~evaluator.workflow.ProtocolGroup`
+.. |protocol_group|           replace:: :py:class:`~openff.evaluator.workflow.ProtocolGroup`
 
-.. |condition|                replace:: :py:class:`~evaluator.protocols.groups.ConditionalGroup.Condition`
-.. |conditional_group|        replace:: :py:class:`~evaluator.protocols.groups.ConditionalGroup`
+.. |condition|                replace:: :py:class:`~openff.evaluator.protocols.groups.ConditionalGroup.Condition`
+.. |conditional_group|        replace:: :py:class:`~openff.evaluator.protocols.groups.ConditionalGroup`
 
-.. |protocol_schema|          replace:: :py:class:`~evaluator.workflow.schemas.ProtocolSchema`
-.. |protocol_group_schema|    replace:: :py:class:`~evaluator.workflow.schemas.ProtocolGroupSchema`
+.. |protocol_schema|          replace:: :py:class:`~openff.evaluator.workflow.schemas.ProtocolSchema`
+.. |protocol_group_schema|    replace:: :py:class:`~openff.evaluator.workflow.schemas.ProtocolGroupSchema`
 
-.. |protocol_path|            replace:: :py:class:`~evaluator.workflow.utils.ProtocolPath`
+.. |protocol_path|            replace:: :py:class:`~openff.evaluator.workflow.utils.ProtocolPath`
 
-.. |current_iteration|        replace:: :py:attr:`~evaluator.protocols.groups.ConditionalGroup.current_iteration`
-.. |max_iterations|           replace:: :py:attr:`~evaluator.protocols.groups.ConditionalGroup.max_iterations`
+.. |current_iteration|        replace:: :py:attr:`~openff.evaluator.protocols.groups.ConditionalGroup.current_iteration`
+.. |max_iterations|           replace:: :py:attr:`~openff.evaluator.protocols.groups.ConditionalGroup.max_iterations`
 
 Protocol Groups
 ===============
