@@ -119,7 +119,7 @@ def main():
         results, _ = request.results(True, 60)
 
         # Save the result to file.
-        results.json(f"results.json", True)
+        results.json("results.json", True)
 
 
 if __name__ == "__main__":
