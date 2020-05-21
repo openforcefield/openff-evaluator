@@ -1,5 +1,5 @@
-.. |simulation_layer|              replace:: :py:class:`~evaluator.layers.simulation.SimulationLayer`
-.. |workflow_calculation_layer|    replace:: :py:class:`~evaluator.layers.workflow.WorkflowCalculationLayer`
+.. |simulation_layer|              replace:: :py:class:`~openff.evaluator.layers.simulation.SimulationLayer`
+.. |workflow_calculation_layer|    replace:: :py:class:`~openff.evaluator.layers.workflow.WorkflowCalculationLayer`
 
 The Direct Simulation Layer
 ===========================

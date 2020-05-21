@@ -112,9 +112,9 @@ ENV/
 examples/property_estimator/stored_data/
 examples/property_estimator/working_directory/
 
-evaluator/data/properties/JCT/
+openff/evaluator/data/properties/JCT/
 *dask-worker-space/
 
 integration_tests/thermoml/checked_thermoml_files
 
-evaluator/tests/**/*dat
+openff/evaluator/tests/**/*dat

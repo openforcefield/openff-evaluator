@@ -1,24 +1,24 @@
-.. |protocol|                     replace:: :py:class:`~evaluator.workflow.Protocol`
-.. |protocol_schema|              replace:: :py:class:`~evaluator.workflow.schemas.ProtocolSchema`
+.. |protocol|                     replace:: :py:class:`~openff.evaluator.workflow.Protocol`
+.. |protocol_schema|              replace:: :py:class:`~openff.evaluator.workflow.schemas.ProtocolSchema`
 
-.. |input_attribute|              replace:: :py:class:`~evaluator.workflow.attributes.InputAttribute`
-.. |output_attribute|             replace:: :py:class:`~evaluator.workflow.attributes.OutputAttribute`
-.. |undefined|                    replace:: :py:class:`~evaluator.attributes.UNDEFINED`
-.. |inequality_merge_behavior|    replace:: :py:class:`~evaluator.workflow.attributes.InequalityMergeBehaviour`
+.. |input_attribute|              replace:: :py:class:`~openff.evaluator.workflow.attributes.InputAttribute`
+.. |output_attribute|             replace:: :py:class:`~openff.evaluator.workflow.attributes.OutputAttribute`
+.. |undefined|                    replace:: :py:class:`~openff.evaluator.attributes.UNDEFINED`
+.. |inequality_merge_behavior|    replace:: :py:class:`~openff.evaluator.workflow.attributes.InequalityMergeBehaviour`
 
-.. |openmm_simulation|    replace:: :py:class:`~evaluator.protocols.openmm.OpenMMSimulation`
+.. |openmm_simulation|    replace:: :py:class:`~openff.evaluator.protocols.openmm.OpenMMSimulation`
 
-.. |compute_resources|    replace:: :py:class:`~evaluator.backends.ComputeResources`
+.. |compute_resources|    replace:: :py:class:`~openff.evaluator.backends.ComputeResources`
 
-.. |can_merge|            replace:: :py:meth:`~evaluator.workflow.Protocol.can_merge`
-.. |_execute|              replace:: :py:meth:`~evaluator.workflow.Protocol._execute`
-.. |execute|              replace:: :py:meth:`~evaluator.workflow.Protocol.execute`
-.. |merge|                replace:: :py:meth:`~evaluator.workflow.Protocol.merge`
-.. |validate|             replace:: :py:meth:`~evaluator.workflow.Protocol.execute`
+.. |can_merge|            replace:: :py:meth:`~openff.evaluator.workflow.Protocol.can_merge`
+.. |_execute|              replace:: :py:meth:`~openff.evaluator.workflow.Protocol._execute`
+.. |execute|              replace:: :py:meth:`~openff.evaluator.workflow.Protocol.execute`
+.. |merge|                replace:: :py:meth:`~openff.evaluator.workflow.Protocol.merge`
+.. |validate|             replace:: :py:meth:`~openff.evaluator.workflow.Protocol.execute`
 
-.. |to_protocol|          replace:: :py:meth:`~evaluator.workflow.schemas.ProtocolSchema.to_protocol`
+.. |to_protocol|          replace:: :py:meth:`~openff.evaluator.workflow.schemas.ProtocolSchema.to_protocol`
 
-.. |schema|               replace:: :py:attr:`~evaluator.workflow.Protocol.schema`
+.. |schema|               replace:: :py:attr:`~openff.evaluator.workflow.Protocol.schema`
 
 Protocols
 =========
@@ -27,7 +27,7 @@ The |protocol| class represents a single task to be executed, whether that be as
 part of some larger workflow. The task encoded by a protocol may be as simple as adding two numbers together or even
 as complex as performing entire free energy simulations::
 
-    from evaluator.protocols.miscellaneous import AddValues
+    from openff.evaluator.protocols.miscellaneous import AddValues
 
     # Create the protocol and assign it some unique name.
     add_numbers = AddValues(protocol_id="add_values")
@@ -144,7 +144,7 @@ each of the inputs. Protocol schemas are fully JSON serializable. The following 
 .. code-block:: json
 
     {
-      "@type": "evaluator.workflow.schemas.ProtocolSchema",
+      "@type": "openff.evaluator.workflow.schemas.ProtocolSchema",
       "id": "add_values",
       "inputs": {
         ".allow_merging": true,

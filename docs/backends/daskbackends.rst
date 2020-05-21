@@ -1,8 +1,8 @@
-.. |dask_local_cluster|             replace:: :py:class:`~evaluator.backends.dask.DaskLocalCluster`
-.. |base_dask_job_queue_backend|    replace:: :py:class:`~evaluator.backends.dask.BaseDaskJobQueueBackend`
-.. |dask_lsf_backend|               replace:: :py:class:`~evaluator.backends.dask.DaskLSFBackend`
-.. |dask_pbs_backend|               replace:: :py:class:`~evaluator.backends.dask.DaskPBSBackend`
-.. |queue_worker_resources|         replace:: :py:class:`~evaluator.backends.dask.QueueWorkerResources`
+.. |dask_local_cluster|             replace:: :py:class:`~openff.evaluator.backends.dask.DaskLocalCluster`
+.. |base_dask_job_queue_backend|    replace:: :py:class:`~openff.evaluator.backends.dask.BaseDaskJobQueueBackend`
+.. |dask_lsf_backend|               replace:: :py:class:`~openff.evaluator.backends.dask.DaskLSFBackend`
+.. |dask_pbs_backend|               replace:: :py:class:`~openff.evaluator.backends.dask.DaskPBSBackend`
+.. |queue_worker_resources|         replace:: :py:class:`~openff.evaluator.backends.dask.QueueWorkerResources`
 
 Dask Backends
 =============

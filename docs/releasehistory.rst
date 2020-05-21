@@ -13,7 +13,7 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 
 This release introduces a significant number of changes to this package, including:
 
-* a complete re-branding from ``propertyestimator`` to ``evaluator``.
+* a complete re-branding from ``propertyestimator`` to ``openff-evaluator``.
 * a significant number of `API redesigns <https://github.com/openforcefield/openff-evaluator/pull/146>`_
 * a full `overhaul of the documentation <https://github.com/openforcefield/openff-evaluator/pull/166>`_
 * the addition of user focused tutorials.

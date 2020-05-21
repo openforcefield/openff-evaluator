@@ -1,7 +1,7 @@
 Release Process
 ===============
 
-This document aims to outline the steps needed to release the ``evaluator`` on ``omnia``. This
+This document aims to outline the steps needed to release the ``openff-evaluator`` on ``omnia``. This
 should only be done with the approval of the core maintainers.
 
 1. Update the Release History
@@ -75,7 +75,7 @@ To cut a new release on GitHub:
 
 To trigger the build in ``omnia``:
 
-1) Create branch or fork of omnia-md/conda-recipes with the following changes to evaluator in
+1) Create branch or fork of omnia-md/conda-recipes with the following changes to openff-evaluator in
 `meta.yaml <https://github.com/omnia-md/conda-recipes/blob/master/openff-evaluator/meta.yaml>`_:
 
   a) Set ``git_tag`` to match the git release tag

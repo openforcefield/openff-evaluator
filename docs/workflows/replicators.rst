@@ -1,37 +1,37 @@
-.. |protocol|           replace:: :py:class:`~evaluator.workflow.Protocol`
-.. |protocol_schema|    replace:: :py:class:`~evaluator.workflow.schemas.ProtocolSchema`
-.. |protocol_graph|     replace:: :py:class:`~evaluator.workflow.ProtocolGraph`
-.. |protocol_path|      replace:: :py:class:`~evaluator.workflow.utils.ProtocolPath`
-.. |workflow|           replace:: :py:class:`~evaluator.workflow.Workflow`
-.. |workflow_schema|    replace:: :py:class:`~evaluator.workflow.schemas.WorkflowSchema`
-.. |workflow_graph|     replace:: :py:class:`~evaluator.workflow.WorkflowGraph`
-.. |workflow_result|    replace:: :py:class:`~evaluator.workflow.WorkflowResult`
+.. |protocol|           replace:: :py:class:`~openff.evaluator.workflow.Protocol`
+.. |protocol_schema|    replace:: :py:class:`~openff.evaluator.workflow.schemas.ProtocolSchema`
+.. |protocol_graph|     replace:: :py:class:`~openff.evaluator.workflow.ProtocolGraph`
+.. |protocol_path|      replace:: :py:class:`~openff.evaluator.workflow.utils.ProtocolPath`
+.. |workflow|           replace:: :py:class:`~openff.evaluator.workflow.Workflow`
+.. |workflow_schema|    replace:: :py:class:`~openff.evaluator.workflow.schemas.WorkflowSchema`
+.. |workflow_graph|     replace:: :py:class:`~openff.evaluator.workflow.WorkflowGraph`
+.. |workflow_result|    replace:: :py:class:`~openff.evaluator.workflow.WorkflowResult`
 
-.. |generate_default_metadata|    replace:: :py:meth:`~evaluator.workflow.Workflow.generate_default_metadata`
+.. |generate_default_metadata|    replace:: :py:meth:`~openff.evaluator.workflow.Workflow.generate_default_metadata`
 
-.. |substance|                    replace:: :py:class:`~evaluator.substances.Substance`
-.. |thermodynamic_state|          replace:: :py:class:`~evaluator.thermodynamics.ThermodynamicState`
+.. |substance|                    replace:: :py:class:`~openff.evaluator.substances.Substance`
+.. |thermodynamic_state|          replace:: :py:class:`~openff.evaluator.thermodynamics.ThermodynamicState`
 
-.. |parameter_gradient_key|       replace:: :py:class:`~evaluator.forcefield.ParameterGradientKey`
+.. |parameter_gradient_key|       replace:: :py:class:`~openff.evaluator.forcefield.ParameterGradientKey`
 
-.. |build_coordinates_packmol|    replace:: :py:class:`~evaluator.protocols.coordinates.BuildCoordinatesPackmol`
-.. |build_smirnoff_system|        replace:: :py:class:`~evaluator.protocols.forcefield.BuildSmirnoffSystem`
+.. |build_coordinates_packmol|    replace:: :py:class:`~openff.evaluator.protocols.coordinates.BuildCoordinatesPackmol`
+.. |build_smirnoff_system|        replace:: :py:class:`~openff.evaluator.protocols.forcefield.BuildSmirnoffSystem`
 
-.. |protocol_schemas|             replace:: :py:attr:`~evaluator.workflow.schemas.WorkflowSchema.protocol_schemas`
-.. |final_value_source|           replace:: :py:attr:`~evaluator.workflow.schemas.WorkflowSchema.final_value_source`
-.. |gradients_sources|            replace:: :py:attr:`~evaluator.workflow.schemas.WorkflowSchema.gradients_sources`
-.. |outputs_to_store|             replace:: :py:attr:`~evaluator.workflow.schemas.WorkflowSchema.outputs_to_store`
-.. |protocol_replicators|         replace:: :py:attr:`~evaluator.workflow.schemas.WorkflowSchema.protocol_replicators`
+.. |protocol_schemas|             replace:: :py:attr:`~openff.evaluator.workflow.schemas.WorkflowSchema.protocol_schemas`
+.. |final_value_source|           replace:: :py:attr:`~openff.evaluator.workflow.schemas.WorkflowSchema.final_value_source`
+.. |gradients_sources|            replace:: :py:attr:`~openff.evaluator.workflow.schemas.WorkflowSchema.gradients_sources`
+.. |outputs_to_store|             replace:: :py:attr:`~openff.evaluator.workflow.schemas.WorkflowSchema.outputs_to_store`
+.. |protocol_replicators|         replace:: :py:attr:`~openff.evaluator.workflow.schemas.WorkflowSchema.protocol_replicators`
 
-.. |result_value|                 replace:: :py:attr:`~evaluator.workflow.WorkflowResult.value`
-.. |result_gradients|             replace:: :py:attr:`~evaluator.workflow.WorkflowResult.gradients`
-.. |result_data_to_store|         replace:: :py:attr:`~evaluator.workflow.WorkflowResult.data_to_store`
+.. |result_value|                 replace:: :py:attr:`~openff.evaluator.workflow.WorkflowResult.value`
+.. |result_gradients|             replace:: :py:attr:`~openff.evaluator.workflow.WorkflowResult.gradients`
+.. |result_data_to_store|         replace:: :py:attr:`~openff.evaluator.workflow.WorkflowResult.data_to_store`
 
-.. |property_name|                replace:: :py:attr:`~evaluator.workflow.utils.ProtocolPath.property_name`
+.. |property_name|                replace:: :py:attr:`~openff.evaluator.workflow.utils.ProtocolPath.property_name`
 
-.. |protocol_replicator|          replace:: :py:class:`~evaluator.workflow.schemas.ProtocolReplicator`
-.. |replicator_value|             replace:: :py:class:`~evaluator.workflow.utils.ReplicatorValue`
-.. |placeholder_id|               replace:: :py:attr:`~evaluator.workflow.schemas.ProtocolReplicator.placeholder_id`
+.. |protocol_replicator|          replace:: :py:class:`~openff.evaluator.workflow.schemas.ProtocolReplicator`
+.. |replicator_value|             replace:: :py:class:`~openff.evaluator.workflow.utils.ReplicatorValue`
+.. |placeholder_id|               replace:: :py:attr:`~openff.evaluator.workflow.schemas.ProtocolReplicator.placeholder_id`
 
 .. |quantity|                     replace:: :py:class:`~pint.Quantity`
 
@@ -77,24 +77,24 @@ contents of this schema can be easily inspected by printing its JSON representat
 .. code-block:: json
 
     {
-        "@type": "evaluator.workflow.schemas.WorkflowSchema",
+        "@type": "openff.evaluator.workflow.schemas.WorkflowSchema",
         "protocol_replicators": [
             {
-                "@type": "evaluator.workflow.schemas.ProtocolReplicator",
+                "@type": "openff.evaluator.workflow.schemas.ProtocolReplicator",
                 "id": "component_replicator",
                 "template_values": {
-                    "@type": "evaluator.workflow.utils.ProtocolPath",
+                    "@type": "openff.evaluator.workflow.utils.ProtocolPath",
                     "full_path": "global.substance.components"
                 }
             }
         ],
         "protocol_schemas": [
             {
-                "@type": "evaluator.workflow.schemas.ProtocolSchema",
+                "@type": "openff.evaluator.workflow.schemas.ProtocolSchema",
                 "id": "build_coords_$(component_replicator)",
                 "inputs": {
                     ".substance": {
-                        "@type": "evaluator.workflow.utils.ReplicatorValue",
+                        "@type": "openff.evaluator.workflow.utils.ReplicatorValue",
                         "replicator_id": "component_replicator"
                     }
                 },
@@ -120,25 +120,25 @@ component in the substance passed as metadata:
 .. code-block:: json
 
     {
-        "@type": "evaluator.workflow.schemas.WorkflowSchema",
+        "@type": "openff.evaluator.workflow.schemas.WorkflowSchema",
         "protocol_schemas": [
             {
-                "@type": "evaluator.workflow.schemas.ProtocolSchema",
+                "@type": "openff.evaluator.workflow.schemas.ProtocolSchema",
                 "id": "build_coords_0",
                 "inputs": {
                     ".substance": {
-                        "@type": "evaluator.substances.components.Component",
+                        "@type": "openff.evaluator.substances.components.Component",
                         "smiles": "O"
                     }
                 },
                 "type": "BuildCoordinatesPackmol"
             },
             {
-                "@type": "evaluator.workflow.schemas.ProtocolSchema",
+                "@type": "openff.evaluator.workflow.schemas.ProtocolSchema",
                 "id": "build_coords_1",
                 "inputs": {
                     ".substance": {
-                        "@type": "evaluator.substances.components.Component",
+                        "@type": "openff.evaluator.substances.components.Component",
                         "smiles": "CO"
                     }
                 },
@@ -210,27 +210,27 @@ as an index into the ``n_mols`` array. This results in the following schema as d
 .. code-block:: json
 
     {
-        "@type": "evaluator.workflow.schemas.WorkflowSchema",
+        "@type": "openff.evaluator.workflow.schemas.WorkflowSchema",
         "protocol_schemas": [
             {
-                "@type": "evaluator.workflow.schemas.ProtocolSchema",
+                "@type": "openff.evaluator.workflow.schemas.ProtocolSchema",
                 "id": "build_coordinates_0_0",
                 "inputs": {
                     ".max_molecules": 1000,
                     ".substance": {
-                        "@type": "evaluator.substances.components.Component",
+                        "@type": "openff.evaluator.substances.components.Component",
                         "smiles": "O"
                     }
                 },
                 "type": "BuildCoordinatesPackmol"
             },
             {
-                "@type": "evaluator.workflow.schemas.ProtocolSchema",
+                "@type": "openff.evaluator.workflow.schemas.ProtocolSchema",
                 "id": "build_coordinates_1_0",
                 "inputs": {
                     ".max_molecules": 500,
                     ".substance": {
-                        "@type": "evaluator.substances.components.Component",
+                        "@type": "openff.evaluator.substances.components.Component",
                         "smiles": "CO"
                     }
                 },

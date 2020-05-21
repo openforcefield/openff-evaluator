@@ -1,46 +1,46 @@
 {
-  "@type": "evaluator.datasets.datasets.PhysicalPropertyDataSet",
+  "@type": "openff.evaluator.datasets.datasets.PhysicalPropertyDataSet",
   "properties": [
     {
-      "@type": "evaluator.properties.density.ExcessMolarVolume",
+      "@type": "openff.evaluator.properties.density.ExcessMolarVolume",
       "gradients": [],
       "id": "f8416fb4-feae-422a-91ad-bf3ca7be35cf",
       "metadata": {},
       "phase": 2,
       "source": {
-        "@type": "evaluator.datasets.provenance.MeasurementSource",
+        "@type": "openff.evaluator.datasets.provenance.MeasurementSource",
         "doi": "",
         "reference": "j.jct.2009.11.018.xml"
       },
       "substance": {
-        "@type": "evaluator.substances.Substance",
+        "@type": "openff.evaluator.substances.Substance",
         "amounts": {
           "OCCCO{solv}": [
             {
-              "@type": "evaluator.substances.MoleFraction",
+              "@type": "openff.evaluator.substances.MoleFraction",
               "value": 0.74
             }
           ],
           "O{solv}": [
             {
-              "@type": "evaluator.substances.MoleFraction",
+              "@type": "openff.evaluator.substances.MoleFraction",
               "value": 0.26
             }
           ]
         },
         "components": [
           {
-            "@type": "evaluator.substances.Component",
+            "@type": "openff.evaluator.substances.Component",
             "role": {
-              "@type": "evaluator.substances.Component.Role",
+              "@type": "openff.evaluator.substances.Component.Role",
               "value": "solv"
             },
             "smiles": "O"
           },
           {
-            "@type": "evaluator.substances.Component",
+            "@type": "openff.evaluator.substances.Component",
             "role": {
-              "@type": "evaluator.substances.Component.Role",
+              "@type": "openff.evaluator.substances.Component.Role",
               "value": "solv"
             },
             "smiles": "OCCCO"
@@ -48,69 +48,69 @@
         ]
       },
       "thermodynamic_state": {
-        "@type": "evaluator.thermodynamics.ThermodynamicState",
+        "@type": "openff.evaluator.thermodynamics.ThermodynamicState",
         "pressure": {
-          "@type": "evaluator.unit.Quantity",
+          "@type": "openff.evaluator.unit.Quantity",
           "unit": "kilopascal",
           "value": 101.0
         },
         "temperature": {
-          "@type": "evaluator.unit.Quantity",
+          "@type": "openff.evaluator.unit.Quantity",
           "unit": "kelvin",
           "value": 298.15
         }
       },
       "uncertainty": {
-        "@type": "evaluator.unit.Quantity",
+        "@type": "openff.evaluator.unit.Quantity",
         "unit": "meter ** 3 / mole",
         "value": 0.0
       },
       "value": {
-        "@type": "evaluator.unit.Quantity",
+        "@type": "openff.evaluator.unit.Quantity",
         "unit": "meter ** 3 / mole",
         "value": -2.549e-07
       }
     },
     {
-      "@type": "evaluator.properties.enthalpy.EnthalpyOfMixing",
+      "@type": "openff.evaluator.properties.enthalpy.EnthalpyOfMixing",
       "gradients": [],
       "id": "f1f60f7b-584d-4666-bf13-7e472a138c76",
       "metadata": {},
       "phase": 2,
       "source": {
-        "@type": "evaluator.datasets.provenance.MeasurementSource",
+        "@type": "openff.evaluator.datasets.provenance.MeasurementSource",
         "doi": "",
         "reference": "je030207i.xml"
       },
       "substance": {
-        "@type": "evaluator.substances.Substance",
+        "@type": "openff.evaluator.substances.Substance",
         "amounts": {
           "OCCO{solv}": [
             {
-              "@type": "evaluator.substances.MoleFraction",
+              "@type": "openff.evaluator.substances.MoleFraction",
               "value": 0.42
             }
           ],
           "CO{solv}": [
             {
-              "@type": "evaluator.substances.MoleFraction",
+              "@type": "openff.evaluator.substances.MoleFraction",
               "value": 0.58
             }
           ]
         },
         "components": [
           {
-            "@type": "evaluator.substances.Component",
+            "@type": "openff.evaluator.substances.Component",
             "role": {
-              "@type": "evaluator.substances.Component.Role",
+              "@type": "openff.evaluator.substances.Component.Role",
               "value": "solv"
             },
             "smiles": "OCCO"
           },
           {
-            "@type": "evaluator.substances.Component",
+            "@type": "openff.evaluator.substances.Component",
             "role": {
-              "@type": "evaluator.substances.Component.Role",
+              "@type": "openff.evaluator.substances.Component.Role",
               "value": "solv"
             },
             "smiles": "CO"
@@ -118,25 +118,25 @@
         ]
       },
       "thermodynamic_state": {
-        "@type": "evaluator.thermodynamics.ThermodynamicState",
+        "@type": "openff.evaluator.thermodynamics.ThermodynamicState",
         "pressure": {
-          "@type": "evaluator.unit.Quantity",
+          "@type": "openff.evaluator.unit.Quantity",
           "unit": "kilopascal",
           "value": 101.3
         },
         "temperature": {
-          "@type": "evaluator.unit.Quantity",
+          "@type": "openff.evaluator.unit.Quantity",
           "unit": "kelvin",
           "value": 298.15
         }
       },
       "uncertainty": {
-        "@type": "evaluator.unit.Quantity",
+        "@type": "openff.evaluator.unit.Quantity",
         "unit": "kilojoule / mole",
         "value": 0.0
       },
       "value": {
-        "@type": "evaluator.unit.Quantity",
+        "@type": "openff.evaluator.unit.Quantity",
         "unit": "kilojoule / mole",
         "value": 0.12087
       }
