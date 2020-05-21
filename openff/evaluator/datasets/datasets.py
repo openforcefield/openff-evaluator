@@ -712,6 +712,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             return None
 
         data_columns = [
+            "Id",
             "Temperature (K)",
             "Pressure (kPa)",
             "Phase",
