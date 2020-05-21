@@ -5,6 +5,7 @@ import pint
 import pytest
 
 from openff.evaluator import unit
+from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.datasets import PhysicalProperty, PropertyPhase
 from openff.evaluator.datasets.thermoml import thermoml_property
 from openff.evaluator.datasets.thermoml.thermoml import (
@@ -12,6 +13,7 @@ from openff.evaluator.datasets.thermoml.thermoml import (
     _unit_from_thermoml_string,
 )
 from openff.evaluator.plugins import register_default_plugins
+from openff.evaluator.properties import EnthalpyOfMixing
 from openff.evaluator.utils import get_data_filename
 
 register_default_plugins()
@@ -106,6 +108,18 @@ def test_thermoml_from_files():
 
     assert data_set is not None
     assert len(data_set) == 3
+
+    # Make sure the DOI was found from the enthalpy file
+    for physical_property in data_set:
+
+        if isinstance(physical_property, EnthalpyOfMixing):
+
+            assert physical_property.source.doi != UNDEFINED
+            assert physical_property.source.doi == "10.1016/j.jct.2008.12.004"
+
+        else:
+            assert physical_property.source.doi == ''
+            assert physical_property.source.reference != UNDEFINED
 
     data_set = ThermoMLDataSet.from_file("dummy_filename")
     assert data_set is None
