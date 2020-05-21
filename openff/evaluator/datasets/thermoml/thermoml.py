@@ -2210,15 +2210,15 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
         return return_value
 
     @classmethod
-    def from_xml(cls, xml, source):
+    def from_xml(cls, xml, default_source):
         """Load a ThermoML data set from an xml object.
 
         Parameters
         ----------
         xml: str
             The xml string to parse.
-        source: Source
-            The source of the xml object.
+        default_source: Source
+            The source to use if one cannot be parsed from the archive itself.
 
         Returns
         -------
@@ -2240,6 +2240,14 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
         # Extract the namespace that will prefix all type names
         namespace_string = re.search(r"{.*\}", root_node.tag).group(0)[1:-1]
         namespace = {"ThermoML": namespace_string}
+
+        # Attempt to find a DOI for this archive
+        doi_node = root_node.find("ThermoML:Citation/ThermoML:sDOI", namespace)
+
+        if doi_node is not None:
+            source = MeasurementSource(doi=doi_node.text)
+        else:
+            source = default_source
 
         return_value = ThermoMLDataSet()
         compounds = {}
