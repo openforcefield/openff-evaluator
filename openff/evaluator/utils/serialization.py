@@ -18,6 +18,11 @@ from openff.evaluator import unit
 
 def _type_string_to_object(type_string):
 
+    if type_string.startswith("evaluator."):
+        # Make files produced with the beta evaluator release compatible with
+        # the full evaluator release.
+        type_string = type_string.replace("evaluator.", "openff.evaluator.")
+
     if type_string == "openff.evaluator.unit.Unit":
         return unit.Unit
     if type_string == "openff.evaluator.unit.Quantity":
