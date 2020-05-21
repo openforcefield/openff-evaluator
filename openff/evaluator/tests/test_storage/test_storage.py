@@ -8,54 +8,11 @@ import pytest
 
 from openff.evaluator.forcefield import SmirnoffForceFieldSource
 from openff.evaluator.storage import LocalFileStorage
-from openff.evaluator.storage.attributes import QueryAttribute, StorageAttribute
-from openff.evaluator.storage.data import (
-    BaseStoredData,
-    HashableStoredData,
-    StoredSimulationData,
-)
-from openff.evaluator.storage.query import (
-    BaseDataQuery,
-    SimulationDataQuery,
-    SubstanceQuery,
-)
+from openff.evaluator.storage.data import StoredSimulationData
+from openff.evaluator.storage.query import SimulationDataQuery, SubstanceQuery
 from openff.evaluator.substances import Substance
+from openff.evaluator.tests.test_storage.data import HashableData, SimpleData
 from openff.evaluator.tests.utils import create_dummy_simulation_data
-
-
-class SimpleData(BaseStoredData):
-
-    some_attribute = StorageAttribute(docstring="", type_hint=int)
-
-    @classmethod
-    def has_ancillary_data(cls):
-        return False
-
-    def to_storage_query(self):
-        return SimpleDataQuery.from_data_object(self)
-
-
-class SimpleDataQuery(BaseDataQuery):
-    @classmethod
-    def data_class(cls):
-        return SimpleData
-
-    some_attribute = QueryAttribute(docstring="", type_hint=int)
-
-
-class HashableData(HashableStoredData):
-
-    some_attribute = StorageAttribute(docstring="", type_hint=int)
-
-    @classmethod
-    def has_ancillary_data(cls):
-        return False
-
-    def to_storage_query(self):
-        raise NotImplementedError()
-
-    def __hash__(self):
-        return hash(self.some_attribute)
 
 
 @pytest.mark.parametrize("data_class", [SimpleData, HashableData])

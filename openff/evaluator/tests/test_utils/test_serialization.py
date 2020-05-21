@@ -326,3 +326,11 @@ def test_type_to_type_string():
 
     nested_string = _type_to_type_string(EvaluatorClient._Submission)
     assert nested_string == "openff.evaluator.client.client.EvaluatorClient._Submission"
+
+
+def test_backwards_compatibility():
+
+    old_json = '{"value": 298.15, "unit": "K", "@type": "evaluator.unit.Quantity"}'
+
+    value = json.loads(old_json, cls=TypedJSONDecoder)
+    assert isinstance(value, unit.Quantity)
