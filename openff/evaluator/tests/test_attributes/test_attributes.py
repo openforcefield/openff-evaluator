@@ -1,5 +1,5 @@
 """
-Units tests for openff-evaluator.attributes
+Units tests for openff.evaluator.attributes
 """
 import json
 

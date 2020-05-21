@@ -1,5 +1,5 @@
 """
-Units tests for openff-evaluator.attributes.typing
+Units tests for openff.evaluator.attributes.typing
 """
 
 import typing

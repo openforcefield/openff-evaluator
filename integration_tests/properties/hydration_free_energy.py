@@ -1,9 +1,9 @@
+from integration_tests.utils import BackendType, setup_server
 from openff.evaluator.client import ConnectionOptions, EvaluatorClient, RequestOptions
-from openff.evaluator import PhysicalPropertyDataSet
+from openff.evaluator.datasets import PhysicalPropertyDataSet
 from openff.evaluator.forcefield import SmirnoffForceFieldSource
 from openff.evaluator.properties.solvation import SolvationFreeEnergy
 from openff.evaluator.utils import setup_timestamp_logging
-from integration_tests.utils import BackendType, setup_server
 
 
 def _get_fixed_lambda_schema():

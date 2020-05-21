@@ -1,5 +1,5 @@
 """
-Units tests for the openff-evaluator.plugins module.
+Units tests for the openff.evaluator.plugins module.
 """
 import pkg_resources
 

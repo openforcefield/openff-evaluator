@@ -38,6 +38,7 @@ def _setup_dummy_system(directory, substance, number_of_molecules, force_field_p
     return build_coordinates.coordinate_file_path, assign_parameters.system_path
 
 
+@pytest.mark.xfail(reason="openmoltools is incompatible with Ambertools 20")
 def test_ligand_receptor_yank_protocol():
 
     full_substance = Substance()
@@ -102,6 +103,7 @@ def test_ligand_receptor_yank_protocol():
 
 
 @pytest.mark.parametrize("solvent_smiles", ["O", "C(Cl)Cl"])
+@pytest.mark.xfail(reason="openmoltools is incompatible with Ambertools 20")
 def test_solvation_yank_protocol(solvent_smiles):
 
     full_substance = Substance()

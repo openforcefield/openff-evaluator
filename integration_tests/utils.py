@@ -2,7 +2,7 @@ from enum import Enum
 
 from openff.evaluator import server, unit
 from openff.evaluator.backends import ComputeResources, QueueWorkerResources
-from openff.evaluator.backends import DaskLocalCluster, DaskLSFBackend
+from openff.evaluator.backends.dask import DaskLocalCluster, DaskLSFBackend
 
 
 class BackendType(Enum):
@@ -15,7 +15,7 @@ class BackendType(Enum):
 def setup_server(
     backend_type=BackendType.LocalCPU,
     max_number_of_workers=1,
-    conda_environment="openff.evaluator",
+    conda_environment="evaluator",
     worker_memory=4 * unit.gigabyte,
     port=8000,
     cuda_version="10.1",

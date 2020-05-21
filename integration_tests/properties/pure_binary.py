@@ -1,10 +1,10 @@
 import re
 
+from integration_tests.utils import BackendType, setup_server
 from openff.evaluator.client import ConnectionOptions, EvaluatorClient, RequestOptions
-from openff.evaluator import PhysicalPropertyDataSet
+from openff.evaluator.datasets import PhysicalPropertyDataSet
 from openff.evaluator.forcefield import ParameterGradientKey, SmirnoffForceFieldSource
 from openff.evaluator.utils import setup_timestamp_logging
-from integration_tests.utils import BackendType, setup_server
 
 
 def main():

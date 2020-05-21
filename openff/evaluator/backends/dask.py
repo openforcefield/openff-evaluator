@@ -50,7 +50,7 @@ class _Multiprocessor:
 
         try:
 
-            from openff.evaluator.workflow import registered_workflow_protocols
+            from openff.evaluator.workflow.plugins import registered_workflow_protocols
 
             # Each spun up worker doesn't automatically import
             # all of the modules which were imported in the main
@@ -472,7 +472,7 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
 
     def submit_task(self, function, *args, **kwargs):
 
-        from openff.evaluator.workflow import registered_workflow_protocols
+        from openff.evaluator.workflow.plugins import registered_workflow_protocols
 
         key = kwargs.pop("key", None)
 

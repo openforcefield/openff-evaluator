@@ -1,5 +1,5 @@
 """
-Units tests for openff-evaluator.datasets
+Units tests for openff.evaluator.datasets
 """
 import json
 

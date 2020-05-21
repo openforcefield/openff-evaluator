@@ -6,7 +6,7 @@ from openff.evaluator.backends.dask import (
     DaskPBSBackend,
     _Multiprocessor,
 )
-from openff.evaluator.workflow import registered_workflow_protocols
+from openff.evaluator.workflow.plugins import registered_workflow_protocols
 
 
 def dummy_function(*args, **kwargs):
