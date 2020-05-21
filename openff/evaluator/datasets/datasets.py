@@ -573,6 +573,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         """Converts a `PhysicalPropertyDataSet` to a `pandas.DataFrame` object
         with columns of
 
+            - 'Id'
             - 'Temperature (K)'
             - 'Pressure (kPa)'
             - 'Phase'
@@ -677,6 +678,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
             # Create the data row.
             data_row = {
+                "Id": physical_property.id,
                 "Temperature (K)": temperature,
                 "Pressure (kPa)": pressure,
                 "Phase": phase,
@@ -710,6 +712,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             return None
 
         data_columns = [
+            "Id",
             "Temperature (K)",
             "Pressure (kPa)",
             "Phase",
