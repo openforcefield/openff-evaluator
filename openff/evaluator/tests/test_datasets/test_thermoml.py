@@ -118,7 +118,7 @@ def test_thermoml_from_files():
             assert physical_property.source.doi == "10.1016/j.jct.2008.12.004"
 
         else:
-            assert physical_property.source.doi == ''
+            assert physical_property.source.doi == ""
             assert physical_property.source.reference != UNDEFINED
 
     data_set = ThermoMLDataSet.from_file("dummy_filename")
