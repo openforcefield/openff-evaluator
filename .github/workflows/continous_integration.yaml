@@ -96,12 +96,9 @@ jobs:
           . devtools/scripts/initialize_conda.sh
           conda activate test
 
-          pytest -v --cov=openff/evaluator openff/evaluator/tests/
+          pytest -v --cov=openff openff/evaluator/tests/
 
+      - uses: codecov/codecov-action@v1
       - name: Code coverage
-        run: |
-
-          . devtools/scripts/initialize_conda.sh
-          conda activate test
-
-          codecov --token=${{ secrets.CODECOV_TOKEN }}
+        with:
+          fail_ci_if_error: true
