@@ -77,15 +77,15 @@ field optimisation.
    +==================================+================+================+==============+=================+
    || Density                         || |tick|        || |tick|        || |tick|      || |tick|         |
    +----------------------------------+----------------+----------------+--------------+-----------------+
-   || Dielectric Constant             || |tick|\ |ast| || |tick|        || |tick|      || |tick|\ |ast|  |
+   || Dielectric Constant             || |tick|        || |tick|        || |tick|      || |tick|\ |ast|  |
    +----------------------------------+----------------+----------------+--------------+-----------------+
    || |delta|\ H\ :sub:`vaporization` || |tick|        || |tick|        || |tick|      || |tick|\ |ast|  |
    +----------------------------------+----------------+----------------+--------------+-----------------+
-   || |delta|\ H\ :sub:`mixing`       || |tick|        || |tick|\ |ast| || |tick|      || |tick|\ |ast|  |
+   || |delta|\ H\ :sub:`mixing`       || |tick|        || |tick|        || |tick|      || |tick|\ |ast|  |
    +----------------------------------+----------------+----------------+--------------+-----------------+
-   || |delta|\ V\ :sub:`excess`       || |tick|        || |tick|\ |ast| || |tick|      || |tick|\ |ast|  |
+   || |delta|\ V\ :sub:`excess`       || |tick|        || |tick|        || |tick|      || |tick|\ |ast|  |
    +----------------------------------+----------------+----------------+--------------+-----------------+
-   || |delta|\ G\ :sub:`solvation`    || |tick|\ |ast| || |cross|       || |cross|     || |cross|        |
+   || |delta|\ G\ :sub:`solvation`    || |tick|        || |cross|       || |cross|     || |cross|        |
    +----------------------------------+----------------+----------------+--------------+-----------------+
 
 *\* Entries marked with an asterisk are supported but have not yet been extensively tested and validated.*
