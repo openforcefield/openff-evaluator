@@ -3,7 +3,7 @@ name: lint
 on:
   push:
     paths:
-      - 'evaluator/**.py'
+      - 'openff/**.py'
       - 'integration_tests/**.py'
       - 'setup.cfg'
 
@@ -29,15 +29,15 @@ jobs:
 
       - name: Run isort
         run: |
-          isort --recursive --check-only evaluator
+          isort --recursive --check-only openff
           isort --recursive --check-only integration_tests
 
       - name: Run black
         run: |
-          black evaluator --check
+          black openff --check
           black integration_tests --check
 
       - name: Run flake8
         run: |
-          flake8 evaluator
+          flake8 openff
           flake8 integration_tests

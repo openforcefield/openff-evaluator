@@ -1,11 +1,11 @@
-.. |evaluator_server|      replace:: :py:class:`~evaluator.server.EvaluatorServer`
-.. |batch|                 replace:: :py:class:`~evaluator.server.Batch`
+.. |evaluator_server|      replace:: :py:class:`~openff.evaluator.server.EvaluatorServer`
+.. |batch|                 replace:: :py:class:`~openff.evaluator.server.Batch`
 
-.. |local_file_storage|    replace:: :py:class:`~evaluator.storage.LocalFileStorage`
+.. |local_file_storage|    replace:: :py:class:`~openff.evaluator.storage.LocalFileStorage`
 
-.. |same_components|        replace:: :py:attr:`~evaluator.client.BatchMode.SameComponents`
-.. |shared_components|     replace:: :py:attr:`~evaluator.client.BatchMode.SharedComponents`
-.. |batch_mode_attr|       replace:: :py:attr:`~evaluator.client.RequestOptions.batch_mode`
+.. |same_components|        replace:: :py:attr:`~openff.evaluator.client.BatchMode.SameComponents`
+.. |shared_components|     replace:: :py:attr:`~openff.evaluator.client.BatchMode.SharedComponents`
+.. |batch_mode_attr|       replace:: :py:attr:`~openff.evaluator.client.RequestOptions.batch_mode`
 
 Evaluator Server
 ================

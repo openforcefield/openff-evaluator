@@ -1,15 +1,15 @@
 Architecture
 ============
 
-The evaluator framework is constructed as a collection of modular components, each performing a specific role within the
-estimation of physical property data sets. These components are designed to be as extensible as possible, with support
-for user created plug-ins built into their core.
+The openff-evaluator framework is constructed as a collection of modular components, each performing a specific role
+within the estimation of physical property data sets. These components are designed to be as extensible as possible,
+with support for user created plug-ins built into their core.
 
 .. figure:: ../_static/img/architecture.svg
     :align: center
     :width: 75%
 
-    An overview of the evaluators modular design. The framework is split into a 'client-side' which handles the
+    An overview of the openff-evaluators modular design. The framework is split into a 'client-side' which handles the
     curation and preparation of data sets, and a 'server-side' which performs the estimation of the data sets.
 
 The framework is implemented as a *client-server* architecture. This design allows users to spin up :doc:`server`

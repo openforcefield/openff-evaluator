@@ -3,7 +3,7 @@ name: tests
 on:
   push:
     paths:
-      - 'evaluator/**'
+      - 'openff/**'
       - '.github/**'
       - 'devtools/**'
       - 'oe_license.txt.gpg'
@@ -105,12 +105,10 @@ jobs:
           . devtools/scripts/initialize_conda.sh
           conda activate test
 
-          pytest -v --cov=evaluator evaluator/tests/
+          pytest -v --cov=openff openff/evaluator/tests/ --cov-report=xml
 
       - name: Code coverage
-        run: |
-
-          . devtools/scripts/initialize_conda.sh
-          conda activate test
-
-          codecov --token=${{ secrets.CODECOV_TOKEN }}
+        uses: codecov/codecov-action@v1
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: true

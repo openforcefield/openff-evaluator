@@ -1,8 +1,8 @@
 from enum import Enum
 
-from evaluator import server, unit
-from evaluator.backends import ComputeResources, QueueWorkerResources
-from evaluator.backends.dask import DaskLocalCluster, DaskLSFBackend
+from openff.evaluator import server, unit
+from openff.evaluator.backends import ComputeResources, QueueWorkerResources
+from openff.evaluator.backends.dask import DaskLocalCluster, DaskLSFBackend
 
 
 class BackendType(Enum):
@@ -31,7 +31,7 @@ def setup_server(
         The maximum number of workers to adaptively insert into
         the queuing system.
     conda_environment: str
-        The name of the conda environment in which the evaluator
+        The name of the conda environment in which the openff-evaluator
         package is installed.
     worker_memory: pint.Quantity
         The maximum amount of memory to request per worker.
