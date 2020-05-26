@@ -20,12 +20,8 @@ from openff.evaluator.protocols.miscellaneous import (
     SubtractValues,
     WeightByMoleFraction,
 )
-<<<<<<< HEAD:evaluator/tests/test_protocols/test_miscellaneous.py
-from evaluator.substances import Component, ExactAmount, MoleFraction, Substance
-from evaluator.thermodynamics import ThermodynamicState
-=======
 from openff.evaluator.substances import Component, ExactAmount, MoleFraction, Substance
->>>>>>> origin/master:openff/evaluator/tests/test_protocols/test_miscellaneous.py
+from openff.evaluator.thermodynamics import ThermodynamicState
 
 
 @pytest.mark.parametrize(

@@ -3,25 +3,15 @@ A collection of density physical property definitions.
 """
 import copy
 
-<<<<<<< HEAD:evaluator/properties/binding.py
-from evaluator import unit
-from evaluator.datasets import PhysicalProperty
-from evaluator.layers import register_calculation_schema
-from evaluator.layers.simulation import SimulationLayer, SimulationSchema
-from evaluator.protocols import coordinates, forcefield, miscellaneous, yank
-from evaluator.protocols.paprika import OpenMMPaprikaProtocol
-from evaluator.substances import Component
-from evaluator.workflow.schemas import ProtocolReplicator, WorkflowSchema
-from evaluator.workflow.utils import ProtocolPath, ReplicatorValue
-=======
 from openff.evaluator import unit
 from openff.evaluator.datasets import PhysicalProperty
-from openff.evaluator.layers.simulation import SimulationSchema
+from openff.evaluator.layers import register_calculation_schema
+from openff.evaluator.layers.simulation import SimulationLayer, SimulationSchema
 from openff.evaluator.protocols import coordinates, forcefield, miscellaneous, yank
+from openff.evaluator.protocols.paprika import OpenMMPaprikaProtocol
 from openff.evaluator.substances import Component
-from openff.evaluator.workflow import WorkflowSchema
-from openff.evaluator.workflow.utils import ProtocolPath
->>>>>>> origin/master:openff/evaluator/properties/binding.py
+from openff.evaluator.workflow import ProtocolReplicator, WorkflowSchema
+from openff.evaluator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
 class HostGuestBindingAffinity(PhysicalProperty):

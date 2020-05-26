@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
-from evaluator import unit
-from evaluator.attributes import UNDEFINED
-from evaluator.backends import ComputeResources
-from evaluator.datasets.taproom import TaproomDataSet
-from evaluator.forcefield import TLeapForceFieldSource
-from evaluator.properties import HostGuestBindingAffinity
-from evaluator.utils import setup_timestamp_logging
-from evaluator.workflow import Workflow
+from openff.evaluator import unit
+from openff.evaluator.attributes import UNDEFINED
+from openff.evaluator.backends import ComputeResources
+from openff.evaluator.datasets.taproom import TaproomDataSet
+from openff.evaluator.forcefield import TLeapForceFieldSource
+from openff.evaluator.properties import HostGuestBindingAffinity
+from openff.evaluator.utils import setup_timestamp_logging
+from openff.evaluator.workflow import Workflow
 
 
 def main():

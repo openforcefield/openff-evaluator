@@ -7,22 +7,15 @@ import typing
 import numpy as np
 import pint
 
-<<<<<<< HEAD:evaluator/protocols/miscellaneous.py
-from evaluator import unit
-from evaluator.attributes import UNDEFINED
-from evaluator.forcefield import ParameterGradient
-from evaluator.substances import Component, MoleFraction, Substance
-from evaluator.thermodynamics import ThermodynamicState
-from evaluator.workflow.attributes import InputAttribute, OutputAttribute
-from evaluator.workflow.plugins import workflow_protocol
-from evaluator.workflow.protocols import Protocol
-=======
+from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import ParameterGradient
 from openff.evaluator.substances import Component, MoleFraction, Substance
+from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
->>>>>>> origin/master:openff/evaluator/protocols/miscellaneous.py
+from openff.evaluator.workflow.plugins import workflow_protocol
+from openff.evaluator.workflow.protocols import Protocol
 
 
 @workflow_protocol()

@@ -2,13 +2,13 @@
 
 from openforcefield.typing.engines import smirnoff
 
-from evaluator.attributes import UNDEFINED
-from evaluator.backends import ComputeResources
-from evaluator.datasets.taproom import TaproomDataSet
-from evaluator.forcefield import SmirnoffForceFieldSource
-from evaluator.properties import HostGuestBindingAffinity
-from evaluator.utils import get_data_filename, setup_timestamp_logging
-from evaluator.workflow import Workflow
+from openff.evaluator.attributes import UNDEFINED
+from openff.evaluator.backends import ComputeResources
+from openff.evaluator.datasets.taproom import TaproomDataSet
+from openff.evaluator.forcefield import SmirnoffForceFieldSource
+from openff.evaluator.properties import HostGuestBindingAffinity
+from openff.evaluator.utils import get_data_filename, setup_timestamp_logging
+from openff.evaluator.workflow import Workflow
 
 
 def main():
