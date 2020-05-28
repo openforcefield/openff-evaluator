@@ -4,7 +4,6 @@ the pAPRika software package.
 """
 import logging
 import os
-import os.path
 import shutil
 import traceback
 import typing
