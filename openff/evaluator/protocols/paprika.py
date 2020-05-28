@@ -385,10 +385,10 @@ class BasePaprikaProtocol(Protocol):
                 system.pbc_type = None
                 system.neutralize = False
                 system.template_lines = [
-                    f"source leaprc.water.tip3p",
-                    f"HOH = loadpdb water_ions.pdb",
-                    f"savemol2 HOH water_ions.mol2 1",
-                    f"quit",
+                    "source leaprc.water.tip3p",
+                    "HOH = loadpdb water_ions.pdb",
+                    "savemol2 HOH water_ions.mol2 1",
+                    "quit",
                 ]
                 system.build()
 
@@ -588,7 +588,7 @@ class BasePaprikaProtocol(Protocol):
             model_bond = "bond model.1.C4 model.7.O1"
 
         # Solvent definition
-        load_solvent_mol2 = f"SOL = loadmol2 water_ions.mol2"
+        load_solvent_mol2 = "SOL = loadmol2 water_ions.mol2"
 
         # Guest definition
         load_guest_frcmod = ""
@@ -612,8 +612,8 @@ class BasePaprikaProtocol(Protocol):
 
         force_field_lines = [
             f"source leaprc.{gaff_version}",
-            f"source leaprc.water.tip3p",
-            f"source leaprc.protein.ff14SB",
+            "source leaprc.water.tip3p",
+            "source leaprc.protein.ff14SB",
             load_host_frcmod,
             load_guest_frcmod,
             f"loadamberparams {os.path.join(window_directory_to_base, 'dummy.frcmod')}",
@@ -632,7 +632,7 @@ class BasePaprikaProtocol(Protocol):
         model_lines = [
             f"model = loadpdb {window_coordinates}",
             model_bond,
-            f'setBox model "centers"',
+            'setBox model "centers"',
             "check model",
         ]
 
@@ -1167,10 +1167,10 @@ class OpenMMPaprikaProtocol(BasePaprikaProtocol):
                 ):
                     exceptions.append(
                         EvaluatorException(
-                            f"This window either has a trajectory but "
-                            f"not topology pdb file, or does not have a "
-                            f"trajectory but does have a topology pdb "
-                            f"file. This should not happen",
+                            "This window either has a trajectory but "
+                            "not topology pdb file, or does not have a "
+                            "trajectory but does have a topology pdb "
+                            "file. This should not happen",
                         )
                     )
 
