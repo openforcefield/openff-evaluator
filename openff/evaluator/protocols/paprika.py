@@ -370,12 +370,12 @@ class BasePaprikaProtocol(Protocol):
                     fout.close()
 
                 # Extract water and ions from restrained.pdb
-                import pytraj as pt
-
-                structure = pt.iterload(self._solvated_coordinate_paths[index])
-                water_ions_sel = f"!@DUM&!:MGO&!:{self._paprika_setup.guest.upper()}"
+                structure = pmd.load_file(
+                    self._solvated_coordinate_paths[index], structure=True
+                )
+                water_ions_sel = f"!(@DUM,:MGO,:{self._paprika_setup.guest.upper()})"
                 structure[water_ions_sel].save(
-                    os.path.join(window_directory, "water_ions.pdb")
+                    os.path.join(window_directory, "water_ions.pdb"),
                 )
 
                 # Create *.mol2 file for water and ions
@@ -1581,6 +1581,7 @@ class AmberPaprikaProtocol(BasePaprikaProtocol):
             queue.task_done()
 
     def _simulate(self, directory, available_resources):
+
         import paprika
 
         if not self._paprika_setup:
