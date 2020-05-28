@@ -10,7 +10,7 @@ from openff.evaluator.layers.simulation import SimulationLayer, SimulationSchema
 from openff.evaluator.protocols import coordinates, forcefield, miscellaneous, yank
 from openff.evaluator.protocols.paprika import OpenMMPaprikaProtocol
 from openff.evaluator.substances import Component
-from openff.evaluator.workflow import ProtocolReplicator, WorkflowSchema
+from openff.evaluator.workflow.schemas import ProtocolReplicator, WorkflowSchema
 from openff.evaluator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
