@@ -12,7 +12,6 @@ from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import ParameterGradient
 from openff.evaluator.substances import Component, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
-from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
 from openff.evaluator.workflow.plugins import workflow_protocol
 from openff.evaluator.workflow.protocols import Protocol
