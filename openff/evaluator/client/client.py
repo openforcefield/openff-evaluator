@@ -618,6 +618,13 @@ class EvaluatorClient:
             for property_type in property_types:
 
                 # Check if the user has already provided a schema.
+                if (
+                    property_type not in options.calculation_schemas
+                    or calculation_layer
+                    not in options.calculation_schemas[property_type]
+                ):
+                    continue
+
                 schema = options.calculation_schemas[property_type][calculation_layer]
 
                 if not isinstance(schema, WorkflowCalculationSchema):
