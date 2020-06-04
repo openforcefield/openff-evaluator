@@ -96,6 +96,14 @@ class _Multiprocessor:
 
                         worker_logger.info("=========================================")
                         worker_logger.info(f"HOSTNAME: {platform.node()}")
+                        if os.environ.get("PBS_JOBID") is not None:
+                            worker_logger.info(
+                                f"PBSJOBID: {os.environ.get('PBS_JOBID')}"
+                            )
+                        elif os.environ.get("LSB_JOBID") is not None:
+                            worker_logger.info(
+                                f"LSBJOBID: {os.environ.get('LSB_JOBID')}"
+                            )
                         worker_logger.info(f"PLATFORM: {platform.platform()}")
                         worker_logger.info("-----------------------------------------")
                         worker_logger.info(
