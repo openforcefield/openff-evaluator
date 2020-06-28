@@ -16,12 +16,13 @@ A patch release offering minor bug fixes and quality of life improvements.
 Bugfixes
 """"""""
 
-* PR `#249 <https://github.com/openforcefield/propertyestimator/pull/249>`_: Replacing Protocols of Non-existent Workflow Schema.
+* PR `#249 <https://github.com/openforcefield/propertyestimator/pull/249>`_: Fix replacing protocols of non-existent workflow schema.
+* PR `#253 <https://github.com/openforcefield/propertyestimator/pull/253>`_: Fix `antechamber` truncating charge file.
 
 Documentation
 """""""""""""
 
-* PR `#252 <https://github.com/openforcefield/propertyestimator/pull/249>`_: Use `conda-forge` for `ambertools` installation.
+* PR `#252 <https://github.com/openforcefield/propertyestimator/pull/252>`_: Use `conda-forge` for `ambertools` installation.
 
 0.1.0 - OpenFF Evaluator
 ------------------------
