@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import subprocess
+import textwrap
 from enum import Enum
 
 import numpy as np
@@ -894,7 +895,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
             ]
 
             with open("charges.txt", "w") as file:
-                file.write(" ".join(map(str, charges)))
+                file.write(textwrap.fill(" ".join(map(str, charges)), width=70))
 
             if force_field_source.leap_source == "leaprc.gaff2":
                 amber_type = "gaff2"

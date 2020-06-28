@@ -51,7 +51,7 @@ def test_build_tleap_system():
         with open(force_field_path, "w") as file:
             file.write(TLeapForceFieldSource().json())
 
-        substance = Substance.from_components("C", "O", "C(=O)N")
+        substance = Substance.from_components("CCCCCCCC", "O", "C(=O)N")
 
         build_coordinates = BuildCoordinatesPackmol("build_coordinates")
         build_coordinates.max_molecules = 9
