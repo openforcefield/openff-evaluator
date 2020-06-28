@@ -300,11 +300,14 @@ def _ion_residue_name(molecule):
     str
         The residue name of the ion
     """
+    from simtk import unit as simtk_unit
 
     element_symbol = molecule.atoms[0].element.symbol
     charge_symbol = ""
 
-    formal_charge = int(molecule.atoms[0].formal_charge)
+    formal_charge = int(
+        molecule.atoms[0].formal_charge.value_in_unit(simtk_unit.elementary_charge)
+    )
 
     if formal_charge != 0:
 

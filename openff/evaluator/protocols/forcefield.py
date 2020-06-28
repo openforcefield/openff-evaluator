@@ -600,10 +600,12 @@ class BuildLigParGenSystem(TemplateBuildSystem):
         simtk.openmm.app.ForceField
             The force field template.
         """
+        from simtk import unit as simtk_unit
+
         initial_request_url = force_field_source.request_url
         empty_stream = io.BytesIO(b"\r\n")
 
-        total_charge = molecule.total_charge
+        total_charge = molecule.total_charge.value_in_unit(simtk_unit.elementary_charge)
 
         charge_model = "cm1abcc"
 
@@ -631,7 +633,7 @@ class BuildLigParGenSystem(TemplateBuildSystem):
             "molpdbfile": ("", empty_stream),
             "checkopt": (None, 0),
             "chargetype": (None, charge_model),
-            "dropcharge": (None, total_charge),
+            "dropcharge": (None, str(total_charge)),
         }
 
         # Perform the initial request for LigParGen to parameterize the molecule.
