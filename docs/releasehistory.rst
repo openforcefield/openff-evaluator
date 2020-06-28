@@ -8,15 +8,20 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
-0.1.1 - 
------------------------------------
+0.1.1
+-----
 
-A patch release offering minor bug fixes and QoL improvements.
+A patch release offering minor bug fixes and quality of life improvements.
 
 Bugfixes
 """"""""
 
 * PR `#249 <https://github.com/openforcefield/propertyestimator/pull/249>`_: Replacing Protocols of Non-existent Workflow Schema.
+
+Documentation
+"""""""""""""
+
+* PR `#252 <https://github.com/openforcefield/propertyestimator/pull/249>`_: Use `conda-forge` for `ambertools` installation.
 
 0.1.0 - OpenFF Evaluator
 ------------------------
