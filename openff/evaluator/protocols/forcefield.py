@@ -605,7 +605,10 @@ class BuildLigParGenSystem(TemplateBuildSystem):
         initial_request_url = force_field_source.request_url
         empty_stream = io.BytesIO(b"\r\n")
 
-        total_charge = molecule.total_charge.value_in_unit(simtk_unit.elementary_charge)
+        total_charge = molecule.total_charge
+
+        if isinstance(total_charge, simtk_unit.Quantity):
+            total_charge = total_charge.value_in_unit(simtk_unit.elementary_charge)
 
         charge_model = "cm1abcc"
 
