@@ -28,7 +28,7 @@ protocol and faster conformer generation / AM1BCC partial charge calculations::
 To parameterize systems with the Amber ``tleap`` tool using a ``TLeapForceFieldSource`` the ``ambertools``
 package must be installed::
 
-    conda install -c ambermd 'ambertools >=19.0'
+    conda install -c conda-forge 'ambertools >=19.0'
 
 Installation from Source
 ------------------------
