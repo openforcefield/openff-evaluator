@@ -17,6 +17,7 @@ Bugfixes
 """"""""
 
 * PR `#254 <https://github.com/openforcefield/propertyestimator/pull/254>`_: Fix incompatible protocols being merged due to an id replacement bug.
+* PR `#255 <https://github.com/openforcefield/propertyestimator/pull/255>`_: Fix recursive ``ThermodynamicState`` string representation.
 
 0.1.1
 -----
