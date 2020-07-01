@@ -8,6 +8,16 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
+0.1.2
+-----
+
+A patch release offering minor bug fixes and quality of life improvements. 
+
+Bugfixes
+""""""""
+
+* PR `#254 <https://github.com/openforcefield/propertyestimator/pull/254>`_: Fix incompatible protocols being merged due to an id replacement bug.
+
 0.1.1
 -----
 
