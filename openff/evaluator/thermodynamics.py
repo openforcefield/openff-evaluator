@@ -81,15 +81,15 @@ class ThermodynamicState(AttributeClass):
         assert self.temperature > 0.0 * unit.kelvin
 
     def __repr__(self):
-        return_value = f"ThermodynamicState T={self.temperature:~}"
+        return f"<ThermodynamicState {str(self)}>"
+
+    def __str__(self):
+        return_value = f"T={self.temperature:~}"
 
         if self.pressure != UNDEFINED:
             return_value += f" P={self.pressure:~}"
 
         return return_value
-
-    def __str__(self):
-        return f"<{str(self)}>"
 
     def __hash__(self):
 
