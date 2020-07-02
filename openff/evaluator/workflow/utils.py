@@ -223,7 +223,7 @@ class ProtocolPath(PlaceholderValue):
             The id of the new protocol to use.
         """
         self._protocol_ids = tuple(
-            x.replace(old_id, new_id) for x in self._protocol_ids
+            new_id if x == old_id else x for x in self._protocol_ids
         )
         self._update_string_paths()
 

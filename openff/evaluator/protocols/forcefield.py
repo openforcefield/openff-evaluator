@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import subprocess
+import textwrap
 from enum import Enum
 
 import numpy as np
@@ -600,10 +601,15 @@ class BuildLigParGenSystem(TemplateBuildSystem):
         simtk.openmm.app.ForceField
             The force field template.
         """
+        from simtk import unit as simtk_unit
+
         initial_request_url = force_field_source.request_url
         empty_stream = io.BytesIO(b"\r\n")
 
         total_charge = molecule.total_charge
+
+        if isinstance(total_charge, simtk_unit.Quantity):
+            total_charge = total_charge.value_in_unit(simtk_unit.elementary_charge)
 
         charge_model = "cm1abcc"
 
@@ -631,7 +637,7 @@ class BuildLigParGenSystem(TemplateBuildSystem):
             "molpdbfile": ("", empty_stream),
             "checkopt": (None, 0),
             "chargetype": (None, charge_model),
-            "dropcharge": (None, total_charge),
+            "dropcharge": (None, str(total_charge)),
         }
 
         # Perform the initial request for LigParGen to parameterize the molecule.
@@ -889,7 +895,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
             ]
 
             with open("charges.txt", "w") as file:
-                file.write(" ".join(map(str, charges)))
+                file.write(textwrap.fill(" ".join(map(str, charges)), width=70))
 
             if force_field_source.leap_source == "leaprc.gaff2":
                 amber_type = "gaff2"
