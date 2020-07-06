@@ -1069,8 +1069,8 @@ class BuildTLeapSystem(TemplateBuildSystem):
         elif self.charge_backend == BuildTLeapSystem.ChargeBackend.AmberTools:
 
             from openforcefield.utils.toolkits import (
-                RDKitToolkitWrapper,
                 AmberToolsToolkitWrapper,
+                RDKitToolkitWrapper,
                 ToolkitRegistry,
             )
 

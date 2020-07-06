@@ -118,8 +118,8 @@ class BaseYankProtocol(Protocol, abc.ABC):
             The identified residue names.
         """
 
-        from simtk.openmm import app
         from openforcefield.topology import Molecule, Topology
+        from simtk.openmm import app
 
         if role is None:
             return "all"
@@ -372,10 +372,9 @@ class BaseYankProtocol(Protocol, abc.ABC):
             The uncertainty in the free energy returned by yank.
         """
 
-        from yank.experiment import ExperimentBuilder
-        from yank.analyze import ExperimentAnalyzer
-
         from simtk import unit as simtk_unit
+        from yank.analyze import ExperimentAnalyzer
+        from yank.experiment import ExperimentBuilder
 
         with temporarily_change_directory(directory):
 

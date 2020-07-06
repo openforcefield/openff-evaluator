@@ -684,8 +684,8 @@ class OpenMMReducedPotentials(BaseReducedPotentials):
 
     def _execute(self, directory, available_resources):
 
-        import openmmtools
         import mdtraj
+        import openmmtools
 
         trajectory = mdtraj.load_dcd(
             self.trajectory_file_path, self.coordinate_file_path

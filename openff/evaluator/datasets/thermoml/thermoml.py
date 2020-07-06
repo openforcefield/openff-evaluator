@@ -850,8 +850,8 @@ class _PureOrMixtureData:
             The molecular weight.
         """
 
-        from simtk import unit as simtk_unit
         from openforcefield.topology import Molecule
+        from simtk import unit as simtk_unit
 
         try:
 
