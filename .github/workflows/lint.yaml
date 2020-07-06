@@ -29,8 +29,8 @@ jobs:
 
       - name: Run isort
         run: |
-          isort --recursive --check-only openff
-          isort --recursive --check-only integration_tests
+          isort --check-only openff
+          isort --check-only integration_tests
 
       - name: Run black
         run: |
