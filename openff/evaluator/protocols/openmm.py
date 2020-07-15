@@ -29,7 +29,7 @@ from openff.evaluator.utils.openmm import (
 )
 from openff.evaluator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from openff.evaluator.utils.statistics import ObservableType, StatisticsArray
-from openff.evaulator.utils.utils import isfile_notempty
+from openff.evaluator.utils.utils import isfile_notempty
 from openff.evaluator.workflow import workflow_protocol
 
 logger = logging.getLogger(__name__)
