@@ -258,3 +258,7 @@ def has_openeye():
         available = False
 
     return available
+
+
+def isfile_notempty(path):
+    return os.path.isfile(path) and (os.path.getsize(path) != 0)
