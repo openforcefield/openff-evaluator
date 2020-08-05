@@ -67,6 +67,27 @@ jobs:
 
           python devtools/scripts/create_conda_env.py -n=test -p=${{ matrix.python-version }} devtools/conda-envs/test_env.yaml
 
+      - name: Install PASCAL Compiler (MacOS)
+        shell: bash -l {0}
+        if: startsWith(matrix.cfg.os, 'macOS')
+        run: |
+          brew install fpc
+
+      - name: Install PASCAL Compiler (Ubuntu)
+        shell: bash -l {0}
+        if: startsWith(matrix.cfg.os, 'ubuntu')
+        run: |
+          sudo apt-get install fp-compiler
+
+      - name: Install checkmol
+        shell: bash -l {0}
+        run: |
+
+          curl https://homepage.univie.ac.at/norbert.haider/download/chemistry/checkmol/checkmol.pas > checkmol.pas
+          fpc checkmol.pas -S2
+
+          echo "::add-path::."
+
       - name: Install OpenEye toolkit.
         if: matrix.openeye
         run: |
@@ -76,7 +97,7 @@ jobs:
 
           ./devtools/scripts/decrypt_oe_license.sh
           conda install -c openeye openeye-toolkits
-          
+
           python -c "from openeye import oechem; assert oechem.OEChemIsLicensed()"
 
         env:
