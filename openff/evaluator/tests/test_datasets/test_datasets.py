@@ -3,11 +3,14 @@ Units tests for openff.evaluator.datasets
 """
 import json
 
+import numpy
 import pytest
 
 from openff.evaluator import unit
+from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.datasets import (
     CalculationSource,
+    MeasurementSource,
     PhysicalPropertyDataSet,
     PropertyPhase,
 )
@@ -15,6 +18,7 @@ from openff.evaluator.properties import (
     Density,
     DielectricConstant,
     EnthalpyOfMixing,
+    EnthalpyOfVaporization,
     ExcessMolarVolume,
 )
 from openff.evaluator.substances import Substance
@@ -152,6 +156,69 @@ def test_to_pandas():
 
     data_set_without_na = data_set_pandas.dropna(axis=1, how="all")
     assert data_set_without_na.shape == (12, 20)
+
+
+def test_from_pandas():
+    """A test to ensure that data sets may be created from pandas objects."""
+
+    thermodynamic_state = ThermodynamicState(
+        temperature=298.15 * unit.kelvin, pressure=1.0 * unit.atmosphere
+    )
+
+    original_data_set = PhysicalPropertyDataSet()
+    original_data_set.add_properties(
+        Density(
+            thermodynamic_state=thermodynamic_state,
+            phase=PropertyPhase.Liquid,
+            substance=Substance.from_components("CO", "O"),
+            value=1.0 * unit.kilogram / unit.meter ** 3,
+            uncertainty=1.0 * unit.kilogram / unit.meter ** 3,
+            source=MeasurementSource(doi="10.5281/zenodo.596537"),
+        ),
+        EnthalpyOfVaporization(
+            thermodynamic_state=thermodynamic_state,
+            phase=PropertyPhase.from_string("Liquid + Gas"),
+            substance=Substance.from_components("C"),
+            value=2.0 * unit.kilojoule / unit.mole,
+            source=MeasurementSource(reference="2"),
+        ),
+        DielectricConstant(
+            thermodynamic_state=thermodynamic_state,
+            phase=PropertyPhase.Liquid,
+            substance=Substance.from_components("C"),
+            value=3.0 * unit.dimensionless,
+            source=MeasurementSource(reference="3"),
+        ),
+    )
+
+    data_frame = original_data_set.to_pandas()
+
+    recreated_data_set = PhysicalPropertyDataSet.from_pandas(data_frame)
+    assert len(original_data_set) == len(recreated_data_set)
+
+    for original_property in original_data_set:
+
+        recreated_property = next(
+            x for x in recreated_data_set if x.id == original_property.id
+        )
+
+        assert (
+            original_property.thermodynamic_state
+            == recreated_property.thermodynamic_state
+        )
+        assert original_property.phase == recreated_property.phase
+        assert original_property.substance == recreated_property.substance
+        assert numpy.isclose(original_property.value, recreated_property.value)
+
+        if original_property.uncertainty == UNDEFINED:
+            assert original_property.uncertainty == recreated_property.uncertainty
+        else:
+            assert numpy.isclose(
+                original_property.uncertainty, recreated_property.uncertainty
+            )
+
+        assert original_property.source.doi == recreated_property.source.doi
+        assert original_property.source.reference == recreated_property.source.reference
 
 
 def test_sources_substances():

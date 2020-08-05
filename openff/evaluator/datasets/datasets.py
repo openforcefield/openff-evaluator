@@ -3,16 +3,18 @@ An API for defining, storing, and loading sets of physical
 property data.
 """
 import abc
+import re
 import uuid
 from enum import IntFlag, unique
 
+import numpy
 import pandas
 import pint
 
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 from openff.evaluator.datasets import CalculationSource, MeasurementSource, Source
-from openff.evaluator.substances import ExactAmount, MoleFraction, Substance
+from openff.evaluator.substances import Component, ExactAmount, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils.serialization import TypedBaseModel
 
@@ -515,6 +517,146 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
         data_frame = pandas.DataFrame(data_rows, columns=data_columns)
         return data_frame
+
+    @classmethod
+    def from_pandas(cls, data_frame: pandas.DataFrame) -> "PhysicalPropertyDataSet":
+        """Constructs a data set object from a pandas ``DataFrame`` object.
+
+        Notes
+        -----
+        * All physical properties are assumed to be source from experimental
+          measurements.
+        * Currently this method onlu supports data frames containing properties
+          which are built-in to the framework (e.g. Density).
+        * This method assumes the data frame has a structure identical to that
+          produced by the ``PhysicalPropertyDataSet.to_pandas`` function.
+
+        Parameters
+        ----------
+        data_frame
+            The data frame to construct the data set from.
+
+        Returns
+        -------
+            The constructed data set.
+        """
+
+        from openff.evaluator import properties
+
+        property_header_matches = {
+            re.match(r"^([a-zA-Z]+) Value \(([a-zA-Z0-9+-/\s]*)\)$", header)
+            for header in data_frame
+            if header.find(" Value ") >= 0
+        }
+        property_headers = {}
+
+        # Validate that the headers have the correct format, specify a
+        # built-in property type, and specify correctly the properties
+        # units.
+        for match in property_header_matches:
+
+            assert match
+
+            property_type_string, property_unit_string = match.groups()
+
+            assert hasattr(properties, property_type_string)
+            property_type = getattr(properties, property_type_string)
+
+            property_unit = unit.Unit(property_unit_string)
+            assert property_unit is not None
+
+            assert (
+                property_unit.dimensionality
+                == property_type.default_unit().dimensionality
+            )
+
+            property_headers[match.group(0)] = (property_type, property_unit)
+
+        # Convert the data rows to property objects.
+        physical_properties = []
+
+        for _, data_row in data_frame.iterrows():
+
+            data_row = data_row.dropna()
+
+            # Extract the state at which the measurement was made.
+            thermodynamic_state = ThermodynamicState(
+                temperature=data_row["Temperature (K)"] * unit.kelvin,
+                pressure=data_row["Pressure (kPa)"] * unit.kilopascal,
+            )
+            property_phase = PropertyPhase.from_string(data_row["Phase"])
+
+            # Extract the substance the measurement was made for.
+            substance = Substance()
+
+            for i in range(data_row["N Components"]):
+
+                component = Component(
+                    smiles=data_row[f"Component {i + 1}"],
+                    role=Component.Role[data_row.get(f"Role {i + 1}", "Solvent")],
+                )
+
+                mole_fraction = data_row.get(f"Mole Fraction {i + 1}", 0.0)
+                exact_amount = data_row.get(f"Exact Amount {i + 1}", 0)
+
+                if not numpy.isclose(mole_fraction, 0.0):
+                    substance.add_component(component, MoleFraction(mole_fraction))
+                if not numpy.isclose(exact_amount, 0.0):
+                    substance.add_component(component, ExactAmount(exact_amount))
+
+            for (
+                property_header,
+                (property_type, property_unit),
+            ) in property_headers.items():
+
+                # Check to see whether the row contains a value for this
+                # type of property.
+                if property_header not in data_row:
+                    continue
+
+                uncertainty_header = property_header.replace("Value", "Uncertainty")
+
+                source_string = data_row["Source"]
+
+                is_doi = all(
+                    any(
+                        re.match(pattern, split_string, re.I)
+                        for pattern in [
+                            r"^10.\d{4,9}/[-._;()/:A-Z0-9]+$",
+                            r"^10.1002/[^\s]+$",
+                            r"^10.\d{4}/\d+-\d+X?(\d+)\d+<[\d\w]+:[\d\w]*>\d+.\d+.\w+;\d$",
+                            r"^10.1021/\w\w\d+$",
+                            r"^10.1207/[\w\d]+\&\d+_\d+$",
+                        ]
+                    )
+                    for split_string in source_string.split(" + ")
+                )
+
+                physical_property = property_type(
+                    thermodynamic_state=thermodynamic_state,
+                    phase=property_phase,
+                    value=data_row[property_header] * property_unit,
+                    uncertainty=None
+                    if uncertainty_header not in data_row
+                    else data_row[uncertainty_header] * property_unit,
+                    substance=substance,
+                    source=MeasurementSource(
+                        doi="" if not is_doi else source_string,
+                        reference=source_string if not is_doi else "",
+                    ),
+                )
+
+                identifier = data_row.get("Id", None)
+
+                if identifier:
+                    physical_property.id = identifier
+
+                physical_properties.append(physical_property)
+
+        data_set = PhysicalPropertyDataSet()
+        data_set.add_properties(*physical_properties)
+
+        return data_set
 
     def __len__(self):
         return len(self._properties)
