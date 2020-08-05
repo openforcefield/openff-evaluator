@@ -7,7 +7,7 @@ from typing import Optional
 from openff.evaluator.utils.serialization import TypedBaseModel
 
 
-class EvaluatorException(TypedBaseModel):
+class EvaluatorException(TypedBaseModel, BaseException):
     """A serializable wrapper around an `Exception`.
     """
 
@@ -37,6 +37,7 @@ class EvaluatorException(TypedBaseModel):
         message: str or list of str
             Information about the raised exception.
         """
+        super(EvaluatorException, self).__init__(message)
         self.message = message
 
     def __getstate__(self):

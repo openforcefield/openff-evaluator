@@ -68,19 +68,16 @@ jobs:
           python devtools/scripts/create_conda_env.py -n=test -p=${{ matrix.python-version }} devtools/conda-envs/test_env.yaml
 
       - name: Install PASCAL Compiler (MacOS)
-        shell: bash -l {0}
-        if: startsWith(matrix.cfg.os, 'macOS')
+        if: startsWith(matrix.os, 'macOS')
         run: |
           brew install fpc
 
       - name: Install PASCAL Compiler (Ubuntu)
-        shell: bash -l {0}
-        if: startsWith(matrix.cfg.os, 'ubuntu')
+        if: startsWith(matrix.os, 'ubuntu')
         run: |
           sudo apt-get install fp-compiler
 
       - name: Install checkmol
-        shell: bash -l {0}
         run: |
 
           curl https://homepage.univie.ac.at/norbert.haider/download/chemistry/checkmol/checkmol.pas > checkmol.pas
