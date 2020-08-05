@@ -520,6 +520,26 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
     @classmethod
     def from_pandas(cls, data_frame: pandas.DataFrame) -> "PhysicalPropertyDataSet":
+        """Constructs a data set object from a pandas ``DataFrame`` object.
+
+        Notes
+        -----
+        * All physical properties are assumed to be source from experimental
+          measurements.
+        * Currently this method onlu supports data frames containing properties
+          which are built-in to the framework (e.g. Density).
+        * This method assumes the data frame has a structure identical to that
+          produced by the ``PhysicalPropertyDataSet.to_pandas`` function.
+
+        Parameters
+        ----------
+        data_frame
+            The data frame to construct the data set from.
+
+        Returns
+        -------
+            The constructed data set.
+        """
 
         from openff.evaluator import properties
 
