@@ -69,6 +69,7 @@ autodoc_mock_imports = [
     'pymbar',
     'scipy',
     'simtk',
+    'typing_extensions',
     'yaml',
 ]
 
