@@ -29,6 +29,10 @@ class ImportFreeSolvSchema(CurationComponentSchema):
 
 
 class ImportFreeSolv(CurationComponent):
+    """A component which will import the latest version of the FreeSolv
+    data set from the GitHub repository where it is stored.
+    """
+
     @classmethod
     def _download_free_solv(cls) -> pandas.DataFrame:
         """Downloads the FreeSolv data set from GitHub.

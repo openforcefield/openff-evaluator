@@ -27,16 +27,6 @@ logger = logging.getLogger(__name__)
 
 
 class ConvertExcessDensityDataSchema(CurationComponentSchema):
-    """A component for converting binary mass density data to excess molar volume
-    data and vice versa where pure density data measured for the components is
-    available.
-
-    Notes
-    -----
-    This protocol may result in duplicate data points being generated. It is
-    recommended to apply the de-duplication filter after this component has been
-    applied.
-    """
 
     type: Literal["ConvertExcessDensityDataSchema"] = "ConvertExcessDensityDataSchema"
 
@@ -53,6 +43,17 @@ class ConvertExcessDensityDataSchema(CurationComponentSchema):
 
 
 class ConvertExcessDensityData(CurationComponent):
+    """A component for converting binary mass density data to excess molar volume
+    data and vice versa where pure density data measured for the components is
+    available.
+
+    Notes
+    -----
+    This protocol may result in duplicate data points being generated. It is
+    recommended to apply the de-duplication filter after this component has been
+    applied.
+    """
+
     @classmethod
     @functools.lru_cache(500)
     def _molecular_weight(cls, smiles):

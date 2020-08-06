@@ -25,10 +25,14 @@ class _MetaCurationComponent(type):
 
 
 class CurationComponentSchema(BaseModel, abc.ABC):
-    """A base class for curation component schemas."""
+    """A base class for schemas which specify how particular curation
+    components should be applied to a data set."""
 
 
 class CurationComponent(metaclass=_MetaCurationComponent):
+    """A base component for curation components which apply a particular operation
+    (such as filtering or data conversion) to a data set."""
+
     @classmethod
     @abc.abstractmethod
     def _apply(

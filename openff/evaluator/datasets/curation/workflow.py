@@ -26,6 +26,8 @@ logger = logging.getLogger(__name__)
 
 
 class CurationWorkflowSchema(BaseModel):
+    """A schemas which encodes how a set of curation components should be applied
+    sequentially to a data set."""
 
     component_schemas: List[
         Union[
@@ -43,6 +45,9 @@ class CurationWorkflowSchema(BaseModel):
 
 
 class CurationWorkflow:
+    """A convenience class for applying a set of curation components
+    sequentially to a data set."""
+
     @classmethod
     def apply(
         cls, data_frame: pandas.DataFrame, schema: CurationWorkflowSchema, n_processes=1

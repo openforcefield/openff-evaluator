@@ -10,8 +10,8 @@
 .. |enthalpy_of_vaporization|      replace:: :py:class:`~openff.evaluator.properties.EnthalpyOfVaporization`
 .. |excess_molar_volume|           replace:: :py:class:`~openff.evaluator.properties.ExcessMolarVolume`
 
-ThermoML Data Sets
-==================
+ThermoML Archive
+================
 
 The |thermoml_data_set| object offers an API for extracting physical properties from the `NIST ThermoML Archive
 <http://trc.nist.gov/ThermoML.html>`_, both directly from the archive itself or from files stored in the IUPAC-

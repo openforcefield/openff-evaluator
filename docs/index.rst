@@ -126,6 +126,7 @@ field optimisation.
 
   datasets/physicalproperties
   datasets/thermomldatasets
+  datasets/curation
 
 .. toctree::
   :maxdepth: 2

@@ -6,8 +6,6 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 import numpy
 import pandas
-from openforcefield.topology import Molecule
-from openforcefield.utils import UndefinedStereochemistryError
 from pydantic import Field, root_validator, validator
 from scipy.optimize import linear_sum_assignment
 from typing_extensions import Literal
@@ -63,6 +61,10 @@ class FilterDuplicatesSchema(CurationComponentSchema):
 
 
 class FilterDuplicates(CurationComponent):
+    """A component to remove duplicate data points (within a specified precision)
+    from a data set.
+    """
+
     @classmethod
     def _apply(
         cls, data_frame: pandas.DataFrame, schema: FilterDuplicatesSchema, n_processes
@@ -164,6 +166,10 @@ class FilterByTemperatureSchema(CurationComponentSchema):
 
 
 class FilterByTemperature(CurationComponent):
+    """A component which will filter out data points which were measured outside of a
+    specified temperature range
+    """
+
     @classmethod
     def _apply(
         cls,
@@ -212,6 +218,10 @@ class FilterByPressureSchema(CurationComponentSchema):
 
 
 class FilterByPressure(CurationComponent):
+    """A component which will filter out data points which were measured outside of a
+    specified pressure range.
+    """
+
     @classmethod
     def _apply(
         cls, data_frame: pandas.DataFrame, schema: FilterByPressureSchema, n_processes
@@ -262,6 +272,10 @@ class FilterByMoleFractionSchema(CurationComponentSchema):
 
 
 class FilterByMoleFraction(CurationComponent):
+    """A component which will filter out data points which were measured outside of a
+    specified mole fraction range.
+    """
+
     @classmethod
     def _apply(
         cls,
@@ -312,6 +326,10 @@ class FilterByRacemicSchema(CurationComponentSchema):
 
 
 class FilterByRacemic(CurationComponent):
+    """A component which will filter out data points which were measured for racemic
+    mixtures.
+    """
+
     @classmethod
     def _apply(
         cls,
@@ -388,10 +406,16 @@ class FilterByElementsSchema(CurationComponentSchema):
 
 
 class FilterByElements(CurationComponent):
+    """A component which will filter out data points which were measured for systems
+    which contain specific elements."""
+
     @classmethod
     def _apply(
         cls, data_frame: pandas.DataFrame, schema: FilterByElementsSchema, n_processes
     ) -> pandas.DataFrame:
+
+        from openforcefield.topology import Molecule
+
         def filter_function(data_row):
 
             n_components = data_row["N Components"]
@@ -457,6 +481,9 @@ class FilterByPropertyTypesSchema(CurationComponentSchema):
 
 
 class FilterByPropertyTypes(CurationComponent):
+    """A component which will apply a filter which only retains properties of specified
+    types."""
+
     @classmethod
     def _apply(
         cls,
@@ -607,6 +634,9 @@ class FilterByStereochemistrySchema(CurationComponentSchema):
 
 
 class FilterByStereochemistry(CurationComponent):
+    """A component which filters out data points measured for systems whereby the
+    stereochemistry of a number of components is undefined."""
+
     @classmethod
     def _apply(
         cls,
@@ -614,6 +644,10 @@ class FilterByStereochemistry(CurationComponent):
         schema: FilterByStereochemistrySchema,
         n_processes,
     ) -> pandas.DataFrame:
+
+        from openforcefield.topology import Molecule
+        from openforcefield.utils import UndefinedStereochemistryError
+
         def filter_function(data_row):
 
             n_components = data_row["N Components"]
@@ -639,8 +673,8 @@ class FilterByChargedSchema(CurationComponentSchema):
 
 
 class FilterByCharged(CurationComponent):
-    """Filters out any substance where any of the constituent components
-    have a net non-zero charge.
+    """A component which filters out data points measured for substances where any of
+    the constituent components have a net non-zero charge.
     """
 
     @classmethod
@@ -648,6 +682,7 @@ class FilterByCharged(CurationComponent):
         cls, data_frame: pandas.DataFrame, schema: FilterByChargedSchema, n_processes
     ) -> pandas.DataFrame:
 
+        from openforcefield.topology import Molecule
         from simtk import unit as simtk_unit
 
         def filter_function(data_row):
@@ -683,7 +718,8 @@ class FilterByIonicLiquidSchema(CurationComponentSchema):
 
 
 class FilterByIonicLiquid(CurationComponent):
-    """Filters out any substance which contain or are classed as an ionic liquid.
+    """A component which filters out data points measured for substances which
+    contain or are classed as an ionic liquids.
     """
 
     @classmethod
@@ -743,8 +779,9 @@ class FilterBySmilesSchema(CurationComponentSchema):
 
 
 class FilterBySmiles(CurationComponent):
-    """Filters the data set so that it only contains either a specific set
-    of smiles, or does not contain any of a set of specifically excluded smiles.
+    """A component which filters the data set so that it only contains either a
+    specific set of smiles, or does not contain any of a set of specifically excluded
+    smiles.
     """
 
     @classmethod
@@ -826,7 +863,7 @@ class FilterBySmirksSchema(CurationComponentSchema):
 
 
 class FilterBySmirks(CurationComponent):
-    """Filters a data set so that it only contains measurements made
+    """A component which filters a data set so that it only contains measurements made
     for molecules which contain (or don't) a set of chemical environments
     represented by SMIRKS patterns.
     """
@@ -913,7 +950,8 @@ class FilterByNComponentsSchema(CurationComponentSchema):
 
 
 class FilterByNComponents(CurationComponent):
-    """
+    """A component which filters out data points measured for systems with specified
+    number of components.
     """
 
     @classmethod
@@ -957,8 +995,8 @@ class FilterBySubstancesSchema(CurationComponentSchema):
 
 
 class FilterBySubstances(CurationComponent):
-    """Filters the data set so that it only contains properties measured for
-    particular substances.
+    """A component which filters the data set so that it only contains properties
+    measured for particular substances.
 
     This method is similar to `filter_by_smiles`, however here we explicitly define
     the full substances compositions, rather than individual smiles which should
@@ -1091,8 +1129,8 @@ class FilterByEnvironmentsSchema(CurationComponentSchema):
 
 
 class FilterByEnvironments(CurationComponent):
-    """Filters a data set so that it only contains measurements made for substances
-    which contain specific chemical environments..
+    """A component which filters a data set so that it only contains measurements made
+    for substances which contain specific chemical environments.
     """
 
     @classmethod

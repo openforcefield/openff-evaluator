@@ -52,6 +52,10 @@ class ImportThermoMLDataSchema(CurationComponentSchema):
 
 
 class ImportThermoMLData(CurationComponent):
+    """A component which will import all supported data from the
+    NIST ThermoML archive for (optionally) specified journals.
+    """
+
     @classmethod
     def _download_data(cls, schema: ImportThermoMLDataSchema):
 

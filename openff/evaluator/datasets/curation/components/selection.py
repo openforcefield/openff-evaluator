@@ -123,6 +123,10 @@ class SelectSubstancesSchema(CurationComponentSchema):
 
 
 class SelectSubstances(CurationComponent):
+    """A component for selecting a specified number data points which were
+    measured for systems containing a specified set of chemical functionalities.
+    """
+
     @classmethod
     def _check_oe_available(cls):
         """Check if the `oechem` and `oegraphsim` modules are available for import.
@@ -509,9 +513,8 @@ class SelectDataPointsSchema(CurationComponentSchema):
 
 
 class SelectDataPoints(CurationComponent):
-    """The method attempts to find a set of data points for each substance
-    in a data set which are clustered around the set of conditions specified
-    in the ``target_states`` input array.
+    """A component for selecting a set of data points which are
+    measured as close as possible to a particular set of states.
 
     The points will be chosen so as to try and maximise the number of
     properties measured at the same condition (e.g. ideally we would
