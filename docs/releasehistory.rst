@@ -8,6 +8,38 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
+
+0.2.0
+-----
+
+This release overhauls the frameworks data curation abilities. In particular, it adds
+
+* a significant amount of data filters, including to filter by state, substance composition and chemical
+  functionalities.
+
+and components to
+
+* easily import all of the ThermoML and FreeSolv archives.
+* convert between property types (currently density <-> excess molar volume).
+* select data points close to a set of target states, and substances which contain specific functionalities (i.e.
+  select only data points measured for ketones, alcohols or alkanes).
+
+More information about the new curation abilities can be found :ref:`in the documentation here <datasets/curation>`.
+
+New Features
+""""""""""""
+
+* PR `#260 <https://github.com/openforcefield/propertyestimator/pull/260>`_: Data set curation overhaul.
+* PR `#261 <https://github.com/openforcefield/propertyestimator/pull/261>`_: Adds `PhysicalPropertyDataSet.from_pandas`.
+
+Breaking Changes
+""""""""""""""""
+
+* All of the `PhysicalPropertyDataSet.filter_by_XXX` functions have now been removed in favor of the new curation
+  components. See the :ref:`documentation <datasets/curation>` for information about the newly available filters
+  and more.
+
+
 0.1.2
 -----
 
