@@ -3,16 +3,18 @@ An API for defining, storing, and loading sets of physical
 property data.
 """
 import abc
+import re
 import uuid
 from enum import IntFlag, unique
 
+import numpy
 import pandas
 import pint
 
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 from openff.evaluator.datasets import CalculationSource, MeasurementSource, Source
-from openff.evaluator.substances import ExactAmount, MoleFraction, Substance
+from openff.evaluator.substances import Component, ExactAmount, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils.serialization import TypedBaseModel
 
@@ -340,228 +342,6 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
             yield physical_property
 
-    def filter_by_function(self, filter_function):
-        """Filter the data set using a given filter function.
-
-        Parameters
-        ----------
-        filter_function : lambda
-            The filter function.
-        """
-        self._properties = list(filter(filter_function, self._properties))
-
-    def filter_by_property_types(self, *property_types):
-        """Filter the data set based on the type of property (e.g Density).
-
-        Parameters
-        ----------
-        property_types : PropertyType or str
-            The type of property which should be retained.
-
-        Examples
-        --------
-        Filter the dataset to only contain densities and static dielectric constants
-
-        >>> # Load in the data set of properties which will be used for comparisons
-        >>> from openff.evaluator.datasets.thermoml import ThermoMLDataSet
-        >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
-        >>>
-        >>> # Filter the dataset to only include densities and dielectric constants.
-        >>> from openff.evaluator.properties import Density, DielectricConstant
-        >>> data_set.filter_by_property_types(Density, DielectricConstant)
-
-        or
-
-        >>> data_set.filter_by_property_types('Density', 'DielectricConstant')
-        """
-
-        property_types = [
-            x if isinstance(x, str) else x.__name__ for x in property_types
-        ]
-
-        def filter_function(x):
-            return x.__class__.__name__ in property_types
-
-        self.filter_by_function(filter_function)
-
-    def filter_by_phases(self, phases):
-        """Filter the data set based on the phase of the property (e.g liquid).
-
-        Parameters
-        ----------
-        phases : PropertyPhase
-            The phase of property which should be retained.
-
-        Examples
-        --------
-        Filter the dataset to only include liquid properties.
-
-        >>> # Load in the data set of properties which will be used for comparisons
-        >>> from openff.evaluator.datasets.thermoml import ThermoMLDataSet
-        >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
-        >>>
-        >>> from openff.evaluator.datasets import PropertyPhase
-        >>> data_set.filter_by_temperature(PropertyPhase.Liquid)
-        """
-
-        def filter_function(x):
-            return x.phase & phases
-
-        self.filter_by_function(filter_function)
-
-    def filter_by_temperature(self, min_temperature, max_temperature):
-        """Filter the data set based on a minimum and maximum temperature.
-
-        Parameters
-        ----------
-        min_temperature : pint.Quantity
-            The minimum temperature.
-        max_temperature : pint.Quantity
-            The maximum temperature.
-
-        Examples
-        --------
-        Filter the dataset to only include properties measured between 130-260 K.
-
-        >>> # Load in the data set of properties which will be used for comparisons
-        >>> from openff.evaluator.datasets.thermoml import ThermoMLDataSet
-        >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
-        >>>
-        >>> from openff.evaluator import unit
-        >>> data_set.filter_by_temperature(min_temperature=130*unit.kelvin, max_temperature=260*unit.kelvin)
-        """
-
-        def filter_function(x):
-            return (
-                min_temperature <= x.thermodynamic_state.temperature <= max_temperature
-            )
-
-        self.filter_by_function(filter_function)
-
-    def filter_by_pressure(self, min_pressure, max_pressure):
-        """Filter the data set based on a minimum and maximum pressure.
-
-        Parameters
-        ----------
-        min_pressure : pint.Quantity
-            The minimum pressure.
-        max_pressure : pint.Quantity
-            The maximum pressure.
-
-        Examples
-        --------
-        Filter the dataset to only include properties measured between 70-150 kPa.
-
-        >>> # Load in the data set of properties which will be used for comparisons
-        >>> from openff.evaluator.datasets.thermoml import ThermoMLDataSet
-        >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
-        >>>
-        >>> from openff.evaluator import unit
-        >>> data_set.filter_by_temperature(min_pressure=70*unit.kilopascal, max_temperature=150*unit.kilopascal)
-        """
-
-        def filter_function(x):
-
-            if x.thermodynamic_state.pressure == UNDEFINED:
-                return True
-
-            return min_pressure <= x.thermodynamic_state.pressure <= max_pressure
-
-        self.filter_by_function(filter_function)
-
-    def filter_by_components(self, number_of_components):
-        """Filter the data set based on the number of components present
-        in the substance the data points were collected for.
-
-        Parameters
-        ----------
-        number_of_components : int
-            The allowed number of components in the mixture.
-
-        Examples
-        --------
-        Filter the dataset to only include pure substance properties.
-
-        >>> # Load in the data set of properties which will be used for comparisons
-        >>> from openff.evaluator.datasets.thermoml import ThermoMLDataSet
-        >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
-        >>>
-        >>> data_set.filter_by_components(number_of_components=1)
-        """
-
-        def filter_function(x):
-            return x.substance.number_of_components == number_of_components
-
-        self.filter_by_function(filter_function)
-
-    def filter_by_elements(self, *allowed_elements):
-        """Filters out those properties which were estimated for
-         compounds which contain elements outside of those defined
-         in `allowed_elements`.
-
-        Parameters
-        ----------
-        allowed_elements: str
-            The symbols (e.g. C, H, Cl) of the elements to
-            retain.
-        """
-        from openforcefield.topology import Molecule
-
-        def filter_function(physical_property):
-
-            substance = physical_property.substance
-
-            for component in substance.components:
-
-                molecule = Molecule.from_smiles(
-                    component.smiles, allow_undefined_stereo=True
-                )
-
-                if not all(
-                    [x.element.symbol in allowed_elements for x in molecule.atoms]
-                ):
-                    return False
-
-            return True
-
-        self.filter_by_function(filter_function)
-
-    def filter_by_smiles(self, *allowed_smiles):
-        """Filters out those properties which were estimated for
-         compounds which do not appear in the allowed `smiles` list.
-
-        Parameters
-        ----------
-        allowed_smiles: str
-            The smiles identifiers of the compounds to keep
-            after filtering.
-        """
-
-        def filter_function(physical_property):
-
-            substance = physical_property.substance
-
-            for component in substance.components:
-
-                if component.smiles in allowed_smiles:
-                    continue
-
-                return False
-
-            return True
-
-        self.filter_by_function(filter_function)
-
-    def filter_by_uncertainties(self):
-        """Filters out those properties which don't have
-        their uncertainties reported.
-        """
-
-        def filter_function(physical_property):
-            return physical_property.uncertainty is not None
-
-        self.filter_by_function(filter_function)
-
     def validate(self):
         """Checks to ensure that all properties within
         the set are valid physical property object.
@@ -594,7 +374,8 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             - '<Property N> Uncertainty / (<default unit>)'
             - `'Source'`
 
-        where 'Component X' is a column containing the smiles representation of component X.
+        where 'Component X' is a column containing the smiles representation of
+        component X.
 
         Returns
         -------
@@ -736,6 +517,146 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
         data_frame = pandas.DataFrame(data_rows, columns=data_columns)
         return data_frame
+
+    @classmethod
+    def from_pandas(cls, data_frame: pandas.DataFrame) -> "PhysicalPropertyDataSet":
+        """Constructs a data set object from a pandas ``DataFrame`` object.
+
+        Notes
+        -----
+        * All physical properties are assumed to be source from experimental
+          measurements.
+        * Currently this method onlu supports data frames containing properties
+          which are built-in to the framework (e.g. Density).
+        * This method assumes the data frame has a structure identical to that
+          produced by the ``PhysicalPropertyDataSet.to_pandas`` function.
+
+        Parameters
+        ----------
+        data_frame
+            The data frame to construct the data set from.
+
+        Returns
+        -------
+            The constructed data set.
+        """
+
+        from openff.evaluator import properties
+
+        property_header_matches = {
+            re.match(r"^([a-zA-Z]+) Value \(([a-zA-Z0-9+-/\s]*)\)$", header)
+            for header in data_frame
+            if header.find(" Value ") >= 0
+        }
+        property_headers = {}
+
+        # Validate that the headers have the correct format, specify a
+        # built-in property type, and specify correctly the properties
+        # units.
+        for match in property_header_matches:
+
+            assert match
+
+            property_type_string, property_unit_string = match.groups()
+
+            assert hasattr(properties, property_type_string)
+            property_type = getattr(properties, property_type_string)
+
+            property_unit = unit.Unit(property_unit_string)
+            assert property_unit is not None
+
+            assert (
+                property_unit.dimensionality
+                == property_type.default_unit().dimensionality
+            )
+
+            property_headers[match.group(0)] = (property_type, property_unit)
+
+        # Convert the data rows to property objects.
+        physical_properties = []
+
+        for _, data_row in data_frame.iterrows():
+
+            data_row = data_row.dropna()
+
+            # Extract the state at which the measurement was made.
+            thermodynamic_state = ThermodynamicState(
+                temperature=data_row["Temperature (K)"] * unit.kelvin,
+                pressure=data_row["Pressure (kPa)"] * unit.kilopascal,
+            )
+            property_phase = PropertyPhase.from_string(data_row["Phase"])
+
+            # Extract the substance the measurement was made for.
+            substance = Substance()
+
+            for i in range(data_row["N Components"]):
+
+                component = Component(
+                    smiles=data_row[f"Component {i + 1}"],
+                    role=Component.Role[data_row.get(f"Role {i + 1}", "Solvent")],
+                )
+
+                mole_fraction = data_row.get(f"Mole Fraction {i + 1}", 0.0)
+                exact_amount = data_row.get(f"Exact Amount {i + 1}", 0)
+
+                if not numpy.isclose(mole_fraction, 0.0):
+                    substance.add_component(component, MoleFraction(mole_fraction))
+                if not numpy.isclose(exact_amount, 0.0):
+                    substance.add_component(component, ExactAmount(exact_amount))
+
+            for (
+                property_header,
+                (property_type, property_unit),
+            ) in property_headers.items():
+
+                # Check to see whether the row contains a value for this
+                # type of property.
+                if property_header not in data_row:
+                    continue
+
+                uncertainty_header = property_header.replace("Value", "Uncertainty")
+
+                source_string = data_row["Source"]
+
+                is_doi = all(
+                    any(
+                        re.match(pattern, split_string, re.I)
+                        for pattern in [
+                            r"^10.\d{4,9}/[-._;()/:A-Z0-9]+$",
+                            r"^10.1002/[^\s]+$",
+                            r"^10.\d{4}/\d+-\d+X?(\d+)\d+<[\d\w]+:[\d\w]*>\d+.\d+.\w+;\d$",
+                            r"^10.1021/\w\w\d+$",
+                            r"^10.1207/[\w\d]+\&\d+_\d+$",
+                        ]
+                    )
+                    for split_string in source_string.split(" + ")
+                )
+
+                physical_property = property_type(
+                    thermodynamic_state=thermodynamic_state,
+                    phase=property_phase,
+                    value=data_row[property_header] * property_unit,
+                    uncertainty=None
+                    if uncertainty_header not in data_row
+                    else data_row[uncertainty_header] * property_unit,
+                    substance=substance,
+                    source=MeasurementSource(
+                        doi="" if not is_doi else source_string,
+                        reference=source_string if not is_doi else "",
+                    ),
+                )
+
+                identifier = data_row.get("Id", None)
+
+                if identifier:
+                    physical_property.id = identifier
+
+                physical_properties.append(physical_property)
+
+        data_set = PhysicalPropertyDataSet()
+        data_set.add_properties(*physical_properties)
+
+        return data_set
 
     def __len__(self):
         return len(self._properties)

@@ -2,11 +2,12 @@
 A collection of commonly raised python exceptions.
 """
 import traceback
+from typing import Optional
 
 from openff.evaluator.utils.serialization import TypedBaseModel
 
 
-class EvaluatorException(TypedBaseModel):
+class EvaluatorException(TypedBaseModel, BaseException):
     """A serializable wrapper around an `Exception`.
     """
 
@@ -36,6 +37,7 @@ class EvaluatorException(TypedBaseModel):
         message: str or list of str
             Information about the raised exception.
         """
+        super(EvaluatorException, self).__init__(message)
         self.message = message
 
     def __getstate__(self):
@@ -52,3 +54,49 @@ class EvaluatorException(TypedBaseModel):
             message = "".join(message)
 
         return str(message)
+
+
+class MissingOptionalDependency(EvaluatorException):
+    """An exception raised when an optional dependency is required
+    but cannot be found.
+
+    Attributes
+    ----------
+    library_name
+        The name of the missing library.
+    license_issue
+        Whether the library was importable but was unusable due
+        to a missing license.
+    """
+
+    def __init__(
+        self,
+        library_name: str,
+        license_issue: bool = False,
+        extra: Optional[str] = None,
+    ):
+        """
+
+        Parameters
+        ----------
+        library_name
+            The name of the missing library.
+        license_issue
+            Whether the library was importable but was unusable due
+            to a missing license.
+        extra
+            An extra string to append to the error message.
+        """
+
+        message = f"The optional {library_name} module could not be imported."
+
+        if license_issue:
+            message = f"{message} This is due to a missing license."
+
+        if extra:
+            message = f"{message} {extra}"
+
+        super(MissingOptionalDependency, self).__init__(message)
+
+        self.library_name = library_name
+        self.license_issue = license_issue

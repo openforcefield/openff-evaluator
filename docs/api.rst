@@ -110,6 +110,107 @@ Data Set API
     register_thermoml_property
     thermoml_property
 
+**Data Set Curation**
+
+.. currentmodule:: openff.evaluator.datasets.curation.components
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    CurationComponent
+    CurationComponentSchema
+
+.. currentmodule:: openff.evaluator.datasets.curation.workflow
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    CurationWorkflow
+    CurationWorkflowSchema
+
+*Filtering*
+
+.. currentmodule:: openff.evaluator.datasets.curation.components.filtering
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    FilterDuplicatesSchema
+    FilterDuplicates
+    FilterByTemperatureSchema
+    FilterByTemperature
+    FilterByPressureSchema
+    FilterByPressure
+    FilterByMoleFractionSchema
+    FilterByMoleFraction
+    FilterByRacemicSchema
+    FilterByRacemic
+    FilterByElementsSchema
+    FilterByElements
+    FilterByPropertyTypesSchema
+    FilterByPropertyTypes
+    FilterByStereochemistrySchema
+    FilterByStereochemistry
+    FilterByChargedSchema
+    FilterByCharged
+    FilterByIonicLiquidSchema
+    FilterByIonicLiquid
+    FilterBySmilesSchema
+    FilterBySmiles
+    FilterBySmirksSchema
+    FilterBySmirks
+    FilterByNComponentsSchema
+    FilterByNComponents
+    FilterBySubstancesSchema
+    FilterBySubstances
+    FilterByEnvironmentsSchema
+    FilterByEnvironments
+
+*FreeSolv*
+
+.. currentmodule:: openff.evaluator.datasets.curation.components.freesolv
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    ImportFreeSolvSchema
+    ImportFreeSolv
+
+*ThermoML*
+
+.. currentmodule:: openff.evaluator.datasets.curation.components.thermoml
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    ImportThermoMLDataSchema
+    ImportThermoMLData
+
+*Data Point Selection*
+
+.. currentmodule:: openff.evaluator.datasets.curation.components.selection
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    SelectSubstancesSchema
+    SelectSubstances
+    SelectDataPointsSchema
+    SelectDataPoints
+    State
+    TargetState
+    FingerPrintType
+
+*Data Conversion*
+
+.. currentmodule:: openff.evaluator.datasets.curation.components.conversion
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    ConvertExcessDensityDataSchema
+    ConvertExcessDensityData
+
 Force Field API
 ---------------
 

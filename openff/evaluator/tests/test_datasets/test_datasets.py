@@ -3,11 +3,14 @@ Units tests for openff.evaluator.datasets
 """
 import json
 
+import numpy
 import pytest
 
 from openff.evaluator import unit
+from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.datasets import (
     CalculationSource,
+    MeasurementSource,
     PhysicalPropertyDataSet,
     PropertyPhase,
 )
@@ -15,13 +18,11 @@ from openff.evaluator.properties import (
     Density,
     DielectricConstant,
     EnthalpyOfMixing,
+    EnthalpyOfVaporization,
     ExcessMolarVolume,
 )
-from openff.evaluator.substances import Component, MoleFraction, Substance
-from openff.evaluator.tests.utils import (
-    create_dummy_property,
-    create_filterable_data_set,
-)
+from openff.evaluator.substances import Substance
+from openff.evaluator.tests.utils import create_dummy_property
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils.serialization import TypedJSONEncoder
 
@@ -157,6 +158,69 @@ def test_to_pandas():
     assert data_set_without_na.shape == (12, 20)
 
 
+def test_from_pandas():
+    """A test to ensure that data sets may be created from pandas objects."""
+
+    thermodynamic_state = ThermodynamicState(
+        temperature=298.15 * unit.kelvin, pressure=1.0 * unit.atmosphere
+    )
+
+    original_data_set = PhysicalPropertyDataSet()
+    original_data_set.add_properties(
+        Density(
+            thermodynamic_state=thermodynamic_state,
+            phase=PropertyPhase.Liquid,
+            substance=Substance.from_components("CO", "O"),
+            value=1.0 * unit.kilogram / unit.meter ** 3,
+            uncertainty=1.0 * unit.kilogram / unit.meter ** 3,
+            source=MeasurementSource(doi="10.5281/zenodo.596537"),
+        ),
+        EnthalpyOfVaporization(
+            thermodynamic_state=thermodynamic_state,
+            phase=PropertyPhase.from_string("Liquid + Gas"),
+            substance=Substance.from_components("C"),
+            value=2.0 * unit.kilojoule / unit.mole,
+            source=MeasurementSource(reference="2"),
+        ),
+        DielectricConstant(
+            thermodynamic_state=thermodynamic_state,
+            phase=PropertyPhase.Liquid,
+            substance=Substance.from_components("C"),
+            value=3.0 * unit.dimensionless,
+            source=MeasurementSource(reference="3"),
+        ),
+    )
+
+    data_frame = original_data_set.to_pandas()
+
+    recreated_data_set = PhysicalPropertyDataSet.from_pandas(data_frame)
+    assert len(original_data_set) == len(recreated_data_set)
+
+    for original_property in original_data_set:
+
+        recreated_property = next(
+            x for x in recreated_data_set if x.id == original_property.id
+        )
+
+        assert (
+            original_property.thermodynamic_state
+            == recreated_property.thermodynamic_state
+        )
+        assert original_property.phase == recreated_property.phase
+        assert original_property.substance == recreated_property.substance
+        assert numpy.isclose(original_property.value, recreated_property.value)
+
+        if original_property.uncertainty == UNDEFINED:
+            assert original_property.uncertainty == recreated_property.uncertainty
+        else:
+            assert numpy.isclose(
+                original_property.uncertainty, recreated_property.uncertainty
+            )
+
+        assert original_property.source.doi == recreated_property.source.doi
+        assert original_property.source.reference == recreated_property.source.reference
+
+
 def test_sources_substances():
 
     physical_property = create_dummy_property(Density)
@@ -183,160 +247,6 @@ def test_properties_by_type():
     dielectrics = [x for x in data_set.properties_by_type("DielectricConstant")]
     assert len(dielectrics) == 1
     assert dielectrics[0] == dielectric
-
-
-def test_filter_by_property_types():
-    """A test to ensure that data sets may be filtered by property type."""
-
-    dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_property_types("Density")
-
-    assert len(dummy_data_set) == 1
-
-    dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_property_types("Density", "DielectricConstant")
-
-    assert len(dummy_data_set) == 2
-
-
-def test_filter_by_phases():
-    """A test to ensure that data sets may be filtered by phases."""
-
-    dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_phases(phases=PropertyPhase.Liquid)
-
-    assert len(dummy_data_set) == 1
-
-    dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_phases(
-        phases=PropertyPhase(PropertyPhase.Liquid | PropertyPhase.Solid)
-    )
-
-    assert len(dummy_data_set) == 2
-
-    dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_phases(
-        phases=PropertyPhase(
-            PropertyPhase.Liquid | PropertyPhase.Solid | PropertyPhase.Gas
-        )
-    )
-
-    assert len(dummy_data_set) == 3
-
-
-def test_filter_by_temperature():
-    """A test to ensure that data sets may be filtered by temperature."""
-
-    dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_temperature(
-        min_temperature=287 * unit.kelvin, max_temperature=289 * unit.kelvin
-    )
-
-    assert len(dummy_data_set) == 1
-
-    dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_temperature(
-        min_temperature=287 * unit.kelvin, max_temperature=299 * unit.kelvin
-    )
-
-    assert len(dummy_data_set) == 2
-
-    dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_temperature(
-        min_temperature=287 * unit.kelvin, max_temperature=309 * unit.kelvin
-    )
-
-    assert len(dummy_data_set) == 3
-
-
-def test_filter_by_pressure():
-    """A test to ensure that data sets may be filtered by pressure."""
-
-    dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_pressure(
-        min_pressure=0.4 * unit.atmosphere, max_pressure=0.6 * unit.atmosphere
-    )
-
-    assert len(dummy_data_set) == 1
-
-    dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_pressure(
-        min_pressure=0.4 * unit.atmosphere, max_pressure=1.1 * unit.atmosphere
-    )
-
-    assert len(dummy_data_set) == 2
-
-    dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_pressure(
-        min_pressure=0.4 * unit.atmosphere, max_pressure=1.6 * unit.atmosphere
-    )
-
-    assert len(dummy_data_set) == 3
-
-
-def test_filter_by_components():
-    """A test to ensure that data sets may be filtered by the number of components."""
-
-    dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_components(number_of_components=1)
-
-    assert len(dummy_data_set) == 1
-
-    dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_components(number_of_components=2)
-
-    assert len(dummy_data_set) == 1
-
-    dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_components(number_of_components=3)
-
-    assert len(dummy_data_set) == 1
-
-
-def test_filter_by_elements():
-    """A test to ensure that data sets may be filtered by which elements their
-    measured properties contain."""
-
-    dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_elements("H", "C")
-
-    assert len(dummy_data_set) == 1
-
-    dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_elements("H", "C", "N")
-
-    assert len(dummy_data_set) == 2
-
-    dummy_data_set = create_filterable_data_set()
-    dummy_data_set.filter_by_elements("H", "C", "N", "O")
-
-    assert len(dummy_data_set) == 3
-
-
-def test_filter_by_smiles():
-    """A test to ensure that data sets may be filtered by which smiles their
-    measured properties contain."""
-
-    methanol_substance = Substance()
-    methanol_substance.add_component(Component("CO"), MoleFraction(1.0))
-
-    ethanol_substance = Substance()
-    ethanol_substance.add_component(Component("CCO"), MoleFraction(1.0))
-
-    property_a = create_dummy_property(Density)
-    property_a.substance = methanol_substance
-
-    property_b = create_dummy_property(Density)
-    property_b.substance = ethanol_substance
-
-    data_set = PhysicalPropertyDataSet()
-    data_set.add_properties(property_a, property_b)
-
-    data_set.filter_by_smiles("CO")
-
-    assert len(data_set) == 1
-    assert methanol_substance in data_set.substances
-    assert ethanol_substance not in data_set.substances
 
 
 def test_phase_from_string():
