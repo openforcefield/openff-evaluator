@@ -24,20 +24,20 @@ and components to
 * select data points close to a set of target states, and substances which contain specific functionalities (i.e.
   select only data points measured for ketones, alcohols or alkanes).
 
-More information about the new curation abilities can be found :ref:`in the documentation here <datasets/curation>`.
+More information about the new curation abilities can be found :ref:`in the documentation here <datasets/curation: Data Set Curation>`.
 
 New Features
 """"""""""""
 
 * PR `#260 <https://github.com/openforcefield/propertyestimator/pull/260>`_: Data set curation overhaul.
-* PR `#261 <https://github.com/openforcefield/propertyestimator/pull/261>`_: Adds `PhysicalPropertyDataSet.from_pandas`.
+* PR `#261 <https://github.com/openforcefield/propertyestimator/pull/261>`_: Adds ``PhysicalPropertyDataSet.from_pandas``.
 
 Breaking Changes
 """"""""""""""""
 
-* All of the `PhysicalPropertyDataSet.filter_by_XXX` functions have now been removed in favor of the new curation
-  components. See the :ref:`documentation <datasets/curation>` for information about the newly available filters
-  and more.
+* All of the ``PhysicalPropertyDataSet.filter_by_XXX`` functions have now been removed in favor of the new curation
+  components. See the :ref:`documentation <datasets/curation: Examples>` for information about the newly available
+  filters and more.
 
 
 0.1.2
