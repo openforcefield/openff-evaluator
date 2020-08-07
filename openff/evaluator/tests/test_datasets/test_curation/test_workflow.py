@@ -104,5 +104,10 @@ def test_workflow_data_set(data_set):
     assert isinstance(filtered_set, PhysicalPropertyDataSet)
     assert len(filtered_set) == 1
 
-    assert numpy.isclose(filtered_set.properties[0].thermodynamic_state.temperature, 298.15 * unit.kelvin)
-    assert numpy.isclose(filtered_set.properties[0].thermodynamic_state.pressure, 101.325 * unit.kilopascal)
+    assert numpy.isclose(
+        filtered_set.properties[0].thermodynamic_state.temperature, 298.15 * unit.kelvin
+    )
+    assert numpy.isclose(
+        filtered_set.properties[0].thermodynamic_state.pressure,
+        101.325 * unit.kilopascal,
+    )
