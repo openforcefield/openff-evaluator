@@ -1,8 +1,11 @@
 import abc
 import logging
+from typing import overload
 
 import pandas
 from pydantic import BaseModel
+
+from openff.evaluator.datasets import PhysicalPropertyDataSet
 
 logger = logging.getLogger(__name__)
 
@@ -41,26 +44,48 @@ class CurationComponent(metaclass=_MetaCurationComponent):
         raise NotImplementedError()
 
     @classmethod
+    @overload
     def apply(
-        cls, data_frame: pandas.DataFrame, schema, n_processes=1
+        cls,
+        data_set: PhysicalPropertyDataSet,
+        schema: CurationComponentSchema,
+        n_processes: int = 1,
+    ) -> PhysicalPropertyDataSet:
+        ...
+
+    @classmethod
+    @overload
+    def apply(
+        cls,
+        data_set: pandas.DataFrame,
+        schema: CurationComponentSchema,
+        n_processes: int = 1,
     ) -> pandas.DataFrame:
-        """Apply this component to a data frame.
+        ...
+
+    @classmethod
+    def apply(cls, data_set, schema, n_processes=1):
+        """Apply this curation component to a data set.
 
         Parameters
         ----------
-        data_frame: pandas.DataFrame
+        data_set
             The data frame to apply the component to.
-        schema: T
+        schema
             The schema which defines how this component should be applied.
-        n_processes: int
+        n_processes
             The number of processes that this component is allowed to
             parallelize across.
 
         Returns
         -------
-        pandas.DataFrame
-            The data frame which has had the component applied to it.
+            The data set which has had the component applied to it.
         """
+
+        data_frame = data_set
+
+        if isinstance(data_frame, PhysicalPropertyDataSet):
+            data_frame = data_frame.to_pandas()
 
         modified_data_frame = cls._apply(data_frame, schema, n_processes)
 
@@ -74,6 +99,12 @@ class CurationComponent(metaclass=_MetaCurationComponent):
             logger.info(
                 f"{abs(n_filtered - n_data_points)} data points were {direction} after "
                 f"applying the {cls.__name__} component."
+            )
+
+        if isinstance(data_set, PhysicalPropertyDataSet):
+
+            modified_data_frame = PhysicalPropertyDataSet.from_pandas(
+                modified_data_frame
             )
 
         return modified_data_frame

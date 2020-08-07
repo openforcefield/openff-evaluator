@@ -1,10 +1,11 @@
 import logging
-from typing import List, Union
+from typing import List, Union, overload
 
 import numpy
 import pandas
 from pydantic import BaseModel, Field
 
+from openff.evaluator.datasets import PhysicalPropertyDataSet
 from openff.evaluator.datasets.curation.components import CurationComponent
 from openff.evaluator.datasets.curation.components.conversion import (
     ConversionComponentSchema,
@@ -49,29 +50,52 @@ class CurationWorkflow:
     sequentially to a data set."""
 
     @classmethod
+    @overload
     def apply(
-        cls, data_frame: pandas.DataFrame, schema: CurationWorkflowSchema, n_processes=1
+        cls,
+        data_set: PhysicalPropertyDataSet,
+        schema: CurationWorkflowSchema,
+        n_processes: int = 1,
+    ) -> PhysicalPropertyDataSet:
+        ...
+
+    @classmethod
+    @overload
+    def apply(
+        cls,
+        data_set: pandas.DataFrame,
+        schema: CurationWorkflowSchema,
+        n_processes: int = 1,
     ) -> pandas.DataFrame:
-        """Apply each component of this workflow to an initial data frame in
+        ...
+
+    @classmethod
+    def apply(cls, data_set, schema, n_processes=1):
+        """Apply each component of this curation workflow to an initial data set in
         sequence.
 
         Parameters
         ----------
-        data_frame: pandas.DataFrame
-            The data frame to apply the workflow to.
-        schema: WorkflowSchema
+        data_set
+            The data set to apply the workflow to. This may either be a
+            data set object or it's pandas representation.
+        schema
             The schema which defines the components to apply.
-        n_processes: int
+        n_processes
             The number of processes that each component is allowed to
             parallelize across.
 
         Returns
         -------
-        pandas.DataFrame
-            The data frame which has had the components applied to it.
+            The data set which has had the curation workflow applied to it.
         """
 
         component_classes = CurationComponent.components
+
+        data_frame = data_set
+
+        if isinstance(data_frame, PhysicalPropertyDataSet):
+            data_frame = data_frame.to_pandas()
 
         data_frame = data_frame.copy()
         data_frame = data_frame.fillna(value=numpy.nan)
@@ -92,5 +116,8 @@ class CurationWorkflow:
             logger.info(f"{component_class_name} applied")
 
             data_frame = data_frame.fillna(value=numpy.nan)
+
+        if isinstance(data_set, PhysicalPropertyDataSet):
+            data_frame = PhysicalPropertyDataSet.from_pandas(data_frame)
 
         return data_frame
