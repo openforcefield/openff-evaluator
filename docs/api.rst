@@ -516,6 +516,15 @@ Built-in Workflow Protocols
     GenerateReleaseRestraints
     ApplyRestraints
 
+.. currentmodule:: openff.evaluator.protocols.paprika.analysis
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    AnalyzeAPRPhase
+    ComputeSymmetryCorrection
+    ComputeReferenceWork
+
 **Reweighting**
 
 .. currentmodule:: openff.evaluator.protocols.reweighting

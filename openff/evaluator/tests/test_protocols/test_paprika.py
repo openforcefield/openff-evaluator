@@ -4,6 +4,12 @@ import numpy
 import pytest
 
 from openff.evaluator import unit
+from openff.evaluator.attributes import UNDEFINED
+from openff.evaluator.protocols.paprika.analysis import (
+    AnalyzeAPRPhase,
+    ComputeReferenceWork,
+    ComputeSymmetryCorrection,
+)
 from openff.evaluator.protocols.paprika.coordinates import (
     AddDummyAtoms,
     PreparePullCoordinates,
@@ -18,6 +24,7 @@ from openff.evaluator.protocols.paprika.restraints import (
     GenerateReleaseRestraints,
 )
 from openff.evaluator.substances import Component, ExactAmount, Substance
+from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils import get_data_filename
 
 
@@ -403,3 +410,109 @@ def test_apply_release_restraints(tmp_path, complex_file_path, release_restraint
     protocol.execute(str(tmp_path))
 
     validate_system_file(protocol.output_system_path, {10, 11})
+
+
+def test_compute_reference_work(tmp_path, complex_file_path):
+
+    # Generate a dummy set of pull restraints
+    restraints_protocol = GeneratePullRestraints("")
+    restraints_protocol.complex_coordinate_path = complex_file_path
+    restraints_protocol.attach_lambdas = [0.0, 1.0]
+    restraints_protocol.n_pull_windows = 2
+    restraints_protocol.restraint_schemas = {
+        "guest": [
+            {
+                "atoms": ":DM1 :7@C4",
+                "attach": {"force_constant": 5, "target": 6},
+                "pull": {"force_constant": 5, "target": 24},
+            },
+            {
+                "atoms": ":DM2 :DM1 :7@C4",
+                "attach": {"force_constant": 100, "target": 180},
+                "pull": {"force_constant": 100, "target": 180},
+            },
+            {
+                "atoms": ":DM1 :7@C4 :7@N1",
+                "attach": {"force_constant": 100, "target": 180},
+                "pull": {"force_constant": 100, "target": 180},
+            },
+        ]
+    }
+    restraints_protocol.execute(str(tmp_path))
+
+    protocol = ComputeReferenceWork("")
+    protocol.thermodynamic_state = ThermodynamicState(temperature=298.15 * unit.kelvin)
+    protocol.restraints_path = restraints_protocol.restraints_path
+    protocol.execute(str(tmp_path))
+
+    assert protocol.result != UNDEFINED
+    assert numpy.isclose(protocol.result.error.magnitude, 0.0)
+    assert numpy.isclose(protocol.result.value.magnitude, 7.141515)
+
+
+@pytest.mark.parametrize("temperature", [298.15, 308.15])
+@pytest.mark.parametrize("n_microstates", [1, 2])
+def test_compute_symmetry_correction(temperature, n_microstates):
+
+    protocol = ComputeSymmetryCorrection("")
+    protocol.thermodynamic_state = ThermodynamicState(
+        temperature=temperature * unit.kelvin
+    )
+    protocol.n_microstates = n_microstates
+    protocol.execute()
+
+    assert protocol.result != UNDEFINED
+    assert numpy.isclose(protocol.result.error.magnitude, 0.0)
+
+    expected_value = -protocol.thermodynamic_state.inverse_beta * numpy.log(
+        n_microstates
+    )
+
+    assert numpy.isclose(protocol.result.value, expected_value)
+
+
+def test_analyse_apr(tmp_path, monkeypatch, complex_file_path):
+
+    import mdtraj
+    from paprika import analyze
+
+    # Generate a dummy set of attach restraints
+    restraints_protocol = GenerateAttachRestraints("")
+    restraints_protocol.complex_coordinate_path = complex_file_path
+    restraints_protocol.attach_lambdas = [0.0, 1.0]
+    restraints_protocol.restraint_schemas = {
+        "guest": [
+            {"atoms": ":DM1 @7", "attach": {"force_constant": 5, "target": 6}},
+            {
+                "atoms": ":DM2 :DM1 @7",
+                "attach": {"force_constant": 100, "target": 180},
+            },
+            {"atoms": ":DM1 @7 @8", "attach": {"force_constant": 100, "target": 180}},
+        ]
+    }
+    restraints_protocol.execute(str(tmp_path))
+
+    # Create a set of trajectories to load
+    trajectory_paths = [os.path.join(tmp_path, f"{i}.dcd") for i in range(2)]
+    trajectory: mdtraj.Trajectory = mdtraj.load_pdb(complex_file_path)
+
+    for trajectory_path in trajectory_paths:
+        trajectory.save_dcd(trajectory_path)
+
+    # Mock the paprika call so we don't need to generate sensible fake data.
+    def mock_analyze_return(**_):
+        return {"attach": {"ti-block": {"fe": 1.0, "sem": 2.0}}}
+
+    # Application of the monkeypatch to replace Path.home
+    # with the behavior of mockreturn defined above.
+    monkeypatch.setattr(analyze, "compute_phase_free_energy", mock_analyze_return)
+
+    protocol = AnalyzeAPRPhase("analyze_release_phase")
+    protocol.topology_path = complex_file_path
+    protocol.trajectory_paths = trajectory_paths
+    protocol.phase = "attach"
+    protocol.restraints_path = restraints_protocol.restraints_path
+    protocol.execute(str(tmp_path))
+
+    assert numpy.isclose(protocol.result.value.magnitude, -1.0)
+    assert numpy.isclose(protocol.result.error.magnitude, 2.0)
