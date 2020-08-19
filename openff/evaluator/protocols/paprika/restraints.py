@@ -389,6 +389,7 @@ class ApplyRestraints(Protocol):
                     restraint,
                     self.phase,
                     self.window_index,
+                    flat_bottom=restraint_type in ["symmetry", "wall"],
                     force_group=force_groups[restraint_type],
                 )
 
