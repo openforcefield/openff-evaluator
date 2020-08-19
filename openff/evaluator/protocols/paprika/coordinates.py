@@ -108,7 +108,8 @@ class _PrepareAPRCoordinates(Protocol, abc.ABC):
 
 @workflow_protocol()
 class PreparePullCoordinates(_PrepareAPRCoordinates):
-    """
+    """A protocol which will align a host-guest complex to the z-axis and position
+    the guest molecule at a specified point along the pull axis.
     """
 
     guest_orientation_mask = InputAttribute(
@@ -121,8 +122,8 @@ class PreparePullCoordinates(_PrepareAPRCoordinates):
     )
 
     pull_distance = InputAttribute(
-        docstring="The total distance that the guest will be pulled along the hosts "
-        "cavity axis during the pull phase.",
+        docstring="The total distance that the guest will be pulled along the z-axis "
+        "during the pull phase.",
         type_hint=unit.Quantity,
         default_value=UNDEFINED,
     )
