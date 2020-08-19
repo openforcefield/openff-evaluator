@@ -413,14 +413,20 @@ def _build_input_file(
     # Add the section of the molecule to solvate if provided.
     if structure_to_solvate is not None:
 
+        solute_position = [0.0] * 3
+
+        if center_solute:
+            solute_position = [box_size[i] / 2.0 for i in range(3)]
+
         input_lines.extend(
             [
                 f"structure {structure_to_solvate}",
                 "  number 1",
                 "  fixed "
-                f"{box_size[0] / 2.0} "
-                f"{box_size[1] / 2.0} "
-                f"{box_size[2] / 2.0} 0. 0. 0.",
+                f"{solute_position[0]} "
+                f"{solute_position[1]} "
+                f"{solute_position[2]} "
+                "0. 0. 0.",
                 "centerofmass" if center_solute else "",
                 "end structure",
                 "",

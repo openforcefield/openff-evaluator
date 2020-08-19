@@ -495,6 +495,17 @@ Built-in Workflow Protocols
     OpenMMReducedPotentials
     OpenMMGradientPotentials
 
+**Paprika**
+
+.. currentmodule:: openff.evaluator.protocols.paprika.coordinates
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    PreparePullCoordinates
+    PrepareReleaseCoordinates
+    AddDummyAtoms
+
 **Reweighting**
 
 .. currentmodule:: openff.evaluator.protocols.reweighting
