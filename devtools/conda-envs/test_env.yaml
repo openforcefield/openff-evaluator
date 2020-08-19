@@ -37,3 +37,4 @@ dependencies:
   - cmiles
   - python-dateutil
   - pydantic
+  - paprika
