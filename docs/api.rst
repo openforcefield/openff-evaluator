@@ -506,6 +506,16 @@ Built-in Workflow Protocols
     PrepareReleaseCoordinates
     AddDummyAtoms
 
+.. currentmodule:: openff.evaluator.protocols.paprika.restraints
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    GenerateAttachRestraints
+    GeneratePullRestraints
+    GenerateReleaseRestraints
+    ApplyRestraints
+
 **Reweighting**
 
 .. currentmodule:: openff.evaluator.protocols.reweighting
