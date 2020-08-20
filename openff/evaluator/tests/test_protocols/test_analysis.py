@@ -1,11 +1,16 @@
 import tempfile
 
+import pytest
+
+from openff.evaluator import unit
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.protocols.analysis import (
+    AverageFreeEnergies,
     ExtractAverageStatistic,
     ExtractUncorrelatedStatisticsData,
     ExtractUncorrelatedTrajectoryData,
 )
+from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils import get_data_filename
 from openff.evaluator.utils.statistics import ObservableType, StatisticsArray
 
@@ -71,3 +76,32 @@ def test_extract_uncorrelated_statistics_data():
             extract_protocol.number_of_uncorrelated_samples
             == (len(original_array) - 2) / 2
         )
+
+
+def test_average_free_energies_protocol():
+    """Tests adding together two free energies."""
+
+    compute_resources = ComputeResources(number_of_threads=1)
+
+    delta_g_one = (-10.0 * unit.kilocalorie / unit.mole).plus_minus(
+        1.0 * unit.kilocalorie / unit.mole
+    )
+    delta_g_two = (-20.0 * unit.kilocalorie / unit.mole).plus_minus(
+        2.0 * unit.kilocalorie / unit.mole
+    )
+
+    thermodynamic_state = ThermodynamicState(298 * unit.kelvin, 1 * unit.atmosphere)
+
+    sum_protocol = AverageFreeEnergies("average_free_energies")
+
+    sum_protocol.values = [delta_g_one, delta_g_two]
+    sum_protocol.thermodynamic_state = thermodynamic_state
+
+    sum_protocol.execute("", compute_resources)
+
+    result_value = sum_protocol.result.value.to(unit.kilocalorie / unit.mole)
+    result_uncertainty = sum_protocol.result.error.to(unit.kilocalorie / unit.mole)
+
+    assert isinstance(sum_protocol.result, unit.Measurement)
+    assert result_value.magnitude == pytest.approx(-20.0, abs=0.2)
+    assert result_uncertainty.magnitude == pytest.approx(2.0, abs=0.2)
