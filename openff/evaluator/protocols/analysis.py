@@ -8,7 +8,9 @@ from os import path
 import numpy as np
 import pint
 
+from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
+from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils import statistics, timeseries
 from openff.evaluator.utils.statistics import StatisticsArray, bootstrap
 from openff.evaluator.workflow import Protocol, workflow_protocol
@@ -327,3 +329,86 @@ class ExtractUncorrelatedStatisticsData(ExtractUncorrelatedData):
         uncorrelated_statistics.to_pandas_csv(self.output_statistics_path)
 
         self.number_of_uncorrelated_samples = len(uncorrelated_statistics)
+
+
+@workflow_protocol()
+class AverageFreeEnergies(Protocol):
+    """A protocol which computes the Boltzmann weighted average
+    (ΔG° = -RT × Log[ Σ_{n} exp(-βΔG°_{n}) ]) of a set of free
+    energies which were measured at the same thermodynamic state.
+    Confidence intervals are computed by bootstrapping with replacement.
+    """
+
+    values = InputAttribute(
+        docstring="The values to add together.", type_hint=list, default_value=UNDEFINED
+    )
+    thermodynamic_state = InputAttribute(
+        docstring="The thermodynamic state at which the free energies were measured.",
+        type_hint=ThermodynamicState,
+        default_value=UNDEFINED,
+    )
+
+    bootstrap_cycles = InputAttribute(
+        docstring="The number of bootstrap cycles to perform when estimating "
+        "the uncertainty in the combined free energies.",
+        type_hint=int,
+        default_value=2000,
+    )
+
+    result = OutputAttribute(
+        docstring="The sum of the values.", type_hint=pint.Measurement
+    )
+    confidence_intervals = OutputAttribute(
+        docstring="The 95% confidence intervals on the average free energy.",
+        type_hint=pint.Quantity,
+    )
+
+    def _execute(self, directory, available_resources):
+
+        default_unit = unit.kilocalorie / unit.mole
+
+        boltzmann_factor = (
+            self.thermodynamic_state.temperature * unit.molar_gas_constant
+        )
+        boltzmann_factor.ito(default_unit)
+
+        beta = 1.0 / boltzmann_factor
+
+        cycle_result = np.empty(self.bootstrap_cycles)
+
+        for cycle_index, cycle in enumerate(range(self.bootstrap_cycles)):
+
+            cycle_values = np.empty(len(self.values))
+
+            for value_index, value in enumerate(self.values):
+
+                mean = value.value.to(default_unit).magnitude
+                sem = value.error.to(default_unit).magnitude
+
+                sampled_value = np.random.normal(mean, sem) * default_unit
+                cycle_values[value_index] = (
+                    (-beta * sampled_value).to(unit.dimensionless).magnitude
+                )
+
+            # ΔG° = -RT × Log[ Σ_{n} exp(-βΔG°_{n}) ]
+            cycle_result[cycle_index] = np.log(np.sum(np.exp(cycle_values)))
+
+        mean = np.mean(-boltzmann_factor * cycle_result)
+        sem = np.std(-boltzmann_factor * cycle_result)
+
+        confidence_intervals = np.empty(2)
+        sorted_statistics = np.sort(cycle_result)
+        confidence_intervals[0] = sorted_statistics[int(0.025 * self.bootstrap_cycles)]
+        confidence_intervals[1] = sorted_statistics[int(0.975 * self.bootstrap_cycles)]
+
+        confidence_intervals = -boltzmann_factor * confidence_intervals
+
+        self.result = mean.plus_minus(sem)
+        self.confidence_intervals = confidence_intervals
+
+    def validate(self, attribute_type=None):
+
+        super(AverageFreeEnergies, self).validate(attribute_type)
+        assert all(
+            isinstance(x, (unit.Measurement, pint.Measurement)) for x in self.values
+        )
