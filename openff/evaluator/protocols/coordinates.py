@@ -31,6 +31,16 @@ class BuildCoordinatesPackmol(Protocol):
         type_hint=int,
         default_value=1000,
     )
+    count_exact_amount = InputAttribute(
+        docstring="Whether components present in an exact amount (i.e. defined with an "
+        "``ExactAmount``) should be considered when apply the maximum number "
+        "of molecules constraint. This may be set false, for example, when "
+        "building a separate solvated protein (n = 1) and solvated protein + "
+        "ligand complex (n = 2) system but wish for both systems to have the "
+        "same number of solvent molecules.",
+        type_hint=bool,
+        default_value=True,
+    )
     mass_density = InputAttribute(
         docstring="The target density of the created system.",
         type_hint=pint.Quantity,
@@ -116,17 +126,30 @@ class BuildCoordinatesPackmol(Protocol):
 
         # Determine how many molecules of each type will be present in the system.
         molecules_per_component = self.substance.get_molecules_per_component(
-            self.max_molecules
+            self.max_molecules, count_exact_amount=self.count_exact_amount
         )
         number_of_molecules = [0] * self.substance.number_of_components
 
         for index, component in enumerate(self.substance.components):
             number_of_molecules[index] = molecules_per_component[component.identifier]
 
-        if sum(number_of_molecules) > self.max_molecules:
+        total_n_molecules = sum(number_of_molecules)
+
+        if not self.count_exact_amount:
+
+            n_exact_molecule = sum(
+                amount.value
+                for component in self.substance.components
+                for amount in self.substance.amounts[component.identifier]
+                if isinstance(amount, ExactAmount)
+            )
+
+            total_n_molecules -= n_exact_molecule
+
+        if total_n_molecules > self.max_molecules:
 
             raise ValueError(
-                f"The number of molecules to create ({sum(number_of_molecules)}) is "
+                f"The number of molecules to create ({total_n_molecules}) is "
                 f"greater than the maximum number requested ({self.max_molecules})."
             )
 
