@@ -46,8 +46,7 @@ def test_taproom_missing_oe_license(monkeypatch):
 
 
 @pytest.mark.skipif(
-    openeye is not None or openeye.oechem.OEChemIsLicensed(),
-    reason="OpenEye must not be present for this test.",
+    openeye is not None, reason="OpenEye must not be present for this test.",
 )
 def test_taproom_missing_oe():
 
