@@ -36,7 +36,7 @@ def test_taproom_missing_oe_license(monkeypatch):
     def mock_return():
         return False
 
-    monkeypatch.setattr(oechem, 'OEChemIsLicensed', mock_return)
+    monkeypatch.setattr(oechem, "OEChemIsLicensed", mock_return)
 
     with pytest.raises(MissingOptionalDependency) as error_info:
         TaproomDataSet()
