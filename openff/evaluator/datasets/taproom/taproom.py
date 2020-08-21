@@ -128,7 +128,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         try:
             from openeye import oechem
         except ImportError as e:
-            raise MissingOptionalDependency(e.path, False)
+            raise MissingOptionalDependency("openeye.oechem", False)
 
         unlicensed_library = "openeye.oechem" if not oechem.OEChemIsLicensed() else None
 
