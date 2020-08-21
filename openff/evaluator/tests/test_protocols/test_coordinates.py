@@ -86,6 +86,31 @@ def test_build_coordinates_packmol(input_substance, expected):
             assert assigned_name[:3] == "HOH"
 
 
+@pytest.mark.parametrize("count_exact_amount", [False, True])
+def test_build_coordinates_packmol_exact(count_exact_amount):
+    """Tests that the build coordinate protocol behaves correctly for substances
+    with exact amounts."""
+
+    import mdtraj
+
+    substance = Substance()
+    substance.add_component(Component("O"), MoleFraction(1.0))
+    substance.add_component(Component("C"), ExactAmount(1))
+
+    max_molecule = 11 if count_exact_amount else 10
+
+    build_coordinates = BuildCoordinatesPackmol("build_coordinates")
+    build_coordinates.max_molecules = max_molecule
+    build_coordinates.count_exact_amount = count_exact_amount
+    build_coordinates.substance = substance
+
+    with tempfile.TemporaryDirectory() as directory:
+        build_coordinates.execute(directory)
+        built_system = mdtraj.load_pdb(build_coordinates.coordinate_file_path)
+
+    assert built_system.n_residues == 11
+
+
 def test_solvate_existing_structure_protocol():
     """Tests solvating a single methanol molecule in water."""
 
