@@ -110,6 +110,16 @@ Data Set API
     register_thermoml_property
     thermoml_property
 
+**Taproom**
+
+.. currentmodule:: openff.evaluator.datasets.taproom
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    TaproomDataSet
+    TaproomSource
+
 **Data Set Curation**
 
 .. currentmodule:: openff.evaluator.datasets.curation.components

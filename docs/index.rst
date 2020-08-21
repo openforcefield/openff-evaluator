@@ -126,6 +126,7 @@ field optimisation.
 
   datasets/physicalproperties
   datasets/thermomldatasets
+  datasets/taproomdatasets
   datasets/curation
 
 .. toctree::

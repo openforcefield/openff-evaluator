@@ -38,3 +38,4 @@ dependencies:
   - python-dateutil
   - pydantic
   - paprika
+  - taproom
