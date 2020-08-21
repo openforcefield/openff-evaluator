@@ -225,7 +225,9 @@ class Substance(AttributeClass):
 
         return self.amounts[identifier]
 
-    def get_molecules_per_component(self, maximum_molecules, tolerance=None):
+    def get_molecules_per_component(
+        self, maximum_molecules, tolerance=None, count_exact_amount=True
+    ):
         """Returns the number of molecules for each component in this substance,
         given a maximum total number of molecules.
 
@@ -238,6 +240,13 @@ class Substance(AttributeClass):
             an example, when converting a mole fraction into a number of molecules,
             the total number of molecules may not be sufficiently large enough to
             reproduce this amount.
+        count_exact_amount: bool
+            Whether components present in an exact amount (i.e. defined with an
+            ``ExactAmount``) should be considered when apply the maximum number
+             of molecules constraint. This may be set false, for example, when
+             building a separate solvated protein (n = 1) and solvated protein +
+             ligand complex (n = 2) system but wish for both systems to have the
+             same number of solvent molecules.
 
         Returns
         -------
@@ -255,7 +264,7 @@ class Substance(AttributeClass):
 
             for amount in amounts:
 
-                if not isinstance(amount, ExactAmount):
+                if not isinstance(amount, ExactAmount) or not count_exact_amount:
                     continue
 
                 remaining_molecule_slots -= amount.value
