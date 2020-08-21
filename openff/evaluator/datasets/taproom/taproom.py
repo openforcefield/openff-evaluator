@@ -14,6 +14,7 @@ from openff.evaluator.datasets import PhysicalPropertyDataSet, PropertyPhase, So
 from openff.evaluator.properties import HostGuestBindingAffinity
 from openff.evaluator.substances import Component, ExactAmount, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
+from openff.evaluator.utils.exceptions import MissingOptionalDependency
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +124,18 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             using the ``paprika`` based workflow.
         """
         super().__init__()
+
+        try:
+            from openeye import oechem
+        except ImportError as e:
+            raise MissingOptionalDependency(e.path, False)
+
+        unlicensed_library = (
+            "openeye.oechem" if not oechem.OEChemIsLicensed() else None
+        )
+
+        if unlicensed_library is not None:
+            raise MissingOptionalDependency(unlicensed_library, True)
 
         # TODO: Don't overwrite the taproom ionic strength and buffer ions.
         self._initialize(
