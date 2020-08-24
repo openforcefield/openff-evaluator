@@ -332,9 +332,17 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         unique_n_pull_windows = set()
         unique_release_lambdas = set()
 
+        unique_host_structures = set()
+
         for orientation, host_yaml_path in host_yaml_paths.items():
 
             host_spec = read_yaml(host_yaml_path)
+
+            root_host_path = os.path.dirname(host_yaml_path)
+            host_path = os.path.join(
+                root_host_path, host_spec["structure"].replace(".mol2", f".pdb"),
+            )
+            unique_host_structures.add(host_path)
 
             root_complex_path = os.path.dirname(guest_yaml_path)
             complex_path = os.path.join(
@@ -362,6 +370,9 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 tuple(host_spec["calculation"]["lambda"]["release"])
             )
 
+        if len(unique_host_structures) != 1:
+            raise NotImplementedError("There must only be a single host structure.")
+
         if (
             len(unique_attach_lambdas) != 1
             or len(unique_n_pull_windows) != 1
@@ -377,6 +388,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
         metadata.update(
             {
+                "host_coordinate_path": next(iter(unique_host_structures)),
                 "attach_windows_indices": [*range(len(attach_lambdas))],
                 "attach_lambdas": attach_lambdas,
                 "pull_windows_indices": [*range(n_pull_windows)],

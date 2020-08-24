@@ -383,6 +383,13 @@ class HostGuestBindingAffinity(PhysicalProperty):
             f"{attach_replicator.placeholder_id}_" f"{orientation_placeholder}"
         )
 
+        # Filter out only the solvent substance to help with the solvation step.
+        filter_solvent = miscellaneous.FilterSubstanceByRole(
+            "host-guest-filter_solvent"
+        )
+        filter_solvent.input_substance = ProtocolPath("substance", "global")
+        filter_solvent.component_roles = [Component.Role.Solvent]
+
         # Define the protocols which will set and solvate up the coordinates for each
         # pull window
         align_coordinates = PreparePullCoordinates(
@@ -402,7 +409,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         solvate_coordinates = copy.deepcopy(solvation_template)
         solvate_coordinates.id = f"pull_solvate_coordinates_{pull_replicator_id}"
         solvate_coordinates.substance = ProtocolPath(
-            "filtered_substance", "filter_solvent"
+            "filtered_substance", filter_solvent.id
         )
         solvate_coordinates.solute_coordinate_file = ProtocolPath(
             "output_coordinate_path", align_coordinates.id
@@ -559,6 +566,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         # Return the full list of protocols which make up the attach and pull parts
         # of a host-guest APR calculation.
         protocols = [
+            filter_solvent,
             align_coordinates,
             solvate_coordinates,
             apply_parameters,
@@ -613,22 +621,23 @@ class HostGuestBindingAffinity(PhysicalProperty):
             f"{release_replicator.placeholder_id}_" f"{orientation_placeholder}"
         )
 
+        # Filter out only the solvent substance to help with the solvation step.
+        filter_solvent = miscellaneous.FilterSubstanceByRole("host-filter_solvent")
+        filter_solvent.input_substance = ProtocolPath("host_substance", "global")
+        filter_solvent.component_roles = [Component.Role.Solvent]
+
         # Construct a set of coordinates for a host molecule correctly
         # aligned to the z-axis.
-        align_coordinates = PrepareReleaseCoordinates(
-            f"release_align_coordinates_{orientation_placeholder}"
-        )
-        align_coordinates.substance = ProtocolPath("substance", "global")
+        align_coordinates = PrepareReleaseCoordinates("release_align_coordinates")
+        align_coordinates.substance = ProtocolPath("host_substance", "global")
         align_coordinates.complex_file_path = ProtocolPath(
-            f"guest_orientations[{orientation_placeholder}].coordinate_path", "global"
+            f"host_coordinate_path", "global"
         )
 
         solvate_coordinates = copy.deepcopy(solvation_template)
-        solvate_coordinates.id = (
-            f"release_solvate_coordinates_{orientation_placeholder}"
-        )
+        solvate_coordinates.id = "release_solvate_coordinates"
         solvate_coordinates.substance = ProtocolPath(
-            "filtered_substance", "filter_solvent"
+            "filtered_substance", filter_solvent.id
         )
         solvate_coordinates.solute_coordinate_file = ProtocolPath(
             "output_coordinate_path", align_coordinates.id
@@ -636,20 +645,16 @@ class HostGuestBindingAffinity(PhysicalProperty):
 
         # Apply the force field parameters. This only needs to be done for one
         # of the windows.
-        apply_parameters = forcefield.BaseBuildSystem(
-            f"release_apply_parameters_{orientation_placeholder}"
-        )
+        apply_parameters = forcefield.BaseBuildSystem("release_apply_parameters")
         apply_parameters.force_field_path = ProtocolPath("force_field_path", "global")
-        apply_parameters.substance = ProtocolPath("substance", "global")
+        apply_parameters.substance = ProtocolPath("host_substance", "global")
         apply_parameters.coordinate_file_path = ProtocolPath(
             "coordinate_file_path", solvate_coordinates.id
         )
 
         # Add the dummy atoms.
-        add_dummy_atoms = AddDummyAtoms(
-            f"release_add_dummy_atoms_{orientation_placeholder}"
-        )
-        add_dummy_atoms.substance = ProtocolPath("substance", "global")
+        add_dummy_atoms = AddDummyAtoms("release_add_dummy_atoms")
+        add_dummy_atoms.substance = ProtocolPath("host_substance", "global")
         add_dummy_atoms.input_coordinate_path = ProtocolPath(
             "coordinate_file_path", solvate_coordinates.id,
         )
@@ -718,6 +723,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         # Return the full list of protocols which make up the release parts
         # of a host-guest APR calculation.
         protocols = [
+            filter_solvent,
             align_coordinates,
             solvate_coordinates,
             apply_parameters,
@@ -832,11 +838,6 @@ class HostGuestBindingAffinity(PhysicalProperty):
                 simulation_template.steps_per_iteration = 500
                 simulation_template.output_frequency = 50
 
-        # Extract a substance which only contains the solvent elements.
-        filter_solvent = miscellaneous.FilterSubstanceByRole("filter_solvent")
-        filter_solvent.input_substance = ProtocolPath("substance", "global")
-        filter_solvent.component_roles = [Component.Role.Solvent]
-
         # Set up a replicator which will perform the attach-pull calculation for
         # each of the guest orientations
         orientation_replicator = ProtocolReplicator("orientation_replicator")
@@ -919,7 +920,6 @@ class HostGuestBindingAffinity(PhysicalProperty):
         calculation_schema.workflow_schema = WorkflowSchema()
 
         calculation_schema.workflow_schema.protocol_schemas = [
-            filter_solvent.schema,
             *(protocol.schema for protocol in attach_pull_protocols),
             *(protocol.schema for protocol in release_protocols),
             symmetry_correction.schema,
