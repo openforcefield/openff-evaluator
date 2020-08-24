@@ -631,7 +631,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         align_coordinates = PrepareReleaseCoordinates("release_align_coordinates")
         align_coordinates.substance = ProtocolPath("host_substance", "global")
         align_coordinates.complex_file_path = ProtocolPath(
-            f"host_coordinate_path", "global"
+            "host_coordinate_path", "global"
         )
 
         solvate_coordinates = copy.deepcopy(solvation_template)

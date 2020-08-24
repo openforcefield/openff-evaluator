@@ -340,7 +340,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
             root_host_path = os.path.dirname(host_yaml_path)
             host_path = os.path.join(
-                root_host_path, host_spec["structure"].replace(".mol2", f".pdb"),
+                root_host_path, host_spec["structure"].replace(".mol2", ".pdb"),
             )
             unique_host_structures.add(host_path)
 
