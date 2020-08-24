@@ -25,11 +25,15 @@ def main():
 
     # Load in the data set, retaining only a specific host / guest pair.
     binding_affinity = TaproomDataSet(
-        host_codes=["acd"], guest_codes=["bam"], default_ionic_strength=None
+        host_codes=["acd"],
+        guest_codes=["bam"],
+        default_ionic_strength=350 * unit.millimolar,
     ).properties[0]
 
     # Set up the calculation
-    schema = HostGuestBindingAffinity.default_paprika_schema().workflow_schema
+    schema = HostGuestBindingAffinity.default_paprika_schema(
+        n_solvent_molecules=2000
+    ).workflow_schema
     schema.replace_protocol_types(
         {
             "BaseBuildSystem": (
@@ -64,10 +68,9 @@ def main():
         ],
         queue_name="gpuqueue",
     ) as calculation_backend:
-
         results = workflow.execute(
             root_directory=f"workflow", calculation_backend=calculation_backend
-        )
+        ).result()
 
     # Save the results
     results.json(f"results.json", format=True)
