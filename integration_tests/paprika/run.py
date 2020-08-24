@@ -27,7 +27,7 @@ def main():
     binding_affinity = TaproomDataSet(
         host_codes=["acd"],
         guest_codes=["bam"],
-        default_ionic_strength=350 * unit.millimolar,
+        default_ionic_strength=150 * unit.millimolar,
     ).properties[0]
 
     # Set up the calculation
