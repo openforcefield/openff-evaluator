@@ -69,11 +69,11 @@ def main():
         queue_name="gpuqueue",
     ) as calculation_backend:
         results = workflow.execute(
-            root_directory=f"workflow", calculation_backend=calculation_backend
+            root_directory="workflow", calculation_backend=calculation_backend
         ).result()
 
     # Save the results
-    results.json(f"results.json", format=True)
+    results.json("results.json", format=True)
 
 
 if __name__ == "__main__":
