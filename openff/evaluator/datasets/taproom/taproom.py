@@ -220,10 +220,10 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             water_mole_fraction = 1.0 - salt_mole_fraction
 
             substance.add_component(
-                component=sodium, amount=MoleFraction(salt_mole_fraction / 2.0),
+                component=sodium, amount=MoleFraction(salt_mole_fraction),
             )
             substance.add_component(
-                component=chlorine, amount=MoleFraction(salt_mole_fraction / 2.0),
+                component=chlorine, amount=MoleFraction(salt_mole_fraction),
             )
 
         substance.add_component(
