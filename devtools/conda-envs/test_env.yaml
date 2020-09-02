@@ -36,3 +36,4 @@ dependencies:
   - rdkit
   - cmiles
   - python-dateutil
+  - pydantic

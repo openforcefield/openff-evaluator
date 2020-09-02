@@ -5,6 +5,8 @@ import contextlib
 import logging
 import os
 import sys
+from tempfile import TemporaryDirectory
+from typing import Optional
 
 from openff.evaluator.utils.string import extract_variable_index_and_name
 
@@ -219,21 +221,40 @@ def set_nested_attribute(containing_object, name, value):
 
 
 @contextlib.contextmanager
-def temporarily_change_directory(file_path):
-    """A context to temporarily change the working directory.
+def temporarily_change_directory(directory_path: Optional[str] = None):
+    """Temporarily move the current working directory to the path
+    specified. If no path is given, a temporary directory will be
+    created, moved into, and then destroyed when the context manager
+    is closed.
 
     Parameters
     ----------
-    file_path: str
-        The file path to temporarily change into.
+    directory_path
+        The directory to change into. If None, a temporary directory will
+        be created and changed into.
     """
-    prev_dir = os.getcwd()
-    os.chdir(os.path.abspath(file_path))
+
+    if directory_path is not None and len(directory_path) == 0:
+        yield
+        return
+
+    old_directory = os.getcwd()
 
     try:
-        yield
+
+        if directory_path is None:
+
+            with TemporaryDirectory() as new_directory:
+                os.chdir(new_directory)
+                yield
+
+        else:
+
+            os.chdir(directory_path)
+            yield
+
     finally:
-        os.chdir(prev_dir)
+        os.chdir(old_directory)
 
 
 def has_openeye():
