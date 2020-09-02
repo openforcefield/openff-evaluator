@@ -226,8 +226,11 @@ class Substance(AttributeClass):
         return self.amounts[identifier]
 
     def get_molecules_per_component(
-        self, maximum_molecules, tolerance=None, count_exact_amount=True,
-        adjustable=None
+        self,
+        maximum_molecules,
+        tolerance=None,
+        count_exact_amount=True,
+        adjustable=None,
     ):
         """Returns the number of molecules for each component in this substance,
         given a maximum total number of molecules.
