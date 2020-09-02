@@ -29,7 +29,7 @@ from openff.evaluator.utils.openmm import (
 )
 from openff.evaluator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from openff.evaluator.utils.statistics import ObservableType, StatisticsArray
-from openff.evaluator.utils.utils import isfile_notempty
+from openff.evaluator.utils.utils import is_file_and_not_empty
 from openff.evaluator.workflow import workflow_protocol
 
 logger = logging.getLogger(__name__)
@@ -193,7 +193,7 @@ class OpenMMSimulation(BaseSimulation):
         # Save a copy of the starting configuration if it doesn't already exist
         local_input_coordinate_path = os.path.join(directory, "input.pdb")
 
-        if not isfile_notempty(local_input_coordinate_path):
+        if not is_file_and_not_empty(local_input_coordinate_path):
 
             input_pdb_file = app.PDBFile(self.input_coordinate_file)
 
@@ -472,14 +472,14 @@ class OpenMMSimulation(BaseSimulation):
         current_step_number = 0
 
         # Check whether the checkpoint files actually exists.
-        if not isfile_notempty(self._checkpoint_path) or not isfile_notempty(
+        if not is_file_and_not_empty(self._checkpoint_path) or not is_file_and_not_empty(
             self._state_path
         ):
 
             logger.info("No checkpoint files were found.")
             return current_step_number
 
-        if not isfile_notempty(self._local_statistics_path) or not isfile_notempty(
+        if not is_file_and_not_empty(self._local_statistics_path) or not is_file_and_not_empty(
             self._local_trajectory_path
         ):
 
@@ -600,7 +600,7 @@ class OpenMMSimulation(BaseSimulation):
 
         # Build the reporters which we will use to report the state
         # of the simulation.
-        append_trajectory = isfile_notempty(self._local_trajectory_path)
+        append_trajectory = is_file_and_not_empty(self._local_trajectory_path)
         dcd_reporter = app.DCDReporter(
             self._local_trajectory_path, 0, append_trajectory
         )
