@@ -226,7 +226,8 @@ class Substance(AttributeClass):
         return self.amounts[identifier]
 
     def get_molecules_per_component(
-        self, maximum_molecules, tolerance=None, count_exact_amount=True
+        self, maximum_molecules, tolerance=None, count_exact_amount=True,
+        adjustable=None
     ):
         """Returns the number of molecules for each component in this substance,
         given a maximum total number of molecules.
@@ -247,6 +248,10 @@ class Substance(AttributeClass):
              building a separate solvated protein (n = 1) and solvated protein +
              ligand complex (n = 2) system but wish for both systems to have the
              same number of solvent molecules.
+        adjustable: str
+             Component identifier for the component that can be incremented or
+             decremented after all components are populated in order to arrive
+             at the desired `maximum_molecules`.
 
         Returns
         -------
@@ -285,6 +290,13 @@ class Substance(AttributeClass):
                 number_of_molecules[
                     component.identifier
                 ] += amount.to_number_of_molecules(remaining_molecule_slots, tolerance)
+
+        if adjustable is not None:
+            while sum(number_of_molecules.values()) > maximum_molecules:
+                number_of_molecules[adjustable] -= 1
+
+            while sum(number_of_molecules.values()) < maximum_molecules:
+                number_of_molecules[adjustable] += 1
 
         return number_of_molecules
 

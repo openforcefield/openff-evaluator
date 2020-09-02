@@ -22,6 +22,7 @@ class Component(AttributeClass):
         """
 
         Solvent = "solv"
+        Salt = "salt"
         Solute = "sol"
 
         Ligand = "lig"

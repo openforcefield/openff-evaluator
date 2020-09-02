@@ -124,9 +124,16 @@ class BuildCoordinatesPackmol(Protocol):
             molecule = Molecule.from_smiles(component.smiles)
             molecules.append(molecule)
 
+        # TODO: make this optionally enabled
+        adjustable = None
+        for component in self.substance.components:
+            if component.role.name == 'Solvent':
+                adjustable = component.identifier
+
         # Determine how many molecules of each type will be present in the system.
         molecules_per_component = self.substance.get_molecules_per_component(
-            self.max_molecules, count_exact_amount=self.count_exact_amount
+            self.max_molecules, count_exact_amount=self.count_exact_amount,
+            adjustable=adjustable
         )
         number_of_molecules = [0] * self.substance.number_of_components
 
