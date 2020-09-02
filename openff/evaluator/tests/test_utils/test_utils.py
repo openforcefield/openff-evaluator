@@ -63,20 +63,21 @@ def test_get_nested_attribute():
     assert get_nested_attribute(dummy_object, "object_b[b].object_b[0].object_a") == "a"
     assert get_nested_attribute(dummy_object, "object_b[b].object_b[0].object_b") == "b"
 
+
 def test_is_file_and_not_empty(tmpdir):
-    path = 'testfile'
+    path = "testfile"
     with tempfile.TemporaryDirectory() as directory:
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             pass
 
     assert os.path.isfile(path)
     assert os.path.getsize(path) == 0
     assert not is_file_and_not_empty(path)
 
-    path = 'testfile2'
+    path = "testfile2"
     with tempfile.TemporaryDirectory() as directory:
-        with open(path, 'w') as f:
-           f.write("ubiquitous mendacious polyglottal")
+        with open(path, "w") as f:
+            f.write("ubiquitous mendacious polyglottal")
 
     assert os.path.isfile(path)
     assert os.path.getsize(path) != 0

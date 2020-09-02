@@ -472,16 +472,16 @@ class OpenMMSimulation(BaseSimulation):
         current_step_number = 0
 
         # Check whether the checkpoint files actually exists.
-        if not is_file_and_not_empty(self._checkpoint_path) or not is_file_and_not_empty(
-            self._state_path
-        ):
+        if not is_file_and_not_empty(
+            self._checkpoint_path
+        ) or not is_file_and_not_empty(self._state_path):
 
             logger.info("No checkpoint files were found.")
             return current_step_number
 
-        if not is_file_and_not_empty(self._local_statistics_path) or not is_file_and_not_empty(
-            self._local_trajectory_path
-        ):
+        if not is_file_and_not_empty(
+            self._local_statistics_path
+        ) or not is_file_and_not_empty(self._local_trajectory_path):
 
             raise ValueError(
                 "Checkpoint files were correctly found, but the trajectory "
