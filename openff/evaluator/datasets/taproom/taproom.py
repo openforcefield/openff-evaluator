@@ -202,8 +202,8 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         substance.add_component(component=host, amount=ExactAmount(1))
 
         water = Component(smiles="O", role=Component.Role.Solvent)
-        sodium = Component(smiles=positive_buffer_ion, role=Component.Role.Solvent)
-        chlorine = Component(smiles=negative_buffer_ion, role=Component.Role.Solvent)
+        sodium = Component(smiles=positive_buffer_ion, role=Component.Role.Salt)
+        chlorine = Component(smiles=negative_buffer_ion, role=Component.Role.Salt)
 
         water_mole_fraction = 1.0
 
