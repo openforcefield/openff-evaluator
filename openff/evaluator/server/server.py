@@ -623,8 +623,7 @@ class EvaluatorServer:
             self._handle_job_query(connection, message_length)
 
     def _handle_connections(self):
-        """Handles incoming client TCP connections.
-        """
+        """Handles incoming client TCP connections."""
         to_read = [self._socket]
 
         try:

@@ -10,8 +10,7 @@ from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 
 
 class Ensemble(Enum):
-    """An enum describing the supported thermodynamic ensembles.
-    """
+    """An enum describing the supported thermodynamic ensembles."""
 
     NVT = "NVT"
     NPT = "NPT"

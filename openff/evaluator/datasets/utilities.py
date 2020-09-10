@@ -6,7 +6,7 @@ if TYPE_CHECKING:
 
 
 def reorder_data_frame(data_frame: "pandas.DataFrame") -> "pandas.DataFrame":
-    """ Re-order the substance columns of a data frame so that the individual
+    """Re-order the substance columns of a data frame so that the individual
     components are alphabetically sorted.
 
     Parameters

@@ -437,8 +437,10 @@ class Workflow:
                         if attribute_value.replicator_id != replicator.id:
 
                             # Make sure to handle nested dependent replicators.
-                            attribute_value.replicator_id = attribute_value.replicator_id.replace(
-                                replicator.placeholder_id, str(index)
+                            attribute_value.replicator_id = (
+                                attribute_value.replicator_id.replace(
+                                    replicator.placeholder_id, str(index)
+                                )
                             )
 
                             continue
@@ -818,7 +820,8 @@ class WorkflowResult(AttributeClass):
     """
 
     workflow_id = Attribute(
-        docstring="The id of the workflow associated with this result.", type_hint=str,
+        docstring="The id of the workflow associated with this result.",
+        type_hint=str,
     )
 
     value = Attribute(
@@ -1128,7 +1131,10 @@ class WorkflowGraph:
                 data_directory = path.join(directory, f"data_{unique_id}")
 
                 WorkflowGraph._store_output_data(
-                    data_object_path, data_directory, output_to_store, results_by_id,
+                    data_object_path,
+                    data_directory,
+                    output_to_store,
+                    results_by_id,
                 )
 
                 return_object.data_to_store.append((data_object_path, data_directory))
@@ -1140,7 +1146,10 @@ class WorkflowGraph:
 
     @staticmethod
     def _store_output_data(
-        data_object_path, data_directory, output_to_store, results_by_id,
+        data_object_path,
+        data_directory,
+        output_to_store,
+        results_by_id,
     ):
 
         """Collects all of the simulation to store, and saves it into a directory

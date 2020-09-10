@@ -83,7 +83,8 @@ class ForceFieldData(HashableStoredData):
     """
 
     force_field_source = StorageAttribute(
-        docstring="The force field source object.", type_hint=ForceFieldSource,
+        docstring="The force field source object.",
+        type_hint=ForceFieldSource,
     )
 
     @classmethod
@@ -222,7 +223,8 @@ class StoredSimulationData(ReplaceableData):
     )
 
     number_of_molecules = StorageAttribute(
-        docstring="The total number of molecules in the system.", type_hint=int,
+        docstring="The total number of molecules in the system.",
+        type_hint=int,
     )
 
     @classmethod

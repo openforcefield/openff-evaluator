@@ -145,7 +145,6 @@ class OutputAttribute(Attribute):
     """
 
     def __init__(self, docstring, type_hint):
-        """Initializes a new OutputAttribute object.
-        """
+        """Initializes a new OutputAttribute object."""
         docstring = f"**Output** - {docstring}"
         super().__init__(docstring, type_hint, UNDEFINED, optional=False)

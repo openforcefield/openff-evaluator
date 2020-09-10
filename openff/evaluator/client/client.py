@@ -37,8 +37,7 @@ logger = logging.getLogger(__name__)
 
 
 class ConnectionOptions(AttributeClass):
-    """The options to use when connecting to an `EvaluatorServer`
-    """
+    """The options to use when connecting to an `EvaluatorServer`"""
 
     server_address = Attribute(
         docstring="The address of the server to connect to.",

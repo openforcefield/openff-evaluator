@@ -31,8 +31,7 @@ from openff.evaluator.workflow.utils import ProtocolPath
 
 @workflow_protocol()
 class ExtractAverageDielectric(analysis.AverageTrajectoryProperty):
-    """Extracts the average dielectric constant from a simulation trajectory.
-    """
+    """Extracts the average dielectric constant from a simulation trajectory."""
 
     system_path = InputAttribute(
         docstring="The path to the XML system object which defines the forces present in the system.",
@@ -341,7 +340,8 @@ class ReweightDielectricConstant(reweighting.BaseMBARProtocol):
 
 
 @thermoml_property(
-    "Relative permittivity at zero frequency", supported_phases=PropertyPhase.Liquid,
+    "Relative permittivity at zero frequency",
+    supported_phases=PropertyPhase.Liquid,
 )
 class DielectricConstant(PhysicalProperty):
     """A class representation of a dielectric property"""
@@ -391,7 +391,9 @@ class DielectricConstant(PhysicalProperty):
         )
 
         protocols, value_source, output_to_store = generate_base_simulation_protocols(
-            extract_dielectric, use_target_uncertainty, n_molecules=n_molecules,
+            extract_dielectric,
+            use_target_uncertainty,
+            n_molecules=n_molecules,
         )
 
         # Make sure the input of the analysis protcol is properly hooked up.

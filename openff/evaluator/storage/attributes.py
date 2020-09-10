@@ -6,8 +6,7 @@ from openff.evaluator.attributes import UNDEFINED, Attribute
 
 
 class FilePath(str):
-    """Represents a string file path.
-    """
+    """Represents a string file path."""
 
     pass
 
@@ -18,7 +17,10 @@ class StorageAttribute(Attribute):
     """
 
     def __init__(
-        self, docstring, type_hint, optional=False,
+        self,
+        docstring,
+        type_hint,
+        optional=False,
     ):
         super().__init__(docstring, type_hint, UNDEFINED, optional)
 

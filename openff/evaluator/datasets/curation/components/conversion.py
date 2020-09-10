@@ -360,7 +360,9 @@ class ConvertExcessDensityData(CurationComponent):
         if len(data_to_concat) > 1:
 
             converted_data = pandas.concat(
-                data_to_concat, ignore_index=True, sort=False,
+                data_to_concat,
+                ignore_index=True,
+                sort=False,
             )
 
         else:

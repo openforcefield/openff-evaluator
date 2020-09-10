@@ -107,7 +107,11 @@ def _validate_inputs(
 
 
 def _approximate_box_size_by_density(
-    molecules, n_copies, mass_density, box_aspect_ratio, box_scaleup_factor=1.1,
+    molecules,
+    n_copies,
+    mass_density,
+    box_aspect_ratio,
+    box_scaleup_factor=1.1,
 ):
     """Generate an approximate box size based on the number and molecular
     weight of the molecules present, and a target density for the final

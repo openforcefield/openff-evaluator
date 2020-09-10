@@ -126,7 +126,12 @@ def test_storage_retrieval():
 
             # noinspection PyProtectedMember
             metadata = ReweightingLayer._get_workflow_metadata(
-                base_directory, physical_property, "", [], storage_backend, schema,
+                base_directory,
+                physical_property,
+                "",
+                [],
+                storage_backend,
+                schema,
             )
 
             assert metadata is not None

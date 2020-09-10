@@ -207,8 +207,10 @@ def test_density_dielectric_merging(workflow_merge_function):
     dependants_graph_a = density_workflow_graph._protocol_graph._build_dependants_graph(
         density_workflow_graph.protocols, False, apply_reduction=True
     )
-    dependants_graph_b = dielectric_workflow_graph._protocol_graph._build_dependants_graph(
-        dielectric_workflow_graph.protocols, False, apply_reduction=True
+    dependants_graph_b = (
+        dielectric_workflow_graph._protocol_graph._build_dependants_graph(
+            dielectric_workflow_graph.protocols, False, apply_reduction=True
+        )
     )
 
     merge_order_a = graph.topological_sort(dependants_graph_a)

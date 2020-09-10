@@ -44,21 +44,26 @@ def test_ligand_receptor_yank_protocol():
     full_substance = Substance()
 
     full_substance.add_component(
-        Component(smiles="c1ccccc1", role=Component.Role.Receptor), ExactAmount(1),
+        Component(smiles="c1ccccc1", role=Component.Role.Receptor),
+        ExactAmount(1),
     )
     full_substance.add_component(
-        Component(smiles="C", role=Component.Role.Ligand), ExactAmount(1),
+        Component(smiles="C", role=Component.Role.Ligand),
+        ExactAmount(1),
     )
     full_substance.add_component(
-        Component(smiles="O", role=Component.Role.Solvent), MoleFraction(1.0),
+        Component(smiles="O", role=Component.Role.Solvent),
+        MoleFraction(1.0),
     )
 
     solute_substance = Substance()
     solute_substance.add_component(
-        Component(smiles="C", role=Component.Role.Ligand), ExactAmount(1),
+        Component(smiles="C", role=Component.Role.Ligand),
+        ExactAmount(1),
     )
     solute_substance.add_component(
-        Component(smiles="O", role=Component.Role.Solvent), MoleFraction(1.0),
+        Component(smiles="O", role=Component.Role.Solvent),
+        MoleFraction(1.0),
     )
 
     thermodynamic_state = ThermodynamicState(
@@ -109,7 +114,8 @@ def test_solvation_yank_protocol(solvent_smiles):
     full_substance = Substance()
 
     full_substance.add_component(
-        Component(smiles="CO", role=Component.Role.Solute), ExactAmount(1),
+        Component(smiles="CO", role=Component.Role.Solute),
+        ExactAmount(1),
     )
     full_substance.add_component(
         Component(smiles=solvent_smiles, role=Component.Role.Solvent),
@@ -124,7 +130,8 @@ def test_solvation_yank_protocol(solvent_smiles):
 
     solute_substance = Substance()
     solute_substance.add_component(
-        Component(smiles="CO", role=Component.Role.Solute), ExactAmount(1),
+        Component(smiles="CO", role=Component.Role.Solute),
+        ExactAmount(1),
     )
 
     thermodynamic_state = ThermodynamicState(

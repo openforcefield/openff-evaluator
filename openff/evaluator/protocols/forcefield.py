@@ -387,7 +387,8 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
             if smiles in ["O", "[H]O[H]", "[H][O][H]"]:
 
                 component_system = self._build_tip3p_system(
-                    cutoff, openmm_pdb_file.topology.getUnitCellDimensions(),
+                    cutoff,
+                    openmm_pdb_file.topology.getUnitCellDimensions(),
                 )
 
             else:
@@ -844,8 +845,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
     """
 
     class ChargeBackend(Enum):
-        """The framework to use to assign partial charges.
-        """
+        """The framework to use to assign partial charges."""
 
         OpenEye = "OpenEye"
         AmberTools = "AmberTools"
@@ -1000,7 +1000,9 @@ class BuildTLeapSystem(TemplateBuildSystem):
             template_lines = [f"source {force_field_source.leap_source}"]
 
             if frcmod_path is not None:
-                template_lines.append(f"loadamberparams {frcmod_path}",)
+                template_lines.append(
+                    f"loadamberparams {frcmod_path}",
+                )
 
             prmtop_file_name = "structure.prmtop"
             rst7_file_name = "structure.rst7"
