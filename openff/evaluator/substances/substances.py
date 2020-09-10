@@ -2,6 +2,7 @@
 An API for defining and creating substances.
 """
 import operator
+from collections import defaultdict
 
 import numpy as np
 
@@ -253,7 +254,7 @@ class Substance(AttributeClass):
              building a separate solvated protein (n = 1) and solvated protein +
              ligand complex (n = 2) system but wish for both systems to have the
              same number of solvent molecules.
-         truncate_n_molecules: bool
+        truncate_n_molecules: bool
             Whether or not to attempt to truncate the number of molecules in the
             substance if the total number is over the specified maximum. If False, an
             exception will be raised in this case.
@@ -271,7 +272,6 @@ class Substance(AttributeClass):
             a component identifier.
         """
 
-        number_of_molecules = {}
         remaining_molecule_slots = maximum_molecules
 
         for index, component in enumerate(self.components):
@@ -292,19 +292,27 @@ class Substance(AttributeClass):
                 f"exceeds the provided maximum number ({maximum_molecules})."
             )
 
-        for component in self.components:
+        # Track the total number of molecules.
+        n_molecules = defaultdict(int)
+        # Track the number of molecules added from mole fraction amounts.
+        n_mole_fractions = defaultdict(int)
 
-            number_of_molecules[component.identifier] = 0
+        for component in self.components:
 
             for amount in self.amounts[component.identifier]:
 
-                number_of_molecules[
-                    component.identifier
-                ] += amount.to_number_of_molecules(remaining_molecule_slots, tolerance)
+                n_amount_molecules = amount.to_number_of_molecules(
+                    remaining_molecule_slots, tolerance
+                )
+
+                n_molecules[component.identifier] += n_amount_molecules
+
+                if isinstance(amount, MoleFraction):
+                    n_mole_fractions[component.identifier] += n_amount_molecules
 
         # Attempt to fix rounding issues which lead to more molecules being added than
         # the maximum.
-        total_molecules = sum(number_of_molecules.values())
+        total_molecules = sum(n_molecules.values()) if count_exact_amount else sum(n_mole_fractions.values())
 
         max_truncation_attempts = len(self.components)
         n_truncation_attempts = 0
@@ -312,16 +320,18 @@ class Substance(AttributeClass):
         while (
             truncate_n_molecules
             and total_molecules > maximum_molecules
-            and total_molecules > 0
+            and sum(n_mole_fractions.values()) > 0
             and n_truncation_attempts < max_truncation_attempts
         ):
 
             largest_component = max(
-                number_of_molecules.items(), key=operator.itemgetter(1)
+                n_mole_fractions.items(), key=operator.itemgetter(1)
             )[0]
 
-            number_of_molecules[largest_component] -= 1
-            total_molecules = sum(number_of_molecules.values())
+            n_molecules[largest_component] -= 1
+            n_mole_fractions[largest_component] -= 1
+
+            total_molecules = sum(n_molecules.values()) if count_exact_amount else sum(n_mole_fractions.values())
 
             n_truncation_attempts += 1
 
@@ -332,7 +342,7 @@ class Substance(AttributeClass):
                 f"number ({maximum_molecules}). This should not be able to happen."
             )
 
-        return number_of_molecules
+        return n_molecules
 
     @staticmethod
     def calculate_aqueous_ionic_mole_fraction(ionic_strength):
