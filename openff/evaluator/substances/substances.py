@@ -1,6 +1,8 @@
 """
 An API for defining and creating substances.
 """
+import operator
+
 import numpy as np
 
 from openff.evaluator import unit
@@ -226,7 +228,11 @@ class Substance(AttributeClass):
         return self.amounts[identifier]
 
     def get_molecules_per_component(
-        self, maximum_molecules, tolerance=None, count_exact_amount=True
+        self,
+        maximum_molecules,
+        tolerance=None,
+        count_exact_amount=True,
+        truncate_n_molecules=True,
     ):
         """Returns the number of molecules for each component in this substance,
         given a maximum total number of molecules.
@@ -247,6 +253,16 @@ class Substance(AttributeClass):
              building a separate solvated protein (n = 1) and solvated protein +
              ligand complex (n = 2) system but wish for both systems to have the
              same number of solvent molecules.
+         truncate_n_molecules: bool
+            Whether or not to attempt to truncate the number of molecules in the
+            substance if the total number is over the specified maximum. If False, an
+            exception will be raised in this case.
+
+            The truncation works by iteratively removing one molecule of the
+            predominant component up to a limit of removing a total number of molecules
+            equal to the number of components  in the substance (e.g. for a binary
+            substance a maximum of two molecules can be removed). An exception is
+            raised if the number of molecules cannot be sensibly truncated.
 
         Returns
         -------
@@ -285,6 +301,36 @@ class Substance(AttributeClass):
                 number_of_molecules[
                     component.identifier
                 ] += amount.to_number_of_molecules(remaining_molecule_slots, tolerance)
+
+        # Attempt to fix rounding issues which lead to more molecules being added than
+        # the maximum.
+        total_molecules = sum(number_of_molecules.values())
+
+        max_truncation_attempts = len(self.components)
+        n_truncation_attempts = 0
+
+        while (
+            truncate_n_molecules
+            and total_molecules > maximum_molecules
+            and total_molecules > 0
+            and n_truncation_attempts < max_truncation_attempts
+        ):
+
+            largest_component = max(
+                number_of_molecules.items(), key=operator.itemgetter(1)
+            )[0]
+
+            number_of_molecules[largest_component] -= 1
+            total_molecules = sum(number_of_molecules.values())
+
+            n_truncation_attempts += 1
+
+        if total_molecules > maximum_molecules:
+
+            raise ValueError(
+                f"The total number of molecules ({total_molecules}) exceeds the maximum "
+                f"number ({maximum_molecules}). This should not be able to happen."
+            )
 
         return number_of_molecules
 

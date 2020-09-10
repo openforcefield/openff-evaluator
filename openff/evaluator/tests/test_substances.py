@@ -70,6 +70,32 @@ def test_multiple_amounts():
     assert molecule_counts[chloride.identifier] == 2
 
 
+def test_truncate_n_molecules():
+
+    substance = Substance()
+
+    substance.add_component(
+        component=Component(smiles="[Na+]"), amount=MoleFraction(0.00267),
+    )
+    substance.add_component(
+        component=Component(smiles="[Cl-]"), amount=MoleFraction(0.00267),
+    )
+    substance.add_component(
+        component=Component(smiles="O"), amount=MoleFraction(1.0 - 2.0 * 0.00267)
+    )
+
+    # Attempt to get the number of molecules without truncating.
+    with pytest.raises(ValueError):
+        substance.get_molecules_per_component(1000, truncate_n_molecules=False)
+
+    # Attempt to get the number of molecules with truncating.
+    molecule_counts = substance.get_molecules_per_component(
+        1000, truncate_n_molecules=True
+    )
+
+    assert molecule_counts == {"[Na+]{solv}": 3, "[Cl-]{solv}": 3, "O{solv}": 994}
+
+
 def test_substance_len():
 
     substance = Substance.from_components("C", "CC", "CCC", "CCC")
