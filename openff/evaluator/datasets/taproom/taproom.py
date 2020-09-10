@@ -220,10 +220,12 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             water_mole_fraction = 1.0 - salt_mole_fraction * 2
 
             substance.add_component(
-                component=sodium, amount=MoleFraction(salt_mole_fraction),
+                component=sodium,
+                amount=MoleFraction(salt_mole_fraction),
             )
             substance.add_component(
-                component=chlorine, amount=MoleFraction(salt_mole_fraction),
+                component=chlorine,
+                amount=MoleFraction(salt_mole_fraction),
             )
 
         substance.add_component(
@@ -340,7 +342,8 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
             root_host_path = os.path.dirname(host_yaml_path)
             host_path = os.path.join(
-                root_host_path, host_spec["structure"].replace(".mol2", ".pdb"),
+                root_host_path,
+                host_spec["structure"].replace(".mol2", ".pdb"),
             )
             unique_host_structures.add(host_path)
 

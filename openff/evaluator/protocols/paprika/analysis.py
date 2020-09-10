@@ -146,8 +146,7 @@ class ComputeSymmetryCorrection(Protocol):
 
 @workflow_protocol()
 class ComputeReferenceWork(Protocol):
-    """Computes the reference state work.
-    """
+    """Computes the reference state work."""
 
     thermodynamic_state = InputAttribute(
         docstring="The thermodynamic state that the calculation was performed at.",

@@ -237,7 +237,9 @@ class GenerateReleaseRestraints(_GenerateRestraints):
         )
 
         self._save_restraints(
-            directory, static_restraints, conformational_restraints,
+            directory,
+            static_restraints,
+            conformational_restraints,
         )
 
 

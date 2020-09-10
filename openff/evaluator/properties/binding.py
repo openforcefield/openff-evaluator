@@ -656,7 +656,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
         add_dummy_atoms = AddDummyAtoms("release_add_dummy_atoms")
         add_dummy_atoms.substance = ProtocolPath("host_substance", "global")
         add_dummy_atoms.input_coordinate_path = ProtocolPath(
-            "coordinate_file_path", solvate_coordinates.id,
+            "coordinate_file_path",
+            solvate_coordinates.id,
         )
         add_dummy_atoms.input_system_path = ProtocolPath(
             "system_path", apply_parameters.id
