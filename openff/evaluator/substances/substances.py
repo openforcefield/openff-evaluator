@@ -312,7 +312,11 @@ class Substance(AttributeClass):
 
         # Attempt to fix rounding issues which lead to more molecules being added than
         # the maximum.
-        total_molecules = sum(n_molecules.values()) if count_exact_amount else sum(n_mole_fractions.values())
+        total_molecules = (
+            sum(n_molecules.values())
+            if count_exact_amount
+            else sum(n_mole_fractions.values())
+        )
 
         max_truncation_attempts = len(self.components)
         n_truncation_attempts = 0
@@ -331,7 +335,11 @@ class Substance(AttributeClass):
             n_molecules[largest_component] -= 1
             n_mole_fractions[largest_component] -= 1
 
-            total_molecules = sum(n_molecules.values()) if count_exact_amount else sum(n_mole_fractions.values())
+            total_molecules = (
+                sum(n_molecules.values())
+                if count_exact_amount
+                else sum(n_mole_fractions.values())
+            )
 
             n_truncation_attempts += 1
 

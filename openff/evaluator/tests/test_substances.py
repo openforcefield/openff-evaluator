@@ -75,10 +75,12 @@ def test_truncate_n_molecules():
     substance = Substance()
 
     substance.add_component(
-        component=Component(smiles="[Na+]"), amount=MoleFraction(0.00267),
+        component=Component(smiles="[Na+]"),
+        amount=MoleFraction(0.00267),
     )
     substance.add_component(
-        component=Component(smiles="[Cl-]"), amount=MoleFraction(0.00267),
+        component=Component(smiles="[Cl-]"),
+        amount=MoleFraction(0.00267),
     )
     substance.add_component(
         component=Component(smiles="O"), amount=MoleFraction(1.0 - 2.0 * 0.00267)
