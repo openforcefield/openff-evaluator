@@ -17,11 +17,11 @@ from openff.evaluator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
 class ProtocolSchema(AttributeClass):
-    """A json serializable representation of a workflow protocol.
-    """
+    """A json serializable representation of a workflow protocol."""
 
     id = Attribute(
-        docstring="The unique id associated with the protocol.", type_hint=str,
+        docstring="The unique id associated with the protocol.",
+        type_hint=str,
     )
     type = Attribute(
         docstring="The type of protocol associated with this schema.",
@@ -424,8 +424,7 @@ class ProtocolReplicator(TypedBaseModel):
 
 
 class WorkflowSchema(AttributeClass):
-    """The schematic for a property estimation workflow.
-    """
+    """The schematic for a property estimation workflow."""
 
     protocol_schemas = Attribute(
         docstring="The schemas for the protocols which will make up the workflow.",

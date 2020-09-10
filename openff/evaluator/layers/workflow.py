@@ -87,7 +87,7 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         parameter_gradient_keys,
         options,
     ):
-        """ Construct a graph of the protocols needed to calculate a set of
+        """Construct a graph of the protocols needed to calculate a set of
         properties.
 
         Parameters
@@ -207,7 +207,11 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
 
     @classmethod
     def _schedule_calculation(
-        cls, calculation_backend, storage_backend, layer_directory, batch,
+        cls,
+        calculation_backend,
+        storage_backend,
+        layer_directory,
+        batch,
     ):
 
         # Store a temporary copy of the force field for protocols to easily access.

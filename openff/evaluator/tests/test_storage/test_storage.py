@@ -17,8 +17,7 @@ from openff.evaluator.tests.utils import create_dummy_simulation_data
 
 @pytest.mark.parametrize("data_class", [SimpleData, HashableData])
 def test_simple_store_and_retrieve(data_class):
-    """Tests storing and retrieving a simple object.
-    """
+    """Tests storing and retrieving a simple object."""
     with tempfile.TemporaryDirectory() as temporary_directory:
 
         local_storage = LocalFileStorage(temporary_directory)

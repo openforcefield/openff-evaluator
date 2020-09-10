@@ -28,7 +28,8 @@ def data_frame() -> pandas.DataFrame:
     data_set.add_properties(
         Density(
             thermodynamic_state=ThermodynamicState(
-                temperature=298.15 * unit.kelvin, pressure=101.325 * unit.kilopascal,
+                temperature=298.15 * unit.kelvin,
+                pressure=101.325 * unit.kilopascal,
             ),
             phase=PropertyPhase.Liquid,
             value=1.0 * Density.default_unit(),
@@ -38,7 +39,8 @@ def data_frame() -> pandas.DataFrame:
         ),
         Density(
             thermodynamic_state=ThermodynamicState(
-                temperature=305.15 * unit.kelvin, pressure=101.325 * unit.kilopascal,
+                temperature=305.15 * unit.kelvin,
+                pressure=101.325 * unit.kilopascal,
             ),
             phase=PropertyPhase.Liquid,
             value=1.0 * Density.default_unit(),
@@ -48,7 +50,8 @@ def data_frame() -> pandas.DataFrame:
         ),
         Density(
             thermodynamic_state=ThermodynamicState(
-                temperature=298.15 * unit.kelvin, pressure=105.325 * unit.kilopascal,
+                temperature=298.15 * unit.kelvin,
+                pressure=105.325 * unit.kilopascal,
             ),
             phase=PropertyPhase.Liquid,
             value=1.0 * Density.default_unit(),
