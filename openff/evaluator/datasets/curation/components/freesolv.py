@@ -107,7 +107,10 @@ class ImportFreeSolv(CurationComponent):
 
     @classmethod
     def _apply(
-        cls, data_frame: pandas.DataFrame, schema: ImportFreeSolvSchema, n_processes,
+        cls,
+        data_frame: pandas.DataFrame,
+        schema: ImportFreeSolvSchema,
+        n_processes,
     ) -> pandas.DataFrame:
 
         from openff.evaluator import properties, substances, unit

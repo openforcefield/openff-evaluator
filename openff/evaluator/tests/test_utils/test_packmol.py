@@ -58,7 +58,9 @@ def test_packmol_water():
     molecules = [Molecule.from_smiles("O")]
 
     trajectory, _ = packmol.pack_box(
-        molecules, [10], mass_density=1.0 * unit.grams / unit.milliliters,
+        molecules,
+        [10],
+        mass_density=1.0 * unit.grams / unit.milliliters,
     )
 
     assert trajectory is not None

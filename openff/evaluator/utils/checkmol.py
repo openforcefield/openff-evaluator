@@ -482,7 +482,8 @@ def analyse_functional_groups(smiles):
         try:
 
             result = subprocess.check_output(
-                ["checkmol", "-p", file.name], stderr=subprocess.STDOUT,
+                ["checkmol", "-p", file.name],
+                stderr=subprocess.STDOUT,
             ).decode()
 
         except subprocess.CalledProcessError:

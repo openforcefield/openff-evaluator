@@ -178,19 +178,23 @@ def test_substance_filtering_protocol(filter_role):
         test_substance = Substance()
 
         test_substance.add_component(
-            Component("C", role=Component.Role.Solute), ExactAmount(1),
+            Component("C", role=Component.Role.Solute),
+            ExactAmount(1),
         )
 
         test_substance.add_component(
-            Component("CC", role=Component.Role.Ligand), ExactAmount(1),
+            Component("CC", role=Component.Role.Ligand),
+            ExactAmount(1),
         )
 
         test_substance.add_component(
-            Component("CCC", role=Component.Role.Receptor), ExactAmount(1),
+            Component("CCC", role=Component.Role.Receptor),
+            ExactAmount(1),
         )
 
         test_substance.add_component(
-            Component("O", role=Component.Role.Solvent), MoleFraction(1.0),
+            Component("O", role=Component.Role.Solvent),
+            MoleFraction(1.0),
         )
 
         return test_substance

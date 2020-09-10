@@ -473,7 +473,9 @@ class BuildDockedCoordinates(Protocol):
         status = dock.DockMultiConformerMolecule(docked_ligand, ligand_molecule)
 
         if status != oedocking.OEDockingReturnCode_Success:
-            raise RuntimeError("The ligand could not be successfully docked",)
+            raise RuntimeError(
+                "The ligand could not be successfully docked",
+            )
 
         docking_method = oedocking.OEDockMethodGetName(oedocking.OEDockMethod_Default)
         oedocking.OESetSDScore(docked_ligand, dock, docking_method)

@@ -8,8 +8,7 @@ from openff.evaluator.utils.serialization import TypedBaseModel
 
 
 class EvaluatorException(TypedBaseModel, BaseException):
-    """A serializable wrapper around an `Exception`.
-    """
+    """A serializable wrapper around an `Exception`."""
 
     @classmethod
     def from_exception(cls, exception):

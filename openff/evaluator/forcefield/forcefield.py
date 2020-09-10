@@ -126,14 +126,13 @@ class TLeapForceFieldSource(ForceFieldSource):
     @property
     def leap_source(self):
         """list of str: The parameter file which should be sourced by `leap`
-            when applying the force field.
+        when applying the force field.
         """
         return self._leap_source
 
     @property
     def cutoff(self):
-        """pint.Quantity: The non-bonded interaction cutoff.
-        """
+        """pint.Quantity: The non-bonded interaction cutoff."""
         return self._cutoff
 
     def __init__(self, leap_source="leaprc.gaff2", cutoff=9.0 * unit.angstrom):
@@ -206,8 +205,7 @@ class LigParGenForceFieldSource(ForceFieldSource):
 
     @property
     def cutoff(self):
-        """pint.Quantity: The non-bonded interaction cutoff.
-        """
+        """pint.Quantity: The non-bonded interaction cutoff."""
         return self._cutoff
 
     @property
