@@ -8,8 +8,7 @@ from openff.evaluator.datasets.thermoml import ThermoMLDataSet
 
 
 class _ThermoMLPlugin:
-    """Represents a property which may be extracted from a ThermoML archive.
-    """
+    """Represents a property which may be extracted from a ThermoML archive."""
 
     def __init__(self, string_identifier, conversion_function, supported_phases):
         """Constructs a new ThermoMLPlugin object.

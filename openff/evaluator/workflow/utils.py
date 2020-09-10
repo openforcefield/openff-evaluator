@@ -29,8 +29,7 @@ class ReplicatorValue(PlaceholderValue):
 
 
 class ProtocolPath(PlaceholderValue):
-    """Represents a pointer to the output of another protocol.
-    """
+    """Represents a pointer to the output of another protocol."""
 
     # The character which separates protocol ids.
     path_separator = "/"

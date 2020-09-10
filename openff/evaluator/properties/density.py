@@ -69,7 +69,9 @@ class Density(PhysicalProperty):
 
         # Define the protocols which will run the simulation itself.
         protocols, value_source, output_to_store = generate_base_simulation_protocols(
-            extract_density, use_target_uncertainty, n_molecules=n_molecules,
+            extract_density,
+            use_target_uncertainty,
+            n_molecules=n_molecules,
         )
 
         # Set up the gradient calculations
@@ -971,8 +973,12 @@ register_calculation_schema(
     Density, ReweightingLayer, Density.default_reweighting_schema
 )
 register_calculation_schema(
-    ExcessMolarVolume, SimulationLayer, ExcessMolarVolume.default_simulation_schema,
+    ExcessMolarVolume,
+    SimulationLayer,
+    ExcessMolarVolume.default_simulation_schema,
 )
 register_calculation_schema(
-    ExcessMolarVolume, ReweightingLayer, ExcessMolarVolume.default_reweighting_schema,
+    ExcessMolarVolume,
+    ReweightingLayer,
+    ExcessMolarVolume.default_reweighting_schema,
 )

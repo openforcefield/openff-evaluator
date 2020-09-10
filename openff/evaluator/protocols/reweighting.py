@@ -645,8 +645,7 @@ class BaseMBARProtocol(Protocol, abc.ABC):
 
 @workflow_protocol()
 class ReweightStatistics(BaseMBARProtocol):
-    """Reweights a set of observables from a `StatisticsArray` using MBAR.
-    """
+    """Reweights a set of observables from a `StatisticsArray` using MBAR."""
 
     statistics_paths = InputAttribute(
         docstring="The file paths to the statistics array which contains the observables "

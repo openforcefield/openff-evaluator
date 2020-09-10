@@ -504,8 +504,7 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
     """
 
     class RestraintType(Enum):
-        """The types of ligand restraints available within yank.
-        """
+        """The types of ligand restraints available within yank."""
 
         Harmonic = "Harmonic"
         FlatBottom = "FlatBottom"

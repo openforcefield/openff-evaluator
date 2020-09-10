@@ -53,16 +53,16 @@ def _unit_from_thermoml_string(full_string):
 def _phase_from_thermoml_string(string):
     """Converts a ThermoML string to a PropertyPhase
 
-        Parameters
-        ----------
-        string: str
-            The string to convert to a PropertyPhase
+    Parameters
+    ----------
+    string: str
+        The string to convert to a PropertyPhase
 
-        Returns
-        ----------
-        PropertyPhase
-            The converted PropertyPhase
-        """
+    Returns
+    ----------
+    PropertyPhase
+        The converted PropertyPhase
+    """
     phase_string = string.lower().strip()
     phase = PropertyPhase.Undefined
 
@@ -297,8 +297,7 @@ class _VariableDefinition:
 
 
 class _PropertyUncertainty:
-    """A wrapper around a ThermoML PropUncertainty node.
-    """
+    """A wrapper around a ThermoML PropUncertainty node."""
 
     # Reduce code redundancy by reusing this class for
     # both property and combined uncertainties.
@@ -353,15 +352,13 @@ class _PropertyUncertainty:
 
 
 class _CombinedUncertainty(_PropertyUncertainty):
-    """A wrapper around a ThermoML CombPropUncertainty node.
-    """
+    """A wrapper around a ThermoML CombPropUncertainty node."""
 
     prefix = "Comb"
 
 
 class _Compound:
-    """A wrapper around a ThermoML Compound node.
-    """
+    """A wrapper around a ThermoML Compound node."""
 
     def __init__(self):
 
@@ -535,8 +532,7 @@ class _Compound:
 
 
 class _PureOrMixtureData:
-    """A wrapper around a ThermoML PureOrMixtureData node.
-    """
+    """A wrapper around a ThermoML PureOrMixtureData node."""
 
     @staticmethod
     def extract_compound_indices(node, namespace, compounds):
@@ -1739,12 +1735,10 @@ class _PureOrMixtureData:
 
 
 class ThermoMLProperty:
-    """A wrapper around a ThermoML Property node.
-    """
+    """A wrapper around a ThermoML Property node."""
 
     class SoluteStandardState(Enum):
-        """Describes the standard state of a solute.
-        """
+        """Describes the standard state of a solute."""
 
         Undefined = ("Undefined",)
         InfiniteDilutionSolute = ("Infinite dilution solute",)
@@ -1987,8 +1981,8 @@ class ThermoMLProperty:
         standard_state_node = node.find("./ThermoML:eStandardState", namespace)
 
         if standard_state_node is not None:
-            return_value.solute_standard_state = ThermoMLProperty.SoluteStandardState.from_node(
-                standard_state_node
+            return_value.solute_standard_state = (
+                ThermoMLProperty.SoluteStandardState.from_node(standard_state_node)
             )
 
         # Property->Property-MethodID->RegNum describes which compound is referred

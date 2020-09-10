@@ -68,7 +68,8 @@ def _build_entry(*smiles: str) -> Density:
 
     return Density(
         thermodynamic_state=ThermodynamicState(
-            temperature=298.15 * unit.kelvin, pressure=101.325 * unit.kilopascal,
+            temperature=298.15 * unit.kelvin,
+            pressure=101.325 * unit.kilopascal,
         ),
         phase=PropertyPhase.Liquid,
         value=1.0 * Density.default_unit(),
@@ -117,7 +118,12 @@ def data_frame() -> pandas.DataFrame:
     smiles = {1: [("C(F)(Cl)(Br)",), ("C",)], 2: [("CO", "C"), ("C", "CO")]}
 
     loop_variables = [
-        (temperature, pressure, property_type, mole_fraction,)
+        (
+            temperature,
+            pressure,
+            property_type,
+            mole_fraction,
+        )
         for temperature in temperatures
         for pressure in pressures
         for property_type in properties
@@ -216,7 +222,10 @@ def test_filter_by_temperature(data_frame):
     # Filter out the maximum values
     filtered_frame = FilterByTemperature.apply(
         data_frame,
-        FilterByTemperatureSchema(minimum_temperature=None, maximum_temperature=300.0,),
+        FilterByTemperatureSchema(
+            minimum_temperature=None,
+            maximum_temperature=300.0,
+        ),
     )
 
     assert len(filtered_frame) == len(data_frame) / 2
@@ -263,7 +272,10 @@ def test_filter_by_pressure(data_frame):
     # Filter out the maximum values
     filtered_frame = FilterByPressure.apply(
         data_frame,
-        FilterByPressureSchema(minimum_pressure=None, maximum_pressure=101.2,),
+        FilterByPressureSchema(
+            minimum_pressure=None,
+            maximum_pressure=101.2,
+        ),
     )
 
     assert len(filtered_frame) == len(data_frame) / 2
@@ -441,7 +453,8 @@ def test_filter_by_elements(data_frame):
     assert len(filtered_frame) == len(data_frame)
 
     filtered_frame = FilterByElements.apply(
-        data_frame, FilterByElementsSchema(forbidden_elements=[]),
+        data_frame,
+        FilterByElementsSchema(forbidden_elements=[]),
     )
 
     assert len(filtered_frame) == len(data_frame)
@@ -449,14 +462,16 @@ def test_filter_by_elements(data_frame):
     # Filter out all oxygen containing molecules. This should leave pure
     # only measurements.
     filtered_frame = FilterByElements.apply(
-        data_frame, FilterByElementsSchema(forbidden_elements=["O"]),
+        data_frame,
+        FilterByElementsSchema(forbidden_elements=["O"]),
     )
 
     assert len(filtered_frame[filtered_frame["N Components"] == 1]) == 32
 
     # Filter out any non-hydrocarbons.
     filtered_frame = FilterByElements.apply(
-        data_frame, FilterByElementsSchema(allowed_elements=["C", "H"]),
+        data_frame,
+        FilterByElementsSchema(allowed_elements=["C", "H"]),
     )
 
     assert len(filtered_frame) == 16
@@ -630,7 +645,8 @@ def test_filter_stereochemistry(data_frame):
 
     # Ensure molecules with undefined stereochemistry are filtered.
     filtered_frame = FilterByStereochemistry.apply(
-        data_frame, FilterByStereochemistrySchema(),
+        data_frame,
+        FilterByStereochemistrySchema(),
     )
 
     assert len(filtered_frame) == len(data_frame) - 16
@@ -639,7 +655,8 @@ def test_filter_stereochemistry(data_frame):
 def test_filter_charged():
 
     thermodynamic_state = ThermodynamicState(
-        temperature=298.15 * unit.kelvin, pressure=101.325 * unit.kilopascal,
+        temperature=298.15 * unit.kelvin,
+        pressure=101.325 * unit.kilopascal,
     )
 
     # Ensure charged molecules are filtered.
@@ -673,7 +690,10 @@ def test_filter_charged():
 
     data_frame = data_set.to_pandas()
 
-    filtered_frame = FilterByCharged.apply(data_frame, FilterByChargedSchema(),)
+    filtered_frame = FilterByCharged.apply(
+        data_frame,
+        FilterByChargedSchema(),
+    )
 
     assert len(filtered_frame) == 1
     assert filtered_frame["N Components"].max() == 1
@@ -681,7 +701,8 @@ def test_filter_charged():
 
 def test_filter_ionic_liquid():
     thermodynamic_state = ThermodynamicState(
-        temperature=298.15 * unit.kelvin, pressure=101.325 * unit.kilopascal,
+        temperature=298.15 * unit.kelvin,
+        pressure=101.325 * unit.kilopascal,
     )
 
     # Ensure ionic liquids are filtered.
@@ -707,7 +728,10 @@ def test_filter_ionic_liquid():
 
     data_frame = data_set.to_pandas()
 
-    filtered_frame = FilterByIonicLiquid.apply(data_frame, FilterByIonicLiquidSchema(),)
+    filtered_frame = FilterByIonicLiquid.apply(
+        data_frame,
+        FilterByIonicLiquidSchema(),
+    )
 
     assert len(filtered_frame) == 1
 
@@ -728,7 +752,8 @@ def test_filter_by_smiles(data_frame):
     # Strictly only retain hydrocarbons. This should only leave pure
     # properties.
     filtered_frame = FilterBySmiles.apply(
-        data_frame, FilterBySmilesSchema(smiles_to_include=["C"]),
+        data_frame,
+        FilterBySmilesSchema(smiles_to_include=["C"]),
     )
 
     assert len(filtered_frame) == 16
@@ -764,7 +789,8 @@ def test_filter_by_smiles(data_frame):
 
     # Exclude any hydrocarbons
     filtered_frame = FilterBySmiles.apply(
-        data_frame, FilterBySmilesSchema(smiles_to_exclude=["C"]),
+        data_frame,
+        FilterBySmilesSchema(smiles_to_exclude=["C"]),
     )
 
     pure_data = filtered_frame[filtered_frame["N Components"] == 1]
@@ -807,7 +833,8 @@ def test_filter_by_smirks(data_frame):
 
     # Apply a filter which should do nothing.
     filtered_frame = FilterBySmirks.apply(
-        data_frame, FilterBySmirksSchema(smirks_to_include=["[#6]"]),
+        data_frame,
+        FilterBySmirksSchema(smirks_to_include=["[#6]"]),
     )
 
     assert len(filtered_frame) == len(data_frame) == 64
@@ -832,7 +859,8 @@ def test_filter_by_smirks(data_frame):
 
     # Exclude all oxygen containing compounds
     filtered_frame = FilterBySmirks.apply(
-        data_frame, FilterBySmirksSchema(smirks_to_exclude=["[#8]"]),
+        data_frame,
+        FilterBySmirksSchema(smirks_to_exclude=["[#8]"]),
     )
 
     pure_data = filtered_frame[filtered_frame["N Components"] == 1]
@@ -963,7 +991,9 @@ def test_validate_environment():
     # Test that the validation logic which checks the correct number of
     # environment lists have been provided to per_component_environments
     with pytest.raises(ValidationError):
-        FilterByEnvironmentsSchema(per_component_environments={1: []},)
+        FilterByEnvironmentsSchema(
+            per_component_environments={1: []},
+        )
 
     with pytest.raises(ValidationError):
         FilterByEnvironmentsSchema(

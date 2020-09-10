@@ -539,9 +539,10 @@ class SelectDataPoints(CurationComponent):
     def _distances_to_state(cls, data_frame: pandas.DataFrame, state_point: State):
 
         distance_sqr = (
-            (data_frame["Temperature (K)"] - state_point.temperature) ** 2
-            + (data_frame["Pressure (kPa)"] / 10.0 - state_point.pressure / 10.0) ** 2
-        )
+            data_frame["Temperature (K)"] - state_point.temperature
+        ) ** 2 + (
+            data_frame["Pressure (kPa)"] / 10.0 - state_point.pressure / 10.0
+        ) ** 2
 
         for component_index in range(len(state_point.mole_fractions)):
             distance_sqr += (
@@ -606,7 +607,8 @@ class SelectDataPoints(CurationComponent):
         # Compute how may data points are present for each state in the different
         # clusters.
         grouped_data = data_frame.groupby(
-            by=[*cluster_headers, "Cluster"], as_index=False,
+            by=[*cluster_headers, "Cluster"],
+            as_index=False,
         ).agg({"Property Type": pandas.Series.nunique})
 
         selected_data = [False] * len(data_frame)
