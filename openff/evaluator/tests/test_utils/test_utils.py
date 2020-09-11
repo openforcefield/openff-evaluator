@@ -66,7 +66,7 @@ def test_get_nested_attribute():
 
 def test_is_file_and_not_empty(tmpdir):
     path = "testfile"
-    with tempfile.TemporaryDirectory() as directory:
+    with tempfile.TemporaryDirectory():
         with open(path, "w") as f:
             pass
 
