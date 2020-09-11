@@ -75,7 +75,8 @@ def test_is_file_and_not_empty(tmpdir):
     assert not is_file_and_not_empty(path)
 
     path = "testfile2"
-    with tempfile.TemporaryDirectory() as directory:
+
+    with tempfile.TemporaryDirectory():
         with open(path, "w") as f:
             f.write("ubiquitous mendacious polyglottal")
 
