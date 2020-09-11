@@ -1355,8 +1355,7 @@ class ProtocolGroup(Protocol):
         return {protocol.id: protocol for protocol in self._protocols}
 
     def __init__(self, protocol_id):
-        """Constructs a new ProtocolGroup.
-        """
+        """Constructs a new ProtocolGroup."""
         super().__init__(protocol_id)
 
         self._protocols = []

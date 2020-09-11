@@ -20,7 +20,7 @@ class SimulationSchema(WorkflowCalculationSchema):
 @calculation_layer()
 class SimulationLayer(WorkflowCalculationLayer):
     """A calculation layer which employs molecular simulation
-to estimate sets of physical properties.
+    to estimate sets of physical properties.
     """
 
     @classmethod

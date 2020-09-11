@@ -39,7 +39,8 @@ class QuickCalculationLayer(CalculationLayer):
 
         futures = [
             calculation_backend.submit_task(
-                QuickCalculationLayer.process_property, batch.queued_properties[0],
+                QuickCalculationLayer.process_property,
+                batch.queued_properties[0],
             ),
         ]
 
@@ -47,8 +48,7 @@ class QuickCalculationLayer(CalculationLayer):
 
     @staticmethod
     def process_property(physical_property, **_):
-        """Return a result as if the property had been successfully estimated.
-        """
+        """Return a result as if the property had been successfully estimated."""
         return_object = CalculationLayerResult()
         return_object.physical_property = physical_property
         return_object.calculated_property = physical_property

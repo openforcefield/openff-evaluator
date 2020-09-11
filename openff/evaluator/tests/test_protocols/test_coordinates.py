@@ -156,7 +156,8 @@ def test_build_docked_coordinates_protocol():
 
     ligand_substance = Substance()
     ligand_substance.add_component(
-        Component("CO", role=Component.Role.Ligand), ExactAmount(1),
+        Component("CO", role=Component.Role.Ligand),
+        ExactAmount(1),
     )
 
     # TODO: This test could likely be made substantially faster

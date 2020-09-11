@@ -48,8 +48,7 @@ class StorageBackend(abc.ABC):
             raise NotImplementedError()
 
     def __init__(self):
-        """Constructs a new StorageBackend object.
-        """
+        """Constructs a new StorageBackend object."""
         self._stored_object_keys = None
         self._stored_object_keys_id = "object_keys"
 
@@ -112,8 +111,7 @@ class StorageBackend(abc.ABC):
         self._save_stored_object_keys()
 
     def _save_stored_object_keys(self):
-        """Save the unique key of each of the objects stored in the storage system.
-        """
+        """Save the unique key of each of the objects stored in the storage system."""
         keys_object = StorageBackend._ObjectKeyData()
         keys_object.object_keys = self._stored_object_keys
 

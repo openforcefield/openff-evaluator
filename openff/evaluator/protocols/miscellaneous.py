@@ -81,8 +81,7 @@ class SubtractValues(Protocol):
 
 @workflow_protocol()
 class MultiplyValue(Protocol):
-    """A protocol which multiplies a value by a specified scalar
-    """
+    """A protocol which multiplies a value by a specified scalar"""
 
     value = InputAttribute(
         docstring="The value to multiply.",
@@ -110,8 +109,7 @@ class MultiplyValue(Protocol):
 
 @workflow_protocol()
 class DivideValue(Protocol):
-    """A protocol which divides a value by a specified scalar
-    """
+    """A protocol which divides a value by a specified scalar"""
 
     value = InputAttribute(
         docstring="The value to divide.",

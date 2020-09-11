@@ -452,7 +452,8 @@ class FilterByPropertyTypesSchema(CurationComponentSchema):
     type: Literal["FilterByPropertyTypes"] = "FilterByPropertyTypes"
 
     property_types: List[constr(min_length=1)] = Field(
-        ..., description="The types of property to retain.",
+        ...,
+        description="The types of property to retain.",
     )
     n_components: Dict[constr(min_length=1), List[PositiveInt]] = Field(
         default_factory=dict,

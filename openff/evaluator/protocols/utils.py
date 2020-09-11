@@ -55,7 +55,10 @@ BaseSimulationProtocols = namedtuple(
 
 
 def generate_base_reweighting_protocols(
-    analysis_protocol, mbar_protocol, replicator_id="data_repl", id_suffix="",
+    analysis_protocol,
+    mbar_protocol,
+    replicator_id="data_repl",
+    id_suffix="",
 ):
     """Constructs a set of protocols which, when combined in a workflow schema,
     may be executed to reweight a set of existing data to estimate a particular

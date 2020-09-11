@@ -382,7 +382,9 @@ class Attribute:
                 value = copy.deepcopy(self._default_value())
 
             setattr(
-                instance, self._private_attribute_name, value,
+                instance,
+                self._private_attribute_name,
+                value,
             )
 
         return getattr(instance, self._private_attribute_name)

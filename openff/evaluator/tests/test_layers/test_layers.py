@@ -59,8 +59,7 @@ class DummyCalculationLayer(CalculationLayer):
 
     @staticmethod
     def process_successful_property(physical_property, layer_directory, **_):
-        """Return a result as if the property had been successfully estimated.
-        """
+        """Return a result as if the property had been successfully estimated."""
 
         dummy_data_directory = path.join(layer_directory, "good_dummy_data")
         makedirs(dummy_data_directory, exist_ok=True)
@@ -90,8 +89,7 @@ class DummyCalculationLayer(CalculationLayer):
 
     @staticmethod
     def process_failed_property(physical_property, **_):
-        """Return a result as if the property could not be estimated.
-        """
+        """Return a result as if the property could not be estimated."""
 
         return_object = CalculationLayerResult()
         return_object.physical_property = physical_property
@@ -101,8 +99,7 @@ class DummyCalculationLayer(CalculationLayer):
 
     @staticmethod
     def return_bad_result(physical_property, layer_directory, **_):
-        """Return a result which leads to an unhandled exception.
-        """
+        """Return a result which leads to an unhandled exception."""
 
         dummy_data_directory = path.join(layer_directory, "bad_dummy_data")
         makedirs(dummy_data_directory, exist_ok=True)
