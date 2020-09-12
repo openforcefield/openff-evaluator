@@ -279,3 +279,19 @@ def has_openeye():
         available = False
 
     return available
+
+
+def is_file_and_not_empty(file_path):
+    """Checks that a file both exists at the specified ``path`` and is not empty.
+
+    Parameters
+    ----------
+    file_path: str
+        The file path to check.
+
+    Returns
+    -------
+    bool
+        That a file both exists at the specified ``path`` and is not empty.
+    """
+    return os.path.isfile(file_path) and (os.path.getsize(file_path) != 0)
