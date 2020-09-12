@@ -9,6 +9,23 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
 
+0.2.1
+-----
+
+A patch release offering minor bug fixes and quality of life improvements.
+
+Bugfixes
+""""""""
+
+* PR `#259 <https://github.com/openforcefield/propertyestimator/pull/259>`_: Adds ``is_file_and_not_empty`` and addresses OpenMM failure modes.
+* PR `#275 <https://github.com/openforcefield/propertyestimator/pull/275>`_: Workaround for N substance molecules > user specified maximum.
+
+New Features
+""""""""""""
+
+* PR `#267 <https://github.com/openforcefield/propertyestimator/pull/267>`_: Adds workflow protocol to Boltzmann average free energies.
+* PR `#269 <https://github.com/openforcefield/propertyestimator/pull/269>`_: Expose exclude exact amount from max molecule cap.
+
 0.2.0
 -----
 
@@ -38,7 +55,6 @@ Breaking Changes
 * All of the ``PhysicalPropertyDataSet.filter_by_XXX`` functions have now been removed in favor of the new curation
   components. See the :ref:`documentation <datasets/curation:Examples>` for information about the newly available
   filters and more.
-
 
 0.1.2
 -----
