@@ -1,5 +1,6 @@
 import os
 import uuid
+from contextlib import contextmanager
 
 from openff.evaluator import unit
 from openff.evaluator.datasets import (
@@ -13,6 +14,13 @@ from openff.evaluator.storage.data import StoredSimulationData
 from openff.evaluator.substances import Component, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils import get_data_filename
+
+
+@contextmanager
+def does_not_raise():
+    """A helpful context manager to use inplace of a pytest raise statement
+    when no exception is expected."""
+    yield
 
 
 def create_dummy_substance(number_of_components, elements=None):
