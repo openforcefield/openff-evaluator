@@ -1,5 +1,6 @@
 import numpy
 import pint
+import pint.compat
 
 
 class ParameterGradientKey:
@@ -165,5 +166,8 @@ class ParameterGradient:
         return (
             isinstance(other, ParameterGradient)
             and self.key == other.key
-            and numpy.isclose(self.value, other.value)
+            and numpy.allclose(self.value, other.value)
         )
+
+
+pint.compat.upcast_types.append(ParameterGradient)
