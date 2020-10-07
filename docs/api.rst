@@ -110,6 +110,16 @@ Data Set API
     register_thermoml_property
     thermoml_property
 
+**Taproom**
+
+.. currentmodule:: openff.evaluator.datasets.taproom
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    TaproomDataSet
+    TaproomSource
+
 **Data Set Curation**
 
 .. currentmodule:: openff.evaluator.datasets.curation.components
@@ -494,6 +504,36 @@ Built-in Workflow Protocols
     OpenMMSimulation
     OpenMMReducedPotentials
     OpenMMGradientPotentials
+
+**Paprika**
+
+.. currentmodule:: openff.evaluator.protocols.paprika.coordinates
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    PreparePullCoordinates
+    PrepareReleaseCoordinates
+    AddDummyAtoms
+
+.. currentmodule:: openff.evaluator.protocols.paprika.restraints
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    GenerateAttachRestraints
+    GeneratePullRestraints
+    GenerateReleaseRestraints
+    ApplyRestraints
+
+.. currentmodule:: openff.evaluator.protocols.paprika.analysis
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    AnalyzeAPRPhase
+    ComputeSymmetryCorrection
+    ComputeReferenceWork
 
 **Reweighting**
 
