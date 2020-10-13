@@ -88,7 +88,9 @@ The estimation of liquid dielectric constants is assumed.
 
 The dielectric is estimated using the default :ref:`reweighting workflow <properties/commonworkflows:|reweighting_layer|>`
 which has been modified to use the specialized |reweight_dielectric_constant| protocol in place of the default |reweight_statistics|.
-The estimation of liquid dielectric constants is assumed.
+It should be noted that the |reweight_dielectric_constant| protocol employs bootstrapping to compute the uncertainty in
+the average dielectric constant, rather than attempting to propagate uncertainties in the average dipole moments and
+volumes. The estimation of liquid dielectric constants is assumed.
 
 Enthalpy of Vaporization
 """"""""""""""""""""""""
@@ -131,7 +133,8 @@ simplified expression is computed by default by this framework.
           available. This is fastest platform to use when simulating a single molecule in vacuum with OpenMM.
 
 The final enthalpy is then computed by subtracting the gas potential energy from the liquid potential energy
-(|subtract_values|) and adding the :math:`RT` term (|add_values|).
+(|subtract_values|) and adding the :math:`RT` term (|add_values|). Uncertainties are propagated through the subtraction
+by the normal means using the `uncertainties <https://pythonhosted.org/uncertainties/>`_ package.
 
 |reweighting_layer|
 *******************
@@ -145,8 +148,8 @@ The final enthalpy is then computed by subtracting the gas potential energy from
       which has been modified so that all periodic boundary conditions have been disabled.
 
 The final enthalpy is then computed by subtracting the gas potential energy from the liquid potential energy
-(|subtract_values|) and adding the :math:`RT` term (|add_values|).
-
+(|subtract_values|) and adding the :math:`RT` term (|add_values|). Uncertainties are propagated through the subtraction
+by the normal means using the `uncertainties <https://pythonhosted.org/uncertainties/>`_ package.
 
 Enthalpy of Mixing
 """"""""""""""""""
@@ -177,7 +180,8 @@ the full mixture simulations and the simulations of each individual component re
       the |weight_by_mole_fraction| protocol.
 
 The final enthalpy is then computed by summing the component enthalpies (|add_values|) and subtracting these from
-the mixture enthalpy (|subtract_values|).
+the mixture enthalpy (|subtract_values|). Uncertainties are propagated through the summation and subtraction by the
+normal means using the `uncertainties <https://pythonhosted.org/uncertainties/>`_ package.
 
 |reweighting_layer|
 *******************
@@ -192,7 +196,8 @@ the mixture enthalpy (|subtract_values|).
       their mole fraction using the |weight_by_mole_fraction| protocol.
 
 The final enthalpy is then computed by summing the component enthalpies (|add_values|) and subtracting these from
-the mixture enthalpy (|subtract_values|).
+the mixture enthalpy (|subtract_values|). Uncertainties are propagated through the summation and subtraction by the
+normal means using the `uncertainties <https://pythonhosted.org/uncertainties/>`_ package.
 
 Excess Molar Volume
 """""""""""""""""""
@@ -224,7 +229,8 @@ Avogadro constant.
       the |weight_by_mole_fraction| protocol.
 
 The final excess molar volume is then computed by summing the component molar volumes (|add_values|) and subtracting these from
-the mixture molar volume (|subtract_values|).
+the mixture molar volume (|subtract_values|). Uncertainties are propagated through the summation and subtraction by the
+normal means using the `uncertainties <https://pythonhosted.org/uncertainties/>`_ package.
 
 |reweighting_layer|
 *******************
@@ -239,7 +245,8 @@ the mixture molar volume (|subtract_values|).
       their mole fraction using the |weight_by_mole_fraction| protocol.
 
 The final enthalpy is then computed by summing the component enthalpies (|add_values|) and subtracting these from
-the mixture enthalpy (|subtract_values|).
+the mixture enthalpy (|subtract_values|). Uncertainties are propagated through the summation and subtraction by the
+normal means using the `uncertainties <https://pythonhosted.org/uncertainties/>`_ package.
 
 Solvation Free Energies
 """""""""""""""""""""""

@@ -54,11 +54,11 @@ The workflow produced by this template proceeds as follows:
 
     5) while the uncertainty in the average observable is greater than the requested tolerance (if specified):
 
-        5a) a longer NPT production simulation is run for 1000000 steps using a timestep of 2 fs and using the OpenMM simulation engine (|openmm_simulation|).
+        5a) a longer NPT production simulation is run for 1000000 steps with a timestep of 2 fs and using the OpenMM simulation protocol (|openmm_simulation|) with its default Langevin integrator and Monte Carlo barostat.
 
-        5b) the correlated samples are removed from the simulation outputs and the average value of the observable of interest are computed by bootstrapping with replacement for 250 iterations (|extract_average_statistic|).  See :cite:`2016:chodera` for details of the decorrelation procedure.
+        5b) the correlated samples are removed from the simulation outputs and the average value of the observable of interest and its uncertainty are computed by bootstrapping with replacement for 250 iterations (|extract_average_statistic|).  See :cite:`2016:chodera` for details of the decorrelation procedure.
 
-        5c) 5a) and 5b) are repeated until the uncertainty condition is met.
+        5c) steps 5a) and 5b) are repeated until the uncertainty condition (if applicable) is met.
 
 The decorrelated simulation outputs are then made available ready to be cached by a
 :doc:`storage backend <../storage/storagebackend>` (|extract_uncorrelated_statistics_data|, |extract_uncorrelated_trajectory_data|).
@@ -89,7 +89,7 @@ The workflow produced by this template proceeds as follows:
 
     4) the system is parameterized using the force field parameters with which the property of interest should be calculated using i.e. of the target state (|build_smirnoff_system|, |build_tleap_system| or |build_lig_par_gen_system|) and the reduced potential of each configuration in the concatenated trajectory is evaluated using the parameterized system (|openmm_reduced_potentials|).
 
-    5) the MBAR method is employed to compute the average value of the observable of interest at the target state, taking the reference state reduced potentials as input. See :cite:`2018:messerly-a` for the theory behind this approach. An exception is raised if there are not enough effective samples to reweight (|reweight_statistics|).
+    5) the MBAR method is employed to compute the average value of the observable of interest and its uncertainty at the target state, taking the reference state reduced potentials as input. See :cite:`2018:messerly-a` for the theory behind this approach. An exception is raised if there are not enough effective samples to reweight (|reweight_statistics|).
 
 References
 ----------
