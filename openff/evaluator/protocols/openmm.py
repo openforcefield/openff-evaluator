@@ -93,6 +93,17 @@ class OpenMMEnergyMinimisation(BaseEnergyMinimisation):
 class OpenMMSimulation(BaseSimulation):
     """Performs a molecular dynamics simulation in a given ensemble using
     an OpenMM backend.
+
+    This protocol employs the Langevin integrator implemented in the ``openmmtools``
+    package to propagate the state of the system using the default BAOAB splitting [1]_.
+    Further, simulations which are run in the NPT simulation will have a Monte Carlo
+    barostat (simtk.openmm.MonteCarloBarostat) applied every 25 steps (the OpenMM
+    default).
+
+    References
+    ----------
+    [1] Leimkuhler, Ben, and Charles Matthews. "Numerical methods for stochastic
+        molecular dynamics." Molecular Dynamics. Springer, Cham, 2015. 261-328.
     """
 
     class _Checkpoint:
