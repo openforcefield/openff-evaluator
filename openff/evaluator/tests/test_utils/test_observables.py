@@ -2,7 +2,7 @@
 Units tests for openff.evaluator.utils.observables
 """
 import json
-from typing import List, Union, Tuple, Type
+from typing import List, Tuple, Type, Union
 
 import numpy
 import pytest
@@ -63,7 +63,7 @@ def _compare_observables(
 def _mock_observable(
     value: ValueType,
     gradient_values: List[Tuple[str, str, str, ValueType]],
-    object_type: Union[Type[Observable], Type[ObservableArray]]
+    object_type: Union[Type[Observable], Type[ObservableArray]],
 ):
 
     return object_type(
@@ -548,31 +548,31 @@ def test_observable_round_trip():
     [
         observable_tuple
         for object_type in [Observable, ObservableArray]
-        for observable_tuple in[
+        for observable_tuple in [
             (
                 _mock_observable(
                     2.0 * unit.kelvin,
                     [
                         ("vdW", "[#6:1]", "epsilon", 2.0 * unit.kelvin),
-                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin)
+                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
                 _mock_observable(
                     4.0 * unit.kelvin,
                     [
                         ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
-                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
                 _mock_observable(
                     6.0 * unit.kelvin,
                     [
                         ("vdW", "[#1:1]", "epsilon", 6.0 * unit.kelvin),
-                        ("vdW", "[#6:1]", "epsilon", 6.0 * unit.kelvin)
+                        ("vdW", "[#6:1]", "epsilon", 6.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
             ),
             (
@@ -581,19 +581,19 @@ def test_observable_round_trip():
                     4.0 * unit.kelvin,
                     [
                         ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
-                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
                 _mock_observable(
                     6.0 * unit.kelvin,
                     [
                         ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
-                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
-            )
+            ),
         ]
     ],
 )
@@ -613,25 +613,25 @@ def test_add_observables(value_a, value_b, expected_value):
                     2.0 * unit.kelvin,
                     [
                         ("vdW", "[#6:1]", "epsilon", 2.0 * unit.kelvin),
-                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin)
+                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
                 _mock_observable(
                     4.0 * unit.kelvin,
                     [
                         ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
-                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
                 _mock_observable(
                     2.0 * unit.kelvin,
                     [
                         ("vdW", "[#1:1]", "epsilon", -2.0 * unit.kelvin),
-                        ("vdW", "[#6:1]", "epsilon", 2.0 * unit.kelvin)
+                        ("vdW", "[#6:1]", "epsilon", 2.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
             ),
             (
@@ -639,18 +639,18 @@ def test_add_observables(value_a, value_b, expected_value):
                     2.0 * unit.kelvin,
                     [
                         ("vdW", "[#6:1]", "epsilon", 2.0 * unit.kelvin),
-                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin)
+                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
                 2.0 * unit.kelvin,
                 _mock_observable(
                     0.0 * unit.kelvin,
                     [
                         ("vdW", "[#1:1]", "epsilon", -4.0 * unit.kelvin),
-                        ("vdW", "[#6:1]", "epsilon", -2.0 * unit.kelvin)
+                        ("vdW", "[#6:1]", "epsilon", -2.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
             ),
             (
@@ -659,19 +659,19 @@ def test_add_observables(value_a, value_b, expected_value):
                     2.0 * unit.kelvin,
                     [
                         ("vdW", "[#6:1]", "epsilon", 2.0 * unit.kelvin),
-                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin)
+                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
                 _mock_observable(
                     0.0 * unit.kelvin,
                     [
                         ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin),
-                        ("vdW", "[#6:1]", "epsilon", 2.0 * unit.kelvin)
+                        ("vdW", "[#6:1]", "epsilon", 2.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
-            )
+            ),
         ]
     ],
 )
@@ -690,25 +690,25 @@ def test_subtract_observables(value_a, value_b, expected_value):
                     2.0 * unit.kelvin,
                     [
                         ("vdW", "[#6:1]", "epsilon", 2.0 * unit.kelvin),
-                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin)
+                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
                 _mock_observable(
                     4.0 * unit.kelvin,
                     [
                         ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
-                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
                 _mock_observable(
                     8.0 * unit.kelvin ** 2,
                     [
                         ("vdW", "[#1:1]", "epsilon", 20.0 * unit.kelvin ** 2),
-                        ("vdW", "[#6:1]", "epsilon", 16.0 * unit.kelvin ** 2)
+                        ("vdW", "[#6:1]", "epsilon", 16.0 * unit.kelvin ** 2),
                     ],
-                    object_type
+                    object_type,
                 ),
             ),
             (
@@ -717,17 +717,17 @@ def test_subtract_observables(value_a, value_b, expected_value):
                     4.0 * unit.kelvin,
                     [
                         ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
-                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
                 _mock_observable(
                     8.0 * unit.kelvin ** 2,
                     [
                         ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin ** 2),
-                        ("vdW", "[#6:1]", "epsilon", 8.0 * unit.kelvin ** 2)
+                        ("vdW", "[#6:1]", "epsilon", 8.0 * unit.kelvin ** 2),
                     ],
-                    object_type
+                    object_type,
                 ),
             ),
             (
@@ -736,17 +736,17 @@ def test_subtract_observables(value_a, value_b, expected_value):
                     4.0 * unit.kelvin,
                     [
                         ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
-                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
                 _mock_observable(
                     8.0 * unit.kelvin,
                     [
                         ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin),
-                        ("vdW", "[#6:1]", "epsilon", 8.0 * unit.kelvin)
+                        ("vdW", "[#6:1]", "epsilon", 8.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
             ),
         ]
@@ -768,25 +768,25 @@ def test_multiply_observables(value_a, value_b, expected_value):
                     4.0 * unit.kelvin,
                     [
                         ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
-                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
                 _mock_observable(
                     2.0 * unit.kelvin,
                     [
                         ("vdW", "[#6:1]", "epsilon", 2.0 * unit.kelvin),
-                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin)
+                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
                 _mock_observable(
                     2.0 * unit.dimensionless,
                     [
                         ("vdW", "[#1:1]", "epsilon", -3.0 * unit.dimensionless),
-                        ("vdW", "[#6:1]", "epsilon", 0.0 * unit.dimensionless)
+                        ("vdW", "[#6:1]", "epsilon", 0.0 * unit.dimensionless),
                     ],
-                    object_type
+                    object_type,
                 ),
             ),
             (
@@ -794,18 +794,18 @@ def test_multiply_observables(value_a, value_b, expected_value):
                     4.0 * unit.kelvin,
                     [
                         ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
-                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
                 2.0 * unit.kelvin,
                 _mock_observable(
                     2.0 * unit.dimensionless,
                     [
                         ("vdW", "[#1:1]", "epsilon", 1.0 * unit.dimensionless),
-                        ("vdW", "[#6:1]", "epsilon", 2.0 * unit.dimensionless)
+                        ("vdW", "[#6:1]", "epsilon", 2.0 * unit.dimensionless),
                     ],
-                    object_type
+                    object_type,
                 ),
             ),
             (
@@ -814,17 +814,17 @@ def test_multiply_observables(value_a, value_b, expected_value):
                     4.0 * unit.kelvin,
                     [
                         ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
-                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
                 _mock_observable(
                     1.0 / 2.0 * unit.dimensionless,
                     [
                         ("vdW", "[#1:1]", "epsilon", -1.0 / 4.0 * unit.dimensionless),
-                        ("vdW", "[#6:1]", "epsilon", -1.0 / 2.0 * unit.dimensionless)
+                        ("vdW", "[#6:1]", "epsilon", -1.0 / 2.0 * unit.dimensionless),
                     ],
-                    object_type
+                    object_type,
                 ),
             ),
             (
@@ -832,18 +832,18 @@ def test_multiply_observables(value_a, value_b, expected_value):
                     4.0 * unit.kelvin,
                     [
                         ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
-                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
                 2.0,
                 _mock_observable(
                     2.0 * unit.kelvin,
                     [
                         ("vdW", "[#1:1]", "epsilon", 1.0 * unit.kelvin),
-                        ("vdW", "[#6:1]", "epsilon", 2.0 * unit.kelvin)
+                        ("vdW", "[#6:1]", "epsilon", 2.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
             ),
             (
@@ -852,17 +852,17 @@ def test_multiply_observables(value_a, value_b, expected_value):
                     4.0 * unit.kelvin,
                     [
                         ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
-                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
                 _mock_observable(
                     1.0 / 2.0 / unit.kelvin,
                     [
                         ("vdW", "[#1:1]", "epsilon", -1.0 / 4.0 / unit.kelvin),
-                        ("vdW", "[#6:1]", "epsilon", -1.0 / 2.0 / unit.kelvin)
+                        ("vdW", "[#6:1]", "epsilon", -1.0 / 2.0 / unit.kelvin),
                     ],
-                    object_type
+                    object_type,
                 ),
             ),
         ]
