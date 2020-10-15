@@ -7,11 +7,11 @@ import re
 import traceback
 from enum import Enum, unique
 from urllib.error import HTTPError
-from urllib.request import urlopen
 from xml.etree import ElementTree
 
 import numpy as np
 import pint
+import requests
 
 from openff.evaluator import unit
 from openff.evaluator.datasets import (
@@ -2135,8 +2135,15 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
         try:
 
-            with urlopen(url) as response:
-                return_value = cls.from_xml(response.read(), source)
+            request = requests.get(url)
+            request.raise_for_status()
+
+            # Handle the case where ThermoML returns a 404 error code, but rather
+            # redirects to an error page with code 200.
+            if request.text.startswith("<html>"):
+                raise HTTPError(url, 404, "Not found", None, None)
+
+            return_value = cls.from_xml(request.text, source)
 
         except HTTPError:
             logger.warning(f"No ThermoML file could not be found at {url}")
