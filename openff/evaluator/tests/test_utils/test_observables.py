@@ -2,7 +2,7 @@
 Units tests for openff.evaluator.utils.observables
 """
 import json
-from typing import List, Union
+from typing import List, Union, Tuple, Type
 
 import numpy
 import pytest
@@ -20,6 +20,8 @@ from openff.evaluator.utils.observables import (
 )
 from openff.evaluator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 
+ValueType = Union[float, int, unit.Quantity, unit.Measurement, numpy.ndarray]
+
 
 def _compare_observables(
     observable_a: Union[Observable, ObservableArray],
@@ -33,6 +35,9 @@ def _compare_observables(
 
     if isinstance(observable_a.value.magnitude, numpy.ndarray):
         assert observable_a.value.shape == observable_b.value.shape
+
+    if isinstance(observable_a, Observable):
+        assert numpy.isclose(observable_a.error, observable_b.error)
 
     observable_a_gradients = {
         gradient.key: gradient for gradient in observable_a.gradients
@@ -53,6 +58,24 @@ def _compare_observables(
 
         if isinstance(gradient_a.value.magnitude, numpy.ndarray):
             assert gradient_a.value.shape == gradient_b.value.shape
+
+
+def _mock_observable(
+    value: ValueType,
+    gradient_values: List[Tuple[str, str, str, ValueType]],
+    object_type: Union[Type[Observable], Type[ObservableArray]]
+):
+
+    return object_type(
+        value=value,
+        gradients=[
+            ParameterGradient(
+                key=ParameterGradientKey(tag, smirks, attribute),
+                value=value * unit.kelvin,
+            )
+            for tag, smirks, attribute, value in gradient_values
+        ],
+    )
 
 
 @pytest.mark.parametrize(
@@ -314,6 +337,24 @@ def test_observable_array_join():
     )
 
 
+def test_observable_array_join_single():
+
+    gradient_unit = unit.mole / unit.kilojoule
+
+    joined = ObservableArray.join(
+        ObservableArray(
+            value=(numpy.arange(2)) * unit.kelvin,
+            gradients=[
+                ParameterGradient(
+                    key=ParameterGradientKey("vdW", "[#6:1]", "epsilon"),
+                    value=(numpy.arange(2)) * unit.kelvin * gradient_unit,
+                )
+            ],
+        )
+    )
+    assert len(joined) == 2
+
+
 def test_observable_array_len():
     assert len(ObservableArray(value=numpy.arange(5) * unit.kelvin)) == 5
 
@@ -322,9 +363,9 @@ def test_observable_array_len():
     "observables, expected_raises, expected_message",
     [
         (
-            [ObservableArray(value=numpy.ones(1) * unit.kelvin)],
+            [],
             pytest.raises(ValueError),
-            "At least two observables must be provided.",
+            "At least one observable must be provided.",
         ),
         (
             [
@@ -505,47 +546,55 @@ def test_observable_round_trip():
 @pytest.mark.parametrize(
     "value_a, value_b, expected_value",
     [
-        (
-            Observable(
-                value=2.0 * unit.kelvin,
-                gradients=[
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#6:1]", "epsilon"),
-                        value=2.0 * unit.kelvin,
-                    ),
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#1:1]", "epsilon"),
-                        value=4.0 * unit.kelvin,
-                    ),
-                ],
+        observable_tuple
+        for object_type in [Observable, ObservableArray]
+        for observable_tuple in[
+            (
+                _mock_observable(
+                    2.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#6:1]", "epsilon", 2.0 * unit.kelvin),
+                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
+                _mock_observable(
+                    4.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
+                _mock_observable(
+                    6.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", 6.0 * unit.kelvin),
+                        ("vdW", "[#6:1]", "epsilon", 6.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
             ),
-            Observable(
-                value=4.0 * unit.kelvin,
-                gradients=[
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#1:1]", "epsilon"),
-                        value=2.0 * unit.kelvin,
-                    ),
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#6:1]", "epsilon"),
-                        value=4.0 * unit.kelvin,
-                    ),
-                ],
-            ),
-            Observable(
-                value=6.0 * unit.kelvin,
-                gradients=[
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#1:1]", "epsilon"),
-                        value=6.0 * unit.kelvin,
-                    ),
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#6:1]", "epsilon"),
-                        value=6.0 * unit.kelvin,
-                    ),
-                ],
-            ),
-        )
+            (
+                2.0 * unit.kelvin,
+                _mock_observable(
+                    4.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
+                _mock_observable(
+                    6.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
+            )
+        ]
     ],
 )
 def test_add_observables(value_a, value_b, expected_value):
@@ -556,47 +605,74 @@ def test_add_observables(value_a, value_b, expected_value):
 @pytest.mark.parametrize(
     "value_a, value_b, expected_value",
     [
-        (
-            Observable(
-                value=2.0 * unit.kelvin,
-                gradients=[
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#6:1]", "epsilon"),
-                        value=2.0 * unit.kelvin,
-                    ),
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#1:1]", "epsilon"),
-                        value=4.0 * unit.kelvin,
-                    ),
-                ],
+        observable_tuple
+        for object_type in [Observable, ObservableArray]
+        for observable_tuple in [
+            (
+                _mock_observable(
+                    2.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#6:1]", "epsilon", 2.0 * unit.kelvin),
+                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
+                _mock_observable(
+                    4.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
+                _mock_observable(
+                    2.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", -2.0 * unit.kelvin),
+                        ("vdW", "[#6:1]", "epsilon", 2.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
             ),
-            Observable(
-                value=4.0 * unit.kelvin,
-                gradients=[
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#1:1]", "epsilon"),
-                        value=2.0 * unit.kelvin,
-                    ),
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#6:1]", "epsilon"),
-                        value=4.0 * unit.kelvin,
-                    ),
-                ],
+            (
+                _mock_observable(
+                    2.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#6:1]", "epsilon", 2.0 * unit.kelvin),
+                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
+                2.0 * unit.kelvin,
+                _mock_observable(
+                    0.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", -4.0 * unit.kelvin),
+                        ("vdW", "[#6:1]", "epsilon", -2.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
             ),
-            Observable(
-                value=2.0 * unit.kelvin,
-                gradients=[
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#1:1]", "epsilon"),
-                        value=-2.0 * unit.kelvin,
-                    ),
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#6:1]", "epsilon"),
-                        value=2.0 * unit.kelvin,
-                    ),
-                ],
-            ),
-        )
+            (
+                2.0 * unit.kelvin,
+                _mock_observable(
+                    2.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#6:1]", "epsilon", 2.0 * unit.kelvin),
+                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
+                _mock_observable(
+                    0.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin),
+                        ("vdW", "[#6:1]", "epsilon", 2.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
+            )
+        ]
     ],
 )
 def test_subtract_observables(value_a, value_b, expected_value):
@@ -606,105 +682,74 @@ def test_subtract_observables(value_a, value_b, expected_value):
 @pytest.mark.parametrize(
     "value_a, value_b, expected_value",
     [
-        (
-            Observable(
-                value=2.0 * unit.kelvin,
-                gradients=[
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#6:1]", "epsilon"),
-                        value=2.0 * unit.kelvin,
-                    ),
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#1:1]", "epsilon"),
-                        value=4.0 * unit.kelvin,
-                    ),
-                ],
+        observable_tuple
+        for object_type in [Observable, ObservableArray]
+        for observable_tuple in [
+            (
+                _mock_observable(
+                    2.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#6:1]", "epsilon", 2.0 * unit.kelvin),
+                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
+                _mock_observable(
+                    4.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
+                _mock_observable(
+                    8.0 * unit.kelvin ** 2,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", 20.0 * unit.kelvin ** 2),
+                        ("vdW", "[#6:1]", "epsilon", 16.0 * unit.kelvin ** 2)
+                    ],
+                    object_type
+                ),
             ),
-            Observable(
-                value=4.0 * unit.kelvin,
-                gradients=[
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#1:1]", "epsilon"),
-                        value=2.0 * unit.kelvin,
-                    ),
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#6:1]", "epsilon"),
-                        value=4.0 * unit.kelvin,
-                    ),
-                ],
+            (
+                2.0 * unit.kelvin,
+                _mock_observable(
+                    4.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
+                _mock_observable(
+                    8.0 * unit.kelvin ** 2,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin ** 2),
+                        ("vdW", "[#6:1]", "epsilon", 8.0 * unit.kelvin ** 2)
+                    ],
+                    object_type
+                ),
             ),
-            Observable(
-                value=8.0 * unit.kelvin ** 2,
-                gradients=[
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#1:1]", "epsilon"),
-                        value=20.0 * unit.kelvin ** 2,
-                    ),
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#6:1]", "epsilon"),
-                        value=16.0 * unit.kelvin ** 2,
-                    ),
-                ],
+            (
+                2.0,
+                _mock_observable(
+                    4.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
+                _mock_observable(
+                    8.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin),
+                        ("vdW", "[#6:1]", "epsilon", 8.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
             ),
-        ),
-        (
-            2.0 * unit.kelvin,
-            Observable(
-                value=4.0 * unit.kelvin,
-                gradients=[
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#1:1]", "epsilon"),
-                        value=2.0 * unit.kelvin,
-                    ),
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#6:1]", "epsilon"),
-                        value=4.0 * unit.kelvin,
-                    ),
-                ],
-            ),
-            Observable(
-                value=8.0 * unit.kelvin ** 2,
-                gradients=[
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#1:1]", "epsilon"),
-                        value=4.0 * unit.kelvin ** 2,
-                    ),
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#6:1]", "epsilon"),
-                        value=8.0 * unit.kelvin ** 2,
-                    ),
-                ],
-            ),
-        ),
-        (
-            2.0 * unit.kelvin,
-            Observable(
-                value=4.0 * unit.kelvin,
-                gradients=[
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#1:1]", "epsilon"),
-                        value=2.0 * unit.kelvin,
-                    ),
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#6:1]", "epsilon"),
-                        value=4.0 * unit.kelvin,
-                    ),
-                ],
-            ),
-            Observable(
-                value=8.0 * unit.kelvin ** 2,
-                gradients=[
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#1:1]", "epsilon"),
-                        value=4.0 * unit.kelvin ** 2,
-                    ),
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#6:1]", "epsilon"),
-                        value=8.0 * unit.kelvin ** 2,
-                    ),
-                ],
-            ),
-        ),
+        ]
     ],
 )
 def test_multiply_observables(value_a, value_b, expected_value):
@@ -715,105 +760,112 @@ def test_multiply_observables(value_a, value_b, expected_value):
 @pytest.mark.parametrize(
     "value_a, value_b, expected_value",
     [
-        (
-            Observable(
-                value=4.0 * unit.kelvin,
-                gradients=[
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#1:1]", "epsilon"),
-                        value=2.0 * unit.kelvin,
-                    ),
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#6:1]", "epsilon"),
-                        value=4.0 * unit.kelvin,
-                    ),
-                ],
+        observable_tuple
+        for object_type in [Observable, ObservableArray]
+        for observable_tuple in [
+            (
+                _mock_observable(
+                    4.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
+                _mock_observable(
+                    2.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#6:1]", "epsilon", 2.0 * unit.kelvin),
+                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
+                _mock_observable(
+                    2.0 * unit.dimensionless,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", -3.0 * unit.dimensionless),
+                        ("vdW", "[#6:1]", "epsilon", 0.0 * unit.dimensionless)
+                    ],
+                    object_type
+                ),
             ),
-            Observable(
-                value=2.0 * unit.kelvin,
-                gradients=[
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#6:1]", "epsilon"),
-                        value=2.0 * unit.kelvin,
-                    ),
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#1:1]", "epsilon"),
-                        value=4.0 * unit.kelvin,
-                    ),
-                ],
+            (
+                _mock_observable(
+                    4.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
+                2.0 * unit.kelvin,
+                _mock_observable(
+                    2.0 * unit.dimensionless,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", 1.0 * unit.dimensionless),
+                        ("vdW", "[#6:1]", "epsilon", 2.0 * unit.dimensionless)
+                    ],
+                    object_type
+                ),
             ),
-            Observable(
-                value=2.0 * unit.dimensionless,
-                gradients=[
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#1:1]", "epsilon"),
-                        value=-3.0 * unit.dimensionless,
-                    ),
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#6:1]", "epsilon"),
-                        value=0.0 * unit.dimensionless,
-                    ),
-                ],
+            (
+                2.0 * unit.kelvin,
+                _mock_observable(
+                    4.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
+                _mock_observable(
+                    1.0 / 2.0 * unit.dimensionless,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", -1.0 / 4.0 * unit.dimensionless),
+                        ("vdW", "[#6:1]", "epsilon", -1.0 / 2.0 * unit.dimensionless)
+                    ],
+                    object_type
+                ),
             ),
-        ),
-        (
-            Observable(
-                value=4.0 * unit.kelvin,
-                gradients=[
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#1:1]", "epsilon"),
-                        value=2.0 * unit.kelvin,
-                    ),
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#6:1]", "epsilon"),
-                        value=4.0 * unit.kelvin,
-                    ),
-                ],
+            (
+                _mock_observable(
+                    4.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
+                2.0,
+                _mock_observable(
+                    2.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", 1.0 * unit.kelvin),
+                        ("vdW", "[#6:1]", "epsilon", 2.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
             ),
-            2.0 * unit.kelvin,
-            Observable(
-                value=2.0 * unit.dimensionless,
-                gradients=[
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#1:1]", "epsilon"),
-                        value=1.0 * unit.dimensionless,
-                    ),
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#6:1]", "epsilon"),
-                        value=2.0 * unit.dimensionless,
-                    ),
-                ],
+            (
+                2.0,
+                _mock_observable(
+                    4.0 * unit.kelvin,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", 2.0 * unit.kelvin),
+                        ("vdW", "[#6:1]", "epsilon", 4.0 * unit.kelvin)
+                    ],
+                    object_type
+                ),
+                _mock_observable(
+                    1.0 / 2.0 / unit.kelvin,
+                    [
+                        ("vdW", "[#1:1]", "epsilon", -1.0 / 4.0 / unit.kelvin),
+                        ("vdW", "[#6:1]", "epsilon", -1.0 / 2.0 / unit.kelvin)
+                    ],
+                    object_type
+                ),
             ),
-        ),
-        (
-            2.0 * unit.kelvin,
-            Observable(
-                value=4.0 * unit.kelvin,
-                gradients=[
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#1:1]", "epsilon"),
-                        value=2.0 * unit.kelvin,
-                    ),
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#6:1]", "epsilon"),
-                        value=4.0 * unit.kelvin,
-                    ),
-                ],
-            ),
-            Observable(
-                value=1.0 / 2.0 * unit.dimensionless,
-                gradients=[
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#1:1]", "epsilon"),
-                        value=-1.0 / 4.0 * unit.dimensionless,
-                    ),
-                    ParameterGradient(
-                        key=ParameterGradientKey("vdW", "[#6:1]", "epsilon"),
-                        value=-1.0 / 2.0 * unit.dimensionless,
-                    ),
-                ],
-            ),
-        ),
+        ]
     ],
 )
 def test_divide_observables(value_a, value_b, expected_value):
