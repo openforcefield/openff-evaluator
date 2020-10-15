@@ -393,7 +393,7 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
                 # We cannot safely choose which value to take when the
                 # values are not know ahead of time unless the two values
                 # come from the exact same source.
-                if self_value.protocol_path != other_value_post_merge.protocol_path:
+                if self_value.full_path != other_value_post_merge.full_path:
                     return False
 
             elif isinstance(self_value, PlaceholderValue) and isinstance(
