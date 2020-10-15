@@ -52,6 +52,201 @@ class _Observable(abc.ABC):
         self._value = value
         self._gradients = [] if gradients is None else gradients
 
+    def _compatible_gradients(
+        self, other: T
+    ) -> Tuple[
+        Dict[ParameterGradientKey, ParameterGradient],
+        Dict[ParameterGradientKey, ParameterGradient],
+    ]:
+        """A common function for ensuring that two observables contain derivatives
+        with respected to the same force field parameters, and refactors these
+        derivatives into more easily manipulable dictionaries.
+
+        Parameters
+        ----------
+        other
+            The other observable object.
+
+        Returns
+        -------
+            This object's and the other object's derivatives re-shaped into
+            dictionaries.
+        """
+
+        self_gradients = {gradient.key: gradient for gradient in self._gradients}
+        other_gradients = {gradient.key: gradient for gradient in other._gradients}
+
+        if {*self_gradients} != {*other_gradients}:
+            raise ValueError(
+                "Two observables can only be operated on if they contain gradients "
+                "with respect to the same force field parameters."
+            )
+
+        return self_gradients, other_gradients
+
+    def _add_sub(self, other: T, operator_function) -> T:
+        """A common function for adding or subtracting two observables"""
+
+        if not (
+            isinstance(other, unit.Measurement)
+            or isinstance(other, unit.Quantity)
+            or isinstance(other, self.__class__)
+        ):
+            raise NotImplementedError()
+
+        gradients = self._gradients
+        other_value = other
+
+        if isinstance(other, self.__class__):
+
+            other_value = other._value
+
+            self_gradients, other_gradients = self._compatible_gradients(other)
+
+            gradients = [
+                operator_function(self_gradients[key], other_gradients[key])
+                for key in self_gradients
+            ]
+
+        return self.__class__(
+            value=operator_function(self._value, other_value),
+            gradients=gradients,
+        )
+
+    def __add__(self, other: Union[unit.Quantity, T]) -> T:
+        return self._add_sub(other, operator.add)
+
+    def __radd__(self, other: Union[float, int, unit.Quantity, T]) -> T:
+        return self.__add__(other)
+
+    def __sub__(self, other: Union[unit.Quantity, T]) -> T:
+        return self._add_sub(other, operator.sub)
+
+    def __rsub__(self, other: Union[float, int, unit.Quantity, T]) -> T:
+        return -self.__sub__(other)
+
+    def __mul__(self, other: Union[float, int, unit.Quantity, T]) -> T:
+
+        if (
+            isinstance(other, float)
+            or isinstance(other, int)
+            or isinstance(other, unit.Quantity)
+        ):
+
+            if (
+                isinstance(other, unit.Quantity)
+                and isinstance(other.magnitude, numpy.ndarray)
+                and other.magnitude.ndim < 2
+            ):
+                other = other.reshape(-1, 1)
+
+            return self.__class__(
+                value=self._value * other,
+                gradients=[gradient * other for gradient in self._gradients],
+            )
+
+        elif not isinstance(other, self.__class__):
+            raise NotImplementedError()
+
+        self_gradients, other_gradients = self._compatible_gradients(other)
+
+        self_value = (
+            self._value
+            if not isinstance(self._value, unit.Measurement)
+            else self._value.value
+        )
+        other_value = (
+            other._value
+            if not isinstance(other._value, unit.Measurement)
+            else other._value.value
+        )
+
+        val = self.__class__(
+            value=self._value * other._value,
+            gradients=[
+                (other_gradients[key] * self_value + self_gradients[key] * other_value)
+                for key in self_gradients
+            ],
+        )
+
+        return val
+
+    def __rmul__(self, other: Union[float, int, unit.Quantity, T]) -> T:
+        return self.__mul__(other)
+
+    def __neg__(self) -> T:
+        return self * -1.0
+
+    def __truediv__(self, other: Union[float, int, unit.Quantity, T]):
+
+        if not isinstance(other, self.__class__):
+            return self * (1.0 / other)
+
+        self_gradients, other_gradients = self._compatible_gradients(other)
+
+        self_value = (
+            self._value
+            if not isinstance(self._value, unit.Measurement)
+            else self._value.value
+        )
+        other_value = (
+            other._value
+            if not isinstance(other._value, unit.Measurement)
+            else other._value.value
+        )
+
+        return self.__class__(
+            value=self._value / other._value,
+            gradients=[
+                (self_gradients[key] * other_value - self_value * other_gradients[key])
+                / (other_value * other_value)
+                for key in self_gradients
+            ],
+        )
+
+    def __rtruediv__(self, other: Union[float, int, unit.Quantity, T]):
+
+        if isinstance(other, self.__class__):
+            return self.__truediv__(other)
+
+        if not isinstance(other, (float, int, unit.Quantity)):
+            raise NotImplementedError()
+
+        if (
+            isinstance(other, unit.Quantity)
+            and isinstance(other.magnitude, numpy.ndarray)
+            and other.magnitude.ndim < 2
+        ):
+            other = other.reshape(-1, 1)
+
+        self_value = (
+            self._value
+            if not isinstance(self._value, unit.Measurement)
+            else self._value.value
+        )
+
+        value = other / self._value
+
+        if isinstance(self._value, unit.Measurement):
+            # Fix a quirk where a quantity divided by a measurement is a unit wrapped
+            # uncertainty object rather than a full pint measurement object.
+            value = unit.Measurement(
+                value.magnitude.nominal_value * value.units,
+                value.magnitude.std_dev * value.units,
+            )
+
+        return self.__class__(
+            value=value,
+            gradients=[
+                -other * gradient / (self_value * self_value)
+                for gradient in self.gradients
+            ],
+        )
+
+    def clear_gradients(self):
+        """Clears all gradient information."""
+        self._gradients = []
+
     def __str__(self):
         return str(self._value)
 
@@ -66,9 +261,9 @@ class _Observable(abc.ABC):
 
 
 class Observable(_Observable):
-    """A class which stores the mean value of an observable as well as optionally
-    the standard error in the mean and derivatives of the mean with respect to certain
-    force field parameters.
+    """A class which stores the mean value of an observable as well as the standard
+    error in the mean. Optionally, the derivatives of the mean with respect to certain
+    force field parameters may also be stored.
     """
 
     @property
@@ -124,148 +319,6 @@ class Observable(_Observable):
                 )
 
         super(Observable, self)._initialize(value, gradients)
-
-    def _compatible_gradients(
-        self, other: T
-    ) -> Tuple[
-        Dict[ParameterGradientKey, ParameterGradient],
-        Dict[ParameterGradientKey, ParameterGradient],
-    ]:
-        """A common function for ensuring that two observables contain derivatives
-        with respected to the same force field parameters, and refactors these
-        derivatives into more easily manipulable dictionaries.
-
-        Parameters
-        ----------
-        other
-            The other observable object.
-
-        Returns
-        -------
-            This object's and the other object's derivatives re-shaped into
-            dictionaries.
-        """
-
-        self_gradients = {gradient.key: gradient for gradient in self._gradients}
-        other_gradients = {gradient.key: gradient for gradient in other._gradients}
-
-        if {*self_gradients} != {*other_gradients}:
-            raise ValueError(
-                "Two observables can only be summed if they contain gradients with "
-                "respect to the same force field parameters."
-            )
-
-        return self_gradients, other_gradients
-
-    def _add_sub(self, other: T, operator_function) -> T:
-        """A common function for adding or subtracting two observables"""
-
-        if type(self) != type(other):
-            raise NotImplementedError()
-
-        self_gradients, other_gradients = self._compatible_gradients(other)
-
-        return self.__class__(
-            value=operator_function(self._value, other._value),
-            gradients=[
-                operator_function(self_gradients[key], other_gradients[key])
-                for key in self_gradients
-            ],
-        )
-
-    def __add__(self, other: T) -> T:
-        return self._add_sub(other, operator.add)
-
-    def __sub__(self, other: T) -> T:
-        return self._add_sub(other, operator.sub)
-
-    def __mul__(self, other: Union[float, int, unit.Quantity, T]) -> T:
-
-        if (
-            isinstance(other, float)
-            or isinstance(other, int)
-            or isinstance(other, unit.Quantity)
-        ):
-
-            if (
-                isinstance(other, unit.Quantity)
-                and isinstance(other.magnitude, numpy.ndarray)
-                and other.magnitude.ndim < 2
-            ):
-                other = other.reshape(-1, 1)
-
-            return self.__class__(
-                value=self._value * other,
-                gradients=[gradient * other for gradient in self._gradients],
-            )
-
-        elif not isinstance(other, self.__class__):
-            raise NotImplementedError()
-
-        self_gradients, other_gradients = self._compatible_gradients(other)
-
-        val = self.__class__(
-            value=self._value * other._value,
-            gradients=[
-                (
-                    other_gradients[key] * self._value.value
-                    + self_gradients[key] * other._value.value
-                )
-                for key in self_gradients
-            ],
-        )
-
-        return val
-
-    def __rmul__(self, other: Union[float, int, unit.Quantity, T]) -> T:
-        return self.__mul__(other)
-
-    def __truediv__(self, other: Union[float, int, unit.Quantity, T]):
-
-        if not isinstance(other, self.__class__):
-            return self * (1.0 / other)
-
-        self_gradients, other_gradients = self._compatible_gradients(other)
-
-        return self.__class__(
-            value=self._value / other._value,
-            gradients=[
-                (
-                    self_gradients[key] * other._value.value
-                    - self._value.value * other_gradients[key]
-                )
-                / (other._value.value * other._value.value)
-                for key in self_gradients
-            ],
-        )
-
-    def __rtruediv__(self, other: Union[float, int, unit.Quantity, T]):
-
-        if isinstance(other, self.__class__):
-            return self.__truediv__(other)
-
-        if not isinstance(other, (float, int, unit.Quantity)):
-            raise NotImplementedError()
-
-        if (
-            isinstance(other, unit.Quantity)
-            and isinstance(other.magnitude, numpy.ndarray)
-            and other.magnitude.ndim < 2
-        ):
-            other = other.reshape(-1, 1)
-
-        value = other / self._value
-
-        return self.__class__(
-            value=unit.Measurement(
-                value.magnitude.nominal_value * value.units,
-                value.magnitude.std_dev * value.units,
-            ),
-            gradients=[
-                -other * gradient / (self._value.value * self._value.value)
-                for gradient in self.gradients
-            ],
-        )
 
 
 class ObservableArray(_Observable):
@@ -406,8 +459,10 @@ class ObservableArray(_Observable):
         -------
             The concatenated observable object.
         """
-        if len(observables) < 2:
-            raise ValueError("At least two observables must be provided.")
+        if len(observables) < 1:
+            raise ValueError("At least one observable must be provided.")
+        if len(observables) == 1:
+            return observables[0]
 
         expected_gradients = {gradient.key for gradient in observables[0].gradients}
         expected_gradient_units = {
@@ -551,6 +606,7 @@ class ObservableFrame(MutableMapping[Union[str, ObservableType], ObservableArray
         return self._observables[self._validate_key(key)]
 
     def __setitem__(self, key: Union[str, ObservableType], value: ObservableArray):
+
         key = self._validate_key(key)
 
         if value.value is None or not isinstance(value.value.magnitude, numpy.ndarray):
@@ -719,7 +775,14 @@ class ObservableFrame(MutableMapping[Union[str, ObservableType], ObservableArray
 
         return cls(joined_observables)
 
+    def clear_gradients(self):
+        """Clears all gradient information for each observable in the frame."""
+        for observable in self._observables.values():
+            observable.clear_gradients()
+
     def __setstate__(self, state):
+
+        self._observables = {}
 
         for key, value in state["observables"].items():
             self[key] = value
