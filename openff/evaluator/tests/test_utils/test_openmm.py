@@ -3,14 +3,23 @@ from random import randint, random
 
 import numpy as np
 import pytest
+from openforcefield.topology import Molecule
+from openforcefield.typing.engines.smirnoff import ForceField, vdWHandler
+from openforcefield.typing.engines.smirnoff.parameters import (
+    ChargeIncrementModelHandler,
+    ElectrostaticsHandler,
+    LibraryChargeHandler,
+)
 from simtk import unit as simtk_unit
 
 from openff.evaluator import unit
+from openff.evaluator.forcefield import ParameterGradientKey
 from openff.evaluator.utils.openmm import (
     openmm_quantity_to_pint,
     openmm_unit_to_pint,
     pint_quantity_to_openmm,
     pint_unit_to_openmm,
+    system_subset,
     unsupported_openmm_units,
 )
 
@@ -231,3 +240,171 @@ def test_constants():
         ),
         (1.0 * unit.speed_of_light).to(unit.meter / unit.seconds).magnitude,
     )
+
+
+def hydrogen_chloride_force_field(
+    library_charge: bool, charge_increment: bool
+) -> ForceField:
+    """Returns a SMIRNOFF force field which is able to parameterize hydrogen chloride."""
+
+    # Create the FF
+    force_field = ForceField()
+
+    # Add a Vdw handler.
+    vdw_handler = vdWHandler(version=0.3)
+    vdw_handler.method = "cutoff"
+    vdw_handler.cutoff = 6.0 * simtk_unit.angstrom
+    vdw_handler.scale14 = 1.0
+    vdw_handler.add_parameter(
+        {
+            "smirks": "[#1:1]",
+            "epsilon": 0.0 * simtk_unit.kilojoules_per_mole,
+            "sigma": 1.0 * simtk_unit.angstrom,
+        }
+    )
+    vdw_handler.add_parameter(
+        {
+            "smirks": "[#17:1]",
+            "epsilon": 2.0 * simtk_unit.kilojoules_per_mole,
+            "sigma": 2.0 * simtk_unit.angstrom,
+        }
+    )
+    force_field.register_parameter_handler(vdw_handler)
+
+    # Add an electrostatic, a library charge and a charge increment handler.
+    electrostatics_handler = ElectrostaticsHandler(version=0.3)
+    electrostatics_handler.cutoff = 6.0 * simtk_unit.angstrom
+    electrostatics_handler.method = "PME"
+    force_field.register_parameter_handler(electrostatics_handler)
+
+    if library_charge:
+
+        library_charge_handler = LibraryChargeHandler(version=0.3)
+        library_charge_handler.add_parameter(
+            parameter_kwargs={
+                "smirks": "[#1:1]",
+                "charge1": 1.0 * simtk_unit.elementary_charge,
+            }
+        )
+        library_charge_handler.add_parameter(
+            parameter_kwargs={
+                "smirks": "[#17:1]",
+                "charge1": -1.0 * simtk_unit.elementary_charge,
+            }
+        )
+        force_field.register_parameter_handler(library_charge_handler)
+
+    if charge_increment:
+
+        charge_increment_handler = ChargeIncrementModelHandler(version=0.3)
+        charge_increment_handler.add_parameter(
+            parameter_kwargs={
+                "smirks": "[#1:1]-[#17:2]",
+                "charge_increment1": -1.0 * simtk_unit.elementary_charge,
+                "charge_increment2": 1.0 * simtk_unit.elementary_charge,
+            }
+        )
+        force_field.register_parameter_handler(charge_increment_handler)
+
+    return force_field
+
+
+def test_system_subset_vdw():
+
+    # Create a dummy topology
+    topology = Molecule.from_smiles("HCl").to_topology()
+
+    # Create the system subset.
+    system, parameter_value = system_subset(
+        parameter_key=ParameterGradientKey("vdW", "[#1:1]", "epsilon"),
+        force_field=hydrogen_chloride_force_field(True, True),
+        topology=topology,
+        scale_amount=0.5,
+    )
+
+    assert system.getNumForces() == 1
+    assert system.getNumParticles() == 2
+
+    charge_0, sigma_0, epsilon_0 = system.getForce(0).getParticleParameters(0)
+    charge_1, sigma_1, epsilon_1 = system.getForce(0).getParticleParameters(1)
+
+    assert np.isclose(charge_0.value_in_unit(simtk_unit.elementary_charge), 0.0)
+    assert np.isclose(charge_1.value_in_unit(simtk_unit.elementary_charge), 0.0)
+
+    assert np.isclose(sigma_0.value_in_unit(simtk_unit.angstrom), 1.0)
+    assert np.isclose(sigma_1.value_in_unit(simtk_unit.angstrom), 2.0)
+
+    assert np.isclose(epsilon_0.value_in_unit(simtk_unit.kilojoules_per_mole), 0.5)
+    assert np.isclose(epsilon_1.value_in_unit(simtk_unit.kilojoules_per_mole), 2.0)
+
+
+def test_system_subset_library_charge():
+
+    force_field = hydrogen_chloride_force_field(True, False)
+
+    # Ensure a zero charge after perturbation.
+    force_field.get_parameter_handler("LibraryCharges").parameters["[#1:1]"].charge1 = (
+        1.5 * simtk_unit.elementary_charge
+    )
+
+    # Create a dummy topology
+    topology = Molecule.from_smiles("HCl").to_topology()
+
+    # Create the system subset.
+    system, parameter_value = system_subset(
+        parameter_key=ParameterGradientKey("LibraryCharges", "[#17:1]", "charge1"),
+        force_field=force_field,
+        topology=topology,
+        scale_amount=0.5,
+    )
+
+    assert system.getNumForces() == 1
+    assert system.getNumParticles() == 2
+
+    charge_0, sigma_0, epsilon_0 = system.getForce(0).getParticleParameters(0)
+    charge_1, sigma_1, epsilon_1 = system.getForce(0).getParticleParameters(1)
+
+    assert np.isclose(charge_0.value_in_unit(simtk_unit.elementary_charge), 1.5)
+    assert np.isclose(charge_1.value_in_unit(simtk_unit.elementary_charge), -1.5)
+
+    assert np.isclose(sigma_0.value_in_unit(simtk_unit.angstrom), 10.0)
+    assert np.isclose(sigma_1.value_in_unit(simtk_unit.angstrom), 10.0)
+
+    assert np.isclose(epsilon_0.value_in_unit(simtk_unit.kilojoules_per_mole), 0.0)
+    assert np.isclose(epsilon_1.value_in_unit(simtk_unit.kilojoules_per_mole), 0.0)
+
+
+def test_system_subset_charge_increment():
+
+    pytest.skip(
+        "This test will fail until the SMIRNOFF charge increment handler allows "
+        "N - 1 charges to be specified."
+    )
+
+    # Create a dummy topology
+    topology = Molecule.from_smiles("HCl").to_topology()
+
+    # Create the system subset.
+    system, parameter_value = system_subset(
+        parameter_key=ParameterGradientKey(
+            "ChargeIncrementModel", "[#1:1]-[#17:2]", "charge_increment1"
+        ),
+        force_field=hydrogen_chloride_force_field(False, True),
+        topology=topology,
+        scale_amount=0.5,
+    )
+
+    assert system.getNumForces() == 1
+    assert system.getNumParticles() == 2
+
+    charge_0, sigma_0, epsilon_0 = system.getForce(0).getParticleParameters(0)
+    charge_1, sigma_1, epsilon_1 = system.getForce(0).getParticleParameters(1)
+
+    assert not np.isclose(charge_0.value_in_unit(simtk_unit.elementary_charge), 1.0)
+    assert np.isclose(charge_1.value_in_unit(simtk_unit.elementary_charge), -1.0)
+
+    assert np.isclose(sigma_0.value_in_unit(simtk_unit.angstrom), 10.0)
+    assert np.isclose(sigma_1.value_in_unit(simtk_unit.angstrom), 10.0)
+
+    assert np.isclose(epsilon_0.value_in_unit(simtk_unit.kilojoules_per_mole), 0.0)
+    assert np.isclose(epsilon_1.value_in_unit(simtk_unit.kilojoules_per_mole), 0.0)
