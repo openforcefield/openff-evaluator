@@ -1,8 +1,11 @@
 """
 A set of utilities for helping to perform simulations using openmm.
 """
+import copy
 import logging
+from typing import TYPE_CHECKING, Optional, Tuple
 
+import numpy
 import pint
 from pint import UndefinedUnitError
 from simtk import openmm
@@ -10,6 +13,12 @@ from simtk import unit as simtk_unit
 
 from openff.evaluator import unit
 from openff.evaluator.attributes.attributes import UndefinedAttribute
+from openff.evaluator.forcefield import ParameterGradientKey
+
+if TYPE_CHECKING:
+
+    from openforcefield.topology import Topology
+    from openforcefield.typing.engines.smirnoff import ForceField
 
 logger = logging.getLogger(__name__)
 
@@ -309,3 +318,85 @@ def disable_pbc(system):
         force.setNonbondedMethod(
             0
         )  # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1
+
+
+def system_subset(
+    parameter_key: ParameterGradientKey,
+    force_field: "ForceField",
+    topology: "Topology",
+    scale_amount: Optional[float] = None,
+) -> Tuple["openmm.System", "simtk_unit.Quantity"]:
+    """Produces an OpenMM system containing the minimum number of forces while
+    still containing a specified force field parameter, and those other parameters
+    which may interact with it (e.g. in the case of vdW parameters).
+
+    The value of the parameter of interest may optionally be perturbed by an amount
+    specified by ``scale_amount``.
+
+    Parameters
+    ----------
+    parameter_key
+        The parameter of interest.
+    force_field
+        The force field to create the system from (and optionally perturb).
+    topology
+        The topology of the system to apply the force field to.
+    scale_amount: float, optional
+        The optional amount to perturb the ``parameter`` by such that
+        ``parameter = (1.0 + scale_amount) * parameter``.
+
+    Returns
+    -------
+        The created system as well as the value of the specified ``parameter``.
+    """
+
+    # As this method deals mainly with the toolkit, we stick to
+    # simtk units here.
+    from openforcefield.typing.engines.smirnoff import ForceField
+
+    # Create the force field subset.
+    force_field_subset = ForceField()
+
+    handlers_to_register = {parameter_key.tag}
+
+    if parameter_key.tag in {"ChargeIncrementModel", "LibraryCharges"}:
+        # Make sure to retain all of the electrostatic handlers when dealing with
+        # charges as the applied charges will depend on which charges have been applied
+        # by previous handlers.
+        handlers_to_register.update(
+            {"Electrostatics", "ChargeIncrementModel", "LibraryCharges"}
+        )
+
+    registered_handlers = force_field.registered_parameter_handlers
+
+    for handler_to_register in handlers_to_register:
+
+        if handler_to_register not in registered_handlers:
+            continue
+
+        force_field_subset.register_parameter_handler(
+            copy.deepcopy(force_field.get_parameter_handler(handler_to_register))
+        )
+
+    handler = force_field_subset.get_parameter_handler(parameter_key.tag)
+
+    parameter = handler.parameters[parameter_key.smirks]
+    parameter_value = getattr(parameter, parameter_key.attribute)
+
+    # Optionally perturb the parameter of interest.
+    if scale_amount is not None:
+
+        if numpy.isclose(parameter_value.value_in_unit(parameter_value.unit), 0.0):
+            # Careful thought needs to be given to this. Consider cases such as
+            # epsilon or sigma where negative values are not allowed.
+            parameter_value = (
+                scale_amount if scale_amount > 0.0 else 0.0
+            ) * parameter_value.unit
+        else:
+            parameter_value *= 1.0 + scale_amount
+
+    setattr(parameter, parameter_key.attribute, parameter_value)
+
+    # Create the parameterized sub-system.
+    system = force_field_subset.create_openmm_system(topology)
+    return system, parameter_value
