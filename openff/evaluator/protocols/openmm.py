@@ -46,9 +46,7 @@ class OpenMMEnergyMinimisation(BaseEnergyMinimisation):
         platform = setup_platform_with_resources(available_resources)
 
         input_pdb_file = app.PDBFile(self.input_coordinate_file)
-
-        with open(self.system_path, "rb") as file:
-            system = openmm.XmlSerializer.deserialize(file.read().decode())
+        system = self.parameterized_system.system
 
         if not self.enable_pbc:
 
@@ -253,9 +251,8 @@ class OpenMMSimulation(BaseSimulation):
             available_resources, self.high_precision
         )
 
-        # Load in the system object from the provided xml file.
-        with open(self.system_path, "r") as file:
-            system = XmlSerializer.deserialize(file.read())
+        # Load in the system object.
+        system = self.parameterized_system.system
 
         # Disable the periodic boundary conditions if requested.
         if not self.enable_pbc:
@@ -623,10 +620,7 @@ class OpenMMSimulation(BaseSimulation):
         # Create the object which will transfer simulation output to the
         # reporters.
         topology = app.PDBFile(self.input_coordinate_file).topology
-
-        with open(self.system_path, "r") as file:
-            system = openmm.XmlSerializer.deserialize(file.read())
-
+        system = self.parameterized_system.system
         simulation = self._Simulation(integrator, topology, system, current_step)
 
         # Perform the simulation.
@@ -688,6 +682,7 @@ class OpenMMReducedPotentials(BaseReducedPotentials):
         import mdtraj
         import openmmtools
 
+        # Load in the inputs.
         trajectory = mdtraj.load_dcd(
             self.trajectory_file_path, self.coordinate_file_path
         )

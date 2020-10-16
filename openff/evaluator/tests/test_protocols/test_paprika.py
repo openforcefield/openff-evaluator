@@ -5,6 +5,7 @@ import pytest
 
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
+from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.protocols.paprika.analysis import (
     AnalyzeAPRPhase,
     ComputeReferenceWork,
@@ -232,7 +233,14 @@ def test_add_dummy_atoms(tmp_path, dummy_complex):
     protocol.input_coordinate_path = get_data_filename(
         os.path.join("test", "molecules", "methanol_methane.pdb")
     )
-    protocol.input_system_path = system_path
+    protocol.input_system = ParameterizedSystem(
+        substance=dummy_complex,
+        force_field=None,
+        topology_path=get_data_filename(
+            os.path.join("test", "molecules", "methanol_methane.pdb")
+        ),
+        system_path=system_path,
+    )
     protocol.offset = 6.0 * unit.angstrom
     protocol.execute(str(tmp_path))
 
@@ -256,7 +264,7 @@ def test_add_dummy_atoms(tmp_path, dummy_complex):
     assert all(dummy_atoms[i].residue.name == f"DM{i + 1}" for i in range(3))
 
     # Validate that the dummy atoms got added to the system
-    with open(protocol.output_system_path) as file:
+    with open(protocol.output_system.system_path) as file:
         system: openmm.System = openmm.XmlSerializer.deserialize(file.read())
 
     assert system.getNumParticles() == 3
@@ -358,7 +366,9 @@ def test_generate_release_restraints(tmp_path, complex_file_path, restraints_sch
     )
 
 
-def test_apply_attach_restraints(tmp_path, complex_file_path, attach_restraints_path):
+def test_apply_attach_restraints(
+    tmp_path, dummy_complex, complex_file_path, attach_restraints_path
+):
 
     from simtk import openmm
 
@@ -368,15 +378,22 @@ def test_apply_attach_restraints(tmp_path, complex_file_path, attach_restraints_
     protocol = ApplyRestraints("")
     protocol.restraints_path = attach_restraints_path
     protocol.input_coordinate_path = complex_file_path
-    protocol.input_system_path = os.path.join(tmp_path, "system.xml")
+    protocol.input_system = ParameterizedSystem(
+        substance=dummy_complex,
+        force_field=None,
+        topology_path=complex_file_path,
+        system_path=os.path.join(tmp_path, "system.xml"),
+    )
     protocol.phase = "attach"
     protocol.window_index = 0
     protocol.execute(str(tmp_path))
 
-    validate_system_file(protocol.output_system_path, {10, 11, 12, 13, 14})
+    validate_system_file(protocol.output_system.system_path, {10, 11, 12, 13, 14})
 
 
-def test_apply_pull_restraints(tmp_path, complex_file_path, pull_restraints_path):
+def test_apply_pull_restraints(
+    tmp_path, dummy_complex, complex_file_path, pull_restraints_path
+):
 
     from simtk import openmm
 
@@ -386,15 +403,22 @@ def test_apply_pull_restraints(tmp_path, complex_file_path, pull_restraints_path
     protocol = ApplyRestraints("")
     protocol.restraints_path = pull_restraints_path
     protocol.input_coordinate_path = complex_file_path
-    protocol.input_system_path = os.path.join(tmp_path, "system.xml")
+    protocol.input_system = ParameterizedSystem(
+        substance=dummy_complex,
+        force_field=None,
+        topology_path=complex_file_path,
+        system_path=os.path.join(tmp_path, "system.xml"),
+    )
     protocol.phase = "pull"
     protocol.window_index = 0
     protocol.execute(str(tmp_path))
 
-    validate_system_file(protocol.output_system_path, {10, 11, 12})
+    validate_system_file(protocol.output_system.system_path, {10, 11, 12})
 
 
-def test_apply_release_restraints(tmp_path, complex_file_path, release_restraints_path):
+def test_apply_release_restraints(
+    tmp_path, dummy_complex, complex_file_path, release_restraints_path
+):
 
     from simtk import openmm
 
@@ -404,12 +428,17 @@ def test_apply_release_restraints(tmp_path, complex_file_path, release_restraint
     protocol = ApplyRestraints("")
     protocol.restraints_path = release_restraints_path
     protocol.input_coordinate_path = complex_file_path
-    protocol.input_system_path = os.path.join(tmp_path, "system.xml")
+    protocol.input_system = ParameterizedSystem(
+        substance=dummy_complex,
+        force_field=None,
+        topology_path=complex_file_path,
+        system_path=os.path.join(tmp_path, "system.xml"),
+    )
     protocol.phase = "release"
     protocol.window_index = 0
     protocol.execute(str(tmp_path))
 
-    validate_system_file(protocol.output_system_path, {10, 11})
+    validate_system_file(protocol.output_system.system_path, {10, 11})
 
 
 def test_compute_reference_work(tmp_path, complex_file_path):

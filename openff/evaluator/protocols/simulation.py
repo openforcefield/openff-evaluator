@@ -9,6 +9,7 @@ import pint
 
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
+from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.thermodynamics import Ensemble, ThermodynamicState
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import (
@@ -27,10 +28,10 @@ class BaseEnergyMinimisation(Protocol, abc.ABC):
     input_coordinate_file = InputAttribute(
         docstring="The coordinates to minimise.", type_hint=str, default_value=UNDEFINED
     )
-    system_path = InputAttribute(
-        docstring="The path to the XML system object which defines the forces present "
-        "in the system.",
-        type_hint=str,
+    parameterized_system = InputAttribute(
+        docstring="The parameterized system object which encodes the systems potential "
+        "energy function.",
+        type_hint=ParameterizedSystem,
         default_value=UNDEFINED,
     )
 
@@ -131,10 +132,10 @@ class BaseSimulation(Protocol, abc.ABC):
         type_hint=str,
         default_value=UNDEFINED,
     )
-    system_path = InputAttribute(
-        docstring="A path to the XML system object which defines the forces present "
-        "in the system.",
-        type_hint=str,
+    parameterized_system = InputAttribute(
+        docstring="The parameterized system object which encodes the systems potential "
+        "energy function.",
+        type_hint=ParameterizedSystem,
         default_value=UNDEFINED,
     )
 

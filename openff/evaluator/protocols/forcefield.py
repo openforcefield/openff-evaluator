@@ -23,6 +23,7 @@ from openff.evaluator.forcefield import (
     SmirnoffForceFieldSource,
     TLeapForceFieldSource,
 )
+from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.substances import Substance
 from openff.evaluator.utils.openmm import pint_quantity_to_openmm
 from openff.evaluator.utils.utils import (
@@ -78,8 +79,8 @@ class BaseBuildSystem(Protocol, abc.ABC):
         default_value=WaterModel.TIP3P,
     )
 
-    system_path = OutputAttribute(
-        docstring="The path to the assigned system object.", type_hint=str
+    parameterized_system = OutputAttribute(
+        docstring="The parameterized system object.", type_hint=ParameterizedSystem
     )
 
     @staticmethod
@@ -432,10 +433,17 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
             )
 
         # Serialize the system object.
-        self.system_path = os.path.join(directory, "system.xml")
+        system_path = os.path.join(directory, "system.xml")
 
-        with open(self.system_path, "w") as file:
+        with open(system_path, "w") as file:
             file.write(openmm.XmlSerializer.serialize(system))
+
+        self.parameterized_system = ParameterizedSystem(
+            substance=self.substance,
+            force_field=force_field_source,
+            topology_path=self.coordinate_file_path,
+            system_path=system_path,
+        )
 
 
 @workflow_protocol()
@@ -557,10 +565,17 @@ class BuildSmirnoffSystem(BaseBuildSystem):
             )
 
         system_xml = openmm.XmlSerializer.serialize(system)
-        self.system_path = os.path.join(directory, "system.xml")
+        system_path = os.path.join(directory, "system.xml")
 
-        with open(self.system_path, "w") as file:
+        with open(system_path, "w") as file:
             file.write(system_xml)
+
+        self.parameterized_system = ParameterizedSystem(
+            substance=self.substance,
+            force_field=force_field_source,
+            topology_path=self.coordinate_file_path,
+            system_path=system_path,
+        )
 
 
 @workflow_protocol()
@@ -822,13 +837,13 @@ class BuildLigParGenSystem(TemplateBuildSystem):
 
         super(BuildLigParGenSystem, self)._execute(directory, available_resources)
 
-        with open(self.system_path) as file:
+        with open(self.parameterized_system.system_path) as file:
             system = openmm.XmlSerializer.deserialize(file.read())
 
         # Apply the OPLS mixing rules.
         self._apply_opls_mixing_rules(system)
 
-        with open(self.system_path, "w") as file:
+        with open(self.parameterized_system.system_path, "w") as file:
             file.write(openmm.XmlSerializer.serialize(system))
 
 

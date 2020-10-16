@@ -178,8 +178,8 @@ def generate_base_reweighting_protocols(
     reduced_reference_potential = openmm.OpenMMReducedPotentials(
         "reduced_potential{}".format(replicator_suffix)
     )
-    reduced_reference_potential.system_path = ProtocolPath(
-        "system_path", build_reference_system.id
+    reduced_reference_potential.parameterized_system = ProtocolPath(
+        "parameterized_system", build_reference_system.id
     )
     reduced_reference_potential.thermodynamic_state = ProtocolPath(
         "thermodynamic_state", unpack_stored_data.id
@@ -208,8 +208,8 @@ def generate_base_reweighting_protocols(
     reduced_target_potential.thermodynamic_state = ProtocolPath(
         "thermodynamic_state", "global"
     )
-    reduced_target_potential.system_path = ProtocolPath(
-        "system_path", build_target_system.id
+    reduced_target_potential.parameterized_system = ProtocolPath(
+        "parameterized_system", build_target_system.id
     )
     reduced_target_potential.coordinate_file_path = ProtocolPath(
         "output_coordinate_path", join_trajectories.id
@@ -364,7 +364,9 @@ def generate_base_simulation_protocols(
     energy_minimisation.input_coordinate_file = ProtocolPath(
         "coordinate_file_path", build_coordinates.id
     )
-    energy_minimisation.system_path = ProtocolPath("system_path", assign_parameters.id)
+    energy_minimisation.parameterized_system = ProtocolPath(
+        "parameterized_system", assign_parameters.id
+    )
 
     equilibration_simulation = openmm.OpenMMSimulation(
         f"equilibration_simulation{id_suffix}"
@@ -379,8 +381,8 @@ def generate_base_simulation_protocols(
     equilibration_simulation.input_coordinate_file = ProtocolPath(
         "output_coordinate_file", energy_minimisation.id
     )
-    equilibration_simulation.system_path = ProtocolPath(
-        "system_path", assign_parameters.id
+    equilibration_simulation.parameterized_system = ProtocolPath(
+        "parameterized_system", assign_parameters.id
     )
 
     # Production
@@ -395,8 +397,11 @@ def generate_base_simulation_protocols(
     production_simulation.input_coordinate_file = ProtocolPath(
         "output_coordinate_file", equilibration_simulation.id
     )
-    production_simulation.system_path = ProtocolPath(
-        "system_path", assign_parameters.id
+    production_simulation.parameterized_system = ProtocolPath(
+        "parameterized_system", assign_parameters.id
+    )
+    production_simulation.gradient_parameters = ProtocolPath(
+        "parameter_gradient_keys", "global"
     )
 
     # Set up a conditional group to ensure convergence of uncertainty

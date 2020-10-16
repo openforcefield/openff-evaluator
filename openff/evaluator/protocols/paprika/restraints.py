@@ -3,6 +3,7 @@ import json
 import os
 
 from openff.evaluator.attributes import UNDEFINED
+from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
 
@@ -268,23 +269,16 @@ class ApplyRestraints(Protocol):
         default_value=UNDEFINED,
     )
 
-    input_coordinate_path = InputAttribute(
-        docstring="The file path to the coordinates which correspond to the system"
-        "to which the restraints are being added.",
-        type_hint=str,
-        default_value=UNDEFINED,
-    )
-    input_system_path = InputAttribute(
-        docstring="The file path to the system which the restraints should be added "
+    input_system = InputAttribute(
+        docstring="The parameterized system which the restraints should be added "
         "to.",
-        type_hint=str,
+        type_hint=ParameterizedSystem,
         default_value=UNDEFINED,
     )
 
-    output_system_path = OutputAttribute(
-        docstring="The file path to the system which will include the added "
-        "restraints.",
-        type_hint=str,
+    output_system = OutputAttribute(
+        docstring="The parameterized system which now includes the added restraints.",
+        type_hint=ParameterizedSystem,
     )
 
     @classmethod
@@ -363,8 +357,7 @@ class ApplyRestraints(Protocol):
         from simtk.openmm import XmlSerializer
 
         # Load in the system to add the restraints to.
-        with open(self.input_system_path) as file:
-            system = XmlSerializer.deserialize(file.read())
+        system = self.input_system.system
 
         # Define a custom force group per type of restraint to help
         # with debugging / analysis.
@@ -396,9 +389,18 @@ class ApplyRestraints(Protocol):
                 )
 
         # Apply the positional restraints to the dummy atoms.
-        apply_positional_restraints(self.input_coordinate_path, system, force_group=15)
+        apply_positional_restraints(
+            self.input_system.topology_path, system, force_group=15
+        )
 
-        self.output_system_path = os.path.join(directory, "output.xml")
+        output_system_path = os.path.join(directory, "output.xml")
 
-        with open(self.output_system_path, "w") as file:
+        with open(output_system_path, "w") as file:
             file.write(XmlSerializer.serialize(system))
+
+        self.output_system = ParameterizedSystem(
+            substance=self.input_system.substance,
+            force_field=self.input_system.force_field,
+            topology_path=self.input_system.topology_path,
+            system_path=output_system_path,
+        )
