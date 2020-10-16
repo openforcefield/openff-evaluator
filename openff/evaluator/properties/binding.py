@@ -201,14 +201,14 @@ class HostGuestBindingAffinity(PhysicalProperty):
             "coordinate_file_path", solvate_ligand.id
         )
         yank_protocol.solvated_ligand_system = ProtocolPath(
-            "system_path", build_solvated_ligand_system.id
+            "parameterized_system", build_solvated_ligand_system.id
         )
 
         yank_protocol.solvated_complex_coordinates = ProtocolPath(
             "coordinate_file_path", solvate_complex.id
         )
         yank_protocol.solvated_complex_system = ProtocolPath(
-            "system_path", build_solvated_complex_system.id
+            "parameterized_system", build_solvated_complex_system.id
         )
 
         schema.protocols[yank_protocol.id] = yank_protocol.schema
@@ -301,7 +301,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
     def _paprika_build_simulation_protocols(
         cls,
         coordinate_path: ProtocolPath,
-        system_path: ProtocolPath,
+        parameterized_system: ProtocolPath,
         id_prefix: str,
         id_suffix: str,
         minimization_template: openmm.OpenMMEnergyMinimisation,
@@ -318,14 +318,14 @@ class HostGuestBindingAffinity(PhysicalProperty):
         minimization = copy.deepcopy(minimization_template)
         minimization.id = f"{id_prefix}_energy_minimization_{id_suffix}"
         minimization.input_coordinate_file = coordinate_path
-        minimization.system_path = system_path
+        minimization.parameterized_system = parameterized_system
 
         thermalization = copy.deepcopy(thermalization_template)
         thermalization.id = f"{id_prefix}_thermalization_{id_suffix}"
         thermalization.input_coordinate_file = ProtocolPath(
             "output_coordinate_file", minimization.id
         )
-        thermalization.system_path = system_path
+        thermalization.parameterized_system = parameterized_system
         thermalization.thermodynamic_state = ProtocolPath(
             "thermodynamic_state", "global"
         )
@@ -335,7 +335,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         equilibration.input_coordinate_file = ProtocolPath(
             "output_coordinate_file", thermalization.id
         )
-        equilibration.system_path = system_path
+        equilibration.parameterized_system = parameterized_system
         equilibration.thermodynamic_state = ProtocolPath(
             "thermodynamic_state", "global"
         )
@@ -345,7 +345,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         production.input_coordinate_file = ProtocolPath(
             "output_coordinate_file", equilibration.id
         )
-        production.system_path = system_path
+        production.parameterized_system = parameterized_system
         production.thermodynamic_state = ProtocolPath("thermodynamic_state", "global")
 
         return minimization, thermalization, equilibration, production
@@ -432,8 +432,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
         add_dummy_atoms.input_coordinate_path = ProtocolPath(
             "coordinate_file_path", solvate_coordinates.id
         )
-        add_dummy_atoms.input_system_path = ProtocolPath(
-            "system_path", apply_parameters.id
+        add_dummy_atoms.input_system = ProtocolPath(
+            "parameterized_system", apply_parameters.id
         )
         add_dummy_atoms.offset = ProtocolPath("dummy_atom_offset", "global")
 
@@ -441,8 +441,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
             "output_coordinate_path",
             f"pull_add_dummy_atoms_0_{orientation_placeholder}",
         )
-        attach_system_path = ProtocolPath(
-            "output_system_path", f"pull_add_dummy_atoms_0_{orientation_placeholder}"
+        attach_system = ProtocolPath(
+            "output_system", f"pull_add_dummy_atoms_0_{orientation_placeholder}"
         )
 
         # Apply the attach restraints
@@ -463,8 +463,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         )
         apply_attach_restraints.phase = "attach"
         apply_attach_restraints.window_index = ReplicatorValue(attach_replicator.id)
-        apply_attach_restraints.input_coordinate_path = attach_coordinate_path
-        apply_attach_restraints.input_system_path = attach_system_path
+        apply_attach_restraints.input_system = attach_system
 
         # Apply the pull restraints
         generate_pull_restraints = GeneratePullRestraints(
@@ -487,11 +486,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
         )
         apply_pull_restraints.phase = "pull"
         apply_pull_restraints.window_index = ReplicatorValue(pull_replicator.id)
-        apply_pull_restraints.input_coordinate_path = ProtocolPath(
-            "output_coordinate_path", add_dummy_atoms.id
-        )
-        apply_pull_restraints.input_system_path = ProtocolPath(
-            "output_system_path", add_dummy_atoms.id
+        apply_pull_restraints.input_system = ProtocolPath(
+            "output_system", add_dummy_atoms.id
         )
 
         # Setup the simulations for the attach and pull phases.
@@ -502,7 +498,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             attach_production,
         ) = cls._paprika_build_simulation_protocols(
             attach_coordinate_path,
-            ProtocolPath("output_system_path", apply_attach_restraints.id),
+            ProtocolPath("output_system", apply_attach_restraints.id),
             "attach",
             attach_replicator_id,
             minimization_template,
@@ -518,7 +514,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             pull_production,
         ) = cls._paprika_build_simulation_protocols(
             ProtocolPath("output_coordinate_path", add_dummy_atoms.id),
-            ProtocolPath("output_system_path", apply_pull_restraints.id),
+            ProtocolPath("output_system", apply_pull_restraints.id),
             "pull",
             pull_replicator_id,
             minimization_template,
@@ -659,8 +655,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
             "coordinate_file_path",
             solvate_coordinates.id,
         )
-        add_dummy_atoms.input_system_path = ProtocolPath(
-            "system_path", apply_parameters.id
+        add_dummy_atoms.input_system = ProtocolPath(
+            "parameterized_system", apply_parameters.id
         )
         add_dummy_atoms.offset = ProtocolPath("dummy_atom_offset", "global")
 
@@ -682,11 +678,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
         )
         apply_restraints.phase = "release"
         apply_restraints.window_index = ReplicatorValue(release_replicator.id)
-        apply_restraints.input_coordinate_path = ProtocolPath(
-            "output_coordinate_path", add_dummy_atoms.id
-        )
-        apply_restraints.input_system_path = ProtocolPath(
-            "output_system_path", add_dummy_atoms.id
+        apply_restraints.input_system = ProtocolPath(
+            "output_system", add_dummy_atoms.id
         )
 
         # Setup the simulations for the release phase.
@@ -697,7 +690,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             release_production,
         ) = cls._paprika_build_simulation_protocols(
             ProtocolPath("output_coordinate_path", add_dummy_atoms.id),
-            ProtocolPath("output_system_path", apply_restraints.id),
+            ProtocolPath("output_system", apply_restraints.id),
             "release",
             release_replicator_id,
             minimization_template,

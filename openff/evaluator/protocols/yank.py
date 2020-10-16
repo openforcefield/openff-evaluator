@@ -15,6 +15,7 @@ import yaml
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import SmirnoffForceFieldSource
+from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.substances import Component, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils.openmm import (
@@ -526,8 +527,8 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         default_value=UNDEFINED,
     )
     solvated_ligand_system = InputAttribute(
-        docstring="The file path to the solvated ligand system object.",
-        type_hint=str,
+        docstring="The parameterized solvated ligand system object.",
+        type_hint=ParameterizedSystem,
         default_value=UNDEFINED,
     )
 
@@ -537,8 +538,8 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         default_value=UNDEFINED,
     )
     solvated_complex_system = InputAttribute(
-        docstring="The file path to the solvated complex system object.",
-        type_hint=str,
+        docstring="The parameterized solvated complex system object.",
+        type_hint=ParameterizedSystem,
         default_value=UNDEFINED,
     )
 
@@ -752,7 +753,7 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
             os.path.join(directory, self._local_ligand_coordinates),
         )
         shutil.copyfile(
-            self.solvated_ligand_system,
+            self.solvated_ligand_system.system_path,
             os.path.join(directory, self._local_ligand_system),
         )
 
@@ -761,7 +762,7 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
             os.path.join(directory, self._local_complex_coordinates),
         )
         shutil.copyfile(
-            self.solvated_complex_system,
+            self.solvated_complex_system.system_path,
             os.path.join(directory, self._local_complex_system),
         )
 
@@ -819,9 +820,9 @@ class SolvationYankProtocol(BaseYankProtocol):
         default_value=UNDEFINED,
     )
     solvent_1_system = InputAttribute(
-        docstring="The file path to the system object of the solute embedded in the "
+        docstring="The parameterized system object of the solute embedded in the "
         "first solvent.",
-        type_hint=str,
+        type_hint=ParameterizedSystem,
         default_value=UNDEFINED,
     )
 
@@ -832,9 +833,9 @@ class SolvationYankProtocol(BaseYankProtocol):
         default_value=UNDEFINED,
     )
     solvent_2_system = InputAttribute(
-        docstring="The file path to the system object of the solute embedded in the "
+        docstring="The parameterized system object of the solute embedded in the "
         "second solvent.",
-        type_hint=str,
+        type_hint=ParameterizedSystem,
         default_value=UNDEFINED,
     )
 
@@ -1028,7 +1029,8 @@ class SolvationYankProtocol(BaseYankProtocol):
             os.path.join(directory, self._local_solvent_1_coordinates),
         )
         shutil.copyfile(
-            self.solvent_1_system, os.path.join(directory, self._local_solvent_1_system)
+            self.solvent_1_system.system_path,
+            os.path.join(directory, self._local_solvent_1_system),
         )
 
         shutil.copyfile(
@@ -1036,7 +1038,8 @@ class SolvationYankProtocol(BaseYankProtocol):
             os.path.join(directory, self._local_solvent_2_coordinates),
         )
         shutil.copyfile(
-            self.solvent_2_system, os.path.join(directory, self._local_solvent_2_system)
+            self.solvent_2_system.system_path,
+            os.path.join(directory, self._local_solvent_2_system),
         )
 
         # Disable the pbc of the any solvents which should be treated

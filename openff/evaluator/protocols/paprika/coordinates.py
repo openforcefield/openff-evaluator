@@ -7,6 +7,7 @@ import numpy
 
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
+from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.substances import Component, Substance
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
@@ -227,10 +228,10 @@ class AddDummyAtoms(Protocol):
         type_hint=str,
         default_value=UNDEFINED,
     )
-    input_system_path = InputAttribute(
-        docstring="The file path to the system which the dummy atoms "
+    input_system = InputAttribute(
+        docstring="The parameterized system which the dummy atoms "
         "should be added to.",
-        type_hint=str,
+        type_hint=ParameterizedSystem,
         default_value=UNDEFINED,
     )
 
@@ -239,9 +240,9 @@ class AddDummyAtoms(Protocol):
         "atoms.",
         type_hint=str,
     )
-    output_system_path = OutputAttribute(
-        docstring="The file path to the system which include the added dummy atoms.",
-        type_hint=str,
+    output_system = OutputAttribute(
+        docstring="The parameterized system which include the added dummy atoms.",
+        type_hint=ParameterizedSystem,
     )
 
     def _execute(self, directory, available_resources):
@@ -287,8 +288,7 @@ class AddDummyAtoms(Protocol):
             )
 
         # Add the dummy atoms to the system.
-        with open(self.input_system_path) as file:
-            system = XmlSerializer.deserialize(file.read())
+        system = self.input_system.system
 
         for _ in range(3):
             system.addParticle(mass=207)
@@ -304,7 +304,14 @@ class AddDummyAtoms(Protocol):
             force.addParticle(0.0, 1.0, 0.0)
             force.addParticle(0.0, 1.0, 0.0)
 
-        self.output_system_path = os.path.join(directory, "output.xml")
+        output_system_path = os.path.join(directory, "output.xml")
 
-        with open(self.output_system_path, "w") as file:
+        with open(output_system_path, "w") as file:
             file.write(XmlSerializer.serialize(system))
+
+        self.output_system = ParameterizedSystem(
+            self.input_system.substance,
+            self.input_system.force_field,
+            self.output_coordinate_path,
+            output_system_path,
+        )

@@ -12,6 +12,7 @@ from scipy.special import logsumexp
 
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
+from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils.statistics import ObservableType, StatisticsArray, bootstrap
 from openff.evaluator.workflow import Protocol, workflow_protocol
@@ -127,10 +128,10 @@ class BaseReducedPotentials(Protocol, abc.ABC):
         default_value=UNDEFINED,
     )
 
-    system_path = InputAttribute(
-        docstring="The path to the system object which describes the systems "
-        "potential energy function.",
-        type_hint=str,
+    parameterized_system = InputAttribute(
+        docstring="The parameterized system object which encodes the systems potential "
+        "energy function.",
+        type_hint=ParameterizedSystem,
         default_value=UNDEFINED,
     )
     enable_pbc = InputAttribute(
@@ -139,12 +140,6 @@ class BaseReducedPotentials(Protocol, abc.ABC):
         default_value=True,
     )
 
-    coordinate_file_path = InputAttribute(
-        docstring="The path to the coordinate file which contains topology "
-        "information about the system.",
-        type_hint=str,
-        default_value=UNDEFINED,
-    )
     trajectory_file_path = InputAttribute(
         docstring="The path to the trajectory file which contains the "
         "configurations to calculate the energies of.",
