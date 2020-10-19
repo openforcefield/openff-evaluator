@@ -1,24 +1,19 @@
-import random
 import tempfile
-from os import path
 
 import numpy as np
+import pytest
 
 from openff.evaluator import unit
 from openff.evaluator.backends import ComputeResources
-from openff.evaluator.protocols.coordinates import BuildCoordinatesPackmol
-from openff.evaluator.protocols.forcefield import BuildSmirnoffSystem
-from openff.evaluator.protocols.openmm import OpenMMReducedPotentials
 from openff.evaluator.protocols.reweighting import (
-    ConcatenateStatistics,
+    ConcatenateObservables,
     ConcatenateTrajectories,
-    ReweightStatistics,
+    ReweightDielectricConstant,
+    ReweightObservable,
 )
-from openff.evaluator.substances import Substance
-from openff.evaluator.tests.utils import build_tip3p_smirnoff_force_field
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils import get_data_filename
-from openff.evaluator.utils.statistics import ObservableType, StatisticsArray
+from openff.evaluator.utils.observables import ObservableArray, ObservableFrame
 
 
 def test_concatenate_trajectories():
@@ -43,96 +38,72 @@ def test_concatenate_trajectories():
         assert len(final_trajectory) == len(original_trajectory) * 2
 
 
-def test_concatenate_statistics():
+@pytest.mark.parametrize(
+    "observables",
+    [
+        [ObservableArray(value=np.zeros((2, 3)) * unit.kelvin)],
+        [ObservableArray(value=np.zeros((2, 3)) * unit.kelvin)] * 2,
+        [
+            ObservableFrame(
+                {"Temperature": ObservableArray(value=np.zeros((2, 3)) * unit.kelvin)}
+            )
+        ],
+        [
+            ObservableFrame(
+                {"Temperature": ObservableArray(value=np.zeros((2, 3)) * unit.kelvin)}
+            )
+        ]
+        * 2,
+    ],
+)
+def test_concatenate_observables(observables):
 
-    statistics_path = get_data_filename("test/statistics/stats_pandas.csv")
-    original_array = StatisticsArray.from_pandas_csv(statistics_path)
+    concatenate_protocol = ConcatenateObservables("")
+    concatenate_protocol.input_observables = observables
+    concatenate_protocol.execute()
 
-    with tempfile.TemporaryDirectory() as temporary_directory:
-
-        concatenate_protocol = ConcatenateStatistics("concatenate_protocol")
-        concatenate_protocol.input_statistics_paths = [statistics_path, statistics_path]
-        concatenate_protocol.execute(temporary_directory, ComputeResources())
-
-        final_array = StatisticsArray.from_pandas_csv(
-            concatenate_protocol.output_statistics_path
-        )
-        assert len(final_array) == len(original_array) * 2
-
-
-def test_calculate_reduced_potential_openmm():
-
-    substance = Substance.from_components("O")
-    thermodynamic_state = ThermodynamicState(298 * unit.kelvin, 1.0 * unit.atmosphere)
-
-    with tempfile.TemporaryDirectory() as directory:
-        force_field_path = path.join(directory, "ff.json")
-
-        with open(force_field_path, "w") as file:
-            file.write(build_tip3p_smirnoff_force_field().json())
-
-        build_coordinates = BuildCoordinatesPackmol("build_coordinates")
-        build_coordinates.max_molecules = 10
-        build_coordinates.mass_density = 0.05 * unit.grams / unit.milliliters
-        build_coordinates.substance = substance
-        build_coordinates.execute(directory, None)
-
-        assign_parameters = BuildSmirnoffSystem("assign_parameters")
-        assign_parameters.force_field_path = force_field_path
-        assign_parameters.coordinate_file_path = build_coordinates.coordinate_file_path
-        assign_parameters.substance = substance
-        assign_parameters.execute(directory, None)
-
-        reduced_potentials = OpenMMReducedPotentials("reduced_potentials")
-        reduced_potentials.substance = substance
-        reduced_potentials.thermodynamic_state = thermodynamic_state
-        reduced_potentials.reference_force_field_paths = [force_field_path]
-        reduced_potentials.system_path = assign_parameters.system_path
-        reduced_potentials.trajectory_file_path = get_data_filename(
-            "test/trajectories/water.dcd"
-        )
-        reduced_potentials.coordinate_file_path = get_data_filename(
-            "test/trajectories/water.pdb"
-        )
-        reduced_potentials.kinetic_energies_path = get_data_filename(
-            "test/statistics/stats_pandas.csv"
-        )
-        reduced_potentials.high_precision = False
-        reduced_potentials.execute(directory, ComputeResources())
-
-        assert path.isfile(reduced_potentials.statistics_file_path)
-
-        final_array = StatisticsArray.from_pandas_csv(
-            reduced_potentials.statistics_file_path
-        )
-        assert ObservableType.ReducedPotential in final_array
+    assert len(concatenate_protocol.output_observables) == 2 * len(observables)
 
 
-def test_reweight_statistics():
-
-    number_of_frames = 10
-
-    reduced_potentials = (
-        np.ones(number_of_frames) * random.random() * unit.dimensionless
-    )
-    potentials = (
-        np.ones(number_of_frames) * random.random() * unit.kilojoule / unit.mole
-    )
+def test_reweight_observables():
 
     with tempfile.TemporaryDirectory() as directory:
 
-        statistics_path = path.join(directory, "stats.csv")
+        reweight_protocol = ReweightObservable("")
+        reweight_protocol.observable = ObservableArray(value=np.zeros(10) * unit.kelvin)
+        reweight_protocol.reference_reduced_potentials = [
+            ObservableArray(value=np.zeros(10) * unit.dimensionless)
+        ]
+        reweight_protocol.frame_counts = [10]
+        reweight_protocol.target_reduced_potentials = ObservableArray(
+            value=np.zeros(10) * unit.dimensionless
+        )
+        reweight_protocol.bootstrap_uncertainties = True
+        reweight_protocol.required_effective_samples = 0
+        reweight_protocol.execute(directory, ComputeResources())
 
-        statistics_array = StatisticsArray()
-        statistics_array[ObservableType.ReducedPotential] = reduced_potentials
-        statistics_array[ObservableType.PotentialEnergy] = potentials
-        statistics_array.to_pandas_csv(statistics_path)
 
-        reweight_protocol = ReweightStatistics("reduced_potentials")
-        reweight_protocol.statistics_type = ObservableType.PotentialEnergy
-        reweight_protocol.statistics_paths = statistics_path
-        reweight_protocol.reference_reduced_potentials = statistics_path
-        reweight_protocol.target_reduced_potentials = statistics_path
+def test_reweight_dielectric_constant():
+
+    with tempfile.TemporaryDirectory() as directory:
+
+        reweight_protocol = ReweightDielectricConstant("")
+        reweight_protocol.dipole_moments = ObservableArray(
+            value=np.zeros((10, 3)) * unit.elementary_charge * unit.nanometers
+        )
+        reweight_protocol.volumes = ObservableArray(
+            value=np.ones((10, 1)) * unit.nanometer ** 3
+        )
+        reweight_protocol.reference_reduced_potentials = [
+            ObservableArray(value=np.zeros(10) * unit.dimensionless)
+        ]
+        reweight_protocol.target_reduced_potentials = ObservableArray(
+            value=np.zeros(10) * unit.dimensionless
+        )
+        reweight_protocol.thermodynamic_state = ThermodynamicState(
+            298.15 * unit.kelvin, 1.0 * unit.atmosphere
+        )
+        reweight_protocol.frame_counts = [10]
         reweight_protocol.bootstrap_uncertainties = True
         reweight_protocol.required_effective_samples = 0
         reweight_protocol.execute(directory, ComputeResources())
