@@ -1,3 +1,4 @@
+import os
 import tempfile
 
 import numpy as np
@@ -9,8 +10,11 @@ from openff.evaluator.protocols.analysis import (
     AverageFreeEnergies,
     AverageObservable,
     DecorrelateObservables,
-    DecorrelateTrajectory,
+    DecorrelateTrajectory, ComputeDipoleMoments, AverageDielectricConstant,
 )
+from openff.evaluator.protocols.forcefield import BuildSmirnoffSystem
+from openff.evaluator.substances import Substance
+from openff.evaluator.tests.utils import build_tip3p_smirnoff_force_field
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils import get_data_filename
 from openff.evaluator.utils.observables import Observable, ObservableArray
@@ -27,6 +31,26 @@ def test_average_observable():
         average_observable.execute(temporary_directory)
 
         assert np.isclose(average_observable.value.value, 1.0 * unit.kelvin)
+
+
+def test_average_dielectric_constant():
+
+    with tempfile.TemporaryDirectory() as temporary_directory:
+
+        average_observable = AverageDielectricConstant("")
+        average_observable.dipole_moments = ObservableArray(
+            np.zeros((1, 3)) * unit.elementary_charge * unit.nanometer
+        )
+        average_observable.volumes = ObservableArray(
+            np.ones((1, 1)) * unit.nanometer ** 3
+        )
+        average_observable.thermodynamic_state = ThermodynamicState(
+            298.15 * unit.kelvin, 1.0 * unit.atmosphere
+        )
+        average_observable.bootstrap_iterations = 1
+        average_observable.execute(temporary_directory)
+
+        assert np.isclose(average_observable.value.value, 1.0 * unit.dimensionless)
 
 
 def test_average_free_energies_protocol():
@@ -88,6 +112,37 @@ def test_average_free_energies_protocol():
         gradient_value.magnitude,
         (0.1 * np.exp(-beta.magnitude * -10.0) + 0.2 * np.exp(-beta.magnitude * -20.0))
         / (np.exp(-beta.magnitude * -10.0) + np.exp(-beta.magnitude * -20.0)),
+    )
+
+
+def test_compute_dipole_moments(tmpdir):
+
+    coordinate_path = get_data_filename("test/trajectories/water.pdb")
+    trajectory_path = get_data_filename("test/trajectories/water.dcd")
+
+    # Build a system object for water
+    force_field_path = os.path.join(tmpdir, "ff.json")
+
+    with open(force_field_path, "w") as file:
+        file.write(build_tip3p_smirnoff_force_field().json())
+
+    assign_parameters = BuildSmirnoffSystem("")
+    assign_parameters.force_field_path = force_field_path
+    assign_parameters.coordinate_file_path = coordinate_path
+    assign_parameters.substance = Substance.from_components("O")
+    assign_parameters.execute(str(tmpdir))
+
+    # TODO - test gradients when TIP3P library charges added.
+    protocol = ComputeDipoleMoments("")
+    protocol.parameterized_system = assign_parameters.parameterized_system
+    protocol.trajectory_path = trajectory_path
+    protocol.execute(str(tmpdir))
+
+    assert len(protocol.dipole_moments) == 10
+    assert protocol.dipole_moments.value.shape[1] == 3
+
+    assert not np.allclose(
+        protocol.dipole_moments.value, 0.0 * unit.elementary_charge * unit.nanometers
     )
 
 
