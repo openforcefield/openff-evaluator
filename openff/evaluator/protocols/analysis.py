@@ -11,7 +11,8 @@ import pint
 
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
-from openff.evaluator.forcefield import ParameterGradient
+from openff.evaluator.forcefield import ParameterGradient, SmirnoffForceFieldSource
+from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils import timeseries
 from openff.evaluator.utils.observables import (
@@ -20,6 +21,7 @@ from openff.evaluator.utils.observables import (
     ObservableFrame,
     bootstrap,
 )
+from openff.evaluator.utils.openmm import system_subset, openmm_quantity_to_pint
 from openff.evaluator.utils.timeseries import (
     TimeSeriesStatistics,
     analyze_time_series,
@@ -31,6 +33,83 @@ from openff.evaluator.workflow.attributes import (
     InputAttribute,
     OutputAttribute,
 )
+
+if typing.TYPE_CHECKING:
+    from simtk import openmm
+
+
+E0 = 8.854187817e-12 * unit.farad / unit.meter  # Taken from QCElemental
+
+
+def compute_dielectric_constant(
+    dipole_moments: ObservableArray,
+    volumes: ObservableArray,
+    temperature: pint.Quantity,
+    average_function,
+) -> Observable:
+    """A function to compute the average dielectric constant from an array of
+    dipole moments and an array of volumes, whereby the average values of the
+    observables are computed using a custom function.
+
+    Parameters
+    ----------
+    dipole_moments
+        The dipole moments array.
+    volumes
+        The volume array.
+    temperature
+        The temperature at which the dipole_moments and volumes were sampled.
+    average_function
+        The function to use when evaluating the average of an observable.
+
+    Returns
+    -------
+        The average value of the dielectric constant.
+    """
+
+    dipole_moments_sqr = dipole_moments * dipole_moments
+    dipole_moments_sqr = ObservableArray(
+        value=dipole_moments_sqr.value.sum(axis=1),
+        gradients=[
+            ParameterGradient(gradient.key, gradient.value.sum(axis=1))
+            for gradient in dipole_moments_sqr.gradients
+        ],
+    )
+
+    avg_sqr_dipole_moments = average_function(observable=dipole_moments_sqr)
+    avg_sqr_dipole_moments = ObservableArray(
+        avg_sqr_dipole_moments.value, avg_sqr_dipole_moments.gradients
+    )
+
+    avg_dipole_moment = average_function(observable=dipole_moments)
+
+    avg_dipole_moment_sqr = avg_dipole_moment * avg_dipole_moment
+    avg_dipole_moment_sqr = ObservableArray(
+        value=avg_dipole_moment_sqr.value.sum(axis=1),
+        gradients=[
+            ParameterGradient(gradient.key, gradient.value.sum(axis=1))
+            for gradient in avg_dipole_moment_sqr.gradients
+        ],
+    )
+
+    avg_volume = average_function(observable=volumes)
+    avg_volume = ObservableArray(avg_volume.value, avg_volume.gradients)
+
+    dipole_variance = avg_sqr_dipole_moments - avg_dipole_moment_sqr
+
+    prefactor = 1.0 / (3.0 * E0 * unit.boltzmann_constant * temperature)
+
+    dielectric_constant = 1.0 * unit.dimensionless + prefactor * (
+        dipole_variance / avg_volume
+    )
+
+    return Observable(
+        value=dielectric_constant.value.item().to(unit.dimensionless),
+        gradients=[
+            ParameterGradient(gradient.key, gradient.value.item())
+            for gradient in dielectric_constant.gradients
+        ],
+    )
 
 
 class BaseAverageObservable(Protocol, abc.ABC):
@@ -270,6 +349,45 @@ class AverageObservable(BaseAverageObservable):
 
 
 @workflow_protocol()
+class AverageDielectricConstant(BaseAverageObservable):
+    """Computes the average value of the dielectric constant from a set of dipole
+    moments (M) and volumes (V) sampled over the course of a molecular simulation such
+    that ``eps = 1 + (<M^2> - <M>^2) / (3.0 * eps_0 * <V> * kb * T)`` [1]_.
+
+    References
+    ----------
+    [1] A. Glattli, X. Daura and W. F. van Gunsteren. Derivation of an improved simple
+        point charge model for liquid water: SPC/A and SPC/L. J. Chem. Phys. 116(22):
+        9811-9828, 2002
+    """
+
+    dipole_moments = InputAttribute(
+        docstring="The dipole moments of each sampled configuration.",
+        type_hint=ObservableArray,
+        default_value=UNDEFINED,
+    )
+    volumes = InputAttribute(
+        docstring="The volume of each sampled configuration.",
+        type_hint=ObservableArray,
+        default_value=UNDEFINED,
+    )
+
+    def _observables(self):
+        return {"dipole_moments": self.dipole_moments, "volumes": self.volumes}
+
+    def _bootstrap_function(
+        self, dipole_moments: ObservableArray, volumes: ObservableArray
+    ):
+
+        return compute_dielectric_constant(
+            dipole_moments,
+            volumes,
+            self.thermodynamic_state.temperature,
+            super(AverageDielectricConstant, self)._bootstrap_function,
+        )
+
+
+@workflow_protocol()
 class AverageFreeEnergies(Protocol):
     """A protocol which computes the Boltzmann weighted average
     (ΔG° = -RT × Log[ Σ_{n} exp(-βΔG°_{n}) ]) of a set of free
@@ -406,6 +524,146 @@ class AverageFreeEnergies(Protocol):
                 "The values must contain gradient information for the same set of "
                 "force field parameters."
             )
+
+
+@workflow_protocol()
+class ComputeDipoleMoments(Protocol):
+    """A protocol which will compute the dipole moment for each configuration in
+    a trajectory and for a given parameterized system."""
+
+    parameterized_system = InputAttribute(
+        docstring="The parameterized system which encodes the charge on each atom "
+        "in the system.",
+        type_hint=ParameterizedSystem,
+        default_value=UNDEFINED,
+    )
+    trajectory_path = InputAttribute(
+        docstring="The file path to the trajectory of configurations.",
+        type_hint=str,
+        default_value=UNDEFINED,
+    )
+
+    gradient_parameters = InputAttribute(
+        docstring="An optional list of parameters to differentiate the dipole moments "
+        "with respect to.",
+        type_hint=list,
+        default_value=lambda: list(),
+    )
+
+    dipole_moments = OutputAttribute(
+        docstring="The computed dipole moments.", type_hint=ObservableArray
+    )
+
+    @classmethod
+    def _extract_charges(
+        cls, system: "openmm.System"
+    ) -> typing.Optional[unit.Quantity]:
+        """Retrieve the charge on each atom from an OpenMM system object.
+
+        Parameters
+        ----------
+            The system object containing the charges.
+
+        Returns
+        -------
+            The charge on each atom in the system if any are present, otherwise
+            none.
+        """
+        from simtk import openmm
+        from simtk import unit as simtk_unit
+
+        forces = [
+            system.getForce(force_index)
+            for force_index in range(system.getNumForces())
+            if isinstance(system.getForce(force_index), openmm.NonbondedForce)
+        ]
+
+        if len(forces) > 1:
+
+            raise ValueError(
+                f"The system must contain no more than one non-bonded force, however "
+                f"{len(forces)} were found."
+            )
+
+        if len(forces) == 0:
+            return None
+
+        charges = np.array(
+            [
+                forces[0]
+                .getParticleParameters(atom_index)[0]
+                .value_in_unit(simtk_unit.elementary_charge)
+                for atom_index in range(forces[0].getNumParticles())
+            ]
+        )
+        return charges * unit.elementary_charge
+
+    def _compute_charge_derivatives(self, n_atoms: int):
+
+        d_charge_d_theta = {key: np.zeros(n_atoms) for key in self.gradient_parameters}
+
+        if len(self.gradient_parameters) > 0 and not isinstance(
+            self.parameterized_system.force_field, SmirnoffForceFieldSource
+        ):
+            raise ValueError(
+                "Derivates can only be computed for systems parameterized with "
+                "SMIRNOFF force fields."
+            )
+
+        force_field = self.parameterized_system.force_field.to_force_field()
+        topology = self.parameterized_system.topology
+
+        for key in self.gradient_parameters:
+
+            reverse_system, reverse_value = system_subset(key, force_field, topology)
+            forward_system, forward_value = system_subset(
+                key, force_field, topology, 0.1
+            )
+
+            reverse_value = openmm_quantity_to_pint(reverse_value)
+            forward_value = openmm_quantity_to_pint(forward_value)
+
+            reverse_charges = self._extract_charges(reverse_system)
+            forward_charges = self._extract_charges(forward_system)
+
+            if reverse_charges is None and forward_charges is None:
+                d_charge_d_theta[key] /= forward_value.units
+
+            else:
+                d_charge_d_theta[key] = (forward_charges - reverse_charges) / (
+                    forward_value - reverse_value
+                )
+
+        return d_charge_d_theta
+
+    def _execute(self, directory, available_resources):
+
+        import mdtraj
+
+        charges = self._extract_charges(self.parameterized_system.system)
+        charge_derivatives = self._compute_charge_derivatives(len(charges))
+
+        dipole_moments = []
+        dipole_gradients = {key: [] for key in self.gradient_parameters}
+
+        for chunk in mdtraj.iterload(
+            self.trajectory_path, top=self.parameterized_system.topology_path, chunk=50
+        ):
+
+            xyz = chunk.xyz.transpose(0, 2, 1) * unit.nanometers
+
+            dipole_moments.extend(xyz.dot(charges))
+
+            for key in self.gradient_parameters:
+                dipole_gradients[key].extend(xyz.dot(charge_derivatives[key]))
+
+        self.dipole_moments = ObservableArray(
+            value=np.vstack(dipole_moments),
+            gradients=[
+                ParameterGradient(key=key, value=np.vstack(dipole_gradients[key]))
+                for key in self.gradient_parameters
+            ],
+        )
 
 
 class BaseDecorrelateProtocol(Protocol, abc.ABC):

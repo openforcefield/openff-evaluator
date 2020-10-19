@@ -81,8 +81,8 @@ class SolvationFreeEnergy(PhysicalProperty):
         # Perform a quick minimisation of the full system to give
         # YANK a better starting point for its minimisation.
         energy_minimisation = openmm.OpenMMEnergyMinimisation("energy_minimisation")
-        energy_minimisation.system_path = ProtocolPath(
-            "system_path", assign_full_parameters.id
+        energy_minimisation.parameterized_system = ProtocolPath(
+            "parameterized_system", assign_full_parameters.id
         )
         energy_minimisation.input_coordinate_file = ProtocolPath(
             "coordinate_file_path", build_full_coordinates.id
@@ -96,8 +96,8 @@ class SolvationFreeEnergy(PhysicalProperty):
         equilibration_simulation.thermodynamic_state = ProtocolPath(
             "thermodynamic_state", "global"
         )
-        equilibration_simulation.system_path = ProtocolPath(
-            "system_path", assign_full_parameters.id
+        equilibration_simulation.parameterized_system = ProtocolPath(
+            "parameterized_system", assign_full_parameters.id
         )
         equilibration_simulation.input_coordinate_file = ProtocolPath(
             "output_coordinate_file", energy_minimisation.id
@@ -145,17 +145,17 @@ class SolvationFreeEnergy(PhysicalProperty):
             "output_coordinate_file", equilibration_simulation.id
         )
         run_yank.solvent_1_system = ProtocolPath(
-            "system_path", assign_full_parameters.id
+            "parameterized_system", assign_full_parameters.id
         )
         run_yank.solvent_2_coordinates = ProtocolPath(
             "coordinate_file_path", build_vacuum_coordinates.id
         )
         run_yank.solvent_2_system = ProtocolPath(
-            "system_path", assign_vacuum_parameters.id
+            "parameterized_system", assign_vacuum_parameters.id
         )
 
-        # Set up the group which will run yank until the free energy has been determined to within
-        # a given uncertainty
+        # Set up the group which will run yank until the free energy has been determined
+        # to within a given uncertainty
         conditional_group = groups.ConditionalGroup("conditional_group")
         conditional_group.max_iterations = 20
 
