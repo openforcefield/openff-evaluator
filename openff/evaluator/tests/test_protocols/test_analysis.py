@@ -7,10 +7,12 @@ import pytest
 from openff.evaluator import unit
 from openff.evaluator.forcefield import ParameterGradient, ParameterGradientKey
 from openff.evaluator.protocols.analysis import (
+    AverageDielectricConstant,
     AverageFreeEnergies,
     AverageObservable,
+    ComputeDipoleMoments,
     DecorrelateObservables,
-    DecorrelateTrajectory, ComputeDipoleMoments, AverageDielectricConstant,
+    DecorrelateTrajectory,
 )
 from openff.evaluator.protocols.forcefield import BuildSmirnoffSystem
 from openff.evaluator.substances import Substance

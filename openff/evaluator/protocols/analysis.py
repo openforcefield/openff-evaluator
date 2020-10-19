@@ -21,7 +21,7 @@ from openff.evaluator.utils.observables import (
     ObservableFrame,
     bootstrap,
 )
-from openff.evaluator.utils.openmm import system_subset, openmm_quantity_to_pint
+from openff.evaluator.utils.openmm import openmm_quantity_to_pint, system_subset
 from openff.evaluator.utils.timeseries import (
     TimeSeriesStatistics,
     analyze_time_series,
