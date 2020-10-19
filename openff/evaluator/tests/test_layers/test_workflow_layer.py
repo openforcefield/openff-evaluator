@@ -11,6 +11,7 @@ from openff.evaluator.server import server
 from openff.evaluator.storage import LocalFileStorage
 from openff.evaluator.tests.test_workflow.utils import DummyInputOutputProtocol
 from openff.evaluator.tests.utils import create_dummy_property
+from openff.evaluator.utils.observables import Observable
 from openff.evaluator.utils.utils import temporarily_change_directory
 from openff.evaluator.workflow import WorkflowSchema
 from openff.evaluator.workflow.utils import ProtocolPath
@@ -28,7 +29,7 @@ def test_workflow_layer():
 
     # Create a very simple workflow which just returns some placeholder
     # value.
-    estimated_value = (1 * unit.kelvin).plus_minus(0.1 * unit.kelvin)
+    estimated_value = Observable((1 * unit.kelvin).plus_minus(0.1 * unit.kelvin))
     protocol_a = DummyInputOutputProtocol("protocol_a")
     protocol_a.input_value = estimated_value
 

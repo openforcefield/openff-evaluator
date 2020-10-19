@@ -18,6 +18,7 @@ from openff.evaluator.forcefield import SmirnoffForceFieldSource
 from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.substances import Component, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
+from openff.evaluator.utils.observables import Observable
 from openff.evaluator.utils.openmm import (
     disable_pbc,
     openmm_quantity_to_pint,
@@ -95,7 +96,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
     estimated_free_energy = OutputAttribute(
         docstring="The estimated free energy value and its uncertainty "
         "returned by YANK.",
-        type_hint=pint.Measurement,
+        type_hint=Observable,
     )
 
     @staticmethod
@@ -493,8 +494,10 @@ class BaseYankProtocol(Protocol, abc.ABC):
             if exception is not None:
                 raise exception
 
-        self.estimated_free_energy = openmm_quantity_to_pint(free_energy).plus_minus(
-            openmm_quantity_to_pint(free_energy_uncertainty)
+        self.estimated_free_energy = Observable(
+            value=openmm_quantity_to_pint(free_energy).plus_minus(
+                openmm_quantity_to_pint(free_energy_uncertainty)
+            )
         )
 
 

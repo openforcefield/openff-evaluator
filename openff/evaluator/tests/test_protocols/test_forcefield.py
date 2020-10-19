@@ -32,7 +32,7 @@ def test_build_smirnoff_system():
         build_coordinates = BuildCoordinatesPackmol("build_coordinates")
         build_coordinates.max_molecules = 8
         build_coordinates.substance = substance
-        build_coordinates.execute(directory, None)
+        build_coordinates.execute(directory)
 
         assign_parameters = BuildSmirnoffSystem("assign_parameters")
         assign_parameters.force_field_path = force_field_path

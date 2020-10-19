@@ -299,8 +299,6 @@ def test_nested_replicators():
     assert dummy_workflow.protocols["dummy_1_0"].replicated_value_b == 1
     assert dummy_workflow.protocols["dummy_1_1"].replicated_value_b == 2
 
-    print(dummy_workflow.schema)
-
 
 def test_advanced_nested_replicators():
 

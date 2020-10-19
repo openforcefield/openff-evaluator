@@ -14,6 +14,7 @@ from openff.evaluator.storage.data import StoredSimulationData
 from openff.evaluator.substances import Component, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils import get_data_filename
+from openff.evaluator.utils.observables import ObservableFrame
 
 
 @contextmanager
@@ -98,7 +99,6 @@ def create_dummy_simulation_data(
     force_field_id="dummy_ff_id",
     coordinate_file_name="output.pdb",
     trajectory_file_name="trajectory.dcd",
-    statistics_file_name="statistics.csv",
     statistical_inefficiency=1.0,
     phase=PropertyPhase.Liquid,
     number_of_molecules=1,
@@ -139,13 +139,11 @@ def create_dummy_simulation_data(
 
     data.coordinate_file_name = coordinate_file_name
     data.trajectory_file_name = trajectory_file_name
-    data.statistics_file_name = statistics_file_name
+    data.observables = ObservableFrame()
 
     with open(os.path.join(directory_path, coordinate_file_name), "w") as file:
         file.write("")
     with open(os.path.join(directory_path, trajectory_file_name), "w") as file:
-        file.write("")
-    with open(os.path.join(directory_path, statistics_file_name), "w") as file:
         file.write("")
 
     data.statistical_inefficiency = statistical_inefficiency
