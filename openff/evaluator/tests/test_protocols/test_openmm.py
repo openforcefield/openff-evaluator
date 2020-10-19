@@ -6,34 +6,32 @@ import os
 import tempfile
 from os import path
 
-import pytest
-
 from openff.evaluator import unit
 from openff.evaluator.backends import ComputeResources
-from openff.evaluator.forcefield import ParameterGradientKey
 from openff.evaluator.protocols.coordinates import BuildCoordinatesPackmol
 from openff.evaluator.protocols.forcefield import BuildSmirnoffSystem
 from openff.evaluator.protocols.openmm import (
     OpenMMEnergyMinimisation,
-    OpenMMGradientPotentials,
+    OpenMMEvaluateEnergies,
     OpenMMSimulation,
 )
 from openff.evaluator.substances import Substance
 from openff.evaluator.tests.utils import build_tip3p_smirnoff_force_field
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils import get_data_filename
+from openff.evaluator.utils.observables import ObservableType
 from openff.evaluator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
-from openff.evaluator.utils.statistics import StatisticsArray
 
 
 def _setup_dummy_system(directory):
+    """Generate a temporary parameterized system object."""
 
     force_field_path = path.join(directory, "ff.json")
 
     with open(force_field_path, "w") as file:
         file.write(build_tip3p_smirnoff_force_field().json())
 
-    substance = Substance.from_components("C")
+    substance = Substance.from_components("O")
 
     build_coordinates = BuildCoordinatesPackmol("build_coordinates")
     build_coordinates.max_molecules = 10
@@ -84,7 +82,7 @@ def test_run_openmm_simulation():
 
         assert path.isfile(npt_equilibration.output_coordinate_file)
         assert path.isfile(npt_equilibration.trajectory_file_path)
-        assert path.isfile(npt_equilibration.statistics_file_path)
+        assert len(npt_equilibration.observables) == 2
 
 
 def test_run_openmm_simulation_checkpoints():
@@ -110,10 +108,7 @@ def test_run_openmm_simulation_checkpoints():
         assert os.path.isfile(npt_equilibration._checkpoint_path)
         npt_equilibration.execute(directory, ComputeResources())
 
-        assert (
-            len(StatisticsArray.from_pandas_csv(npt_equilibration.statistics_file_path))
-            == 4
-        )
+        assert len(npt_equilibration.observables) == 4
         assert (
             len(
                 mdtraj.load(npt_equilibration.trajectory_file_path, top=coordinate_path)
@@ -137,10 +132,7 @@ def test_run_openmm_simulation_checkpoints():
 
         npt_equilibration.execute(directory, ComputeResources())
 
-        assert (
-            len(StatisticsArray.from_pandas_csv(npt_equilibration.statistics_file_path))
-            == 4
-        )
+        assert len(npt_equilibration.observables) == 4
         assert (
             len(
                 mdtraj.load(npt_equilibration.trajectory_file_path, top=coordinate_path)
@@ -149,8 +141,7 @@ def test_run_openmm_simulation_checkpoints():
         )
 
 
-@pytest.mark.parametrize("use_subset", [True, False])
-def test_gradient_reduced_potentials(use_subset):
+def test_evaluate_energies_openmm():
 
     substance = Substance.from_components("O")
     thermodynamic_state = ThermodynamicState(298 * unit.kelvin, 1.0 * unit.atmosphere)
@@ -159,28 +150,14 @@ def test_gradient_reduced_potentials(use_subset):
 
         coordinate_path, parameterized_system = _setup_dummy_system(directory)
 
-        with open(force_field_path, "w") as file:
-            file.write(build_tip3p_smirnoff_force_field().json())
-
-        reduced_potentials = OpenMMGradientPotentials("reduced_potentials")
+        reduced_potentials = OpenMMEvaluateEnergies("")
         reduced_potentials.substance = substance
         reduced_potentials.thermodynamic_state = thermodynamic_state
-        reduced_potentials.statistics_path = get_data_filename(
-            "test/statistics/stats_pandas.csv"
-        )
-        reduced_potentials.force_field_path = force_field_path
+        reduced_potentials.parameterized_system = parameterized_system
         reduced_potentials.trajectory_file_path = get_data_filename(
             "test/trajectories/water.dcd"
         )
-        reduced_potentials.coordinate_file_path = get_data_filename(
-            "test/trajectories/water.pdb"
-        )
-        reduced_potentials.use_subset_of_force_field = use_subset
-        reduced_potentials.enable_pbc = True
-        reduced_potentials.parameter_key = ParameterGradientKey(
-            "vdW", "[#1]-[#8X2H2+0:1]-[#1]", "epsilon"
-        )
-
         reduced_potentials.execute(directory, ComputeResources())
-        assert path.isfile(reduced_potentials.forward_potentials_path)
-        assert path.isfile(reduced_potentials.reverse_potentials_path)
+
+        assert ObservableType.ReducedPotential in reduced_potentials.output_observables
+        assert ObservableType.PotentialEnergy in reduced_potentials.output_observables
