@@ -331,11 +331,11 @@ def test_system_subset_vdw():
     assert np.isclose(charge_0.value_in_unit(simtk_unit.elementary_charge), 0.0)
     assert np.isclose(charge_1.value_in_unit(simtk_unit.elementary_charge), 0.0)
 
-    assert np.isclose(sigma_0.value_in_unit(simtk_unit.angstrom), 1.0)
-    assert np.isclose(sigma_1.value_in_unit(simtk_unit.angstrom), 2.0)
+    assert np.isclose(sigma_0.value_in_unit(simtk_unit.angstrom), 2.0)
+    assert np.isclose(sigma_1.value_in_unit(simtk_unit.angstrom), 1.0)
 
-    assert np.isclose(epsilon_0.value_in_unit(simtk_unit.kilojoules_per_mole), 0.5)
-    assert np.isclose(epsilon_1.value_in_unit(simtk_unit.kilojoules_per_mole), 2.0)
+    assert np.isclose(epsilon_0.value_in_unit(simtk_unit.kilojoules_per_mole), 2.0)
+    assert np.isclose(epsilon_1.value_in_unit(simtk_unit.kilojoules_per_mole), 0.5)
 
 
 def test_system_subset_library_charge():
@@ -364,8 +364,8 @@ def test_system_subset_library_charge():
     charge_0, sigma_0, epsilon_0 = system.getForce(0).getParticleParameters(0)
     charge_1, sigma_1, epsilon_1 = system.getForce(0).getParticleParameters(1)
 
-    assert np.isclose(charge_0.value_in_unit(simtk_unit.elementary_charge), 1.5)
-    assert np.isclose(charge_1.value_in_unit(simtk_unit.elementary_charge), -1.5)
+    assert np.isclose(charge_0.value_in_unit(simtk_unit.elementary_charge), -1.5)
+    assert np.isclose(charge_1.value_in_unit(simtk_unit.elementary_charge), 1.5)
 
     assert np.isclose(sigma_0.value_in_unit(simtk_unit.angstrom), 10.0)
     assert np.isclose(sigma_1.value_in_unit(simtk_unit.angstrom), 10.0)
@@ -400,8 +400,8 @@ def test_system_subset_charge_increment():
     charge_0, sigma_0, epsilon_0 = system.getForce(0).getParticleParameters(0)
     charge_1, sigma_1, epsilon_1 = system.getForce(0).getParticleParameters(1)
 
-    assert not np.isclose(charge_0.value_in_unit(simtk_unit.elementary_charge), 1.0)
-    assert np.isclose(charge_1.value_in_unit(simtk_unit.elementary_charge), -1.0)
+    assert not np.isclose(charge_0.value_in_unit(simtk_unit.elementary_charge), -1.0)
+    assert np.isclose(charge_1.value_in_unit(simtk_unit.elementary_charge), 1.0)
 
     assert np.isclose(sigma_0.value_in_unit(simtk_unit.angstrom), 10.0)
     assert np.isclose(sigma_1.value_in_unit(simtk_unit.angstrom), 10.0)
