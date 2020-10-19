@@ -3,13 +3,11 @@ A collection of schemas which represent elements of a workflow.
 """
 import re
 
-import pint
-
 from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
-from openff.evaluator.attributes.typing import is_type_subclass_of_type, is_union_type
-from openff.evaluator.forcefield import ParameterGradient
+from openff.evaluator.attributes.typing import is_type_subclass_of_type
 from openff.evaluator.storage.attributes import StorageAttribute
 from openff.evaluator.storage.data import BaseStoredData
+from openff.evaluator.utils.observables import Observable
 from openff.evaluator.utils.serialization import TypedBaseModel
 from openff.evaluator.workflow.attributes import InputAttribute
 from openff.evaluator.workflow.plugins import registered_workflow_protocols
@@ -443,12 +441,6 @@ class WorkflowSchema(AttributeClass):
         type_hint=ProtocolPath,
         optional=True,
     )
-    gradients_sources = Attribute(
-        docstring="A list of references the protcol outputs which correspond to the gradients "
-        "of the estimated property with respect to specified force field parameters.",
-        type_hint=list,
-        optional=True,
-    )
     outputs_to_store = Attribute(
         docstring="A collection of data classes to populate ready to be stored by a "
         "`StorageBackend`.",
@@ -470,7 +462,7 @@ class WorkflowSchema(AttributeClass):
 
         Parameters
         ----------
-        protocol_replacements: dict of str and str, None
+        protocol_replacements: dict of str and str, optional
             A dictionary with keys of the types of protocols which should be replaced
             with those protocols named by the values.
         protocol_group_schema: ProtocolGroupSchema
@@ -711,41 +703,7 @@ class WorkflowSchema(AttributeClass):
             self.final_value_source
         ).type_hint
 
-        # TODO: In Python < 3.7 the Union type will collapse pint.Quantity
-        #       and pint.Measurement into pint.Quantity such that this check
-        #       will fail. For now we allow Measurements or Quantities, but
-        #       this should be reverted to just pint.Measurement when dropping
-        #       3.6 support.
-        if is_union_type(attribute_type):
-            assert is_type_subclass_of_type(attribute_type, pint.Quantity)
-        else:
-            assert is_type_subclass_of_type(attribute_type, pint.Measurement)
-
-    def _validate_gradients(self, schemas_by_id):
-
-        if self.gradients_sources == UNDEFINED:
-            return
-
-        assert all(isinstance(x, ProtocolPath) for x in self.gradients_sources)
-
-        for gradient_source in self.gradients_sources:
-
-            if gradient_source.start_protocol not in schemas_by_id:
-
-                raise ValueError(
-                    f"The gradient source {gradient_source} does not exist."
-                )
-
-            protocol_schema = schemas_by_id[gradient_source.start_protocol]
-
-            protocol_object = protocol_schema.to_protocol()
-            protocol_object.get_value(gradient_source)
-
-            attribute_type = protocol_object.get_class_attribute(
-                gradient_source
-            ).type_hint
-
-            assert is_type_subclass_of_type(attribute_type, ParameterGradient)
+        assert is_type_subclass_of_type(attribute_type, Observable)
 
     def _validate_outputs_to_store(self, schemas_by_id):
         """Validates that the references to the outputs to store
@@ -793,6 +751,12 @@ class WorkflowSchema(AttributeClass):
                     raise ValueError(f"The {attribute_value} source does not exist.")
 
                 protocol_schema = schemas_by_id[attribute_value.start_protocol]
+
+                # Currently we do not support validating nested or indexed attributes.
+                attribute_value = ProtocolPath(
+                    attribute_value.property_name.split(".")[0].split("[")[0],
+                    *attribute_value.protocol_ids,
+                )
 
                 protocol_object = protocol_schema.to_protocol()
                 protocol_object.get_value(attribute_value)
@@ -934,7 +898,6 @@ class WorkflowSchema(AttributeClass):
 
         # Validate the different pieces of data to populate / draw from.
         self._validate_final_value(schemas_by_id)
-        self._validate_gradients(schemas_by_id)
         self._validate_replicators(schemas_by_id)
         self._validate_outputs_to_store(schemas_by_id)
 
