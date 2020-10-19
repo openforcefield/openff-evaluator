@@ -1,7 +1,6 @@
 """
 A collection of enthalpy physical property definitions.
 """
-
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED, PlaceholderValue
 from openff.evaluator.datasets import PhysicalProperty, PropertyPhase
@@ -44,7 +43,35 @@ class EnthalpyOfMixing(EstimableExcessProperty):
         relative_tolerance: float = UNDEFINED,
         n_effective_samples: int = 50,
     ) -> ReweightingSchema:
-        raise NotImplementedError()
+
+        calculation_schema = super(EnthalpyOfMixing, cls)._default_reweighting_schema(
+            ObservableType.ReducedPotential,
+            absolute_tolerance,
+            relative_tolerance,
+            n_effective_samples,
+        )
+
+        # Divide the excess reduced potential by beta to get an approximation
+        # of the excess enthalpy.
+        excess_enthalpy_of_mixing = miscellaneous.MultiplyValue(
+            "excess_enthalpy_of_mixing"
+        )
+        excess_enthalpy_of_mixing.value = (
+            calculation_schema.workflow_schema.final_value_source
+        )
+        excess_enthalpy_of_mixing.multiplier = ProtocolPath(
+            "thermodynamic_state.inverse_beta", "global"
+        )
+
+        # Update the workflow schema.
+        calculation_schema.workflow_schema.protocol_schemas.append(
+            excess_enthalpy_of_mixing.schema
+        )
+        calculation_schema.workflow_schema.final_value_source = ProtocolPath(
+            "result", excess_enthalpy_of_mixing.id
+        )
+
+        return calculation_schema
 
 
 @thermoml_property(
@@ -382,6 +409,9 @@ class EnthalpyOfVaporization(PhysicalProperty):
 # Register the properties via the plugin system.
 register_calculation_schema(
     EnthalpyOfMixing, SimulationLayer, EnthalpyOfMixing.default_simulation_schema
+)
+register_calculation_schema(
+    EnthalpyOfMixing, ReweightingLayer, EnthalpyOfMixing.default_reweighting_schema
 )
 register_calculation_schema(
     EnthalpyOfVaporization,

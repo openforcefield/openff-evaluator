@@ -291,7 +291,11 @@ def generate_reweighting_protocols(
     ProtocolReplicator,
 ]:
 
-    assert observable_type != ObservableType.KineticEnergy
+    assert observable_type not in [
+        ObservableType.KineticEnergy,
+        ObservableType.TotalEnergy,
+        ObservableType.Enthalpy,
+    ]
 
     statistical_inefficiency = analysis.AverageObservable(
         f"observable_inefficiency_$({replicator_id}){id_suffix}"

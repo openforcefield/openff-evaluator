@@ -271,14 +271,18 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         }
 
     @classmethod
-    def default_reweighting_schema(
+    def _default_reweighting_schema(
         cls,
+        observable_type: ObservableType,
         absolute_tolerance: unit.Quantity = UNDEFINED,
         relative_tolerance: float = UNDEFINED,
         n_effective_samples: int = 50,
     ) -> ReweightingSchema:
         """Returns the default calculation schema to use when estimating this class of
         property by re-weighting cached simulation data.
+
+        This internal implementation allows re-weighting a different observable than
+        may be specified by the `_observable_type` class property.
 
         Parameters
         ----------
@@ -307,7 +311,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         # Define the protocols which will re-weight the observable computed for the
         # fully mixed system.
         mixture_protocols, mixture_data_replicator = generate_reweighting_protocols(
-            cls._observable_type(),
+            observable_type,
             "mixture_data_replicator",
             "_mixture",
         )
@@ -340,7 +344,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         component_replicator.template_values = ProtocolPath("components", "global")
 
         component_protocols, component_data_replicator = generate_reweighting_protocols(
-            cls._observable_type(),
+            observable_type,
             f"_component_{component_replicator.placeholder_id}",
             f"component_{component_replicator.placeholder_id}_data_replicator",
         )
@@ -398,7 +402,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             "calculate_excess_observable"
         )
         calculate_excess_observable.value_b = ProtocolPath(
-            "value", mixture_protocols.reweight_observable.id
+            "result", divide_by_mixture_molecules.id
         )
         calculate_excess_observable.value_a = ProtocolPath(
             "result", add_component_observables.id
@@ -434,3 +438,36 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
 
         calculation_schema.workflow_schema = schema
         return calculation_schema
+
+    @classmethod
+    def default_reweighting_schema(
+        cls,
+        absolute_tolerance: unit.Quantity = UNDEFINED,
+        relative_tolerance: float = UNDEFINED,
+        n_effective_samples: int = 50,
+    ) -> ReweightingSchema:
+        """Returns the default calculation schema to use when estimating this class of
+        property by re-weighting cached simulation data.
+
+        Parameters
+        ----------
+        absolute_tolerance
+            The absolute tolerance to estimate the property to within.
+        relative_tolerance
+            The tolerance (as a fraction of the properties reported
+            uncertainty) to estimate the property to within.
+        n_effective_samples
+            The minimum number of effective samples to require when
+            reweighting the cached simulation data.
+
+        Returns
+        -------
+            The default re-weighting calculation schema.
+        """
+
+        return cls._default_reweighting_schema(
+            cls._observable_type(),
+            absolute_tolerance,
+            relative_tolerance,
+            n_effective_samples,
+        )

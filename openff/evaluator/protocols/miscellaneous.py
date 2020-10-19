@@ -130,7 +130,13 @@ class MultiplyValue(Protocol):
     result = OutputAttribute(
         docstring="The result of the multiplication.",
         type_hint=typing.Union[
-            int, float, pint.Measurement, pint.Quantity, ParameterGradient
+            int,
+            float,
+            pint.Measurement,
+            pint.Quantity,
+            ParameterGradient,
+            Observable,
+            ObservableArray,
         ],
     )
 
