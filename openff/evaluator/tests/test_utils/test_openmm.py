@@ -312,7 +312,7 @@ def hydrogen_chloride_force_field(
 def test_system_subset_vdw():
 
     # Create a dummy topology
-    topology = Molecule.from_smiles("HCl").to_topology()
+    topology = Molecule.from_smiles("Cl").to_topology()
 
     # Create the system subset.
     system, parameter_value = system_subset(
@@ -348,7 +348,7 @@ def test_system_subset_library_charge():
     )
 
     # Create a dummy topology
-    topology = Molecule.from_smiles("HCl").to_topology()
+    topology = Molecule.from_smiles("Cl").to_topology()
 
     # Create the system subset.
     system, parameter_value = system_subset(
@@ -382,7 +382,7 @@ def test_system_subset_charge_increment():
     )
 
     # Create a dummy topology
-    topology = Molecule.from_smiles("HCl").to_topology()
+    topology = Molecule.from_smiles("Cl").to_topology()
 
     # Create the system subset.
     system, parameter_value = system_subset(
