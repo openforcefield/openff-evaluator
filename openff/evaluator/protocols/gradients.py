@@ -1,190 +1,110 @@
 """
-A collection of protocols for calculating the gradients of observables
-with respect to force field parameters.
+A collection of protocols for calculating the gradients of observables with respect to
+force field parameters.
 """
 import abc
-import typing
+from typing import Union
 
-import pint
+import numpy
 
 from openff.evaluator.attributes import UNDEFINED
-from openff.evaluator.forcefield import ParameterGradient, ParameterGradientKey
-from openff.evaluator.substances import Substance
-from openff.evaluator.thermodynamics import ThermodynamicState
+from openff.evaluator.forcefield import (
+    ForceFieldSource,
+    ParameterGradient,
+    SmirnoffForceFieldSource,
+)
+from openff.evaluator.utils.observables import Observable, ObservableArray
+from openff.evaluator.utils.openmm import openmm_quantity_to_pint
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
 
 
 @workflow_protocol()
-class BaseGradientPotentials(Protocol, abc.ABC):
-    """A base class for protocols which will evaluate the reduced potentials of a
-    series of configurations using a set of force field parameters which have been
-    slightly increased and slightly decreased. These are mainly useful when
-    estimating gradients with respect to force field parameters using the central
-    difference method.
+class ZeroGradients(Protocol, abc.ABC):
+    """Zeros out the gradients of an observable
+    with respect to a set of force field parameters.
     """
+
+    input_observables = InputAttribute(
+        docstring="The observables to differentiate.",
+        type_hint=Union[Observable, ObservableArray],
+        default_value=UNDEFINED,
+    )
 
     force_field_path = InputAttribute(
         docstring="The path to the force field which contains the parameters to "
-        "differentiate the observable with respect to. When reweighting "
-        "observables, this should be the `target` force field.",
+        "differentiate the observable with respect to. This is many used to get the "
+        "correct units for the parameters.",
         type_hint=str,
         default_value=UNDEFINED,
     )
-    statistics_path = InputAttribute(
-        docstring="The path to a statistics array containing potentials "
-        "evaluated at each frame of the trajectory using the input "
-        "`force_field_path` and at the input `thermodynamic_state`.",
-        type_hint=str,
-        default_value=UNDEFINED,
-    )
-    thermodynamic_state = InputAttribute(
-        docstring="The thermodynamic state to estimate the gradients at. When "
-        "reweighting observables, this should be the `target` state.",
-        type_hint=ThermodynamicState,
-        default_value=UNDEFINED,
-    )
-
-    substance = InputAttribute(
-        docstring="The substance which describes the composition of the system.",
-        type_hint=Substance,
-        default_value=UNDEFINED,
-    )
-
-    coordinate_file_path = InputAttribute(
-        docstring="A path to a PDB coordinate file which describes the topology of "
-        "the system.",
-        type_hint=str,
-        default_value=UNDEFINED,
-    )
-    trajectory_file_path = InputAttribute(
-        docstring="A path to the trajectory of configurations",
-        type_hint=str,
-        default_value=UNDEFINED,
-    )
-
-    enable_pbc = InputAttribute(
-        docstring="If true, periodic boundary conditions will be enabled when "
-        "re-evaluating the reduced potentials.",
-        type_hint=bool,
-        default_value=True,
-    )
-
-    parameter_key = InputAttribute(
-        docstring="The key of the parameter to differentiate with respect to.",
-        type_hint=ParameterGradientKey,
-        default_value=UNDEFINED,
-    )
-    perturbation_scale = InputAttribute(
-        docstring="The amount to perturb the parameter by, such that "
-        "p_new = p_old * (1 +/- `perturbation_scale`)",
-        type_hint=float,
-        default_value=1.0e-4,
-    )
-
-    use_subset_of_force_field = InputAttribute(
-        docstring="If true, the reduced potentials will be estimated using "
-        "a system which only contains the parameters of interest, e.g. if the "
-        "gradient of interest is with respect to the VdW epsilon parameter, then "
-        "all valence / electrostatic terms will be ignored.",
-        type_hint=bool,
-        default_value=True,
-    )
-
-    effective_sample_indices = InputAttribute(
-        docstring="This a placeholder input which is not currently implemented.",
+    gradient_parameters = InputAttribute(
+        docstring="The parameters to zero the gradient with respect to.",
         type_hint=list,
-        default_value=UNDEFINED,
-        optional=True,
+        default_value=lambda: list(),
     )
 
-    reverse_potentials_path = OutputAttribute(
-        docstring="A file path to the energies evaluated using the parameters"
-        "perturbed in the reverse direction.",
-        type_hint=str,
-    )
-    forward_potentials_path = OutputAttribute(
-        docstring="A file path to the energies evaluated using the parameters"
-        "perturbed in the forward direction.",
-        type_hint=str,
-    )
-    reverse_parameter_value = OutputAttribute(
-        docstring="The value of the parameter perturbed in the reverse direction.",
-        type_hint=pint.Quantity,
-    )
-    forward_parameter_value = OutputAttribute(
-        docstring="The value of the parameter perturbed in the forward direction.",
-        type_hint=pint.Quantity,
-    )
-
-
-@workflow_protocol()
-class CentralDifferenceGradient(Protocol):
-    """A protocol which employs the central diference method
-    to estimate the gradient of an observable A, such that
-
-    grad = (A(x-h) - A(x+h)) / (2h)
-
-    Notes
-    -----
-    The `values` input must either be a list of pint.Quantity, a ProtocolPath to a list
-    of pint.Quantity, or a list of ProtocolPath which each point to a pint.Quantity.
-    """
-
-    parameter_key = InputAttribute(
-        docstring="The key of the parameter to differentiate with respect to.",
-        type_hint=ParameterGradientKey,
-        default_value=UNDEFINED,
-    )
-
-    reverse_observable_value = InputAttribute(
-        docstring="The value of the observable evaluated using the parameters"
-        "perturbed in the reverse direction.",
-        type_hint=typing.Union[pint.Quantity, pint.Measurement],
-        default_value=UNDEFINED,
-    )
-    forward_observable_value = InputAttribute(
-        docstring="The value of the observable evaluated using the parameters"
-        "perturbed in the forward direction.",
-        type_hint=typing.Union[pint.Quantity, pint.Measurement],
-        default_value=UNDEFINED,
-    )
-
-    reverse_parameter_value = InputAttribute(
-        docstring="The value of the parameter perturbed in the reverse direction.",
-        type_hint=pint.Quantity,
-        default_value=UNDEFINED,
-    )
-    forward_parameter_value = InputAttribute(
-        docstring="The value of the parameter perturbed in the forward direction.",
-        type_hint=pint.Quantity,
-        default_value=UNDEFINED,
-    )
-
-    gradient = OutputAttribute(
-        docstring="The estimated gradient", type_hint=ParameterGradient
+    output_observables = OutputAttribute(
+        docstring="The observable with zeroed gradients.",
+        type_hint=Union[Observable, ObservableArray],
     )
 
     def _execute(self, directory, available_resources):
 
-        if self.forward_parameter_value < self.reverse_parameter_value:
+        force_field_source = ForceFieldSource.from_json(self.force_field_path)
 
-            raise ValueError(
-                f"The forward parameter value ({self.forward_parameter_value}) must "
-                f"be larger than the reverse value ({self.reverse_parameter_value})."
+        if not isinstance(force_field_source, SmirnoffForceFieldSource):
+            raise ValueError("Only SMIRNOFF force fields are supported.")
+
+        force_field = force_field_source.to_force_field()
+
+        parameter_units = {
+            gradient_key: openmm_quantity_to_pint(
+                getattr(
+                    force_field.get_parameter_handler(gradient_key.tag).parameters[
+                        gradient_key.smirks
+                    ],
+                    gradient_key.attribute,
+                )
+            ).units
+            for gradient_key in self.gradient_parameters
+        }
+
+        self.input_observables.clear_gradients()
+
+        if isinstance(self.input_observables, Observable):
+
+            self.output_observables = Observable(
+                value=self.input_observables.value,
+                gradients=[
+                    ParameterGradient(
+                        key=gradient_key,
+                        value=(
+                            0.0
+                            * self.input_observables.value.units
+                            / parameter_units[gradient_key]
+                        ),
+                    )
+                    for gradient_key in self.gradient_parameters
+                ],
             )
 
-        reverse_value = self.reverse_observable_value
-        forward_value = self.forward_observable_value
+        elif isinstance(self.input_observables, ObservableArray):
 
-        if isinstance(reverse_value, pint.Measurement):
-            reverse_value = reverse_value.value
+            self.output_observables = ObservableArray(
+                value=self.input_observables.value,
+                gradients=[
+                    ParameterGradient(
+                        key=gradient_key,
+                        value=(
+                            numpy.zeros(self.input_observables.value.shape)
+                            * self.input_observables.value.units
+                            / parameter_units[gradient_key]
+                        ),
+                    )
+                    for gradient_key in self.gradient_parameters
+                ],
+            )
 
-        if isinstance(forward_value, pint.Measurement):
-            forward_value = forward_value.value
-
-        gradient = (forward_value - reverse_value) / (
-            self.forward_parameter_value - self.reverse_parameter_value
-        )
-
-        self.gradient = ParameterGradient(self.parameter_key, gradient)
+        else:
+            raise NotImplementedError()
