@@ -4,6 +4,7 @@ from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.protocols.paprika.restraints import ApplyRestraints
 from openff.evaluator.thermodynamics import ThermodynamicState
+from openff.evaluator.utils.observables import Observable
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
 
@@ -43,7 +44,7 @@ class AnalyzeAPRPhase(Protocol):
     )
 
     result = OutputAttribute(
-        docstring="The analysed free energy.", type_hint=unit.Measurement
+        docstring="The analysed free energy.", type_hint=Observable
     )
 
     def _execute(self, directory, available_resources):
@@ -99,12 +100,14 @@ class AnalyzeAPRPhase(Protocol):
 
         multiplier = {"attach": -1.0, "pull": -1.0, "release": 1.0}[self.phase]
 
-        self.result = unit.Measurement(
-            multiplier
-            * results[self.phase]["ti-block"]["fe"]
-            * unit.kilocalorie
-            / unit.mole,
-            results[self.phase]["ti-block"]["sem"] * unit.kilocalorie / unit.mole,
+        self.result = Observable(
+            unit.Measurement(
+                multiplier
+                * results[self.phase]["ti-block"]["fe"]
+                * unit.kilocalorie
+                / unit.mole,
+                results[self.phase]["ti-block"]["sem"] * unit.kilocalorie / unit.mole,
+            )
         )
 
 
@@ -125,22 +128,22 @@ class ComputeSymmetryCorrection(Protocol):
         default_value=UNDEFINED,
     )
 
-    result = OutputAttribute(
-        docstring="The symmetry correction.", type_hint=unit.Measurement
-    )
+    result = OutputAttribute(docstring="The symmetry correction.", type_hint=Observable)
 
     def _execute(self, directory, available_resources):
 
         from paprika.analyze import Analyze
 
-        self.result = unit.Measurement(
-            Analyze.symmetry_correction(
-                self.n_microstates,
-                self.thermodynamic_state.temperature.to(unit.kelvin).magnitude,
+        self.result = Observable(
+            unit.Measurement(
+                Analyze.symmetry_correction(
+                    self.n_microstates,
+                    self.thermodynamic_state.temperature.to(unit.kelvin).magnitude,
+                )
+                * unit.kilocalorie
+                / unit.mole,
+                0 * unit.kilocalorie / unit.mole,
             )
-            * unit.kilocalorie
-            / unit.mole,
-            0 * unit.kilocalorie / unit.mole,
         )
 
 
@@ -163,7 +166,7 @@ class ComputeReferenceWork(Protocol):
     )
 
     result = OutputAttribute(
-        docstring="The reference state work.", type_hint=unit.Measurement
+        docstring="The reference state work.", type_hint=Observable
     )
 
     def _execute(self, directory, available_resources):
@@ -173,12 +176,14 @@ class ComputeReferenceWork(Protocol):
         restraints = ApplyRestraints.load_restraints(self.restraints_path)
         guest_restraints = restraints["guest"]
 
-        self.result = unit.Measurement(
-            -Analyze.compute_ref_state_work(
-                self.thermodynamic_state.temperature.to(unit.kelvin).magnitude,
-                guest_restraints,
+        self.result = Observable(
+            unit.Measurement(
+                -Analyze.compute_ref_state_work(
+                    self.thermodynamic_state.temperature.to(unit.kelvin).magnitude,
+                    guest_restraints,
+                )
+                * unit.kilocalorie
+                / unit.mole,
+                0 * unit.kilocalorie / unit.mole,
             )
-            * unit.kilocalorie
-            / unit.mole,
-            0 * unit.kilocalorie / unit.mole,
         )
