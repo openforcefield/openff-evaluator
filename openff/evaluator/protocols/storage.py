@@ -9,6 +9,7 @@ from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.storage.data import StoredSimulationData
 from openff.evaluator.substances import Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
+from openff.evaluator.utils.observables import ObservableFrame
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
 
@@ -40,8 +41,8 @@ class UnpackStoredSimulationData(Protocol):
         type_hint=ThermodynamicState,
     )
 
-    statistical_inefficiency = OutputAttribute(
-        docstring="The statistical inefficiency of the stored data.", type_hint=float
+    observables = OutputAttribute(
+        docstring="The stored observables frame.", type_hint=ObservableFrame
     )
 
     coordinate_file_path = OutputAttribute(
@@ -50,12 +51,10 @@ class UnpackStoredSimulationData(Protocol):
     trajectory_file_path = OutputAttribute(
         docstring="A path to the stored simulation trajectory.", type_hint=str
     )
-    statistics_file_path = OutputAttribute(
-        docstring="A path to the stored simulation statistics array.", type_hint=str
-    )
 
     force_field_path = OutputAttribute(
-        docstring="A path to the force field parameters used to generate the stored data.",
+        docstring="A path to the force field parameters used to generate the stored "
+        "data.",
         type_hint=str,
     )
 
@@ -98,17 +97,13 @@ class UnpackStoredSimulationData(Protocol):
 
         self.thermodynamic_state = data_object.thermodynamic_state
 
-        self.statistical_inefficiency = data_object.statistical_inefficiency
+        self.observables = data_object.observables
 
         self.coordinate_file_path = path.join(
             data_directory, data_object.coordinate_file_name
         )
         self.trajectory_file_path = path.join(
             data_directory, data_object.trajectory_file_name
-        )
-
-        self.statistics_file_path = path.join(
-            data_directory, data_object.statistics_file_name
         )
 
         self.force_field_path = force_field_path

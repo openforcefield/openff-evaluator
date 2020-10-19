@@ -4,6 +4,7 @@ import pint
 
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.layers import registered_calculation_schemas
+from openff.evaluator.utils.observables import Observable, ObservableArray
 from openff.evaluator.workflow import Protocol, Workflow, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
 
@@ -79,6 +80,8 @@ class DummyInputOutputProtocol(Protocol):
             float,
             pint.Quantity,
             pint.Measurement,
+            Observable,
+            ObservableArray,
             list,
             tuple,
             dict,
@@ -95,6 +98,8 @@ class DummyInputOutputProtocol(Protocol):
             float,
             pint.Quantity,
             pint.Measurement,
+            Observable,
+            ObservableArray,
             list,
             tuple,
             dict,

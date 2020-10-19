@@ -288,7 +288,7 @@ class Observable(_Observable):
     ):
 
         if value is not None and not isinstance(
-            value, (unit.Quantity, unit.Measurement)
+            value, (pint.Quantity, unit.Quantity, pint.Measurement, unit.Measurement)
         ):
 
             raise TypeError(
@@ -296,7 +296,9 @@ class Observable(_Observable):
                 "an `openff.evaluator.unit.Quantity`."
             )
 
-        if value is not None and not isinstance(value, unit.Measurement):
+        if value is not None and not isinstance(
+            value, (pint.Measurement, unit.Measurement)
+        ):
 
             if value is not None and not isinstance(value.magnitude, (int, float)):
                 raise TypeError("The value must be a unit-wrapped integer or float.")
