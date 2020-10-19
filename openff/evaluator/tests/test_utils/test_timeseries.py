@@ -3,7 +3,7 @@ Units tests for openff.evaluator.utils.statistics
 """
 
 import numpy as np
-from pymbar.timeseries import statisticalInefficiency
+from pymbar.timeseries import detectEquilibration
 
 from openff.evaluator.utils.timeseries import (
     analyze_time_series,
@@ -25,14 +25,14 @@ def test_analyze_time_series_std():
 def test_analyze_time_series():
     """Compare the output of the ``analyze_time_series`` utility with ``pymbar``."""
 
+    np.random.seed(4)
     random_array = np.random.rand(10)
 
     statistics = analyze_time_series(random_array, minimum_samples=3)
-    pymbar_statistical_inefficiency = statisticalInefficiency(random_array, mintime=3)
+    expected_index, expected_value, _ = detectEquilibration(random_array, fast=False)
 
-    assert np.isclose(
-        statistics.statistical_inefficiency, pymbar_statistical_inefficiency
-    )
+    assert expected_index == statistics.equilibration_index
+    assert np.isclose(statistics.statistical_inefficiency, expected_value)
     assert statistics.n_total_points == 10
     assert 0 < statistics.n_uncorrelated_points <= 10
     assert 0 <= statistics.equilibration_index < 10
