@@ -2,37 +2,281 @@
 A collection of protocols which employs OpenMM to evaluate and propagate the
 state of molecular systems.
 """
-import copy
 import io
 import json
 import logging
 import os
 import re
+from collections import defaultdict
+from typing import TYPE_CHECKING, List
 
 import numpy as np
 import pandas as pd
-from simtk import openmm
-from simtk import unit as simtk_unit
-from simtk.openmm import app
 
 from openff.evaluator import unit
-from openff.evaluator.forcefield import ForceFieldSource, SmirnoffForceFieldSource
-from openff.evaluator.protocols.gradients import BaseGradientPotentials
-from openff.evaluator.protocols.reweighting import BaseReducedPotentials
+from openff.evaluator.backends import ComputeResources
+from openff.evaluator.forcefield import (
+    ParameterGradient,
+    ParameterGradientKey,
+    SmirnoffForceFieldSource,
+)
+from openff.evaluator.protocols.reweighting import BaseEvaluateEnergies
 from openff.evaluator.protocols.simulation import BaseEnergyMinimisation, BaseSimulation
-from openff.evaluator.thermodynamics import Ensemble
+from openff.evaluator.thermodynamics import Ensemble, ThermodynamicState
+from openff.evaluator.utils.observables import (
+    ObservableArray,
+    ObservableFrame,
+    ObservableType,
+)
 from openff.evaluator.utils.openmm import (
     disable_pbc,
     openmm_quantity_to_pint,
     pint_quantity_to_openmm,
     setup_platform_with_resources,
+    system_subset,
 )
 from openff.evaluator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
-from openff.evaluator.utils.statistics import ObservableType, StatisticsArray
 from openff.evaluator.utils.utils import is_file_and_not_empty
 from openff.evaluator.workflow import workflow_protocol
 
+if TYPE_CHECKING:
+
+    from mdtraj import Trajectory
+    from openforcefield.topology import Topology
+    from openforcefield.typing.engines.smirnoff import ForceField
+    from simtk import openmm
+
 logger = logging.getLogger(__name__)
+
+
+def _evaluate_energies(
+    thermodynamic_state: ThermodynamicState,
+    system: "openmm.System",
+    trajectory: "Trajectory",
+    compute_resources: ComputeResources,
+    enable_pbc: bool = True,
+    high_precision: bool = True,
+) -> ObservableFrame:
+    """Evaluates the reduced and potential energies of each frame in a trajectory
+    using the specified system and at a particular state.
+
+    Parameters
+    ----------
+    thermodynamic_state
+        The thermodynamic state to evaluate the reduced potentials at.
+    system
+        The system to evaluate the energies using.
+    trajectory
+        A trajectory of configurations to evaluate.
+    compute_resources: ComputeResources
+        The compute resources available to execute on.
+    enable_pbc
+        Whether PBC are enabled. This controls whether box vectors
+        are set or not.
+    high_precision
+        Whether to compute the energies using double precision.
+
+    Returns
+    -------
+        The array containing the evaluated potentials.
+    """
+    from simtk import openmm
+    from simtk import unit as simtk_unit
+
+    integrator = openmm.VerletIntegrator(0.1 * simtk_unit.femtoseconds)
+
+    platform = setup_platform_with_resources(compute_resources, high_precision)
+    openmm_context = openmm.Context(system, integrator, platform)
+
+    potentials = np.zeros(trajectory.n_frames, dtype=np.float64)
+    reduced_potentials = np.zeros(trajectory.n_frames, dtype=np.float64)
+
+    temperature = pint_quantity_to_openmm(thermodynamic_state.temperature)
+    beta = 1.0 / (simtk_unit.BOLTZMANN_CONSTANT_kB * temperature)
+
+    pressure = pint_quantity_to_openmm(thermodynamic_state.pressure)
+
+    for frame_index in range(trajectory.n_frames):
+
+        positions = trajectory.xyz[frame_index]
+        box_vectors = trajectory.openmm_boxes(frame_index)
+
+        if enable_pbc:
+            openmm_context.setPeriodicBoxVectors(*box_vectors)
+
+        openmm_context.setPositions(positions)
+
+        state = openmm_context.getState(getEnergy=True)
+
+        potential_energy = state.getPotentialEnergy()
+        unreduced_potential = potential_energy / simtk_unit.AVOGADRO_CONSTANT_NA
+
+        if pressure is not None and enable_pbc:
+            unreduced_potential += pressure * state.getPeriodicBoxVolume()
+
+        potentials[frame_index] = potential_energy.value_in_unit(
+            simtk_unit.kilojoule_per_mole
+        )
+        reduced_potentials[frame_index] = unreduced_potential * beta
+
+    potentials *= unit.kilojoule / unit.mole
+    reduced_potentials *= unit.dimensionless
+
+    observables_frame = ObservableFrame(
+        {
+            ObservableType.PotentialEnergy: ObservableArray(potentials),
+            ObservableType.ReducedPotential: ObservableArray(reduced_potentials),
+        }
+    )
+
+    return observables_frame
+
+
+def _compute_gradients(
+    gradient_parameters: List[ParameterGradientKey],
+    observables: ObservableFrame,
+    force_field: "ForceField",
+    thermodynamic_state: ThermodynamicState,
+    topology: "Topology",
+    trajectory: "Trajectory",
+    compute_resources: ComputeResources,
+    enable_pbc: bool = True,
+    perturbation_amount: float = 0.0001,
+):
+    """Computes the gradients of the provided observables with respect to
+    the set of specified force field parameters using the central difference
+    finite difference method.
+
+    Notes
+    -----
+    The ``observables`` object will be modified in-place.
+
+    Parameters
+    ----------
+    gradient_parameters
+        The parameters to differentiate with respect to.
+    observables
+        The observables to differentiate.
+    force_field
+        The full set force field parameters which contain the parameters to
+        differentiate.
+    thermodynamic_state
+        The state at which the trajectory was sampled
+    topology
+        The topology of the system the observables were collected for.
+    trajectory
+        The trajectory over which the observables were collected.
+    compute_resources
+        The compute resources available for the computations.
+    enable_pbc
+        Whether PBC should be enabled when re-evaluating system energies.
+    perturbation_amount
+        The amount to perturb for the force field parameter by.
+    """
+
+    gradients = defaultdict(list)
+    observables.clear_gradients()
+
+    if enable_pbc:
+        # Make sure the PBC are set on the topology otherwise the cut-off will be
+        # set incorrectly.
+        topology.box_vectors = trajectory.openmm_boxes(0)
+
+    for parameter_key in gradient_parameters:
+
+        # Build the slightly perturbed systems.
+        reverse_system, reverse_parameter_value = system_subset(
+            parameter_key, force_field, topology, -perturbation_amount
+        )
+        forward_system, forward_parameter_value = system_subset(
+            parameter_key, force_field, topology, perturbation_amount
+        )
+
+        if not enable_pbc:
+            disable_pbc(reverse_system)
+            disable_pbc(forward_system)
+
+        reverse_parameter_value = openmm_quantity_to_pint(reverse_parameter_value)
+        forward_parameter_value = openmm_quantity_to_pint(forward_parameter_value)
+
+        # Evaluate the energies using the reverse and forward sub-systems.
+        reverse_energies = _evaluate_energies(
+            thermodynamic_state,
+            reverse_system,
+            trajectory,
+            compute_resources,
+            enable_pbc,
+        )
+        forward_energies = _evaluate_energies(
+            thermodynamic_state,
+            forward_system,
+            trajectory,
+            compute_resources,
+            enable_pbc,
+        )
+
+        potential_gradient = ParameterGradient(
+            key=parameter_key,
+            value=(
+                forward_energies[ObservableType.PotentialEnergy].value
+                - reverse_energies[ObservableType.PotentialEnergy].value
+            )
+            / (forward_parameter_value - reverse_parameter_value),
+        )
+        reduced_potential_gradient = ParameterGradient(
+            key=parameter_key,
+            value=(
+                forward_energies[ObservableType.ReducedPotential].value
+                - reverse_energies[ObservableType.ReducedPotential].value
+            )
+            / (forward_parameter_value - reverse_parameter_value),
+        )
+
+        gradients[ObservableType.PotentialEnergy].append(potential_gradient)
+        gradients[ObservableType.TotalEnergy].append(potential_gradient)
+        gradients[ObservableType.Enthalpy].append(potential_gradient)
+        gradients[ObservableType.ReducedPotential].append(reduced_potential_gradient)
+
+        if ObservableType.KineticEnergy in observables:
+            gradients[ObservableType.KineticEnergy].append(
+                ParameterGradient(
+                    key=parameter_key,
+                    value=(
+                        np.zeros(potential_gradient.value.shape)
+                        * observables[ObservableType.KineticEnergy].value.units
+                        / reverse_parameter_value.units
+                    ),
+                )
+            )
+        if ObservableType.Density in observables:
+            gradients[ObservableType.Density].append(
+                ParameterGradient(
+                    key=parameter_key,
+                    value=(
+                        np.zeros(potential_gradient.value.shape)
+                        * observables[ObservableType.Density].value.units
+                        / reverse_parameter_value.units
+                    ),
+                )
+            )
+        if ObservableType.Volume in observables:
+            gradients[ObservableType.Volume].append(
+                ParameterGradient(
+                    key=parameter_key,
+                    value=(
+                        np.zeros(potential_gradient.value.shape)
+                        * observables[ObservableType.Volume].value.units
+                        / reverse_parameter_value.units
+                    ),
+                )
+            )
+
+    for observable_type in observables:
+
+        observables[observable_type] = ObservableArray(
+            value=observables[observable_type].value,
+            gradients=gradients[observable_type],
+        )
 
 
 @workflow_protocol()
@@ -42,6 +286,10 @@ class OpenMMEnergyMinimisation(BaseEnergyMinimisation):
     """
 
     def _execute(self, directory, available_resources):
+
+        from simtk import openmm
+        from simtk import unit as simtk_unit
+        from simtk.openmm import app
 
         platform = setup_platform_with_resources(available_resources)
 
@@ -152,6 +400,9 @@ class OpenMMSimulation(BaseSimulation):
 
     def _execute(self, directory, available_resources):
 
+        import mdtraj
+        from simtk.openmm import app
+
         # We handle most things in OMM units here.
         temperature = self.thermodynamic_state.temperature
         openmm_temperature = pint_quantity_to_openmm(temperature)
@@ -202,15 +453,40 @@ class OpenMMSimulation(BaseSimulation):
                     configuration_file,
                 )
 
+        self.output_coordinate_file = os.path.join(directory, "output.pdb")
+
         # Run the simulation.
-        self._simulate(directory, self._context, self._integrator)
+        self._simulate(self._context, self._integrator)
 
         # Set the output paths.
         self.trajectory_file_path = self._local_trajectory_path
-        self.statistics_file_path = os.path.join(directory, "statistics.csv")
+        self.observables_file_path = os.path.join(directory, "observables.json")
 
-        # Save out the final statistics in the openff-evaluator format
-        self._save_final_statistics(self.statistics_file_path, temperature, pressure)
+        # Compute the final observables
+        self.observables = self._compute_final_observables(temperature, pressure)
+
+        # Optionally compute any gradients.
+        if len(self.gradient_parameters) == 0:
+            return
+
+        if not isinstance(
+            self.parameterized_system.force_field, SmirnoffForceFieldSource
+        ):
+            raise ValueError(
+                "Derivates can only be computed for systems parameterized with SMIRNOFF "
+                "force fields."
+            )
+
+        _compute_gradients(
+            self.gradient_parameters,
+            self.observables,
+            self.parameterized_system.force_field.to_force_field(),
+            self.thermodynamic_state,
+            self.parameterized_system.topology,
+            mdtraj.load_dcd(self.trajectory_file_path, top=self.input_coordinate_file),
+            available_resources,
+            self.enable_pbc,
+        )
 
     def _setup_simulation_objects(self, temperature, pressure, available_resources):
         """Initializes the objects needed to perform the simulation.
@@ -236,7 +512,8 @@ class OpenMMSimulation(BaseSimulation):
         """
 
         import openmmtools
-        from simtk.openmm import XmlSerializer
+        from simtk import openmm
+        from simtk.openmm import app
 
         # Create a platform with the correct resources.
         if not self.allow_gpu_platforms:
@@ -314,6 +591,7 @@ class OpenMMSimulation(BaseSimulation):
         context: simtk.openmm.Context
             The current OpenMM context.
         """
+        from simtk import openmm
 
         # Write the current state to disk
         state = context.getState(
@@ -466,6 +744,8 @@ class OpenMMSimulation(BaseSimulation):
         int
             The current step number.
         """
+        from simtk import openmm
+
         current_step_number = 0
 
         # Check whether the checkpoint files actually exists.
@@ -537,52 +817,56 @@ class OpenMMSimulation(BaseSimulation):
 
         return checkpoint.current_step_number
 
-    def _save_final_statistics(self, path, temperature, pressure):
+    def _compute_final_observables(self, temperature, pressure) -> ObservableFrame:
         """Converts the openmm statistic csv file into an openff-evaluator
-        StatisticsArray csv file, making sure to fill in any missing entries.
+        ``ObservableFrame`` and computes additional missing data, such as reduced
+        potentials and derivatives of the energies with respect to any requested
+        force field parameters.
 
         Parameters
         ----------
-        path: str
-            The path to save the statistics to.
         temperature: pint.Quantity
             The temperature that the simulation is being run at.
         pressure: pint.Quantity
             The pressure that the simulation is being run at.
         """
-        statistics = StatisticsArray.from_openmm_csv(
-            self._local_statistics_path, pressure
-        )
+        observables = ObservableFrame.from_openmm(self._local_statistics_path, pressure)
 
         reduced_potentials = (
-            statistics[ObservableType.PotentialEnergy] / unit.avogadro_constant
+            observables[ObservableType.PotentialEnergy].value / unit.avogadro_constant
         )
 
         if pressure is not None:
-
-            pv_terms = pressure * statistics[ObservableType.Volume]
+            pv_terms = pressure * observables[ObservableType.Volume].value
             reduced_potentials += pv_terms
 
         beta = 1.0 / (unit.boltzmann_constant * temperature)
-        statistics[ObservableType.ReducedPotential] = (beta * reduced_potentials).to(
-            unit.dimensionless
+
+        observables[ObservableType.ReducedPotential] = ObservableArray(
+            value=(beta * reduced_potentials).to(unit.dimensionless)
         )
 
-        statistics.to_pandas_csv(path)
+        if pressure is not None:
+            observables[ObservableType.Enthalpy] = observables[
+                ObservableType.TotalEnergy
+            ] + observables[ObservableType.Volume] * pressure * (
+                1.0 * unit.avogadro_constant
+            )
 
-    def _simulate(self, directory, context, integrator):
+        return observables
+
+    def _simulate(self, context, integrator):
         """Performs the simulation using a given context
         and integrator.
 
         Parameters
         ----------
-        directory: str
-            The directory the trajectory is being run in.
         context: simtk.openmm.Context
             The OpenMM context to run with.
         integrator: simtk.openmm.Integrator
             The integrator to evolve the simulation with.
         """
+        from simtk.openmm import app
 
         # Define how many steps should be taken.
         total_number_of_steps = (
@@ -665,380 +949,58 @@ class OpenMMSimulation(BaseSimulation):
         positions = final_state.getPositions()
         topology.setPeriodicBoxVectors(final_state.getPeriodicBoxVectors())
 
-        self.output_coordinate_file = os.path.join(directory, "output.pdb")
-
         with open(self.output_coordinate_file, "w+") as configuration_file:
             app.PDBFile.writeFile(topology, positions, configuration_file)
 
 
 @workflow_protocol()
-class OpenMMReducedPotentials(BaseReducedPotentials):
-    """Calculates the reduced potential for a given set of
-    configurations using OpenMM.
+class OpenMMEvaluateEnergies(BaseEvaluateEnergies):
+    """Re-evaluates the energy of a series of configurations for a given set of force
+    field parameters using OpenMM.
     """
 
     def _execute(self, directory, available_resources):
 
         import mdtraj
-        import openmmtools
 
         # Load in the inputs.
         trajectory = mdtraj.load_dcd(
-            self.trajectory_file_path, self.coordinate_file_path
+            self.trajectory_file_path, self.parameterized_system.topology_path
+        )
+        system = self.parameterized_system.system
+
+        # Re-evaluate the energies.
+        self.output_observables = _evaluate_energies(
+            self.thermodynamic_state,
+            system,
+            trajectory,
+            available_resources,
+            self.enable_pbc,
+            False,
         )
 
-        with open(self.system_path, "r") as file:
-            system = openmm.XmlSerializer.deserialize(file.read())
-
-        temperature = pint_quantity_to_openmm(self.thermodynamic_state.temperature)
-        pressure = pint_quantity_to_openmm(self.thermodynamic_state.pressure)
-
-        if self.enable_pbc:
-            system.setDefaultPeriodicBoxVectors(*trajectory.openmm_boxes(0))
-        else:
-            pressure = None
-
-        openmm_state = openmmtools.states.ThermodynamicState(
-            system=system, temperature=temperature, pressure=pressure
-        )
-
-        integrator = openmmtools.integrators.VelocityVerletIntegrator(
-            0.01 * simtk_unit.femtoseconds
-        )
-
-        # Setup the requested platform:
-        platform = setup_platform_with_resources(
-            available_resources, self.high_precision
-        )
-        openmm_system = openmm_state.get_system(True, True)
-
-        if not self.enable_pbc:
-            disable_pbc(openmm_system)
-
-        openmm_context = openmm.Context(openmm_system, integrator, platform)
-
-        potential_energies = np.zeros(trajectory.n_frames)
-        reduced_potentials = np.zeros(trajectory.n_frames)
-
-        for frame_index in range(trajectory.n_frames):
-
-            if self.enable_pbc:
-                box_vectors = trajectory.openmm_boxes(frame_index)
-                openmm_context.setPeriodicBoxVectors(*box_vectors)
-
-            positions = trajectory.xyz[frame_index]
-            openmm_context.setPositions(positions)
-
-            potential_energy = openmm_context.getState(
-                getEnergy=True
-            ).getPotentialEnergy()
-
-            potential_energies[frame_index] = potential_energy.value_in_unit(
-                simtk_unit.kilojoule_per_mole
-            )
-            reduced_potentials[frame_index] = openmm_state.reduced_potential(
-                openmm_context
-            )
-
-        kinetic_energies = StatisticsArray.from_pandas_csv(self.kinetic_energies_path)[
-            ObservableType.KineticEnergy
-        ]
-
-        statistics_array = StatisticsArray()
-        statistics_array[ObservableType.PotentialEnergy] = (
-            potential_energies * unit.kilojoule / unit.mole
-        )
-        statistics_array[ObservableType.KineticEnergy] = kinetic_energies
-        statistics_array[ObservableType.ReducedPotential] = (
-            reduced_potentials * unit.dimensionless
-        )
-
-        statistics_array[ObservableType.TotalEnergy] = (
-            statistics_array[ObservableType.PotentialEnergy]
-            + statistics_array[ObservableType.KineticEnergy]
-        )
-
-        statistics_array[ObservableType.Enthalpy] = (
-            statistics_array[ObservableType.ReducedPotential]
-            * self.thermodynamic_state.inverse_beta
-            + kinetic_energies
-        )
-
-        if self.use_internal_energy:
-            statistics_array[ObservableType.ReducedPotential] += (
-                kinetic_energies * self.thermodynamic_state.beta
-            )
-
-        self.statistics_file_path = os.path.join(directory, "statistics.csv")
-        statistics_array.to_pandas_csv(self.statistics_file_path)
-
-
-@workflow_protocol()
-class OpenMMGradientPotentials(BaseGradientPotentials):
-    """A protocol to estimates the the reduced potential of the configurations
-    of a trajectory using reverse and forward perturbed simulation parameters for
-    use with estimating reweighted gradients using the central difference method.
-    """
-
-    def _build_reduced_system(self, original_force_field, topology, scale_amount=None):
-        """Produces an OpenMM system containing only forces for the specified parameter,
-         optionally perturbed by the amount specified by `scale_amount`.
-
-        Parameters
-        ----------
-        original_force_field: openforcefield.typing.engines.smirnoff.ForceField
-            The force field to create the system from (and optionally perturb).
-        topology: openforcefield.topology.Topology
-            The topology of the system to apply the force field to.
-        scale_amount: float, optional
-            The optional amount to perturb the parameter by.
-
-        Returns
-        -------
-        simtk.openmm.System
-            The created system.
-        simtk.pint.Quantity
-            The new value of the perturbed parameter.
-        """
-        # As this method deals mainly with the toolkit, we stick to
-        # simtk units here.
-        from openforcefield.typing.engines.smirnoff import ForceField
-
-        parameter_tag = self.parameter_key.tag
-        parameter_smirks = self.parameter_key.smirks
-        parameter_attribute = self.parameter_key.attribute
-
-        original_handler = original_force_field.get_parameter_handler(parameter_tag)
-        original_parameter = original_handler.parameters[parameter_smirks]
-
-        if self.use_subset_of_force_field:
-
-            force_field = ForceField()
-            handler = copy.deepcopy(
-                original_force_field.get_parameter_handler(parameter_tag)
-            )
-            force_field.register_parameter_handler(handler)
-
-        else:
-
-            force_field = copy.deepcopy(original_force_field)
-            handler = force_field.get_parameter_handler(parameter_tag)
-
-        parameter_index = None
-        value_list = None
-
-        if hasattr(original_parameter, parameter_attribute):
-            parameter_value = getattr(original_parameter, parameter_attribute)
-        else:
-            attribute_split = re.split(r"(\d+)", parameter_attribute)
-
-            assert len(parameter_attribute) == 2
-            assert hasattr(original_parameter, attribute_split[0])
-
-            parameter_attribute = attribute_split[0]
-            parameter_index = int(attribute_split[1]) - 1
-
-            value_list = getattr(original_parameter, parameter_attribute)
-            parameter_value = value_list[parameter_index]
-
-        if scale_amount is not None:
-
-            existing_parameter = handler.parameters[parameter_smirks]
-
-            if np.isclose(parameter_value.value_in_unit(parameter_value.unit), 0.0):
-                # Careful thought needs to be given to this. Consider cases such as
-                # epsilon or sigma where negative values are not allowed.
-                parameter_value = (
-                    scale_amount if scale_amount > 0.0 else 0.0
-                ) * parameter_value.unit
-            else:
-                parameter_value *= 1.0 + scale_amount
-
-            if value_list is None:
-                setattr(existing_parameter, parameter_attribute, parameter_value)
-            else:
-                value_list[parameter_index] = parameter_value
-                setattr(existing_parameter, parameter_attribute, value_list)
-
-        system = force_field.create_openmm_system(topology)
-
-        if not self.enable_pbc:
-            disable_pbc(system)
-
-        return system, parameter_value
-
-    def _evaluate_reduced_potential(
-        self,
-        system,
-        trajectory,
-        file_path,
-        compute_resources,
-        subset_energy_corrections=None,
-    ):
-        """Computes the reduced potential of each frame in a trajectory
-        using the provided system.
-
-        Parameters
-        ----------
-        system: simtk.openmm.System
-            The system which encodes the interaction forces for the
-            specified parameter.
-        trajectory: mdtraj.Trajectory
-            A trajectory of configurations to evaluate.
-        file_path: str
-            The path to save the reduced potentials to.
-        compute_resources: ComputeResources
-            The compute resources available to execute on.
-        subset_energy_corrections: pint.Quantity, optional
-            A pint.Quantity wrapped numpy.ndarray which contains a set
-            of energies to add to the re-evaluated potential energies.
-            This is mainly used to correct the potential energies evaluated
-            using a subset of the force field back to energies as if evaluated
-            using the full thing.
-
-        Returns
-        ---------
-        StatisticsArray
-            The array containing the reduced potentials.
-        """
-        integrator = openmm.VerletIntegrator(0.1 * simtk_unit.femtoseconds)
-
-        platform = setup_platform_with_resources(compute_resources, True)
-        openmm_context = openmm.Context(system, integrator, platform)
-
-        potentials = np.zeros(trajectory.n_frames, dtype=np.float64)
-        reduced_potentials = np.zeros(trajectory.n_frames, dtype=np.float64)
-
-        temperature = pint_quantity_to_openmm(self.thermodynamic_state.temperature)
-        beta = 1.0 / (simtk_unit.BOLTZMANN_CONSTANT_kB * temperature)
-
-        pressure = pint_quantity_to_openmm(self.thermodynamic_state.pressure)
-
-        if subset_energy_corrections is None:
-            subset_energy_corrections = (
-                np.zeros(trajectory.n_frames, dtype=np.float64)
-                * simtk_unit.kilojoules_per_mole
-            )
-        else:
-            subset_energy_corrections = pint_quantity_to_openmm(
-                subset_energy_corrections
-            )
-
-        for frame_index in range(trajectory.n_frames):
-
-            positions = trajectory.xyz[frame_index]
-            box_vectors = trajectory.openmm_boxes(frame_index)
-
-            if self.enable_pbc:
-                openmm_context.setPeriodicBoxVectors(*box_vectors)
-
-            openmm_context.setPositions(positions)
-
-            state = openmm_context.getState(getEnergy=True)
-
-            potential_energy = (
-                state.getPotentialEnergy() + subset_energy_corrections[frame_index]
-            )
-            unreduced_potential = potential_energy / simtk_unit.AVOGADRO_CONSTANT_NA
-
-            if pressure is not None and self.enable_pbc:
-                unreduced_potential += pressure * state.getPeriodicBoxVolume()
-
-            potentials[frame_index] = potential_energy.value_in_unit(
-                simtk_unit.kilojoule_per_mole
-            )
-            reduced_potentials[frame_index] = unreduced_potential * beta
-
-        potentials *= unit.kilojoule / unit.mole
-        reduced_potentials *= unit.dimensionless
-
-        statistics_array = StatisticsArray()
-        statistics_array[ObservableType.ReducedPotential] = reduced_potentials
-        statistics_array[ObservableType.PotentialEnergy] = potentials
-        statistics_array.to_pandas_csv(file_path)
-
-        return statistics_array
-
-    def _execute(self, directory, available_resources):
-
-        import mdtraj
-        from openforcefield.topology import Molecule, Topology
-
-        with open(self.force_field_path) as file:
-            force_field_source = ForceFieldSource.parse_json(file.read())
-
-        if not isinstance(force_field_source, SmirnoffForceFieldSource):
+        # Optionally compute any gradients.
+        if len(self.gradient_parameters) == 0:
+            return
+
+        if not isinstance(
+            self.parameterized_system.force_field, SmirnoffForceFieldSource
+        ):
 
             raise ValueError(
-                "Only SMIRNOFF force fields are supported by this protocol.",
+                "Derivates can only be computed for systems parameterized with SMIRNOFF "
+                "force fields."
             )
 
-        # Load in the inputs
-        force_field = force_field_source.to_force_field()
+        force_field = self.parameterized_system.force_field.to_force_field()
 
-        trajectory = mdtraj.load_dcd(
-            self.trajectory_file_path, self.coordinate_file_path
-        )
-
-        unique_molecules = []
-
-        for component in self.substance.components:
-
-            molecule = Molecule.from_smiles(smiles=component.smiles)
-            unique_molecules.append(molecule)
-
-        pdb_file = app.PDBFile(self.coordinate_file_path)
-        topology = Topology.from_openmm(
-            pdb_file.topology, unique_molecules=unique_molecules
-        )
-
-        # Compute the difference between the energies using the reduced force field,
-        # and the full force field.
-        energy_corrections = None
-
-        if self.use_subset_of_force_field:
-
-            target_system, _ = self._build_reduced_system(force_field, topology)
-
-            subset_potentials_path = os.path.join(directory, "subset.csv")
-            subset_potentials = self._evaluate_reduced_potential(
-                target_system, trajectory, subset_potentials_path, available_resources
-            )
-
-            full_statistics = StatisticsArray.from_pandas_csv(self.statistics_path)
-
-            energy_corrections = (
-                full_statistics[ObservableType.PotentialEnergy]
-                - subset_potentials[ObservableType.PotentialEnergy]
-            )
-
-        # Build the slightly perturbed system.
-        reverse_system, reverse_parameter_value = self._build_reduced_system(
-            force_field, topology, -self.perturbation_scale
-        )
-
-        forward_system, forward_parameter_value = self._build_reduced_system(
-            force_field, topology, self.perturbation_scale
-        )
-
-        self.reverse_parameter_value = openmm_quantity_to_pint(reverse_parameter_value)
-        self.forward_parameter_value = openmm_quantity_to_pint(forward_parameter_value)
-
-        # Calculate the reduced potentials.
-        self.reverse_potentials_path = os.path.join(directory, "reverse.csv")
-        self.forward_potentials_path = os.path.join(directory, "forward.csv")
-
-        self._evaluate_reduced_potential(
-            reverse_system,
+        _compute_gradients(
+            self.gradient_parameters,
+            self.output_observables,
+            force_field,
+            self.thermodynamic_state,
+            self.parameterized_system.topology,
             trajectory,
-            self.reverse_potentials_path,
             available_resources,
-            energy_corrections,
-        )
-        self._evaluate_reduced_potential(
-            forward_system,
-            trajectory,
-            self.forward_potentials_path,
-            available_resources,
-            energy_corrections,
+            self.enable_pbc,
         )
