@@ -402,7 +402,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             "calculate_excess_observable"
         )
         calculate_excess_observable.value_b = ProtocolPath(
-            "value", mixture_protocols.reweight_observable.id
+            "result", divide_by_mixture_molecules.id
         )
         calculate_excess_observable.value_a = ProtocolPath(
             "result", add_component_observables.id
