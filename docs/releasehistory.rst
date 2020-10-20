@@ -37,6 +37,17 @@ remedied by the follow steps:
 
 * ...
 
+0.2.2
+-----
+
+This release adds documentation for how physical properties are computed within the framework (both for this, and for
+previous releases.
+
+Documentation
+"""""""""""""
+
+* PR `#281 <https://github.com/openforcefield/openff-evaluator/pull/281>`_: Initial pass at physical property documentation.
+
 
 0.2.1
 -----
