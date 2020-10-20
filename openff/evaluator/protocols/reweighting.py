@@ -257,8 +257,7 @@ class BaseMBARProtocol(Protocol, abc.ABC):
 
         u_kn = target_reduced_potentials.value.to(unit.dimensionless).magnitude.T
 
-        log_ref_c_k = mbar.f_k - mbar.u_kn.T
-        log_denominator_n = logsumexp(log_ref_c_k, b=mbar.N_k, axis=1)
+        log_denominator_n = logsumexp(mbar.f_k - mbar.u_kn.T, b=mbar.N_k, axis=1)
 
         f_hat = -logsumexp(-u_kn - log_denominator_n, axis=1)
 
@@ -277,9 +276,7 @@ class BaseMBARProtocol(Protocol, abc.ABC):
             d_f_hat_numerator, d_f_hat_numerator_sign = logsumexp(
                 -u_kn - log_denominator_n, b=gradient_value, axis=1, return_sign=True
             )
-            d_f_hat_numerator = d_f_hat_numerator_sign * np.exp(d_f_hat_numerator)
-
-            d_f_hat_d_theta = d_f_hat_numerator / np.exp(f_hat)
+            d_f_hat_d_theta = d_f_hat_numerator_sign * np.exp(d_f_hat_numerator + f_hat)
 
             d_weights_d_theta = (
                 (d_f_hat_d_theta - gradient_value) * weights * gradient.value.units
