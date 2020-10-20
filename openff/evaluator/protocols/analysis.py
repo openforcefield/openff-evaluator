@@ -290,8 +290,8 @@ class BaseAverageObservable(Protocol, abc.ABC):
                 statistical_inefficiency, observable_statistics.statistical_inefficiency
             )
 
-        equilibration_index = 0  # int(equilibration_index)
-        statistical_inefficiency = 1.0  # float(statistical_inefficiency)
+        equilibration_index = int(equilibration_index)
+        statistical_inefficiency = float(statistical_inefficiency)
 
         uncorrelated_indices = get_uncorrelated_indices(
             expected_length - equilibration_index, statistical_inefficiency
