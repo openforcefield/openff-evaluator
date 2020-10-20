@@ -1,4 +1,5 @@
 .. |openmm_gradient_potentials|    replace:: :py:class:`~openff.evaluator.protocols.openmm.OpenMMGradientPotentials`
+.. |observable_array|              replace:: :py:class:`~openff.evaluator.utils.observables.ObservableArray`
 
 Gradients
 =========
@@ -6,34 +7,77 @@ Gradients
 A most fundamental feature of this framework is its ability to rapidly compute the gradients of physical properties with
 respect to the force field parameters used to estimate them.
 
+.. note:: Prior to v0.3.0 of this framework a combination of re-weighting and the central finite difference was employed
+          to estimate the gradients of observables. From v0.3.0 onwards the fluctuation method :cite:`2013:wang` is
+          instead used. The change was made to, in future, enable better integration with automatic differentiation
+          libraries such as `jax <https://github.com/google/jax>`_, and differentiable simulation engines such as
+          `timemachine <https://github.com/proteneer/timemachine>`_.
+
 Theory
 ------
 
-The framework currently employs the central finite difference approach to computing gradients:
+The framework currently employs the fluctuation approach :cite:`2013:wang` to compute gradients of observables with
+respect to the force field parameters used to estimate them.
+
+This approach may be derived by direct differentiation of the ensemble average an observable :math:`X`:
 
 .. math::
 
-    \dfrac {d \left<X \left( \theta \right) \right>}{d \theta_i} = \dfrac { \left<X \left( \theta_i + h \right) \right> - \left<X \left( \theta_i - h \right) \right> }{ 2 h}
+    \left<X\left(\theta\right)\right> = \dfrac{1}{Q\left(\theta\right)} \int X\left(\theta\right) \exp \left[ - \beta \left(U \left(\vec{r}, V; \theta \right) + pV \right) \right] \mathrm{d}\vec{r} \mathrm{d}V
 
-where :math:`\left<X\right>` is used to denote the ensemble average of an observable :math:`X`, :math:`\theta_i` is
-the force field parameter of interest, and by default :math:`h = 1 \times 10^{-4} \times \theta_i`. Although more
-expensive than computing either the forward or backwards derivative, the central difference method should give a more
-accurate estimate of the gradient at the minima, maxima and transition points.
+where
 
-Rather than running an entirely new simulation to compute the values of :math:`\left<X \left( \theta_i + h \right) \right>`
-and :math:`\left<X \left( \theta_i - h \right) \right>`, these values are directly estimated using the MBAR reweighting
-method :cite:`2008:shirts`, :cite:`2018:messerly-b`. This approach has several advantages:
+.. math::
 
-.. rst-class:: spaced-list
+    Q\left(\theta\right) = \int \exp \left[ - \beta \left(U \left(\vec{r}, V; \theta \right) + pV \right) \right] \mathrm{d}\vec{r} \mathrm{d}V
 
-- there is a convenient cancellation of errors when computing the finite difference as the average value of the
-  observables at the perturbed parameters are computed from the same set of configurations and hence have errors which
-  are highly correlated. This thus avoids the need to run prohibitively long simulations to compute the average
-  observables to within a low enough error to produce meaningful differences between similar numbers.
+is the isothermal-isobaric partion function,  :math:`\theta` are the force field parameters being used to estimate the
+observable, :math:`U` the systems potential energy, :math:`\beta \equiv k_b T`, :math:`k_b` the Boltzmann constant,
+:math:`T` the temperature, :math:`p` the pressure and :math:`V` the volume.
 
-- the reduced potentials of the configurations that the observable of interest was computed from can be rapidly
-  re-evaluated by only re-computing the energy terms which have changed upon perturbing the parameters (see the
-  |openmm_gradient_potentials| protocol).
+The derivative of the ensemble average defined above with respect to a particular force field parameter of interest
+:math:`\theta` is given by:
+
+.. math::
+
+    \dfrac{ \mathrm{d} \left<X\right> }{ \mathrm{d} \theta_i } =
+      \left< \dfrac{ \mathrm{d} X } { \mathrm{d} \theta_i } \right>
+      - \beta \left[
+
+                \left< X \dfrac{ \mathrm{d} U } { \mathrm{d} \theta_i } \right>
+              - \left< \dfrac{ \mathrm{d} U } { \mathrm{d} \theta_i } \right> \left< X \right>
+
+              \right]
+
+Computing :math:`\mathrm{d} U / \mathrm{d} \theta_i`
+----------------------------------------------------
+
+While future integrations with differentiable simulation engines such as
+`timemachine <https://github.com/proteneer/timemachine>`_ will allow :math:`\mathrm{d} U / \mathrm{d} \theta_i` to be
+computed directly from molecular simulation runs, currently most common simulation engines do not directly support
+computing this quantity.
+
+Until such an integration is complete, the framework currently employs a central finite difference approach, whereby
+
+.. math::
+
+    \dfrac{\mathrm{d} U}{ \mathrm{d} \theta_i } \approx \dfrac { U \left( \theta_i + h \right) - U \left( \theta_i - h \right) }{ 2 h}
+
+Although more expensive than computing either the forward or backwards derivative, the central difference method should
+give a more accurate estimate of the gradient at the minima, maxima and transition points. By default a value of
+:math:`h = \theta_i \times 10^{-4}` is used. This has been found to yield finite differences which do not suffer from
+precision issues, while being sufficiently small so as to yield an accurate estimate.
+
+In practice the derivatives obtained by re-evaluating the energies of each configuration in a trajectory generated by
+a molecular simulation (either after a simulation or after loading one from disk) at each of the perturbed parameters.
+
+While there is an expense associated with extra evaluations of the potential energy function for each configuration,
+this is mitigated by only computing those terms which depend upon (or may depend upon) :math:`\theta_i`. As an example,
+when computing derivatives with respect to a bond length the electrostatic and van der Waal contributions are not
+computed. This significantly speeds up the computation of these derivatives.
+
+The final derivatives are stored in |observable_array| objects for convenience and for easy propagation of gradients
+through workflows. See the :ref:`observables documentation <observables/observables:Observables>` for more information.
 
 References
 ----------

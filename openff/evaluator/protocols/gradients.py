@@ -21,12 +21,12 @@ from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
 
 @workflow_protocol()
 class ZeroGradients(Protocol, abc.ABC):
-    """Zeros out the gradients of an observable
-    with respect to a set of force field parameters.
+    """Zeros the gradients of an observable with respect to a specified set of force
+    field parameters.
     """
 
     input_observables = InputAttribute(
-        docstring="The observables to differentiate.",
+        docstring="The observable to set the gradients of.",
         type_hint=Union[Observable, ObservableArray],
         default_value=UNDEFINED,
     )

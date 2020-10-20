@@ -164,6 +164,13 @@ See the :doc:`physical properties overview page <properties/properties>` for mor
 .. toctree::
   :maxdepth: 2
   :hidden:
+  :caption: Observables
+
+  Overview <observables/observables>
+
+.. toctree::
+  :maxdepth: 2
+  :hidden:
   :caption: Calculation Backends
 
   Overview <backends/calculationbackend>
