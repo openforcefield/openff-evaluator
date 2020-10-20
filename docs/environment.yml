@@ -9,6 +9,7 @@ dependencies:
     # Sphinx specific
     - nbsphinx
     - sphinx_rtd_theme
+    - sphinxcontrib-bibtex
     - pandoc
     - ipython
 

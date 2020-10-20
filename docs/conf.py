@@ -40,6 +40,7 @@ release = ''
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinxcontrib.bibtex',
     'sphinx.ext.napoleon',
     'sphinx.ext.autosummary',
     'sphinx.ext.autosectionlabel',
@@ -128,6 +129,8 @@ intersphinx_mapping = {
     'pint': ('https://pint.readthedocs.io/en/latest/', None)
 }
 
+# Set up mathjax.
+mathjax_path = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"
 
 # -- Options for HTML output -------------------------------------------------
 

@@ -90,6 +90,8 @@ field optimisation.
 
 *\* Entries marked with an asterisk are supported but have not yet been extensively tested and validated.*
 
+See the :doc:`physical properties overview page <properties/properties>` for more details.
+
 .. Setup the side-pane table of contents.
 
 .. toctree::
@@ -124,10 +126,19 @@ field optimisation.
   :hidden:
   :caption: Data Sets
 
-  datasets/physicalproperties
+  Overview <datasets/physicalproperties>
   datasets/thermomldatasets
   datasets/taproomdatasets
   datasets/curation
+
+.. toctree::
+  :maxdepth: 2
+  :hidden:
+  :caption: Physical Properties
+
+  Overview <properties/properties>
+  properties/commonworkflows
+  properties/gradients
 
 .. toctree::
   :maxdepth: 2

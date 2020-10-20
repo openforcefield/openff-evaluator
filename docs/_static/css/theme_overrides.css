@@ -44,6 +44,9 @@ table.clean-table.property-table td:not(:first-child) {
 ul.spaced-list li {
     margin-bottom: 10px;
 }
+ol.spaced-list li {
+    margin-bottom: 10px;
+}
 
 .green-font {
     color: mediumseagreen;

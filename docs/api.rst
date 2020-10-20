@@ -437,6 +437,14 @@ Built-in Workflow Protocols
     ExtractUncorrelatedTrajectoryData
     ExtractUncorrelatedStatisticsData
 
+
+.. currentmodule:: openff.evaluator.properties.dielectric
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    ExtractAverageDielectric
+
 **Coordinate Generation**
 
 .. currentmodule:: openff.evaluator.protocols.coordinates
@@ -547,6 +555,14 @@ Built-in Workflow Protocols
     BaseReducedPotentials
     BaseMBARProtocol
     ReweightStatistics
+
+.. currentmodule:: openff.evaluator.properties.dielectric
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    ReweightDielectricConstant
+
 
 **Simulation**
 
