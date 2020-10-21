@@ -43,18 +43,6 @@ class BaseBuildSystem(Protocol, abc.ABC):
     force field parameters to a given system.
     """
 
-    class WaterModel(Enum):
-        """An enum which describes which water model is being
-        used, so that correct charges can be applied.
-
-        Warnings
-        --------
-        This is only a temporary addition until full water model support
-        is introduced.
-        """
-
-        TIP3P = "TIP3P"
-
     force_field_path = InputAttribute(
         docstring="The file path to the force field parameters to assign to the system.",
         type_hint=str,
@@ -72,11 +60,6 @@ class BaseBuildSystem(Protocol, abc.ABC):
         docstring="The composition of the system.",
         type_hint=Substance,
         default_value=UNDEFINED,
-    )
-    water_model = InputAttribute(
-        docstring="The water model to apply, if any water molecules are present.",
-        type_hint=WaterModel,
-        default_value=WaterModel.TIP3P,
     )
 
     parameterized_system = OutputAttribute(
@@ -275,6 +258,24 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
     and then replicating those templates for each instance of the component.
     """
 
+    class WaterModel(Enum):
+        """An enum which describes which water model is being
+        used, so that correct charges can be applied.
+
+        Warnings
+        --------
+        This is only a temporary addition until full water model support
+        is introduced.
+        """
+
+        TIP3P = "TIP3P"
+
+    water_model = InputAttribute(
+        docstring="The water model to apply, if any water molecules are present.",
+        type_hint=WaterModel,
+        default_value=WaterModel.TIP3P,
+    )
+
     @staticmethod
     def _build_tip3p_system(cutoff, cell_vectors):
         """Builds a `simtk.openmm.System` object containing a single water model
@@ -452,65 +453,6 @@ class BuildSmirnoffSystem(BaseBuildSystem):
     using the `OpenFF toolkit <https://github.com/openforcefield/openforcefield>`_.
     """
 
-    charged_molecule_paths = InputAttribute(
-        docstring="File paths to mol2 files which contain the charges assigned to "
-        "molecules in the system. This input is helpful when dealing "
-        "with large molecules (such as hosts in host-guest binding "
-        "calculations) whose charges may by needed in multiple places,"
-        " and hence should only be calculated once.",
-        type_hint=list,
-        default_value=[],
-    )
-    apply_known_charges = InputAttribute(
-        docstring="If true, the formal charges of ions and the partial charges of "
-        "the selected water model will be automatically applied to any "
-        "matching molecules in the system.",
-        type_hint=bool,
-        default_value=True,
-    )
-
-    @staticmethod
-    def _generate_known_charged_molecules():
-        """Generates a set of molecules whose charges are known a priori,
-        such as ions, for use in parameterised systems.
-
-        Notes
-        -----
-        These are solely to be used as a work around until library charges
-        are fully implemented in the openforcefield toolkit.
-
-        Todos
-        -----
-        Remove this method when library charges are fully implemented in
-        the openforcefield toolkit.
-
-        Returns
-        -------
-        list of openforcefield.topology.Molecule
-            The molecules with assigned charges.
-        """
-        from openforcefield.topology import Molecule
-        from simtk import unit as simtk_unit
-
-        sodium = Molecule.from_smiles("[Na+]")
-        sodium.partial_charges = np.array([1.0]) * simtk_unit.elementary_charge
-
-        potassium = Molecule.from_smiles("[K+]")
-        potassium.partial_charges = np.array([1.0]) * simtk_unit.elementary_charge
-
-        calcium = Molecule.from_smiles("[Ca+2]")
-        calcium.partial_charges = np.array([2.0]) * simtk_unit.elementary_charge
-
-        chlorine = Molecule.from_smiles("[Cl-]")
-        chlorine.partial_charges = np.array([-1.0]) * simtk_unit.elementary_charge
-
-        water = Molecule.from_smiles("O")
-        water.partial_charges = (
-            np.array([-0.834, 0.417, 0.417]) * simtk_unit.elementary_charge
-        )
-
-        return [sodium, potassium, calcium, chlorine, water]
-
     def _execute(self, directory, available_resources):
 
         from openforcefield.topology import Molecule, Topology
@@ -526,17 +468,8 @@ class BuildSmirnoffSystem(BaseBuildSystem):
 
         force_field = force_field_source.to_force_field()
 
+        # Create the molecules to parameterize from the input substance.
         unique_molecules = []
-        charged_molecules = []
-
-        if self.apply_known_charges:
-            charged_molecules = self._generate_known_charged_molecules()
-
-        # Load in any additional, user specified charged molecules.
-        for charged_molecule_path in self.charged_molecule_paths:
-
-            charged_molecule = Molecule.from_file(charged_molecule_path, "MOL2")
-            charged_molecules.append(charged_molecule)
 
         for component in self.substance.components:
 
@@ -547,16 +480,13 @@ class BuildSmirnoffSystem(BaseBuildSystem):
 
             unique_molecules.append(molecule)
 
+        # Create the topology to parameterize from the input coordinates and the
+        # expected molecule species.
         topology = Topology.from_openmm(
             pdb_file.topology, unique_molecules=unique_molecules
         )
 
-        if len(charged_molecules) > 0:
-            system = force_field.create_openmm_system(
-                topology, charge_from_molecules=charged_molecules
-            )
-        else:
-            system = force_field.create_openmm_system(topology)
+        system = force_field.create_openmm_system(topology)
 
         if system is None:
 

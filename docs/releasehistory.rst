@@ -37,6 +37,11 @@ New Features
 * PR `#280 <https://github.com/openforcefield/openff-evaluator/pull/280>`_: Switch to computing thermodynamic gradients.
 * PR `#309 <https://github.com/openforcefield/openff-evaluator/pull/309>`_: Add a date to the timestamp logging output.
 
+Behaviour Changes
+"""""""""""""""""
+
+* PR `#310 <https://github.com/openforcefield/openff-evaluator/pull/310>`_: The SMIRNOFF protocol no longer applies 'known' charges (i.e. water and ions). These should be provided by SMIRNOFF library charges instead.
+
 Breaking Changes
 """"""""""""""""
 
