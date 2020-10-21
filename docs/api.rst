@@ -430,20 +430,14 @@ Built-in Workflow Protocols
     :nosignatures:
     :toctree: api/generated/
 
-    AveragePropertyProtocol
-    AverageTrajectoryProperty
-    ExtractAverageStatistic
-    ExtractUncorrelatedData
-    ExtractUncorrelatedTrajectoryData
-    ExtractUncorrelatedStatisticsData
-
-
-.. currentmodule:: openff.evaluator.properties.dielectric
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    ExtractAverageDielectric
+    BaseAverageObservable
+    AverageObservable
+    AverageDielectricConstant
+    AverageFreeEnergies
+    ComputeDipoleMoments
+    BaseDecorrelateProtocol
+    DecorrelateTrajectory
+    DecorrelateObservables
 
 **Coordinate Generation**
 
@@ -475,8 +469,7 @@ Built-in Workflow Protocols
     :nosignatures:
     :toctree: api/generated/
 
-    BaseGradientPotentials
-    CentralDifferenceGradient
+    ZeroGradients
 
 **Groups**
 
@@ -510,8 +503,7 @@ Built-in Workflow Protocols
 
     OpenMMEnergyMinimisation
     OpenMMSimulation
-    OpenMMReducedPotentials
-    OpenMMGradientPotentials
+    OpenMMEvaluateEnergies
 
 **Paprika**
 
@@ -551,18 +543,11 @@ Built-in Workflow Protocols
     :toctree: api/generated/
 
     ConcatenateTrajectories
-    ConcatenateStatistics
-    BaseReducedPotentials
+    ConcatenateObservables
+    BaseEvaluateEnergies
     BaseMBARProtocol
-    ReweightStatistics
-
-.. currentmodule:: openff.evaluator.properties.dielectric
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
+    ReweightObservable
     ReweightDielectricConstant
-
 
 **Simulation**
 
@@ -602,11 +587,11 @@ Workflow Construction Utilities
     :nosignatures:
     :toctree: api/generated/
 
-    BaseReweightingProtocols
-    BaseSimulationProtocols
+    SimulationProtocols
+    ReweightingProtocols
     generate_base_reweighting_protocols
-    generate_base_simulation_protocols
-    generate_gradient_protocol_group
+    generate_reweighting_protocols
+    generate_simulation_protocols
 
 Attribute Utilities
 -------------------
@@ -620,6 +605,20 @@ Attribute Utilities
     AttributeClass
     UNDEFINED
     PlaceholderValue
+
+Observable Utilities
+--------------------
+
+.. currentmodule:: openff.evaluator.utils.observables
+.. autosummary::
+    :nosignatures:
+    :toctree: api/generated/
+
+    Observable
+    ObservableArray
+    ObservableType
+    ObservableFrame
+    bootstrap
 
 Plug-in Utilities
 -----------------
