@@ -106,7 +106,14 @@ def compute_dielectric_constant(
     return Observable(
         value=dielectric_constant.value.item().to(unit.dimensionless),
         gradients=[
-            ParameterGradient(gradient.key, gradient.value.item())
+            ParameterGradient(
+                gradient.key,
+                gradient.value.item().to(
+                    unit.dimensionless
+                    * gradient.value.units
+                    / dielectric_constant.value.units
+                )
+            )
             for gradient in dielectric_constant.gradients
         ],
     )
@@ -201,7 +208,12 @@ class BaseAverageObservable(Protocol, abc.ABC):
             )
         }
         observable_gradients = {
-            gradient.key: gradient for gradient in sample_observable.gradients
+            gradient.key: gradient
+            for gradient in (
+                []
+                if self.potential_energies == UNDEFINED
+                else sample_observable.gradients
+            )
         }
 
         # Compute the mean gradients.
