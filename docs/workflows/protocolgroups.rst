@@ -53,11 +53,10 @@ longer and longer until the groups condition has been met::
     # value of the density and its uncertainty.
     simulation = OpenMMSimulation("simulation")
     simulation.input_coordinate_file = "coords.pdb"
-    simulation.system_path = "system.xml"
+    simulation.parameterized_system = ...
 
-    extract_density = ExtractAverageStatistic("extract_density")
-    extract_density.statistics_type = ObservableType.Density
-    extract_density.statistics_path = simulation.statistics_file_path
+    extract_density = AverageObservable("extract_density")
+    extract_density.observable = simulation.observables["Density"]
 
     # Set the total number of iterations the simulation should perform to be equal
     # to the current iteration of the group. I.e the simulation should perform a

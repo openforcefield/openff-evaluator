@@ -32,14 +32,14 @@ def test_build_smirnoff_system():
         build_coordinates = BuildCoordinatesPackmol("build_coordinates")
         build_coordinates.max_molecules = 8
         build_coordinates.substance = substance
-        build_coordinates.execute(directory, None)
+        build_coordinates.execute(directory)
 
         assign_parameters = BuildSmirnoffSystem("assign_parameters")
         assign_parameters.force_field_path = force_field_path
         assign_parameters.coordinate_file_path = build_coordinates.coordinate_file_path
         assign_parameters.substance = substance
-        assign_parameters.execute(directory, None)
-        assert path.isfile(assign_parameters.system_path)
+        assign_parameters.execute(directory)
+        assert path.isfile(assign_parameters.parameterized_system.system_path)
 
 
 def test_build_tleap_system():
@@ -56,14 +56,14 @@ def test_build_tleap_system():
         build_coordinates = BuildCoordinatesPackmol("build_coordinates")
         build_coordinates.max_molecules = 9
         build_coordinates.substance = substance
-        build_coordinates.execute(directory, None)
+        build_coordinates.execute(directory)
 
         assign_parameters = BuildTLeapSystem("assign_parameters")
         assign_parameters.force_field_path = force_field_path
         assign_parameters.coordinate_file_path = build_coordinates.coordinate_file_path
         assign_parameters.substance = substance
-        assign_parameters.execute(directory, None)
-        assert path.isfile(assign_parameters.system_path)
+        assign_parameters.execute(directory)
+        assert path.isfile(assign_parameters.parameterized_system.system_path)
 
 
 def test_build_ligpargen_system(requests_mock):
@@ -156,11 +156,11 @@ phase2="3.141592653589793" phase3="0.00" phase4="3.141592653589793"/>
         build_coordinates = BuildCoordinatesPackmol("build_coordinates")
         build_coordinates.max_molecules = 8
         build_coordinates.substance = substance
-        build_coordinates.execute(directory, None)
+        build_coordinates.execute(directory)
 
         assign_parameters = BuildLigParGenSystem("assign_parameters")
         assign_parameters.force_field_path = force_field_path
         assign_parameters.coordinate_file_path = build_coordinates.coordinate_file_path
         assign_parameters.substance = substance
-        assign_parameters.execute(directory, None)
-        assert path.isfile(assign_parameters.system_path)
+        assign_parameters.execute(directory)
+        assert path.isfile(assign_parameters.parameterized_system.system_path)

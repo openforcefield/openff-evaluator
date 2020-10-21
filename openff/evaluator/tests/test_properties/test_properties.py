@@ -7,14 +7,10 @@ from collections import OrderedDict
 import pytest
 
 import openff.evaluator.properties
-from openff.evaluator import unit
-from openff.evaluator.datasets import PropertyPhase
 from openff.evaluator.layers import registered_calculation_schemas
 from openff.evaluator.layers.workflow import WorkflowCalculationSchema
-from openff.evaluator.substances import Substance
 from openff.evaluator.tests.test_workflow.utils import create_dummy_metadata
 from openff.evaluator.tests.utils import create_dummy_property
-from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils import graph
 from openff.evaluator.workflow import Workflow, WorkflowGraph, WorkflowSchema
 
@@ -155,82 +151,3 @@ def test_workflow_schema_merging(
             workflow_a.protocols[protocol_id_A].schema.json()
             == workflow_b.protocols[protocol_id_B].schema.json()
         )
-
-
-@pytest.mark.parametrize("workflow_merge_function", workflow_merge_functions())
-def test_density_dielectric_merging(workflow_merge_function):
-
-    substance = Substance.from_components("C")
-
-    density = openff.evaluator.properties.Density(
-        thermodynamic_state=ThermodynamicState(
-            temperature=298 * unit.kelvin, pressure=1 * unit.atmosphere
-        ),
-        phase=PropertyPhase.Liquid,
-        substance=substance,
-        value=10 * unit.gram / unit.mole,
-        uncertainty=1 * unit.gram / unit.mole,
-    )
-
-    dielectric = openff.evaluator.properties.DielectricConstant(
-        thermodynamic_state=ThermodynamicState(
-            temperature=298 * unit.kelvin, pressure=1 * unit.atmosphere
-        ),
-        phase=PropertyPhase.Liquid,
-        substance=substance,
-        value=10 * unit.gram / unit.mole,
-        uncertainty=1 * unit.gram / unit.mole,
-    )
-
-    density_schema = density.default_simulation_schema().workflow_schema
-    dielectric_schema = dielectric.default_simulation_schema().workflow_schema
-
-    density_metadata = Workflow.generate_default_metadata(
-        density, "smirnoff99Frosst-1.1.0.offxml", []
-    )
-
-    dielectric_metadata = Workflow.generate_default_metadata(
-        density, "smirnoff99Frosst-1.1.0.offxml", []
-    )
-
-    density_workflow = Workflow(density_metadata)
-    density_workflow.schema = density_schema
-
-    dielectric_workflow = Workflow(dielectric_metadata)
-    dielectric_workflow.schema = dielectric_schema
-
-    workflow_merge_function(density_workflow, dielectric_workflow)
-
-    density_workflow_graph = density_workflow.to_graph()
-    dielectric_workflow_graph = dielectric_workflow.to_graph()
-
-    dependants_graph_a = density_workflow_graph._protocol_graph._build_dependants_graph(
-        density_workflow_graph.protocols, False, apply_reduction=True
-    )
-    dependants_graph_b = (
-        dielectric_workflow_graph._protocol_graph._build_dependants_graph(
-            dielectric_workflow_graph.protocols, False, apply_reduction=True
-        )
-    )
-
-    merge_order_a = graph.topological_sort(dependants_graph_a)
-    merge_order_b = graph.topological_sort(dependants_graph_b)
-
-    for protocol_id_A, protocol_id_B in zip(merge_order_a, merge_order_b):
-
-        if (
-            protocol_id_A.find("extract_traj") < 0
-            and protocol_id_A.find("extract_stats") < 0
-        ):
-
-            assert (
-                density_workflow.protocols[protocol_id_A].schema.json()
-                == dielectric_workflow.protocols[protocol_id_B].schema.json()
-            )
-
-        else:
-
-            assert (
-                density_workflow.protocols[protocol_id_A].schema.json()
-                != dielectric_workflow.protocols[protocol_id_B].schema.json()
-            )

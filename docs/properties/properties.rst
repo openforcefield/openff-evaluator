@@ -1,14 +1,14 @@
-.. |extract_average_statistic|    replace:: :py:class:`~openff.evaluator.protocols.analysis.ExtractAverageStatistic`
+.. |average_observable|           replace:: :py:class:`~openff.evaluator.protocols.analysis.AverageObservable`
+.. |average_dielectric_constant|  replace:: :py:class:`~openff.evaluator.protocols.analysis.AverageDielectricConstant`
 
-.. |reweight_statistics|          replace:: :py:class:`~openff.evaluator.protocols.reweighting.ReweightStatistics`
+.. |reweight_observable|          replace:: :py:class:`~openff.evaluator.protocols.reweighting.ReweightObservable`
+.. |reweight_dielectric_constant| replace:: :py:class:`~openff.evaluator.protocols.reweighting.ReweightDielectricConstant`
 
 .. |add_values|                   replace:: :py:class:`~openff.evaluator.protocols.miscellaneous.AddValues`
 .. |subtract_values|              replace:: :py:class:`~openff.evaluator.protocols.miscellaneous.SubtractValues`
 .. |divide_value|                 replace:: :py:class:`~openff.evaluator.protocols.miscellaneous.DivideValue`
+.. |multiply_value|                 replace:: :py:class:`~openff.evaluator.protocols.miscellaneous.MultiplyValue`
 .. |weight_by_mole_fraction|      replace:: :py:class:`~openff.evaluator.protocols.miscellaneous.WeightByMoleFraction`
-
-.. |extract_average_dielectric|   replace:: :py:class:`~openff.evaluator.properties.dielectric.ExtractAverageDielectric`
-.. |reweight_dielectric_constant| replace:: :py:class:`~openff.evaluator.properties.dielectric.ReweightDielectricConstant`
 
 .. |simulation_layer|    replace:: :doc:`Direct Simulation <../layers/simulationlayer>`
 .. |reweighting_layer|   replace:: :doc:`MBAR Reweighting <../layers/reweightinglayer>`
@@ -51,7 +51,7 @@ modification. The estimation of liquid densities is assumed.
 Dielectric Constant
 """""""""""""""""""
 
-The dielectric constant (:math:`\varepsilon`) can be computed from fluctuations in a systems dipole moment (see Equation
+The dielectric constant (:math:`\varepsilon`) is computed from the fluctuations in a systems dipole moment (see Equation
 7 of :cite:`2002:glattli`) according to:
 
 .. math::
@@ -61,36 +61,27 @@ The dielectric constant (:math:`\varepsilon`) can be computed from fluctuations 
 where :math:`\vec{\mu}`, :math:`V` are the systems dipole moment and volume respectively, :math:`k_b` the Boltzmann
 constant, :math:`T` the temperature, and :math:`\varepsilon_0` the permittivity of free space.
 
-The framework currently computes :math:`\varepsilon` according to
-
-.. math::
-
-    \varepsilon = 1 + \dfrac{\left<{\left(\vec{\mu} - \left<\vec{\mu}\right>\right)}^2\right>} {3\varepsilon_0\left<V\right>k_bT}
-
-making use of the fact that
-
-.. math::
-
-    \left<\vec{\mu}^2\right> - \left<\vec{\mu}\right>^2 = \left<{\left(\vec{\mu} - \left<\vec{\mu}\right>\right)}^2\right>
-
-in order to match the `mdtraj <http://mdtraj.org/>`_ implementation which has been used in previous studies by the
-OpenFF Consortium (see for example :cite:`2015:beauchamp`).
+.. note:: In *v0.2.2* and earlier of the framework the variance was computed as
+          :math:`\left<{\left(\vec{\mu} - \left<\vec{\mu}\right>\right)}^2\right>` in order to match the
+          `mdtraj <http://mdtraj.org/>`_ implementation which has been used in previous studies by the OpenFF
+          Consortium (see for example :cite:`2015:beauchamp`). The two approaches should be numerically
+          indistinguishable however.
 
 |simulation_layer|
 ******************
 
 The dielectric is estimated using the default :ref:`simulation workflow <properties/commonworkflows:|simulation_layer|>`
-which has been modified to use the specialized |extract_average_dielectric| protocol in place of the default |extract_average_statistic|.
-The estimation of liquid dielectric constants is assumed.
+which has been modified to use the specialized |average_dielectric_constant| protocol in place of the default
+|average_observable| protocol. The estimation of liquid dielectric constants is assumed.
 
 |reweighting_layer|
 *******************
 
 The dielectric is estimated using the default :ref:`reweighting workflow <properties/commonworkflows:|reweighting_layer|>`
-which has been modified to use the specialized |reweight_dielectric_constant| protocol in place of the default |reweight_statistics|.
-It should be noted that the |reweight_dielectric_constant| protocol employs bootstrapping to compute the uncertainty in
-the average dielectric constant, rather than attempting to propagate uncertainties in the average dipole moments and
-volumes. The estimation of liquid dielectric constants is assumed.
+which has been modified to use the specialized |reweight_dielectric_constant| protocol in place of the default
+|reweight_observable| protocol. It should be noted that the |reweight_dielectric_constant| protocol employs
+bootstrapping to compute the uncertainty in the average dielectric constant, rather than attempting to propagate
+uncertainties in the average dipole moments and volumes. The estimation of liquid dielectric constants is assumed.
 
 Enthalpy of Vaporization
 """"""""""""""""""""""""
@@ -103,7 +94,7 @@ The enthalpy of vaporization :math:`\Delta H_{vap}` (see :cite:`2011:wang`) can 
 
 where :math:`H`, :math:`E`, and :math:`V` are the enthalpy, total energy and volume respectively.
 
-Under the assumtion that :math:`V_{gas} >> V_{liquid}` and that the gas is ideal the above expression can be simplified
+Under the assumption that :math:`V_{gas} >> V_{liquid}` and that the gas is ideal the above expression can be simplified
 to
 
 .. math::
@@ -120,7 +111,7 @@ simplified expression is computed by default by this framework.
 
     - **Liquid phase**: The potential energy of the liquid phase is estimated using the default :ref:`simulation workflow <properties/commonworkflows:|simulation_layer|>`,
       and divided by the number of molecules in the simulation box using the ``divisor`` input of the
-      |extract_average_statistic| protocol.
+      |average_observable| protocol.
 
     - **Gas phase**: The potential energy of the gas phase is estimated using the default :ref:`simulation workflow <properties/commonworkflows:|simulation_layer|>`,
       which has been modified so that
@@ -165,6 +156,17 @@ where :math:`H_{mix}` is the enthalpy of the full mixture, and :math:`H_i`, :mat
 fraction of component :math:`i` respectively. :math:`N_{mix}` and :math:`N_i` are the total number of molecules used in
 the full mixture simulations and the simulations of each individual component respectively.
 
+When re-weighting cached data to compute :math:`H_{mix}` we make the approximation that the kinetic energy contributions
+cancel out between the mixture and each of the components, and hence can be computed by only re-weighting the NPT
+reduced potential:
+
+.. math::
+
+    \Delta H_{mix}\left(x_0, \cdots, x_{M-1}\right) \approx \dfrac{1}{\beta} \left( \dfrac{\left<u_{mix}\right>}{N_{mix}} - \sum_i^M x_i \dfrac{\left<u_i\right>}{N_i} \right)
+
+where :math:`u \equiv \beta \left(U + pV\right)` is the NPT reduced potential, :math:`U` the potential energy,
+:math:`p` the pressure and :math:`V` the volume.
+
 |simulation_layer|
 ******************
 
@@ -172,11 +174,11 @@ the full mixture simulations and the simulations of each individual component re
 
     - **Mixture**: The enthalpy of the full mixture is estimated using the default :ref:`simulation workflow <properties/commonworkflows:|simulation_layer|>`
       and divided by the number of molecules in the simulation box using the ``divisor`` input of the
-      |extract_average_statistic| protocol.
+      |average_observable| protocol.
 
     - **Components**: The enthalpy of each of the components is estimated using the default :ref:`simulation workflow <properties/commonworkflows:|simulation_layer|>`,
       divided by the number of molecules in the simulation box using the ``divisor`` input of the
-      |extract_average_statistic| protocol, and weighted by their mole fraction *in the mixture simulation box* using
+      |average_observable| protocol, and weighted by their mole fraction *in the mixture simulation box* using
       the |weight_by_mole_fraction| protocol.
 
 The final enthalpy is then computed by summing the component enthalpies (|add_values|) and subtracting these from
@@ -188,16 +190,16 @@ normal means using the `uncertainties <https://pythonhosted.org/uncertainties/>`
 
 .. rst-class:: spaced-list
 
-    - **Mixture**: The enthalpy of the full mixture is estimated using the default :ref:`reweighting workflow <properties/commonworkflows:|reweighting_layer|>`
+    - **Mixture**: The reduced potential of the full mixture is estimated using the default :ref:`reweighting workflow <properties/commonworkflows:|reweighting_layer|>`
       and divided by the number of molecules in the reweighting box using an extra |divide_value| protocol.
 
-    - **Components**: The enthalpy of each of the components is estimated using the default :ref:`reweighting workflow <properties/commonworkflows:|reweighting_layer|>`,
+    - **Components**: The reduced potential of each of the components is estimated using the default :ref:`reweighting workflow <properties/commonworkflows:|reweighting_layer|>`,
       divided by the number of molecules in the reweighting box using an extra |divide_value| protocol, and weighted by
       their mole fraction using the |weight_by_mole_fraction| protocol.
 
-The final enthalpy is then computed by summing the component enthalpies (|add_values|) and subtracting these from
-the mixture enthalpy (|subtract_values|). Uncertainties are propagated through the summation and subtraction by the
-normal means using the `uncertainties <https://pythonhosted.org/uncertainties/>`_ package.
+The final enthalpy is then computed by summing the component enthalpies (|add_values|), subtracting these from
+the mixture enthalpy (|subtract_values|), and multiplying by :math:`1 / \beta` (|multiply_value|). Uncertainties are propagated
+by the normal means using the `uncertainties <https://pythonhosted.org/uncertainties/>`_ package.
 
 Excess Molar Volume
 """""""""""""""""""
@@ -221,11 +223,11 @@ Avogadro constant.
 
     - **Mixture**: The molar volume of the full mixture is estimated using the default :ref:`simulation workflow <properties/commonworkflows:|simulation_layer|>`
       and divided by the molar number of molecules in the simulation box using the ``divisor`` input of the
-      |extract_average_statistic| protocol.
+      |average_observable| protocol.
 
     - **Components**: The molar volume of each of the components is estimated using the default :ref:`simulation workflow <properties/commonworkflows:|simulation_layer|>`,
       divided by the molar number of molecules in the simulation box using the ``divisor`` input of the
-      |extract_average_statistic| protocol, and weighted by their mole fraction *in the mixture simulation box* using
+      |average_observable| protocol, and weighted by their mole fraction *in the mixture simulation box* using
       the |weight_by_mole_fraction| protocol.
 
 The final excess molar volume is then computed by summing the component molar volumes (|add_values|) and subtracting these from

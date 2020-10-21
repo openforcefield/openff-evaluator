@@ -22,6 +22,11 @@ from openff.evaluator.storage.attributes import FilePath, StorageAttribute
 from openff.evaluator.substances import Substance
 from openff.evaluator.utils.exceptions import EvaluatorException
 from openff.evaluator.utils.graph import retrieve_uuid
+from openff.evaluator.utils.observables import (
+    Observable,
+    ObservableArray,
+    ObservableFrame,
+)
 from openff.evaluator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from openff.evaluator.utils.utils import get_nested_attribute
 from openff.evaluator.workflow import Protocol, ProtocolGraph
@@ -45,14 +50,6 @@ class Workflow:
         estimated value of the property being estimated.
         """
         return self._final_value_source
-
-    @property
-    def gradients_sources(self):
-        """list of ProtocolPath: A list of paths to the protocol outputs which
-        correspond to the gradients of the estimated property with respect to
-        specified force field parameters.
-        """
-        return self._gradients_sources
 
     @property
     def outputs_to_store(self):
@@ -93,7 +90,6 @@ class Workflow:
 
         self._protocols = []
         self._final_value_source = UNDEFINED
-        self._gradients_sources = []
         self._outputs_to_store = {}
 
     def _get_schema(self):
@@ -112,7 +108,6 @@ class Workflow:
         if self._final_value_source != UNDEFINED:
             schema.final_value_source = self._final_value_source.copy()
 
-        schema.gradients_sources = [source.copy() for source in self._gradients_sources]
         schema.outputs_to_store = copy.deepcopy(self._outputs_to_store)
 
         return schema
@@ -134,14 +129,6 @@ class Workflow:
             self._final_value_source.append_uuid(self.uuid)
 
         self._build_protocols(schema)
-
-        self._gradients_sources = []
-
-        if schema.gradients_sources != UNDEFINED:
-
-            for gradient_source in schema.gradients_sources:
-                gradient_source.append_uuid(self.uuid)
-                self._gradients_sources.append(gradient_source)
 
         self._outputs_to_store = {}
 
@@ -352,30 +339,6 @@ class Workflow:
             replicated_protocols[key].schema for key in replicated_protocols
         ]
 
-        # Make sure to correctly replicate gradient sources.
-        replicated_gradient_sources = []
-
-        if schema.gradients_sources != UNDEFINED:
-
-            for gradient_source in schema.gradients_sources:
-
-                if replicator.placeholder_id not in gradient_source.full_path:
-
-                    replicated_gradient_sources.append(gradient_source)
-                    continue
-
-                for index, template_value in enumerate(template_values):
-
-                    replicated_source = ProtocolPath.from_string(
-                        gradient_source.full_path.replace(
-                            replicator.placeholder_id, str(index)
-                        )
-                    )
-
-                    replicated_gradient_sources.append(replicated_source)
-
-        schema.gradients_sources = replicated_gradient_sources
-
         # Replicate any outputs.
         self._apply_replicator_to_outputs(replicator, schema, template_values)
         # Replicate any replicators.
@@ -539,9 +502,8 @@ class Workflow:
         new_protocol : Protocol or ProtocolPath
             The new protocol (or its id) to use.
         update_paths_only: bool
-            Whether only update the `final_value_source`, `gradients_sources`
-            and `outputs_to_store` attributes, or to also update all of the
-            protocols in `protocols`.
+            Whether only update the `final_value_source`, and `outputs_to_store`
+            attributes, or to also update all of the protocols in `protocols`.
         """
 
         new_id = (
@@ -568,9 +530,6 @@ class Workflow:
 
         if self._final_value_source != UNDEFINED:
             self._final_value_source.replace_protocol(old_protocol, new_protocol)
-
-        for gradient_source in self._gradients_sources:
-            gradient_source.replace_protocol(old_protocol, new_protocol)
 
         for output_label in self._outputs_to_store:
 
@@ -991,13 +950,6 @@ class WorkflowGraph:
                 protocol_id = workflow.final_value_source.start_protocol
                 data_futures.append(protocol_outputs[protocol_id])
 
-            if workflow.gradients_sources != UNDEFINED:
-
-                for gradient_source in workflow.gradients_sources:
-
-                    protocol_id = gradient_source.start_protocol
-                    data_futures.append(protocol_outputs[protocol_id])
-
             if workflow.outputs_to_store != UNDEFINED:
 
                 for output_label, output_to_store in workflow.outputs_to_store.items():
@@ -1025,7 +977,6 @@ class WorkflowGraph:
                         root_directory,
                         workflow.uuid,
                         workflow.final_value_source,
-                        workflow.gradients_sources,
                         workflow.outputs_to_store,
                         *data_futures,
                     )
@@ -1039,7 +990,6 @@ class WorkflowGraph:
                         root_directory,
                         workflow.uuid,
                         workflow.final_value_source,
-                        workflow.gradients_sources,
                         workflow.outputs_to_store,
                         *data_futures,
                     )
@@ -1052,7 +1002,6 @@ class WorkflowGraph:
         directory,
         workflow_id,
         value_reference,
-        gradient_sources,
         outputs_to_store,
         *protocol_result_paths,
         **_,
@@ -1067,9 +1016,6 @@ class WorkflowGraph:
             The id of the workflow associated with this result.
         value_reference: ProtocolPath, optional
             A reference to which property in the output dictionary is the actual value.
-        gradient_sources: list of ProtocolPath
-            A list of references to those entries in the output dictionaries which correspond
-            to parameter gradients.
         outputs_to_store: dict of str and WorkflowOutputToStore
             A list of references to data which should be stored on the storage backend.
         protocol_results: dict of str and str
@@ -1116,10 +1062,11 @@ class WorkflowGraph:
                     results_by_id[protocol_path] = output_value
 
             if value_reference is not None:
-                return_object.value = results_by_id[value_reference]
 
-            for gradient_source in gradient_sources:
-                return_object.gradients.append(results_by_id[gradient_source])
+                return_object.value = results_by_id[value_reference].value.plus_minus(
+                    results_by_id[value_reference].error
+                )
+                return_object.gradients = results_by_id[value_reference].gradients
 
             return_object.data_to_store = []
 
@@ -1176,10 +1123,30 @@ class WorkflowGraph:
             attribute = getattr(output_to_store.__class__, attribute_name)
             attribute_value = getattr(output_to_store, attribute_name)
 
-            if not isinstance(attribute_value, ProtocolPath):
-                continue
+            if isinstance(attribute_value, ProtocolPath):
 
-            attribute_value = results_by_id[attribute_value]
+                # Strip any nested attribute accessors before retrieving the result
+                property_name = attribute_value.property_name.split(".")[0].split("[")[
+                    0
+                ]
+
+                result_path = ProtocolPath(property_name, *attribute_value.protocol_ids)
+                result = results_by_id[result_path]
+
+                if result_path != attribute_value:
+
+                    result = get_nested_attribute(
+                        {property_name: result}, attribute_value.property_name
+                    )
+
+                attribute_value = result
+
+                # Do not store gradient information for observables as this information
+                # is very workflow / context specific.
+                if isinstance(
+                    attribute_value, (Observable, ObservableArray, ObservableFrame)
+                ):
+                    attribute_value.clear_gradients()
 
             if issubclass(attribute.type_hint, FilePath):
                 file_copy(attribute_value, data_directory)

@@ -12,30 +12,46 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 0.3.0
 -----
 
-This release ...
+The main feature of this release is the overhauling of how the framework computes the gradients of observables with
+respect to force field parameters.
+
+In particular, from this release onwards all gradients will be computed using the fluctuation formula (also referred
+to as the thermodynamic gradient), rather than calculation be the re-weighted finite difference approach (PR
+`#280 <https://github.com/openforcefield/openff-evaluator/pull/280>`_). In general the two methods produce gradients
+which are numerically indistinguishable, and so this should not markedly change any scientific output of this framework.
+
+The change was made to, in future, enable better integration with automatic differentiation libraries such as
+`jax <https://github.com/google/jax>`_, and differentiable simulation engines such as
+`timemachine <https://github.com/proteneer/timemachine>`_ which readily and rapdily give access to
+:math:`\mathrm{d} U / \mathrm{d} \theta_i`.
 
 Bugfixes
 """"""""
 
-* PR `#XXX <https://github.com/openforcefield/propertyestimator/pull/XXX>`_: ...
+* PR `#285 <https://github.com/openforcefield/openff-evaluator/pull/285>`_: Use merged protocols in workflow provenance.
+* PR `#287 <https://github.com/openforcefield/openff-evaluator/pull/287>`_: Fix merging of nested protocol inputs
 
 New Features
 """"""""""""
 
-* PR `#XXX <https://github.com/openforcefield/propertyestimator/pull/XXX>`_: ...
+* PR `#280 <https://github.com/openforcefield/openff-evaluator/pull/280>`_: Switch to computing thermodynamic gradients.
 
 Breaking Changes
 """"""""""""""""
 
-* ...
+* The ``StatisticsArray`` array has been completely removed and replaced with a new set of observable (``Observable``, ``ObservableArray``, ``ObservableFrame`` objects (`#279 <https://github.com/openforcefield/openff-evaluator/pull/279>`_, `#286 <https://github.com/openforcefield/openff-evaluator/pull/279>`_).
 
-Migration Guide
-"""""""""""""""
+* The following classes have been renamed:
 
-This release contained several public API breaking changes. For the most part, these can be
-remedied by the follow steps:
+    - ``OpenMMReducedPotentials`` -> ``OpenMMEvaluateEnergies``.
+    - ``AveragePropertyProtocol`` -> ``BaseAverageObservable``, ``ExtractAverageStatistic`` -> ``AverageObservable``, ``ExtractUncorrelatedData`` -> ``BaseDecorrelateProtocol``, ``ExtractUncorrelatedTrajectoryData`` -> ``DecorrelateTrajectory``, ``ExtractUncorrelatedStatisticsData`` -> ``DecorrelateObservables``
+    - ``ConcatenateStatistics`` -> ``ConcatenateObservables``, ``BaseReducedPotentials`` -> ``BaseEvaluateEnergies``, ``ReweightStatistics -> ReweightObservable``
 
-* ...
+* The following classes have been removed:
+
+    - ``OpenMMGradientPotentials``, ``BaseGradientPotentials``, ``CentralDifferenceGradient``
+
+* The final value estimated by a workflow must now be an ``Observable`` object which contains any gradient information to return. (`#296 <https://github.com/openforcefield/openff-evaluator/pull/296>`_).
 
 0.2.2
 -----

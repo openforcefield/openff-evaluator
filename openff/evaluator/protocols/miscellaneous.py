@@ -10,6 +10,7 @@ import pint
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import ParameterGradient
 from openff.evaluator.substances import Component, MoleFraction, Substance
+from openff.evaluator.utils.observables import Observable, ObservableArray
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
 
@@ -31,7 +32,13 @@ class AddValues(Protocol):
     result = OutputAttribute(
         docstring="The sum of the values.",
         type_hint=typing.Union[
-            int, float, pint.Measurement, pint.Quantity, ParameterGradient
+            int,
+            float,
+            pint.Measurement,
+            pint.Quantity,
+            ParameterGradient,
+            Observable,
+            ObservableArray,
         ],
     )
 
@@ -56,14 +63,26 @@ class SubtractValues(Protocol):
     value_a = InputAttribute(
         docstring="`value_a` in the formula `result` = `value_b` - `value_a`.",
         type_hint=typing.Union[
-            int, float, pint.Quantity, pint.Measurement, ParameterGradient
+            int,
+            float,
+            pint.Measurement,
+            pint.Quantity,
+            ParameterGradient,
+            Observable,
+            ObservableArray,
         ],
         default_value=UNDEFINED,
     )
     value_b = InputAttribute(
         docstring="`value_b` in the formula `result` = `value_b` - `value_a`.",
         type_hint=typing.Union[
-            int, float, pint.Quantity, pint.Measurement, ParameterGradient
+            int,
+            float,
+            pint.Measurement,
+            pint.Quantity,
+            ParameterGradient,
+            Observable,
+            ObservableArray,
         ],
         default_value=UNDEFINED,
     )
@@ -71,7 +90,13 @@ class SubtractValues(Protocol):
     result = OutputAttribute(
         docstring="The results of `value_b` - `value_a`.",
         type_hint=typing.Union[
-            int, float, pint.Measurement, pint.Quantity, ParameterGradient
+            int,
+            float,
+            pint.Measurement,
+            pint.Quantity,
+            ParameterGradient,
+            Observable,
+            ObservableArray,
         ],
     )
 
@@ -86,7 +111,13 @@ class MultiplyValue(Protocol):
     value = InputAttribute(
         docstring="The value to multiply.",
         type_hint=typing.Union[
-            int, float, pint.Quantity, pint.Measurement, ParameterGradient
+            int,
+            float,
+            pint.Measurement,
+            pint.Quantity,
+            ParameterGradient,
+            Observable,
+            ObservableArray,
         ],
         default_value=UNDEFINED,
     )
@@ -99,7 +130,13 @@ class MultiplyValue(Protocol):
     result = OutputAttribute(
         docstring="The result of the multiplication.",
         type_hint=typing.Union[
-            int, float, pint.Measurement, pint.Quantity, ParameterGradient
+            int,
+            float,
+            pint.Measurement,
+            pint.Quantity,
+            ParameterGradient,
+            Observable,
+            ObservableArray,
         ],
     )
 
@@ -114,7 +151,13 @@ class DivideValue(Protocol):
     value = InputAttribute(
         docstring="The value to divide.",
         type_hint=typing.Union[
-            int, float, pint.Quantity, pint.Measurement, ParameterGradient
+            int,
+            float,
+            pint.Measurement,
+            pint.Quantity,
+            ParameterGradient,
+            Observable,
+            ObservableArray,
         ],
         default_value=UNDEFINED,
     )
@@ -127,7 +170,13 @@ class DivideValue(Protocol):
     result = OutputAttribute(
         docstring="The result of the division.",
         type_hint=typing.Union[
-            int, float, pint.Measurement, pint.Quantity, ParameterGradient
+            int,
+            float,
+            pint.Measurement,
+            pint.Quantity,
+            ParameterGradient,
+            Observable,
+            ObservableArray,
         ],
     )
 
@@ -144,7 +193,13 @@ class WeightByMoleFraction(Protocol):
     value = InputAttribute(
         docstring="The value to be weighted.",
         type_hint=typing.Union[
-            float, int, pint.Measurement, pint.Quantity, ParameterGradient
+            int,
+            float,
+            pint.Measurement,
+            pint.Quantity,
+            ParameterGradient,
+            Observable,
+            ObservableArray,
         ],
         default_value=UNDEFINED,
     )
@@ -155,7 +210,8 @@ class WeightByMoleFraction(Protocol):
         default_value=UNDEFINED,
     )
     full_substance = InputAttribute(
-        docstring="The full substance which describes the mole fraction of the component.",
+        docstring="The full substance which describes the mole fraction of the "
+        "component.",
         type_hint=Substance,
         default_value=UNDEFINED,
     )
@@ -164,7 +220,13 @@ class WeightByMoleFraction(Protocol):
         "The value weighted by the `component`s mole fraction as determined from the "
         "`full_substance`.",
         type_hint=typing.Union[
-            float, int, pint.Measurement, pint.Quantity, ParameterGradient
+            int,
+            float,
+            pint.Measurement,
+            pint.Quantity,
+            ParameterGradient,
+            Observable,
+            ObservableArray,
         ],
     )
 

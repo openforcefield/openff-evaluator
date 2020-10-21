@@ -16,6 +16,7 @@ from openff.evaluator.storage import LocalFileStorage
 from openff.evaluator.storage.data import StoredSimulationData
 from openff.evaluator.tests.utils import create_dummy_property
 from openff.evaluator.utils.exceptions import EvaluatorException
+from openff.evaluator.utils.observables import ObservableFrame
 from openff.evaluator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from openff.evaluator.utils.utils import temporarily_change_directory
 
@@ -71,7 +72,7 @@ class DummyCalculationLayer(CalculationLayer):
         dummy_stored_object.force_field_id = ""
         dummy_stored_object.coordinate_file_name = ""
         dummy_stored_object.trajectory_file_name = ""
-        dummy_stored_object.statistics_file_name = ""
+        dummy_stored_object.observables = ObservableFrame()
         dummy_stored_object.statistical_inefficiency = 1.0
         dummy_stored_object.number_of_molecules = 10
         dummy_stored_object.source_calculation_id = ""

@@ -9,8 +9,10 @@ import pint
 
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
+from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.thermodynamics import Ensemble, ThermodynamicState
-from openff.evaluator.workflow import Protocol, workflow_protocol
+from openff.evaluator.utils.observables import ObservableFrame
+from openff.evaluator.workflow import Protocol
 from openff.evaluator.workflow.attributes import (
     InequalityMergeBehaviour,
     InputAttribute,
@@ -18,7 +20,6 @@ from openff.evaluator.workflow.attributes import (
 )
 
 
-@workflow_protocol()
 class BaseEnergyMinimisation(Protocol, abc.ABC):
     """A base class for protocols which will minimise the potential
     energy of a given system.
@@ -27,10 +28,10 @@ class BaseEnergyMinimisation(Protocol, abc.ABC):
     input_coordinate_file = InputAttribute(
         docstring="The coordinates to minimise.", type_hint=str, default_value=UNDEFINED
     )
-    system_path = InputAttribute(
-        docstring="The path to the XML system object which defines the forces present "
-        "in the system.",
-        type_hint=str,
+    parameterized_system = InputAttribute(
+        docstring="The parameterized system object which encodes the systems potential "
+        "energy function.",
+        type_hint=ParameterizedSystem,
         default_value=UNDEFINED,
     )
 
@@ -58,7 +59,6 @@ class BaseEnergyMinimisation(Protocol, abc.ABC):
     )
 
 
-@workflow_protocol()
 class BaseSimulation(Protocol, abc.ABC):
     """A base class for protocols which will perform a molecular
     simulation in a given ensemble and at a specified state.
@@ -131,10 +131,10 @@ class BaseSimulation(Protocol, abc.ABC):
         type_hint=str,
         default_value=UNDEFINED,
     )
-    system_path = InputAttribute(
-        docstring="A path to the XML system object which defines the forces present "
-        "in the system.",
-        type_hint=str,
+    parameterized_system = InputAttribute(
+        docstring="The parameterized system object which encodes the systems potential "
+        "energy function.",
+        type_hint=ParameterizedSystem,
         default_value=UNDEFINED,
     )
 
@@ -156,6 +156,13 @@ class BaseSimulation(Protocol, abc.ABC):
         default_value=False,
     )
 
+    gradient_parameters = InputAttribute(
+        docstring="An optional list of parameters to differentiate the evaluated "
+        "energies with respect to.",
+        type_hint=list,
+        default_value=lambda: list(),
+    )
+
     output_coordinate_file = OutputAttribute(
         docstring="The file path to the coordinates of the final system configuration.",
         type_hint=str,
@@ -164,7 +171,8 @@ class BaseSimulation(Protocol, abc.ABC):
         docstring="The file path to the trajectory sampled during the simulation.",
         type_hint=str,
     )
-    statistics_file_path = OutputAttribute(
-        docstring="The file path to the statistics sampled during the simulation.",
-        type_hint=str,
+
+    observables = OutputAttribute(
+        docstring="The observables collected during the simulation.",
+        type_hint=ObservableFrame,
     )

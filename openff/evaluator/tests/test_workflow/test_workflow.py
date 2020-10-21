@@ -209,7 +209,6 @@ def test_from_schema():
     assert workflow is not None
 
     rebuilt_schema = workflow.schema
-    rebuilt_schema.gradients_sources = UNDEFINED
     rebuilt_schema.outputs_to_store = UNDEFINED
 
     assert rebuilt_schema.json(format=True) == schema.json(format=True)

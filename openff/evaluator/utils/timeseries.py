@@ -3,47 +3,88 @@ A set of utilities for performing statistical analysis on a time series.
 
 Notes
 -----
-Based on the original implementation found in `pymbar <https://github.com/choderalab/pymbar/tree/master/pymbar>`_
+Based on the original implementation found in `pymbar
+<https://github.com/choderalab/pymbar/tree/master/pymbar>`_
 """
 
 import math
+from typing import List
 
 import numpy as np
 from pymbar.utils import ParameterError
 
+from openff.evaluator.attributes import Attribute, AttributeClass
 
-def calculate_statistical_inefficiency(time_series, minimum_samples=3):
+
+class TimeSeriesStatistics(AttributeClass):
+    """A class which encodes statistics such as the statistical inefficiency and
+    the index after which the time series has become stationary (i.e. is equilibrated).
+    """
+
+    n_total_points: int = Attribute(
+        docstring="The total number of data point in the time series.", type_hint=int
+    )
+    n_uncorrelated_points: int = Attribute(
+        docstring="The number of data point in the time series which are "
+        "uncorrelated.",
+        type_hint=int,
+    )
+
+    statistical_inefficiency: float = Attribute(
+        docstring="The statistical inefficiency of the time series.", type_hint=float
+    )
+    equilibration_index: int = Attribute(
+        docstring="The index after which the time series has become stationary.",
+        type_hint=int,
+    )
+
+    def __init__(
+        self,
+        n_total_points: int = None,
+        n_uncorrelated_points: int = None,
+        statistical_inefficiency: float = None,
+        equilibration_index: int = None,
+    ):
+        if n_total_points is not None:
+            self.n_total_points = n_total_points
+        if n_uncorrelated_points is not None:
+            self.n_uncorrelated_points = n_uncorrelated_points
+        if statistical_inefficiency is not None:
+            self.statistical_inefficiency = statistical_inefficiency
+        if equilibration_index is not None:
+            self.equilibration_index = equilibration_index
+
+
+def _statistical_inefficiency(
+    time_series: np.ndarray, minimum_samples: int = 3
+) -> float:
     """Calculates the statistical inefficiency of a time series.
-
-    Notes
-    -----
-    The statistical inefficiency g, is related to the autocorrelation time
-    by g = 1+2*tau
-
-    This method is based on the paper by J. D. Chodera [1], and the implementation at
-    https://github.com/choderalab/pymbar - extending the code to support multidimensional data.
-
-    References
-    ----------
-    [1] J. D. Chodera, W. C. Swope, J. W. Pitera, C. Seok, and K. A. Dill. Use of the weighted
-    histogram analysis method for the analysis of simulated and parallel tempering simulations.
-    JCTC 3(1):26-41, 2007.
 
     Parameters
     ----------
-    time_series: np.ndarray, shape=(num_frames, num_dimensions), dtype=float
-        The time series to calculate the statistical inefficiency of.
+    time_series
+        The time series to analyse with shape=(n_data_points, n_dimensions).
     minimum_samples: int
         The minimum number of data points to consider in the calculation.
 
+    Notes
+    -----
+    This method is based on the paper by J. D. Chodera [1]_ and the implementation at
+    https://github.com/choderalab/pymbar. Here the code is extended support
+    multidimensional data such as dipole moments.
+
+    References
+    ----------
+    [1] J. D. Chodera, W. C. Swope, J. W. Pitera, C. Seok, and K. A. Dill. Use of the
+        weighted histogram analysis method for the analysis of simulated and parallel
+        tempering simulations. JCTC 3(1):26-41, 2007.
+
     Returns
     -------
-    float:
         The statistical inefficiency.
     """
 
-    # Make sure the time series has a consistent shape of
-    # (N_frames, dimension)
+    # Make sure the time series has a consistent shape of (n_data_points, n_dimensions)
     dimension = 1 if len(time_series.shape) == 1 else time_series.shape[1]
     standardised_time_series = time_series.reshape((len(time_series), dimension))
 
@@ -96,160 +137,102 @@ def calculate_statistical_inefficiency(time_series, minimum_samples=3):
     return statistical_inefficiency
 
 
-def calculate_autocorrelation_time(time_series, minimum_samples=3):
-    """Calculates the autocorrelation time of a time series via its
-    statistical inefficiency.
+def analyze_time_series(
+    time_series: np.ndarray, minimum_samples: int = 3
+) -> TimeSeriesStatistics:
+    """Detect when a time series set has effectively become stationary (i.e has reached
+    equilibrium).
 
     Parameters
     ----------
-    time_series: np.ndarray, shape=(num_frames, num_dimensions), dtype=float
-        The time series to calculate the autocorrelation time of.
-    minimum_samples: int
+    time_series
+        The time series to analyse with shape=(n_data_points, n_dimensions).
+    minimum_samples
         The minimum number of data points to consider in the calculation.
-
-    Returns
-    -------
-    float:
-        The autocorrelation time.
-    """
-
-    statistical_inefficiency = calculate_statistical_inefficiency(
-        time_series, minimum_samples
-    )
-    return (statistical_inefficiency - 1.0) / 2.0
-
-
-def detect_equilibration(time_series, minimum_samples=3):
-    """Detect when a time series set has effectively become stationary (i.e has reached equilibrium).
 
     Notes
     -----
-    This method is based on the paper by J. D. Chodera [1], and the implementation at
-    https://github.com/choderalab/pymbar - extending the code to support multidimensional data.
+    This method is based on the paper by J. D. Chodera [1]_ and the implementation at
+    https://github.com/choderalab/pymbar. Here the code is extended support
+    multidimensional data such as dipole moments.
 
     References
     ----------
-    [1] J. D. Chodera, W. C. Swope, J. W. Pitera, C. Seok, and K. A. Dill. Use of the weighted
-        histogram analysis method for the analysis of simulated and parallel tempering simulations.
-        JCTC 3(1):26-41, 2007.
-
-    Parameters
-    ----------
-    time_series: np.ndarray, shape=(num_frames, num_dimensions), dtype=float
-        The time series to analyse.
-    minimum_samples: int
-        The minimum number of data points to consider in the calculation.
+    [1] J. D. Chodera, W. C. Swope, J. W. Pitera, C. Seok, and K. A. Dill. Use of the
+        weighted histogram analysis method for the analysis of simulated and parallel
+        tempering simulations. JCTC 3(1):26-41, 2007.
 
     Returns
     -------
-    float:
-        The time at which the data has reached equilibrium.
-    float:
-        The statistical inefficiency of the data.
-    int:
-        The effective number of uncorrelated samples.
+        Statistics about the time series.
     """
 
-    number_of_timesteps = time_series.shape[0]
-    statistical_inefficiency_array = np.ones([number_of_timesteps - 1], np.float32)
+    n_timesteps = time_series.shape[0]
+    statistical_inefficiency_array = np.ones([n_timesteps - 1])
 
     # Special case if the time series is constant.
-    if time_series.std() == 0.0:
-        return 0, 1, 1
+    if np.isclose(time_series.std(), 0.0):
 
-    effect_samples_array = np.ones([number_of_timesteps - 1], np.float32)
+        return TimeSeriesStatistics(
+            n_total_points=len(time_series),
+            n_uncorrelated_points=1,
+            statistical_inefficiency=float(len(time_series)),
+            equilibration_index=0,
+        )
 
-    for current_timestep in range(0, number_of_timesteps - 1):
+    effect_samples_array = np.ones([n_timesteps - 1])
+
+    for current_timestep in range(0, n_timesteps - 1):
 
         try:
             statistical_inefficiency_array[
                 current_timestep
-            ] = calculate_statistical_inefficiency(
-                time_series[current_timestep:number_of_timesteps], minimum_samples
+            ] = _statistical_inefficiency(
+                time_series[current_timestep:n_timesteps], minimum_samples
             )
 
-        except ParameterError:  # Fix for issue https://github.com/choderalab/pymbar/issues/122
+        except ParameterError:
+
+            # Fix for issue https://github.com/choderalab/pymbar/issues/122
             statistical_inefficiency_array[current_timestep] = (
-                number_of_timesteps - current_timestep + 1
+                n_timesteps - current_timestep + 1
             )
 
         effect_samples_array[current_timestep] = (
-            number_of_timesteps - current_timestep + 1
+            n_timesteps - current_timestep + 1
         ) / statistical_inefficiency_array[current_timestep]
 
-    maximum_effective_samples = effect_samples_array.max()
     equilibration_time = effect_samples_array.argmax()
     statistical_inefficiency = statistical_inefficiency_array[equilibration_time]
 
-    return equilibration_time, statistical_inefficiency, maximum_effective_samples
-
-
-def decorrelate_time_series(time_series):
-    """Extracts an uncorrelated sub-time series from a possibly correlated one.
-
-    Parameters
-    ----------
-    time_series : np.ndarray, shape=(num_frames, num_dimensions), dtype=float
-        The possibly correlated time series.
-
-    Returns
-    -------
-    np.ndarray, shape=(num_frames, num_dimensions), dtype=float
-        The uncorrelated time series from which the average was calculated.
-    int
-        The index after which the data is considered well equilibrated.
-    float
-        The statistical inefficiency of the original time series.
-    """
-
-    # Compute the indices of the uncorrelated time series
-    [equilibration_index, inefficiency, effective_samples] = detect_equilibration(
-        time_series
+    return TimeSeriesStatistics(
+        n_total_points=len(time_series),
+        n_uncorrelated_points=len(
+            get_uncorrelated_indices(len(time_series), statistical_inefficiency)
+        ),
+        statistical_inefficiency=float(statistical_inefficiency),
+        equilibration_index=int(equilibration_time),
     )
-    equilibrated_data = time_series[equilibration_index:]
-
-    # Extract a set of uncorrelated data points.
-    indices = get_uncorrelated_indices(equilibrated_data.shape[0], inefficiency)
-    uncorrelated_time_series = equilibrated_data[indices]
-
-    return uncorrelated_time_series, int(equilibration_index), float(inefficiency)
 
 
-def get_uncorrelated_stride(statistical_inefficiency):
-    """Returns the integer index stride between uncorrelated samples
-    in a time series.
+def get_uncorrelated_indices(
+    time_series_length: int, statistical_inefficiency: float
+) -> List[int]:
+    """Returns the indices of the uncorrelated frames of a time series taking strides
+    computed by the ``get_uncorrelated_stride`` function.
 
     Parameters
     ----------
-    statistical_inefficiency: float
-        The statistical inefficiency of the time series.
-
-    Returns
-    -------
-    int
-        The integer index stride between uncorrelated samples
-        in a time series.
-    """
-    return int(math.ceil(statistical_inefficiency))
-
-
-def get_uncorrelated_indices(time_series_length, statistical_inefficiency):
-    """Returns the indices of the uncorrelated frames of a time series,
-    taking strides according to `get_uncorrelated_stride`.
-
-    Parameters
-    ----------
-    time_series_length : int
+    time_series_length
         The length of the time series to extract frames from.
-    statistical_inefficiency: float
+    statistical_inefficiency
         The statistical inefficiency of the time series.
 
     Returns
     -------
-    list of int
         The indices of the uncorrelated frames.
     """
 
     # Extract a set of uncorrelated data points.
-    stride = get_uncorrelated_stride(statistical_inefficiency)
+    stride = int(math.ceil(statistical_inefficiency))
     return [index for index in range(0, time_series_length, stride)]
