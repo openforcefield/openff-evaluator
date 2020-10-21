@@ -387,16 +387,11 @@ class AverageDielectricConstant(BaseAverageObservable):
     def _observables(self):
         return {"dipole_moments": self.dipole_moments, "volumes": self.volumes}
 
-    def _bootstrap_function(
-        self,
-        dipole_moments: ObservableArray,
-        volumes: ObservableArray,
-        **kwargs: ObservableArray,
-    ):
+    def _bootstrap_function(self, **kwargs: ObservableArray):
 
         return compute_dielectric_constant(
-            dipole_moments,
-            volumes,
+            kwargs.pop("dipole_moments"),
+            kwargs.pop("volumes"),
             self.thermodynamic_state.temperature,
             super(AverageDielectricConstant, self)._bootstrap_function,
         )
