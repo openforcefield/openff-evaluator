@@ -112,7 +112,7 @@ def compute_dielectric_constant(
                     unit.dimensionless
                     * gradient.value.units
                     / dielectric_constant.value.units
-                )
+                ),
             )
             for gradient in dielectric_constant.gradients
         ],
