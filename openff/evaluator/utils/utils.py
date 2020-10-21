@@ -38,7 +38,8 @@ def get_data_filename(relative_path):
 
 
 def setup_timestamp_logging(file_path=None):
-    """Set up timestamp-based logging.
+    """Set up timestamp based logging which outputs in the style of
+    ``YEAR-MONTH-DAY HOUR:MINUTE:SECOND.MILLISECOND LEVEL MESSAGE``.
 
     Parameters
     ----------
@@ -47,7 +48,8 @@ def setup_timestamp_logging(file_path=None):
         print to the terminal.
     """
     formatter = logging.Formatter(
-        fmt="%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s", datefmt="%H:%M:%S"
+        fmt="%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
 
     if file_path is None:
