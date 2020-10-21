@@ -8,17 +8,26 @@ import os
 import shutil
 import threading
 from enum import Enum
+from typing import List
 
+import numpy as np
 import pint
 import yaml
 
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
-from openff.evaluator.forcefield import SmirnoffForceFieldSource
+from openff.evaluator.backends import ComputeResources
+from openff.evaluator.forcefield import ParameterGradient, SmirnoffForceFieldSource
 from openff.evaluator.forcefield.system import ParameterizedSystem
+from openff.evaluator.protocols.openmm import _compute_gradients
 from openff.evaluator.substances import Component, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
-from openff.evaluator.utils.observables import Observable
+from openff.evaluator.utils.observables import (
+    Observable,
+    ObservableArray,
+    ObservableFrame,
+    ObservableType,
+)
 from openff.evaluator.utils.openmm import (
     disable_pbc,
     openmm_quantity_to_pint,
@@ -91,6 +100,13 @@ class BaseYankProtocol(Protocol, abc.ABC):
         "only to be used for testing purposes.",
         type_hint=bool,
         default_value=False,
+    )
+
+    gradient_parameters = InputAttribute(
+        docstring="An optional list of parameters to differentiate the estimated "
+        "free energy with respect to.",
+        type_hint=list,
+        default_value=lambda: list(),
     )
 
     estimated_free_energy = OutputAttribute(
@@ -449,6 +465,133 @@ class BaseYankProtocol(Protocol, abc.ABC):
             exception = e
 
         queue.put((free_energy, free_energy_uncertainty, exception))
+
+    def _compute_potential_energy_gradients(
+        self,
+        trajectory_path: str,
+        parameterized_system: ParameterizedSystem,
+        enable_pbc: bool,
+        compute_resources: ComputeResources,
+    ) -> List[ParameterGradient]:
+        """Computes the value of <dU / d theta> for a specified trajectory and for
+        each force field parameter (theta) of interest.
+
+        Parameters
+        ----------
+        trajectory_path
+            The path to the trajectory of interest.
+        parameterized_system
+            The parameterized system object which encodes the potential
+            energy function used to generate the trajectory.
+        enable_pbc
+            Whether periodic boundary conditions should be enabled when evaluating
+            the potential energies of each frame and their gradients.
+        compute_resources
+            The resources available when computing the gradients.
+
+        Returns
+        -------
+            The average gradient of the potential energy with respect to each force
+            field parameter of interest.
+        """
+
+        import mdtraj
+
+        trajectory = mdtraj.load_dcd(
+            trajectory_path, top=parameterized_system.topology_path
+        )
+
+        # Mock an observable frame to store the gradients in
+        observables = ObservableFrame(
+            {
+                ObservableType.PotentialEnergy: ObservableArray(
+                    value=np.zeros((len(trajectory), 1)) * unit.kilojoule / unit.mole
+                )
+            }
+        )
+
+        # Compute the gradient in the first solvent.
+        _compute_gradients(
+            self.gradient_parameters,
+            observables,
+            parameterized_system.force_field.to_force_field(),
+            self.thermodynamic_state,
+            parameterized_system.topology,
+            mdtraj.load_dcd(trajectory_path, top=parameterized_system.topology_path),
+            compute_resources,
+            enable_pbc,
+        )
+
+        return [
+            ParameterGradient(key=gradient.key, value=gradient.value.mean().item())
+            for gradient in observables[ObservableType.PotentialEnergy].gradients
+        ]
+
+    def _compute_free_energy_gradients(
+        self,
+        phase_1_trajectory: str,
+        phase_1_system: ParameterizedSystem,
+        phase_2_trajectory: str,
+        phase_2_system: ParameterizedSystem,
+        enable_pbc_1: bool,
+        enable_pbc_2: bool,
+        compute_resources: ComputeResources,
+    ) -> List[ParameterGradient]:
+        """Computes the gradient of the free energy difference between the two
+        phases of interest.
+
+        Notes
+        -----
+        This function assumes the free energy is computed as phase 1 minus phase 2.
+
+        Parameters
+        ----------
+        phase_1_trajectory
+            The path to the trajectory sampled in the first phase.
+        phase_1_system
+            The parameterized system object which encodes the potential
+            energy function of the first phase.
+        enable_pbc_1
+            Whether periodic boundary conditions should be enabled for the first phase.
+        phase_2_trajectory
+            The path to the trajectory sampled in the second phase.
+        phase_2_system
+            The parameterized system object which encodes the potential
+            energy function of the second phase.
+        enable_pbc_2
+            Whether periodic boundary conditions should be enabled for the second phase.
+        compute_resources
+            The resources available when computing the gradients.
+
+        Returns
+        -------
+            The gradient of the average free energy with respect to each force
+            field parameter of interest.
+        """
+
+        phase_1_gradients = {
+            gradient.key: gradient
+            for gradient in self._compute_potential_energy_gradients(
+                phase_1_trajectory, phase_1_system, enable_pbc_1, compute_resources
+            )
+        }
+        phase_2_gradients = {
+            gradient.key: gradient
+            for gradient in self._compute_potential_energy_gradients(
+                phase_2_trajectory, phase_2_system, enable_pbc_2, compute_resources
+            )
+        }
+
+        gradients = [
+            ParameterGradient(
+                key=gradient_key,
+                value=phase_1_gradients[gradient_key].value
+                - phase_2_gradients[gradient_key].value,
+            )
+            for gradient_key in self.gradient_parameters
+        ]
+
+        return gradients
 
     def _execute(self, directory, available_resources):
 
@@ -881,12 +1024,12 @@ class SolvationYankProtocol(BaseYankProtocol):
 
     solvent_1_trajectory_path = OutputAttribute(
         docstring="The file path to the trajectory of the solute in the "
-        "first solvent.",
+        "first solvent with all interactions enabled.",
         type_hint=str,
     )
     solvent_2_trajectory_path = OutputAttribute(
         docstring="The file path to the trajectory of the solute in the "
-        "second solvent.",
+        "second solvent with all interactions enabled.",
         type_hint=str,
     )
 
@@ -1083,3 +1226,33 @@ class SolvationYankProtocol(BaseYankProtocol):
 
         self._extract_trajectory(solvent_1_yank_path, self.solvent_1_trajectory_path)
         self._extract_trajectory(solvent_2_yank_path, self.solvent_2_trajectory_path)
+
+        # Optionally compute any gradients.
+        if len(self.gradient_parameters) == 0:
+            return
+
+        if not (
+            isinstance(self.solvent_1_system.force_field, SmirnoffForceFieldSource)
+            and isinstance(self.solvent_2_system.force_field, SmirnoffForceFieldSource)
+        ):
+            raise ValueError(
+                "Derivates can only be computed for systems parameterized with SMIRNOFF "
+                "force fields."
+            )
+
+        gradients = self._compute_free_energy_gradients(
+            self.solvent_1_trajectory_path,
+            self.solvent_1_system,
+            self.solvent_2_trajectory_path,
+            self.solvent_2_system,
+            len(solvent_1_components) != 0,
+            len(solvent_2_components) != 0,
+            available_resources,
+        )
+
+        self.estimated_free_energy = Observable(
+            value=self.estimated_free_energy.value.plus_minus(
+                self.estimated_free_energy.error
+            ),
+            gradients=gradients,
+        )

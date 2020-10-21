@@ -99,9 +99,9 @@ def _evaluate_energies(
     for frame_index in range(trajectory.n_frames):
 
         positions = trajectory.xyz[frame_index]
-        box_vectors = trajectory.openmm_boxes(frame_index)
 
         if enable_pbc:
+            box_vectors = trajectory.openmm_boxes(frame_index)
             openmm_context.setPeriodicBoxVectors(*box_vectors)
 
         openmm_context.setPositions(positions)
