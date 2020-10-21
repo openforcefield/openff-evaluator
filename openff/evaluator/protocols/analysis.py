@@ -388,7 +388,10 @@ class AverageDielectricConstant(BaseAverageObservable):
         return {"dipole_moments": self.dipole_moments, "volumes": self.volumes}
 
     def _bootstrap_function(
-        self, dipole_moments: ObservableArray, volumes: ObservableArray
+        self,
+        dipole_moments: ObservableArray,
+        volumes: ObservableArray,
+        **kwargs: ObservableArray,
     ):
 
         return compute_dielectric_constant(
