@@ -153,6 +153,7 @@ class SolvationFreeEnergy(PhysicalProperty):
         run_yank.solvent_2_system = ProtocolPath(
             "parameterized_system", assign_vacuum_parameters.id
         )
+        run_yank.gradient_parameters = ProtocolPath("parameter_gradient_keys", "global")
 
         # Set up the group which will run yank until the free energy has been determined
         # to within a given uncertainty
