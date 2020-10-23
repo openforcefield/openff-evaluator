@@ -1361,5 +1361,5 @@ class SolvationYankProtocol(BaseYankProtocol):
             self.solvent_1_free_energy.value - self.solvent_2_free_energy.value,
         )
         self.free_energy_difference = (
-            self.solvent_1_free_energy.value - self.solvent_2_free_energy.value
+            self.solvent_1_free_energy - self.solvent_2_free_energy
         )
