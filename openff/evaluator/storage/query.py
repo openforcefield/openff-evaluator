@@ -8,7 +8,11 @@ from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 from openff.evaluator.datasets import PropertyPhase
 from openff.evaluator.forcefield import ForceFieldSource
 from openff.evaluator.storage.attributes import QueryAttribute
-from openff.evaluator.storage.data import ForceFieldData, StoredSimulationData
+from openff.evaluator.storage.data import (
+    ForceFieldData,
+    StoredFreeEnergyData,
+    StoredSimulationData,
+)
 from openff.evaluator.substances import ExactAmount, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
 
@@ -152,15 +156,10 @@ class ForceFieldQuery(BaseDataQuery):
     )
 
 
-class SimulationDataQuery(BaseDataQuery):
-    """A class used to query a `StorageBackend` for
-    `StoredSimulationData` which meet the specified set
-    of criteria.
+class BaseSimulationDataQuery(BaseDataQuery, abc.ABC):
+    """The base class for queries which will retrieve ``BaseSimulationData`` derived
+    data.
     """
-
-    @classmethod
-    def data_class(cls):
-        return StoredSimulationData
 
     substance = QueryAttribute(
         docstring="The substance which the data should have been collected "
@@ -198,12 +197,6 @@ class SimulationDataQuery(BaseDataQuery):
         docstring="The id of the force field parameters which used to "
         "generate the data.",
         type_hint=str,
-        optional=True,
-    )
-
-    number_of_molecules = QueryAttribute(
-        docstring="The total number of molecules in the system.",
-        type_hint=int,
         optional=True,
     )
 
@@ -272,7 +265,7 @@ class SimulationDataQuery(BaseDataQuery):
         if self.substance != UNDEFINED:
             matches.append(self._match_substance(data_object))
 
-        base_matches = super(SimulationDataQuery, self).apply(data_object)
+        base_matches = super(BaseSimulationDataQuery, self).apply(data_object)
         base_matches = [None] if base_matches is None else base_matches
 
         matches = [*matches, *base_matches]
@@ -284,7 +277,7 @@ class SimulationDataQuery(BaseDataQuery):
 
     def validate(self, attribute_type=None):
 
-        super(SimulationDataQuery, self).validate(attribute_type)
+        super(BaseSimulationDataQuery, self).validate(attribute_type)
 
         if self.substance_query != UNDEFINED and self.substance == UNDEFINED:
 
@@ -292,3 +285,29 @@ class SimulationDataQuery(BaseDataQuery):
                 "The `substance_query` can only be used when the "
                 "`substance` attribute is set."
             )
+
+
+class SimulationDataQuery(BaseSimulationDataQuery):
+    """A class used to query a ``StorageBackend`` for ``StoredSimulationData`` objects
+    which meet the specified set of criteria.
+    """
+
+    @classmethod
+    def data_class(cls):
+        return StoredSimulationData
+
+    number_of_molecules = QueryAttribute(
+        docstring="The total number of molecules in the system.",
+        type_hint=int,
+        optional=True,
+    )
+
+
+class FreeEnergyDataQuery(BaseSimulationDataQuery):
+    """A class used to query a ``StorageBackend`` for ``FreeEnergyData`` objects which
+    meet the specified set of criteria.
+    """
+
+    @classmethod
+    def data_class(cls):
+        return StoredFreeEnergyData
