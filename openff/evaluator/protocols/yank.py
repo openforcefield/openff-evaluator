@@ -8,7 +8,7 @@ import os
 import shutil
 import threading
 from enum import Enum
-from typing import List
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import numpy as np
 import pint
@@ -22,6 +22,7 @@ from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.protocols.openmm import _compute_gradients
 from openff.evaluator.substances import Component, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
+from openff.evaluator.utils import timeseries
 from openff.evaluator.utils.observables import (
     Observable,
     ObservableArray,
@@ -34,6 +35,8 @@ from openff.evaluator.utils.openmm import (
     pint_quantity_to_openmm,
     setup_platform_with_resources,
 )
+from openff.evaluator.utils.timeseries import TimeSeriesStatistics, \
+    get_uncorrelated_indices
 from openff.evaluator.utils.utils import temporarily_change_directory
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import (
@@ -41,6 +44,9 @@ from openff.evaluator.workflow.attributes import (
     InputAttribute,
     OutputAttribute,
 )
+
+if TYPE_CHECKING:
+    import mdtraj
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +85,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
         docstring="The number of iterations between saving YANK checkpoint files.",
         type_hint=int,
         merge_behavior=InequalityMergeBehaviour.SmallestValue,
-        default_value=50,
+        default_value=1,
     )
 
     timestep = InputAttribute(
@@ -109,11 +115,15 @@ class BaseYankProtocol(Protocol, abc.ABC):
         default_value=lambda: list(),
     )
 
-    estimated_free_energy = OutputAttribute(
-        docstring="The estimated free energy value and its uncertainty "
-        "returned by YANK.",
+    free_energy_difference = OutputAttribute(
+        docstring="The estimated free energy difference between the two phases of"
+        "interest.",
         type_hint=Observable,
     )
+
+    def __init__(self, protocol_id):
+        super(BaseYankProtocol, self).__init__(protocol_id)
+        self._analysed_output = None
 
     @staticmethod
     def _get_residue_names_from_role(substances, coordinate_path, role):
@@ -267,7 +277,9 @@ class BaseYankProtocol(Protocol, abc.ABC):
                 pint_quantity_to_openmm(self.thermodynamic_state.pressure)
             ),
             "minimize": True,
-            "number_of_equilibration_iterations": self.number_of_equilibration_iterations,
+            "number_of_equilibration_iterations": (
+                self.number_of_equilibration_iterations
+            ),
             "default_number_of_iterations": self.number_of_iterations,
             "default_nsteps_per_iteration": self.steps_per_iteration,
             "checkpoint_interval": self.checkpoint_interval,
@@ -346,28 +358,69 @@ class BaseYankProtocol(Protocol, abc.ABC):
             "experiments": self._get_experiments_dictionary(),
         }
 
+    def _time_series_statistics(self, phase: str) -> TimeSeriesStatistics:
+        """Returns the time series statistics (such as the equilibration time) for
+        a particular phase."""
+
+        equilibration = self._analysed_output["equilibration"][phase]
+        n_expected = self.number_of_iterations
+
+        uncorrelated_indices = get_uncorrelated_indices(
+            n_expected - equilibration["discarded_from_start"],
+            equilibration["subsample_rate"]
+        )
+
+        time_series_statistics = TimeSeriesStatistics(
+            n_total_points=n_expected,
+            n_uncorrelated_points=len(uncorrelated_indices),
+            statistical_inefficiency=equilibration["subsample_rate"],
+            equilibration_index=equilibration["discarded_from_start"],
+        )
+
+        return time_series_statistics
+
     @staticmethod
-    def _extract_trajectory(checkpoint_path, output_trajectory_path):
+    def _extract_trajectory(
+        checkpoint_path: str,
+        output_trajectory_path: Optional[str],
+        statistics: TimeSeriesStatistics,
+        state_index: int = 0,
+    ) -> "mdtraj.Trajectory":
         """Extracts the stored trajectory of the 'initial' state from a
         yank `.nc` checkpoint file and stores it to disk as a `.dcd` file.
 
         Parameters
         ----------
-        checkpoint_path: str
+        checkpoint_path
             The path to the yank `.nc` file
-        output_trajectory_path: str
-            The path to store the extracted trajectory at.
+        output_trajectory_path
+            The path to optionally store the extracted trajectory at.
+        statistics
+            Statistics about the time series to use to decorrelate and remove
+            un-equilibrated samples.
         """
 
         from yank.analyze import extract_trajectory
 
-        mdtraj_trajectory = extract_trajectory(
-            checkpoint_path, state_index=0, image_molecules=True
+        trajectory = extract_trajectory(
+            checkpoint_path, state_index=state_index, image_molecules=True
         )
-        mdtraj_trajectory.save_dcd(output_trajectory_path)
+        trajectory = trajectory[statistics.equilibration_index:]
+
+        uncorrelated_indices = timeseries.get_uncorrelated_indices(
+            statistics.n_total_points - statistics.equilibration_index,
+            statistics.statistical_inefficiency,
+        )
+
+        trajectory = trajectory[np.array(uncorrelated_indices)]
+
+        if output_trajectory_path is not None:
+            trajectory.save_dcd(output_trajectory_path)
+
+        return trajectory
 
     @staticmethod
-    def _run_yank(directory, available_resources, setup_only):
+    def _run_yank(directory, available_resources, setup_only) -> Dict[str, Any]:
         """Runs YANK within the specified directory which contains a `yank.yaml`
         input file.
 
@@ -384,13 +437,9 @@ class BaseYankProtocol(Protocol, abc.ABC):
 
         Returns
         -------
-        simtk.pint.Quantity
-            The free energy returned by yank.
-        simtk.pint.Quantity
-            The uncertainty in the free energy returned by yank.
+            The analysed output of the yank calculation.
         """
 
-        from simtk import unit as simtk_unit
         from yank.analyze import ExperimentAnalyzer
         from yank.experiment import ExperimentBuilder
 
@@ -403,22 +452,14 @@ class BaseYankProtocol(Protocol, abc.ABC):
             exp_builder = ExperimentBuilder("yank.yaml")
 
             if setup_only is True:
-                return (
-                    0.0 * simtk_unit.kilojoule_per_mole,
-                    0.0 * simtk_unit.kilojoule_per_mole,
-                )
+                return {"free_energy": {}}
 
             exp_builder.run_experiments()
 
             analyzer = ExperimentAnalyzer("experiments")
-            output = analyzer.auto_analyze()
+            analysed_output = analyzer.auto_analyze()
 
-            free_energy = output["free_energy"]["free_energy_diff_unit"]
-            free_energy_uncertainty = output["free_energy"][
-                "free_energy_diff_error_unit"
-            ]
-
-        return free_energy, free_energy_uncertainty
+        return analysed_output
 
     @staticmethod
     def _run_yank_as_process(queue, directory, available_resources, setup_only):
@@ -440,35 +481,23 @@ class BaseYankProtocol(Protocol, abc.ABC):
             If true, YANK will only create and validate the setup files,
             but not actually run any simulations. This argument is mainly
             only to be used for testing purposes.
-
-        Returns
-        -------
-        simtk.pint.Quantity
-            The free energy returned by yank.
-        simtk.pint.Quantity
-            The uncertainty in the free energy returned by yank.
-        str, optional
-            The stringified errors which occurred on the other process,
-            or `None` if no exceptions were raised.
         """
 
-        free_energy = None
-        free_energy_uncertainty = None
-
+        analysed_output = None
         exception = None
 
         try:
-            free_energy, free_energy_uncertainty = BaseYankProtocol._run_yank(
+            analysed_output = BaseYankProtocol._run_yank(
                 directory, available_resources, setup_only
             )
         except Exception as e:
             exception = e
 
-        queue.put((free_energy, free_energy_uncertainty, exception))
+        queue.put((analysed_output, exception))
 
-    def _compute_potential_energy_gradients(
+    def _compute_state_energy_gradients(
         self,
-        trajectory_path: str,
+        trajectory: "mdtraj.Trajectory",
         parameterized_system: ParameterizedSystem,
         enable_pbc: bool,
         compute_resources: ComputeResources,
@@ -478,8 +507,8 @@ class BaseYankProtocol(Protocol, abc.ABC):
 
         Parameters
         ----------
-        trajectory_path
-            The path to the trajectory of interest.
+        trajectory
+            The trajectory of interest.
         parameterized_system
             The parameterized system object which encodes the potential
             energy function used to generate the trajectory.
@@ -494,12 +523,6 @@ class BaseYankProtocol(Protocol, abc.ABC):
             The average gradient of the potential energy with respect to each force
             field parameter of interest.
         """
-
-        import mdtraj
-
-        trajectory = mdtraj.load_dcd(
-            trajectory_path, top=parameterized_system.topology_path
-        )
 
         # Mock an observable frame to store the gradients in
         observables = ObservableFrame(
@@ -517,7 +540,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
             parameterized_system.force_field.to_force_field(),
             self.thermodynamic_state,
             parameterized_system.topology,
-            mdtraj.load_dcd(trajectory_path, top=parameterized_system.topology_path),
+            trajectory,
             compute_resources,
             enable_pbc,
         )
@@ -529,37 +552,30 @@ class BaseYankProtocol(Protocol, abc.ABC):
 
     def _compute_free_energy_gradients(
         self,
-        phase_1_trajectory: str,
-        phase_1_system: ParameterizedSystem,
-        phase_2_trajectory: str,
-        phase_2_system: ParameterizedSystem,
-        enable_pbc_1: bool,
-        enable_pbc_2: bool,
+        checkpoint_path: str,
+        system: ParameterizedSystem,
+        enable_pbc: bool,
+        n_states: int,
+        time_series_statistics: TimeSeriesStatistics,
         compute_resources: ComputeResources,
     ) -> List[ParameterGradient]:
-        """Computes the gradient of the free energy difference between the two
-        phases of interest.
-
-        Notes
-        -----
-        This function assumes the free energy is computed as phase 1 minus phase 2.
+        """Computes the gradient of the free energy difference between the end states
+        of a particular phase.
 
         Parameters
         ----------
-        phase_1_trajectory
-            The path to the trajectory sampled in the first phase.
-        phase_1_system
+        checkpoint_path
+            The path to the checkpoint file for the phase of interest.
+        system
             The parameterized system object which encodes the potential
-            energy function of the first phase.
-        enable_pbc_1
-            Whether periodic boundary conditions should be enabled for the first phase.
-        phase_2_trajectory
-            The path to the trajectory sampled in the second phase.
-        phase_2_system
-            The parameterized system object which encodes the potential
-            energy function of the second phase.
-        enable_pbc_2
-            Whether periodic boundary conditions should be enabled for the second phase.
+            energy function of the phase of interest.
+        enable_pbc
+            Whether periodic boundary conditions should be enabled.
+        n_states
+            The number of lambdas states used for this phase.
+        time_series_statistics
+            Statistics about the time series to use to decorrelate and remove
+            un-equilibrated samples.
         compute_resources
             The resources available when computing the gradients.
 
@@ -569,24 +585,31 @@ class BaseYankProtocol(Protocol, abc.ABC):
             field parameter of interest.
         """
 
-        phase_1_gradients = {
+        start_state_trajectory = self._extract_trajectory(
+            checkpoint_path, None, time_series_statistics, 0
+        )
+        end_state_trajectory = self._extract_trajectory(
+            checkpoint_path, None, time_series_statistics, n_states - 1
+        )
+
+        start_state_gradients = {
             gradient.key: gradient
-            for gradient in self._compute_potential_energy_gradients(
-                phase_1_trajectory, phase_1_system, enable_pbc_1, compute_resources
+            for gradient in self._compute_state_energy_gradients(
+                start_state_trajectory, system, enable_pbc, compute_resources
             )
         }
-        phase_2_gradients = {
+        end_state_gradients = {
             gradient.key: gradient
-            for gradient in self._compute_potential_energy_gradients(
-                phase_2_trajectory, phase_2_system, enable_pbc_2, compute_resources
+            for gradient in self._compute_state_energy_gradients(
+                end_state_trajectory, system, enable_pbc, compute_resources
             )
         }
 
         gradients = [
             ParameterGradient(
                 key=gradient_key,
-                value=phase_1_gradients[gradient_key].value
-                - phase_2_gradients[gradient_key].value,
+                value=end_state_gradients[gradient_key].value
+                - start_state_gradients[gradient_key].value,
             )
             for gradient_key in self.gradient_parameters
         ]
@@ -612,9 +635,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
         # be spun up in a new process which should itself be safe to run yank in.
         if threading.current_thread() is threading.main_thread():
             logger.info("Launching YANK in the main thread.")
-            free_energy, free_energy_uncertainty = self._run_yank(
-                directory, available_resources, setup_only
-            )
+            analysed_output = self._run_yank(directory, available_resources, setup_only)
         else:
 
             from multiprocessing import Process, Queue
@@ -624,6 +645,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
             # Create a queue to pass the results back to the main process.
             queue = Queue()
             # Create the process within which yank will run.
+            # noinspection PyTypeChecker
             process = Process(
                 target=BaseYankProtocol._run_yank_as_process,
                 args=[queue, directory, available_resources, setup_only],
@@ -631,17 +653,33 @@ class BaseYankProtocol(Protocol, abc.ABC):
 
             # Start the process and gather back the output.
             process.start()
-            free_energy, free_energy_uncertainty, exception = queue.get()
+            analysed_output, exception = queue.get()
             process.join()
 
             if exception is not None:
                 raise exception
 
-        self.estimated_free_energy = Observable(
-            value=openmm_quantity_to_pint(free_energy).plus_minus(
-                openmm_quantity_to_pint(free_energy_uncertainty)
+        free_energy_difference = analysed_output["free_energy"]["free_energy_diff_unit"]
+        free_energy_difference_std = analysed_output["free_energy"][
+            "free_energy_diff_error_unit"
+        ]
+
+        self._analysed_output = analysed_output
+
+        self.free_energy_difference = Observable(
+            value=openmm_quantity_to_pint(free_energy_difference).plus_minus(
+                openmm_quantity_to_pint(free_energy_difference_std)
             )
         )
+
+    def validate(self, attribute_type=None):
+        super(BaseYankProtocol, self).validate(attribute_type)
+
+        if self.checkpoint_interval != 1:
+            raise ValueError(
+                "The checkpoint interval must currently be set to one due to a bug in "
+                "how YANK extracts trajectories from checkpoint files."
+            )
 
 
 @workflow_protocol()
@@ -872,9 +910,12 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
 
         if self.apply_restraints:
 
+            ligand_dsl = f"(resname {self.ligand_residue_name}) and (mass > 1.5)"
+            receptor_dsl = f"(resname {self.receptor_residue_name}) and (mass > 1.5)"
+
             experiments_dictionary["restraint"] = {
-                "restrained_ligand_atoms": f"(resname {self.ligand_residue_name}) and (mass > 1.5)",
-                "restrained_receptor_atoms": f"(resname {self.receptor_residue_name}) and (mass > 1.5)",
+                "restrained_ligand_atoms": ligand_dsl,
+                "restrained_receptor_atoms": receptor_dsl,
                 "type": self.restraint_type.value,
             }
 
@@ -923,21 +964,29 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         self.solvated_ligand_trajectory_path = os.path.join(directory, "ligand.dcd")
         self.solvated_complex_trajectory_path = os.path.join(directory, "complex.dcd")
 
-        self._extract_trajectory(ligand_yank_path, self.solvated_ligand_trajectory_path)
         self._extract_trajectory(
-            complex_yank_path, self.solvated_complex_trajectory_path
+            ligand_yank_path,
+            self.solvated_ligand_trajectory_path,
+            self._time_series_statistics("solvent")
+        )
+        self._extract_trajectory(
+            complex_yank_path,
+            self.solvated_complex_trajectory_path,
+            self._time_series_statistics("complex")
         )
 
 
 @workflow_protocol()
 class SolvationYankProtocol(BaseYankProtocol):
-    """A protocol for performing solvation alchemical free energy
-    calculations using the YANK framework.
+    """A protocol for estimating the change in free energy upon transferring a solute
+    into a solvent (referred to as solvent 1) from a second solvent (referred to as
+    solvent 2) by performing an alchemical free energy calculation using the YANK
+    framework.
 
-    This protocol can be used for box solvation free energies (setting
-    the `solvent_1` input to the solvent of interest and setting
-    `solvent_2` as an empty `Substance`) or transfer free energies (setting
-    both the `solvent_1` and `solvent_2` inputs to different solvents).
+    This protocol can be used for box solvation free energies (setting the `solvent_1`
+    input to the solvent of interest and setting `solvent_2` as an empty `Substance`) or
+    transfer free energies (setting both the `solvent_1` and `solvent_2` inputs to
+    different solvents).
     """
 
     solute = InputAttribute(
@@ -1031,6 +1080,20 @@ class SolvationYankProtocol(BaseYankProtocol):
         docstring="The file path to the trajectory of the solute in the "
         "second solvent with all interactions enabled.",
         type_hint=str,
+    )
+
+    solvent_1_free_energy = OutputAttribute(
+        docstring="The free energy of the solute in the first solvent.",
+        type_hint=Observable,
+    )
+    solvent_2_free_energy = OutputAttribute(
+        docstring="The free energy of the solute in the second solvent.",
+        type_hint=Observable,
+    )
+    free_energy_difference = OutputAttribute(
+        docstring="The estimated free energy difference between the solute in the"
+        "first solvent and the second solvent (i.e. ΔG = ΔG_1 - ΔG_2).",
+        type_hint=Observable,
     )
 
     def __init__(self, protocol_id):
@@ -1218,41 +1281,81 @@ class SolvationYankProtocol(BaseYankProtocol):
         if self.setup_only:
             return
 
-        solvent_1_yank_path = os.path.join(directory, "experiments", "solvent1.nc")
-        solvent_2_yank_path = os.path.join(directory, "experiments", "solvent2.nc")
+        free_energies = self._analysed_output["free_energy"]
 
-        self.solvent_1_trajectory_path = os.path.join(directory, "solvent1.dcd")
-        self.solvent_2_trajectory_path = os.path.join(directory, "solvent2.dcd")
+        # Extract and expose the final free energies and the trajectories sampled
+        # at the fully interacting end state.
+        for i in range(1, 3):
 
-        self._extract_trajectory(solvent_1_yank_path, self.solvent_1_trajectory_path)
-        self._extract_trajectory(solvent_2_yank_path, self.solvent_2_trajectory_path)
-
-        # Optionally compute any gradients.
-        if len(self.gradient_parameters) == 0:
-            return
-
-        if not (
-            isinstance(self.solvent_1_system.force_field, SmirnoffForceFieldSource)
-            and isinstance(self.solvent_2_system.force_field, SmirnoffForceFieldSource)
-        ):
-            raise ValueError(
-                "Derivates can only be computed for systems parameterized with SMIRNOFF "
-                "force fields."
+            # Extract the free energies.
+            solvent_free_energy = -Observable(
+                openmm_quantity_to_pint(
+                    (
+                        free_energies[f"solvent{i}"]["free_energy_diff"]
+                        * free_energies[f"solvent{i}"]["kT"]
+                    )
+                ).plus_minus(
+                    openmm_quantity_to_pint(
+                        free_energies[f"solvent{i}"]["free_energy_diff_error"]
+                        * free_energies[f"solvent{i}"]["kT"]
+                    )
+                )
             )
 
-        gradients = self._compute_free_energy_gradients(
-            self.solvent_1_trajectory_path,
-            self.solvent_1_system,
-            self.solvent_2_trajectory_path,
-            self.solvent_2_system,
-            len(solvent_1_components) != 0,
-            len(solvent_2_components) != 0,
-            available_resources,
-        )
+            # Extract the statistical inefficiency of the data.
+            time_series_statistics = self._time_series_statistics(f"solvent{i}")
 
-        self.estimated_free_energy = Observable(
-            value=self.estimated_free_energy.value.plus_minus(
-                self.estimated_free_energy.error
-            ),
-            gradients=gradients,
+            # Extract the trajectory.
+            checkpoint_path = os.path.join(directory, "experiments", f"solvent{i}.nc")
+            trajectory_path = os.path.join(directory, f"solvent{i}.dcd")
+
+            self._extract_trajectory(
+                checkpoint_path, trajectory_path, time_series_statistics
+            )
+
+            # Set them as outputs.
+            setattr(self, f"solvent_{i}_free_energy", solvent_free_energy)
+            setattr(self, f"solvent_{i}_trajectory_path", trajectory_path)
+
+            # Optionally compute any gradients.
+            if len(self.gradient_parameters) == 0:
+                continue
+
+            system = getattr(self, f"solvent_{i}_system")
+
+            if not isinstance(system.force_field, SmirnoffForceFieldSource):
+
+                raise ValueError(
+                    "Derivates can only be computed for systems parameterized with "
+                    "SMIRNOFF force fields."
+                )
+
+            enable_pbc = vacuum_system_path != getattr(
+                self, f"_local_solvent_{i}_system"
+            )
+
+            setattr(
+                self,
+                f"solvent_{i}_free_energy",
+                Observable(
+                    value=solvent_free_energy.value.plus_minus(
+                        solvent_free_energy.error
+                    ),
+                    gradients=self._compute_free_energy_gradients(
+                        checkpoint_path,
+                        system,
+                        enable_pbc,
+                        self._analysed_output["general"][f"solvent{i}"]["nstates"],
+                        time_series_statistics,
+                        available_resources,
+                    ),
+                ),
+            )
+
+        assert np.isclose(
+            self.free_energy_difference.value,
+            self.solvent_1_free_energy.value - self.solvent_2_free_energy.value,
+        )
+        self.free_energy_difference = (
+            self.solvent_1_free_energy.value - self.solvent_2_free_energy.value
         )

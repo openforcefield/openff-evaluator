@@ -140,7 +140,7 @@ class SolvationFreeEnergy(PhysicalProperty):
         run_yank.solvent_2 = Substance()
         run_yank.thermodynamic_state = ProtocolPath("thermodynamic_state", "global")
         run_yank.steps_per_iteration = 500
-        run_yank.checkpoint_interval = 50
+        run_yank.checkpoint_interval = 1
         run_yank.solvent_1_coordinates = ProtocolPath(
             "output_coordinate_file", equilibration_simulation.id
         )
