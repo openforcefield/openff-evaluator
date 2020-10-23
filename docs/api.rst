@@ -341,7 +341,9 @@ Storage API
     HashableStoredData
     ForceFieldData
     ReplaceableData
+    BaseSimulationData
     StoredSimulationData
+    StoredFreeEnergyData
 
 **Data Queries**
 
@@ -353,7 +355,9 @@ Storage API
     BaseDataQuery
     SubstanceQuery
     ForceFieldQuery
+    BaseSimulationDataQuery
     SimulationDataQuery
+    FreeEnergyDataQuery
 
 **Attributes**
 
