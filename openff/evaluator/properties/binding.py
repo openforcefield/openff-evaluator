@@ -215,7 +215,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
 
         # Define where the final values come from.
         schema.final_value_source = ProtocolPath(
-            "estimated_free_energy", yank_protocol.id
+            "free_energy_difference", yank_protocol.id
         )
 
         calculation_schema.workflow_schema = schema

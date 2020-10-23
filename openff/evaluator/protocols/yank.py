@@ -35,8 +35,10 @@ from openff.evaluator.utils.openmm import (
     pint_quantity_to_openmm,
     setup_platform_with_resources,
 )
-from openff.evaluator.utils.timeseries import TimeSeriesStatistics, \
-    get_uncorrelated_indices
+from openff.evaluator.utils.timeseries import (
+    TimeSeriesStatistics,
+    get_uncorrelated_indices,
+)
 from openff.evaluator.utils.utils import temporarily_change_directory
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import (
@@ -367,7 +369,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
 
         uncorrelated_indices = get_uncorrelated_indices(
             n_expected - equilibration["discarded_from_start"],
-            equilibration["subsample_rate"]
+            equilibration["subsample_rate"],
         )
 
         time_series_statistics = TimeSeriesStatistics(
@@ -405,7 +407,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
         trajectory = extract_trajectory(
             checkpoint_path, state_index=state_index, image_molecules=True
         )
-        trajectory = trajectory[statistics.equilibration_index:]
+        trajectory = trajectory[statistics.equilibration_index :]
 
         uncorrelated_indices = timeseries.get_uncorrelated_indices(
             statistics.n_total_points - statistics.equilibration_index,
@@ -967,12 +969,12 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         self._extract_trajectory(
             ligand_yank_path,
             self.solvated_ligand_trajectory_path,
-            self._time_series_statistics("solvent")
+            self._time_series_statistics("solvent"),
         )
         self._extract_trajectory(
             complex_yank_path,
             self.solvated_complex_trajectory_path,
-            self._time_series_statistics("complex")
+            self._time_series_statistics("complex"),
         )
 
 
@@ -1083,11 +1085,13 @@ class SolvationYankProtocol(BaseYankProtocol):
     )
 
     solvent_1_free_energy = OutputAttribute(
-        docstring="The free energy of the solute in the first solvent.",
+        docstring="The free energy change of transforming the an ideal solute molecule "
+        "into a fully interacting molecule in the second solvent.",
         type_hint=Observable,
     )
     solvent_2_free_energy = OutputAttribute(
-        docstring="The free energy of the solute in the second solvent.",
+        docstring="The free energy change of transforming the an ideal solute molecule "
+        "into a fully interacting molecule in the second solvent.",
         type_hint=Observable,
     )
     free_energy_difference = OutputAttribute(
