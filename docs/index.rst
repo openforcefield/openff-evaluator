@@ -85,7 +85,7 @@ field optimisation.
    +----------------------------------+----------------+----------------+----------------+-----------------+
    || |delta|\ V\ :sub:`excess`       || |tick|        || |tick|        || |tick|        || |tick|         |
    +----------------------------------+----------------+----------------+----------------+-----------------+
-   || |delta|\ G\ :sub:`solvation`    || |tick|        || |cross|       || |cross|       || |cross|        |
+   || |delta|\ G\ :sub:`solvation`    || |tick|        || |tick|\ |ast| || |cross|       || |cross|        |
    +----------------------------------+----------------+----------------+----------------+-----------------+
 
 *\* Entries marked with an asterisk are supported but have not yet been extensively tested and validated.*

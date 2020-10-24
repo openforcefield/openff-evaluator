@@ -36,6 +36,7 @@ New Features
 
 * PR `#280 <https://github.com/openforcefield/openff-evaluator/pull/280>`_: Switch to computing thermodynamic gradients.
 * PR `#309 <https://github.com/openforcefield/openff-evaluator/pull/309>`_: Add a date to the timestamp logging output.
+* PR `#311 <https://github.com/openforcefield/openff-evaluator/pull/311>`_: Initial solvation free energy gradient support.
 * PR `#312 <https://github.com/openforcefield/openff-evaluator/pull/312>`_: Support caching free energy data.
 
 Behaviour Changes
