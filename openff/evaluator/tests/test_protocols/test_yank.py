@@ -213,37 +213,6 @@ def test_compute_state_energy_gradients(tmpdir):
     assert not np.isclose(gradients[0].value, 0.0 * unit.dimensionless)
 
 
-def test_compute_free_energy_gradients(tmpdir):
-
-    build_tip3p_smirnoff_force_field().json(os.path.join(tmpdir, "ff.json"))
-    trajectory_path = get_data_filename("test/trajectories/water.dcd")
-
-    coordinate_path, parameterized_system = _setup_dummy_system(
-        tmpdir, Substance.from_components("O"), 10, os.path.join(tmpdir, "ff.json")
-    )
-
-    protocol = SolvationYankProtocol("")
-    protocol.thermodynamic_state = ThermodynamicState(
-        298.15 * unit.kelvin, 1.0 * unit.atmosphere
-    )
-    protocol.gradient_parameters = [
-        ParameterGradientKey("vdW", "[#1]-[#8X2H2+0:1]-[#1]", "epsilon")
-    ]
-
-    gradients = protocol._compute_free_energy_gradients(
-        trajectory_path,
-        parameterized_system,
-        trajectory_path,
-        parameterized_system,
-        True,
-        True,
-        ComputeResources(),
-    )
-
-    assert len(gradients) == 1
-    assert np.isclose(gradients[0].value, 0.0 * unit.dimensionless)
-
-
 def test_analyze_phase(monkeypatch, tmpdir):
 
     from simtk import unit as simtk_unit
