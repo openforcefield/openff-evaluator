@@ -8,7 +8,7 @@ import os
 import shutil
 import threading
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pint
@@ -17,7 +17,11 @@ import yaml
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.backends import ComputeResources
-from openff.evaluator.forcefield import ParameterGradient, SmirnoffForceFieldSource
+from openff.evaluator.forcefield import (
+    ParameterGradient,
+    ParameterGradientKey,
+    SmirnoffForceFieldSource,
+)
 from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.protocols.openmm import _compute_gradients
 from openff.evaluator.substances import Component, Substance
@@ -49,6 +53,8 @@ from openff.evaluator.workflow.attributes import (
 
 if TYPE_CHECKING:
     import mdtraj
+    from openforcefield.topology import Topology
+    from openforcefield.typing.engines.smirnoff.forcefield import ForceField
 
 logger = logging.getLogger(__name__)
 
@@ -454,7 +460,16 @@ class BaseYankProtocol(Protocol, abc.ABC):
             exp_builder = ExperimentBuilder("yank.yaml")
 
             if setup_only is True:
-                return {"free_energy": {}}
+
+                from simtk import unit as simtk_unit
+
+                return {
+                    "free_energy": {
+                        "free_energy_diff_unit": 0.0 * simtk_unit.kilojoules_per_mole,
+                        "free_energy_diff_error_unit": 0.0
+                        * simtk_unit.kilojoules_per_mole,
+                    }
+                }
 
             exp_builder.run_experiments()
 
@@ -500,7 +515,8 @@ class BaseYankProtocol(Protocol, abc.ABC):
     def _compute_state_energy_gradients(
         self,
         trajectory: "mdtraj.Trajectory",
-        parameterized_system: ParameterizedSystem,
+        topology: "Topology",
+        force_field: "ForceField",
         enable_pbc: bool,
         compute_resources: ComputeResources,
     ) -> List[ParameterGradient]:
@@ -511,9 +527,10 @@ class BaseYankProtocol(Protocol, abc.ABC):
         ----------
         trajectory
             The trajectory of interest.
-        parameterized_system
-            The parameterized system object which encodes the potential
-            energy function used to generate the trajectory.
+        topology
+            The topology of the system.
+        force_field
+            The force field containing the parameters of interest.
         enable_pbc
             Whether periodic boundary conditions should be enabled when evaluating
             the potential energies of each frame and their gradients.
@@ -539,9 +556,9 @@ class BaseYankProtocol(Protocol, abc.ABC):
         _compute_gradients(
             self.gradient_parameters,
             observables,
-            parameterized_system.force_field.to_force_field(),
+            force_field,
             self.thermodynamic_state,
-            parameterized_system.topology,
+            topology,
             trajectory,
             compute_resources,
             enable_pbc,
@@ -551,72 +568,6 @@ class BaseYankProtocol(Protocol, abc.ABC):
             ParameterGradient(key=gradient.key, value=gradient.value.mean().item())
             for gradient in observables[ObservableType.PotentialEnergy].gradients
         ]
-
-    def _compute_free_energy_gradients(
-        self,
-        checkpoint_path: str,
-        system: ParameterizedSystem,
-        enable_pbc: bool,
-        n_states: int,
-        time_series_statistics: TimeSeriesStatistics,
-        compute_resources: ComputeResources,
-    ) -> List[ParameterGradient]:
-        """Computes the gradient of the free energy difference between the end states
-        of a particular phase.
-
-        Parameters
-        ----------
-        checkpoint_path
-            The path to the checkpoint file for the phase of interest.
-        system
-            The parameterized system object which encodes the potential
-            energy function of the phase of interest.
-        enable_pbc
-            Whether periodic boundary conditions should be enabled.
-        n_states
-            The number of lambdas states used for this phase.
-        time_series_statistics
-            Statistics about the time series to use to decorrelate and remove
-            un-equilibrated samples.
-        compute_resources
-            The resources available when computing the gradients.
-
-        Returns
-        -------
-            The gradient of the average free energy with respect to each force
-            field parameter of interest.
-        """
-
-        start_state_trajectory = self._extract_trajectory(
-            checkpoint_path, None, time_series_statistics, 0
-        )
-        end_state_trajectory = self._extract_trajectory(
-            checkpoint_path, None, time_series_statistics, n_states - 1
-        )
-
-        start_state_gradients = {
-            gradient.key: gradient
-            for gradient in self._compute_state_energy_gradients(
-                start_state_trajectory, system, enable_pbc, compute_resources
-            )
-        }
-        end_state_gradients = {
-            gradient.key: gradient
-            for gradient in self._compute_state_energy_gradients(
-                end_state_trajectory, system, enable_pbc, compute_resources
-            )
-        }
-
-        gradients = [
-            ParameterGradient(
-                key=gradient_key,
-                value=end_state_gradients[gradient_key].value
-                - start_state_gradients[gradient_key].value,
-            )
-            for gradient_key in self.gradient_parameters
-        ]
-
-        return gradients
 
     def _execute(self, directory, available_resources):
 
@@ -1073,27 +1024,53 @@ class SolvationYankProtocol(BaseYankProtocol):
         default_value=UNDEFINED,
     )
 
+    solution_1_free_energy = OutputAttribute(
+        docstring="The free energy change of transforming the an ideal solute molecule "
+        "into a fully interacting molecule in the first solvent.",
+        type_hint=Observable,
+    )
+    solvent_1_coordinate_path = OutputAttribute(
+        docstring="The file path to the coordinates of only the first solvent.",
+        type_hint=str,
+    )
     solvent_1_trajectory_path = OutputAttribute(
-        docstring="The file path to the trajectory of the solute in the "
-        "first solvent with all interactions enabled.",
+        docstring="The file path to the trajectory containing only the first solvent.",
+        type_hint=str,
+    )
+    solution_1_coordinate_path = OutputAttribute(
+        docstring="The file path to the coordinates of the solute in the first "
+        "solvent.",
+        type_hint=str,
+    )
+    solution_1_trajectory_path = OutputAttribute(
+        docstring="The file path to the trajectory containing the solute in the first "
+        "solvent.",
+        type_hint=str,
+    )
+    solution_2_free_energy = OutputAttribute(
+        docstring="The free energy change of transforming the an ideal solute molecule "
+        "into a fully interacting molecule in the second solvent.",
+        type_hint=Observable,
+    )
+    solvent_2_coordinate_path = OutputAttribute(
+        docstring="The file path to the coordinates of only the second solvent.",
         type_hint=str,
     )
     solvent_2_trajectory_path = OutputAttribute(
-        docstring="The file path to the trajectory of the solute in the "
-        "second solvent with all interactions enabled.",
+        docstring="The file path to the trajectory containing only the second solvent.",
+        type_hint=str,
+    )
+    solution_2_coordinate_path = OutputAttribute(
+        docstring="The file path to the coordinates of the solute in the second "
+        "solvent.",
+        type_hint=str,
+    )
+    solution_2_trajectory_path = OutputAttribute(
+        docstring="The file path to the trajectory containing the solute in the second "
+        "solvent.",
         type_hint=str,
     )
 
-    solvent_1_free_energy = OutputAttribute(
-        docstring="The free energy change of transforming the an ideal solute molecule "
-        "into a fully interacting molecule in the second solvent.",
-        type_hint=Observable,
-    )
-    solvent_2_free_energy = OutputAttribute(
-        docstring="The free energy change of transforming the an ideal solute molecule "
-        "into a fully interacting molecule in the second solvent.",
-        type_hint=Observable,
-    )
     free_energy_difference = OutputAttribute(
         docstring="The estimated free energy difference between the solute in the"
         "first solvent and the second solvent (i.e. ΔG = ΔG_1 - ΔG_2).",
@@ -1205,6 +1182,158 @@ class SolvationYankProtocol(BaseYankProtocol):
 
         return {"solvation-protocol": protocol_dictionary}
 
+    @classmethod
+    def _extract_solvent_trajectory(
+        cls,
+        checkpoint_path: str,
+        output_trajectory_path: Optional[str],
+        statistics: TimeSeriesStatistics,
+        state_index: int = 0,
+    ) -> "mdtraj.Trajectory":
+        """Extracts the stored trajectory of the from a yank `.nc` checkpoint file,
+        removes the solute, and stores it to disk as a `.dcd` file.
+
+        Parameters
+        ----------
+        checkpoint_path
+            The path to the yank `.nc` file
+        output_trajectory_path
+            The path to optionally store the extracted trajectory at.
+        statistics
+            Statistics about the time series to use to decorrelate and remove
+            un-equilibrated samples.
+        state_index
+            The state index to extract.
+        """
+
+        import openmmtools
+
+        trajectory = cls._extract_trajectory(
+            checkpoint_path, None, statistics, state_index
+        )
+
+        reporter = None
+
+        try:
+            reporter = openmmtools.multistate.MultiStateReporter(
+                checkpoint_path, open_mode="r"
+            )
+            solute_indices = reporter.analysis_particle_indices
+        finally:
+            if reporter is not None:
+                reporter.close()
+
+        solvent_indices = {*range(trajectory.n_atoms)} - set(solute_indices)
+        solvent_trajectory = trajectory.atom_slice([*solvent_indices])
+
+        if output_trajectory_path is not None:
+            solvent_trajectory.save_dcd(output_trajectory_path)
+
+        return solvent_trajectory
+
+    def _analyze_phase(
+        self,
+        checkpoint_path: str,
+        parameterized_system: ParameterizedSystem,
+        phase_name: str,
+        available_resources: ComputeResources,
+    ) -> Tuple[
+        Observable,
+        "mdtraj.Trajectory",
+        "mdtraj.Trajectory",
+        Dict[ParameterGradientKey, ParameterGradient],
+        Dict[ParameterGradientKey, ParameterGradient],
+    ]:
+        """Analyzes a particular phase, extracting the relevant free energies
+        and computing the required free energies."""
+
+        from openforcefield.topology import Molecule, Topology
+
+        free_energies = self._analysed_output["free_energy"]
+
+        # Extract the free energy change.
+        free_energy = -Observable(
+            openmm_quantity_to_pint(
+                (
+                    free_energies[phase_name]["free_energy_diff"]
+                    * free_energies[phase_name]["kT"]
+                )
+            ).plus_minus(
+                openmm_quantity_to_pint(
+                    free_energies[phase_name]["free_energy_diff_error"]
+                    * free_energies[phase_name]["kT"]
+                )
+            )
+        )
+
+        # Extract the statistical inefficiency of the data.
+        time_series_statistics = self._time_series_statistics(phase_name)
+
+        # Extract the solution and solvent trajectories.
+        solution_system = parameterized_system
+
+        solution_trajectory = self._extract_trajectory(
+            checkpoint_path, None, time_series_statistics
+        )
+        solvent_trajectory = self._extract_solvent_trajectory(
+            checkpoint_path,
+            None,
+            time_series_statistics,
+            self._analysed_output["general"][phase_name]["nstates"] - 1,
+        )
+
+        solvent_topology_omm = solvent_trajectory.topology.to_openmm()
+        solvent_topology = Topology.from_openmm(
+            solvent_topology_omm,
+            [
+                Molecule.from_smiles(component.smiles)
+                for component in solution_system.substance
+            ],
+        )
+
+        # Optionally compute any gradients.
+        if len(self.gradient_parameters) == 0:
+            return free_energy, solution_trajectory, solvent_trajectory, {}, {}
+
+        force_field_source = solution_system.force_field
+
+        if not isinstance(force_field_source, SmirnoffForceFieldSource):
+            raise ValueError(
+                "Derivates can only be computed for systems parameterized with "
+                "SMIRNOFF force fields."
+            )
+
+        force_field = force_field_source.to_force_field()
+
+        solution_gradients = {
+            gradient.key: gradient
+            for gradient in self._compute_state_energy_gradients(
+                solution_trajectory,
+                solution_system.topology,
+                force_field,
+                solvent_topology.n_topology_atoms != 0,
+                available_resources,
+            )
+        }
+        solvent_gradients = {
+            gradient.key: gradient
+            for gradient in self._compute_state_energy_gradients(
+                solvent_trajectory,
+                solvent_topology,
+                force_field,
+                solvent_topology.n_topology_atoms != 0,
+                available_resources,
+            )
+        }
+
+        return (
+            free_energy,
+            solution_trajectory,
+            solvent_trajectory,
+            solution_gradients,
+            solvent_gradients,
+        )
+
     def _execute(self, directory, available_resources):
 
         from simtk.openmm import XmlSerializer
@@ -1285,81 +1414,76 @@ class SolvationYankProtocol(BaseYankProtocol):
         if self.setup_only:
             return
 
-        free_energies = self._analysed_output["free_energy"]
+        (
+            self.solvent_1_free_energy,
+            solution_1_trajectory,
+            solvent_1_trajectory,
+            solution_1_gradients,
+            solvent_1_gradients,
+        ) = self._analyze_phase(
+            os.path.join(directory, "experiments", "solvent1.nc"),
+            self.solvent_1_system,
+            "solvent1",
+            available_resources,
+        )
 
-        # Extract and expose the final free energies and the trajectories sampled
-        # at the fully interacting end state.
-        for i in range(1, 3):
+        self.solution_1_coordinate_path = os.path.join(directory, "solution_1.pdb")
+        self.solution_1_trajectory_path = os.path.join(directory, "solution_1.dcd")
+        solution_1_trajectory[0].save_pdb(self.solution_1_coordinate_path)
+        solution_1_trajectory.save_dcd(self.solution_1_trajectory_path)
 
-            # Extract the free energies.
-            solvent_free_energy = -Observable(
-                openmm_quantity_to_pint(
-                    (
-                        free_energies[f"solvent{i}"]["free_energy_diff"]
-                        * free_energies[f"solvent{i}"]["kT"]
-                    )
-                ).plus_minus(
-                    openmm_quantity_to_pint(
-                        free_energies[f"solvent{i}"]["free_energy_diff_error"]
-                        * free_energies[f"solvent{i}"]["kT"]
-                    )
-                )
-            )
+        self.solvent_1_coordinate_path = os.path.join(directory, "solvent_1.pdb")
+        self.solvent_1_trajectory_path = os.path.join(directory, "solvent_1.dcd")
+        solvent_1_trajectory[0].save_pdb(self.solvent_1_coordinate_path)
 
-            # Extract the statistical inefficiency of the data.
-            time_series_statistics = self._time_series_statistics(f"solvent{i}")
+        if solvent_1_trajectory.n_atoms > 0:
+            solvent_1_trajectory.save_dcd(self.solvent_1_trajectory_path)
+        else:
+            with open(self.solvent_1_trajectory_path, "wb") as file:
+                file.write(b"")
 
-            # Extract the trajectory.
-            checkpoint_path = os.path.join(directory, "experiments", f"solvent{i}.nc")
-            trajectory_path = os.path.join(directory, f"solvent{i}.dcd")
+        (
+            self.solvent_2_free_energy,
+            solution_2_trajectory,
+            solvent_2_trajectory,
+            solution_2_gradients,
+            solvent_2_gradients,
+        ) = self._analyze_phase(
+            os.path.join(directory, "experiments", "solvent2.nc"),
+            self.solvent_2_system,
+            "solvent2",
+            available_resources,
+        )
 
-            self._extract_trajectory(
-                checkpoint_path, trajectory_path, time_series_statistics
-            )
+        self.solution_2_coordinate_path = os.path.join(directory, "solution_2.pdb")
+        self.solution_2_trajectory_path = os.path.join(directory, "solution_2.dcd")
+        solution_2_trajectory[0].save_pdb(self.solution_2_coordinate_path)
+        solution_2_trajectory.save_dcd(self.solution_2_trajectory_path)
 
-            # Set them as outputs.
-            setattr(self, f"solvent_{i}_free_energy", solvent_free_energy)
-            setattr(self, f"solvent_{i}_trajectory_path", trajectory_path)
+        self.solvent_2_coordinate_path = os.path.join(directory, "solvent_2.pdb")
+        self.solvent_2_trajectory_path = os.path.join(directory, "solvent_2.dcd")
+        solvent_2_trajectory[0].save_pdb(self.solvent_2_coordinate_path)
 
-            # Optionally compute any gradients.
-            if len(self.gradient_parameters) == 0:
-                continue
+        if solvent_2_trajectory.n_atoms > 0:
+            solvent_2_trajectory.save_dcd(self.solvent_2_trajectory_path)
+        else:
+            with open(self.solvent_2_trajectory_path, "wb") as file:
+                file.write(b"")
 
-            system = getattr(self, f"solvent_{i}_system")
-
-            if not isinstance(system.force_field, SmirnoffForceFieldSource):
-
-                raise ValueError(
-                    "Derivates can only be computed for systems parameterized with "
-                    "SMIRNOFF force fields."
-                )
-
-            enable_pbc = vacuum_system_path != getattr(
-                self, f"_local_solvent_{i}_system"
-            )
-
-            setattr(
-                self,
-                f"solvent_{i}_free_energy",
-                Observable(
-                    value=solvent_free_energy.value.plus_minus(
-                        solvent_free_energy.error
-                    ),
-                    gradients=self._compute_free_energy_gradients(
-                        checkpoint_path,
-                        system,
-                        enable_pbc,
-                        self._analysed_output["general"][f"solvent{i}"]["nstates"],
-                        time_series_statistics,
-                        available_resources,
-                    ),
-                ),
-            )
+        self.free_energy_difference = Observable(
+            self.free_energy_difference.value.plus_minus(
+                self.free_energy_difference.error
+            ),
+            gradients=[
+                solution_1_gradients[key]
+                - solvent_1_gradients[key]
+                + solvent_2_gradients[key]
+                - solution_2_gradients[key]
+                for key in solvent_1_gradients
+            ],
+        )
 
         assert np.isclose(
             self.free_energy_difference.value,
             self.solvent_1_free_energy.value - self.solvent_2_free_energy.value,
-        )
-        self.free_energy_difference = (
-            self.solvent_1_free_energy - self.solvent_2_free_energy
         )
