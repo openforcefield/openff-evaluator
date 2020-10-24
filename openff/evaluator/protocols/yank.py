@@ -961,26 +961,26 @@ class SolvationYankProtocol(BaseYankProtocol):
         default_value=UNDEFINED,
     )
 
-    solvent_1_coordinates = InputAttribute(
+    solution_1_coordinates = InputAttribute(
         docstring="The file path to the coordinates of the solute embedded in the "
         "first solvent.",
         type_hint=str,
         default_value=UNDEFINED,
     )
-    solvent_1_system = InputAttribute(
+    solution_1_system = InputAttribute(
         docstring="The parameterized system object of the solute embedded in the "
         "first solvent.",
         type_hint=ParameterizedSystem,
         default_value=UNDEFINED,
     )
 
-    solvent_2_coordinates = InputAttribute(
+    solution_2_coordinates = InputAttribute(
         docstring="The file path to the coordinates of the solute embedded in the "
         "second solvent.",
         type_hint=str,
         default_value=UNDEFINED,
     )
-    solvent_2_system = InputAttribute(
+    solution_2_system = InputAttribute(
         docstring="The parameterized system object of the solute embedded in the "
         "second solvent.",
         type_hint=ParameterizedSystem,
@@ -1037,16 +1037,12 @@ class SolvationYankProtocol(BaseYankProtocol):
         docstring="The file path to the trajectory containing only the first solvent.",
         type_hint=str,
     )
-    solution_1_coordinate_path = OutputAttribute(
-        docstring="The file path to the coordinates of the solute in the first "
-        "solvent.",
-        type_hint=str,
-    )
     solution_1_trajectory_path = OutputAttribute(
         docstring="The file path to the trajectory containing the solute in the first "
         "solvent.",
         type_hint=str,
     )
+
     solution_2_free_energy = OutputAttribute(
         docstring="The free energy change of transforming the an ideal solute molecule "
         "into a fully interacting molecule in the second solvent.",
@@ -1058,11 +1054,6 @@ class SolvationYankProtocol(BaseYankProtocol):
     )
     solvent_2_trajectory_path = OutputAttribute(
         docstring="The file path to the trajectory containing only the second solvent.",
-        type_hint=str,
-    )
-    solution_2_coordinate_path = OutputAttribute(
-        docstring="The file path to the coordinates of the solute in the second "
-        "solvent.",
         type_hint=str,
     )
     solution_2_trajectory_path = OutputAttribute(
@@ -1080,23 +1071,23 @@ class SolvationYankProtocol(BaseYankProtocol):
     def __init__(self, protocol_id):
         super().__init__(protocol_id)
 
-        self._local_solvent_1_coordinates = "solvent_1.pdb"
-        self._local_solvent_1_system = "solvent_1.xml"
+        self._local_solution_1_coordinates = "solvent_1.pdb"
+        self._local_solution_1_system = "solvent_1.xml"
 
-        self._local_solvent_2_coordinates = "solvent_2.pdb"
-        self._local_solvent_2_system = "solvent_2.xml"
+        self._local_solution_2_coordinates = "solvent_2.pdb"
+        self._local_solution_2_system = "solvent_2.xml"
 
     def _get_system_dictionary(self):
 
         solvent_1_dsl = self._get_dsl_from_role(
             [self.solute, self.solvent_1],
-            self.solvent_1_coordinates,
+            self.solution_1_coordinates,
             Component.Role.Solvent,
         )
 
         solvent_2_dsl = self._get_dsl_from_role(
             [self.solute, self.solvent_2],
-            self.solvent_2_coordinates,
+            self.solution_2_coordinates,
             Component.Role.Solvent,
         )
 
@@ -1109,12 +1100,12 @@ class SolvationYankProtocol(BaseYankProtocol):
 
         solvation_system_dictionary = {
             "phase1_path": [
-                self._local_solvent_1_system,
-                self._local_solvent_1_coordinates,
+                self._local_solution_1_system,
+                self._local_solution_1_coordinates,
             ],
             "phase2_path": [
-                self._local_solvent_2_system,
-                self._local_solvent_2_coordinates,
+                self._local_solution_2_system,
+                self._local_solution_2_coordinates,
             ],
             "solvent_dsl": " or ".join(full_solvent_dsl_components),
         }
@@ -1367,21 +1358,21 @@ class SolvationYankProtocol(BaseYankProtocol):
         # directory changes, we need to copy the coordinate files locally so
         # they are correctly found.
         shutil.copyfile(
-            self.solvent_1_coordinates,
-            os.path.join(directory, self._local_solvent_1_coordinates),
+            self.solution_1_coordinates,
+            os.path.join(directory, self._local_solution_1_coordinates),
         )
         shutil.copyfile(
-            self.solvent_1_system.system_path,
-            os.path.join(directory, self._local_solvent_1_system),
+            self.solution_1_system.system_path,
+            os.path.join(directory, self._local_solution_1_system),
         )
 
         shutil.copyfile(
-            self.solvent_2_coordinates,
-            os.path.join(directory, self._local_solvent_2_coordinates),
+            self.solution_2_coordinates,
+            os.path.join(directory, self._local_solution_2_coordinates),
         )
         shutil.copyfile(
-            self.solvent_2_system.system_path,
-            os.path.join(directory, self._local_solvent_2_system),
+            self.solution_2_system.system_path,
+            os.path.join(directory, self._local_solution_2_system),
         )
 
         # Disable the pbc of the any solvents which should be treated
@@ -1389,9 +1380,9 @@ class SolvationYankProtocol(BaseYankProtocol):
         vacuum_system_path = None
 
         if len(solvent_1_components) == 0:
-            vacuum_system_path = self._local_solvent_1_system
+            vacuum_system_path = self._local_solution_1_system
         elif len(solvent_2_components) == 0:
-            vacuum_system_path = self._local_solvent_2_system
+            vacuum_system_path = self._local_solution_2_system
 
         if vacuum_system_path is not None:
 
@@ -1422,14 +1413,12 @@ class SolvationYankProtocol(BaseYankProtocol):
             solvent_1_gradients,
         ) = self._analyze_phase(
             os.path.join(directory, "experiments", "solvent1.nc"),
-            self.solvent_1_system,
+            self.solution_1_system,
             "solvent1",
             available_resources,
         )
 
-        self.solution_1_coordinate_path = os.path.join(directory, "solution_1.pdb")
         self.solution_1_trajectory_path = os.path.join(directory, "solution_1.dcd")
-        solution_1_trajectory[0].save_pdb(self.solution_1_coordinate_path)
         solution_1_trajectory.save_dcd(self.solution_1_trajectory_path)
 
         self.solvent_1_coordinate_path = os.path.join(directory, "solvent_1.pdb")
@@ -1450,14 +1439,12 @@ class SolvationYankProtocol(BaseYankProtocol):
             solvent_2_gradients,
         ) = self._analyze_phase(
             os.path.join(directory, "experiments", "solvent2.nc"),
-            self.solvent_2_system,
+            self.solution_2_system,
             "solvent2",
             available_resources,
         )
 
-        self.solution_2_coordinate_path = os.path.join(directory, "solution_2.pdb")
         self.solution_2_trajectory_path = os.path.join(directory, "solution_2.dcd")
-        solution_2_trajectory[0].save_pdb(self.solution_2_coordinate_path)
         solution_2_trajectory.save_dcd(self.solution_2_trajectory_path)
 
         self.solvent_2_coordinate_path = os.path.join(directory, "solvent_2.pdb")

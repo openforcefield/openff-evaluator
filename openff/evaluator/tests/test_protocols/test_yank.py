@@ -170,10 +170,10 @@ def test_solvation_yank_protocol(solvent_smiles):
             run_yank.checkpoint_interval = 1
             run_yank.verbose = True
             run_yank.setup_only = True
-            run_yank.solvent_1_coordinates = solvated_coordinate_path
-            run_yank.solvent_1_system = solvated_system
-            run_yank.solvent_2_coordinates = vacuum_coordinate_path
-            run_yank.solvent_2_system = vacuum_system
+            run_yank.solution_1_coordinates = solvated_coordinate_path
+            run_yank.solution_1_system = solvated_system
+            run_yank.solution_2_coordinates = vacuum_coordinate_path
+            run_yank.solution_2_system = vacuum_system
 
             run_yank.electrostatic_lambdas_1 = [1.00]
             run_yank.steric_lambdas_1 = [1.00]
