@@ -69,7 +69,7 @@ def test_force_field_storage():
         assert new_force_field_id == force_field_id
 
 
-def test_simulation_data_storage():
+def test_base_simulation_data_storage():
 
     substance = Substance.from_components("C")
 
@@ -97,7 +97,7 @@ def test_simulation_data_storage():
         assert data_object.json() == retrieved_object.json()
 
 
-def test_simulation_data_query():
+def test_base_simulation_data_query():
 
     substance_a = Substance.from_components("C")
     substance_b = Substance.from_components("CO")
