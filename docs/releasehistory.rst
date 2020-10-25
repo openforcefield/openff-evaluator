@@ -49,6 +49,12 @@ Breaking Changes
 
 * The ``StatisticsArray`` array has been completely removed and replaced with a new set of observable (``Observable``, ``ObservableArray``, ``ObservableFrame`` objects (`#279 <https://github.com/openforcefield/openff-evaluator/pull/279>`_, `#286 <https://github.com/openforcefield/openff-evaluator/pull/279>`_).
 
+* The following protocol inputs / outputs have been renamed:
+
+    - ``SolvationYankProtocol.solvent_X_system`` -> ``SolvationYankProtocol.solution_X_system``
+    - ``SolvationYankProtocol.solvent_X_coordinates`` -> ``SolvationYankProtocol.solution_X_coordinates``
+    - ``SolvationYankProtocol.estimated_free_energy`` -> ``SolvationYankProtocol.free_energy_difference``
+
 * The following classes have been renamed:
 
     - ``OpenMMReducedPotentials`` -> ``OpenMMEvaluateEnergies``.
