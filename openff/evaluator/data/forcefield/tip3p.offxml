@@ -3,7 +3,7 @@
 <SMIRNOFF version="0.3" aromaticity_model="OEAroModel_MDL">
 
   <Date>2020-10-25</Date>
-  <Author/>
+  <Author>OpenFF Evaluator</Author>
 
   <vdW version="0.3" potential="Lennard-Jones-12-6" combining_rules="Lorentz-Berthelot" scale12="0.0" scale13="0.0" scale14="0.5" scale15="1" switch_width="1.0 * angstroms" cutoff="9.0 * angstroms" method="cutoff">
     <Atom smirks="[#1]-[#8X2H2+0:1]-[#1]" id="n1" sigma="3.1507 * angstroms" epsilon="0.1521 * kilocalories_per_mole"/>
