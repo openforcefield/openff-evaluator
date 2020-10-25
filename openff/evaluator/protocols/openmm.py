@@ -174,6 +174,8 @@ def _compute_gradients(
         The amount to perturb for the force field parameter by.
     """
 
+    from simtk import openmm
+
     gradients = defaultdict(list)
     observables.clear_gradients()
 
@@ -192,6 +194,11 @@ def _compute_gradients(
             parameter_key, force_field, topology, perturbation_amount
         )
 
+        # Perform a cheap check to try and catch most cases where the systems energy
+        # does not depend on this parameter.
+        reverse_xml = openmm.XmlSerializer.serialize(reverse_system)
+        forward_xml = openmm.XmlSerializer.serialize(forward_system)
+
         if not enable_pbc:
             disable_pbc(reverse_system)
             disable_pbc(forward_system)
@@ -200,20 +207,56 @@ def _compute_gradients(
         forward_parameter_value = openmm_quantity_to_pint(forward_parameter_value)
 
         # Evaluate the energies using the reverse and forward sub-systems.
-        reverse_energies = _evaluate_energies(
-            thermodynamic_state,
-            reverse_system,
-            trajectory,
-            compute_resources,
-            enable_pbc,
-        )
-        forward_energies = _evaluate_energies(
-            thermodynamic_state,
-            forward_system,
-            trajectory,
-            compute_resources,
-            enable_pbc,
-        )
+        if reverse_xml != forward_xml:
+            reverse_energies = _evaluate_energies(
+                thermodynamic_state,
+                reverse_system,
+                trajectory,
+                compute_resources,
+                enable_pbc,
+            )
+            forward_energies = _evaluate_energies(
+                thermodynamic_state,
+                forward_system,
+                trajectory,
+                compute_resources,
+                enable_pbc,
+            )
+        else:
+
+            zeros = np.zeros(len(trajectory))
+
+            reverse_energies = forward_energies = ObservableFrame(
+                {
+                    ObservableType.PotentialEnergy: ObservableArray(
+                        zeros * unit.kilojoule / unit.mole,
+                        [
+                            ParameterGradient(
+                                key=parameter_key,
+                                value=(
+                                    zeros
+                                    * unit.kilojoule
+                                    / unit.mole
+                                    / reverse_parameter_value.units
+                                ),
+                            )
+                        ],
+                    ),
+                    ObservableType.ReducedPotential: ObservableArray(
+                        zeros * unit.dimensionless,
+                        [
+                            ParameterGradient(
+                                key=parameter_key,
+                                value=(
+                                    zeros
+                                    * unit.dimensionless
+                                    / reverse_parameter_value.units
+                                ),
+                            )
+                        ],
+                    ),
+                }
+            )
 
         potential_gradient = ParameterGradient(
             key=parameter_key,

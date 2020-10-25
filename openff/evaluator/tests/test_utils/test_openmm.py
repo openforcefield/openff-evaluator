@@ -1,9 +1,10 @@
 import inspect
 from random import randint, random
 
+import mdtraj
 import numpy as np
 import pytest
-from openforcefield.topology import Molecule
+from openforcefield.topology import Molecule, Topology
 from openforcefield.typing.engines.smirnoff import ForceField, vdWHandler
 from openforcefield.typing.engines.smirnoff.parameters import (
     ChargeIncrementModelHandler,
@@ -13,7 +14,12 @@ from openforcefield.typing.engines.smirnoff.parameters import (
 from simtk import unit as simtk_unit
 
 from openff.evaluator import unit
+from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import ParameterGradientKey
+from openff.evaluator.protocols.openmm import _compute_gradients
+from openff.evaluator.thermodynamics import ThermodynamicState
+from openff.evaluator.utils import get_data_filename
+from openff.evaluator.utils.observables import ObservableArray, ObservableFrame
 from openff.evaluator.utils.openmm import (
     openmm_quantity_to_pint,
     openmm_unit_to_pint,
@@ -408,3 +414,45 @@ def test_system_subset_charge_increment():
 
     assert np.isclose(epsilon_0.value_in_unit(simtk_unit.kilojoules_per_mole), 0.0)
     assert np.isclose(epsilon_1.value_in_unit(simtk_unit.kilojoules_per_mole), 0.0)
+
+
+@pytest.mark.parametrize("smirks, all_zeros", [("[#6X4:1]", True), ("[#8:1]", False)])
+def test_compute_gradients(tmpdir, smirks, all_zeros):
+
+    # Load a short trajectory.
+    coordinate_path = get_data_filename("test/trajectories/water.pdb")
+    trajectory_path = get_data_filename("test/trajectories/water.dcd")
+
+    trajectory = mdtraj.load_dcd(trajectory_path, coordinate_path)
+
+    observables = ObservableFrame(
+        {
+            "PotentialEnergy": ObservableArray(
+                np.zeros(len(trajectory)) * unit.kilojoule / unit.mole
+            )
+        }
+    )
+
+    _compute_gradients(
+        [ParameterGradientKey("vdW", smirks, "epsilon")],
+        observables,
+        ForceField("openff-1.2.0.offxml"),
+        ThermodynamicState(298.15 * unit.kelvin, 1.0 * unit.atmosphere),
+        Topology.from_mdtraj(trajectory.topology, [Molecule.from_smiles("O")]),
+        trajectory,
+        ComputeResources(),
+        True,
+    )
+
+    assert len(observables["PotentialEnergy"].gradients[0].value) == len(trajectory)
+
+    if all_zeros:
+        assert np.allclose(
+            observables["PotentialEnergy"].gradients[0].value,
+            0.0 * unit.kilojoule / unit.kilocalorie,
+        )
+    else:
+        assert not np.allclose(
+            observables["PotentialEnergy"].gradients[0].value,
+            0.0 * unit.kilojoule / unit.kilocalorie,
+        )
