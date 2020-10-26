@@ -593,6 +593,9 @@ class EvaluatorClient:
                 if property_type in properties_without_schemas:
                     properties_without_schemas.remove(property_type)
 
+                if property_type not in options.calculation_schemas:
+                    options.calculation_schemas[property_type] = {}
+
                 options.calculation_schemas[property_type][
                     calculation_layer
                 ] = default_schema
