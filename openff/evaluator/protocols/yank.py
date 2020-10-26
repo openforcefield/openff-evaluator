@@ -284,12 +284,13 @@ class BaseYankProtocol(Protocol, abc.ABC):
             "pressure": quantity_to_string(
                 pint_quantity_to_openmm(self.thermodynamic_state.pressure)
             ),
-            "minimize": True,
+            "minimize": False,
             "number_of_equilibration_iterations": (
                 self.number_of_equilibration_iterations
             ),
             "default_number_of_iterations": self.number_of_iterations,
             "default_nsteps_per_iteration": self.steps_per_iteration,
+            "start_from_trailblaze_samples": False,
             "checkpoint_interval": self.checkpoint_interval,
             "default_timestep": quantity_to_string(
                 pint_quantity_to_openmm(self.timestep)
