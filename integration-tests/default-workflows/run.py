@@ -239,8 +239,13 @@ def main():
 
                 for allowed_layer in ["SimulationLayer", "ReweightingLayer"]:
 
+                    data_set = define_data_set(allowed_layer == "ReweightingLayer")
+
                     options = RequestOptions()
                     options.calculation_layers = [allowed_layer]
+                    options.calculation_schemas = {
+                        property_type: {} for property_type in data_set.property_types
+                    }
 
                     if allowed_layer == "SimulationLayer":
 
@@ -251,7 +256,7 @@ def main():
                         )
 
                     request, _ = client.request_estimate(
-                        define_data_set(allowed_layer == "ReweightingLayer"),
+                        data_set,
                         ForceField("openff-1.2.0.offxml"),
                         options,
                         parameter_gradient_keys=[
