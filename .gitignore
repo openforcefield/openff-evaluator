@@ -107,14 +107,3 @@ ENV/
 
 # PyCharm
 .idea
-
-# Estimator Specific
-examples/property_estimator/stored_data/
-examples/property_estimator/working_directory/
-
-openff/evaluator/data/properties/JCT/
-*dask-worker-space/
-
-integration_tests/thermoml/checked_thermoml_files
-
-openff/evaluator/tests/**/*dat

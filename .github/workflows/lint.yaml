@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - 'openff/**.py'
-      - 'integration_tests/**.py'
+      - 'integration-tests/**.py'
       - 'setup.cfg'
 
 jobs:
@@ -30,14 +30,14 @@ jobs:
       - name: Run isort
         run: |
           isort --check-only openff
-          isort --check-only integration_tests
+          isort --check-only integration-tests
 
       - name: Run black
         run: |
           black openff --check
-          black integration_tests --check
+          black integration-tests --check
 
       - name: Run flake8
         run: |
           flake8 openff
-          flake8 integration_tests
+          flake8 integration-tests
