@@ -1,13 +1,14 @@
 """
 A collection of classes which aid in serializing data types.
 """
-
+import base64
 import importlib
 import inspect
 import json
 from abc import ABC, abstractmethod
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict
 
 import dateutil.parser
 import numpy as np
@@ -279,6 +280,31 @@ def deserialize_frozen_set(set_dictionary):
     return frozenset(set_value)
 
 
+def serialize_numpy_array(array: np.ndarray):
+    """Compactly serializes a numpy array using base 64 encoding."""
+
+    if not array.flags["C_CONTIGUOUS"]:
+        array = np.ascontiguousarray(array)
+
+    encoded_data = base64.b64encode(array.data)
+
+    return {
+        "encoded_data": encoded_data.decode("utf-8"),
+        "dtype": str(array.dtype),
+        "shape": array.shape,
+    }
+
+
+def deserialize_numpy_array(array_dictionary: Dict[str, Any]):
+    """Deserializes a numpy array which has been serialized with the
+    ``serialize_numpy_array`` function.
+    """
+
+    return np.frombuffer(
+        base64.b64decode(array_dictionary["encoded_data"]), array_dictionary["dtype"]
+    ).reshape(array_dictionary["shape"])
+
+
 class TypedJSONEncoder(json.JSONEncoder):
 
     _natively_supported_types = [dict, list, tuple, str, int, float, bool]
@@ -294,7 +320,7 @@ class TypedJSONEncoder(json.JSONEncoder):
         np.float64: lambda x: {"value": float(x)},
         np.int32: lambda x: {"value": int(x)},
         np.int64: lambda x: {"value": int(x)},
-        np.ndarray: lambda x: {"value": x.tolist()},
+        np.ndarray: serialize_numpy_array,
         datetime: lambda x: {"value": x.isoformat()},
     }
 
@@ -392,7 +418,7 @@ class TypedJSONDecoder(json.JSONDecoder):
         np.float64: lambda x: np.float64(x["value"]),
         np.int32: lambda x: np.int32(x["value"]),
         np.int64: lambda x: np.int64(x["value"]),
-        np.ndarray: lambda x: np.array(x["value"]),
+        np.ndarray: deserialize_numpy_array,
         datetime: lambda x: dateutil.parser.parse(x["value"]),
     }
 

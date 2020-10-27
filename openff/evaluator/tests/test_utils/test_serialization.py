@@ -245,39 +245,21 @@ def test_numpy_int_serialization(int_type):
     assert original_value == deserialized_value
 
 
-def test_numpy_array_serialization():
+@pytest.mark.parametrize(
+    "value",
+    [np.random.random(5), np.random.random((5, 3)), np.arange(5, dtype=int)],
+)
+@pytest.mark.parametrize("multiplier", [1.0, 1.0 * unit.kelvin])
+def test_numpy_array_serialization(value, multiplier):
 
-    one_dimensional_array = np.array([1, 2, 3, 4, 5])
+    value = value * multiplier
 
-    serialized_value = json.dumps(one_dimensional_array, cls=TypedJSONEncoder)
+    serialized_value = json.dumps(value, cls=TypedJSONEncoder)
     deserialized_value = json.loads(serialized_value, cls=TypedJSONDecoder)
 
-    assert np.allclose(one_dimensional_array, deserialized_value)
-
-    two_dimensional_array = np.array([[1, 9], [2, 8], [3, 7], [4, 6], [5, 5]])
-
-    serialized_value = json.dumps(two_dimensional_array, cls=TypedJSONEncoder)
-    deserialized_value = json.loads(serialized_value, cls=TypedJSONDecoder)
-
-    assert np.allclose(two_dimensional_array, deserialized_value)
-
-    one_dimensional_quantity_array = one_dimensional_array * unit.kelvin
-
-    serialized_value = json.dumps(one_dimensional_quantity_array, cls=TypedJSONEncoder)
-    deserialized_value = json.loads(serialized_value, cls=TypedJSONDecoder)
-
-    assert np.allclose(
-        one_dimensional_quantity_array.magnitude, deserialized_value.magnitude
-    )
-
-    two_dimensional_quantity_array = two_dimensional_array * unit.kelvin
-
-    serialized_value = json.dumps(two_dimensional_quantity_array, cls=TypedJSONEncoder)
-    deserialized_value = json.loads(serialized_value, cls=TypedJSONDecoder)
-
-    assert np.allclose(
-        two_dimensional_quantity_array.magnitude, deserialized_value.magnitude
-    )
+    assert np.allclose(value, deserialized_value)
+    assert value.shape == deserialized_value.shape
+    assert value.dtype == deserialized_value.dtype
 
 
 def test_pint_serialization():
