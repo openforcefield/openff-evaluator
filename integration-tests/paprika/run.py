@@ -29,7 +29,7 @@ def main():
 
         # Load in the force field
         force_field = ForceField(
-            "smirnoff99Frosst-1.0.5.offxml",
+            "openff-1.2.0.offxml",
             get_data_filename("forcefield/tip3p.offxml"),
         )
 
