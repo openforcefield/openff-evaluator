@@ -203,7 +203,10 @@ def main():
     setup_timestamp_logging()
 
     # Retrieve the current version.
-    version = evaluator.__version__.replace(".", "-")
+    version = evaluator.__version__.replace(".", "-").replace("v", "")
+
+    if "+" in version:
+        version = "latest"
 
     # Create a new directory to run the current versions results in.
     os.makedirs(os.path.join(version, "results"))
