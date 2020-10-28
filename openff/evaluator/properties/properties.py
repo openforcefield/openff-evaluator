@@ -345,8 +345,8 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
 
         component_protocols, component_data_replicator = generate_reweighting_protocols(
             observable_type,
-            f"_component_{component_replicator.placeholder_id}",
             f"component_{component_replicator.placeholder_id}_data_replicator",
+            f"_component_{component_replicator.placeholder_id}",
         )
         component_protocols.reweight_observable.required_effective_samples = (
             n_effective_samples
