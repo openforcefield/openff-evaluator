@@ -49,6 +49,7 @@ New Features
 Behaviour Changes
 """""""""""""""""
 
+* PR `#280 <https://github.com/openforcefield/openff-evaluator/pull/280>`_: Migrate to thermodynamic gradients.
 * PR `#310 <https://github.com/openforcefield/openff-evaluator/pull/310>`_: The SMIRNOFF protocol no longer applies 'known' charges (i.e. water and ions).
 * PR `#316 <https://github.com/openforcefield/openff-evaluator/pull/316>`_: Add library charges to the TIP3P test data file.
 
