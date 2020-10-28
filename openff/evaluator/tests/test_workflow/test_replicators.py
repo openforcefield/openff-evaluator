@@ -5,11 +5,8 @@ Units tests for openff.evaluator.layers.simulation
 from openff.evaluator import unit
 from openff.evaluator.properties import Density
 from openff.evaluator.protocols.groups import ProtocolGroup
-from openff.evaluator.protocols.miscellaneous import AddValues
-from openff.evaluator.tests.test_workflow.utils import (
-    DummyInputOutputProtocol,
-    DummyReplicableProtocol,
-)
+from openff.evaluator.protocols.miscellaneous import AddValues, DummyProtocol
+from openff.evaluator.tests.test_workflow.utils import DummyReplicableProtocol
 from openff.evaluator.tests.utils import create_dummy_property
 from openff.evaluator.workflow import Workflow, WorkflowSchema
 from openff.evaluator.workflow.schemas import ProtocolReplicator
@@ -22,12 +19,10 @@ def test_simple_replicators():
 
     replicator_id = "replicator"
 
-    dummy_replicated_protocol = DummyInputOutputProtocol(f"dummy_$({replicator_id})")
+    dummy_replicated_protocol = DummyProtocol(f"dummy_$({replicator_id})")
     dummy_replicated_protocol.input_value = ReplicatorValue(replicator_id)
 
-    dummy_protocol_single_value = DummyInputOutputProtocol(
-        f"dummy_single_$({replicator_id})"
-    )
+    dummy_protocol_single_value = DummyProtocol(f"dummy_single_$({replicator_id})")
     dummy_protocol_single_value.input_value = ProtocolPath(
         "output_value", dummy_replicated_protocol.id
     )
@@ -96,15 +91,13 @@ def test_group_replicators():
 
     replicator_id = "replicator"
 
-    dummy_replicated_protocol = DummyInputOutputProtocol(f"dummy_$({replicator_id})")
+    dummy_replicated_protocol = DummyProtocol(f"dummy_$({replicator_id})")
     dummy_replicated_protocol.input_value = ReplicatorValue(replicator_id)
 
     dummy_group = ProtocolGroup("dummy_group")
     dummy_group.add_protocols(dummy_replicated_protocol)
 
-    dummy_protocol_single_value = DummyInputOutputProtocol(
-        f"dummy_single_$({replicator_id})"
-    )
+    dummy_protocol_single_value = DummyProtocol(f"dummy_single_$({replicator_id})")
     dummy_protocol_single_value.input_value = ProtocolPath(
         "output_value", dummy_group.id, dummy_replicated_protocol.id
     )
@@ -173,12 +166,10 @@ def test_advanced_group_replicators():
 
     replicator_id = "replicator"
 
-    dummy_replicated_protocol = DummyInputOutputProtocol(f"dummy_$({replicator_id})")
+    dummy_replicated_protocol = DummyProtocol(f"dummy_$({replicator_id})")
     dummy_replicated_protocol.input_value = ReplicatorValue(replicator_id)
 
-    dummy_replicated_protocol_2 = DummyInputOutputProtocol(
-        f"dummy_2_$({replicator_id})"
-    )
+    dummy_replicated_protocol_2 = DummyProtocol(f"dummy_2_$({replicator_id})")
     dummy_replicated_protocol_2.input_value = ReplicatorValue(replicator_id)
 
     dummy_group_2 = ProtocolGroup(f"dummy_group_2_$({replicator_id})")
@@ -187,16 +178,12 @@ def test_advanced_group_replicators():
     dummy_group = ProtocolGroup(f"dummy_group_$({replicator_id})")
     dummy_group.add_protocols(dummy_replicated_protocol, dummy_group_2)
 
-    dummy_protocol_single_value = DummyInputOutputProtocol(
-        f"dummy_single_$({replicator_id})"
-    )
+    dummy_protocol_single_value = DummyProtocol(f"dummy_single_$({replicator_id})")
     dummy_protocol_single_value.input_value = ProtocolPath(
         "output_value", dummy_group.id, dummy_replicated_protocol.id
     )
 
-    dummy_protocol_2_single_value = DummyInputOutputProtocol(
-        f"dummy_single_2_$({replicator_id})"
-    )
+    dummy_protocol_2_single_value = DummyProtocol(f"dummy_single_2_$({replicator_id})")
     dummy_protocol_2_single_value.input_value = ProtocolPath(
         "output_value", dummy_group.id, dummy_group_2.id, dummy_replicated_protocol_2.id
     )

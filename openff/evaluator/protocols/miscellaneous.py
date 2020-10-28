@@ -8,7 +8,7 @@ import numpy as np
 import pint
 
 from openff.evaluator.attributes import UNDEFINED
-from openff.evaluator.forcefield import ParameterGradient
+from openff.evaluator.forcefield import ParameterGradient, ParameterGradientKey
 from openff.evaluator.substances import Component, MoleFraction, Substance
 from openff.evaluator.utils.observables import Observable, ObservableArray
 from openff.evaluator.workflow import Protocol, workflow_protocol
@@ -352,3 +352,52 @@ class FilterSubstanceByRole(Protocol):
 
         super(FilterSubstanceByRole, self).validate(attribute_type)
         assert all(isinstance(x, Component.Role) for x in self.component_roles)
+
+
+@workflow_protocol()
+class DummyProtocol(Protocol):
+    """A protocol whose only purpose is to return an input value as an output
+    value."""
+
+    input_value = InputAttribute(
+        docstring="A dummy input.",
+        type_hint=typing.Union[
+            str,
+            int,
+            float,
+            pint.Quantity,
+            pint.Measurement,
+            Observable,
+            ObservableArray,
+            ParameterGradient,
+            ParameterGradientKey,
+            list,
+            tuple,
+            dict,
+            set,
+            frozenset,
+        ],
+        default_value=UNDEFINED,
+    )
+    output_value = OutputAttribute(
+        docstring="A dummy output.",
+        type_hint=typing.Union[
+            str,
+            int,
+            float,
+            pint.Quantity,
+            pint.Measurement,
+            Observable,
+            ObservableArray,
+            ParameterGradient,
+            ParameterGradientKey,
+            list,
+            tuple,
+            dict,
+            set,
+            frozenset,
+        ],
+    )
+
+    def _execute(self, directory, available_resources):
+        self.output_value = self.input_value

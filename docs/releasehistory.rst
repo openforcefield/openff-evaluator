@@ -38,6 +38,7 @@ New Features
 * PR `#309 <https://github.com/openforcefield/openff-evaluator/pull/309>`_: Add a date to the timestamp logging output.
 * PR `#311 <https://github.com/openforcefield/openff-evaluator/pull/311>`_: Initial solvation free energy gradient support.
 * PR `#312 <https://github.com/openforcefield/openff-evaluator/pull/312>`_: Support caching free energy data.
+* PR `#324 <https://github.com/openforcefield/openff-evaluator/pull/324>`_: Adds new miscellaneous ``DummyProtocol`` protocol.
 
 Behaviour Changes
 """""""""""""""""

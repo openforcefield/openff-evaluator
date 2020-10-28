@@ -497,6 +497,7 @@ Built-in Workflow Protocols
     DivideValue
     WeightByMoleFraction
     FilterSubstanceByRole
+    DummyProtocol
 
 **OpenMM**
 

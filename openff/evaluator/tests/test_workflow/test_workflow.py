@@ -10,7 +10,7 @@ from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.backends.dask import DaskLocalCluster
 from openff.evaluator.protocols.groups import ConditionalGroup
-from openff.evaluator.tests.test_workflow.utils import DummyInputOutputProtocol
+from openff.evaluator.protocols.miscellaneous import DummyProtocol
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.workflow import Workflow, WorkflowResult, WorkflowSchema
 from openff.evaluator.workflow.schemas import ProtocolReplicator
@@ -30,9 +30,9 @@ def test_simple_workflow_graph(calculation_backend, compute_resources, exception
 
     expected_value = (1 * unit.kelvin).plus_minus(0.1 * unit.kelvin)
 
-    protocol_a = DummyInputOutputProtocol("protocol_a")
+    protocol_a = DummyProtocol("protocol_a")
     protocol_a.input_value = expected_value
-    protocol_b = DummyInputOutputProtocol("protocol_b")
+    protocol_b = DummyProtocol("protocol_b")
     protocol_b.input_value = ProtocolPath("output_value", protocol_a.id)
 
     schema = WorkflowSchema()
@@ -94,9 +94,9 @@ def test_workflow_with_groups():
 
     expected_value = (1 * unit.kelvin).plus_minus(0.1 * unit.kelvin)
 
-    protocol_a = DummyInputOutputProtocol("protocol_a")
+    protocol_a = DummyProtocol("protocol_a")
     protocol_a.input_value = expected_value
-    protocol_b = DummyInputOutputProtocol("protocol_b")
+    protocol_b = DummyProtocol("protocol_b")
     protocol_b.input_value = ProtocolPath("output_value", protocol_a.id)
 
     conditional_group = ConditionalGroup("conditional_group")
@@ -137,10 +137,10 @@ def test_workflow_with_groups():
 
 def test_nested_input():
 
-    dict_protocol = DummyInputOutputProtocol("dict_protocol")
+    dict_protocol = DummyProtocol("dict_protocol")
     dict_protocol.input_value = {"a": ThermodynamicState(1.0 * unit.kelvin)}
 
-    quantity_protocol = DummyInputOutputProtocol("quantity_protocol")
+    quantity_protocol = DummyProtocol("quantity_protocol")
     quantity_protocol.input_value = ProtocolPath(
         "output_value[a].temperature", dict_protocol.id
     )
@@ -173,9 +173,7 @@ def test_index_replicated_protocol():
     replicator = ProtocolReplicator("replicator")
     replicator.template_values = ["a", "b", "c", "d"]
 
-    replicated_protocol = DummyInputOutputProtocol(
-        f"protocol_{replicator.placeholder_id}"
-    )
+    replicated_protocol = DummyProtocol(f"protocol_{replicator.placeholder_id}")
     replicated_protocol.input_value = ReplicatorValue(replicator.id)
 
     schema = WorkflowSchema()
@@ -184,7 +182,7 @@ def test_index_replicated_protocol():
 
     for index in range(len(replicator.template_values)):
 
-        indexing_protocol = DummyInputOutputProtocol(f"indexing_protocol_{index}")
+        indexing_protocol = DummyProtocol(f"indexing_protocol_{index}")
         indexing_protocol.input_value = ProtocolPath(
             "output_value", f"protocol_{index}"
         )
@@ -198,7 +196,7 @@ def test_index_replicated_protocol():
 
 def test_from_schema():
 
-    protocol_a = DummyInputOutputProtocol("protocol_a")
+    protocol_a = DummyProtocol("protocol_a")
     protocol_a.input_value = 1 * unit.kelvin
 
     schema = WorkflowSchema()
