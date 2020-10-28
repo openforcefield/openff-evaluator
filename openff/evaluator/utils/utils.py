@@ -37,6 +37,16 @@ def get_data_filename(relative_path):
     return fn
 
 
+def timestamp_formatter() -> logging.Formatter:
+    """Returns a logging formatter which outputs in the style of
+    ``YEAR-MONTH-DAY HOUR:MINUTE:SECOND.MILLISECOND LEVEL MESSAGE``.
+    """
+    return logging.Formatter(
+        fmt="%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+
 def setup_timestamp_logging(file_path=None):
     """Set up timestamp based logging which outputs in the style of
     ``YEAR-MONTH-DAY HOUR:MINUTE:SECOND.MILLISECOND LEVEL MESSAGE``.
@@ -47,10 +57,7 @@ def setup_timestamp_logging(file_path=None):
         The file to write the log to. If none, the logger will
         print to the terminal.
     """
-    formatter = logging.Formatter(
-        fmt="%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+    formatter = timestamp_formatter()
 
     if file_path is None:
         logger_handler = logging.StreamHandler(stream=sys.stdout)

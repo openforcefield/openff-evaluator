@@ -20,6 +20,7 @@ from openff.evaluator.backends import (
     ComputeResources,
     QueueWorkerResources,
 )
+from openff.evaluator.utils.utils import timestamp_formatter
 
 logger = logging.getLogger(__name__)
 
@@ -72,11 +73,7 @@ class _Multiprocessor:
 
             if "logger_path" in kwargs:
 
-                formatter = logging.Formatter(
-                    fmt="%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s",
-                    datefmt="%H:%M:%S",
-                )
-
+                formatter = timestamp_formatter()
                 logger_path = kwargs.pop("logger_path")
 
                 worker_logger = logging.getLogger()
