@@ -13,6 +13,7 @@ from openff.evaluator.protocols import (
     forcefield,
     gradients,
     groups,
+    miscellaneous,
     openmm,
     reweighting,
     storage,
@@ -65,6 +66,7 @@ class ReweightingProtocols(Generic[S, T]):
     evaluate_target_potential: reweighting.BaseEvaluateEnergies
 
     statistical_inefficiency: S
+    replicate_statistics: miscellaneous.DummyProtocol
 
     decorrelate_reference_potential: analysis.DecorrelateObservables
     decorrelate_target_potential: analysis.DecorrelateObservables
@@ -208,19 +210,9 @@ def generate_base_reweighting_protocols(
         "parameter_gradient_keys", "global"
     )
 
-    # Decorrelate the reduced potentials and observables.
+    # Decorrelate the target potentials and observables.
     if not isinstance(statistical_inefficiency, analysis.BaseAverageObservable):
         raise NotImplementedError()
-
-    decorrelate_reference_potential = analysis.DecorrelateObservables(
-        f"decorrelate_reference_potential{replicator_suffix}"
-    )
-    decorrelate_reference_potential.time_series_statistics = ProtocolPath(
-        "time_series_statistics", statistical_inefficiency.id
-    )
-    decorrelate_reference_potential.input_observables = ProtocolPath(
-        "output_observables", reduced_reference_potential.id
-    )
 
     decorrelate_target_potential = analysis.DecorrelateObservables(
         f"decorrelate_target_potential{id_suffix}"
@@ -240,6 +232,33 @@ def generate_base_reweighting_protocols(
     )
     decorrelate_observable.input_observables = ProtocolPath(
         "output_observables", zero_gradients.id
+    )
+
+    # Decorrelate the reference potentials. Due to a quirk of how workflow replicators
+    # work the time series statistics need to be passed via a dummy protocol first.
+    #
+    # Because the `statistical_inefficiency` and `decorrelate_reference_potential`
+    # protocols are replicated by the same replicator the `time_series_statistics`
+    # input of `decorrelate_reference_potential_X` will take its value from
+    # the `time_series_statistics` output of `statistical_inefficiency_X` rather than
+    # as a list of of [statistical_inefficiency_0.time_series_statistics...
+    # statistical_inefficiency_N.time_series_statistics]. Passing the statistics via
+    # an un-replicated intermediate resolves this.
+    replicate_statistics = miscellaneous.DummyProtocol(
+        f"replicated_statistics{id_suffix}"
+    )
+    replicate_statistics.input_value = ProtocolPath(
+        "time_series_statistics", statistical_inefficiency.id
+    )
+
+    decorrelate_reference_potential = analysis.DecorrelateObservables(
+        f"decorrelate_reference_potential{replicator_suffix}"
+    )
+    decorrelate_reference_potential.time_series_statistics = ProtocolPath(
+        "output_value", replicate_statistics.id
+    )
+    decorrelate_reference_potential.input_observables = ProtocolPath(
+        "output_observables", reduced_reference_potential.id
     )
 
     # Finally, apply MBAR to get the reweighted value.
@@ -269,6 +288,7 @@ def generate_base_reweighting_protocols(
         reduced_target_potential,
         #
         statistical_inefficiency,
+        replicate_statistics,
         #
         decorrelate_reference_potential,
         decorrelate_target_potential,
