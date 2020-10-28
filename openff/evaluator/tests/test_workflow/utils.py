@@ -4,7 +4,6 @@ import pint
 
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.layers import registered_calculation_schemas
-from openff.evaluator.utils.observables import Observable, ObservableArray
 from openff.evaluator.workflow import Protocol, Workflow, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
 
@@ -67,46 +66,3 @@ class DummyReplicableProtocol(Protocol):
 
     def _execute(self, directory, available_resources):
         pass
-
-
-@workflow_protocol()
-class DummyInputOutputProtocol(Protocol):
-
-    input_value = InputAttribute(
-        docstring="A dummy input.",
-        type_hint=Union[
-            str,
-            int,
-            float,
-            pint.Quantity,
-            pint.Measurement,
-            Observable,
-            ObservableArray,
-            list,
-            tuple,
-            dict,
-            set,
-            frozenset,
-        ],
-        default_value=UNDEFINED,
-    )
-    output_value = OutputAttribute(
-        docstring="A dummy output.",
-        type_hint=Union[
-            str,
-            int,
-            float,
-            pint.Quantity,
-            pint.Measurement,
-            Observable,
-            ObservableArray,
-            list,
-            tuple,
-            dict,
-            set,
-            frozenset,
-        ],
-    )
-
-    def _execute(self, directory, available_resources):
-        self.output_value = self.input_value

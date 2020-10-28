@@ -6,8 +6,7 @@ import pytest
 from openff.evaluator import unit
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.protocols.groups import ConditionalGroup
-from openff.evaluator.protocols.miscellaneous import AddValues
-from openff.evaluator.tests.test_workflow.utils import DummyInputOutputProtocol
+from openff.evaluator.protocols.miscellaneous import AddValues, DummyProtocol
 from openff.evaluator.workflow.utils import ProtocolPath
 
 
@@ -17,7 +16,7 @@ def test_conditional_protocol_group():
 
         initial_value = 2 * unit.kelvin
 
-        value_protocol_a = DummyInputOutputProtocol("protocol_a")
+        value_protocol_a = DummyProtocol("protocol_a")
         value_protocol_a.input_value = initial_value
 
         add_values = AddValues("add_values")
@@ -49,7 +48,7 @@ def test_conditional_protocol_group_fail():
 
         initial_value = 2 * unit.kelvin
 
-        value_protocol_a = DummyInputOutputProtocol("protocol_a")
+        value_protocol_a = DummyProtocol("protocol_a")
         value_protocol_a.input_value = initial_value
 
         add_values = AddValues("add_values")
@@ -83,7 +82,7 @@ def test_conditional_group_self_reference():
     group = ConditionalGroup("conditional_group")
     group.max_iterations = max_iterations
 
-    protocol = DummyInputOutputProtocol("protocol_a")
+    protocol = DummyProtocol("protocol_a")
     protocol.input_value = ProtocolPath("current_iteration", group.id)
 
     condition_1 = ConditionalGroup.Condition()

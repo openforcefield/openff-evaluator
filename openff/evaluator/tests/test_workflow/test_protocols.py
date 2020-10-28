@@ -11,8 +11,7 @@ from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.backends.dask import DaskLocalCluster
-from openff.evaluator.protocols.miscellaneous import AddValues
-from openff.evaluator.tests.test_workflow.utils import DummyInputOutputProtocol
+from openff.evaluator.protocols.miscellaneous import AddValues, DummyProtocol
 from openff.evaluator.utils.serialization import TypedJSONDecoder
 from openff.evaluator.workflow import (
     Protocol,
@@ -31,7 +30,7 @@ class ExceptionProtocol(Protocol):
 
 def test_nested_protocol_paths():
 
-    value_protocol_a = DummyInputOutputProtocol("protocol_a")
+    value_protocol_a = DummyProtocol("protocol_a")
     value_protocol_a.input_value = (1 * unit.kelvin).plus_minus(0.1 * unit.kelvin)
 
     assert (
@@ -39,10 +38,10 @@ def test_nested_protocol_paths():
         == value_protocol_a.input_value.value
     )
 
-    value_protocol_b = DummyInputOutputProtocol("protocol_b")
+    value_protocol_b = DummyProtocol("protocol_b")
     value_protocol_b.input_value = (2 * unit.kelvin).plus_minus(0.05 * unit.kelvin)
 
-    value_protocol_c = DummyInputOutputProtocol("protocol_c")
+    value_protocol_c = DummyProtocol("protocol_c")
     value_protocol_c.input_value = (4 * unit.kelvin).plus_minus(0.01 * unit.kelvin)
 
     add_values_protocol = AddValues("add_values")
@@ -72,7 +71,7 @@ def test_nested_protocol_paths():
 
     assert set(add_values_protocol.values) == {0, 1, 2, 5}
 
-    dummy_dict_protocol = DummyInputOutputProtocol("dict_protocol")
+    dummy_dict_protocol = DummyProtocol("dict_protocol")
 
     dummy_dict_protocol.input_value = {
         "value_a": ProtocolPath("output_value", value_protocol_a.id),
@@ -118,20 +117,20 @@ def build_merge(prefix):
     # a - b \
     #       | - e - f
     # c - d /
-    protocol_a = DummyInputOutputProtocol(prefix + "protocol_a")
+    protocol_a = DummyProtocol(prefix + "protocol_a")
     protocol_a.input_value = 1
-    protocol_b = DummyInputOutputProtocol(prefix + "protocol_b")
+    protocol_b = DummyProtocol(prefix + "protocol_b")
     protocol_b.input_value = ProtocolPath("output_value", protocol_a.id)
-    protocol_c = DummyInputOutputProtocol(prefix + "protocol_c")
+    protocol_c = DummyProtocol(prefix + "protocol_c")
     protocol_c.input_value = 2
-    protocol_d = DummyInputOutputProtocol(prefix + "protocol_d")
+    protocol_d = DummyProtocol(prefix + "protocol_d")
     protocol_d.input_value = ProtocolPath("output_value", protocol_c.id)
-    protocol_e = DummyInputOutputProtocol(prefix + "protocol_e")
+    protocol_e = DummyProtocol(prefix + "protocol_e")
     protocol_e.input_value = [
         ProtocolPath("output_value", protocol_b.id),
         ProtocolPath("output_value", protocol_d.id),
     ]
-    protocol_f = DummyInputOutputProtocol(prefix + "protocol_f")
+    protocol_f = DummyProtocol(prefix + "protocol_f")
     protocol_f.input_value = ProtocolPath("output_value", protocol_e.id)
 
     return [
@@ -148,17 +147,17 @@ def build_fork(prefix):
     #          / i - j
     # g - h - |
     #          \ k - l
-    protocol_g = DummyInputOutputProtocol(prefix + "protocol_g")
+    protocol_g = DummyProtocol(prefix + "protocol_g")
     protocol_g.input_value = 3
-    protocol_h = DummyInputOutputProtocol(prefix + "protocol_h")
+    protocol_h = DummyProtocol(prefix + "protocol_h")
     protocol_h.input_value = ProtocolPath("output_value", protocol_g.id)
-    protocol_i = DummyInputOutputProtocol(prefix + "protocol_i")
+    protocol_i = DummyProtocol(prefix + "protocol_i")
     protocol_i.input_value = ProtocolPath("output_value", protocol_h.id)
-    protocol_j = DummyInputOutputProtocol(prefix + "protocol_j")
+    protocol_j = DummyProtocol(prefix + "protocol_j")
     protocol_j.input_value = ProtocolPath("output_value", protocol_i.id)
-    protocol_k = DummyInputOutputProtocol(prefix + "protocol_k")
+    protocol_k = DummyProtocol(prefix + "protocol_k")
     protocol_k.input_value = ProtocolPath("output_value", protocol_h.id)
-    protocol_l = DummyInputOutputProtocol(prefix + "protocol_l")
+    protocol_l = DummyProtocol(prefix + "protocol_l")
     protocol_l.input_value = ProtocolPath("output_value", protocol_k.id)
 
     return [protocol_g, protocol_h, protocol_i, protocol_j, protocol_k, protocol_l]
@@ -166,9 +165,9 @@ def build_fork(prefix):
 
 def build_easy_graph():
 
-    protocol_a = DummyInputOutputProtocol("protocol_a")
+    protocol_a = DummyProtocol("protocol_a")
     protocol_a.input_value = 1
-    protocol_b = DummyInputOutputProtocol("protocol_b")
+    protocol_b = DummyProtocol("protocol_b")
     protocol_b.input_value = 1
 
     return [protocol_a], [protocol_b]
@@ -258,9 +257,9 @@ def test_protocol_graph_execution(calculation_backend, compute_resources):
     if calculation_backend is not None:
         calculation_backend.start()
 
-    protocol_a = DummyInputOutputProtocol("protocol_a")
+    protocol_a = DummyProtocol("protocol_a")
     protocol_a.input_value = 1
-    protocol_b = DummyInputOutputProtocol("protocol_b")
+    protocol_b = DummyProtocol("protocol_b")
     protocol_b.input_value = ProtocolPath("output_value", protocol_a.id)
 
     protocol_graph = ProtocolGraph()
@@ -297,17 +296,17 @@ def test_protocol_group_merging():
         # a - | g - h - |         |
         #     |          \ k - l -|- c
         #     .-------------------.
-        protocol_a = DummyInputOutputProtocol(prefix + "protocol_a")
+        protocol_a = DummyProtocol(prefix + "protocol_a")
         protocol_a.input_value = 1
         fork_protocols = build_fork(prefix)
         fork_protocols[0].input_value = ProtocolPath("output_value", protocol_a.id)
         protocol_group = ProtocolGroup(prefix + "protocol_group")
         protocol_group.add_protocols(*fork_protocols)
-        protocol_b = DummyInputOutputProtocol(prefix + "protocol_b")
+        protocol_b = DummyProtocol(prefix + "protocol_b")
         protocol_b.input_value = ProtocolPath(
             "output_value", protocol_group.id, "protocol_j"
         )
-        protocol_c = DummyInputOutputProtocol(prefix + "protocol_c")
+        protocol_c = DummyProtocol(prefix + "protocol_c")
         protocol_c.input_value = ProtocolPath(
             "output_value", protocol_group.id, "protocol_l"
         )
@@ -332,9 +331,9 @@ def test_protocol_group_merging():
 
 def test_protocol_group_execution():
 
-    protocol_a = DummyInputOutputProtocol("protocol_a")
+    protocol_a = DummyProtocol("protocol_a")
     protocol_a.input_value = 1
-    protocol_b = DummyInputOutputProtocol("protocol_b")
+    protocol_b = DummyProtocol("protocol_b")
     protocol_b.input_value = ProtocolPath("output_value", protocol_a.id)
 
     protocol_group = ProtocolGroup("protocol_group")
@@ -371,9 +370,9 @@ def test_protocol_group_resume():
 
     # Fake a protocol group which executes the first
     # two protocols and then 'gets killed'.
-    protocol_a = DummyInputOutputProtocol("protocol_a")
+    protocol_a = DummyProtocol("protocol_a")
     protocol_a.input_value = 1
-    protocol_b = DummyInputOutputProtocol("protocol_b")
+    protocol_b = DummyProtocol("protocol_b")
     protocol_b.input_value = ProtocolPath("output_value", protocol_a.id)
 
     protocol_group_a = ProtocolGroup("group_a")
@@ -393,13 +392,13 @@ def test_protocol_group_resume():
 
     # Build the 'full' group with the last two protocols which
     # 'had not been exited' after the group was 'killed'
-    protocol_a = DummyInputOutputProtocol("protocol_a")
+    protocol_a = DummyProtocol("protocol_a")
     protocol_a.input_value = 1
-    protocol_b = DummyInputOutputProtocol("protocol_b")
+    protocol_b = DummyProtocol("protocol_b")
     protocol_b.input_value = ProtocolPath("output_value", protocol_a.id)
-    protocol_c = DummyInputOutputProtocol("protocol_c")
+    protocol_c = DummyProtocol("protocol_c")
     protocol_c.input_value = ProtocolPath("output_value", protocol_b.id)
-    protocol_d = DummyInputOutputProtocol("protocol_d")
+    protocol_d = DummyProtocol("protocol_d")
     protocol_d.input_value = ProtocolPath("output_value", protocol_c.id)
 
     protocol_group_a = ProtocolGroup("group_a")
