@@ -22,8 +22,14 @@ which are numerically indistinguishable, and so this should not markedly change 
 
 The change was made to, in future, enable better integration with automatic differentiation libraries such as
 `jax <https://github.com/google/jax>`_, and differentiable simulation engines such as
-`timemachine <https://github.com/proteneer/timemachine>`_ which readily and rapdily give access to
+`timemachine <https://github.com/proteneer/timemachine>`_ which readily and rapidly give access to
 :math:`\mathrm{d} U / \mathrm{d} \theta_i`.
+
+**Additionally**, as of version 0.3.0 'known' charges (i.e. those assigned to TIP3P water and ions) are no longer
+automatically applied when using a SMIRNOFF based force field. This feature was originally included in this framework as
+the OpenFF toolkit did not support defining charges in the force field itself. This is now fully supported through the
+`LibraryCharges` section of a SMIRNOFF force field and hence this workaround is no longer required. All ion and water
+charges **must** be specified in the SMIRNOFF force field from now on.
 
 Bugfixes
 """"""""
@@ -43,7 +49,8 @@ New Features
 Behaviour Changes
 """""""""""""""""
 
-* PR `#310 <https://github.com/openforcefield/openff-evaluator/pull/310>`_: The SMIRNOFF protocol no longer applies 'known' charges (i.e. water and ions). These should be provided by SMIRNOFF library charges instead.
+* PR `#310 <https://github.com/openforcefield/openff-evaluator/pull/310>`_: The SMIRNOFF protocol no longer applies 'known' charges (i.e. water and ions).
+* PR `#316 <https://github.com/openforcefield/openff-evaluator/pull/316>`_: Add library charges to the TIP3P test data file.
 
 Breaking Changes
 """"""""""""""""
