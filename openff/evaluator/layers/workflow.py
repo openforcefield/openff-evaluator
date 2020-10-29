@@ -156,7 +156,7 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         for workflow in workflows:
 
             provenance[workflow.uuid] = CalculationSource(
-                fidelity=cls.__name__, provenance=workflow.schema
+                fidelity=cls.__name__, provenance=workflow.schema.json()
             )
 
         return workflow_graph, provenance
