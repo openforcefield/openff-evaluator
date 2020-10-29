@@ -11,7 +11,7 @@ OpenFF Evaluator
 .. |delta|   unicode:: U+0394
 .. |ast|     replace:: :ignore-width:`*`
 
-.. |simulation|     replace:: :doc:`Direct Simulation <layers/simulationlayer>`
+.. |simulation|      replace:: :doc:`Direct Simulation <layers/simulationlayer>`
 .. |reweighting|     replace:: :doc:`MBAR Reweighting <layers/reweightinglayer>`
 
 *An automated and scalable framework for curating, manipulating, and computing data sets of physical properties
@@ -24,9 +24,10 @@ The framework is built around four central ideas:
     - **Flexibility:** New physical properties, data sources and calculation approaches are easily added via
       an extensible plug-in system and a flexible workflow engine.
 
-    - **Automation:** Physical property measurements are readily importable from open data sources (such as the
-      `NIST ThermoML Archive <http://trc.nist.gov/ThermoML.html>`_) through the data set APIs, and automatically
-      calculated using either the built-in or user specified calculation schemas.
+    - **Automation:** :ref:`Physical property measurements <index:Supported Physical Properties>` are readily
+      importable from open data sources (such as the `NIST ThermoML Archive <http://trc.nist.gov/ThermoML.html>`_)
+      through the data set APIs, and automatically calculated using either the built-in or user specified calculation
+      schemas.
 
     - **Scalability:** Calculations are readily scalable from single machines and laptops up to large HPC clusters and
       supercomputers through seamless integration with libraries such as `dask <https://distributed.dask.org/en/
@@ -57,9 +58,9 @@ such layers are currently supported (although new calculation layers can be read
 
 Supported Physical Properties
 -----------------------------
-The framework has built-in support for evaluating a number of physical properties, ranging from relatively
-'cheap' properties such as liquid densities, up to more computationally demanding properties such as solvation
-free energies and host-guest binding affinities.
+The framework has built-in support for evaluating a number of :doc:`physical properties <properties/properties>`,
+ranging from relatively 'cheap' to compute properties such as liquid densities, up to more computationally demanding
+properties such as solvation free energies and host-guest binding affinities.
 
 Included for most of these properties is the ability to calculate their derivatives with respect to force field
 parameters, making the framework ideal for evaluating an objective function and it's gradient as part of a force
@@ -70,23 +71,25 @@ field optimisation.
    :align: center
    :class: clean-table property-table
 
-   +----------------------------------+---------------------------------+----------------------------------+
-   ||                                 || |simulation|                   || |reweighting|                   |
-   ||                                 +----------------+----------------+----------------+-----------------+
-   ||                                 || Supported     || Gradients     || Supported     || Gradients      |
-   +==================================+================+================+================+=================+
-   || Density                         || |tick|        || |tick|        || |tick|        || |tick|         |
-   +----------------------------------+----------------+----------------+----------------+-----------------+
-   || Dielectric Constant             || |tick|        || |tick|\ |ast| || |tick|        || |tick|\ |ast|  |
-   +----------------------------------+----------------+----------------+----------------+-----------------+
-   || |delta|\ H\ :sub:`vaporization` || |tick|        || |tick|        || |tick|        || |tick|         |
-   +----------------------------------+----------------+----------------+----------------+-----------------+
-   || |delta|\ H\ :sub:`mixing`       || |tick|        || |tick|        || |tick|\ |ast| || |tick|         |
-   +----------------------------------+----------------+----------------+----------------+-----------------+
-   || |delta|\ V\ :sub:`excess`       || |tick|        || |tick|        || |tick|        || |tick|         |
-   +----------------------------------+----------------+----------------+----------------+-----------------+
-   || |delta|\ G\ :sub:`solvation`    || |tick|        || |tick|\ |ast| || |cross|       || |cross|        |
-   +----------------------------------+----------------+----------------+----------------+-----------------+
+   +-------------------------------------------+---------------------------------+---------------------------------+
+   ||                                          || |simulation|                   || |reweighting|                  |
+   ||                                          +----------------+----------------+----------------+----------------+
+   ||                                          || Supported     || Gradients     || Supported     || Gradients     |
+   +===========================================+================+================+================+================+
+   || Density                                  || |tick|        || |tick|        || |tick|        || |tick|        |
+   +-------------------------------------------+----------------+----------------+----------------+----------------+
+   || Dielectric Constant                      || |tick|        || |tick|\ |ast| || |tick|        || |tick|\ |ast| |
+   +-------------------------------------------+----------------+----------------+----------------+----------------+
+   || |delta|\ H\ :sub:`vaporization`          || |tick|        || |tick|        || |tick|        || |tick|        |
+   +-------------------------------------------+----------------+----------------+----------------+----------------+
+   || |delta|\ H\ :sub:`mixing`                || |tick|        || |tick|        || |tick|\ |ast| || |tick|        |
+   +-------------------------------------------+----------------+----------------+----------------+----------------+
+   || |delta|\ V\ :sub:`excess`                || |tick|        || |tick|        || |tick|        || |tick|        |
+   +-------------------------------------------+----------------+----------------+----------------+----------------+
+   || |delta|\ G\ :sub:`solvation`             || |tick|        || |tick|\ |ast| || |cross|       || |cross|       |
+   +-------------------------------------------+----------------+----------------+----------------+----------------+
+   || |delta|\ G\ :sub:`host-guest` (**beta**) || |tick|\ |ast| || |cross|       || |cross|       || |cross|       |
+   +-------------------------------------------+----------------+----------------+----------------+----------------+
 
 *\* Entries marked with an asterisk are supported but have not yet been extensively tested and validated.*
 
