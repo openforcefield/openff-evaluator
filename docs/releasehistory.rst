@@ -26,10 +26,16 @@ The change was made to, in future, enable better integration with automatic diff
 :math:`\mathrm{d} U / \mathrm{d} \theta_i`.
 
 **Additionally**, as of version 0.3.0 'known' charges (i.e. those assigned to TIP3P water and ions) are no longer
-automatically applied when using a SMIRNOFF based force field. This feature was originally included in this framework as
-the OpenFF toolkit did not support defining charges in the force field itself. This is now fully supported through the
-`LibraryCharges` section of a SMIRNOFF force field and hence this workaround is no longer required. All ion and water
-charges **must** be specified in the SMIRNOFF force field from now on.
+automatically applied when using a SMIRNOFF based force field. This feature was originally included in the framework as
+the OpenFF toolkit did not support defining charges on specific molecules in the force field itself. This is now fully
+supported through the ``LibraryCharges`` section of a SMIRNOFF force field and hence this workaround is no longer
+required. From now on all ion and water charges **must** be specified in the SMIRNOFF force field.
+
+Finally, this release includes **beta** support for computing host-guest binding affinities using the
+attach-pull-release (APR) method through integration with the `pAPRika <https://github.com/slochower/pAPRika>`_ and
+`taproom <https://github.com/slochower/host-guest-benchmarks>`_ packages. This support was largely facilitated by the
+efforts of the ``paprika`` authors - `David R. Slochower <https://github.com/slochower>`_ and
+`Jeffry Setiadi <https://github.com/jeff231li>`_.
 
 Bugfixes
 """"""""
@@ -40,6 +46,7 @@ Bugfixes
 New Features
 """"""""""""
 
+* PR `#262 <https://github.com/openforcefield/openff-evaluator/pull/262>`_: Initial host-guest binding affinity support via ``paprika`` and ``taproom``.
 * PR `#280 <https://github.com/openforcefield/openff-evaluator/pull/280>`_: Switch to computing thermodynamic gradients.
 * PR `#309 <https://github.com/openforcefield/openff-evaluator/pull/309>`_: Add a date to the timestamp logging output.
 * PR `#311 <https://github.com/openforcefield/openff-evaluator/pull/311>`_: Initial solvation free energy gradient support.
@@ -52,6 +59,7 @@ Behaviour Changes
 * PR `#280 <https://github.com/openforcefield/openff-evaluator/pull/280>`_: Migrate to thermodynamic gradients.
 * PR `#310 <https://github.com/openforcefield/openff-evaluator/pull/310>`_: The SMIRNOFF protocol no longer applies 'known' charges (i.e. water and ions).
 * PR `#316 <https://github.com/openforcefield/openff-evaluator/pull/316>`_: Add library charges to the TIP3P test data file.
+* PR `#328 <https://github.com/openforcefield/openff-evaluator/pull/328>`_: Store workflow provenance as serialized string.
 
 Breaking Changes
 """"""""""""""""

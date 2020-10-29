@@ -257,7 +257,16 @@ Solvation free energies are currently computed using the `Yank <http://getyank.o
 molecular simulations. By default the calculations attempt to use 2000 solvent molecules, and the alchemical lambda
 spacings are selected using the built-in 'trailblazing' algorithm.
 
-See the Yank documentation for more details.
+See the `Yank <http://getyank.org/latest/>`_ documentation for more details.
+
+Host-Guest Binding Free Energy
+""""""""""""""""""""""""""""""
+
+.. warning:: The computation of this property is still in beta. Users are heavily recommended to validate any
+             calculations involving this property.
+
+Host-guest binding free energies are currently computed using the attach-pull-release (APR) method
+:cite:`2019:slochower` through integration with the `pAPRika <https://github.com/slochower/pAPRika>`_ framework.
 
 References
 ----------
