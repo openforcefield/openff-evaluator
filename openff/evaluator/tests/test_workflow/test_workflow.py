@@ -12,7 +12,12 @@ from openff.evaluator.backends.dask import DaskLocalCluster
 from openff.evaluator.protocols.groups import ConditionalGroup
 from openff.evaluator.protocols.miscellaneous import DummyProtocol
 from openff.evaluator.thermodynamics import ThermodynamicState
-from openff.evaluator.workflow import Workflow, WorkflowResult, WorkflowSchema
+from openff.evaluator.workflow import (
+    ProtocolGroup,
+    Workflow,
+    WorkflowResult,
+    WorkflowSchema,
+)
 from openff.evaluator.workflow.schemas import ProtocolReplicator
 from openff.evaluator.workflow.utils import ProtocolPath, ReplicatorValue
 
@@ -210,3 +215,47 @@ def test_from_schema():
     rebuilt_schema.outputs_to_store = UNDEFINED
 
     assert rebuilt_schema.json(format=True) == schema.json(format=True)
+
+
+def test_unique_ids():
+
+    protocol_a = DummyProtocol("protocol-a")
+    protocol_a.input_value = 1
+
+    group_a = ProtocolGroup("group-a")
+    group_a.add_protocols(protocol_a)
+
+    group_b = ProtocolGroup("group-b")
+    group_b.add_protocols(protocol_a)
+
+    schema = WorkflowSchema()
+    schema.protocol_schemas = [group_a.schema, group_b.schema]
+
+    with pytest.raises(ValueError) as error_info:
+        schema.validate()
+
+    assert "Several protocols in the schema have the same id" in str(error_info.value)
+    assert "protocol-a" in str(error_info.value)
+
+
+def test_replicated_ids():
+
+    replicator = ProtocolReplicator("replicator-a")
+
+    protocol_a = DummyProtocol("protocol-a")
+    protocol_a.input_value = 1
+
+    group_a = ProtocolGroup(f"group-a-{replicator.placeholder_id}")
+    group_a.add_protocols(protocol_a)
+
+    schema = WorkflowSchema()
+    schema.protocol_schemas = [group_a.schema]
+    schema.protocol_replicators = [replicator]
+
+    with pytest.raises(ValueError) as error_info:
+        schema.validate()
+
+    assert (
+        f"The children of replicated protocol {group_a.id} must also contain the "
+        "replicators placeholder" in str(error_info.value)
+    )

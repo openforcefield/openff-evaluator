@@ -139,7 +139,9 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         component_substance = ReplicatorValue(component_replicator.id)
 
         component_protocols, _, component_stored_data = generate_simulation_protocols(
-            analysis.AverageObservable("extract_observable_component"),
+            analysis.AverageObservable(
+                f"extract_observable_component_{component_replicator.placeholder_id}"
+            ),
             use_target_uncertainty,
             id_suffix=f"_component_{component_replicator.placeholder_id}",
             n_molecules=n_molecules,

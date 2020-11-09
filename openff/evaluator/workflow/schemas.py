@@ -2,6 +2,7 @@
 A collection of schemas which represent elements of a workflow.
 """
 import re
+from typing import Dict, Iterable, List
 
 from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 from openff.evaluator.attributes.typing import is_type_subclass_of_type
@@ -886,6 +887,94 @@ class WorkflowSchema(AttributeClass):
                             f"input type ({expected_input_type}) of {source_path}."
                         )
 
+    @classmethod
+    def _find_child_ids(cls, schemas_by_id: Dict[str, ProtocolSchema]) -> List[str]:
+        """A function which will recursive find the ids of all protocols in a
+        workflow.
+
+        Parameters
+        ----------
+        schemas_by_id
+            The protocols to find the child ids of.
+        """
+
+        protocol_ids = []
+
+        for protocol_id, protocol_schema in schemas_by_id.items():
+
+            protocol_ids.append(protocol_id)
+
+            if not isinstance(protocol_schema, ProtocolGroupSchema):
+                continue
+
+            protocol_ids.extend(cls._find_child_ids(protocol_schema.protocol_schemas))
+
+        return protocol_ids
+
+    @classmethod
+    def _find_duplicates(cls, iterable: Iterable[str]) -> List[str]:
+        """Returns the duplicate items in a list.
+
+        Notes
+        -----
+        * Based on the answer by moooeeeep (accessed 09/11/2020 14:56) on stack overflow
+          here: https://stackoverflow.com/a/9836685
+        """
+
+        seen = set()
+        seen_add = seen.add
+
+        seen_twice = set(x for x in iterable if x in seen or seen_add(x))
+
+        return list(seen_twice)
+
+    def _validate_unique_children(self, schemas_by_id: Dict[str, ProtocolSchema]):
+        """Validates that every protocol in a workflow has a unique id."""
+
+        all_protocol_ids = self._find_child_ids(schemas_by_id)
+        duplicate_ids = self._find_duplicates(all_protocol_ids)
+
+        if len(duplicate_ids) > 0:
+
+            raise ValueError(
+                f"Several protocols in the schema have the same id: "
+                f"{duplicate_ids}. This is currently unsupported due to issues "
+                f"with merging two graphs which contain duplicate ids."
+            )
+
+    def _validate_replicated_child_ids(self, schemas_by_id: Dict[str, ProtocolSchema]):
+        """Validates that the children of replicated protocols also unique ids to
+        avoid issues when merging workflows."""
+
+        if self.protocol_replicators == UNDEFINED:
+            return
+
+        replicator_ids = [x.placeholder_id for x in self.protocol_replicators]
+
+        for protocol_id, protocol_schema in schemas_by_id.items():
+
+            if not isinstance(protocol_schema, ProtocolGroupSchema):
+                continue
+
+            for replicator_id in replicator_ids:
+
+                if replicator_id not in protocol_id:
+                    continue
+
+                if any(
+                    replicator_id not in child_id
+                    for child_id in protocol_schema.protocol_schemas
+                ):
+
+                    raise ValueError(
+                        f"The children of replicated protocol {protocol_id} must also "
+                        f"contain the replicators placeholder id in their id to ensure "
+                        f"all replicated protocols have a unique id. This is to avoid "
+                        f"issues when mering multiple workflows."
+                    )
+
+            self._validate_replicated_child_ids(protocol_schema.protocol_schemas)
+
     def validate(self, attribute_type=None):
 
         super(WorkflowSchema, self).validate(attribute_type)
@@ -895,6 +984,10 @@ class WorkflowSchema(AttributeClass):
         assert all(isinstance(x, ProtocolSchema) for x in self.protocol_schemas)
 
         schemas_by_id = {x.id: x for x in self.protocol_schemas}
+
+        # Validate unique ids. This is critical to ensure correct merging.
+        self._validate_unique_children(schemas_by_id)
+        self._validate_replicated_child_ids(schemas_by_id)
 
         # Validate the different pieces of data to populate / draw from.
         self._validate_final_value(schemas_by_id)
