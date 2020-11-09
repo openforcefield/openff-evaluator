@@ -12,11 +12,11 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 0.3.1
 -----
 
-This release is a hot-patch to fix a bug introduced in version 0.3.0 of this framework, whereby the workflows for
-computing excess properties could in rare cases be incorrectly merged leading to downstream protocols taking their
-inputs from the wrong upstream protocol outputs.
+This release fixes a bug introduced in version 0.3.0 of this framework, whereby the default workflows for computing
+excess properties could in rare cases be incorrectly merged leading to downstream protocols taking their inputs from
+the wrong upstream protocol outputs.
 
-While this bug should not affect most calculations, it is recomended that any production calculations performed
+While this bug should not affect most calculations, it is recommended that any production calculations performed
 using version 0.3.0 of this framework be repeated using version 0.3.1.
 
 Bugfixes
