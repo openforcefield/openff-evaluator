@@ -9,6 +9,14 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
 
+0.3.1
+-----
+
+This release ...
+
+Bugfixes
+""""""""
+
 0.3.0
 -----
 
