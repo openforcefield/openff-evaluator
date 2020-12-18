@@ -13,7 +13,7 @@ dependencies:
   - codecov
 
     # Standard dependencies
-  - openforcefield >=0.4.1
+  - openforcefield >=0.7.1
   - smirnoff99frosst
   - numpy
   - pandas
