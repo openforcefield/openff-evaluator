@@ -1,0 +1,103 @@
+name: tests
+
+on:
+  push:
+    branches:
+      - "master"
+  pull_request:
+    branches:
+      - "master"
+  schedule:
+    - cron: "0 0 * * *"
+
+jobs:
+
+  test:
+
+    name: Test on ${{ matrix.os }}, Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+
+    env:
+      OE_LICENSE: ${{ github.workspace }}/oe_license.txt
+
+    strategy:
+
+      matrix:
+        os: [macOS-latest, ubuntu-latest]
+        python-version: [3.6, 3.7]
+        openeye: [true, false]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup Conda Environment
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+
+          python-version: ${{ matrix.python-version }}
+          environment-file: devtools/conda-envs/test_env.yaml
+
+          activate-environment: test
+
+          auto-update-conda: true
+          auto-activate-base: false
+
+          show-channel-urls: true
+
+      - name: Conda Environment Information
+        shell: bash -l {0}
+        run: |
+          conda info
+          conda list
+
+      - name: Install OpenEye
+        if: matrix.openeye
+        shell: bash -l {0}
+        run: |
+          echo "${SECRET_OE_LICENSE}" > ${OE_LICENSE}
+
+          conda install -c openeye openeye-toolkits
+          python -c "from openeye import oechem; assert oechem.OEChemIsLicensed()"
+        env:
+          SECRET_OE_LICENSE: ${{ secrets.OE_LICENSE }}
+
+      - name: Install PASCAL Compiler (MacOS)
+        shell: bash -l {0}
+        if: startsWith(matrix.os, 'macOS')
+        run: |
+          brew install fpc
+
+      - name: Install PASCAL Compiler (Ubuntu)
+        shell: bash -l {0}
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo apt-get install fp-compiler
+
+      - name: Install checkmol
+        shell: bash -l {0}
+        run: |
+
+          curl https://homepage.univie.ac.at/norbert.haider/download/chemistry/checkmol/checkmol.pas > checkmol.pas
+          fpc checkmol.pas -S2
+
+          echo $(pwd) >> $GITHUB_PATH
+
+      - name: Install Package
+        shell: bash -l {0}
+        run: |
+
+          python setup.py develop --no-deps
+
+      - name: Run tests
+        shell: bash -l {0}
+        run: |
+
+          pytest -v --cov=openff openff/evaluator/tests/ --cov-report=xml --color=yes
+
+      - name: Code coverage
+        uses: codecov/codecov-action@v1
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          fail_ci_if_error: true
+          name: codecov-${{ matrix.os }}-py${{ matrix.python-version }}
