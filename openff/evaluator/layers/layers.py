@@ -263,7 +263,10 @@ class CalculationLayer(abc.ABC):
 
                     # Make sure to store any important calculation data if no exceptions
                     # were thrown.
-                    if returned_output.data_to_store is not None:
+                    if (
+                        returned_output.data_to_store is not None
+                        and batch.enable_data_caching
+                    ):
 
                         CalculationLayer._store_cached_output(
                             batch, returned_output, storage_backend
