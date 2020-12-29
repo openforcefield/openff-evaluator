@@ -85,6 +85,13 @@ suppress_warnings = [
 # nbsphinx settings
 nbsphinx_execute = 'never'
 
+# sphinx bibtext settings
+bibtex_bibfiles = [
+    os.path.join('properties', 'commonworkflows.bib'),
+    os.path.join('properties', 'gradients.bib'),
+    os.path.join('properties', 'properties.bib'),
+]
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
