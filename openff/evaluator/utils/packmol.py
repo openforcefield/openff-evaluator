@@ -681,6 +681,10 @@ def pack_box(
 
         trajectory = mdtraj.load_pdb(structure_to_solvate)
 
+        # Fix mdtraj #1611
+        for atom in trajectory.topology.atoms:
+            atom.serial = None
+
         structure_to_solvate = "solvate.pdb"
         trajectory.save_pdb(os.path.join(working_directory, structure_to_solvate))
 

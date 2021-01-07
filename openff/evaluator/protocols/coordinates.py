@@ -244,6 +244,10 @@ class BuildCoordinatesPackmol(Protocol):
             The trajectory of the created system.
         """
 
+        # Fix mdtraj #1611
+        for atom in trajectory.topology.atoms:
+            atom.serial = None
+
         self.coordinate_file_path = path.join(directory, "output.pdb")
         trajectory.save_pdb(self.coordinate_file_path)
 
