@@ -9,7 +9,6 @@ from enum import IntFlag, unique
 
 import numpy
 import pandas
-import pint
 
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
@@ -95,7 +94,7 @@ class PhysicalProperty(AttributeClass, abc.ABC):
     @classmethod
     @abc.abstractmethod
     def default_unit(cls):
-        """pint.Unit: The default unit (e.g. g / mol) associated with this
+        """openff.evaluator.unit.Unit: The default unit (e.g. g / mol) associated with this
         class of property."""
         raise NotImplementedError()
 
@@ -121,11 +120,11 @@ class PhysicalProperty(AttributeClass, abc.ABC):
 
     value = Attribute(
         docstring="The measured / estimated value of this property.",
-        type_hint=pint.Quantity,
+        type_hint=unit.Quantity,
     )
     uncertainty = Attribute(
         docstring="The uncertainty in measured / estimated value of this property.",
-        type_hint=pint.Quantity,
+        type_hint=unit.Quantity,
         optional=True,
     )
 
@@ -167,9 +166,9 @@ class PhysicalProperty(AttributeClass, abc.ABC):
             The phase that the property was measured in.
         substance : Substance
             The composition of the substance that was measured.
-        value: pint.Quantity
+        value: openff.evaluator.unit.Quantity
             The value of the measured physical property.
-        uncertainty: pint.Quantity
+        uncertainty: openff.evaluator.unit.Quantity
             The uncertainty in the measured value.
         source: Source
             The source of this property.

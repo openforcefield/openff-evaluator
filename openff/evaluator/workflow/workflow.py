@@ -9,8 +9,7 @@ from math import sqrt
 from os import makedirs, path
 from shutil import copy as file_copy
 
-import pint
-
+from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import (
@@ -635,7 +634,7 @@ class Workflow:
         parameter_gradient_keys: list of ParameterGradientKey
                 A list of references to all of the parameters which all observables
                 should be differentiated with respect to.
-        target_uncertainty: pint.Quantity, optional
+        target_uncertainty: openff.evaluator.unit.Quantity, optional
             The uncertainty which the property should be estimated to
             within.
 
@@ -651,11 +650,11 @@ class Workflow:
             - substance: `Substance` - The composition of the system of interest.
             - components: list of `Substance` - The components present in the system for
                                               which the property is being estimated.
-            - target_uncertainty: pint.Quantity - The target uncertainty with which
-                                                        properties should be estimated.
-            - per_component_uncertainty: pint.Quantity - The target uncertainty divided
-                                                               by the sqrt of the number of
-                                                               components in the system + 1
+            - target_uncertainty: openff.evaluator.unit.Quantity - The target uncertainty with which
+                                                                   properties should be estimated.
+            - per_component_uncertainty: openff.evaluator.unit.Quantity - The target uncertainty divided
+                                                                          by the sqrt of the number of
+                                                                          components in the system + 1
             - force_field_path: str - A path to the force field parameters with which the
                                       property should be evaluated with.
             - parameter_gradient_keys: list of ParameterGradientKey - A list of references to all of the
@@ -786,7 +785,7 @@ class WorkflowResult(AttributeClass):
     value = Attribute(
         docstring="The estimated value of the property and the uncertainty "
         "in that value.",
-        type_hint=pint.Measurement,
+        type_hint=unit.Measurement,
         optional=True,
     )
     gradients = Attribute(

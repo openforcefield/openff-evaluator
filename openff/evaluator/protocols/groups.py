@@ -13,8 +13,7 @@ import typing
 from enum import Enum, unique
 from os import path
 
-import pint
-
+from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 from openff.evaluator.workflow import ProtocolGroup, workflow_protocol
 from openff.evaluator.workflow.attributes import (
@@ -49,11 +48,11 @@ class ConditionalGroup(ProtocolGroup):
 
         left_hand_value = Attribute(
             docstring="The left-hand value to compare.",
-            type_hint=typing.Union[int, float, pint.Quantity],
+            type_hint=typing.Union[int, float, unit.Quantity],
         )
         right_hand_value = Attribute(
             docstring="The right-hand value to compare.",
-            type_hint=typing.Union[int, float, pint.Quantity],
+            type_hint=typing.Union[int, float, unit.Quantity],
         )
 
         type = Attribute(
@@ -135,8 +134,8 @@ class ConditionalGroup(ProtocolGroup):
         if left_hand_value == UNDEFINED or right_hand_value == UNDEFINED:
             return False
 
-        if isinstance(right_hand_value, pint.Quantity) and isinstance(
-            left_hand_value, pint.Quantity
+        if isinstance(right_hand_value, unit.Quantity) and isinstance(
+            left_hand_value, unit.Quantity
         ):
             right_hand_value = right_hand_value.to(left_hand_value.units)
 

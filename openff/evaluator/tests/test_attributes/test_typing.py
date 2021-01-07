@@ -5,7 +5,6 @@ Units tests for openff.evaluator.attributes.typing
 import typing
 from random import random
 
-import pint
 import pytest
 
 from openff.evaluator import unit
@@ -21,12 +20,12 @@ from openff.evaluator.attributes.typing import (
         (int, int),
         (int, float),
         (float, float),
-        (int, typing.Union[int, float, pint.Quantity]),
-        (float, typing.Union[int, float, pint.Quantity]),
-        (pint.Quantity, typing.Union[int, float, pint.Quantity]),
-        (typing.Union[int, float, pint.Quantity], int),
-        (typing.Union[int, float, pint.Quantity], float),
-        (typing.Union[int, float, pint.Quantity], pint.Quantity),
+        (int, typing.Union[int, float, unit.Quantity]),
+        (float, typing.Union[int, float, unit.Quantity]),
+        (unit.Quantity, typing.Union[int, float, unit.Quantity]),
+        (typing.Union[int, float, unit.Quantity], int),
+        (typing.Union[int, float, unit.Quantity], float),
+        (typing.Union[int, float, unit.Quantity], unit.Quantity),
     ],
 )
 def test_positive_is_type_subclass_of_type(type_a, type_b):
@@ -38,12 +37,12 @@ def test_positive_is_type_subclass_of_type(type_a, type_b):
     "type_a, type_b",
     [
         (float, int),
-        (int, typing.Union[pint.Quantity]),
-        (float, typing.Union[int, pint.Quantity]),
-        (pint.Quantity, typing.Union[int, float]),
-        (typing.Union[float, pint.Quantity], int),
-        (typing.Union[pint.Quantity], float),
-        (typing.Union[int, float], pint.Quantity),
+        (int, typing.Union[unit.Quantity]),
+        (float, typing.Union[int, unit.Quantity]),
+        (unit.Quantity, typing.Union[int, float]),
+        (typing.Union[float, unit.Quantity], int),
+        (typing.Union[unit.Quantity], float),
+        (typing.Union[int, float], unit.Quantity),
     ],
 )
 def test_negative_is_type_subclass_of_type(type_a, type_b):
@@ -57,9 +56,9 @@ def test_negative_is_type_subclass_of_type(type_a, type_b):
         (int(random()), int),
         (int(random()), float),
         (random(), float),
-        (int(random()), typing.Union[int, float, pint.Quantity]),
-        (random(), typing.Union[int, float, pint.Quantity]),
-        (random() * unit.kelvin, typing.Union[int, float, pint.Quantity]),
+        (int(random()), typing.Union[int, float, unit.Quantity]),
+        (random(), typing.Union[int, float, unit.Quantity]),
+        (random() * unit.kelvin, typing.Union[int, float, unit.Quantity]),
     ],
 )
 def test_positive_is_instance_of_type(object_a, type_a):
@@ -71,8 +70,8 @@ def test_positive_is_instance_of_type(object_a, type_a):
     "object_a, type_a",
     [
         (random() + 0.0001, int),
-        (int(random()), typing.Union[pint.Quantity]),
-        (random(), typing.Union[int, pint.Quantity]),
+        (int(random()), typing.Union[unit.Quantity]),
+        (random(), typing.Union[int, unit.Quantity]),
         (random() * unit.kelvin, typing.Union[int, float]),
     ],
 )

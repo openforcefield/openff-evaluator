@@ -5,8 +5,6 @@ as OpenMM or Gromacs.
 """
 import abc
 
-import pint
-
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield.system import ParameterizedSystem
@@ -37,7 +35,7 @@ class BaseEnergyMinimisation(Protocol, abc.ABC):
 
     tolerance = InputAttribute(
         docstring="The energy tolerance to which the system should be minimized.",
-        type_hint=pint.Quantity,
+        type_hint=unit.Quantity,
         default_value=10 * unit.kilojoules / unit.mole,
     )
     max_iterations = InputAttribute(
@@ -103,7 +101,7 @@ class BaseSimulation(Protocol, abc.ABC):
 
     timestep = InputAttribute(
         docstring="The timestep to evolve the system by at each step.",
-        type_hint=pint.Quantity,
+        type_hint=unit.Quantity,
         merge_behavior=InequalityMergeBehaviour.SmallestValue,
         default_value=2.0 * unit.femtosecond,
     )
@@ -121,7 +119,7 @@ class BaseSimulation(Protocol, abc.ABC):
 
     thermostat_friction = InputAttribute(
         docstring="The thermostat friction coefficient.",
-        type_hint=pint.Quantity,
+        type_hint=unit.Quantity,
         merge_behavior=InequalityMergeBehaviour.SmallestValue,
         default_value=1.0 / unit.picoseconds,
     )

@@ -10,7 +10,6 @@ from urllib.error import HTTPError
 from xml.etree import ElementTree
 
 import numpy as np
-import pint
 import requests
 
 from openff.evaluator import unit
@@ -36,7 +35,7 @@ def _unit_from_thermoml_string(full_string):
 
     Returns
     ----------
-    pint.Unit
+    openff.evaluator.unit.Unit
         The parsed unit.
     """
 
@@ -47,7 +46,7 @@ def _unit_from_thermoml_string(full_string):
     # Convert symbols like dm3 to dm**3
     unit_string = re.sub(r"([a-z])([0-9]+)", r"\1**\2", unit_string.strip())
 
-    return pint.Unit(unit_string)
+    return unit.Unit(unit_string)
 
 
 def _phase_from_thermoml_string(string):
@@ -214,7 +213,7 @@ class _Constraint:
         ----------
         variable: _VariableDefinition
             The variable to convert.
-        value: pint.Quantity
+        value: openff.evaluator.unit.Quantity
             The value of the constant.
 
         Returns
@@ -842,7 +841,7 @@ class _PureOrMixtureData:
 
         Returns
         -------
-        pint.Quantity
+        openff.evaluator.unit.Quantity
             The molecular weight.
         """
 
@@ -878,7 +877,7 @@ class _PureOrMixtureData:
 
         Parameters
         ----------
-        solvent_mass: pint.Quantity
+        solvent_mass: openff.evaluator.unit.Quantity
             The total mass of the solvent in units compatible with kg.
         solvent_mole_fractions: dict of int and float
             The mole fractions of any solvent compounds in the system.
@@ -887,7 +886,7 @@ class _PureOrMixtureData:
 
         Returns
         -------
-        dict of int and pint.Quantity
+        dict of int and openff.evaluator.unit.Quantity
             A dictionary of the moles of each solvent compound.
         """
         weighted_molecular_weights = 0.0 * unit.gram / unit.mole
@@ -944,7 +943,7 @@ class _PureOrMixtureData:
 
             mole_fraction = constraint.value
 
-            if isinstance(mole_fraction, pint.Quantity):
+            if isinstance(mole_fraction, unit.Quantity):
                 mole_fraction = mole_fraction.to(unit.dimensionless).magnitude
 
             mole_fractions[constraint.compound_index] = mole_fraction
@@ -1030,7 +1029,7 @@ class _PureOrMixtureData:
 
             mass_fraction = constraint.value
 
-            if isinstance(mass_fraction, pint.Quantity):
+            if isinstance(mass_fraction, unit.Quantity):
                 mass_fraction = mass_fraction.to(unit.dimensionless).magnitude
 
             mass_fractions[constraint.compound_index] = mass_fraction
@@ -1060,7 +1059,7 @@ class _PureOrMixtureData:
                     continue
 
                 mass_fractions[compound_index] = 1.0 - total_mass_fraction
-                if isinstance(mass_fractions[compound_index], pint.Quantity):
+                if isinstance(mass_fractions[compound_index], unit.Quantity):
                     mass_fractions[compound_index] = (
                         mass_fractions[compound_index].to(unit.dimensionless).magnitude
                     )
@@ -1436,7 +1435,7 @@ class _PureOrMixtureData:
         # Make sure we haven't picked up a dimensionless unit be accident.
         for compound_index in mole_fractions:
 
-            if isinstance(mole_fractions[compound_index], pint.Quantity):
+            if isinstance(mole_fractions[compound_index], unit.Quantity):
                 mole_fractions[compound_index] = (
                     mole_fractions[compound_index].to(unit.dimensionless).magnitude
                 )
@@ -2002,14 +2001,14 @@ class ThermoMLProperty:
 
         Parameters
         ----------
-        value: float or pint.Quantity
+        value: float or unit.Quantity
             The value of the property
-        uncertainty: float or pint.Quantity, optional
+        uncertainty: float or unit.Quantity, optional
             The uncertainty in the value.
         """
         value_quantity = value
 
-        if not isinstance(value_quantity, pint.Quantity):
+        if not isinstance(value_quantity, unit.Quantity):
             value_quantity = value * self.default_unit
 
         self.value = value_quantity
@@ -2018,7 +2017,7 @@ class ThermoMLProperty:
 
             uncertainty_quantity = uncertainty
 
-            if not isinstance(uncertainty_quantity, pint.Quantity):
+            if not isinstance(uncertainty_quantity, unit.Quantity):
                 uncertainty_quantity = uncertainty * self.default_unit
 
             self.uncertainty = uncertainty_quantity

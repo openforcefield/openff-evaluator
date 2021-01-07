@@ -359,7 +359,7 @@ class Substance(AttributeClass):
 
         Parameters
         ----------
-        ionic_strength: pint.Quantity
+        ionic_strength: openff.evaluator.unit.Quantity
             The ionic string in units of molar.
 
         Returns

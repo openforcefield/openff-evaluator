@@ -11,7 +11,6 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import numpy as np
-import pint
 import yaml
 
 from openff.evaluator import unit
@@ -98,7 +97,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
 
     timestep = InputAttribute(
         docstring="The length of the timestep to take.",
-        type_hint=pint.Quantity,
+        type_hint=unit.Quantity,
         merge_behavior=InequalityMergeBehaviour.SmallestValue,
         default_value=2 * unit.femtosecond,
     )

@@ -7,7 +7,6 @@ import typing
 from os import path
 
 import numpy as np
-import pint
 
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
@@ -44,7 +43,7 @@ E0 = 8.854187817e-12 * unit.farad / unit.meter  # Taken from QCElemental
 def compute_dielectric_constant(
     dipole_moments: ObservableArray,
     volumes: ObservableArray,
-    temperature: pint.Quantity,
+    temperature: unit.Quantity,
     average_function,
 ) -> Observable:
     """A function to compute the average dielectric constant from an array of
@@ -352,7 +351,7 @@ class AverageObservable(BaseAverageObservable):
     divisor = InputAttribute(
         docstring="A value to divide the statistic by. This is useful if a statistic "
         "(such as enthalpy) needs to be normalised by the number of molecules.",
-        type_hint=typing.Union[int, float, pint.Quantity],
+        type_hint=typing.Union[int, float, unit.Quantity],
         default_value=1.0,
     )
 
@@ -424,7 +423,7 @@ class AverageFreeEnergies(Protocol):
     result = OutputAttribute(docstring="The sum of the values.", type_hint=Observable)
     confidence_intervals = OutputAttribute(
         docstring="The 95% confidence intervals on the average free energy.",
-        type_hint=pint.Quantity,
+        type_hint=unit.Quantity,
     )
 
     def _execute(self, directory, available_resources):

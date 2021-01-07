@@ -72,10 +72,10 @@ def _validate_inputs(
         equal to the length of `molecules`.
     structure_to_solvate: str, optional
         A file path to the PDB coordinates of the structure to be solvated.
-    box_size : pint.Quantity, optional
+    box_size : openff.evaluator.unit.Quantity, optional
         The size of the box to generate in units compatible with angstroms.
         If `None`, `mass_density` must be provided.
-    mass_density : pint.Quantity, optional
+    mass_density : openff.evaluator.unit.Quantity, optional
         Target mass density for final system with units compatible with g / mL.
          If `None`, `box_size` must be provided.
     box_aspect_ratio: list of float, optional
@@ -87,7 +87,9 @@ def _validate_inputs(
         raise ValueError("Either a `box_size` or `mass_density` must be specified.")
 
     if box_size is not None and len(box_size) != 3:
-        raise ValueError("`box_size` must be a pint.Quantity wrapped list of length 3")
+        raise ValueError(
+            "`box_size` must be a openff.evaluator.unit.Quantity wrapped list of length 3"
+        )
 
     if box_aspect_ratio is not None:
 
@@ -123,7 +125,7 @@ def _approximate_box_size_by_density(
         The molecules in the system.
     n_copies : list of int
         The number of copies of each molecule.
-    mass_density : pint.Quantity
+    mass_density : openff.evaluator.unit.Quantity
         The target mass density for final system. It should have units
         compatible with g / mL.
     box_aspect_ratio: List of float
@@ -135,7 +137,7 @@ def _approximate_box_size_by_density(
 
     Returns
     -------
-    pint.Quantity
+    openff.evaluator.unit.Quantity
         A list of the three box lengths in units compatible with angstroms.
     """
 
@@ -390,9 +392,9 @@ def _build_input_file(
     center_solute: str
         If `True`, the structure to solvate will be centered in the
         simulation box.
-    box_size: pint.Quantity
+    box_size: openff.evaluator.unit.Quantity
         The lengths of each box vector.
-    tolerance: pint.Quantity
+    tolerance: openff.evaluator.unit.Quantity
         The packmol convergence tolerance.
     output_file_name: str
         The path to save the packed pdb to.
@@ -601,13 +603,13 @@ def pack_box(
         If `True`, the structure to solvate will be centered in the
         simulation box. This option is only applied when `structure_to_solvate`
         is set.
-    tolerance : pint.Quantity
+    tolerance : openff.evaluator.unit.Quantity
         The minimum spacing between molecules during packing in units
          compatible with angstroms.
-    box_size : pint.Quantity, optional
+    box_size : openff.evaluator.unit.Quantity, optional
         The size of the box to generate in units compatible with angstroms.
         If `None`, `mass_density` must be provided.
-    mass_density : pint.Quantity, optional
+    mass_density : openff.evaluator.unit.Quantity, optional
         Target mass density for final system with units compatible with g / mL.
          If `None`, `box_size` must be provided.
     box_aspect_ratio: list of float, optional

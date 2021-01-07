@@ -1,7 +1,6 @@
 """
 Units tests for openff.evaluator.datasets
 """
-import pint
 import pytest
 
 from openff.evaluator import unit
@@ -66,7 +65,7 @@ def test_thermoml_unit_from_string(unit_string):
     dummy_string = f"Property, {unit_string}"
 
     returned_unit = _unit_from_thermoml_string(dummy_string)
-    assert returned_unit is not None and isinstance(returned_unit, pint.Unit)
+    assert returned_unit is not None and isinstance(returned_unit, unit.Unit)
 
 
 def test_thermoml_from_url():

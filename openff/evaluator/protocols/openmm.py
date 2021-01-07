@@ -548,9 +548,9 @@ class OpenMMSimulation(BaseSimulation):
 
         Parameters
         ----------
-        temperature: simtk.pint.Quantity
+        temperature: openff.evaluator.unit.Quantity
             The temperature to run the simulation at.
-        pressure: simtk.pint.Quantity
+        pressure: openff.evaluator.unit.Quantity
             The pressure to run the simulation at.
         available_resources: ComputeResources
             The resources available to run on.
@@ -879,9 +879,9 @@ class OpenMMSimulation(BaseSimulation):
 
         Parameters
         ----------
-        temperature: pint.Quantity
+        temperature: openff.evaluator.unit.Quantity
             The temperature that the simulation is being run at.
-        pressure: pint.Quantity
+        pressure: openff.evaluator.unit.Quantity
             The pressure that the simulation is being run at.
         """
         observables = ObservableFrame.from_openmm(self._local_statistics_path, pressure)

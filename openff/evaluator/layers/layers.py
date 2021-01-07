@@ -6,8 +6,7 @@ import collections
 import logging
 from os import path
 
-import pint
-
+from openff.evaluator import unit
 from openff.evaluator.attributes import (
     UNDEFINED,
     Attribute,
@@ -67,7 +66,7 @@ class CalculationLayerSchema(AttributeClass):
         docstring="The absolute uncertainty that the property should "
         "be estimated to within. This attribute is mutually exclusive "
         "with the `relative_tolerance` attribute.",
-        type_hint=pint.Quantity,
+        type_hint=unit.Quantity,
         default_value=UNDEFINED,
         optional=True,
     )

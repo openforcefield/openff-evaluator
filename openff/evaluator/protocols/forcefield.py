@@ -282,9 +282,9 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
 
         Parameters
         ----------
-        cutoff: simtk.pint.Quantity
+        cutoff: openff.evaluator.unit.Quantity
             The non-bonded cutoff.
-        cell_vectors: simtk.pint.Quantity
+        cell_vectors: openff.evaluator.unit.Quantity
             The full system's cell vectors.
 
         Returns
