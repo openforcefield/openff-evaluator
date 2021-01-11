@@ -5,8 +5,8 @@ math operations.
 import typing
 
 import numpy as np
-import pint
 
+from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import ParameterGradient, ParameterGradientKey
 from openff.evaluator.substances import Component, MoleFraction, Substance
@@ -21,8 +21,9 @@ class AddValues(Protocol):
 
     Notes
     -----
-    The `values` input must either be a list of pint.Quantity, a ProtocolPath to a list
-    of pint.Quantity, or a list of ProtocolPath which each point to a pint.Quantity.
+    The `values` input must either be a list of openff.evaluator.unit.Quantity, a
+    ProtocolPath to a list of openff.evaluator.unit.Quantity, or a list of ProtocolPath
+    which each point to a openff.evaluator.unit.Quantity.
     """
 
     values = InputAttribute(
@@ -34,8 +35,8 @@ class AddValues(Protocol):
         type_hint=typing.Union[
             int,
             float,
-            pint.Measurement,
-            pint.Quantity,
+            unit.Measurement,
+            unit.Quantity,
             ParameterGradient,
             Observable,
             ObservableArray,
@@ -65,8 +66,8 @@ class SubtractValues(Protocol):
         type_hint=typing.Union[
             int,
             float,
-            pint.Measurement,
-            pint.Quantity,
+            unit.Measurement,
+            unit.Quantity,
             ParameterGradient,
             Observable,
             ObservableArray,
@@ -78,8 +79,8 @@ class SubtractValues(Protocol):
         type_hint=typing.Union[
             int,
             float,
-            pint.Measurement,
-            pint.Quantity,
+            unit.Measurement,
+            unit.Quantity,
             ParameterGradient,
             Observable,
             ObservableArray,
@@ -92,8 +93,8 @@ class SubtractValues(Protocol):
         type_hint=typing.Union[
             int,
             float,
-            pint.Measurement,
-            pint.Quantity,
+            unit.Measurement,
+            unit.Quantity,
             ParameterGradient,
             Observable,
             ObservableArray,
@@ -113,8 +114,8 @@ class MultiplyValue(Protocol):
         type_hint=typing.Union[
             int,
             float,
-            pint.Measurement,
-            pint.Quantity,
+            unit.Measurement,
+            unit.Quantity,
             ParameterGradient,
             Observable,
             ObservableArray,
@@ -123,7 +124,7 @@ class MultiplyValue(Protocol):
     )
     multiplier = InputAttribute(
         docstring="The scalar to multiply by.",
-        type_hint=typing.Union[int, float, pint.Quantity],
+        type_hint=typing.Union[int, float, unit.Quantity],
         default_value=UNDEFINED,
     )
 
@@ -132,8 +133,8 @@ class MultiplyValue(Protocol):
         type_hint=typing.Union[
             int,
             float,
-            pint.Measurement,
-            pint.Quantity,
+            unit.Measurement,
+            unit.Quantity,
             ParameterGradient,
             Observable,
             ObservableArray,
@@ -153,8 +154,8 @@ class DivideValue(Protocol):
         type_hint=typing.Union[
             int,
             float,
-            pint.Measurement,
-            pint.Quantity,
+            unit.Measurement,
+            unit.Quantity,
             ParameterGradient,
             Observable,
             ObservableArray,
@@ -163,7 +164,7 @@ class DivideValue(Protocol):
     )
     divisor = InputAttribute(
         docstring="The scalar to divide by.",
-        type_hint=typing.Union[int, float, pint.Quantity],
+        type_hint=typing.Union[int, float, unit.Quantity],
         default_value=UNDEFINED,
     )
 
@@ -172,8 +173,8 @@ class DivideValue(Protocol):
         type_hint=typing.Union[
             int,
             float,
-            pint.Measurement,
-            pint.Quantity,
+            unit.Measurement,
+            unit.Quantity,
             ParameterGradient,
             Observable,
             ObservableArray,
@@ -195,8 +196,8 @@ class WeightByMoleFraction(Protocol):
         type_hint=typing.Union[
             int,
             float,
-            pint.Measurement,
-            pint.Quantity,
+            unit.Measurement,
+            unit.Quantity,
             ParameterGradient,
             Observable,
             ObservableArray,
@@ -222,8 +223,8 @@ class WeightByMoleFraction(Protocol):
         type_hint=typing.Union[
             int,
             float,
-            pint.Measurement,
-            pint.Quantity,
+            unit.Measurement,
+            unit.Quantity,
             ParameterGradient,
             Observable,
             ObservableArray,
@@ -240,7 +241,7 @@ class WeightByMoleFraction(Protocol):
 
         Returns
         -------
-        float, int, pint.Measurement, pint.Quantity, ParameterGradient
+        float, int, openff.evaluator.unit.Measurement, openff.evaluator.unit.Quantity, ParameterGradient
             The weighted value.
         """
         return self.value * mole_fraction
@@ -365,8 +366,8 @@ class DummyProtocol(Protocol):
             str,
             int,
             float,
-            pint.Quantity,
-            pint.Measurement,
+            unit.Quantity,
+            unit.Measurement,
             Observable,
             ObservableArray,
             ParameterGradient,
@@ -385,8 +386,8 @@ class DummyProtocol(Protocol):
             str,
             int,
             float,
-            pint.Quantity,
-            pint.Measurement,
+            unit.Quantity,
+            unit.Measurement,
             Observable,
             ObservableArray,
             ParameterGradient,

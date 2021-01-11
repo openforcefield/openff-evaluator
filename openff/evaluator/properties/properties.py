@@ -83,7 +83,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
 
         Parameters
         ----------
-        absolute_tolerance: pint.Quantity, optional
+        absolute_tolerance: openff.evaluator.unit.Quantity, optional
             The absolute tolerance to estimate the property to within.
         relative_tolerance: float
             The tolerance (as a fraction of the properties reported

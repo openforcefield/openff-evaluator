@@ -11,7 +11,6 @@ from enum import Enum
 
 import dateutil.parser
 import numpy as np
-import pint
 
 from openff.evaluator import unit
 
@@ -81,26 +80,13 @@ def _type_to_type_string(object_type):
         The converted type.
     """
 
-    if (
-        issubclass(object_type, pint.Unit)
-        or f"{object_type.__module__}.{object_type.__qualname__}"
-        == "pint.quantity.build_quantity_class.<locals>.Unit"
-    ):
+    if issubclass(object_type, unit.Unit):
         return "openff.evaluator.unit.Unit"
 
-    if (
-        issubclass(object_type, pint.Measurement)
-        or f"{object_type.__module__}.{object_type.__qualname__}"
-        == "pint.quantity.build_quantity_class.<locals>.Measurement"
-    ):
-
+    if issubclass(object_type, unit.Measurement):
         return "openff.evaluator.unit.Measurement"
 
-    if (
-        issubclass(object_type, pint.Quantity)
-        or f"{object_type.__module__}.{object_type.__qualname__}"
-        == "pint.quantity.build_quantity_class.<locals>.Quantity"
-    ):
+    if issubclass(object_type, unit.Quantity):
         return "openff.evaluator.unit.Quantity"
 
     qualified_name = object_type.__qualname__
@@ -114,18 +100,18 @@ def _type_to_type_string(object_type):
 
 
 def serialize_quantity(quantity):
-    """Serializes a pint.Quantity into a dictionary of the form
+    """Serializes a openff.evaluator.unit.Quantity into a dictionary of the form
     `{'value': quantity.value_in_unit(quantity.unit), 'unit': quantity.unit}`
 
     Parameters
     ----------
-    quantity : pint.Quantity
+    quantity : openff.evaluator.unit.Quantity
         The quantity to serialize
 
     Returns
     -------
     dict of str and str
-        A dictionary representation of a pint.Quantity
+        A dictionary representation of a openff.evaluator.unit.Quantity
         with keys of {"value", "unit"}
     """
 
@@ -134,17 +120,17 @@ def serialize_quantity(quantity):
 
 
 def deserialize_quantity(serialized):
-    """Deserialize a pint.Quantity from a dictionary.
+    """Deserialize a openff.evaluator.unit.Quantity from a dictionary.
 
     Parameters
     ----------
     serialized : dict of str and str
-        A dictionary representation of a pint.Quantity
+        A dictionary representation of a openff.evaluator.unit.Quantity
         which must have keys {"value", "unit"}
 
     Returns
     -------
-    pint.Quantity
+    openff.evaluator.unit.Quantity
         The deserialized quantity.
     """
 
@@ -160,36 +146,36 @@ def deserialize_quantity(serialized):
 
 
 def serialize_measurement(measurement):
-    """Serializes a `pint.Measurement` into a dictionary of the form
+    """Serializes a `openff.evaluator.unit.Measurement` into a dictionary of the form
     `{'value', 'error'}`.
 
     Parameters
     ----------
-    measurement : pint.Measurement
+    measurement : openff.evaluator.unit.Measurement
         The measurement to serialize
 
     Returns
     -------
     dict of str and str
-        A dictionary representation of a pint.Measurement
+        A dictionary representation of a openff.evaluator.unit.Measurement
         with keys of {"value", "error"}
     """
     return {"value": measurement.value, "error": measurement.error}
 
 
 def deserialize_measurement(serialized):
-    """Deserialize a `pint.Measurement` from a dictionary of the form
+    """Deserialize a `openff.evaluator.unit.Measurement` from a dictionary of the form
     `{'value', 'error'}`.
 
     Parameters
     ----------
     serialized : dict of str and str
-        A dictionary representation of a `pint.Measurement`
+        A dictionary representation of a `openff.evaluator.unit.Measurement`
         which must have keys {"value", "error"}
 
     Returns
     -------
-    pint.Measurement
+    openff.evaluator.unit.Measurement
         The deserialized measurement.
     """
 
@@ -285,8 +271,8 @@ class TypedJSONEncoder(json.JSONEncoder):
 
     _custom_supported_types = {
         Enum: serialize_enum,
-        pint.Measurement: serialize_measurement,
-        pint.Quantity: serialize_quantity,
+        unit.Measurement: serialize_measurement,
+        unit.Quantity: serialize_quantity,
         set: serialize_set,
         frozenset: serialize_frozen_set,
         np.float16: lambda x: {"value": float(x)},
@@ -316,9 +302,9 @@ class TypedJSONEncoder(json.JSONEncoder):
         if type_tag == "openff.evaluator.unit.Unit":
             type_to_serialize = unit.Unit
         if type_tag == "openff.evaluator.unit.Quantity":
-            type_to_serialize = pint.Quantity
+            type_to_serialize = unit.Quantity
         if type_tag == "openff.evaluator.unit.Measurement":
-            type_to_serialize = pint.Measurement
+            type_to_serialize = unit.Measurement
 
         custom_encoder = None
 
@@ -383,8 +369,8 @@ class TypedJSONDecoder(json.JSONDecoder):
 
     _custom_supported_types = {
         Enum: deserialize_enum,
-        pint.Measurement: deserialize_measurement,
-        pint.Quantity: deserialize_quantity,
+        unit.Measurement: deserialize_measurement,
+        unit.Quantity: deserialize_quantity,
         set: deserialize_set,
         frozenset: deserialize_frozen_set,
         np.float16: lambda x: np.float16(x["value"]),

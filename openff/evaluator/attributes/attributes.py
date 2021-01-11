@@ -7,8 +7,6 @@ import inspect
 from collections.abc import Iterable, Mapping
 from enum import Enum, IntEnum, IntFlag
 
-import pint
-
 from openff.evaluator import unit
 from openff.evaluator.attributes.typing import is_instance_of_type, is_supported_type
 from openff.evaluator.utils.serialization import TypedBaseModel
@@ -94,7 +92,7 @@ class AttributeClass(TypedBaseModel):
                 )
 
             elif isinstance(attribute_value, Iterable) and not isinstance(
-                attribute_value, pint.Quantity
+                attribute_value, (unit.Quantity, unit.Measurement)
             ):
 
                 iterable_values = (
@@ -188,8 +186,6 @@ class AttributeClass(TypedBaseModel):
 
     def __setstate__(self, state):
 
-        import pint
-
         attribute_names = self.get_attributes()
 
         for name in attribute_names:
@@ -204,22 +200,6 @@ class AttributeClass(TypedBaseModel):
 
             elif attribute.optional and name not in state:
                 state[name] = UNDEFINED
-
-            if isinstance(state[name], pint.Measurement) and not isinstance(
-                state[name], unit.Measurement
-            ):
-
-                state[name] = unit.Measurement.__new__(
-                    unit.Measurement, state[name].value, state[name].error
-                )
-
-            elif isinstance(state[name], pint.Quantity) and not isinstance(
-                state[name], unit.Quantity
-            ):
-
-                state[name] = unit.Quantity.__new__(
-                    unit.Quantity, state[name].magnitude, state[name].units
-                )
 
             self._set_value(name, state[name])
 
@@ -276,14 +256,7 @@ class Attribute:
             )
 
         if hasattr(type_hint, "__qualname__"):
-
-            if type_hint.__qualname__ == "build_quantity_class.<locals>.Quantity":
-                docstring = f"Quantity: {docstring}"
-            elif type_hint.__qualname__ == "build_quantity_class.<locals>.Unit":
-                docstring = f"Unit: {docstring}"
-            else:
-                docstring = f"{type_hint.__qualname__}: {docstring}"
-
+            docstring = f"{type_hint.__qualname__}: {docstring}"
         elif hasattr(type_hint, "__name__"):
             docstring = f"{type_hint.__name__}: {docstring}"
         else:
@@ -293,7 +266,7 @@ class Attribute:
         self._default_value = default_value
 
         if isinstance(
-            default_value, (int, float, str, pint.Quantity, pint.Measurement, Enum)
+            default_value, (int, float, str, unit.Quantity, unit.Measurement, Enum)
         ) or (
             isinstance(default_value, (list, tuple, set, frozenset))
             and len(default_value) <= 4

@@ -69,7 +69,7 @@ The inputs and outputs of a protocol are defined using the custom |input_attribu
         # once it is executed.
         result = OutputAttribute(
             docstring="The sum of the values.",
-            type_hint=typing.Union[int, float, pint.Measurement, pint.Quantity],
+            type_hint=typing.Union[int, float, unit.Measurement, unit.Quantity],
         )
 
         def _execute(self, directory, available_resources):
@@ -193,7 +193,7 @@ just wish to take the larger / smaller of the two inputs::
 
     timestep = InputAttribute(
         docstring="The timestep to evolve the system by at each step.",
-        type_hint=pint.Quantity,
+        type_hint=unit.Quantity,
         merge_behavior=InequalityMergeBehaviour.SmallestValue,
         default_value=2.0 * unit.femtosecond,
     )

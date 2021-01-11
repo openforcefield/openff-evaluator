@@ -3,20 +3,11 @@ openff-evaluator
 A physical property evaluation toolkit from the Open Forcefield Consortium.
 """
 
-import warnings
-
-import pint
-
 from ._version import get_versions
 from .plugins import register_default_plugins, register_external_plugins
+from .utils.units import DEFAULT_UNIT_REGISTRY
 
-unit = pint.UnitRegistry()
-unit.default_format = "~"
-pint.set_application_registry(unit)
-
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore")
-    pint.Quantity([])
+unit = DEFAULT_UNIT_REGISTRY
 
 # Load the default plugins
 register_default_plugins()

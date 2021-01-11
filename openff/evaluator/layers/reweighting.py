@@ -9,7 +9,6 @@ import time
 
 import dateutil.parser
 import numpy
-import pint
 
 from openff.evaluator import unit
 from openff.evaluator.attributes import Attribute, PlaceholderValue
@@ -68,7 +67,7 @@ class ReweightingSchema(WorkflowCalculationSchema):
         docstring="The maximum difference between the target temperature "
         "and the temperature at which cached data was collected to. Data "
         "collected for temperatures outside of this cutoff will be ignored.",
-        type_hint=pint.Quantity,
+        type_hint=unit.Quantity,
         default_value=5.0 * unit.kelvin,
     )
 
@@ -108,9 +107,9 @@ class ReweightingLayer(WorkflowCalculationLayer):
         data_list: list of tuple of str, StoredSimulationData and str
             A list of query results which take the form
             (storage_key, data_object, data_directory_path).
-        target_temperature: pint.Quantity
+        target_temperature: openff.evaluator.unit.Quantity
             The temperature that the data will be reweighted to.
-        temperature_cutoff: pint.Quantity
+        temperature_cutoff: openff.evaluator.unit.Quantity
             The maximum difference in the target and data temperatures.
 
         Returns

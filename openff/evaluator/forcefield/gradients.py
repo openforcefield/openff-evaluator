@@ -1,6 +1,7 @@
 import numpy
-import pint
 import pint.compat
+
+from openff.evaluator import unit
 
 
 class ParameterGradientKey:
@@ -122,13 +123,13 @@ class ParameterGradient:
         """
         Parameters
         ----------
-        other: float, int, pint.Quantity
+        other: float, int, openff.evaluator.unit.Quantity
         """
 
         if (
             not isinstance(other, float)
             and not isinstance(other, int)
-            and not isinstance(other, pint.Quantity)
+            and not isinstance(other, unit.Quantity)
         ):
 
             raise ValueError(
@@ -145,13 +146,13 @@ class ParameterGradient:
         """
         Parameters
         ----------
-        other: float, int, pint.Quantity
+        other: float, int, openff.evaluator.unit.Quantity
         """
 
         if (
             not isinstance(other, float)
             and not isinstance(other, int)
-            and not isinstance(other, pint.Quantity)
+            and not isinstance(other, unit.Quantity)
         ):
 
             raise ValueError(
