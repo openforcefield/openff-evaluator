@@ -6,7 +6,6 @@ import logging
 from typing import TYPE_CHECKING, Optional, Tuple
 
 import numpy
-import pint
 from pint import UndefinedUnitError
 from simtk import openmm
 from simtk import unit as simtk_unit
@@ -106,44 +105,17 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
     return platform
 
 
-# Some openmm units are not currently supported.
-unsupported_openmm_units = {
-    simtk_unit.yottojoule,
-    simtk_unit.item,
-    simtk_unit.yottopascal,
-    simtk_unit.century,
-    simtk_unit.yottosecond,
-    simtk_unit.yottogram,
-    simtk_unit.bohr,
-    simtk_unit.yottocalorie,
-    simtk_unit.yottoliter,
-    simtk_unit.yottometer,
-    simtk_unit.debye,
-    simtk_unit.yottonewton,
-    simtk_unit.ban,
-    simtk_unit.yottomolar,
-    simtk_unit.nat,
-    simtk_unit.mmHg,
-    simtk_unit.year,
-    simtk_unit.psi,
-    simtk_unit.pound_mass,
-    simtk_unit.stone,
-    simtk_unit.millenium,
-    simtk_unit.gauss,
-}
-
-
 def openmm_quantity_to_pint(openmm_quantity):
-    """Converts a `simtk.pint.Quantity` to a `pint.Quantity`.
+    """Converts a `simtk.unit.Quantity` to a `openff.evaluator.unit.Quantity`.
 
     Parameters
     ----------
-    openmm_quantity: simtk.pint.Quantity
+    openmm_quantity: simtk.unit.Quantity
         The quantity to convert.
 
     Returns
     -------
-    pint.Quantity
+    openff.evaluator.unit.Quantity
         The converted quantity.
     """
 
@@ -151,13 +123,6 @@ def openmm_quantity_to_pint(openmm_quantity):
         return None
 
     assert isinstance(openmm_quantity, simtk_unit.Quantity)
-
-    if openmm_quantity.unit in unsupported_openmm_units:
-
-        raise ValueError(
-            f"Quantities bearing the {openmm_quantity.unit} are not "
-            f"currently supported by pint."
-        )
 
     openmm_unit = openmm_quantity.unit
     openmm_raw_value = openmm_quantity.value_in_unit(openmm_unit)
@@ -169,7 +134,7 @@ def openmm_quantity_to_pint(openmm_quantity):
 
 
 def openmm_unit_to_pint(openmm_unit):
-    """Converts a `simtk.unit.Unit` to a `pint.Unit`.
+    """Converts a `simtk.unit.Unit` to a `openff.evaluator.unit.Unit`.
 
     Parameters
     ----------
@@ -178,7 +143,7 @@ def openmm_unit_to_pint(openmm_unit):
 
     Returns
     -------
-    pint.Unit
+    openff.evaluator.unit.Unit
         The converted unit.
     """
     from openforcefield.utils import unit_to_string
@@ -187,13 +152,6 @@ def openmm_unit_to_pint(openmm_unit):
         return None
 
     assert isinstance(openmm_unit, simtk_unit.Unit)
-
-    if openmm_unit in unsupported_openmm_units:
-
-        raise ValueError(
-            f"Quantities bearing the {openmm_unit} are not "
-            f"currently supported by pint."
-        )
 
     openmm_unit_string = unit_to_string(openmm_unit)
 
@@ -212,7 +170,7 @@ def openmm_unit_to_pint(openmm_unit):
 
         logger.info(
             f"The {openmm_unit_string} OMM unit string (based on the {openmm_unit} object) "
-            f"is undefined in pint"
+            f"is not supported."
         )
 
         raise
@@ -221,7 +179,7 @@ def openmm_unit_to_pint(openmm_unit):
 
 
 def pint_quantity_to_openmm(pint_quantity):
-    """Converts a `pint.Quantity` to a `simtk.pint.Quantity`.
+    """Converts a `openff.evaluator.unit.Quantity` to a `simtk.unit.Quantity`.
 
     Notes
     -----
@@ -229,19 +187,19 @@ def pint_quantity_to_openmm(pint_quantity):
 
     Parameters
     ----------
-    pint_quantity: pint.Quantity
+    pint_quantity: openff.evaluator.unit.Quantity
         The quantity to convert.
 
     Returns
     -------
-    simtk.pint.Quantity
+    simtk.unit.Quantity
         The converted quantity.
     """
 
     if pint_quantity is None or isinstance(pint_quantity, UndefinedAttribute):
         return None
 
-    assert isinstance(pint_quantity, pint.Quantity)
+    assert isinstance(pint_quantity, unit.Quantity)
 
     pint_unit = pint_quantity.units
     pint_raw_value = pint_quantity.magnitude
@@ -253,7 +211,7 @@ def pint_quantity_to_openmm(pint_quantity):
 
 
 def pint_unit_to_openmm(pint_unit):
-    """Converts a `pint.Unit` to a `simtk.unit.Unit`.
+    """Converts a `openff.evaluator.unit.Unit` to a `simtk.unit.Unit`.
 
     Notes
     -----
@@ -261,7 +219,7 @@ def pint_unit_to_openmm(pint_unit):
 
     Parameters
     ----------
-    pint_unit: pint.Unit
+    pint_unit: openff.evaluator.unit.Unit
         The unit to convert.
 
     Returns
@@ -274,7 +232,7 @@ def pint_unit_to_openmm(pint_unit):
     if pint_unit is None or isinstance(pint_unit, UndefinedAttribute):
         return None
 
-    assert isinstance(pint_unit, pint.Unit)
+    assert isinstance(pint_unit, unit.Unit)
 
     pint_unit_string = f"{pint_unit:!s}"
 

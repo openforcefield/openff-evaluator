@@ -69,6 +69,14 @@ class Batch(AttributeClass):
         type_hint=list,
     )
 
+    enable_data_caching = Attribute(
+        docstring="Whether the server should attempt to cache any data, mainly the "
+        "output of simulations, produced by this batch for future re-processing (e.g "
+        "for reweighting).",
+        type_hint=bool,
+        default_value=True,
+    )
+
     queued_properties = Attribute(
         docstring="The set of properties which have yet to be estimated.",
         type_hint=list,
@@ -145,6 +153,7 @@ class EvaluatorServer:
         storage_backend=None,
         port=8000,
         working_directory="working-data",
+        enable_data_caching=True,
     ):
         """Constructs a new EvaluatorServer object.
 
@@ -159,6 +168,10 @@ class EvaluatorServer:
             The port on which to listen for incoming client requests.
         working_directory: str
             The local directory in which to store all local, temporary calculation data.
+        enable_data_caching: bool
+            Whether the server should attempt to cache any data, mainly the output of
+            simulations, produced by estimation requests for future re-processing (e.g
+            for reweighting).
         """
 
         # Initialize the main 'server' attributes.
@@ -178,6 +191,7 @@ class EvaluatorServer:
             storage_backend = LocalFileStorage()
 
         self._storage_backend = storage_backend
+        self._enable_data_caching = enable_data_caching
 
         self._working_directory = working_directory
         os.makedirs(self._working_directory, exist_ok=True)
@@ -278,6 +292,7 @@ class EvaluatorServer:
 
             batch = Batch()
             batch.force_field_id = force_field_id
+            batch.enable_data_caching = self._enable_data_caching
 
             # Make sure we don't somehow generate the same uuid
             # twice (although this is very unlikely to ever happen).
@@ -355,6 +370,7 @@ class EvaluatorServer:
 
             batch = Batch()
             batch.force_field_id = force_field_id
+            batch.enable_data_caching = self._enable_data_caching
 
             # Make sure we don't somehow generate the same uuid
             # twice (although this is very unlikely to ever happen).

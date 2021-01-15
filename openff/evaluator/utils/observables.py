@@ -229,7 +229,7 @@ class _Observable(abc.ABC):
 
         if isinstance(self._value, unit.Measurement):
             # Fix a quirk where a quantity divided by a measurement is a unit wrapped
-            # uncertainty object rather than a full pint measurement object.
+            # uncertainty object rather than a full measurement object.
             value = unit.Measurement(
                 value.magnitude.nominal_value * value.units,
                 value.magnitude.std_dev * value.units,
@@ -288,7 +288,7 @@ class Observable(_Observable):
     ):
 
         if value is not None and not isinstance(
-            value, (pint.Quantity, unit.Quantity, pint.Measurement, unit.Measurement)
+            value, (unit.Quantity, unit.Measurement)
         ):
 
             raise TypeError(
@@ -296,9 +296,7 @@ class Observable(_Observable):
                 "an `openff.evaluator.unit.Quantity`."
             )
 
-        if value is not None and not isinstance(
-            value, (pint.Measurement, unit.Measurement)
-        ):
+        if value is not None and not isinstance(value, unit.Measurement):
 
             if value is not None and not isinstance(value.magnitude, (int, float)):
                 raise TypeError("The value must be a unit-wrapped integer or float.")
@@ -549,7 +547,7 @@ class ObservableFrame(MutableMapping[Union[str, ObservableType], ObservableArray
     enumerated by the ``ObservableType`` enum.
     """
 
-    _units: Dict[ObservableType, pint.Unit] = {
+    _units: Dict[ObservableType, unit.Unit] = {
         ObservableType.PotentialEnergy: unit.kilojoules / unit.mole,
         ObservableType.KineticEnergy: unit.kilojoules / unit.mole,
         ObservableType.TotalEnergy: unit.kilojoules / unit.mole,

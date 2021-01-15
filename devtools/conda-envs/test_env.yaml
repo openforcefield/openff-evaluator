@@ -13,13 +13,13 @@ dependencies:
   - codecov
 
     # Standard dependencies
-  - openforcefield >=0.4.1
+  - openforcefield >=0.7.1
   - smirnoff99frosst
   - numpy
   - pandas
   - openmm
   - networkx
-  - pint >=0.10.1,<0.15
+  - pint >=0.16.1
   - packmol
   - pymbar >=3.0.5
   - mdtraj >=1.9.3

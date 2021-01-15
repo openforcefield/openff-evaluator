@@ -11,8 +11,8 @@
 .. |parameter_gradient|      replace:: :py:class:`~openff.evaluator.forcefield.ParameterGradient`
 .. |parameter_gradient_key|  replace:: :py:class:`~openff.evaluator.forcefield.ParameterGradientKey`
 
-.. |quantity|                replace:: :py:class:`~pint.Quantity`
-.. |measurement|             replace:: :py:class:`~pint.Measurement`
+.. |quantity|                replace:: :py:class:`~openff.evaluator.utils.units.Quantity`
+.. |measurement|             replace:: :py:class:`~openff.evaluator.utils.units.Measurement`
 
 .. |float|                   replace:: :py:class:`~float`
 .. |int|                     replace:: :py:class:`~int`
@@ -57,17 +57,17 @@ Supported Operations
 
 .. rst-class:: spaced-list
 
-    - **+ and -**: |observable| objects can be summed with and subtracted from other |observable| objects, pint
+    - **+ and -**: |observable| objects can be summed with and subtracted from other |observable| objects,
       |quantity| objects, floats or integers. When two |observable| objects are summed / subtracted, their gradients are
       combined by summing / subtracting also. When an |observable| is summed / subtracted with a |quantity|,
       |float| or |int| object it is assumed that these objects do not depend on any force field parameters.
 
-    - **\***: |observable| objects may be multiplied by other |observable| objects, pint |quantity| objects, and |float|
+    - **\***: |observable| objects may be multiplied by other |observable| objects, |quantity| objects, and |float|
       or |int| objects. When two |observable| objects are multiplied their gradients are propagated using the product
       rule. When an |observable| is multiplied by a |quantity|, |float| or |int| object it is assumed that these
       objects do not depend on any force field parameters.
 
-    - **/**: |observable| objects may be divided by other |observable| objects, pint |quantity| objects, and |float| or
+    - **/**: |observable| objects may be divided by other |observable| objects, |quantity| objects, and |float| or
       |int| objects. Gradients are propagated through the division using the quotient rule. When an |observable| is
       divided by a |quantity|, |float| or |int| object (or when these objects are divided by an |observable| object)
       it is assumed that these objects do not depend on any force field parameters.

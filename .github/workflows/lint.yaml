@@ -2,10 +2,13 @@ name: lint
 
 on:
   push:
-    paths:
-      - 'openff/**.py'
-      - 'integration-tests/**.py'
-      - 'setup.cfg'
+    branches:
+      - "master"
+  pull_request:
+    branches:
+      - "master"
+  schedule:
+    - cron: "0 0 * * *"
 
 jobs:
 
@@ -16,7 +19,7 @@ jobs:
     steps:
 
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v1
+      - uses: actions/setup-python@v2.2.1
         with:
           python-version: '3.7'
       - name: Install the package

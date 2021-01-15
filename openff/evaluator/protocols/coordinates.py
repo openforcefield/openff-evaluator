@@ -7,7 +7,6 @@ from enum import Enum
 from os import path
 
 import numpy as np
-import pint
 from simtk.openmm import app
 
 from openff.evaluator import unit
@@ -43,7 +42,7 @@ class BuildCoordinatesPackmol(Protocol):
     )
     mass_density = InputAttribute(
         docstring="The target density of the created system.",
-        type_hint=pint.Quantity,
+        type_hint=unit.Quantity,
         default_value=0.95 * unit.grams / unit.milliliters,
     )
 
@@ -61,7 +60,7 @@ class BuildCoordinatesPackmol(Protocol):
     tolerance = InputAttribute(
         docstring="The packmol distance tolerance in units compatible "
         "with angstroms.",
-        type_hint=pint.Quantity,
+        type_hint=unit.Quantity,
         default_value=2.0 * unit.angstrom,
     )
 
@@ -243,6 +242,10 @@ class BuildCoordinatesPackmol(Protocol):
         trajectory : mdtraj.Trajectory
             The trajectory of the created system.
         """
+
+        # Fix mdtraj #1611
+        for atom in trajectory.topology.atoms:
+            atom.serial = None
 
         self.coordinate_file_path = path.join(directory, "output.pdb")
         trajectory.save_pdb(self.coordinate_file_path)

@@ -1,7 +1,6 @@
 from typing import Union
 
-import pint
-
+from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.layers import registered_calculation_schemas
 from openff.evaluator.workflow import Protocol, Workflow, workflow_protocol
@@ -62,7 +61,7 @@ class DummyReplicableProtocol(Protocol):
     replicated_value_b = InputAttribute(
         docstring="", type_hint=Union[str, int, float], default_value=UNDEFINED
     )
-    final_value = OutputAttribute(docstring="", type_hint=pint.Measurement)
+    final_value = OutputAttribute(docstring="", type_hint=unit.Measurement)
 
     def _execute(self, directory, available_resources):
         pass

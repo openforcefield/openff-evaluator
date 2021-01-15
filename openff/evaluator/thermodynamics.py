@@ -3,8 +3,6 @@ Defines an API for defining thermodynamic states.
 """
 from enum import Enum
 
-import pint
-
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 
@@ -36,10 +34,10 @@ class ThermodynamicState(AttributeClass):
     """
 
     temperature = Attribute(
-        docstring="The external temperature.", type_hint=pint.Quantity
+        docstring="The external temperature.", type_hint=unit.Quantity
     )
     pressure = Attribute(
-        docstring="The external pressure.", type_hint=pint.Quantity, optional=True
+        docstring="The external pressure.", type_hint=unit.Quantity, optional=True
     )
 
     @property
@@ -59,9 +57,9 @@ class ThermodynamicState(AttributeClass):
 
         Parameters
         ----------
-        temperature : pint.Quantity
+        temperature : openff.evaluator.unit.Quantity
             The external temperature
-        pressure : pint.Quantity
+        pressure : openff.evaluator.unit.Quantity
             The external pressure
         """
         if temperature is not None:

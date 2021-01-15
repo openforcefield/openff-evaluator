@@ -9,6 +9,18 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
 
+0.3.2
+-----
+
+This release exposes the option to disable caching of simulation data by an evaluator server. The performance of the
+local storage backend is currently poor when dealing with large amounts of cached data and hence it may be preferable
+to disable caching in such cases.
+
+New Features
+""""""""""""
+
+* PR `#337 <https://github.com/openforcefield/openff-evaluator/pull/337>`_: Expose server option to dis/enable data caching.
+
 0.3.1
 -----
 
