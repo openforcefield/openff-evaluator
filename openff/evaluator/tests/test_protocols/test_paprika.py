@@ -623,14 +623,15 @@ def test_compute_potential_energy_gradient(tmp_path):
     import mdtraj
     from simtk import openmm
 
+    smiles = "C"
     substance = Substance()
     substance.add_component(
-        Component(smiles="C", role=Component.Role.Ligand), ExactAmount(1)
+        Component(smiles=smiles, role=Component.Role.Ligand), ExactAmount(1)
     )
 
     # Create XML files
     topology_path = os.path.join(tmp_path, "topology.pdb")
-    methane = Molecule.from_smiles("C")
+    methane = Molecule.from_smiles(smiles)
     methane.to_file(topology_path, "PDB")
 
     topology = Topology.from_openmm(
@@ -661,10 +662,10 @@ def test_compute_potential_energy_gradient(tmp_path):
     protocol.thermodynamic_state = ThermodynamicState(temperature=298.15 * unit.kelvin)
     protocol.enable_pbc = False
     protocol.gradient_parameters = [
-        ParameterGradientKey(tag="vdW", smirks="[#6:1]", attribute="rmin_half"),
-        ParameterGradientKey(tag="vdW", smirks="[#6:1]", attribute="epsilon"),
+        ParameterGradientKey(tag="vdW", smirks="[#1:1]", attribute="rmin_half"),
+        ParameterGradientKey(tag="vdW", smirks="[#1:1]", attribute="epsilon"),
     ]
-    protocol.execute()
+    protocol.execute(str(tmp_path))
 
     assert (
         protocol.potential_energy_gradients[0].value
