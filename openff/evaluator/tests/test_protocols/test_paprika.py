@@ -2,12 +2,21 @@ import os
 
 import numpy
 import pytest
+from openforcefield.topology import Molecule, Topology
+from openforcefield.typing.engines.smirnoff import ForceField
 
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
+from openff.evaluator.forcefield import (
+    ParameterGradient,
+    ParameterGradientKey,
+    SmirnoffForceFieldSource,
+)
 from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.protocols.paprika.analysis import (
     AnalyzeAPRPhase,
+    ComputeFreeEnergyGradient,
+    ComputePotentialEnergyGradient,
     ComputeReferenceWork,
     ComputeSymmetryCorrection,
 )
@@ -21,12 +30,15 @@ from openff.evaluator.protocols.paprika.coordinates import (
 from openff.evaluator.protocols.paprika.restraints import (
     ApplyRestraints,
     GenerateAttachRestraints,
+    GenerateBoundRestraints,
     GeneratePullRestraints,
     GenerateReleaseRestraints,
+    GenerateUnboundRestraints,
 )
 from openff.evaluator.substances import Component, ExactAmount, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils import get_data_filename
+from openff.evaluator.utils.observables import Observable
 
 
 @pytest.fixture(scope="module")
@@ -127,6 +139,31 @@ def release_restraints_path(tmp_path, complex_file_path, restraints_schema):
     protocol = GenerateReleaseRestraints("")
     protocol.host_coordinate_path = complex_file_path
     protocol.release_lambdas = [1.0]
+    protocol.restraint_schemas = restraints_schema
+    protocol.execute(str(tmp_path))
+
+    return protocol.restraints_path
+
+
+@pytest.fixture()
+def bound_restraints_path(tmp_path, complex_file_path, restraints_schema):
+
+    protocol = GenerateBoundRestraints("")
+    protocol.complex_coordinate_path = complex_file_path
+    protocol.attach_lambdas = [1.0]
+    protocol.restraint_schemas = restraints_schema
+    protocol.execute(str(tmp_path))
+
+    return protocol.restraints_path
+
+
+@pytest.fixture()
+def unbound_restraints_path(tmp_path, complex_file_path, restraints_schema):
+
+    protocol = GenerateUnboundRestraints("")
+    protocol.complex_coordinate_path = complex_file_path
+    protocol.attach_lambdas = [0.0]
+    protocol.n_pull_windows = 1
     protocol.restraint_schemas = restraints_schema
     protocol.execute(str(tmp_path))
 
@@ -250,11 +287,11 @@ def test_add_dummy_atoms(tmp_path, dummy_complex):
     assert trajectory.topology.n_atoms == 14
 
     assert numpy.allclose(trajectory.xyz[0][11:12, :2], 2.5)
-    assert numpy.isclose(trajectory.xyz[0][11, 2], 0.62)
-    assert numpy.isclose(trajectory.xyz[0][12, 2], 0.32)
+    assert numpy.isclose(trajectory.xyz[0][11, 2], 1.12)
+    assert numpy.isclose(trajectory.xyz[0][12, 2], 0.82)
     assert numpy.isclose(trajectory.xyz[0][13, 0], 2.5)
     assert numpy.isclose(trajectory.xyz[0][13, 1], 2.72)
-    assert numpy.isclose(trajectory.xyz[0][13, 2], 0.1)
+    assert numpy.isclose(trajectory.xyz[0][13, 2], 0.6)
 
     # Validate the atom / residue names.
     all_atoms = [*trajectory.topology.atoms]
@@ -366,6 +403,37 @@ def test_generate_release_restraints(tmp_path, complex_file_path, restraints_sch
     )
 
 
+def test_generate_bound_restraints(tmp_path, complex_file_path, restraints_schema):
+
+    protocol = GenerateBoundRestraints("")
+    protocol.complex_coordinate_path = complex_file_path
+    protocol.attach_lambdas = [0.0, 1.0]
+    protocol.restraint_schemas = restraints_schema
+
+    protocol.execute(str(tmp_path))
+
+    assert os.path.isfile(protocol.restraints_path)
+
+    validate_generated_restraints(
+        protocol.restraints_path, {"static", "wall", "symmetry"}, "attach"
+    )
+
+
+def test_generate_unbound_restraints(tmp_path, complex_file_path, restraints_schema):
+
+    protocol = GenerateUnboundRestraints("")
+    protocol.complex_coordinate_path = complex_file_path
+    protocol.attach_lambdas = [0.0, 1.0]
+    protocol.n_pull_windows = 2
+    protocol.restraint_schemas = restraints_schema
+
+    protocol.execute(str(tmp_path))
+
+    assert os.path.isfile(protocol.restraints_path)
+
+    validate_generated_restraints(protocol.restraints_path, {"static", "guest"}, "pull")
+
+
 def test_apply_attach_restraints(
     tmp_path, dummy_complex, complex_file_path, attach_restraints_path
 ):
@@ -441,6 +509,56 @@ def test_apply_release_restraints(
     validate_system_file(protocol.output_system.system_path, {10, 11})
 
 
+def test_apply_bound_restraints(
+    tmp_path, dummy_complex, complex_file_path, bound_restraints_path
+):
+
+    from simtk import openmm
+
+    with open(os.path.join(tmp_path, "system.xml"), "w") as file:
+        file.write(openmm.XmlSerializer.serialize(openmm.System()))
+
+    protocol = ApplyRestraints("")
+    protocol.restraints_path = bound_restraints_path
+    protocol.input_coordinate_path = complex_file_path
+    protocol.input_system = ParameterizedSystem(
+        substance=dummy_complex,
+        force_field=None,
+        topology_path=complex_file_path,
+        system_path=os.path.join(tmp_path, "system.xml"),
+    )
+    protocol.phase = "attach"
+    protocol.window_index = 0
+    protocol.execute(str(tmp_path))
+
+    validate_system_file(protocol.output_system.system_path, {10, 13, 14})
+
+
+def test_apply_unbound_restraints(
+    tmp_path, dummy_complex, complex_file_path, unbound_restraints_path
+):
+
+    from simtk import openmm
+
+    with open(os.path.join(tmp_path, "system.xml"), "w") as file:
+        file.write(openmm.XmlSerializer.serialize(openmm.System()))
+
+    protocol = ApplyRestraints("")
+    protocol.restraints_path = unbound_restraints_path
+    protocol.input_coordinate_path = complex_file_path
+    protocol.input_system = ParameterizedSystem(
+        substance=dummy_complex,
+        force_field=None,
+        topology_path=complex_file_path,
+        system_path=os.path.join(tmp_path, "system.xml"),
+    )
+    protocol.phase = "pull"
+    protocol.window_index = 0
+    protocol.execute(str(tmp_path))
+
+    validate_system_file(protocol.output_system.system_path, {10, 12})
+
+
 def test_compute_reference_work(tmp_path, complex_file_path):
 
     # Generate a dummy set of pull restraints
@@ -498,6 +616,98 @@ def test_compute_symmetry_correction(temperature, n_microstates):
     )
 
     assert numpy.isclose(protocol.result.value, expected_value)
+
+
+def test_compute_potential_energy_gradient(tmp_path):
+
+    import mdtraj
+    from simtk import openmm
+
+    substance = Substance()
+    substance.add_component(
+        Component(smiles="C", role=Component.Role.Ligand), ExactAmount(1)
+    )
+
+    # Create XML files
+    topology_path = os.path.join(tmp_path, "topology.pdb")
+    methane = Molecule.from_smiles("C")
+    methane.to_file(topology_path, "PDB")
+
+    topology = Topology.from_openmm(
+        methane.to_topology().to_openmm(), unique_molecules=[methane]
+    )
+    forcefield = ForceField("openff-1.2.0.offxml")
+    system = forcefield.create_openmm_system(topology)
+    system_path = os.path.join(tmp_path, "system.xml")
+
+    with open(system_path, "w") as file:
+        file.write(openmm.XmlSerializer.serialize(system))
+
+    # Create a trajectory to load
+    trajectory_path = os.path.join(tmp_path, "trajectory.dcd")
+    trajectory: mdtraj.Trajectory = mdtraj.load_pdb(topology_path)
+    trajectory.save_dcd(trajectory_path)
+
+    # Compute gradient of potential enery
+    protocol = ComputePotentialEnergyGradient("")
+    protocol.input_system = ParameterizedSystem(
+        substance=substance,
+        force_field=SmirnoffForceFieldSource.from_object(forcefield),
+        topology_path=topology_path,
+        system_path=system_path,
+    )
+    protocol.topology_path = topology_path
+    protocol.trajectory_path = trajectory_path
+    protocol.thermodynamic_state = ThermodynamicState(temperature=298.15 * unit.kelvin)
+    protocol.enable_pbc = False
+    protocol.gradient_parameters = [
+        ParameterGradientKey(tag="vdW", smirks="[#6:1]", attribute="rmin_half"),
+        ParameterGradientKey(tag="vdW", smirks="[#6:1]", attribute="epsilon"),
+    ]
+    protocol.execute()
+
+    assert (
+        protocol.potential_energy_gradients[0].value
+        == 0.0 * unit.kilojoule / unit.mole / unit.angstrom
+    )
+    assert (
+        protocol.potential_energy_gradients[1].value
+        == 0.0 * unit.kilojoule / unit.kilocalorie
+    )
+
+
+def test_compute_free_energy_gradient(tmp_path):
+
+    protocol = ComputeFreeEnergyGradient("")
+    protocol.bound_state_gradients = [
+        [
+            ParameterGradient(
+                key=ParameterGradientKey("vdW", "[#6:1]", "sigma"),
+                value=-10.0 * unit.kilocalorie / unit.mole / unit.angstrom,
+            ),
+        ]
+    ]
+    protocol.unbound_state_gradients = [
+        [
+            ParameterGradient(
+                key=ParameterGradientKey("vdW", "[#6:1]", "sigma"),
+                value=-5.0 * unit.kilocalorie / unit.mole / unit.angstrom,
+            ),
+        ]
+    ]
+    protocol.orientation_free_energy = Observable(
+        value=(-10.0 * unit.kilocalorie / unit.mole).plus_minus(
+            1.0 * unit.kilocalorie / unit.mole
+        ),
+        gradients=[],
+    )
+    protocol.execute()
+
+    assert protocol.result.value == -10.0 * unit.kilocalorie / unit.mole
+    assert (
+        protocol.result.gradients[0].value
+        == -5.0 * unit.kilocalorie / unit.mole / unit.angstrom
+    )
 
 
 def test_analyse_apr(tmp_path, monkeypatch, complex_file_path):
