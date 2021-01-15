@@ -275,7 +275,7 @@ class AddDummyAtoms(Protocol):
             [
                 input_structure.box[0] * 0.5,
                 input_structure.box[1] * 0.5,
-                -input_structure.coordinates[-1, 2] + 1.0,
+                -input_structure.coordinates[-1, 2] + 6.0,
             ]
         )
 
