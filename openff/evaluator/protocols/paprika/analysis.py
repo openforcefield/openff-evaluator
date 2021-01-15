@@ -147,6 +147,11 @@ class ComputePotentialEnergyGradient(Protocol):
         type_hint=ThermodynamicState,
         default_value=UNDEFINED,
     )
+    enable_pbc = InputAttribute(
+        docstring="Whether PBC should be enabled when re-evaluating system energies.",
+        type_hint=bool,
+        default_value=True,
+    )
     gradient_parameters = InputAttribute(
         docstring="An optional list of parameters to differentiate the estimated "
         "free energy with respect to.",
@@ -173,15 +178,6 @@ class ComputePotentialEnergyGradient(Protocol):
         destination_trajectory_path = os.path.join(windows_directory, "trajectory.dcd")
 
         # Work around because dummy atoms are not support in OFF.
-        # Write a new DCD file without dummy atoms.
-        trajectory = mdtraj.load_dcd(
-            os.path.join(os.getcwd(), self.trajectory_path),
-            top=os.path.join(os.getcwd(), self.topology_path),
-        )
-        trajectory.atom_slice([i for i in range(trajectory.n_atoms - 3)]).save_dcd(
-            destination_trajectory_path
-        )
-
         # Write a new PDB file without dummy atoms.
         coords = PDBFile(self.topology_path)
         new_topology = Modeller(coords.topology, coords.positions)
@@ -195,6 +191,15 @@ class ComputePotentialEnergyGradient(Protocol):
                 file,
                 keepIds=True,
             )
+
+        # Write a new DCD file without dummy atoms.
+        trajectory = mdtraj.load_dcd(
+            os.path.join(os.getcwd(), self.trajectory_path),
+            top=os.path.join(os.getcwd(), self.topology_path),
+        )
+        trajectory.atom_slice([i for i in range(trajectory.n_atoms - len(dummy_atoms))]).save_dcd(
+            destination_trajectory_path
+        )
 
         # Load in the new trajectory
         trajectory = mdtraj.load_dcd(
@@ -220,6 +225,7 @@ class ComputePotentialEnergyGradient(Protocol):
             self.input_system.topology,
             trajectory,
             available_resources,
+            self.enable_pbc,
         )
 
         self.potential_energy_gradients = [

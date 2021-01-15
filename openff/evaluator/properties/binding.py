@@ -244,12 +244,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
     @classmethod
     def _paprika_default_simulation_protocols(
         cls,
-        n_thermalization_steps: int,
-        n_equilibration_steps: int,
-        n_production_steps: int,
-        dt_thermalization: unit.Quantity,
-        dt_equilibration: unit.Quantity,
-        dt_production: unit.Quantity,
+        simulation_time_steps: dict,
     ) -> Tuple[
         openmm.OpenMMEnergyMinimisation,
         openmm.OpenMMSimulation,
@@ -261,22 +256,11 @@ class HostGuestBindingAffinity(PhysicalProperty):
 
         Parameters
         ----------
-        n_thermalization_steps
-            The number of thermalization simulations steps to perform.
-            Sample generated during this step will be discarded.
-        n_equilibration_steps
-            The number of equilibration simulations steps to perform.
-            Sample generated during this step will be discarded.
-        n_production_steps
-            The number of production simulations steps to perform.
-            Sample generated during this step will be used in the final
-            free energy calculation.
-        dt_thermalization
-            The integration timestep during thermalization
-        dt_equilibration
-            The integration timestep during equilibration
-        dt_production
-            The integration timestep during production
+        simulation_time_steps
+            A dictionary containing `n_xxx_steps`, `out_xxx_steps` and `dt_xxx`, corresponding
+            to number of steps, output frequency and integration time step, respectively.
+            The dictionary requires three sets for `thermalization`, `equilibration` and
+            `production` runs.
 
         Returns
         -------
@@ -286,19 +270,23 @@ class HostGuestBindingAffinity(PhysicalProperty):
         energy_minimisation = openmm.OpenMMEnergyMinimisation("")
 
         thermalization = openmm.OpenMMSimulation("")
-        thermalization.steps_per_iteration = n_thermalization_steps
-        thermalization.output_frequency = 5000
-        thermalization.timestep = dt_thermalization
+        thermalization.steps_per_iteration = simulation_time_steps[
+            "n_thermalization_steps"
+        ]
+        thermalization.output_frequency = simulation_time_steps["out_thermalization"]
+        thermalization.timestep = simulation_time_steps["dt_thermalization"]
 
         equilibration = openmm.OpenMMSimulation("")
-        equilibration.steps_per_iteration = n_equilibration_steps
-        equilibration.output_frequency = 5000
-        equilibration.timestep = dt_equilibration
+        equilibration.steps_per_iteration = simulation_time_steps[
+            "n_equilibration_steps"
+        ]
+        equilibration.output_frequency = simulation_time_steps["out_equilibration"]
+        equilibration.timestep = simulation_time_steps["dt_equilibration"]
 
         production = openmm.OpenMMSimulation("")
-        production.steps_per_iteration = n_production_steps
-        production.output_frequency = 2500
-        production.timestep = dt_production
+        production.steps_per_iteration = simulation_time_steps["n_production_steps"]
+        production.output_frequency = simulation_time_steps["out_production"]
+        production.timestep = simulation_time_steps["dt_production"]
 
         return energy_minimisation, thermalization, equilibration, production
 
@@ -1094,11 +1082,10 @@ class HostGuestBindingAffinity(PhysicalProperty):
         n_solvent_molecules: int, optional
             The number of solvent molecules to add to the box.
         simulation_time_steps: dict, optional
-            The integration timestep (`dt_thermalization`, `dt_equilibration`,
-            `dt_production`) and number of steps to perform (`n_thermalization_steps`,
-            `n_equilibration_steps`, `n_production_steps`) stored in a dictionary.
-            Integration timesteps should be a pint.Quantity and number of steps are
-            integers.
+            The integration timestep `dt_xxx`, number of steps to perform `n_xxx_steps`
+            and output frequency `out_xxx` stored in a dictionary for thermalization,
+            equilibration and production runs. The integration timesteps is a
+            pint.Quantity, and number of steps and output frequency are integers.
             Sample generated during thermalization and equilibration runs will
             be discarded while the production run will be used in the final
             free energy.
@@ -1124,37 +1111,38 @@ class HostGuestBindingAffinity(PhysicalProperty):
             assert isinstance(existing_schema, SimulationSchema)
             calculation_schema = copy.deepcopy(existing_schema)
 
-        # Check user input for time steps
-        if simulation_time_steps is None:
-            simulation_time_steps = {
-                "n_thermalization_steps": 50000,
-                "n_equilibration_steps": 500000,
-                "n_production_steps": 1000000,
-                "dt_thermalization": 1.0 * unit.femtosecond,
-                "dt_equilibration": 2.0 * unit.femtosecond,
-                "dt_production": 2.0 * unit.femtosecond,
-            }
-        else:
-            keys = [
-                "n_thermalization_steps",
-                "n_equilibration_steps",
-                "n_production_steps",
-                "dt_thermalization",
-                "dt_equilibration",
-                "dt_production",
-            ]
-            assert all([key in simulation_time_steps.keys() for key in keys])
+        # Check user input for simulation time steps
+        default_time_steps = {
+            "n_thermalization_steps": 50000,
+            "n_equilibration_steps": 500000,
+            "n_production_steps": 1000000,
+            "dt_thermalization": 1.0 * unit.femtosecond,
+            "dt_equilibration": 2.0 * unit.femtosecond,
+            "dt_production": 2.0 * unit.femtosecond,
+            "out_thermalization": 10000,
+            "out_equilibration": 10000,
+            "out_production": 5000,
+        }
+        assert all(
+            [key in default_time_steps.keys() for key in simulation_time_steps.keys()]
+        )
 
+        for key in default_time_steps:
+            if key not in simulation_time_steps:
+                simulation_time_steps[key] = default_time_steps[key]
+
+        # Check user input for end-states time steps
         if end_states_time_steps:
-            keys = [
-                "n_thermalization_steps",
-                "n_equilibration_steps",
-                "n_production_steps",
-                "dt_thermalization",
-                "dt_equilibration",
-                "dt_production",
-            ]
-            assert all([key in end_states_time_steps.keys() for key in keys])
+            assert all(
+                [
+                    key in default_time_steps.keys()
+                    for key in end_states_time_steps.keys()
+                ]
+            )
+
+            for key in default_time_steps:
+                if key not in end_states_time_steps:
+                    end_states_time_steps[key] = default_time_steps[key]
 
         # Initialize the protocols which will serve as templates for those
         # used in the actual workflows.
@@ -1165,27 +1153,13 @@ class HostGuestBindingAffinity(PhysicalProperty):
         (
             minimization_template,
             *simulation_templates,
-        ) = cls._paprika_default_simulation_protocols(
-            n_thermalization_steps=simulation_time_steps["n_thermalization_steps"],
-            n_equilibration_steps=simulation_time_steps["n_equilibration_steps"],
-            n_production_steps=simulation_time_steps["n_production_steps"],
-            dt_thermalization=simulation_time_steps["dt_thermalization"],
-            dt_equilibration=simulation_time_steps["dt_equilibration"],
-            dt_production=simulation_time_steps["dt_production"],
-        )
+        ) = cls._paprika_default_simulation_protocols(simulation_time_steps)
 
         if end_states_time_steps:
             (
                 end_states_minimization_template,
                 *end_states_simulation_templates,
-            ) = cls._paprika_default_simulation_protocols(
-                n_thermalization_steps=end_states_time_steps["n_thermalization_steps"],
-                n_equilibration_steps=end_states_time_steps["n_equilibration_steps"],
-                n_production_steps=end_states_time_steps["n_production_steps"],
-                dt_thermalization=end_states_time_steps["dt_thermalization"],
-                dt_equilibration=end_states_time_steps["dt_equilibration"],
-                dt_production=end_states_time_steps["dt_production"],
-            )
+            ) = cls._paprika_default_simulation_protocols(end_states_time_steps)
 
         if debug:
 
