@@ -40,13 +40,16 @@ class _GenerateRestraints(Protocol, abc.ABC):
         self,
         directory: str,
         static_restraints,
-        conformational_restraints,
+        conformational_restraints=None,
         symmetry_restraints=None,
         wall_restraints=None,
         guest_restraints=None,
     ):
         """Saves the restraints to a convenient JSON file."""
 
+        conformational_restraints = (
+            [] if conformational_restraints is None else conformational_restraints
+        )
         symmetry_restraints = [] if symmetry_restraints is None else symmetry_restraints
         wall_restraints = [] if wall_restraints is None else wall_restraints
         guest_restraints = [] if guest_restraints is None else guest_restraints
@@ -241,6 +244,92 @@ class GenerateReleaseRestraints(_GenerateRestraints):
             directory,
             static_restraints,
             conformational_restraints,
+        )
+
+
+@workflow_protocol()
+class GenerateBoundRestraints(GenerateAttachRestraints):
+    """Generates the restraint values to apply to the bound host-guest system for the gradient
+    calculation from a set of restraint schema definitions and makes them easily accessible
+    for the protocols which will apply them to the parameterized system."""
+
+    def _execute(self, directory, available_resources):
+
+        from paprika.setup import Setup
+
+        # Construct the restraints to keep the host in place
+        static_restraints = Setup.build_static_restraints(
+            self.complex_coordinate_path,
+            len(self.attach_lambdas),
+            None,
+            None,
+            self.restraint_schemas.get("static", []),
+        )
+
+        # Construct the restraints to keep the guest at the correct
+        # distance and orientation relative to the host.
+        symmetry_restraints = Setup.build_symmetry_restraints(
+            self.complex_coordinate_path,
+            len(self.attach_lambdas),
+            self.restraint_schemas.get("symmetry", []),
+        )
+        wall_restraints = Setup.build_wall_restraints(
+            self.complex_coordinate_path,
+            len(self.attach_lambdas),
+            self.restraint_schemas.get("wall", []),
+        )
+
+        self._save_restraints(
+            directory,
+            static_restraints,
+            None,
+            symmetry_restraints,
+            wall_restraints,
+            None,
+        )
+
+
+@workflow_protocol()
+class GenerateUnboundRestraints(GeneratePullRestraints):
+    """Generates the restraint values to apply to the unbound host-guest system for the gradient
+    calculation from a set of restraint schema definitions and makes them easily accessible
+    for the protocols which will apply them to the parameterized system."""
+
+    def _execute(self, directory, available_resources):
+        from paprika.setup import Setup
+
+        # Construct the restraints to keep the host in place
+        static_restraints = Setup.build_static_restraints(
+            self.complex_coordinate_path,
+            len(self.attach_lambdas),
+            self.n_pull_windows,
+            None,
+            self.restraint_schemas.get("static", []),
+        )
+
+        # Construct the restraints to keep the guest at the correct
+        # distance and orientation relative to the host.
+        guest_restraints = Setup.build_guest_restraints(
+            self.complex_coordinate_path,
+            self.attach_lambdas,
+            self.n_pull_windows,
+            self.restraint_schemas.get("guest", []),
+        )
+
+        # Remove the attach phases from the restraints as these restraints are
+        # only being used for the pull phase.
+        for restraint in static_restraints + guest_restraints:
+
+            for key in restraint.phase["attach"]:
+                restraint.phase["attach"][key] = None
+
+        self._save_restraints(
+            directory,
+            static_restraints,
+            None,
+            None,
+            None,
+            guest_restraints,
         )
 
 

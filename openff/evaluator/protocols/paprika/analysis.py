@@ -1,10 +1,20 @@
 import os
 
+import numpy as np
+
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
+from openff.evaluator.forcefield import ParameterGradient
+from openff.evaluator.forcefield.system import ParameterizedSystem
+from openff.evaluator.protocols.openmm import _compute_gradients
 from openff.evaluator.protocols.paprika.restraints import ApplyRestraints
 from openff.evaluator.thermodynamics import ThermodynamicState
-from openff.evaluator.utils.observables import Observable
+from openff.evaluator.utils.observables import (
+    Observable,
+    ObservableArray,
+    ObservableFrame,
+    ObservableType,
+)
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
 
@@ -49,7 +59,7 @@ class AnalyzeAPRPhase(Protocol):
 
     def _execute(self, directory, available_resources):
 
-        from paprika import analyze
+        from paprika.analyze import Analyze
 
         # Set-up the expected directory structure.
         windows_directory = os.path.join(directory, "windows")
@@ -90,7 +100,7 @@ class AnalyzeAPRPhase(Protocol):
             for restraint in restraints[restraint_type]
         ]
 
-        results = analyze.compute_phase_free_energy(
+        results = Analyze.compute_phase_free_energy(
             phase=self.phase,
             restraints=flat_restraints,
             windows_directory=windows_directory,
@@ -108,6 +118,166 @@ class AnalyzeAPRPhase(Protocol):
                 / unit.mole,
                 results[self.phase]["ti-block"]["sem"] * unit.kilocalorie / unit.mole,
             )
+        )
+
+
+@workflow_protocol()
+class ComputePotentialEnergyGradient(Protocol):
+    """A protocol to calculate the gradient of the potential energy with
+    respect to a force field parameter(s) -> <dU/dθ>.
+    """
+
+    input_system = InputAttribute(
+        docstring="The file path to the force field parameters to assign to the system.",
+        type_hint=ParameterizedSystem,
+        default_value=UNDEFINED,
+    )
+    topology_path = InputAttribute(
+        docstring="The path to the topology file to compute the gradient.",
+        type_hint=str,
+        default_value=UNDEFINED,
+    )
+    trajectory_path = InputAttribute(
+        docstring="The path to the trajectory file to compute the gradient.",
+        type_hint=str,
+        default_value=UNDEFINED,
+    )
+    thermodynamic_state = InputAttribute(
+        docstring="The thermodynamic state that the calculation was performed at.",
+        type_hint=ThermodynamicState,
+        default_value=UNDEFINED,
+    )
+    enable_pbc = InputAttribute(
+        docstring="Whether PBC should be enabled when re-evaluating system energies.",
+        type_hint=bool,
+        default_value=True,
+    )
+    gradient_parameters = InputAttribute(
+        docstring="An optional list of parameters to differentiate the estimated "
+        "free energy with respect to.",
+        type_hint=list,
+        default_value=lambda: list(),
+    )
+    potential_energy_gradients = OutputAttribute(
+        docstring="The gradient of the potential energy.",
+        type_hint=list,
+    )
+
+    def _execute(self, directory, available_resources):
+
+        assert len(self.gradient_parameters) != 0
+
+        import mdtraj
+        from simtk.openmm.app import Modeller, PDBFile
+
+        # Set-up the expected directory structure.
+        windows_directory = os.path.join(directory, "window")
+        os.makedirs(windows_directory, exist_ok=True)
+
+        destination_topology_path = os.path.join(windows_directory, "topology.pdb")
+        destination_trajectory_path = os.path.join(windows_directory, "trajectory.dcd")
+
+        # Work around because dummy atoms are not support in OFF.
+        # Write a new PDB file without dummy atoms.
+        coords = PDBFile(self.topology_path)
+        new_topology = Modeller(coords.topology, coords.positions)
+        dummy_atoms = [r for r in new_topology.getTopology().atoms() if r.name == "DUM"]
+        new_topology.delete(dummy_atoms)
+
+        with open(destination_topology_path, "w") as file:
+            PDBFile.writeFile(
+                new_topology.getTopology(),
+                new_topology.getPositions(),
+                file,
+                keepIds=True,
+            )
+
+        # Write a new DCD file without dummy atoms.
+        trajectory = mdtraj.load_dcd(
+            os.path.join(os.getcwd(), self.trajectory_path),
+            top=os.path.join(os.getcwd(), self.topology_path),
+        )
+        trajectory.atom_slice(
+            [i for i in range(trajectory.n_atoms - len(dummy_atoms))]
+        ).save_dcd(destination_trajectory_path)
+
+        # Load in the new trajectory
+        trajectory = mdtraj.load_dcd(
+            destination_trajectory_path,
+            top=destination_topology_path,
+        )
+
+        # Placeholder for gradient
+        observables = ObservableFrame(
+            {
+                ObservableType.PotentialEnergy: ObservableArray(
+                    value=np.zeros((len(trajectory), 1)) * unit.kilojoule / unit.mole
+                )
+            }
+        )
+
+        # Compute the gradient in the first solvent.
+        _compute_gradients(
+            self.gradient_parameters,
+            observables,
+            self.input_system.force_field.to_force_field(),
+            self.thermodynamic_state,
+            self.input_system.topology,
+            trajectory,
+            available_resources,
+            self.enable_pbc,
+        )
+
+        self.potential_energy_gradients = [
+            ParameterGradient(key=gradient.key, value=gradient.value.mean().item())
+            for gradient in observables[ObservableType.PotentialEnergy].gradients
+        ]
+
+
+@workflow_protocol()
+class ComputeFreeEnergyGradient(Protocol):
+    """A protocol to calculate the free-energy gradient of the binding free energy
+    respect to a force field parameter(s). d(ΔG°)/dθ = <dU/dθ>_bound - <dU/dθ>_unbound
+    """
+
+    bound_state_gradients = InputAttribute(
+        docstring="The gradient of the potential energy for the bound state.",
+        type_hint=list,
+        default_value=UNDEFINED,
+    )
+    unbound_state_gradients = InputAttribute(
+        docstring="The gradient of the potential energy for the unbound state.",
+        type_hint=list,
+        default_value=UNDEFINED,
+    )
+    orientation_free_energy = InputAttribute(
+        docstring="The total free energy for a particular binding orientation.",
+        type_hint=Observable,
+        default_value=UNDEFINED,
+    )
+    result = OutputAttribute(
+        docstring="The free energy with the gradients stored as Observable.",
+        type_hint=Observable,
+    )
+
+    def _execute(self, directory, available_resources):
+
+        bound_state = {
+            gradient.key: gradient for gradient in self.bound_state_gradients[0]
+        }
+        unbound_state = {
+            gradient.key: gradient for gradient in self.unbound_state_gradients[0]
+        }
+
+        free_energy_gradients = [
+            bound_state[key] - unbound_state[key] for key in bound_state
+        ]
+
+        self.result = Observable(
+            self.orientation_free_energy.value.plus_minus(
+                self.orientation_free_energy.error
+            ),
+            gradients=free_energy_gradients,
         )
 
 
