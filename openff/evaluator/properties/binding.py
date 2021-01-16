@@ -1148,9 +1148,10 @@ class HostGuestBindingAffinity(PhysicalProperty):
             "out_equilibration": 10000,
             "out_production": 5000,
         }
-        assert all(
-            [key in default_time_steps.keys() for key in simulation_time_steps.keys()]
-        )
+        if simulation_time_steps:
+            assert all(
+                [key in default_time_steps.keys() for key in simulation_time_steps.keys()]
+            )
 
         for key in default_time_steps:
             if key not in simulation_time_steps:
