@@ -348,12 +348,12 @@ class HostGuestBindingAffinity(PhysicalProperty):
         cls,
         orientation_replicator: ProtocolReplicator,
         restraint_schemas: Dict[str, ProtocolPath],
-        repartition_hydrogen_mass: bool,
         solvation_template: coordinates.SolvateExistingStructure,
         minimization_template: openmm.OpenMMEnergyMinimisation,
         thermalization_template: openmm.OpenMMSimulation,
         equilibration_template: openmm.OpenMMSimulation,
         production_template: openmm.OpenMMSimulation,
+        enable_hmr: bool = False,
     ):
 
         # Define a replicator to set and solvate up the coordinates for each pull window
@@ -419,7 +419,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             "coordinate_file_path",
             f"pull_solvate_coordinates_0_{orientation_placeholder}",
         )
-        apply_parameters.repartition_hydrogen_mass = repartition_hydrogen_mass
+        apply_parameters.enable_hmr = enable_hmr
 
         # Add the dummy atoms.
         add_dummy_atoms = AddDummyAtoms(f"pull_add_dummy_atoms_{pull_replicator_id}")
@@ -593,12 +593,12 @@ class HostGuestBindingAffinity(PhysicalProperty):
         cls,
         orientation_replicator: ProtocolReplicator,
         restraint_schemas: Dict[str, ProtocolPath],
-        repartition_hydrogen_mass: bool,
         solvation_template: coordinates.SolvateExistingStructure,
         minimization_template: openmm.OpenMMEnergyMinimisation,
         thermalization_template: openmm.OpenMMSimulation,
         equilibration_template: openmm.OpenMMSimulation,
         production_template: openmm.OpenMMSimulation,
+        enable_hmr: bool = False,
     ):
 
         # Define a replicator to set up each release window
@@ -643,7 +643,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         apply_parameters.coordinate_file_path = ProtocolPath(
             "coordinate_file_path", solvate_coordinates.id
         )
-        apply_parameters.repartition_hydrogen_mass = repartition_hydrogen_mass
+        apply_parameters.enable_hmr = enable_hmr
 
         # Add the dummy atoms.
         add_dummy_atoms = AddDummyAtoms("release_add_dummy_atoms")
@@ -739,12 +739,12 @@ class HostGuestBindingAffinity(PhysicalProperty):
         cls,
         orientation_replicator: ProtocolReplicator,
         restraint_schemas: Dict[str, ProtocolPath],
-        repartition_hydrogen_mass: bool,
         solvation_template: coordinates.SolvateExistingStructure,
         minimization_template: openmm.OpenMMEnergyMinimisation,
         thermalization_template: openmm.OpenMMSimulation,
         equilibration_template: openmm.OpenMMSimulation,
         production_template: openmm.OpenMMSimulation,
+        enable_hmr: bool = False,
     ):
 
         # Define a replicator to set and solvate the coordinates for the bound and unbound system
@@ -846,7 +846,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             "coordinate_file_path",
             f"state_bound_solvate_coordinates_0_{orientation_placeholder}",
         )
-        apply_parameters.repartition_hydrogen_mass = repartition_hydrogen_mass
+        apply_parameters.enable_hmr = enable_hmr
 
         # Add dummy atoms to the bound system
         add_bound_dummy_atoms = AddDummyAtoms(
@@ -1092,7 +1092,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         n_solvent_molecules: int = 2500,
         simulation_time_steps: dict = None,
         end_states_time_steps: dict = None,
-        repartition_hydrogen_mass: bool = False,
+        enable_hmr: bool = False,
         debug: bool = False,
     ):
         """Returns the default calculation schema to use when estimating
@@ -1124,7 +1124,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         end_states_time_steps: dict, optional
             Same as ``simulation_time_steps`` but for simulating the end states
             that will be used to estimate the free energy gradient.
-        repartition_hydrogen_mass: bool, optional
+        enable_hmr: bool, optional
             Whether to repartition hydrogen masses attached to heavy atoms.
         debug
             Whether to return a debug schema. This is nearly identical
@@ -1239,10 +1239,10 @@ class HostGuestBindingAffinity(PhysicalProperty):
         ) = cls._paprika_build_attach_pull_protocols(
             orientation_replicator,
             restraint_schemas,
-            repartition_hydrogen_mass,
             solvation_template,
             minimization_template,
             *simulation_templates,
+            enable_hmr,
         )
 
         # Build the protocols to compute the release free energies.
@@ -1253,10 +1253,10 @@ class HostGuestBindingAffinity(PhysicalProperty):
         ) = cls._paprika_build_release_protocols(
             orientation_replicator,
             restraint_schemas,
-            repartition_hydrogen_mass,
             solvation_template,
             minimization_template,
             *simulation_templates,
+            enable_hmr,
         )
 
         # Build the protocols for the end-states (for gradient calculations)
@@ -1274,10 +1274,10 @@ class HostGuestBindingAffinity(PhysicalProperty):
             ) = cls._paprika_build_end_states_protocol(
                 orientation_replicator,
                 restraint_schemas,
-                repartition_hydrogen_mass,
                 solvation_template,
                 end_states_minimization_template,
                 *end_states_simulation_templates,
+                enable_hmr,
             )
 
         # Compute the symmetry correction.

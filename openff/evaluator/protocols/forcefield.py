@@ -57,9 +57,8 @@ class BaseBuildSystem(Protocol, abc.ABC):
         type_hint=str,
         default_value=UNDEFINED,
     )
-    repartition_hydrogen_mass = InputAttribute(
-        docstring="Whether to repartition masses of hydrogen atoms and transfer "
-        "the mass to the heavy atoms.",
+    enable_hmr = InputAttribute(
+        docstring="Whether to repartition the masses of hydrogen atoms.",
         type_hint=bool,
         default_value=False,
     )
@@ -75,8 +74,9 @@ class BaseBuildSystem(Protocol, abc.ABC):
     )
 
     @staticmethod
-    def _repartition_hydrogen(system, coordinate_path):
-        """Repartitions masses of hydrogen atoms by a factor of three.
+    def _repartition_hydrogen_mass(system, coordinate_path, hydrogen_mass=3.024):
+        """Repartitions masses of hydrogen atoms and the heavy atoms it 
+        is bonded to.
 
         Parameters
         ----------
@@ -84,12 +84,16 @@ class BaseBuildSystem(Protocol, abc.ABC):
             The base system to perforn HMR on.
         coordinate_path: str
             The location of the coordinate file used to extract bond information.
+        hydrogen_mass: float
+            The new mass for the hydrogen atom. Heavy atoms will have their masses
+            adjusted by this amount.
         """
-        hydrogen_mass = 3.024
+        
         structure = parmed.load_file(coordinate_path, structure=True)
 
         for bond in structure.bonds:
 
+            # Is there a way of automatically detecting water residues?
             if bond.atom1.residue.name != "HOH" or bond.atom2.residue.name != "HOH":
 
                 if bond.atom1.element == 1:
@@ -101,6 +105,7 @@ class BaseBuildSystem(Protocol, abc.ABC):
                     transfer_mass = hydrogen_mass - system.getParticleMass(
                         bond.atom2.idx
                     ) / pint_unit_to_openmm(unit.dalton)
+
                     system.setParticleMass(bond.atom2.idx, hydrogen_mass)
                     system.setParticleMass(
                         bond.atom1.idx,
@@ -475,6 +480,9 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
             system.setDefaultPeriodicBoxVectors(
                 *openmm_pdb_file.topology.getPeriodicBoxVectors()
             )
+            
+        if self.enable_hmr:
+            self._repartition_hydrogen_mass(system, self.coordinate_file_path)
 
         # Serialize the system object.
         system_path = os.path.join(directory, "system.xml")
@@ -537,8 +545,8 @@ class BuildSmirnoffSystem(BaseBuildSystem):
                 "Failed to create a system from the specified topology and molecules."
             )
 
-        if self.repartition_hydrogen_mass:
-            self._repartition_hydrogen(system, self.coordinate_file_path)
+        if self.enable_hmr:
+            self._repartition_hydrogen_mass(system, self.coordinate_file_path)
 
         system_xml = openmm.XmlSerializer.serialize(system)
         system_path = os.path.join(directory, "system.xml")
