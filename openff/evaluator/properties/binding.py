@@ -1156,9 +1156,11 @@ class HostGuestBindingAffinity(PhysicalProperty):
                 ]
             )
 
-        for key in default_time_steps:
-            if key not in simulation_time_steps:
-                simulation_time_steps[key] = default_time_steps[key]
+            for key in default_time_steps:
+                if key not in simulation_time_steps:
+                    simulation_time_steps[key] = default_time_steps[key]
+        else:
+            simulation_time_steps = default_time_steps
 
         # Check user input for end-states time steps
         if end_states_time_steps:
