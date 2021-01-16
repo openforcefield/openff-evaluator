@@ -5,10 +5,11 @@ import re
 import tempfile
 from os import path
 
+import simtk.unit as simtk_unit
 from cmiles.utils import load_molecule, mol_to_smiles
 from simtk.openmm import XmlSerializer
 from simtk.openmm.app import PDBFile
-import simtk.unit as simtk_unit
+
 from openff.evaluator.forcefield import LigParGenForceFieldSource, TLeapForceFieldSource
 from openff.evaluator.protocols.coordinates import BuildCoordinatesPackmol
 from openff.evaluator.protocols.forcefield import (
@@ -47,10 +48,11 @@ def test_build_smirnoff_system():
         pdbfile = PDBFile(assign_parameters.parameterized_system.topology_path)
         with open(assign_parameters.parameterized_system.system_path, "r") as f:
             system = XmlSerializer.deserialize(f.read())
-            
+
         for atom in pdbfile.topology.atoms():
-            if atom.element.name == 'hydrogen' and atom.residue.name != "HOH":
+            if atom.element.name == "hydrogen" and atom.residue.name != "HOH":
                 assert system.getParticleMass(atom.index) == 3.024 * simtk_unit.dalton
+
 
 def test_build_tleap_system():
 
@@ -79,10 +81,11 @@ def test_build_tleap_system():
         pdbfile = PDBFile(assign_parameters.parameterized_system.topology_path)
         with open(assign_parameters.parameterized_system.system_path, "r") as f:
             system = XmlSerializer.deserialize(f.read())
-            
+
         for atom in pdbfile.topology.atoms():
-            if atom.element.name == 'hydrogen' and atom.residue.name != "HOH":
+            if atom.element.name == "hydrogen" and atom.residue.name != "HOH":
                 assert system.getParticleMass(atom.index) == 3.024 * simtk_unit.dalton
+
 
 def test_build_ligpargen_system(requests_mock):
 
@@ -187,7 +190,7 @@ phase2="3.141592653589793" phase3="0.00" phase4="3.141592653589793"/>
         pdbfile = PDBFile(assign_parameters.parameterized_system.topology_path)
         with open(assign_parameters.parameterized_system.system_path, "r") as f:
             system = XmlSerializer.deserialize(f.read())
-            
+
         for atom in pdbfile.topology.atoms():
-            if atom.element.name == 'hydrogen' and atom.residue.name != "HOH":
+            if atom.element.name == "hydrogen" and atom.residue.name != "HOH":
                 assert system.getParticleMass(atom.index) == 3.024 * simtk_unit.dalton

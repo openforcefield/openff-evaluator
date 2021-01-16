@@ -197,9 +197,9 @@ class ComputePotentialEnergyGradient(Protocol):
             os.path.join(os.getcwd(), self.trajectory_path),
             top=os.path.join(os.getcwd(), self.topology_path),
         )
-        trajectory.atom_slice([i for i in range(trajectory.n_atoms - len(dummy_atoms))]).save_dcd(
-            destination_trajectory_path
-        )
+        trajectory.atom_slice(
+            [i for i in range(trajectory.n_atoms - len(dummy_atoms))]
+        ).save_dcd(destination_trajectory_path)
 
         # Load in the new trajectory
         trajectory = mdtraj.load_dcd(

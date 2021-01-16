@@ -75,7 +75,7 @@ class BaseBuildSystem(Protocol, abc.ABC):
 
     @staticmethod
     def _repartition_hydrogen_mass(system, coordinate_path, hydrogen_mass=3.024):
-        """Repartitions masses of hydrogen atoms and the heavy atoms it 
+        """Repartitions masses of hydrogen atoms and the heavy atoms it
         is bonded to.
 
         Parameters
@@ -88,7 +88,7 @@ class BaseBuildSystem(Protocol, abc.ABC):
             The new mass for the hydrogen atom. Heavy atoms will have their masses
             adjusted by this amount.
         """
-        
+
         structure = parmed.load_file(coordinate_path, structure=True)
 
         for bond in structure.bonds:
@@ -480,7 +480,7 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
             system.setDefaultPeriodicBoxVectors(
                 *openmm_pdb_file.topology.getPeriodicBoxVectors()
             )
-            
+
         if self.enable_hmr:
             self._repartition_hydrogen_mass(system, self.coordinate_file_path)
 
