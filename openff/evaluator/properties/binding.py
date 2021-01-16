@@ -1150,7 +1150,10 @@ class HostGuestBindingAffinity(PhysicalProperty):
         }
         if simulation_time_steps:
             assert all(
-                [key in default_time_steps.keys() for key in simulation_time_steps.keys()]
+                [
+                    key in default_time_steps.keys()
+                    for key in simulation_time_steps.keys()
+                ]
             )
 
         for key in default_time_steps:
