@@ -12,10 +12,12 @@ import textwrap
 from enum import Enum
 
 import numpy as np
+import parmed
 import requests
 from simtk import openmm
 from simtk.openmm import app
 
+from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import (
     ForceFieldSource,
@@ -25,7 +27,7 @@ from openff.evaluator.forcefield import (
 )
 from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.substances import Substance
-from openff.evaluator.utils.openmm import pint_quantity_to_openmm
+from openff.evaluator.utils.openmm import pint_quantity_to_openmm, pint_unit_to_openmm
 from openff.evaluator.utils.utils import (
     get_data_filename,
     has_openeye,
@@ -55,6 +57,11 @@ class BaseBuildSystem(Protocol, abc.ABC):
         type_hint=str,
         default_value=UNDEFINED,
     )
+    enable_hmr = InputAttribute(
+        docstring="Whether to repartition the masses of hydrogen atoms.",
+        type_hint=bool,
+        default_value=False,
+    )
 
     substance = InputAttribute(
         docstring="The composition of the system.",
@@ -65,6 +72,47 @@ class BaseBuildSystem(Protocol, abc.ABC):
     parameterized_system = OutputAttribute(
         docstring="The parameterized system object.", type_hint=ParameterizedSystem
     )
+
+    @staticmethod
+    def _repartition_hydrogen_mass(system, coordinate_path, hydrogen_mass=3.024):
+        """Repartitions masses of hydrogen atoms and the heavy atoms it
+        is bonded to.
+
+        Parameters
+        ----------
+        system: simtk.openmm.System
+            The base system to perforn HMR on.
+        coordinate_path: str
+            The location of the coordinate file used to extract bond information.
+        hydrogen_mass: float
+            The new mass for the hydrogen atom. Heavy atoms will have their masses
+            adjusted by this amount.
+        """
+
+        structure = parmed.load_file(coordinate_path, structure=True)
+
+        for bond in structure.bonds:
+
+            # Is there a way of automatically detecting water residues?
+            if bond.atom1.residue.name != "HOH" or bond.atom2.residue.name != "HOH":
+
+                if bond.atom1.element == 1:
+
+                    (bond.atom1, bond.atom2) = (bond.atom2, bond.atom1)
+
+                if bond.atom2.element == 1 and bond.atom1.element != 1:
+
+                    transfer_mass = hydrogen_mass - system.getParticleMass(
+                        bond.atom2.idx
+                    ) / pint_unit_to_openmm(unit.dalton)
+
+                    system.setParticleMass(bond.atom2.idx, hydrogen_mass)
+                    system.setParticleMass(
+                        bond.atom1.idx,
+                        system.getParticleMass(bond.atom1.idx)
+                        / pint_unit_to_openmm(unit.dalton)
+                        - transfer_mass,
+                    )
 
     @staticmethod
     def _append_system(existing_system, system_to_append, index_map=None):
@@ -433,6 +481,9 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
                 *openmm_pdb_file.topology.getPeriodicBoxVectors()
             )
 
+        if self.enable_hmr:
+            self._repartition_hydrogen_mass(system, self.coordinate_file_path)
+
         # Serialize the system object.
         system_path = os.path.join(directory, "system.xml")
 
@@ -493,6 +544,9 @@ class BuildSmirnoffSystem(BaseBuildSystem):
             raise RuntimeError(
                 "Failed to create a system from the specified topology and molecules."
             )
+
+        if self.enable_hmr:
+            self._repartition_hydrogen_mass(system, self.coordinate_file_path)
 
         system_xml = openmm.XmlSerializer.serialize(system)
         system_path = os.path.join(directory, "system.xml")
