@@ -1117,8 +1117,6 @@ class HostGuestBindingAffinity(PhysicalProperty):
         end_states_time_steps: dict, optional
             Same as ``simulation_time_steps`` but for simulating the end states
             that will be used to estimate the free energy gradient.
-        repartition_hydrogen_mass: bool, optional
-            Whether to repartition hydrogen masses attached to heavy atoms.
         debug
             Whether to return a debug schema. This is nearly identical
             to the default schema, albeit with significantly less
