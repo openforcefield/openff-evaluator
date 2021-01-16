@@ -348,6 +348,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         cls,
         orientation_replicator: ProtocolReplicator,
         restraint_schemas: Dict[str, ProtocolPath],
+        repartition_hydrogen_mass: bool,
         solvation_template: coordinates.SolvateExistingStructure,
         minimization_template: openmm.OpenMMEnergyMinimisation,
         thermalization_template: openmm.OpenMMSimulation,
@@ -418,6 +419,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             "coordinate_file_path",
             f"pull_solvate_coordinates_0_{orientation_placeholder}",
         )
+        apply_parameters.repartition_hydrogen_mass = repartition_hydrogen_mass
 
         # Add the dummy atoms.
         add_dummy_atoms = AddDummyAtoms(f"pull_add_dummy_atoms_{pull_replicator_id}")
@@ -584,8 +586,6 @@ class HostGuestBindingAffinity(PhysicalProperty):
             ProtocolPath("result", attach_free_energy.id),
             ProtocolPath("result", pull_free_energy.id),
             ProtocolPath("result", reference_state_work.id),
-            ProtocolPath("filtered_substance", filter_solvent.id),
-            ProtocolPath("parameterized_system", apply_parameters.id),
         )
 
     @classmethod
@@ -593,6 +593,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         cls,
         orientation_replicator: ProtocolReplicator,
         restraint_schemas: Dict[str, ProtocolPath],
+        repartition_hydrogen_mass: bool,
         solvation_template: coordinates.SolvateExistingStructure,
         minimization_template: openmm.OpenMMEnergyMinimisation,
         thermalization_template: openmm.OpenMMSimulation,
@@ -642,6 +643,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         apply_parameters.coordinate_file_path = ProtocolPath(
             "coordinate_file_path", solvate_coordinates.id
         )
+        apply_parameters.repartition_hydrogen_mass = repartition_hydrogen_mass
 
         # Add the dummy atoms.
         add_dummy_atoms = AddDummyAtoms("release_add_dummy_atoms")
@@ -737,8 +739,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         cls,
         orientation_replicator: ProtocolReplicator,
         restraint_schemas: Dict[str, ProtocolPath],
-        filtered_substance: ProtocolPath,
-        parameterized_system: ProtocolPath,
+        repartition_hydrogen_mass: bool,
         solvation_template: coordinates.SolvateExistingStructure,
         minimization_template: openmm.OpenMMEnergyMinimisation,
         thermalization_template: openmm.OpenMMSimulation,
@@ -765,6 +766,13 @@ class HostGuestBindingAffinity(PhysicalProperty):
         unbound_replicator_id = (
             f"{unbound_replicator.placeholder_id}_" f"{orientation_placeholder}"
         )
+
+        # Filter out only the solvent substance to help with the solvation step.
+        filter_solvent = miscellaneous.FilterSubstanceByRole(
+            "host-guest-filter_solvent"
+        )
+        filter_solvent.input_substance = ProtocolPath("substance", "global")
+        filter_solvent.component_roles = [Component.Role.Solvent]
 
         # Align the bound complex
         align_bound_coordinates = PreparePullCoordinates(
@@ -809,7 +817,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
         solvate_bound_coordinates.id = (
             f"state_bound_solvate_coordinates_{bound_replicator_id}"
         )
-        solvate_bound_coordinates.substance = filtered_substance
+        solvate_bound_coordinates.substance = ProtocolPath(
+            "filtered_substance", filter_solvent.id
+        )
         solvate_bound_coordinates.solute_coordinate_file = ProtocolPath(
             "output_coordinate_path", align_bound_coordinates.id
         )
@@ -819,10 +829,24 @@ class HostGuestBindingAffinity(PhysicalProperty):
         solvate_unbound_coordinates.id = (
             f"state_unbound_solvate_coordinates_{unbound_replicator_id}"
         )
-        solvate_unbound_coordinates.substance = filtered_substance
+        solvate_unbound_coordinates.substance = ProtocolPath(
+            "filtered_substance", filter_solvent.id
+        )
         solvate_unbound_coordinates.solute_coordinate_file = ProtocolPath(
             "output_coordinate_path", align_unbound_coordinates.id
         )
+
+        # Apply the force field parameters. This only needs to be done once.
+        apply_parameters = forcefield.BuildSmirnoffSystem(
+            f"state_bound_apply_parameters_{orientation_placeholder}"
+        )
+        apply_parameters.force_field_path = ProtocolPath("force_field_path", "global")
+        apply_parameters.substance = ProtocolPath("substance", "global")
+        apply_parameters.coordinate_file_path = ProtocolPath(
+            "coordinate_file_path",
+            f"state_bound_solvate_coordinates_0_{orientation_placeholder}",
+        )
+        apply_parameters.repartition_hydrogen_mass = repartition_hydrogen_mass
 
         # Add dummy atoms to the bound system
         add_bound_dummy_atoms = AddDummyAtoms(
@@ -832,7 +856,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
         add_bound_dummy_atoms.input_coordinate_path = ProtocolPath(
             "coordinate_file_path", solvate_bound_coordinates.id
         )
-        add_bound_dummy_atoms.input_system = parameterized_system
+        add_bound_dummy_atoms.input_system = ProtocolPath(
+            "parameterized_system", apply_parameters.id
+        )
         add_bound_dummy_atoms.offset = ProtocolPath("dummy_atom_offset", "global")
 
         bound_coordinate_path = ProtocolPath(
@@ -852,7 +878,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
         add_unbound_dummy_atoms.input_coordinate_path = ProtocolPath(
             "coordinate_file_path", solvate_unbound_coordinates.id
         )
-        add_unbound_dummy_atoms.input_system = parameterized_system
+        add_unbound_dummy_atoms.input_system = ProtocolPath(
+            "parameterized_system", apply_parameters.id
+        )
         add_unbound_dummy_atoms.offset = ProtocolPath("dummy_atom_offset", "global")
 
         unbound_coordinate_path = ProtocolPath(
@@ -955,10 +983,12 @@ class HostGuestBindingAffinity(PhysicalProperty):
         # Return the full list of the protocols which make up the bound and unbound parts
         # for the gradient calculation.
         protocols = [
+            filter_solvent,
             align_bound_coordinates,
             align_unbound_coordinates,
             solvate_bound_coordinates,
             solvate_unbound_coordinates,
+            apply_parameters,
             add_bound_dummy_atoms,
             add_unbound_dummy_atoms,
             generate_bound_restraints,
@@ -981,6 +1011,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             protocol_replicators,
             bound_replicator_id,
             unbound_replicator_id,
+            ProtocolPath("parameterized_system", apply_parameters.id),
             ProtocolPath("output_coordinate_path", add_bound_dummy_atoms.id),
             ProtocolPath("trajectory_file_path", bound_production.id),
             ProtocolPath("output_coordinate_path", add_unbound_dummy_atoms.id),
@@ -1061,6 +1092,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         n_solvent_molecules: int = 2500,
         simulation_time_steps: dict = None,
         end_states_time_steps: dict = None,
+        repartition_hydrogen_mass: bool = False,
         debug: bool = False,
     ):
         """Returns the default calculation schema to use when estimating
@@ -1090,8 +1122,10 @@ class HostGuestBindingAffinity(PhysicalProperty):
             be discarded while the production run will be used in the final
             free energy.
         end_states_time_steps: dict, optional
-            same as ``simulation_time_steps`` but for simulating the end states
+            Same as ``simulation_time_steps`` but for simulating the end states
             that will be used to estimate the free energy gradient.
+        repartition_hydrogen_mass: bool, optional
+            Whether to repartition hydrogen masses attached to heavy atoms.
         debug
             Whether to return a debug schema. This is nearly identical
             to the default schema, albeit with significantly less
@@ -1202,11 +1236,10 @@ class HostGuestBindingAffinity(PhysicalProperty):
             attach_free_energy,
             pull_free_energy,
             reference_work,
-            filtered_substance,
-            parameterized_system,
         ) = cls._paprika_build_attach_pull_protocols(
             orientation_replicator,
             restraint_schemas,
+            repartition_hydrogen_mass,
             solvation_template,
             minimization_template,
             *simulation_templates,
@@ -1220,6 +1253,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         ) = cls._paprika_build_release_protocols(
             orientation_replicator,
             restraint_schemas,
+            repartition_hydrogen_mass,
             solvation_template,
             minimization_template,
             *simulation_templates,
@@ -1232,6 +1266,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
                 end_states_replicator,
                 bound_replicator_id,
                 unbound_replicator_id,
+                end_states_parameterized_system,
                 bound_topology,
                 bound_trajectory,
                 unbound_topology,
@@ -1239,8 +1274,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             ) = cls._paprika_build_end_states_protocol(
                 orientation_replicator,
                 restraint_schemas,
-                filtered_substance,
-                parameterized_system,
+                repartition_hydrogen_mass,
                 solvation_template,
                 end_states_minimization_template,
                 *end_states_simulation_templates,
@@ -1276,7 +1310,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
                 orientation_replicator,
                 bound_replicator_id,
                 unbound_replicator_id,
-                parameterized_system,
+                end_states_parameterized_system,
                 bound_topology,
                 bound_trajectory,
                 unbound_topology,
