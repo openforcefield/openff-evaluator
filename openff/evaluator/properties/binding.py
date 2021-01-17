@@ -1157,13 +1157,19 @@ class HostGuestBindingAffinity(PhysicalProperty):
             "out_equilibration": 10000,
             "out_production": 5000,
         }
-        assert all(
-            [key in default_time_steps.keys() for key in simulation_time_steps.keys()]
-        )
+        if simulation_time_steps:
+            assert all(
+                [
+                    key in default_time_steps.keys()
+                    for key in simulation_time_steps.keys()
+                ]
+            )
 
-        for key in default_time_steps:
-            if key not in simulation_time_steps:
-                simulation_time_steps[key] = default_time_steps[key]
+            for key in default_time_steps:
+                if key not in simulation_time_steps:
+                    simulation_time_steps[key] = default_time_steps[key]
+        else:
+            simulation_time_steps = default_time_steps
 
         # Check user input for end-states time steps
         if end_states_time_steps:
@@ -1278,6 +1284,26 @@ class HostGuestBindingAffinity(PhysicalProperty):
                 end_states_minimization_template,
                 *end_states_simulation_templates,
                 enable_hmr,
+            )
+
+        # Build the protocols for the end-states (for gradient calculations)
+        if end_states_time_steps:
+            (
+                end_states_protocols,
+                end_states_replicator,
+                bound_replicator_id,
+                unbound_replicator_id,
+                end_states_parameterized_system,
+                bound_topology,
+                bound_trajectory,
+                unbound_topology,
+                unbound_trajectory,
+            ) = cls._paprika_build_end_states_protocol(
+                orientation_replicator,
+                restraint_schemas,
+                solvation_template,
+                end_states_minimization_template,
+                *end_states_simulation_templates,
             )
 
         # Compute the symmetry correction.
