@@ -3,9 +3,9 @@ from random import randint, random
 import mdtraj
 import numpy as np
 import pytest
-from openforcefield.topology import Molecule, Topology
-from openforcefield.typing.engines.smirnoff import ForceField, vdWHandler
-from openforcefield.typing.engines.smirnoff.parameters import (
+from openff.toolkit.topology import Molecule, Topology
+from openff.toolkit.typing.engines.smirnoff import ForceField, vdWHandler
+from openff.toolkit.typing.engines.smirnoff.parameters import (
     ChargeIncrementModelHandler,
     ElectrostaticsHandler,
     LibraryChargeHandler,

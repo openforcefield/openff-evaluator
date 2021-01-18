@@ -16,8 +16,8 @@ from openff.evaluator.forcefield import ParameterGradientKey
 
 if TYPE_CHECKING:
 
-    from openforcefield.topology import Topology
-    from openforcefield.typing.engines.smirnoff import ForceField
+    from openff.toolkit.topology import Topology
+    from openff.toolkit.typing.engines.smirnoff import ForceField
 
 logger = logging.getLogger(__name__)
 
@@ -146,7 +146,7 @@ def openmm_unit_to_pint(openmm_unit):
     openff.evaluator.unit.Unit
         The converted unit.
     """
-    from openforcefield.utils import unit_to_string
+    from openff.toolkit.utils import unit_to_string
 
     if openmm_unit is None or isinstance(openmm_unit, UndefinedAttribute):
         return None
@@ -227,7 +227,7 @@ def pint_unit_to_openmm(pint_unit):
     simtk.unit.Unit
         The converted unit.
     """
-    from openforcefield.utils import string_to_unit
+    from openff.toolkit.utils import string_to_unit
 
     if pint_unit is None or isinstance(pint_unit, UndefinedAttribute):
         return None
@@ -246,7 +246,7 @@ def pint_unit_to_openmm(pint_unit):
 
         logger.info(
             f"The {pint_unit_string} pint unit string (based on the {pint_unit} object) "
-            f"could not be understood by `openforcefield.utils.string_to_unit`"
+            f"could not be understood by `openff.toolkit.utils.string_to_unit`"
         )
 
         raise
@@ -310,7 +310,7 @@ def system_subset(
 
     # As this method deals mainly with the toolkit, we stick to
     # simtk units here.
-    from openforcefield.typing.engines.smirnoff import ForceField
+    from openff.toolkit.typing.engines.smirnoff import ForceField
 
     # Create the force field subset.
     force_field_subset = ForceField()

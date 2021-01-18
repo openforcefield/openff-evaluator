@@ -159,7 +159,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         str
             The smiles descriptor of the loaded molecule
         """
-        from openforcefield.topology import Molecule
+        from openff.toolkit.topology import Molecule
 
         receptor_molecule = Molecule.from_file(file_path, "MOL2")
         return receptor_molecule.to_smiles()
@@ -188,7 +188,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         -------
             The built substance.
         """
-        from openforcefield.topology import Molecule
+        from openff.toolkit.topology import Molecule
         from simtk import unit as simtk_unit
 
         substance = Substance()

@@ -1,5 +1,6 @@
 name: test
 channels:
+  - conda-forge/label/openff-toolkit_rc
   - conda-forge
   - omnia
 dependencies:
@@ -13,7 +14,7 @@ dependencies:
   - codecov
 
     # Standard dependencies
-  - openforcefield >=0.7.1
+  - openff-toolkit
   - smirnoff99frosst
   - numpy
   - pandas

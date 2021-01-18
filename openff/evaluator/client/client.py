@@ -650,7 +650,7 @@ class EvaluatorClient:
         ----------
         property_set : PhysicalPropertyDataSet
             The set of properties to estimate.
-        force_field_source : ForceFieldSource or openforcefield.typing.engines.smirnoff.ForceField
+        force_field_source : ForceFieldSource or openff.toolkit.typing.engines.smirnoff.ForceField
             The force field parameters to estimate the properties using.
         options : RequestOptions, optional
             A set of estimator options. If `None` default options
@@ -667,7 +667,7 @@ class EvaluatorClient:
         EvaluatorException, optional
             Any exceptions raised while attempting the submit the request.
         """
-        from openforcefield.typing.engines import smirnoff
+        from openff.toolkit.typing.engines import smirnoff
 
         if property_set is None or force_field_source is None:
 
