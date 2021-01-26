@@ -234,6 +234,12 @@ class AddDummyAtoms(Protocol):
         type_hint=ParameterizedSystem,
         default_value=UNDEFINED,
     )
+    implicit_simulation = InputAttribute(
+        docstring="With implicit solvent simulations, NoCutoff will be the method "
+        "used for NonbondeForce and CustomGBForce.",
+        type_hint=bool,
+        default_value=False,
+    )
 
     output_coordinate_path = OutputAttribute(
         docstring="The file path to the coordinates which include the added dummy "
@@ -249,7 +255,7 @@ class AddDummyAtoms(Protocol):
 
         import parmed.geometry
         from paprika.setup import Setup
-        from simtk.openmm import NonbondedForce, XmlSerializer, app
+        from simtk.openmm import CustomGBForce, NonbondedForce, XmlSerializer, app
 
         # Extract the host atoms to determine the offset of the dummy atoms.
         # noinspection PyTypeChecker
@@ -293,16 +299,22 @@ class AddDummyAtoms(Protocol):
         for _ in range(3):
             system.addParticle(mass=207)
 
-        for force_index in range(system.getNumForces()):
+        for force in system.getForces():
 
-            force = system.getForce(force_index)
+            if isinstance(force, NonbondedForce):
+                force.addParticle(0.0, 1.0, 0.0)
+                force.addParticle(0.0, 1.0, 0.0)
+                force.addParticle(0.0, 1.0, 0.0)
 
-            if not isinstance(force, NonbondedForce):
-                continue
+                if self.implicit_simulation:
+                    force.setNonbondedMethod(NonbondedForce.NoCutoff)
 
-            force.addParticle(0.0, 1.0, 0.0)
-            force.addParticle(0.0, 1.0, 0.0)
-            force.addParticle(0.0, 1.0, 0.0)
+            if self.implicit_simulation and isinstance(force, CustomGBForce):
+                force.addParticle([0.0, 0.15, 0.11592])
+                force.addParticle([0.0, 0.15, 0.11592])
+                force.addParticle([0.0, 0.15, 0.11592])
+
+                force.setNonbondedMethod(CustomGBForce.NoCutoff)
 
         output_system_path = os.path.join(directory, "output.xml")
 

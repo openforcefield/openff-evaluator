@@ -95,6 +95,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         default_ionic_strength: Optional[unit.Quantity] = 150 * unit.millimolar,
         negative_buffer_ion: str = "[Cl-]",
         positive_buffer_ion: str = "[Na+]",
+        in_vacuum: bool = False,
         attach_apr_meta_data: bool = True,
     ):
         """
@@ -119,6 +120,8 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             The SMILES pattern of the positive buffer ion to use. The value
             specified in ``taproom`` will be ignored and this value used
             instead.
+        in_vacuum
+            Whether to configure Taproom without solvents.
         attach_apr_meta_data
             Whether to add the metadata required for an APR based calculation
             using the ``paprika`` based workflow.
@@ -142,6 +145,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             default_ionic_strength,
             negative_buffer_ion,
             positive_buffer_ion,
+            in_vacuum,
             attach_apr_meta_data,
         )
 
@@ -171,6 +175,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         ionic_strength: Optional[unit.Quantity],
         negative_buffer_ion: str = "[Cl-]",
         positive_buffer_ion: str = "[Na+]",
+        in_vacuum: bool = False,
     ):
         """Builds a substance containing a ligand and receptor solvated in an aqueous
         solution with a given ionic strength
@@ -201,53 +206,56 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         host = Component(smiles=host_smiles, role=Component.Role.Receptor)
         substance.add_component(component=host, amount=ExactAmount(1))
 
-        water = Component(smiles="O", role=Component.Role.Solvent)
-        sodium = Component(smiles=positive_buffer_ion, role=Component.Role.Solvent)
-        chlorine = Component(smiles=negative_buffer_ion, role=Component.Role.Solvent)
-
-        water_mole_fraction = 1.0
-
-        if ionic_strength is not None:
-
-            salt_mole_fraction = Substance.calculate_aqueous_ionic_mole_fraction(
-                ionic_strength
+        if in_vacuum is False:
+            water = Component(smiles="O", role=Component.Role.Solvent)
+            sodium = Component(smiles=positive_buffer_ion, role=Component.Role.Solvent)
+            chlorine = Component(
+                smiles=negative_buffer_ion, role=Component.Role.Solvent
             )
 
-            if isinstance(salt_mole_fraction, unit.Quantity):
-                # noinspection PyUnresolvedReferences
-                salt_mole_fraction = salt_mole_fraction.magnitude
+            water_mole_fraction = 1.0
 
-            water_mole_fraction = 1.0 - salt_mole_fraction * 2
+            if ionic_strength is not None:
+
+                salt_mole_fraction = Substance.calculate_aqueous_ionic_mole_fraction(
+                    ionic_strength
+                )
+
+                if isinstance(salt_mole_fraction, unit.Quantity):
+                    # noinspection PyUnresolvedReferences
+                    salt_mole_fraction = salt_mole_fraction.magnitude
+
+                water_mole_fraction = 1.0 - salt_mole_fraction * 2
+
+                substance.add_component(
+                    component=sodium,
+                    amount=MoleFraction(salt_mole_fraction),
+                )
+                substance.add_component(
+                    component=chlorine,
+                    amount=MoleFraction(salt_mole_fraction),
+                )
 
             substance.add_component(
-                component=sodium,
-                amount=MoleFraction(salt_mole_fraction),
-            )
-            substance.add_component(
-                component=chlorine,
-                amount=MoleFraction(salt_mole_fraction),
+                component=water, amount=MoleFraction(water_mole_fraction)
             )
 
-        substance.add_component(
-            component=water, amount=MoleFraction(water_mole_fraction)
-        )
+            host_molecule_charge = Molecule.from_smiles(host_smiles).total_charge
+            guest_molecule_charge = (
+                0.0 * simtk_unit.elementary_charge
+                if guest_smiles is None
+                else Molecule.from_smiles(guest_smiles).total_charge
+            )
 
-        host_molecule_charge = Molecule.from_smiles(host_smiles).total_charge
-        guest_molecule_charge = (
-            0.0 * simtk_unit.elementary_charge
-            if guest_smiles is None
-            else Molecule.from_smiles(guest_smiles).total_charge
-        )
+            net_charge = (host_molecule_charge + guest_molecule_charge).value_in_unit(
+                simtk_unit.elementary_charge
+            )
+            n_counter_ions = abs(int(net_charge))
 
-        net_charge = (host_molecule_charge + guest_molecule_charge).value_in_unit(
-            simtk_unit.elementary_charge
-        )
-        n_counter_ions = abs(int(net_charge))
-
-        if net_charge <= -0.9999:
-            substance.add_component(sodium, ExactAmount(n_counter_ions))
-        elif net_charge >= 0.9999:
-            substance.add_component(chlorine, ExactAmount(n_counter_ions))
+            if net_charge <= -0.9999:
+                substance.add_component(sodium, ExactAmount(n_counter_ions))
+            elif net_charge >= 0.9999:
+                substance.add_component(chlorine, ExactAmount(n_counter_ions))
 
         return substance
 
@@ -412,6 +420,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         ionic_strength: Optional[unit.Quantity],
         negative_buffer_ion: str,
         positive_buffer_ion: str,
+        in_vacuum: bool,
         attach_apr_meta_data: bool,
     ):
         """Initializes the data set from the data made available by taproom.
@@ -436,6 +445,8 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             The SMILES pattern of the positive buffer ion to use. The value
             specified in ``taproom`` will be ignored and this value used
             instead.
+        in_vacuum
+            Whether to configure Taproom without solvents.
         attach_apr_meta_data
             Whether to add the metadata required for an APR based calculation
             using the ``paprika`` based workflow.
@@ -524,6 +535,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                     ionic_strength,
                     negative_buffer_ion,
                     positive_buffer_ion,
+                    in_vacuum,
                 )
                 host_only_substance = self._build_substance(
                     None,
@@ -531,6 +543,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                     ionic_strength,
                     negative_buffer_ion,
                     positive_buffer_ion,
+                    in_vacuum,
                 )
 
                 measured_property = HostGuestBindingAffinity(

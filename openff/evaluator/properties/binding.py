@@ -245,6 +245,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
     def _paprika_default_simulation_protocols(
         cls,
         simulation_time_steps: dict,
+        ensemble: Ensemble = Ensemble.NPT,
+        enable_pbc: bool = True,
     ) -> Tuple[
         openmm.OpenMMEnergyMinimisation,
         openmm.OpenMMSimulation,
@@ -261,6 +263,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
             to number of steps, output frequency and integration time step, respectively.
             The dictionary requires three sets for `thermalization`, `equilibration` and
             `production` runs.
+        enable_pbc
+            Whether to run simulations with periodic boundary condition (on by default).
 
         Returns
         -------
@@ -275,6 +279,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
         ]
         thermalization.output_frequency = simulation_time_steps["out_thermalization"]
         thermalization.timestep = simulation_time_steps["dt_thermalization"]
+        thermalization.ensemble = ensemble
+        thermalization.enable_pbc = enable_pbc
 
         equilibration = openmm.OpenMMSimulation("")
         equilibration.steps_per_iteration = simulation_time_steps[
@@ -282,11 +288,15 @@ class HostGuestBindingAffinity(PhysicalProperty):
         ]
         equilibration.output_frequency = simulation_time_steps["out_equilibration"]
         equilibration.timestep = simulation_time_steps["dt_equilibration"]
+        equilibration.ensemble = ensemble
+        equilibration.enable_pbc = enable_pbc
 
         production = openmm.OpenMMSimulation("")
         production.steps_per_iteration = simulation_time_steps["n_production_steps"]
         production.output_frequency = simulation_time_steps["out_production"]
         production.timestep = simulation_time_steps["dt_production"]
+        production.ensemble = ensemble
+        production.enable_pbc = enable_pbc
 
         return energy_minimisation, thermalization, equilibration, production
 
@@ -353,6 +363,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         thermalization_template: openmm.OpenMMSimulation,
         equilibration_template: openmm.OpenMMSimulation,
         production_template: openmm.OpenMMSimulation,
+        implicit_simulation: bool = False,
         enable_hmr: bool = False,
     ):
 
@@ -377,13 +388,6 @@ class HostGuestBindingAffinity(PhysicalProperty):
             f"{attach_replicator.placeholder_id}_" f"{orientation_placeholder}"
         )
 
-        # Filter out only the solvent substance to help with the solvation step.
-        filter_solvent = miscellaneous.FilterSubstanceByRole(
-            "host-guest-filter_solvent"
-        )
-        filter_solvent.input_substance = ProtocolPath("substance", "global")
-        filter_solvent.component_roles = [Component.Role.Solvent]
-
         # Define the protocols which will set and solvate up the coordinates for each
         # pull window
         align_coordinates = PreparePullCoordinates(
@@ -400,14 +404,39 @@ class HostGuestBindingAffinity(PhysicalProperty):
         align_coordinates.pull_distance = ProtocolPath("pull_distance", "global")
         align_coordinates.n_pull_windows = ProtocolPath("n_pull_windows", "global")
 
-        solvate_coordinates = copy.deepcopy(solvation_template)
-        solvate_coordinates.id = f"pull_solvate_coordinates_{pull_replicator_id}"
-        solvate_coordinates.substance = ProtocolPath(
-            "filtered_substance", filter_solvent.id
-        )
-        solvate_coordinates.solute_coordinate_file = ProtocolPath(
-            "output_coordinate_path", align_coordinates.id
-        )
+        # Solvate the host-guest system
+        if not implicit_simulation:
+            # Filter out only the solvent substance to help with the solvation step.
+            filter_solvent = miscellaneous.FilterSubstanceByRole(
+                "host-guest-filter_solvent"
+            )
+            filter_solvent.input_substance = ProtocolPath("substance", "global")
+            filter_solvent.component_roles = [Component.Role.Solvent]
+
+            solvate_coordinates = copy.deepcopy(solvation_template)
+            solvate_coordinates.id = f"pull_solvate_coordinates_{pull_replicator_id}"
+            solvate_coordinates.substance = ProtocolPath(
+                "filtered_substance", filter_solvent.id
+            )
+            solvate_coordinates.solute_coordinate_file = ProtocolPath(
+                "output_coordinate_path", align_coordinates.id
+            )
+
+            coordinate_file_path = ProtocolPath(
+                "output_coordinate_path", solvate_coordinates.id
+            )
+            input_coordinate = ProtocolPath(
+                "coordinate_file_path",
+                f"pull_solvate_coordinates_0_{orientation_placeholder}",
+            )
+        else:
+            coordinate_file_path = ProtocolPath(
+                "output_coordinate_path", align_coordinates.id
+            )
+            input_coordinate = ProtocolPath(
+                "output_coordinate_path",
+                f"pull_align_coordinates_0_{orientation_placeholder}",
+            )
 
         # Apply the force field parameters. This only needs to be done once.
         apply_parameters = forcefield.BuildSmirnoffSystem(
@@ -415,22 +444,18 @@ class HostGuestBindingAffinity(PhysicalProperty):
         )
         apply_parameters.force_field_path = ProtocolPath("force_field_path", "global")
         apply_parameters.substance = ProtocolPath("substance", "global")
-        apply_parameters.coordinate_file_path = ProtocolPath(
-            "coordinate_file_path",
-            f"pull_solvate_coordinates_0_{orientation_placeholder}",
-        )
+        apply_parameters.coordinate_file_path = input_coordinate
         apply_parameters.enable_hmr = enable_hmr
 
         # Add the dummy atoms.
         add_dummy_atoms = AddDummyAtoms(f"pull_add_dummy_atoms_{pull_replicator_id}")
         add_dummy_atoms.substance = ProtocolPath("substance", "global")
-        add_dummy_atoms.input_coordinate_path = ProtocolPath(
-            "coordinate_file_path", solvate_coordinates.id
-        )
+        add_dummy_atoms.input_coordinate_path = coordinate_file_path
         add_dummy_atoms.input_system = ProtocolPath(
             "parameterized_system", apply_parameters.id
         )
         add_dummy_atoms.offset = ProtocolPath("dummy_atom_offset", "global")
+        add_dummy_atoms.implicit_simulation = implicit_simulation
 
         attach_coordinate_path = ProtocolPath(
             "output_coordinate_path",
@@ -557,9 +582,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         # Return the full list of protocols which make up the attach and pull parts
         # of a host-guest APR calculation.
         protocols = [
-            filter_solvent,
             align_coordinates,
-            solvate_coordinates,
             apply_parameters,
             add_dummy_atoms,
             generate_attach_restraints,
@@ -578,6 +601,10 @@ class HostGuestBindingAffinity(PhysicalProperty):
             pull_free_energy,
             reference_state_work,
         ]
+        if not implicit_simulation:
+            protocols.insert(1, filter_solvent)
+            protocols.insert(2, solvate_coordinates)
+
         protocol_replicators = [pull_replicator, attach_replicator]
 
         return (
@@ -598,6 +625,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         thermalization_template: openmm.OpenMMSimulation,
         equilibration_template: openmm.OpenMMSimulation,
         production_template: openmm.OpenMMSimulation,
+        implicit_simulation: bool = False,
         enable_hmr: bool = False,
     ):
 
@@ -613,11 +641,6 @@ class HostGuestBindingAffinity(PhysicalProperty):
             f"{release_replicator.placeholder_id}_" f"{orientation_placeholder}"
         )
 
-        # Filter out only the solvent substance to help with the solvation step.
-        filter_solvent = miscellaneous.FilterSubstanceByRole("host-filter_solvent")
-        filter_solvent.input_substance = ProtocolPath("host_substance", "global")
-        filter_solvent.component_roles = [Component.Role.Solvent]
-
         # Construct a set of coordinates for a host molecule correctly
         # aligned to the z-axis.
         align_coordinates = PrepareReleaseCoordinates("release_align_coordinates")
@@ -626,36 +649,47 @@ class HostGuestBindingAffinity(PhysicalProperty):
             "host_coordinate_path", "global"
         )
 
-        solvate_coordinates = copy.deepcopy(solvation_template)
-        solvate_coordinates.id = "release_solvate_coordinates"
-        solvate_coordinates.substance = ProtocolPath(
-            "filtered_substance", filter_solvent.id
-        )
-        solvate_coordinates.solute_coordinate_file = ProtocolPath(
-            "output_coordinate_path", align_coordinates.id
-        )
+        # Solvate the host-only system
+        if not implicit_simulation:
+            # Filter out only the solvent substance to help with the solvation step.
+            filter_solvent = miscellaneous.FilterSubstanceByRole("host-filter_solvent")
+            filter_solvent.input_substance = ProtocolPath("host_substance", "global")
+            filter_solvent.component_roles = [Component.Role.Solvent]
+
+            solvate_coordinates = copy.deepcopy(solvation_template)
+            solvate_coordinates.id = "release_solvate_coordinates"
+            solvate_coordinates.substance = ProtocolPath(
+                "filtered_substance", filter_solvent.id
+            )
+            solvate_coordinates.solute_coordinate_file = ProtocolPath(
+                "output_coordinate_path", align_coordinates.id
+            )
+
+            coordinate_file_path = ProtocolPath(
+                "output_coordinate_path", solvate_coordinates.id
+            )
+        else:
+            coordinate_file_path = ProtocolPath(
+                "output_coordinate_path", align_coordinates.id
+            )
 
         # Apply the force field parameters. This only needs to be done for one
         # of the windows.
         apply_parameters = forcefield.BaseBuildSystem("release_apply_parameters")
         apply_parameters.force_field_path = ProtocolPath("force_field_path", "global")
         apply_parameters.substance = ProtocolPath("host_substance", "global")
-        apply_parameters.coordinate_file_path = ProtocolPath(
-            "coordinate_file_path", solvate_coordinates.id
-        )
+        apply_parameters.coordinate_file_path = coordinate_file_path
         apply_parameters.enable_hmr = enable_hmr
 
         # Add the dummy atoms.
         add_dummy_atoms = AddDummyAtoms("release_add_dummy_atoms")
         add_dummy_atoms.substance = ProtocolPath("host_substance", "global")
-        add_dummy_atoms.input_coordinate_path = ProtocolPath(
-            "coordinate_file_path",
-            solvate_coordinates.id,
-        )
+        add_dummy_atoms.input_coordinate_path = coordinate_file_path
         add_dummy_atoms.input_system = ProtocolPath(
             "parameterized_system", apply_parameters.id
         )
         add_dummy_atoms.offset = ProtocolPath("dummy_atom_offset", "global")
+        add_dummy_atoms.implicit_simulation = implicit_simulation
 
         # Apply the restraints files
         generate_restraints = GenerateReleaseRestraints(
@@ -714,9 +748,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         # Return the full list of protocols which make up the release parts
         # of a host-guest APR calculation.
         protocols = [
-            filter_solvent,
             align_coordinates,
-            solvate_coordinates,
             apply_parameters,
             add_dummy_atoms,
             generate_restraints,
@@ -727,6 +759,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
             release_production,
             analyze_release_phase,
         ]
+        if not implicit_simulation:
+            protocols.insert(1, filter_solvent)
+            protocols.insert(2, solvate_coordinates)
 
         return (
             protocols,
@@ -744,6 +779,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         thermalization_template: openmm.OpenMMSimulation,
         equilibration_template: openmm.OpenMMSimulation,
         production_template: openmm.OpenMMSimulation,
+        implicit_simulation: bool = False,
         enable_hmr: bool = False,
     ):
 
@@ -766,13 +802,6 @@ class HostGuestBindingAffinity(PhysicalProperty):
         unbound_replicator_id = (
             f"{unbound_replicator.placeholder_id}_" f"{orientation_placeholder}"
         )
-
-        # Filter out only the solvent substance to help with the solvation step.
-        filter_solvent = miscellaneous.FilterSubstanceByRole(
-            "host-guest-filter_solvent"
-        )
-        filter_solvent.input_substance = ProtocolPath("substance", "global")
-        filter_solvent.component_roles = [Component.Role.Solvent]
 
         # Align the bound complex
         align_bound_coordinates = PreparePullCoordinates(
@@ -812,29 +841,60 @@ class HostGuestBindingAffinity(PhysicalProperty):
             "n_pull_windows", "global"
         )
 
-        # Solvate the bound structure
-        solvate_bound_coordinates = copy.deepcopy(solvation_template)
-        solvate_bound_coordinates.id = (
-            f"state_bound_solvate_coordinates_{bound_replicator_id}"
-        )
-        solvate_bound_coordinates.substance = ProtocolPath(
-            "filtered_substance", filter_solvent.id
-        )
-        solvate_bound_coordinates.solute_coordinate_file = ProtocolPath(
-            "output_coordinate_path", align_bound_coordinates.id
-        )
+        # Solvate the host-guest system
+        if not implicit_simulation:
+            # Filter out only the solvent substance to help with the solvation step.
+            filter_solvent = miscellaneous.FilterSubstanceByRole(
+                "host-guest-filter_solvent"
+            )
+            filter_solvent.input_substance = ProtocolPath("substance", "global")
+            filter_solvent.component_roles = [Component.Role.Solvent]
 
-        # Solvate the unbound structure
-        solvate_unbound_coordinates = copy.deepcopy(solvation_template)
-        solvate_unbound_coordinates.id = (
-            f"state_unbound_solvate_coordinates_{unbound_replicator_id}"
-        )
-        solvate_unbound_coordinates.substance = ProtocolPath(
-            "filtered_substance", filter_solvent.id
-        )
-        solvate_unbound_coordinates.solute_coordinate_file = ProtocolPath(
-            "output_coordinate_path", align_unbound_coordinates.id
-        )
+            # Solvate the bound structure
+            solvate_bound_coordinates = copy.deepcopy(solvation_template)
+            solvate_bound_coordinates.id = (
+                f"state_bound_solvate_coordinates_{bound_replicator_id}"
+            )
+            solvate_bound_coordinates.substance = ProtocolPath(
+                "filtered_substance", filter_solvent.id
+            )
+            solvate_bound_coordinates.solute_coordinate_file = ProtocolPath(
+                "output_coordinate_path", align_bound_coordinates.id
+            )
+
+            # Solvate the unbound structure
+            solvate_unbound_coordinates = copy.deepcopy(solvation_template)
+            solvate_unbound_coordinates.id = (
+                f"state_unbound_solvate_coordinates_{unbound_replicator_id}"
+            )
+            solvate_unbound_coordinates.substance = ProtocolPath(
+                "filtered_substance", filter_solvent.id
+            )
+            solvate_unbound_coordinates.solute_coordinate_file = ProtocolPath(
+                "output_coordinate_path", align_unbound_coordinates.id
+            )
+
+            bound_align_coordinate = ProtocolPath(
+                "coordinate_file_path", solvate_bound_coordinates.id
+            )
+            unbound_align_coordinate = ProtocolPath(
+                "coordinate_file_path", solvate_unbound_coordinates.id
+            )
+            input_coordinate = ProtocolPath(
+                "coordinate_file_path",
+                f"state_bound_solvate_coordinates_0_{orientation_placeholder}",
+            )
+        else:
+            bound_align_coordinate = ProtocolPath(
+                "output_coordinate_path", align_bound_coordinates.id
+            )
+            unbound_align_coordinate = ProtocolPath(
+                "output_coordinate_path", align_unbound_coordinates.id
+            )
+            input_coordinate = ProtocolPath(
+                "output_coordinate_path",
+                f"state_bound_align_coordinates_0_{orientation_placeholder}",
+            )
 
         # Apply the force field parameters. This only needs to be done once.
         apply_parameters = forcefield.BuildSmirnoffSystem(
@@ -842,10 +902,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         )
         apply_parameters.force_field_path = ProtocolPath("force_field_path", "global")
         apply_parameters.substance = ProtocolPath("substance", "global")
-        apply_parameters.coordinate_file_path = ProtocolPath(
-            "coordinate_file_path",
-            f"state_bound_solvate_coordinates_0_{orientation_placeholder}",
-        )
+        apply_parameters.coordinate_file_path = input_coordinate
         apply_parameters.enable_hmr = enable_hmr
 
         # Add dummy atoms to the bound system
@@ -853,13 +910,12 @@ class HostGuestBindingAffinity(PhysicalProperty):
             f"state_bound_add_dummy_atoms_{bound_replicator_id}"
         )
         add_bound_dummy_atoms.substance = ProtocolPath("substance", "global")
-        add_bound_dummy_atoms.input_coordinate_path = ProtocolPath(
-            "coordinate_file_path", solvate_bound_coordinates.id
-        )
+        add_bound_dummy_atoms.input_coordinate_path = bound_align_coordinate
         add_bound_dummy_atoms.input_system = ProtocolPath(
             "parameterized_system", apply_parameters.id
         )
         add_bound_dummy_atoms.offset = ProtocolPath("dummy_atom_offset", "global")
+        add_bound_dummy_atoms.implicit_simulation = implicit_simulation
 
         bound_coordinate_path = ProtocolPath(
             "output_coordinate_path",
@@ -875,13 +931,12 @@ class HostGuestBindingAffinity(PhysicalProperty):
             f"state_unbound_add_dummy_atoms_{unbound_replicator_id}"
         )
         add_unbound_dummy_atoms.substance = ProtocolPath("substance", "global")
-        add_unbound_dummy_atoms.input_coordinate_path = ProtocolPath(
-            "coordinate_file_path", solvate_unbound_coordinates.id
-        )
+        add_unbound_dummy_atoms.input_coordinate_path = unbound_align_coordinate
         add_unbound_dummy_atoms.input_system = ProtocolPath(
             "parameterized_system", apply_parameters.id
         )
         add_unbound_dummy_atoms.offset = ProtocolPath("dummy_atom_offset", "global")
+        add_unbound_dummy_atoms.implicit_simulation = implicit_simulation
 
         unbound_coordinate_path = ProtocolPath(
             "output_coordinate_path",
@@ -983,11 +1038,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
         # Return the full list of the protocols which make up the bound and unbound parts
         # for the gradient calculation.
         protocols = [
-            filter_solvent,
             align_bound_coordinates,
             align_unbound_coordinates,
-            solvate_bound_coordinates,
-            solvate_unbound_coordinates,
             apply_parameters,
             add_bound_dummy_atoms,
             add_unbound_dummy_atoms,
@@ -1004,6 +1056,11 @@ class HostGuestBindingAffinity(PhysicalProperty):
             unbound_equilibration,
             unbound_production,
         ]
+        if not implicit_simulation:
+            protocols.insert(2, filter_solvent)
+            protocols.insert(3, solvate_bound_coordinates)
+            protocols.insert(4, solvate_unbound_coordinates)
+
         protocol_replicators = [bound_replicator, unbound_replicator]
 
         return (
@@ -1030,6 +1087,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         unbound_topology: ProtocolPath,
         unbound_trajectory: ProtocolPath,
         orientation_free_energy: ProtocolPath,
+        enable_pbc: bool = True,
     ):
 
         # Compute the potential energy gradients for the bound complex
@@ -1045,6 +1103,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         bound_gradients.thermodynamic_state = ProtocolPath(
             "thermodynamic_state", "global"
         )
+        bound_gradients.enable_pbc = enable_pbc
 
         # Compute the potential energy gradients for the unbound complex
         unbound_gradients = ComputePotentialEnergyGradient(
@@ -1059,6 +1118,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         unbound_gradients.thermodynamic_state = ProtocolPath(
             "thermodynamic_state", "global"
         )
+        unbound_gradients.enable_pbc = enable_pbc
 
         # Compute the free energy gradients
         free_energy_gradients = ComputeFreeEnergyGradient(
@@ -1093,6 +1153,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         simulation_time_steps: dict = None,
         end_states_time_steps: dict = None,
         enable_hmr: bool = False,
+        implicit_simulation: bool = False,
         debug: bool = False,
     ):
         """Returns the default calculation schema to use when estimating
@@ -1126,6 +1187,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
             that will be used to estimate the free energy gradient.
         enable_hmr: bool, optional
             Whether to repartition hydrogen masses attached to heavy atoms.
+        implicit_simulation: bool, optional
+            Whether to run a protocol for host-guest binding with implicit solvent.
         debug
             Whether to return a debug schema. This is nearly identical
             to the default schema, albeit with significantly less
@@ -1193,13 +1256,21 @@ class HostGuestBindingAffinity(PhysicalProperty):
         (
             minimization_template,
             *simulation_templates,
-        ) = cls._paprika_default_simulation_protocols(simulation_time_steps)
+        ) = cls._paprika_default_simulation_protocols(
+            simulation_time_steps,
+            ensemble=Ensemble.NVT if implicit_simulation else Ensemble.NPT,
+            enable_pbc=False if implicit_simulation else True,
+        )
 
         if end_states_time_steps:
             (
                 end_states_minimization_template,
                 *end_states_simulation_templates,
-            ) = cls._paprika_default_simulation_protocols(end_states_time_steps)
+            ) = cls._paprika_default_simulation_protocols(
+                end_states_time_steps,
+                ensemble=Ensemble.NVT if implicit_simulation else Ensemble.NPT,
+                enable_pbc=False if implicit_simulation else True,
+            )
 
         if debug:
 
@@ -1248,6 +1319,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             solvation_template,
             minimization_template,
             *simulation_templates,
+            implicit_simulation,
             enable_hmr,
         )
 
@@ -1262,6 +1334,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             solvation_template,
             minimization_template,
             *simulation_templates,
+            implicit_simulation,
             enable_hmr,
         )
 
@@ -1283,27 +1356,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
                 solvation_template,
                 end_states_minimization_template,
                 *end_states_simulation_templates,
+                implicit_simulation,
                 enable_hmr,
-            )
-
-        # Build the protocols for the end-states (for gradient calculations)
-        if end_states_time_steps:
-            (
-                end_states_protocols,
-                end_states_replicator,
-                bound_replicator_id,
-                unbound_replicator_id,
-                end_states_parameterized_system,
-                bound_topology,
-                bound_trajectory,
-                unbound_topology,
-                unbound_trajectory,
-            ) = cls._paprika_build_end_states_protocol(
-                orientation_replicator,
-                restraint_schemas,
-                solvation_template,
-                end_states_minimization_template,
-                *end_states_simulation_templates,
             )
 
         # Compute the symmetry correction.
@@ -1342,6 +1396,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
                 unbound_topology,
                 unbound_trajectory,
                 ProtocolPath("result", orientation_free_energy.id),
+                enable_pbc=False if implicit_simulation else True,
             )
 
         # Finally, combine all of the values together
@@ -1390,9 +1445,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
             ]
 
         # Define where the final value comes from.
-        calculation_schema.workflow_schema.final_value_source = ProtocolPath(
-            "result", total_free_energy.id
-        )
+        #         calculation_schema.workflow_schema.final_value_source = ProtocolPath(
+        #             "result", total_free_energy.id
+        #         )
 
         return calculation_schema
 
