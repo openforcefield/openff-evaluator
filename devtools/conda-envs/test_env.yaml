@@ -1,8 +1,6 @@
 name: test
 channels:
-  - conda-forge/label/openff-toolkit_rc
   - conda-forge
-  - omnia
 dependencies:
     # Base depends
   - python
