@@ -434,8 +434,8 @@ class _Compound:
             None if the identifier cannot be converted, otherwise the converted SMILES pattern.
         """
         from cmiles.utils import load_molecule, mol_to_smiles
-        from openforcefield.topology import Molecule
-        from openforcefield.utils import LicenseError
+        from openff.toolkit.topology import Molecule
+        from openff.toolkit.utils import LicenseError
 
         if common_name is None:
             return None
@@ -845,7 +845,7 @@ class _PureOrMixtureData:
             The molecular weight.
         """
 
-        from openforcefield.topology import Molecule
+        from openff.toolkit.topology import Molecule
         from simtk import unit as simtk_unit
 
         try:

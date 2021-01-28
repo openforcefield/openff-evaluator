@@ -52,8 +52,8 @@ from openff.evaluator.workflow.attributes import (
 
 if TYPE_CHECKING:
     import mdtraj
-    from openforcefield.topology import Topology
-    from openforcefield.typing.engines.smirnoff.forcefield import ForceField
+    from openff.toolkit.topology import Topology
+    from openff.toolkit.typing.engines.smirnoff.forcefield import ForceField
 
 logger = logging.getLogger(__name__)
 
@@ -153,7 +153,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
             The identified residue names.
         """
 
-        from openforcefield.topology import Molecule, Topology
+        from openff.toolkit.topology import Molecule, Topology
         from simtk.openmm import app
 
         if role is None:
@@ -254,7 +254,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
             A yaml compatible dictionary of YANK options.
         """
 
-        from openforcefield.utils import quantity_to_string
+        from openff.toolkit.utils import quantity_to_string
 
         platform_name = "CPU"
 
@@ -1238,7 +1238,7 @@ class SolvationYankProtocol(BaseYankProtocol):
         """Analyzes a particular phase, extracting the relevant free energies
         and computing the required free energies."""
 
-        from openforcefield.topology import Molecule, Topology
+        from openff.toolkit.topology import Molecule, Topology
 
         free_energies = self._analysed_output["free_energy"]
 

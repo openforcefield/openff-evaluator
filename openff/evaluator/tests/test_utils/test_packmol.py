@@ -11,7 +11,7 @@ from openff.evaluator.utils.packmol import PackmolRuntimeException
 
 def test_packmol_box_size():
 
-    from openforcefield.topology import Molecule
+    from openff.toolkit.topology import Molecule
 
     molecules = [Molecule.from_smiles("O")]
 
@@ -33,7 +33,7 @@ def test_packmol_box_size():
 
 def test_packmol_bad_input():
 
-    from openforcefield.topology import Molecule
+    from openff.toolkit.topology import Molecule
 
     molecules = [Molecule.from_smiles("O")]
 
@@ -43,7 +43,7 @@ def test_packmol_bad_input():
 
 def test_packmol_failed():
 
-    from openforcefield.topology import Molecule
+    from openff.toolkit.topology import Molecule
 
     molecules = [Molecule.from_smiles("O")]
 
@@ -53,7 +53,7 @@ def test_packmol_failed():
 
 def test_packmol_water():
 
-    from openforcefield.topology import Molecule
+    from openff.toolkit.topology import Molecule
 
     molecules = [Molecule.from_smiles("O")]
 
@@ -75,7 +75,7 @@ def test_packmol_water():
 
 def test_packmol_ions():
 
-    from openforcefield.topology import Molecule
+    from openff.toolkit.topology import Molecule
 
     molecules = [
         Molecule.from_smiles("[Na+]"),
@@ -105,7 +105,7 @@ def test_packmol_ions():
 
 def test_packmol_paracetamol():
 
-    from openforcefield.topology import Molecule
+    from openff.toolkit.topology import Molecule
 
     # Test something a bit more tricky than water
     molecules = [Molecule.from_smiles("CC(=O)NC1=CC=C(C=C1)O")]
@@ -150,7 +150,7 @@ def test_amino_acids():
 
     smiles = [*amino_residues]
 
-    from openforcefield.topology import Molecule
+    from openff.toolkit.topology import Molecule
 
     molecules = [Molecule.from_smiles(x) for x in smiles]
     counts = [1] * len(smiles)

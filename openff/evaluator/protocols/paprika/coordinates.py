@@ -37,7 +37,7 @@ def _atom_indices_by_role(
     specific role.
     """
     import mdtraj
-    from openforcefield.topology import Molecule, Topology
+    from openff.toolkit.topology import Molecule, Topology
 
     # Split the substance into the components assigned each role.
     components_by_role = _components_by_role(substance)
