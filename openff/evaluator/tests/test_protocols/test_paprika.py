@@ -286,12 +286,12 @@ def test_add_dummy_atoms(tmp_path, dummy_complex):
     trajectory = mdtraj.load_pdb(protocol.output_coordinate_path)
     assert trajectory.topology.n_atoms == 14
 
-    assert numpy.allclose(trajectory.xyz[0][11:12, :2], 2.5)
-    assert numpy.isclose(trajectory.xyz[0][11, 2], 1.12)
-    assert numpy.isclose(trajectory.xyz[0][12, 2], 0.82)
-    assert numpy.isclose(trajectory.xyz[0][13, 0], 2.5)
-    assert numpy.isclose(trajectory.xyz[0][13, 1], 2.72)
-    assert numpy.isclose(trajectory.xyz[0][13, 2], 0.6)
+    assert numpy.allclose(trajectory.xyz[0][11:12, :2], 2.25)
+    assert numpy.isclose(trajectory.xyz[0][11, 2], 0.62)
+    assert numpy.isclose(trajectory.xyz[0][12, 2], 0.32)
+    assert numpy.isclose(trajectory.xyz[0][13, 0], 2.25)
+    assert numpy.isclose(trajectory.xyz[0][13, 1], 2.47)
+    assert numpy.isclose(trajectory.xyz[0][13, 2], 0.1)
 
     # Validate the atom / residue names.
     all_atoms = [*trajectory.topology.atoms]
