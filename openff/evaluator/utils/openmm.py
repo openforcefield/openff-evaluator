@@ -311,6 +311,8 @@ def system_subset(
     # As this method deals mainly with the toolkit, we stick to
     # simtk units here.
     from openforcefield.typing.engines.smirnoff import ForceField
+    from simtk import unit as simtk_unit
+    from simtk.openmm import CustomGBForce, NonbondedForce
 
     # Create the force field subset.
     force_field_subset = ForceField()
@@ -355,6 +357,24 @@ def system_subset(
 
     setattr(parameter, parameter_key.attribute, parameter_value)
 
+    if parameter_key.tag == "GBSA":
+        force_field_subset.register_parameter_handler(
+            copy.deepcopy(force_field.get_parameter_handler("vdW"))
+        )
+
     # Create the parameterized sub-system.
     system = force_field_subset.create_openmm_system(topology)
+
+    # if parameter_key.tag == "GBSA":
+    #    for force in system.getForces():
+    #        if isinstance(force, NonbondedForce):
+    #            for index in range(force.getNumParticles()):
+    #                param = force.getParticleParameters(index)
+    #                force.setParticleParameters(
+    #                    index,
+    #                    0.0,
+    #                    0.0,
+    #                    0.0,
+    #                )
+
     return system, parameter_value

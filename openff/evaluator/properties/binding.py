@@ -403,6 +403,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         align_coordinates.pull_window_index = ReplicatorValue(pull_replicator.id)
         align_coordinates.pull_distance = ProtocolPath("pull_distance", "global")
         align_coordinates.n_pull_windows = ProtocolPath("n_pull_windows", "global")
+        align_coordinates.remove_pbc_vectors = True if implicit_simulation else False
 
         # Solvate the host-guest system
         if not implicit_simulation:
@@ -423,7 +424,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             )
 
             coordinate_file_path = ProtocolPath(
-                "output_coordinate_path", solvate_coordinates.id
+                "coordinate_file_path", solvate_coordinates.id
             )
             input_coordinate = ProtocolPath(
                 "coordinate_file_path",
@@ -648,6 +649,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         align_coordinates.complex_file_path = ProtocolPath(
             "host_coordinate_path", "global"
         )
+        align_coordinates.remove_pbc_vectors = True if implicit_simulation else False
 
         # Solvate the host-only system
         if not implicit_simulation:
@@ -666,7 +668,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             )
 
             coordinate_file_path = ProtocolPath(
-                "output_coordinate_path", solvate_coordinates.id
+                "coordinate_file_path", solvate_coordinates.id
             )
         else:
             coordinate_file_path = ProtocolPath(
@@ -819,6 +821,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
         align_bound_coordinates.n_pull_windows = ProtocolPath(
             "n_pull_windows", "global"
         )
+        align_bound_coordinates.remove_pbc_vectors = (
+            True if implicit_simulation else False
+        )
 
         # Align the unbound complex
         align_unbound_coordinates = PreparePullCoordinates(
@@ -839,6 +844,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
         )
         align_unbound_coordinates.n_pull_windows = ProtocolPath(
             "n_pull_windows", "global"
+        )
+        align_unbound_coordinates.remove_pbc_vectors = (
+            True if implicit_simulation else False
         )
 
         # Solvate the host-guest system
@@ -1445,9 +1453,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
             ]
 
         # Define where the final value comes from.
-        #         calculation_schema.workflow_schema.final_value_source = ProtocolPath(
-        #             "result", total_free_energy.id
-        #         )
+        calculation_schema.workflow_schema.final_value_source = ProtocolPath(
+            "result", total_free_energy.id
+        )
 
         return calculation_schema
 

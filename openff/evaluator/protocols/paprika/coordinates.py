@@ -99,6 +99,12 @@ class _PrepareAPRCoordinates(Protocol, abc.ABC):
         type_hint=str,
         default_value=UNDEFINED,
     )
+    remove_pbc_vectors = InputAttribute(
+        docstring="Whether to remove PBC vectors from the PDB file, this is useful"
+        "for running implicit solvent simulations.",
+        type_hint=bool,
+        default_value=False,
+    )
 
     output_coordinate_path = OutputAttribute(
         docstring="The file path to the system which has been correctly aligned to "
@@ -159,6 +165,9 @@ class PreparePullCoordinates(_PrepareAPRCoordinates):
             self.n_pull_windows,
         )
 
+        if self.remove_pbc_vectors:
+            host_structure.topology.setPeriodicBoxVectors(None)
+
         self.output_coordinate_path = os.path.join(directory, "output.pdb")
 
         with open(self.output_coordinate_path, "w") as file:
@@ -193,6 +202,9 @@ class PrepareReleaseCoordinates(_PrepareAPRCoordinates):
         host_trajectory.save(host_file_path)
 
         host_structure = Setup.prepare_host_structure(host_file_path)
+
+        if self.remove_pbc_vectors:
+            host_structure.topology.setPeriodicBoxVectors(None)
 
         self.output_coordinate_path = os.path.join(directory, "output.pdb")
 
@@ -235,8 +247,8 @@ class AddDummyAtoms(Protocol):
         default_value=UNDEFINED,
     )
     implicit_simulation = InputAttribute(
-        docstring="With implicit solvent simulations, NoCutoff will be the method "
-        "used for NonbondeForce and CustomGBForce.",
+        docstring="For implicit solvent simulations, dummy atoms must also "
+        "be added to either CustomGBForce or GBSAOBCForce.",
         type_hint=bool,
         default_value=False,
     )
@@ -255,7 +267,13 @@ class AddDummyAtoms(Protocol):
 
         import parmed.geometry
         from paprika.setup import Setup
-        from simtk.openmm import CustomGBForce, NonbondedForce, XmlSerializer, app
+        from simtk.openmm import (
+            CustomGBForce,
+            GBSAOBCForce,
+            NonbondedForce,
+            XmlSerializer,
+            app,
+        )
 
         # Extract the host atoms to determine the offset of the dummy atoms.
         # noinspection PyTypeChecker
@@ -277,13 +295,14 @@ class AddDummyAtoms(Protocol):
         )
 
         # Shift the structure to avoid issues with the PBC
-        input_structure.coordinates += numpy.array(
-            [
-                input_structure.box[0] * 0.5,
-                input_structure.box[1] * 0.5,
-                -input_structure.coordinates[-1, 2] + 6.0,
-            ]
-        )
+        if input_structure.box:
+            input_structure.coordinates += numpy.array(
+                [
+                    input_structure.box[0] * 0.5,
+                    input_structure.box[1] * 0.5,
+                    -input_structure.coordinates[-1, 2] + 6.0,
+                ]
+            )
 
         # Save the final coordinates.
         self.output_coordinate_path = os.path.join(directory, "output.pdb")
@@ -306,15 +325,15 @@ class AddDummyAtoms(Protocol):
                 force.addParticle(0.0, 1.0, 0.0)
                 force.addParticle(0.0, 1.0, 0.0)
 
-                if self.implicit_simulation:
-                    force.setNonbondedMethod(NonbondedForce.NoCutoff)
-
-            if self.implicit_simulation and isinstance(force, CustomGBForce):
-                force.addParticle([0.0, 0.15, 0.11592])
-                force.addParticle([0.0, 0.15, 0.11592])
-                force.addParticle([0.0, 0.15, 0.11592])
-
-                force.setNonbondedMethod(CustomGBForce.NoCutoff)
+            if self.implicit_simulation:
+                if isinstance(force, GBSAOBCForce):
+                    force.addParticle(0.0, 0.15, 0.11592)
+                    force.addParticle(0.0, 0.15, 0.11592)
+                    force.addParticle(0.0, 0.15, 0.11592)
+                if isinstance(force, CustomGBForce):
+                    force.addParticle([0.0, 0.15, 0.11592])
+                    force.addParticle([0.0, 0.15, 0.11592])
+                    force.addParticle([0.0, 0.15, 0.11592])
 
         output_system_path = os.path.join(directory, "output.xml")
 
