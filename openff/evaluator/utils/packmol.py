@@ -65,7 +65,7 @@ def _validate_inputs(
 
     Parameters
     ----------
-    molecules : list of openforcefield.topology.Molecule
+    molecules : list of openff.toolkit.topology.Molecule
         The molecules in the system.
     number_of_copies : list of int
         A list of the number of copies of each molecule type, of length
@@ -121,7 +121,7 @@ def _approximate_box_size_by_density(
 
     Parameters
     ----------
-    molecules : list of openforcefield.topology.Molecule
+    molecules : list of openff.toolkit.topology.Molecule
         The molecules in the system.
     n_copies : list of int
         The number of copies of each molecule.
@@ -187,7 +187,7 @@ def _generate_residue_name(residue, smiles):
         The SMILES pattern to generate a resiude name for.
     """
     from mdtraj.core import residue_names
-    from openforcefield.topology import Molecule
+    from openff.toolkit.topology import Molecule
 
     # Define the set of residue names which should be discarded
     # if randomly generated as they have a reserved meaning.
@@ -298,7 +298,7 @@ def _ion_residue_name(molecule):
 
     Parameters
     ----------
-    molecule: openforcefield.topology.Molecule
+    molecule: openff.toolkit.topology.Molecule
         The monoatomic ion to generate a resiude name for.
 
     Returns
@@ -337,7 +337,7 @@ def _create_trajectory(molecule):
 
     Parameters
     ----------
-    molecule: openforcefield.topology.Molecule
+    molecule: openff.toolkit.topology.Molecule
         The SMILES pattern.
 
     Returns
@@ -592,7 +592,7 @@ def pack_box(
 
     Parameters
     ----------
-    molecules : list of openforcefield.topology.Molecule
+    molecules : list of openff.toolkit.topology.Molecule
         The molecules in the system.
     number_of_copies : list of int
         A list of the number of copies of each molecule type, of length

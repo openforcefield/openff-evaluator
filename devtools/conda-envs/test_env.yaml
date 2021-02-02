@@ -1,7 +1,6 @@
 name: test
 channels:
   - conda-forge
-  - omnia
 dependencies:
     # Base depends
   - python
@@ -13,7 +12,7 @@ dependencies:
   - codecov
 
     # Standard dependencies
-  - openforcefield >=0.7.1
+  - openff-toolkit
   - smirnoff99frosst
   - numpy
   - pandas

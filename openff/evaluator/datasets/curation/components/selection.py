@@ -176,7 +176,7 @@ class SelectSubstances(CurationComponent):
             OEFPType_Tree,
             OEMakeFP,
         )
-        from openforcefield.topology import Molecule
+        from openff.toolkit.topology import Molecule
 
         oe_molecule = Molecule.from_smiles(smiles).to_openeye()
 

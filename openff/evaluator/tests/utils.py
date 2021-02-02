@@ -229,7 +229,7 @@ def build_tip3p_smirnoff_force_field():
         The force field containing both smirnoff99Frosst-1.1.0
         and TIP3P parameters
     """
-    from openforcefield.typing.engines.smirnoff import ForceField
+    from openff.toolkit.typing.engines.smirnoff import ForceField
 
     smirnoff_force_field_path = "smirnoff99Frosst-1.1.0.offxml"
     tip3p_force_field_path = get_data_filename("forcefield/tip3p.offxml")

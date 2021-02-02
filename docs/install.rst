@@ -12,9 +12,9 @@ followed and conda is available on your machine.
 Installation from Conda
 -----------------------
 
-To install the ``openff-evaluator`` from the ``omnia`` channel, simply run::
+To install the ``openff-evaluator`` from the ``conda-forge`` channel simply run::
 
-    conda install -c conda-forge -c omnia openff-evaluator
+    conda install -c conda-forge openff-evaluator
 
 Recommended Dependencies
 ------------------------

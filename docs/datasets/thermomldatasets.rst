@@ -21,7 +21,7 @@ The API only supports extracting those properties which have been :ref:`register
 with the frameworks plug-in system, and does not currently load the full set of metadata available in the archive files.
 
 .. note:: If the metadata you require is not currently exposed, please open an issue on the `GitHub issue tracker
-   <https://github.com/openforcefield/evaluator/issues>`_ to request it.
+   <https://github.com/openforcefield/openff-evaluator/issues>`_ to request it.
 
 Currently the framework has built-in support for extracting:
 
