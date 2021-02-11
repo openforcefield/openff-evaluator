@@ -522,7 +522,7 @@ class TypedBaseModel(ABC):
             return cls.parse_json(file.read())
 
     @classmethod
-    def parse_json(cls, string_contents, encoding="utf8"):
+    def parse_json(cls, string_contents):
         """Parses a typed json string into the corresponding class
         structure.
 
@@ -530,17 +530,13 @@ class TypedBaseModel(ABC):
         ----------
         string_contents: str or bytes
             The typed json string.
-        encoding: str
-            The encoding of the `string_contents`.
 
         Returns
         -------
         Any
             The parsed class.
         """
-        return_object = json.loads(
-            string_contents, encoding=encoding, cls=TypedJSONDecoder
-        )
+        return_object = json.loads(string_contents, cls=TypedJSONDecoder)
         return return_object
 
     @abstractmethod
