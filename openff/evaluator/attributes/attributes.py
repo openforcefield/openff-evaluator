@@ -162,8 +162,8 @@ class AttributeClass(TypedBaseModel):
         attribute._set_value(self, value)
 
     @classmethod
-    def parse_json(cls, string_contents, encoding="utf8"):
-        return_object = super(AttributeClass, cls).parse_json(string_contents, encoding)
+    def parse_json(cls, string_contents):
+        return_object = super(AttributeClass, cls).parse_json(string_contents)
         return_object.validate()
         return return_object
 
