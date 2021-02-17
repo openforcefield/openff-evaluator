@@ -1,6 +1,6 @@
 import os
 
-from openforcefield.typing.engines.smirnoff import ForceField
+from openff.toolkit.typing.engines.smirnoff import ForceField
 
 from openff import evaluator
 from openff.evaluator import unit

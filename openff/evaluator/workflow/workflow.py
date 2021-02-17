@@ -564,7 +564,7 @@ class Workflow:
         list of ParameterGradientKey
             The filtered list of parameter gradient keys.
         """
-        from openforcefield.topology import Molecule, Topology
+        from openff.toolkit.topology import Molecule, Topology
 
         # noinspection PyTypeChecker
         if parameter_gradient_keys == UNDEFINED or len(parameter_gradient_keys) == 0:

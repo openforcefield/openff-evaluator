@@ -1,7 +1,7 @@
 Release Process
 ===============
 
-This document aims to outline the steps needed to release the ``openff-evaluator`` on ``omnia``. This
+This document aims to outline the steps needed to release the ``openff-evaluator`` on ``conda-forge``. This
 should only be done with the approval of the core maintainers.
 
 1. Update the Release History
@@ -70,37 +70,30 @@ To cut a new release on GitHub:
 
 *Note - You do not need to upload any files. The source code will automatically be added as a `.tar.gz` file.*
 
-3: Trigger a New Build on Omnia
--------------------------------
+3: Trigger a New Build on Conda Forge
+-------------------------------------
 
-To trigger the build in ``omnia``:
+To trigger the build on ``conda-forge``:
 
-1) Create branch or fork of omnia-md/conda-recipes with the following changes to openff-evaluator in
-`meta.yaml <https://github.com/omnia-md/conda-recipes/blob/master/openff-evaluator/meta.yaml>`_:
+1) Create a fork of the `openff-evaluator-feedstock <https://github.com/conda-forge/openff-evaluator-feedstock>`_ and
+make the following changes to the ``recipe/meta.yaml`` file:
 
-  a) Set ``git_tag`` to match the git release tag
-  b) Update the ``version`` to match the release (this will go into the conda package name)
-  c) Set ``build`` to 0
-  d) Update any dependencies in the ``requirements`` section
-  e) If we want to push to special ``rc`` label use ``extra.upload``
+  a) Update the ``version`` to match the release.
+  b) Set ``build`` to 0
+  c) Update any dependencies in the ``requirements`` section
+  d) Update the sha256 hash to the output of ``curl -sL https://github.com/openforcefield/openff-evaluator/archive/{{ version }}.tar.gz | openssl sha256``
 
-2) Open PR to merge branch or fork into omnia-md master:
+2) Open PR to merge the fork into the main feedstock:
 
-  a) The PR title should have the format ``[openff-evaluator] X.Y.Z (label: rc)``
+  a) The PR title should have the format ``Release X.Y.Z``
   b) No PR body text is needed
-  c) Travis will run on this PR (~30 minutes) and attempt to build the package. Under no conditions will the package
-     be uploaded before the PR is merged. This step is just to ensure that building doesn't crash.
-  d) If the build is successful the PR should be reviewed and merged by the ``omnia`` maintainers
-  e) **Once merged into master** the package is built again on travis, and pushed to the channel set in
-     meta.yaml (``main``, ``beta``, or ``rc``)
+  c) The CI will run on this PR (~30 minutes) and attempt to build the package.
+  d) If the build is successful the PR should be reviewed and merged by the feedstock maintainers.
+  e) **Once merged** the package is built again on and uploaded to anaconda.
 
-3) Test the ``omnia`` package:
+3) Test the ``conda-forge`` package:
 
-  a) ``conda install -c omnia openff-evaluator``
-
-*Note: Omnia builds take about 30 minutes to run. When you open a PR the build will run, and you can check the bottom
-of the travis logs for "package failed to build" listings. Some packages always fail (protons, assaytools), but
-``openff-evaluator`` shouldn't be there. Ctrl-F for ``openff-evaluator`` to ensure that it did build at all though.*
+  a) ``conda install -c conda-forge openff-evaluator``
 
 4: Update the ReadTheDocs Build Versions
 --------------------------------------------

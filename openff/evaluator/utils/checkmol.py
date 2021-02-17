@@ -452,7 +452,7 @@ def analyse_functional_groups(smiles):
     import subprocess
     import tempfile
 
-    from openforcefield.topology import Molecule
+    from openff.toolkit.topology import Molecule
 
     if smiles == "O" or smiles == "[H]O[H]":
         return {ChemicalEnvironment.Aqueous: 1}
