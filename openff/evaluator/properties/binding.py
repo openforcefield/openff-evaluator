@@ -678,6 +678,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         # Apply the force field parameters. This only needs to be done for one
         # of the windows.
         apply_parameters = forcefield.BaseBuildSystem("release_apply_parameters")
+        #apply_parameters = forcefield.BuildSmirnoffSystem("release_apply_parameters")
         apply_parameters.force_field_path = ProtocolPath("force_field_path", "global")
         apply_parameters.substance = ProtocolPath("host_substance", "global")
         apply_parameters.coordinate_file_path = coordinate_file_path

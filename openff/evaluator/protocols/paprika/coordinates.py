@@ -147,7 +147,7 @@ class PreparePullCoordinates(_PrepareAPRCoordinates):
 
     def _execute(self, directory, available_resources):
 
-        from paprika.setup import Setup
+        from paprika.evaluator import Setup
         from simtk.openmm import app
 
         atom_indices_by_role = _atom_indices_by_role(
@@ -186,7 +186,7 @@ class PrepareReleaseCoordinates(_PrepareAPRCoordinates):
     def _execute(self, directory, available_resources):
 
         import mdtraj
-        from paprika.setup import Setup
+        from paprika.evaluator import Setup
         from simtk.openmm import app
 
         mdtraj_trajectory = mdtraj.load_pdb(self.complex_file_path)
@@ -266,7 +266,7 @@ class AddDummyAtoms(Protocol):
     def _execute(self, directory, available_resources):
 
         import parmed.geometry
-        from paprika.setup import Setup
+        from paprika.evaluator import Setup
         from simtk.openmm import (
             CustomGBForce,
             GBSAOBCForce,
