@@ -59,7 +59,7 @@ class AnalyzeAPRPhase(Protocol):
 
     def _execute(self, directory, available_resources):
 
-        from paprika.analyze import Analyze
+        from paprika.evaluator import Analyze
 
         # Set-up the expected directory structure.
         windows_directory = os.path.join(directory, "windows")
