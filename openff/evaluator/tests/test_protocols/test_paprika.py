@@ -2,8 +2,8 @@ import os
 
 import numpy
 import pytest
-from openforcefield.topology import Molecule, Topology
-from openforcefield.typing.engines.smirnoff import ForceField
+from openff.toolkit.topology import Molecule, Topology
+from openff.toolkit.typing.engines.smirnoff import ForceField
 
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
