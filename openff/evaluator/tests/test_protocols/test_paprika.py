@@ -2,8 +2,8 @@ import os
 
 import numpy
 import pytest
-from openforcefield.topology import Molecule, Topology
-from openforcefield.typing.engines.smirnoff import ForceField
+from openff.toolkit.topology import Molecule, Topology
+from openff.toolkit.typing.engines.smirnoff import ForceField
 
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
@@ -60,7 +60,7 @@ def dummy_complex() -> Substance:
 def complex_file_path(tmp_path):
 
     import parmed.geometry
-    from paprika.setup import Setup
+    from paprika.evaluator import Setup
 
     complex_path = get_data_filename(
         os.path.join("test", "molecules", "methanol_methane.pdb")
@@ -286,12 +286,12 @@ def test_add_dummy_atoms(tmp_path, dummy_complex):
     trajectory = mdtraj.load_pdb(protocol.output_coordinate_path)
     assert trajectory.topology.n_atoms == 14
 
-    assert numpy.allclose(trajectory.xyz[0][11:12, :2], 2.5)
-    assert numpy.isclose(trajectory.xyz[0][11, 2], 1.12)
-    assert numpy.isclose(trajectory.xyz[0][12, 2], 0.82)
-    assert numpy.isclose(trajectory.xyz[0][13, 0], 2.5)
-    assert numpy.isclose(trajectory.xyz[0][13, 1], 2.72)
-    assert numpy.isclose(trajectory.xyz[0][13, 2], 0.6)
+    assert numpy.allclose(trajectory.xyz[0][11:12, :2], 2.25)
+    assert numpy.isclose(trajectory.xyz[0][11, 2], 0.62)
+    assert numpy.isclose(trajectory.xyz[0][12, 2], 0.32)
+    assert numpy.isclose(trajectory.xyz[0][13, 0], 2.25)
+    assert numpy.isclose(trajectory.xyz[0][13, 1], 2.47)
+    assert numpy.isclose(trajectory.xyz[0][13, 2], 0.1)
 
     # Validate the atom / residue names.
     all_atoms = [*trajectory.topology.atoms]
@@ -714,7 +714,7 @@ def test_compute_free_energy_gradient(tmp_path):
 def test_analyse_apr(tmp_path, monkeypatch, complex_file_path):
 
     import mdtraj
-    from paprika import analyze
+    from paprika.evaluator import Analyze
 
     # Generate a dummy set of attach restraints
     restraints_protocol = GenerateAttachRestraints("")
@@ -745,7 +745,7 @@ def test_analyse_apr(tmp_path, monkeypatch, complex_file_path):
 
     # Application of the monkeypatch to replace Path.home
     # with the behavior of mockreturn defined above.
-    monkeypatch.setattr(analyze, "compute_phase_free_energy", mock_analyze_return)
+    monkeypatch.setattr(Analyze, "compute_phase_free_energy", mock_analyze_return)
 
     protocol = AnalyzeAPRPhase("analyze_release_phase")
     protocol.topology_path = complex_file_path

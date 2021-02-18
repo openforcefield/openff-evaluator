@@ -397,7 +397,7 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
 
         Parameters
         ----------
-        molecule: openforcefield.topology.Molecule
+        molecule: openff.toolkit.topology.Molecule
             The molecule to parameterize.
         force_field_source: ForceFieldSource
             The tleap source which describes which parameters to apply.
@@ -413,7 +413,7 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
 
     def _execute(self, directory, available_resources):
 
-        from openforcefield.topology import Molecule, Topology
+        from openff.toolkit.topology import Molecule, Topology
 
         force_field_source = ForceFieldSource.from_json(self.force_field_path)
         cutoff = pint_quantity_to_openmm(force_field_source.cutoff)
@@ -501,12 +501,12 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
 @workflow_protocol()
 class BuildSmirnoffSystem(BaseBuildSystem):
     """Parametrise a set of molecules with a given smirnoff force field
-    using the `OpenFF toolkit <https://github.com/openforcefield/openforcefield>`_.
+    using the `OpenFF toolkit <https://github.com/openforcefield/openff-toolkit>`_.
     """
 
     def _execute(self, directory, available_resources):
 
-        from openforcefield.topology import Molecule, Topology
+        from openff.toolkit.topology import Molecule, Topology
 
         pdb_file = app.PDBFile(self.coordinate_file_path)
 
@@ -591,7 +591,7 @@ class BuildLigParGenSystem(TemplateBuildSystem):
 
         Parameters
         ----------
-        molecule: openforcefield.topology.Molecule
+        molecule: openff.toolkit.topology.Molecule
             The molecule to templatize.
         force_field_source: LigParGenForceFieldSource
             The tleap source which describes which parameters to apply.
@@ -864,7 +864,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
 
         Parameters
         ----------
-        molecule: openforcefield.topology.Molecule
+        molecule: openff.toolkit.topology.Molecule
             The molecule to parameterize.
         force_field_source: TLeapForceFieldSource
             The tleap source which describes which parameters to apply.
@@ -1057,19 +1057,19 @@ class BuildTLeapSystem(TemplateBuildSystem):
 
         Parameters
         ----------
-        molecule: openforcefield.topology.Molecule
+        molecule: openff.toolkit.topology.Molecule
             The molecule to assign charges to.
         """
 
         if self.charge_backend == BuildTLeapSystem.ChargeBackend.OpenEye:
 
-            from openforcefield.utils.toolkits import OpenEyeToolkitWrapper
+            from openff.toolkit.utils.toolkits import OpenEyeToolkitWrapper
 
             toolkit_wrapper = OpenEyeToolkitWrapper()
 
         elif self.charge_backend == BuildTLeapSystem.ChargeBackend.AmberTools:
 
-            from openforcefield.utils.toolkits import (
+            from openff.toolkit.utils.toolkits import (
                 AmberToolsToolkitWrapper,
                 RDKitToolkitWrapper,
                 ToolkitRegistry,
@@ -1090,7 +1090,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
 
         Parameters
         ----------
-        molecule: openforcefield.topology.Molecule
+        molecule: openff.toolkit.topology.Molecule
             The molecule to parameterize.
         force_field_source: TLeapForceFieldSource
             The tleap source which describes which parameters to apply.

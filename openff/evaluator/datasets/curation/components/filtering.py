@@ -414,7 +414,7 @@ class FilterByElements(CurationComponent):
         cls, data_frame: pandas.DataFrame, schema: FilterByElementsSchema, n_processes
     ) -> pandas.DataFrame:
 
-        from openforcefield.topology import Molecule
+        from openff.toolkit.topology import Molecule
 
         def filter_function(data_row):
 
@@ -646,8 +646,8 @@ class FilterByStereochemistry(CurationComponent):
         n_processes,
     ) -> pandas.DataFrame:
 
-        from openforcefield.topology import Molecule
-        from openforcefield.utils import UndefinedStereochemistryError
+        from openff.toolkit.topology import Molecule
+        from openff.toolkit.utils import UndefinedStereochemistryError
 
         def filter_function(data_row):
 
@@ -683,7 +683,7 @@ class FilterByCharged(CurationComponent):
         cls, data_frame: pandas.DataFrame, schema: FilterByChargedSchema, n_processes
     ) -> pandas.DataFrame:
 
-        from openforcefield.topology import Molecule
+        from openff.toolkit.topology import Molecule
         from simtk import unit as simtk_unit
 
         def filter_function(data_row):
@@ -888,7 +888,7 @@ class FilterBySmirks(CurationComponent):
             The matched smirks patterns.
         """
 
-        from openforcefield.topology import Molecule
+        from openff.toolkit.topology import Molecule
 
         if len(smirks_patterns) == 0:
             return []

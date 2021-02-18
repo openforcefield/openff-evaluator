@@ -6,7 +6,7 @@ from openff.evaluator.utils.serialization import TypedBaseModel
 
 if TYPE_CHECKING:
 
-    from openforcefield.topology import Topology
+    from openff.toolkit.topology import Topology
     from simtk.openmm import System
 
 
@@ -30,7 +30,7 @@ class ParameterizedSystem(TypedBaseModel):
     @property
     def topology(self) -> "Topology":
 
-        from openforcefield.topology import Molecule, Topology
+        from openff.toolkit.topology import Molecule, Topology
         from simtk.openmm import app
 
         pdb_file = app.PDBFile(self._topology_path)

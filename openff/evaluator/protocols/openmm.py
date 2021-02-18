@@ -42,8 +42,8 @@ from openff.evaluator.workflow import workflow_protocol
 if TYPE_CHECKING:
 
     from mdtraj import Trajectory
-    from openforcefield.topology import Topology
-    from openforcefield.typing.engines.smirnoff import ForceField
+    from openff.toolkit.topology import Topology
+    from openff.toolkit.typing.engines.smirnoff import ForceField
     from simtk import openmm
 
 logger = logging.getLogger(__name__)

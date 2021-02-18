@@ -37,7 +37,7 @@ def _atom_indices_by_role(
     specific role.
     """
     import mdtraj
-    from openforcefield.topology import Molecule, Topology
+    from openff.toolkit.topology import Molecule, Topology
 
     # Split the substance into the components assigned each role.
     components_by_role = _components_by_role(substance)
@@ -147,7 +147,7 @@ class PreparePullCoordinates(_PrepareAPRCoordinates):
 
     def _execute(self, directory, available_resources):
 
-        from paprika.setup import Setup
+        from paprika.evaluator import Setup
         from simtk.openmm import app
 
         atom_indices_by_role = _atom_indices_by_role(
@@ -186,7 +186,7 @@ class PrepareReleaseCoordinates(_PrepareAPRCoordinates):
     def _execute(self, directory, available_resources):
 
         import mdtraj
-        from paprika.setup import Setup
+        from paprika.evaluator import Setup
         from simtk.openmm import app
 
         mdtraj_trajectory = mdtraj.load_pdb(self.complex_file_path)
@@ -266,6 +266,7 @@ class AddDummyAtoms(Protocol):
     def _execute(self, directory, available_resources):
 
         import parmed.geometry
+<<<<<<< HEAD
         from paprika.setup import Setup
         from simtk.openmm import (
             CustomGBForce,
@@ -274,6 +275,10 @@ class AddDummyAtoms(Protocol):
             XmlSerializer,
             app,
         )
+=======
+        from paprika.evaluator import Setup
+        from simtk.openmm import NonbondedForce, XmlSerializer, app
+>>>>>>> paprika-gradient-support
 
         # Extract the host atoms to determine the offset of the dummy atoms.
         # noinspection PyTypeChecker

@@ -51,10 +51,10 @@ class SmirnoffForceFieldSource(ForceFieldSource):
 
         Returns
         -------
-        openforcefield.typing.engines.smirnoff.ForceField
+        openff.toolkit.typing.engines.smirnoff.ForceField
             The created force field.
         """
-        from openforcefield.typing.engines import smirnoff
+        from openff.toolkit.typing.engines import smirnoff
 
         return smirnoff.ForceField(self._inner_xml)
 
@@ -69,7 +69,7 @@ class SmirnoffForceFieldSource(ForceFieldSource):
 
         Parameters
         ----------
-        force_field: openforcefield.typing.engines.smirnoff.ForceField
+        force_field: openff.toolkit.typing.engines.smirnoff.ForceField
             The existing force field.
 
         Returns
@@ -101,7 +101,7 @@ class SmirnoffForceFieldSource(ForceFieldSource):
             The created object.
         """
 
-        from openforcefield.typing.engines.smirnoff import ForceField
+        from openff.toolkit.typing.engines.smirnoff import ForceField
 
         force_field = ForceField(file_path, allow_cosmetic_attributes=True)
         return cls.from_object(force_field)

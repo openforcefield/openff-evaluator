@@ -109,12 +109,12 @@ class BuildCoordinatesPackmol(Protocol):
 
         Returns
         -------
-        list of openforcefield.topology.Molecule
+        list of openff.toolkit.topology.Molecule
             The list of molecules.
         list of int
             The number of each molecule which should be added to the system.
         """
-        from openforcefield.topology import Molecule
+        from openff.toolkit.topology import Molecule
 
         molecules = []
 
@@ -430,7 +430,7 @@ class BuildDockedCoordinates(Protocol):
         openeye.oechem.OEMol
             The OpenEye ligand object with multiple conformers.
         """
-        from openforcefield.topology import Molecule
+        from openff.toolkit.topology import Molecule
 
         ligand = Molecule.from_smiles(self.ligand_substance.components[0].smiles)
         ligand.generate_conformers(n_conformers=self.number_of_ligand_conformers)

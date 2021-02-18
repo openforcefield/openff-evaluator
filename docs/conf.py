@@ -132,7 +132,7 @@ intersphinx_mapping = {
     'dask.distributed': ('https://distributed.dask.org/en/latest/', None),
     'distributed': ('https://distributed.dask.org/en/latest/', None),
     'dask_jobqueue': ('https://jobqueue.dask.org/en/latest/', None),
-    'openforcefield': ('https://open-forcefield-toolkit.readthedocs.io/en/latest/', None),
+    'openff.toolkit': ('https://open-forcefield-toolkit.readthedocs.io/en/latest/', None),
     'pint': ('https://pint.readthedocs.io/en/latest/', None)
 }
 
