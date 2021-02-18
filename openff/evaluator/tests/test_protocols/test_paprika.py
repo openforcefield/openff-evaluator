@@ -60,7 +60,7 @@ def dummy_complex() -> Substance:
 def complex_file_path(tmp_path):
 
     import parmed.geometry
-    from paprika.setup import Setup
+    from paprika.evaluator import Setup
 
     complex_path = get_data_filename(
         os.path.join("test", "molecules", "methanol_methane.pdb")
@@ -714,7 +714,7 @@ def test_compute_free_energy_gradient(tmp_path):
 def test_analyse_apr(tmp_path, monkeypatch, complex_file_path):
 
     import mdtraj
-    from paprika import analyze
+    from paprika.evaluator import Analyze
 
     # Generate a dummy set of attach restraints
     restraints_protocol = GenerateAttachRestraints("")
@@ -745,7 +745,7 @@ def test_analyse_apr(tmp_path, monkeypatch, complex_file_path):
 
     # Application of the monkeypatch to replace Path.home
     # with the behavior of mockreturn defined above.
-    monkeypatch.setattr(analyze, "compute_phase_free_energy", mock_analyze_return)
+    monkeypatch.setattr(Analyze, "compute_phase_free_energy", mock_analyze_return)
 
     protocol = AnalyzeAPRPhase("analyze_release_phase")
     protocol.topology_path = complex_file_path
