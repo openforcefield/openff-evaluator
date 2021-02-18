@@ -266,8 +266,7 @@ class AddDummyAtoms(Protocol):
     def _execute(self, directory, available_resources):
 
         import parmed.geometry
-<<<<<<< HEAD
-        from paprika.setup import Setup
+        from paprika.evaluator import Setup
         from simtk.openmm import (
             CustomGBForce,
             GBSAOBCForce,
@@ -275,10 +274,6 @@ class AddDummyAtoms(Protocol):
             XmlSerializer,
             app,
         )
-=======
-        from paprika.evaluator import Setup
-        from simtk.openmm import NonbondedForce, XmlSerializer, app
->>>>>>> paprika-gradient-support
 
         # Extract the host atoms to determine the offset of the dummy atoms.
         # noinspection PyTypeChecker
