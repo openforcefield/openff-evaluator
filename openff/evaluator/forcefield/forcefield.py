@@ -135,7 +135,12 @@ class TLeapForceFieldSource(ForceFieldSource):
         """openff.evaluator.unit.Quantity: The non-bonded interaction cutoff."""
         return self._cutoff
 
-    def __init__(self, leap_source="leaprc.gaff2", cutoff=9.0 * unit.angstrom):
+    @property
+    def igb(self):
+        """int: The Amber GBIS model."""
+        return self._igb
+
+    def __init__(self, leap_source="leaprc.gaff2", cutoff=9.0 * unit.angstrom, igb=None):
         """Constructs a new TLeapForceFieldSource object
 
         Parameters
@@ -146,6 +151,9 @@ class TLeapForceFieldSource(ForceFieldSource):
             `'leaprc.gaff'` and `'leaprc.gaff2'` are supported.
         cutoff: openff.evaluator.unit.Quantity
             The non-bonded interaction cutoff.
+        igb: int
+            Generalized Born implicit solvent model based on the
+            Amber numbering.
 
         Examples
         --------
@@ -156,20 +164,29 @@ class TLeapForceFieldSource(ForceFieldSource):
         To create a source for the GAFF 2 force field with tip3p water:
 
         >>> amber_gaff_2_source = TLeapForceFieldSource('leaprc.gaff2')
+
+        To create a source for the GAFF force field with the HCT GBIS model:
+
+        >>> amber_gaff_gbis_source = TLeapForceFieldSource('leaprc.gaff', igb=1)
         """
 
         if leap_source is not None:
             assert leap_source == "leaprc.gaff2" or leap_source == "leaprc.gaff"
 
+        if igb is not None:
+            assert igb in [1, 2, 5, 7, 8]
+
         self._leap_source = leap_source
         self._cutoff = cutoff
+        self._igb = igb
 
     def __getstate__(self):
-        return {"leap_source": self._leap_source, "cutoff": self._cutoff}
+        return {"leap_source": self._leap_source, "cutoff": self._cutoff, "igb": self._igb}
 
     def __setstate__(self, state):
         self._leap_source = state["leap_source"]
         self._cutoff = state["cutoff"]
+        self._igb = state["igb"]
 
 
 class LigParGenForceFieldSource(ForceFieldSource):

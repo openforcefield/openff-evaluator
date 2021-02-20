@@ -28,6 +28,7 @@ from openff.evaluator.protocols.paprika.coordinates import (
     PreparePullCoordinates,
     PrepareReleaseCoordinates,
 )
+from openff.evaluator.protocols.paprika.parameters import PaprikaBuildSystem
 from openff.evaluator.protocols.paprika.restraints import (
     ApplyRestraints,
     GenerateAttachRestraints,
@@ -40,6 +41,12 @@ from openff.evaluator.substances import Component
 from openff.evaluator.thermodynamics import Ensemble
 from openff.evaluator.workflow.schemas import ProtocolReplicator, WorkflowSchema
 from openff.evaluator.workflow.utils import ProtocolPath, ReplicatorValue
+from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
+from openff.evaluator.attributes import UNDEFINED
+import logging
+logger = logging.getLogger(__name__)
+# from importlib import reload
+# reload(logging)
 
 
 class HostGuestBindingAffinity(PhysicalProperty):
@@ -440,11 +447,13 @@ class HostGuestBindingAffinity(PhysicalProperty):
             )
 
         # Apply the force field parameters. This only needs to be done once.
-        apply_parameters = forcefield.BuildSmirnoffSystem(
+        apply_parameters = PaprikaBuildSystem(
             f"pull_apply_parameters_{orientation_placeholder}"
         )
         apply_parameters.force_field_path = ProtocolPath("force_field_path", "global")
         apply_parameters.substance = ProtocolPath("substance", "global")
+        apply_parameters.host_mol2_path = ProtocolPath("host_mol2_path", "global")
+        apply_parameters.guest_mol2_path = ProtocolPath("guest_mol2_path", "global")
         apply_parameters.coordinate_file_path = input_coordinate
         apply_parameters.enable_hmr = enable_hmr
 
@@ -675,12 +684,12 @@ class HostGuestBindingAffinity(PhysicalProperty):
                 "output_coordinate_path", align_coordinates.id
             )
 
-        # Apply the force field parameters. This only needs to be done for one
-        # of the windows.
-        apply_parameters = forcefield.BaseBuildSystem("release_apply_parameters")
-        #apply_parameters = forcefield.BuildSmirnoffSystem("release_apply_parameters")
+        # Apply the force field parameters. This only needs to be done for one of the windows.
+        apply_parameters = PaprikaBuildSystem("release_apply_parameters")
         apply_parameters.force_field_path = ProtocolPath("force_field_path", "global")
         apply_parameters.substance = ProtocolPath("host_substance", "global")
+        apply_parameters.host_mol2_path = ProtocolPath("host_mol2_path", "global")
+        apply_parameters.guest_mol2_path = ProtocolPath("guest_mol2_path", "global")
         apply_parameters.coordinate_file_path = coordinate_file_path
         apply_parameters.enable_hmr = enable_hmr
 
@@ -906,11 +915,13 @@ class HostGuestBindingAffinity(PhysicalProperty):
             )
 
         # Apply the force field parameters. This only needs to be done once.
-        apply_parameters = forcefield.BuildSmirnoffSystem(
+        apply_parameters = PaprikaBuildSystem(
             f"state_bound_apply_parameters_{orientation_placeholder}"
         )
         apply_parameters.force_field_path = ProtocolPath("force_field_path", "global")
         apply_parameters.substance = ProtocolPath("substance", "global")
+        apply_parameters.host_mol2_path = ProtocolPath("host_mol2_path", "global")
+        apply_parameters.guest_mol2_path = ProtocolPath("guest_mol2_path", "global")
         apply_parameters.coordinate_file_path = input_coordinate
         apply_parameters.enable_hmr = enable_hmr
 

@@ -12,7 +12,6 @@ import textwrap
 from enum import Enum
 
 import numpy as np
-import parmed
 import requests
 from simtk import openmm
 from simtk.openmm import app
@@ -89,30 +88,33 @@ class BaseBuildSystem(Protocol, abc.ABC):
             adjusted by this amount.
         """
 
-        structure = parmed.load_file(coordinate_path, structure=True)
+        # This piece of code is copied from OpenMM
+        pdbfile = app.PDBFile(coordinate_path)
 
-        for bond in structure.bonds:
+        for atom1, atom2 in pdbfile.topology.bonds():
 
-            # Is there a way of automatically detecting water residues?
-            if bond.atom1.residue.name != "HOH" or bond.atom2.residue.name != "HOH":
+            if atom1.element == app.element.hydrogen:
+                (atom1, atom2) = (atom2, atom1)
 
-                if bond.atom1.element == 1:
+            # Is there a way to automatically detect water besides HOH residue?
+            if atom1.residue.name == "HOH" or atom2.residue.name == "HOH":
+                continue
 
-                    (bond.atom1, bond.atom2) = (bond.atom2, bond.atom1)
+            if atom2.element == app.element.hydrogen and atom1.element not in (
+                app.element.hydrogen,
+                None,
+            ):
+                transfer_mass = hydrogen_mass - system.getParticleMass(
+                    atom2.index
+                ) / pint_unit_to_openmm(unit.dalton)
 
-                if bond.atom2.element == 1 and bond.atom1.element != 1:
-
-                    transfer_mass = hydrogen_mass - system.getParticleMass(
-                        bond.atom2.idx
-                    ) / pint_unit_to_openmm(unit.dalton)
-
-                    system.setParticleMass(bond.atom2.idx, hydrogen_mass)
-                    system.setParticleMass(
-                        bond.atom1.idx,
-                        system.getParticleMass(bond.atom1.idx)
-                        / pint_unit_to_openmm(unit.dalton)
-                        - transfer_mass,
-                    )
+                system.setParticleMass(atom2.index, hydrogen_mass)
+                system.setParticleMass(
+                    atom1.index,
+                    system.getParticleMass(atom1.index)
+                    / pint_unit_to_openmm(unit.dalton)
+                    - transfer_mass,
+                )
 
     @staticmethod
     def _append_system(existing_system, system_to_append, index_map=None):
@@ -1040,7 +1042,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
             with open("leap.log", "r") as file:
 
                 if re.search(
-                    "ERROR|WARNING|Warning|duplicate|FATAL|Could|Fatal|Error",
+                    "ERROR|duplicate|FATAL|Could|Fatal",
                     file.read(),
                 ):
 

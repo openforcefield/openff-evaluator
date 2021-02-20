@@ -399,6 +399,8 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
         metadata.update(
             {
+                "host_mol2_path": host_spec["structure"],
+                "guest_mol2_path": guest_spec["structure"],
                 "host_coordinate_path": next(iter(unique_host_structures)),
                 "attach_windows_indices": [*range(len(attach_lambdas))],
                 "attach_lambdas": attach_lambdas,
