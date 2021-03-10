@@ -9,6 +9,25 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
 
+0.3.3
+-----
+
+This release facilitates the migration of the `openff-evaluator` package from `omnia` to `conda-forge`. This mainly
+involves changes which update the package to use the new namespaces introduced in the `openff-tookit` package, rather
+than the old and now deprecated `openforcefield` namespaces.
+
+Bugfixes
+""""""""
+
+* PR `#346 <https://github.com/openforcefield/openff-evaluator/pull/346>`_: Remove the unsupported `encoding` json kwarg.
+
+New Features
+""""""""""""
+
+* PR `#341 <https://github.com/openforcefield/openff-evaluator/pull/341>`_: Replace usages of dynamic Pint classes with internal static variants.
+* PR `#343 <https://github.com/openforcefield/openff-evaluator/pull/343>`_: Migrate to the new OpenFF Toolkit namespace.
+* PR `#345 <https://github.com/openforcefield/openff-evaluator/pull/345>`_: Migrate all reference from `omnia` to `conda-forge`.
+
 0.3.2
 -----
 
