@@ -87,7 +87,7 @@ class GenerateAttachRestraints(_GenerateRestraints):
 
     def _execute(self, directory, available_resources):
 
-        from paprika.setup import Setup
+        from paprika.evaluator import Setup
 
         # Construct the restraints to keep the host in place and
         # with an open cavity.
@@ -149,7 +149,7 @@ class GeneratePullRestraints(GenerateAttachRestraints):
 
     def _execute(self, directory, available_resources):
 
-        from paprika.setup import Setup
+        from paprika.evaluator import Setup
 
         # Construct the restraints to keep the host in place and
         # with an open cavity.
@@ -218,7 +218,7 @@ class GenerateReleaseRestraints(_GenerateRestraints):
 
     def _execute(self, directory, available_resources):
 
-        from paprika.setup import Setup
+        from paprika.evaluator import Setup
 
         # Construct the restraints to keep the host in place and
         # with an open cavity.

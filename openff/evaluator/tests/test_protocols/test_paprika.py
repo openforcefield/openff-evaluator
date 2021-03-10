@@ -48,7 +48,7 @@ def dummy_complex() -> Substance:
 def complex_file_path(tmp_path):
 
     import parmed.geometry
-    from paprika.setup import Setup
+    from paprika.evaluator import Setup
 
     complex_path = get_data_filename(
         os.path.join("test", "molecules", "methanol_methane.pdb")

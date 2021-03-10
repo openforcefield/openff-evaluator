@@ -132,7 +132,7 @@ class ComputeSymmetryCorrection(Protocol):
 
     def _execute(self, directory, available_resources):
 
-        from paprika.analyze import Analyze
+        from paprika.evaluator import Analyze
 
         self.result = Observable(
             unit.Measurement(
@@ -171,7 +171,7 @@ class ComputeReferenceWork(Protocol):
 
     def _execute(self, directory, available_resources):
 
-        from paprika.analyze import Analyze
+        from paprika.evaluator import Analyze
 
         restraints = ApplyRestraints.load_restraints(self.restraints_path)
         guest_restraints = restraints["guest"]
