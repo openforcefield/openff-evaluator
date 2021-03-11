@@ -136,11 +136,28 @@ class TLeapForceFieldSource(ForceFieldSource):
         return self._cutoff
 
     @property
+    def custom_frcmod(self):
+        """str: The file name for the custom frcmod."""
+        return self._custom_frcmod
+
+    @property
     def igb(self):
         """int: The Amber GBIS model."""
         return self._igb
 
-    def __init__(self, leap_source="leaprc.gaff2", cutoff=9.0 * unit.angstrom, igb=None):
+    @property
+    def sa_model(self):
+        """int: The surface area (SA) model for running GB/SA simulation."""
+        return self._sa_model
+
+    def __init__(
+        self,
+        leap_source="leaprc.gaff2",
+        cutoff=9.0 * unit.angstrom,
+        custom_frcmod=None,
+        igb=None,
+        sa_model=None,
+    ):
         """Constructs a new TLeapForceFieldSource object
 
         Parameters
@@ -151,9 +168,15 @@ class TLeapForceFieldSource(ForceFieldSource):
             `'leaprc.gaff'` and `'leaprc.gaff2'` are supported.
         cutoff: openff.evaluator.unit.Quantity
             The non-bonded interaction cutoff.
+        custom_frcmod: str
+            frcmod file for custom parameters.
         igb: int
-            Generalized Born implicit solvent model based on the
-            Amber numbering.
+            Generalized Born implicit solvent model based on Amber
+            numbering. Allowed values are 1, 2, 5, 7, and 8.
+        sa_model: str
+            The surface area (SA) model when running GB/SA simulation.
+            Can either be None or 'ACE' (analytical continuum
+            electrostatics) based on the implementation in OpenMM).
 
         Examples
         --------
@@ -161,7 +184,7 @@ class TLeapForceFieldSource(ForceFieldSource):
 
         >>> amber_gaff_source = TLeapForceFieldSource('leaprc.gaff')
 
-        To create a source for the GAFF 2 force field with tip3p water:
+        To create a source for the GAFF2 force field with tip3p water:
 
         >>> amber_gaff_2_source = TLeapForceFieldSource('leaprc.gaff2')
 
@@ -169,24 +192,42 @@ class TLeapForceFieldSource(ForceFieldSource):
 
         >>> amber_gaff_gbis_source = TLeapForceFieldSource('leaprc.gaff', igb=1)
         """
+        from openff.evaluator.protocols.paprika.forcefield import GAFFForceField
 
         if leap_source is not None:
             assert leap_source == "leaprc.gaff2" or leap_source == "leaprc.gaff"
 
         if igb is not None:
-            assert igb in [1, 2, 5, 7, 8]
+            assert igb in [1, 2, 5]
+
+        if sa_model is not None:
+            assert sa_model == "ACE"
 
         self._leap_source = leap_source
         self._cutoff = cutoff
+        self._custom_frcmod = (
+            None
+            if custom_frcmod is None
+            else GAFFForceField.parse_frcmod(custom_frcmod)
+        )
         self._igb = igb
+        self._sa_model = sa_model
 
     def __getstate__(self):
-        return {"leap_source": self._leap_source, "cutoff": self._cutoff, "igb": self._igb}
+        return {
+            "leap_source": self._leap_source,
+            "cutoff": self._cutoff,
+            "custom_frcmod": self._custom_frcmod,
+            "igb": self._igb,
+            "sa_model": self._sa_model,
+        }
 
     def __setstate__(self, state):
         self._leap_source = state["leap_source"]
         self._cutoff = state["cutoff"]
+        self._custom_frcmod = state["custom_frcmod"]
         self._igb = state["igb"]
+        self._sa_model = state["sa_model"]
 
 
 class LigParGenForceFieldSource(ForceFieldSource):

@@ -4,7 +4,11 @@ import numpy as np
 
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
-from openff.evaluator.forcefield import ParameterGradient
+from openff.evaluator.forcefield import (
+    ParameterGradient,
+    SmirnoffForceFieldSource,
+    TLeapForceFieldSource,
+)
 from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.protocols.openmm import _compute_gradients
 from openff.evaluator.protocols.paprika.restraints import ApplyRestraints
@@ -165,8 +169,6 @@ class ComputePotentialEnergyGradient(Protocol):
 
     def _execute(self, directory, available_resources):
 
-        assert len(self.gradient_parameters) != 0
-
         import mdtraj
         from simtk.openmm.app import Modeller, PDBFile
 
@@ -217,14 +219,28 @@ class ComputePotentialEnergyGradient(Protocol):
         )
 
         # Compute the gradient in the first solvent.
+        force_field_source = self.input_system.force_field
+        force_field = (
+            force_field_source.to_force_field()
+            if isinstance(force_field_source, SmirnoffForceFieldSource)
+            else force_field_source
+        )
+        gaff_system_path = None
+        gaff_topology_path = None
+        if isinstance(force_field_source, TLeapForceFieldSource):
+            gaff_system_path = self.input_system.system_path
+            gaff_topology_path = self.input_system.system_path.replace("xml", "prmtop")
+
         _compute_gradients(
             self.gradient_parameters,
             observables,
-            self.input_system.force_field.to_force_field(),
+            force_field,
             self.thermodynamic_state,
             self.input_system.topology,
             trajectory,
             available_resources,
+            gaff_system_path,
+            gaff_topology_path,
             self.enable_pbc,
         )
 

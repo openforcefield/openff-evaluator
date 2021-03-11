@@ -31,6 +31,7 @@ from openff.evaluator.utils.observables import (
 from openff.evaluator.utils.openmm import (
     disable_pbc,
     openmm_quantity_to_pint,
+    perturbed_gaff_system,
     pint_quantity_to_openmm,
     setup_platform_with_resources,
     system_subset,
@@ -140,6 +141,8 @@ def _compute_gradients(
     topology: "Topology",
     trajectory: "Trajectory",
     compute_resources: ComputeResources,
+    gaff_system_path: str = None,
+    gaff_topology_path: str = None,
     enable_pbc: bool = True,
     perturbation_amount: float = 0.0001,
 ):
@@ -168,6 +171,12 @@ def _compute_gradients(
         The trajectory over which the observables were collected.
     compute_resources
         The compute resources available for the computations.
+    gaff_system_path
+        The path to the OpenMM XML file with GAFF parameters, for computing
+        gradients with GAFF systems.
+    gaff_topology_path
+        The path to the Amber topology file (`.prmtop`), for computing
+        gradients with GAFF systems.
     enable_pbc
         Whether PBC should be enabled when re-evaluating system energies.
     perturbation_amount
@@ -175,6 +184,11 @@ def _compute_gradients(
     """
 
     from simtk import openmm
+
+    gaff_system = False
+    if gaff_system_path is not None or gaff_topology_path is not None:
+        assert gaff_system_path is not None and gaff_topology_path is not None
+        gaff_system = True
 
     gradients = defaultdict(list)
     observables.clear_gradients()
@@ -187,12 +201,28 @@ def _compute_gradients(
     for parameter_key in gradient_parameters:
 
         # Build the slightly perturbed systems.
-        reverse_system, reverse_parameter_value = system_subset(
-            parameter_key, force_field, topology, -perturbation_amount
-        )
-        forward_system, forward_parameter_value = system_subset(
-            parameter_key, force_field, topology, perturbation_amount
-        )
+        if not gaff_system:
+            reverse_system, reverse_parameter_value = system_subset(
+                parameter_key, force_field, topology, -perturbation_amount
+            )
+            forward_system, forward_parameter_value = system_subset(
+                parameter_key, force_field, topology, perturbation_amount
+            )
+        else:
+            reverse_system, reverse_parameter_value = perturbed_gaff_system(
+                parameter_key,
+                gaff_system_path,
+                gaff_topology_path,
+                enable_pbc,
+                -perturbation_amount,
+            )
+            forward_system, forward_parameter_value = perturbed_gaff_system(
+                parameter_key,
+                gaff_system_path,
+                gaff_topology_path,
+                enable_pbc,
+                perturbation_amount,
+            )
 
         # Perform a cheap check to try and catch most cases where the systems energy
         # does not depend on this parameter.

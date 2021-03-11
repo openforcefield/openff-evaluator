@@ -304,3 +304,12 @@ def is_file_and_not_empty(file_path):
         That a file both exists at the specified ``path`` and is not empty.
     """
     return os.path.isfile(file_path) and (os.path.getsize(file_path) != 0)
+
+
+def is_number(s):
+    """Returns True if string is a number."""
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False

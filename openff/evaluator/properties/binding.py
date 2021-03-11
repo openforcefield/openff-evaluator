@@ -2,6 +2,7 @@
 A collection of density physical property definitions.
 """
 import copy
+import logging
 from typing import Dict, Tuple
 
 from openff.evaluator import unit
@@ -28,7 +29,7 @@ from openff.evaluator.protocols.paprika.coordinates import (
     PreparePullCoordinates,
     PrepareReleaseCoordinates,
 )
-from openff.evaluator.protocols.paprika.parameters import PaprikaBuildSystem
+from openff.evaluator.protocols.paprika.forcefield import PaprikaBuildSystem
 from openff.evaluator.protocols.paprika.restraints import (
     ApplyRestraints,
     GenerateAttachRestraints,
@@ -41,12 +42,8 @@ from openff.evaluator.substances import Component
 from openff.evaluator.thermodynamics import Ensemble
 from openff.evaluator.workflow.schemas import ProtocolReplicator, WorkflowSchema
 from openff.evaluator.workflow.utils import ProtocolPath, ReplicatorValue
-from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
-from openff.evaluator.attributes import UNDEFINED
-import logging
+
 logger = logging.getLogger(__name__)
-# from importlib import reload
-# reload(logging)
 
 
 class HostGuestBindingAffinity(PhysicalProperty):
@@ -245,6 +242,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         solvation_protocol.count_exact_amount = False
         solvation_protocol.box_aspect_ratio = [1.0, 1.0, 2.0]
         solvation_protocol.center_solute_in_box = False
+        # solvation_protocol.tolerance = 2.4 * unit.angstrom
 
         return solvation_protocol
 
@@ -452,8 +450,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
         )
         apply_parameters.force_field_path = ProtocolPath("force_field_path", "global")
         apply_parameters.substance = ProtocolPath("substance", "global")
-        apply_parameters.host_mol2_path = ProtocolPath("host_mol2_path", "global")
-        apply_parameters.guest_mol2_path = ProtocolPath("guest_mol2_path", "global")
+        apply_parameters.host_file_paths = ProtocolPath("host_file_paths", "global")
+        apply_parameters.guest_file_paths = ProtocolPath("guest_file_paths", "global")
         apply_parameters.coordinate_file_path = input_coordinate
         apply_parameters.enable_hmr = enable_hmr
 
@@ -688,8 +686,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         apply_parameters = PaprikaBuildSystem("release_apply_parameters")
         apply_parameters.force_field_path = ProtocolPath("force_field_path", "global")
         apply_parameters.substance = ProtocolPath("host_substance", "global")
-        apply_parameters.host_mol2_path = ProtocolPath("host_mol2_path", "global")
-        apply_parameters.guest_mol2_path = ProtocolPath("guest_mol2_path", "global")
+        apply_parameters.host_file_paths = ProtocolPath("host_file_paths", "global")
         apply_parameters.coordinate_file_path = coordinate_file_path
         apply_parameters.enable_hmr = enable_hmr
 
@@ -920,8 +917,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
         )
         apply_parameters.force_field_path = ProtocolPath("force_field_path", "global")
         apply_parameters.substance = ProtocolPath("substance", "global")
-        apply_parameters.host_mol2_path = ProtocolPath("host_mol2_path", "global")
-        apply_parameters.guest_mol2_path = ProtocolPath("guest_mol2_path", "global")
+        apply_parameters.host_file_paths = ProtocolPath("host_file_paths", "global")
+        apply_parameters.guest_file_paths = ProtocolPath("guest_file_paths", "global")
         apply_parameters.coordinate_file_path = input_coordinate
         apply_parameters.enable_hmr = enable_hmr
 

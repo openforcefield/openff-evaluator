@@ -295,7 +295,7 @@ class AddDummyAtoms(Protocol):
         )
 
         # Shift the structure to avoid issues with the PBC
-        if input_structure.box:
+        if input_structure.box is not None:
             input_structure.coordinates += numpy.array(
                 [
                     input_structure.box[0] * 0.5,

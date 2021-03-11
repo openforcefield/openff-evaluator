@@ -313,6 +313,8 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
         metadata = {
             "host_substance": host_substance,
+            "host_file_paths": {},
+            "guest_file_paths": {},
             "guest_restraints": cls._unnest_restraint_specs(
                 guest_spec["restraints"]["guest"]
             ),
@@ -399,8 +401,6 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
         metadata.update(
             {
-                "host_mol2_path": host_spec["structure"],
-                "guest_mol2_path": guest_spec["structure"],
                 "host_coordinate_path": next(iter(unique_host_structures)),
                 "attach_windows_indices": [*range(len(attach_lambdas))],
                 "attach_lambdas": attach_lambdas,
@@ -517,9 +517,16 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 host_mol2_path = str(
                     host_yaml_path.parent.joinpath(host_yaml["structure"])
                 )
+                host_monomer_path = str(
+                    host_yaml_path.parent.joinpath(host_yaml["monomer"])
+                )
                 host_smiles = self._mol2_to_smiles(host_mol2_path)
 
                 guest_yaml_path = systems[host_name][guest_name]["yaml"]
+
+                host_tleap_template = str(
+                    systems[host_name]["path"].joinpath(f"build_{host_name}.in")
+                )
 
                 with open(guest_yaml_path, "r") as file:
                     guest_yaml = yaml.safe_load(file)
@@ -563,6 +570,18 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                         systems[host_name]["yaml"],
                         systems[host_name][guest_name]["yaml"],
                         host_only_substance,
+                    )
+                    measured_property.metadata["host_file_paths"].update(
+                        {
+                            "host_mol2_path": host_mol2_path,
+                            "host_monomer_path": host_monomer_path,
+                            "host_tleap_template": host_tleap_template,
+                        }
+                    )
+                    measured_property.metadata["guest_file_paths"].update(
+                        {
+                            "guest_mol2_path": guest_mol2_path,
+                        }
                     )
 
                 all_properties.append(measured_property)

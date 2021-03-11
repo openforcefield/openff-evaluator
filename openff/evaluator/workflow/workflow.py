@@ -16,7 +16,9 @@ from openff.evaluator.forcefield import (
     ForceFieldSource,
     ParameterGradient,
     SmirnoffForceFieldSource,
+    TLeapForceFieldSource,
 )
+from openff.evaluator.protocols.paprika.forcefield import GAFFForceField
 from openff.evaluator.storage.attributes import FilePath, StorageAttribute
 from openff.evaluator.substances import Substance
 from openff.evaluator.utils.exceptions import EvaluatorException
@@ -572,6 +574,118 @@ class Workflow:
 
         with open(force_field_path) as file:
             force_field_source = ForceFieldSource.parse_json(file.read())
+
+        if isinstance(force_field_source, TLeapForceFieldSource):
+            if force_field_source.leap_source == "leaprc.gaff2":
+                amber_type = "gaff2"
+            elif force_field_source.leap_source == "leaprc.gaff":
+                amber_type = "gaff"
+            else:
+                raise ValueError(
+                    f"The {force_field_source.leap_source} source is currently "
+                    f"unsupported. Only the 'leaprc.gaff2' and 'leaprc.gaff' "
+                    f" sources are supported."
+                )
+
+            force_field = GAFFForceField(substance, amber_type)
+            topology = force_field.topology.topology
+            frcmod_parameters = force_field.frcmod_parameters
+
+            reduced_parameter_keys = []
+
+            for parameter_key in parameter_gradient_keys:
+                contains_parameter = False
+
+                if parameter_key.tag == "Bond":
+                    bond_type = parameter_key.smirks.replace("-", " ").split()
+
+                    for bond in frcmod_parameters["BOND"]:
+                        bond = bond.replace("-", " ").split()
+                        atom_type1 = bond.split("-")[0]
+                        atom_type2 = bond.split("-")[1]
+                        if [atom_type1, atom_type2] == bond_type or [
+                            atom_type2,
+                            atom_type1,
+                        ] == bond_type:
+                            contains_parameter = True
+                            break
+
+                elif parameter_key.tag == "Angle":
+                    angle_type = parameter_key.smirks.replace("-", " ").split()
+
+                    for angle in frcmod_parameters["ANGLE"]:
+                        angle = angle.replace("-", " ").split()
+                        atom_type1 = angle.split("-")[0]
+                        atom_type2 = angle.split("-")[1]
+                        atom_type3 = angle.split("-")[2]
+                        if [atom_type1, atom_type2, atom_type3] == angle_type or [
+                            atom_type3,
+                            atom_type2,
+                            atom_type1,
+                        ] == angle_type:
+                            contains_parameter = True
+                            break
+
+                elif parameter_key.tag == "Dihedral":
+                    raise NotImplementedError()
+
+                elif parameter_key.tag == "Improper":
+                    raise NotImplementedError()
+
+                elif parameter_key.tag == "vdW":
+                    lj_atom_type = parameter_key.smirks
+
+                    for atom_type in frcmod_parameters["NONBON"]:
+                        if lj_atom_type == atom_type:
+                            contains_parameter = True
+                            break
+
+                elif parameter_key.tag == "GBSA":
+                    from simtk.openmm.app import element as E
+                    from simtk.openmm.app.internal.customgbforces import (
+                        _get_bonded_atom_list,
+                    )
+
+                    # Check if H is supported by the Implicit solvent model
+                    igb_H = {1: ["H-C", "H-N", "H-O", "H-S"], 2: ["H-N"], 5: ["H-N"]}
+                    if parameter_key.smirks in igb_H[force_field_source.igb]:
+                        continue
+
+                    mask_element = E.get_by_symbol(parameter_key.smirks[0])
+                    connect_element = None
+                    if "-" in parameter_key.smirks:
+                        connect_element = E.get_by_symbol(
+                            parameter_key.smirks.split("-")[-1]
+                        )
+
+                    all_bonds = _get_bonded_atom_list(topology)
+                    for atom in topology.atoms():
+                        current_atom = None
+                        element = atom.element
+                        if element is mask_element and connect_element is None:
+                            current_atom = atom
+                        elif element is mask_element and connect_element:
+                            bondeds = all_bonds[atom]
+                            if bondeds[0].element is connect_element:
+                                current_atom = atom
+                        if current_atom:
+                            contains_parameter = True
+                            break
+
+                elif parameter_key.tag == "Electrostatic":
+                    raise NotImplementedError()
+
+                else:
+                    raise KeyError(
+                        f"Parameter tag {parameter_key.tag} is not supported in GAFF."
+                    )
+
+                if not contains_parameter:
+                    continue
+
+                reduced_parameter_keys.append(parameter_key)
+
+            return reduced_parameter_keys
 
         if not isinstance(force_field_source, SmirnoffForceFieldSource):
             return []

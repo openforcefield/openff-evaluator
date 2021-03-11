@@ -1042,7 +1042,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
             with open("leap.log", "r") as file:
 
                 if re.search(
-                    "ERROR|duplicate|FATAL|Could|Fatal",
+                    "ERROR|WARNING|Warning|duplicate|FATAL|Could|Fatal|Error",
                     file.read(),
                 ):
 

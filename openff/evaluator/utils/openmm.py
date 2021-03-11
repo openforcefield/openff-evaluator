@@ -3,9 +3,13 @@ A set of utilities for helping to perform simulations using openmm.
 """
 import copy
 import logging
+import os
+import shutil
+import tempfile
 from typing import TYPE_CHECKING, Optional, Tuple
 
 import numpy
+import parmed as pmd
 from pint import UndefinedUnitError
 from simtk import openmm
 from simtk import unit as simtk_unit
@@ -270,7 +274,11 @@ def disable_pbc(system):
 
         force = system.getForce(force_index)
 
-        if not isinstance(force, openmm.NonbondedForce):
+        if (
+            not isinstance(force, openmm.NonbondedForce)
+            or not isinstance(force, openmm.CustomGBForce)
+            or not isinstance(force, openmm.GBSAOBCForce)
+        ):
             continue
 
         force.setNonbondedMethod(
@@ -366,3 +374,286 @@ def system_subset(
     system = force_field_subset.create_openmm_system(topology)
 
     return system, parameter_value
+
+
+def perturbed_gaff_system(
+    parameter_key: ParameterGradientKey,
+    system_path: str,
+    topology_path: str,
+    enable_pbc: bool,
+    scale_amount: Optional[float] = None,
+) -> Tuple["openmm.System", "simtk_unit.Quantity"]:
+    """Produces an OpenMM system with perturbed parameters used in gradient
+    calculations.
+
+    The value of the parameter of interest may optionally be perturbed by an amount
+    specified by ``scale_amount``.
+
+    Parameters
+    ----------
+    parameter_key
+        The parameter of interest.
+    system_path
+        The path to the OpenMM XML system.
+    topology_path
+        The path to the Amber topology file.
+    enable_pbc
+        Whether PBC should be enabled.
+    scale_amount: float, optional
+        The optional amount to perturb the ``parameter`` by such that
+        ``parameter = (1.0 + scale_amount) * parameter``.
+
+    Returns
+    -------
+        The created system as well as the value of the specified ``parameter``.
+    """
+
+    structure = pmd.load_file(topology_path)
+    with open(system_path, "r") as f:
+        system = openmm.XmlSerializer.deserialize(f.read())
+    perturbed_system = copy.deepcopy(system)
+
+    if parameter_key.tag == "vdW":
+
+        from simtk.openmm import CustomGBForce, GBSAOBCForce, NonbondedForce
+
+        lj_index = structure.LJ_types[parameter_key.smirks] - 1
+        lj_radius = structure.LJ_radius[lj_index]
+        lj_depth = structure.LJ_depth[lj_index]
+
+        if parameter_key.attribute == "rmin_half":
+            lj_radius *= 1.0 + scale_amount
+            parameter_value = lj_radius * simtk_unit.angstrom
+        elif parameter_key.attribute == "epsilon":
+            lj_depth *= 1.0 + scale_amount
+            parameter_value = lj_depth * simtk_unit.kilocalorie_per_mole
+
+        # Change LJ parameters
+        pmd.tools.changeLJSingleType(
+            structure,
+            f"@%{parameter_key.smirks}",
+            lj_radius,
+            lj_depth,
+        ).execute()
+
+        # Have to save the topology file and load it back in instead of
+        # creating the OpenMM system directly due to a bug in ParmEd
+        working_directory = tempfile.mkdtemp()
+        prmtop_path = os.path.join(
+            working_directory,
+            "modified_system.prmtop",
+        )
+        structure.save(prmtop_path)
+        prmtop_file = openmm.app.AmberPrmtopFile(prmtop_path)
+
+        gb_force = None
+        nb_force = None
+        for force in system.getForces():
+            if isinstance(force, CustomGBForce) or isinstance(force, GBSAOBCForce):
+                gb_force = force
+            elif isinstance(force, NonbondedForce):
+                nb_force = force
+
+        perturbed_system = prmtop_file.createSystem(
+            nonbondedMethod=openmm.app.PME if gb_force is None else openmm.app.NoCutoff,
+            nonbondedCutoff=nb_force.getCutoffDistance(),
+            constraints=openmm.app.HBonds,
+            rigidWater=True,
+        )
+        if enable_pbc and system.usesPeriodicBoundaryConditions():
+            perturbed_system.setDefaultPeriodicBoxVectors(
+                *system.getDefaultPeriodicBoxVectors()
+            )
+
+        shutil.rmtree(working_directory)
+
+    elif parameter_key.tag == "GBSA":
+
+        from simtk.openmm import CustomGBForce, GBSAOBCForce
+        from simtk.openmm.app import element as E
+        from simtk.openmm.app.internal.customgbforces import (
+            _get_bonded_atom_list,
+            _screen_parameter,
+        )
+
+        offset_factor = 0.009  # nm
+        prmtop = openmm.app.AmberPrmtopFile(topology_path)
+        all_bonds = _get_bonded_atom_list(prmtop.topology)
+
+        # Get GB force object
+        gbsa_force = None
+        for force in perturbed_system.getForces():
+            if isinstance(force, CustomGBForce) or isinstance(force, GBSAOBCForce):
+                gbsa_force = force
+        assert gbsa_force is not None
+
+        # Perturb GB radii
+        mask_element = E.get_by_symbol(parameter_key.smirks[0])
+        connect_element = None
+        if "-" in parameter_key.smirks[0]:
+            connect_element = E.get_by_symbol(parameter_key.smirks.split("-")[-1])
+
+        for atom in prmtop.topology.atoms():
+            current_atom = None
+            element = atom.element
+
+            if element is mask_element and connect_element is None:
+                current_atom = atom
+
+            elif element is mask_element and connect_element:
+                bondeds = all_bonds[atom]
+                if bondeds[0].element is connect_element:
+                    current_atom = atom
+
+            if current_atom:
+                current_param = gbsa_force.getParticleParameters(current_atom.index)
+                charge = current_param[0]
+                GB_radii = current_param[1] + offset_factor
+                perturbed_radii = GB_radii * (1.0 + scale_amount)
+                offset_radii = perturbed_radii - offset_factor
+                scaled_radii = offset_radii * _screen_parameter(atom)[0]
+                gbsa_force.setParticleParameters(
+                    current_atom.index, [charge, offset_radii, scaled_radii]
+                )
+
+        # Convert parameter to a simtk.unit.Quantity
+        parameter_value = perturbed_radii * simtk_unit.nanometer
+
+    elif parameter_key.tag == "Electrostatic":
+
+        raise NotImplementedError(
+            "Gradient calculations for `Electrostatic` is currently not supported for GAFF."
+        )
+
+    elif parameter_key.tag == "Bond":
+
+        from simtk.openmm import HarmonicBondForce
+
+        # Bond atom types
+        bond_type = parameter_key.smirks.replace("-", " ").split()
+        bond_list = []
+
+        # Get Bond parameters
+        bonds = str(pmd.tools.printBonds(structure)).split("\n")
+        for i, bond in enumerate(bonds):
+            if i == 0 or i == len(bonds) - 1:
+                continue
+            split_line = bond.split()
+            atom_type1 = split_line[3].split(")")[0]
+            atom_type2 = split_line[7].split(")")[0]
+            if [atom_type1, atom_type2] == bond_type or [
+                atom_type2,
+                atom_type1,
+            ] == bond_type:
+                atom_index1 = int(split_line[0]) - 1
+                atom_index2 = int(split_line[4]) - 1
+                bond_list.append([atom_index1, atom_index2])
+                kbond = 2 * float(split_line[-2])
+                rbond = float(split_line[-1])
+
+        # Set parameter_value with simtk units
+        if parameter_key.attribute == "length":
+            rbond *= (1.0 + scale_amount) * simtk_unit.angstrom
+            parameter_value = rbond
+        elif parameter_key.attribute == "k":
+            kbond *= (
+                (1.0 + scale_amount)
+                * simtk_unit.kilocalorie_per_mole
+                / simtk_unit.angstrom ** 2
+            )
+            parameter_value = kbond
+
+        # Get bond force from system
+        bond_force = None
+        for force in perturbed_system.getForces():
+            if isinstance(force, HarmonicBondForce):
+                bond_force
+
+        # Assign perturbed parameter to system
+        for bond_index in bond_force.getNumBonds():
+            system_bond_parm = bond_force.getBondParameters(bond_index)
+            atom1 = system_bond_parm[0]
+            atom2 = system_bond_parm[1]
+            for bond in bond_list:
+                if [atom1, atom2] == bond or [atom2, atom1] == bond:
+                    bond_force.setBondParameters(bond_index, atom1, atom2, rbond, kbond)
+
+    elif parameter_key.tag == "Angle":
+
+        from simtk.openmm import HarmonicAngleForce
+
+        # Angle atom types
+        angle_type = parameter_key.smirks.replace("-", " ").split()
+        angle_list = []
+
+        # Get Angle parameters
+        angles = str(pmd.tools.printAngles(structure)).split("\n")
+        for i, angle in enumerate(angles):
+            if i == 0 or i == len(angles) - 1:
+                continue
+
+            split_line = angle.split()
+            atom_type1 = split_line[3].split(")")[0]
+            atom_type2 = split_line[7].split(")")[0]
+            atom_type3 = split_line[1].split(")")[0]
+            if [atom_type1, atom_type2, atom_type3] == angle_type or [
+                atom_type3,
+                atom_type2,
+                atom_type1,
+            ] == angle_type:
+                atom_index1 = int(split_line[0]) - 1
+                atom_index2 = int(split_line[4]) - 1
+                atom_index3 = int(split_line[8]) - 1
+                angle_list.append([atom_index1, atom_index2, atom_index3])
+                kangle = 2 * float(split_line[-2])
+                theta = float(split_line[-1])
+
+        # Set parameter_value with simtk units
+        if parameter_key.attribute == "theta":
+            theta *= (1.0 + scale_amount) * simtk_unit.degree
+            parameter_value = theta
+        elif parameter_key.attribute == "k":
+            kangle *= (
+                (1.0 + scale_amount)
+                * simtk_unit.kilocalorie_per_mole
+                / simtk_unit.radians ** 2
+            )
+            parameter_value = kangle
+
+        # Get angle force from system
+        angle_force = None
+        for force in perturbed_system.getForces():
+            if isinstance(force, HarmonicAngleForce):
+                angle_force = force
+
+        # Assign perturbed parameter to system
+        for angle_index in angle_force.getNumAngles():
+            system_angle_parm = angle_force.getAngleParameters(angle_index)
+            atom1 = system_angle_parm[0]
+            atom2 = system_angle_parm[1]
+            atom3 = system_angle_parm[2]
+            for angle in angle_list:
+                if [atom1, atom2, atom3] == angle or [atom3, atom2, atom1] == angle:
+                    angle_force.setAngleParameters(
+                        angle_index, atom1, atom2, atom3, theta, kangle
+                    )
+
+    elif parameter_key.tag == "Dihedrals":
+
+        raise NotImplementedError(
+            f"Gradient calculations for `{parameter_key.tag}` is currently not supported for GAFF."
+        )
+
+    elif parameter_key.tag == "Improper":
+
+        raise NotImplementedError(
+            f"Gradient calculations for `{parameter_key.tag}` is currently not supported for GAFF."
+        )
+
+    else:
+
+        raise ValueError(
+            f"The parameter `{parameter_key.tag}` is not supported for GAFF gradient calculation."
+        )
+
+    return perturbed_system, parameter_value
