@@ -9,6 +9,17 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
 
+0.3.4
+-----
+
+A patch release which adds the option (and enables it by default) to remove working files, such as simulated
+trajectories, when they are no longer needed.
+
+Behaviour Changes
+"""""""""""""""""
+
+* PR `#349 <https://github.com/openforcefield/openff-evaluator/pull/349>`_: Working files are deleted by default after an estimation batch completes.
+
 0.3.3
 -----
 
