@@ -7,10 +7,12 @@ import json
 import logging
 import os
 import select
+import shutil
 import socket
 import threading
 import traceback
 import uuid
+from glob import glob
 
 import networkx
 
@@ -154,6 +156,7 @@ class EvaluatorServer:
         port=8000,
         working_directory="working-data",
         enable_data_caching=True,
+        delete_working_files=True,
     ):
         """Constructs a new EvaluatorServer object.
 
@@ -172,6 +175,9 @@ class EvaluatorServer:
             Whether the server should attempt to cache any data, mainly the output of
             simulations, produced by estimation requests for future re-processing (e.g
             for reweighting).
+        delete_working_files: bool
+            Whether to delete the working files produced while estimated a batch of
+            properties using a specific calculation layer.
         """
 
         # Initialize the main 'server' attributes.
@@ -195,6 +201,8 @@ class EvaluatorServer:
 
         self._working_directory = working_directory
         os.makedirs(self._working_directory, exist_ok=True)
+
+        self._delete_working_files = delete_working_files
 
         self._queued_batches = {}
         self._finished_batches = {}
@@ -455,6 +463,17 @@ class EvaluatorServer:
         batch : Batch
             The batch to launch.
         """
+
+        # Optionally clean-up any files produced while estimating the batch with the
+        # previous layer.
+        if self._delete_working_files:
+
+            for directory in glob(os.path.join(self._working_directory, "*", batch.id)):
+
+                if not os.path.isdir(directory):
+                    continue
+
+                shutil.rmtree(directory, ignore_errors=True)
 
         if (
             len(batch.options.calculation_layers) == 0
