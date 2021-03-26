@@ -594,15 +594,25 @@ class Workflow:
             reduced_parameter_keys = []
 
             for parameter_key in parameter_gradient_keys:
+
+                if parameter_key.smirks is None:
+                    raise KeyError(
+                        "The attribute `atom_type` needs to be specified in `ParameterKeyGradient` "
+                        "for `TLeapForceField`."
+                    )
+
                 contains_parameter = False
 
                 if parameter_key.tag == "Bond":
+
                     bond_type = parameter_key.smirks.replace("-", " ").split()
 
                     for bond in frcmod_parameters["BOND"]:
+
                         bond = bond.replace("-", " ").split()
                         atom_type1 = bond.split("-")[0]
                         atom_type2 = bond.split("-")[1]
+
                         if [atom_type1, atom_type2] == bond_type or [
                             atom_type2,
                             atom_type1,
@@ -611,13 +621,16 @@ class Workflow:
                             break
 
                 elif parameter_key.tag == "Angle":
+
                     angle_type = parameter_key.smirks.replace("-", " ").split()
 
                     for angle in frcmod_parameters["ANGLE"]:
+
                         angle = angle.replace("-", " ").split()
                         atom_type1 = angle.split("-")[0]
                         atom_type2 = angle.split("-")[1]
                         atom_type3 = angle.split("-")[2]
+
                         if [atom_type1, atom_type2, atom_type3] == angle_type or [
                             atom_type3,
                             atom_type2,
@@ -632,15 +645,20 @@ class Workflow:
                 elif parameter_key.tag == "Improper":
                     raise NotImplementedError()
 
+                elif parameter_key.tag == "Electrostatic":
+                    raise NotImplementedError()
+
                 elif parameter_key.tag == "vdW":
+
                     lj_atom_type = parameter_key.smirks
 
-                    for atom_type in frcmod_parameters["NONBON"]:
+                    for atom_type in frcmod_parameters["VDW"]:
                         if lj_atom_type == atom_type:
                             contains_parameter = True
                             break
 
                 elif parameter_key.tag == "GBSA":
+
                     from simtk.openmm.app import element as E
                     from simtk.openmm.app.internal.customgbforces import (
                         _get_bonded_atom_list,
@@ -648,9 +666,13 @@ class Workflow:
 
                     # Check if H is supported by the Implicit solvent model
                     igb_H = {1: ["H-C", "H-N", "H-O", "H-S"], 2: ["H-N"], 5: ["H-N"]}
-                    if parameter_key.smirks in igb_H[force_field_source.igb]:
+                    if (
+                        parameter_key.smirks[0] == "H"
+                        and parameter_key.smirks not in igb_H[force_field_source.igb]
+                    ):
                         continue
 
+                    # Get element of atom
                     mask_element = E.get_by_symbol(parameter_key.smirks[0])
                     connect_element = None
                     if "-" in parameter_key.smirks:
@@ -658,6 +680,7 @@ class Workflow:
                             parameter_key.smirks.split("-")[-1]
                         )
 
+                    # Find atom in system
                     all_bonds = _get_bonded_atom_list(topology)
                     for atom in topology.atoms():
                         current_atom = None
@@ -671,9 +694,6 @@ class Workflow:
                         if current_atom:
                             contains_parameter = True
                             break
-
-                elif parameter_key.tag == "Electrostatic":
-                    raise NotImplementedError()
 
                 else:
                     raise KeyError(

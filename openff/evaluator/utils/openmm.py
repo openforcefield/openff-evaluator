@@ -410,122 +410,10 @@ def perturbed_gaff_system(
 
     structure = pmd.load_file(topology_path)
     with open(system_path, "r") as f:
-        system = openmm.XmlSerializer.deserialize(f.read())
-    perturbed_system = copy.deepcopy(system)
+        original_system = openmm.XmlSerializer.deserialize(f.read())
+    perturbed_system = copy.deepcopy(original_system)
 
-    if parameter_key.tag == "vdW":
-
-        from simtk.openmm import CustomGBForce, GBSAOBCForce, NonbondedForce
-
-        lj_index = structure.LJ_types[parameter_key.smirks] - 1
-        lj_radius = structure.LJ_radius[lj_index]
-        lj_depth = structure.LJ_depth[lj_index]
-
-        if parameter_key.attribute == "rmin_half":
-            lj_radius *= 1.0 + scale_amount
-            parameter_value = lj_radius * simtk_unit.angstrom
-        elif parameter_key.attribute == "epsilon":
-            lj_depth *= 1.0 + scale_amount
-            parameter_value = lj_depth * simtk_unit.kilocalorie_per_mole
-
-        # Change LJ parameters
-        pmd.tools.changeLJSingleType(
-            structure,
-            f"@%{parameter_key.smirks}",
-            lj_radius,
-            lj_depth,
-        ).execute()
-
-        # Have to save the topology file and load it back in instead of
-        # creating the OpenMM system directly due to a bug in ParmEd
-        working_directory = tempfile.mkdtemp()
-        prmtop_path = os.path.join(
-            working_directory,
-            "modified_system.prmtop",
-        )
-        structure.save(prmtop_path)
-        prmtop_file = openmm.app.AmberPrmtopFile(prmtop_path)
-
-        gb_force = None
-        nb_force = None
-        for force in system.getForces():
-            if isinstance(force, CustomGBForce) or isinstance(force, GBSAOBCForce):
-                gb_force = force
-            elif isinstance(force, NonbondedForce):
-                nb_force = force
-
-        perturbed_system = prmtop_file.createSystem(
-            nonbondedMethod=openmm.app.PME if gb_force is None else openmm.app.NoCutoff,
-            nonbondedCutoff=nb_force.getCutoffDistance(),
-            constraints=openmm.app.HBonds,
-            rigidWater=True,
-        )
-        if enable_pbc and system.usesPeriodicBoundaryConditions():
-            perturbed_system.setDefaultPeriodicBoxVectors(
-                *system.getDefaultPeriodicBoxVectors()
-            )
-
-        shutil.rmtree(working_directory)
-
-    elif parameter_key.tag == "GBSA":
-
-        from simtk.openmm import CustomGBForce, GBSAOBCForce
-        from simtk.openmm.app import element as E
-        from simtk.openmm.app.internal.customgbforces import (
-            _get_bonded_atom_list,
-            _screen_parameter,
-        )
-
-        offset_factor = 0.009  # nm
-        prmtop = openmm.app.AmberPrmtopFile(topology_path)
-        all_bonds = _get_bonded_atom_list(prmtop.topology)
-
-        # Get GB force object
-        gbsa_force = None
-        for force in perturbed_system.getForces():
-            if isinstance(force, CustomGBForce) or isinstance(force, GBSAOBCForce):
-                gbsa_force = force
-        assert gbsa_force is not None
-
-        # Perturb GB radii
-        mask_element = E.get_by_symbol(parameter_key.smirks[0])
-        connect_element = None
-        if "-" in parameter_key.smirks[0]:
-            connect_element = E.get_by_symbol(parameter_key.smirks.split("-")[-1])
-
-        for atom in prmtop.topology.atoms():
-            current_atom = None
-            element = atom.element
-
-            if element is mask_element and connect_element is None:
-                current_atom = atom
-
-            elif element is mask_element and connect_element:
-                bondeds = all_bonds[atom]
-                if bondeds[0].element is connect_element:
-                    current_atom = atom
-
-            if current_atom:
-                current_param = gbsa_force.getParticleParameters(current_atom.index)
-                charge = current_param[0]
-                GB_radii = current_param[1] + offset_factor
-                perturbed_radii = GB_radii * (1.0 + scale_amount)
-                offset_radii = perturbed_radii - offset_factor
-                scaled_radii = offset_radii * _screen_parameter(atom)[0]
-                gbsa_force.setParticleParameters(
-                    current_atom.index, [charge, offset_radii, scaled_radii]
-                )
-
-        # Convert parameter to a simtk.unit.Quantity
-        parameter_value = perturbed_radii * simtk_unit.nanometer
-
-    elif parameter_key.tag == "Electrostatic":
-
-        raise NotImplementedError(
-            "Gradient calculations for `Electrostatic` is currently not supported for GAFF."
-        )
-
-    elif parameter_key.tag == "Bond":
+    if parameter_key.tag == "Bond":
 
         from simtk.openmm import HarmonicBondForce
 
@@ -638,17 +526,133 @@ def perturbed_gaff_system(
                         angle_index, atom1, atom2, atom3, theta, kangle
                     )
 
-    elif parameter_key.tag == "Dihedrals":
+    elif parameter_key.tag == "Dihedral":
 
         raise NotImplementedError(
-            f"Gradient calculations for `{parameter_key.tag}` is currently not supported for GAFF."
+            f"Gradient calculations for `{parameter_key.tag}` is currently not supported with GAFF calculations."
         )
 
     elif parameter_key.tag == "Improper":
 
         raise NotImplementedError(
-            f"Gradient calculations for `{parameter_key.tag}` is currently not supported for GAFF."
+            f"Gradient calculations for `{parameter_key.tag}` is currently not supported with GAFF calculations."
         )
+
+    elif parameter_key.tag == "Electrostatic":
+
+        raise NotImplementedError(
+            f"Gradient calculations for `{parameter_key.tag}` is currently not supported with GAFF calculations."
+        )
+
+    elif parameter_key.tag == "vdW":
+
+        from simtk.openmm import CustomGBForce, GBSAOBCForce, NonbondedForce
+
+        # Get current LJ parameters
+        lj_index = structure.LJ_types[parameter_key.smirks] - 1
+        lj_radius = structure.LJ_radius[lj_index]
+        lj_depth = structure.LJ_depth[lj_index]
+
+        # Determine which parameter to perturb
+        if parameter_key.attribute == "rmin_half":
+            lj_radius *= 1.0 + scale_amount
+            parameter_value = lj_radius * simtk_unit.angstrom
+        elif parameter_key.attribute == "epsilon":
+            lj_depth *= 1.0 + scale_amount
+            parameter_value = lj_depth * simtk_unit.kilocalorie_per_mole
+
+        # Update LJ parameters with perturbed parameters
+        pmd.tools.changeLJSingleType(
+            structure,
+            f"@%{parameter_key.smirks}",
+            lj_radius,
+            lj_depth,
+        ).execute()
+
+        # NOTE: the code below saves the topology to file and load it back in
+        # instead of creating the OpenMM system directly from the ParmEd object
+        # due to a bug in ParmEd.
+        working_directory = tempfile.mkdtemp()
+        prmtop_path = os.path.join(
+            working_directory,
+            "modified_system.prmtop",
+        )
+        structure.save(prmtop_path)
+        prmtop_file = openmm.app.AmberPrmtopFile(prmtop_path)
+
+        gb_force = None
+        nb_force = None
+        for force in original_system.getForces():
+            if isinstance(force, CustomGBForce) or isinstance(force, GBSAOBCForce):
+                gb_force = force
+            elif isinstance(force, NonbondedForce):
+                nb_force = force
+
+        perturbed_system = prmtop_file.createSystem(
+            nonbondedMethod=openmm.app.PME if gb_force is None else openmm.app.NoCutoff,
+            nonbondedCutoff=nb_force.getCutoffDistance(),
+            constraints=openmm.app.HBonds,
+            rigidWater=True,
+        )
+        if enable_pbc and original_system.usesPeriodicBoundaryConditions():
+            perturbed_system.setDefaultPeriodicBoxVectors(
+                *original_system.getDefaultPeriodicBoxVectors()
+            )
+
+        shutil.rmtree(working_directory)
+
+    elif parameter_key.tag == "GBSA":
+
+        from simtk.openmm import CustomGBForce, GBSAOBCForce
+        from simtk.openmm.app import element as E
+        from simtk.openmm.app.internal.customgbforces import (
+            _get_bonded_atom_list,
+            _screen_parameter,
+        )
+
+        offset_factor = 0.009  # nm
+        prmtop = openmm.app.AmberPrmtopFile(topology_path)
+        all_bonds = _get_bonded_atom_list(prmtop.topology)
+
+        # Get GB force object
+        gbsa_force = None
+        for force in perturbed_system.getForces():
+            if isinstance(force, CustomGBForce) or isinstance(force, GBSAOBCForce):
+                gbsa_force = force
+        assert gbsa_force is not None
+
+        # Determine element of atom
+        mask_element = E.get_by_symbol(parameter_key.smirks[0])
+        connect_element = None
+        if "-" in parameter_key.smirks[0]:
+            connect_element = E.get_by_symbol(parameter_key.smirks.split("-")[-1])
+
+        # Find atom in system to change GB radii
+        for atom in prmtop.topology.atoms():
+            current_atom = None
+            element = atom.element
+
+            if element is mask_element and connect_element is None:
+                current_atom = atom
+
+            elif element is mask_element and connect_element:
+                bondeds = all_bonds[atom]
+                if bondeds[0].element is connect_element:
+                    current_atom = atom
+
+            if current_atom:
+                current_param = gbsa_force.getParticleParameters(current_atom.index)
+                charge = current_param[0]
+                GB_radii = current_param[1] + offset_factor
+                perturbed_radii = GB_radii * (1.0 + scale_amount)
+                offset_radii = perturbed_radii - offset_factor
+                scaled_radii = offset_radii * _screen_parameter(atom)[0]
+                gbsa_force.setParticleParameters(
+                    current_atom.index, [charge, offset_radii, scaled_radii]
+                )
+
+        # Convert parameter to a simtk.unit.Quantity
+        parameter_value = perturbed_radii * simtk_unit.nanometer
 
     else:
 

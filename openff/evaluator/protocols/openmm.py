@@ -185,10 +185,10 @@ def _compute_gradients(
 
     from simtk import openmm
 
-    gaff_system = False
+    use_gaff_system = False
     if gaff_system_path is not None or gaff_topology_path is not None:
         assert gaff_system_path is not None and gaff_topology_path is not None
-        gaff_system = True
+        use_gaff_system = True
 
     gradients = defaultdict(list)
     observables.clear_gradients()
@@ -201,7 +201,7 @@ def _compute_gradients(
     for parameter_key in gradient_parameters:
 
         # Build the slightly perturbed systems.
-        if not gaff_system:
+        if not use_gaff_system:
             reverse_system, reverse_parameter_value = system_subset(
                 parameter_key, force_field, topology, -perturbation_amount
             )

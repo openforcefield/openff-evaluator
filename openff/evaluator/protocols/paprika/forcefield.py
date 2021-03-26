@@ -6,7 +6,7 @@ import re
 import shutil
 import subprocess
 import tempfile
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 import numpy as np
 import parmed as pmd
@@ -16,6 +16,7 @@ from paprika.build.system import TLeap
 from simtk.openmm.app import AmberPrmtopFile
 from simtk.openmm.app import element as E
 
+from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import (
     ForceFieldSource,
@@ -152,7 +153,7 @@ class PaprikaBuildTLeapSystem(BaseBuildSystem):
         resname: Optional[str] = None,
         create_frcmod: Optional[bool] = True,
         working_directory: Optional[str] = "./",
-    ) -> Tuple[str, str, str]:
+    ):
         """
         Given a MOL2 file, generate another MOL2 file with GAFF atom type along
         with the *.frcmod file.
@@ -165,6 +166,8 @@ class PaprikaBuildTLeapSystem(BaseBuildSystem):
             The name of the MOL2 file.
         resname
             Residue name if different from the one in the MOL2 file.
+        create_frcmod
+            Option to generate frcmod file.
         working_directory
             Directory to store the files.
 
@@ -396,17 +399,6 @@ class PaprikaBuildTLeapSystem(BaseBuildSystem):
             gaff_force_field = GAFFForceField()
             gaff_force_field.frcmod_parameters = force_field_source.custom_frcmod
             gaff_force_field.to_file(os.path.join(directory, "custom.frcmod"))
-            # with open(os.path.join(directory, "custom.frcmod"), "w") as f:
-            #    f.writelines("Remark line goes here\n")
-
-            #    for key in force_field_source.custom_frcmod.keys():
-            #        if key == "GBSA":
-            #            continue
-
-            #        f.writelines(f"{key.upper()}\n")
-            #        for line in force_field_source.custom_frcmod[key]:
-            #            f.writelines(line)
-            #        f.writelines("\n")
 
             system.template_lines += ["loadamberparams custom.frcmod"]
 
@@ -468,7 +460,7 @@ class PaprikaBuildTLeapSystem(BaseBuildSystem):
                 constraints=app.HBonds,
                 implicitSolvent=solvent_model[force_field_source.igb],
                 gbsaModel=force_field_source.sa_model,
-                hydrogenMass=3.024 if self.enable_hmr else None,
+                hydrogenMass=3.024 * simtk_unit.dalton if self.enable_hmr else None,
             )
 
             # Change GB radii if specified in custom_frcmod file.
@@ -490,22 +482,20 @@ class PaprikaBuildTLeapSystem(BaseBuildSystem):
                             gbsa_force = force
 
                     # Loop over custom GB Radii
-                    offset_factor = 0.009
+                    offset_factor = 0.009  # nm
                     all_bonds = _get_bonded_atom_list(prmtop.topology)
                     for atom_mask in gaff_force_field.frcmod_parameters["GBSA"]:
-                        GB_radii = (
-                            gaff_force_field.frcmod_parameters["GBSA"][atom_mask][
-                                "radius"
-                            ]
-                            / 10
-                        )
+                        GB_radii = gaff_force_field.frcmod_parameters["GBSA"][
+                            atom_mask
+                        ]["radius"]
 
+                        # Get element of atom
                         mask_element = E.get_by_symbol(atom_mask[0])
                         connect_element = None
                         if "-" in atom_mask:
                             connect_element = E.get_by_symbol(atom_mask.split("-")[-1])
 
-                        # Loop over atoms in the system
+                        # Find atom in system
                         for atom in prmtop.topology.atoms():
                             current_atom = None
                             element = atom.element
@@ -530,23 +520,6 @@ class PaprikaBuildTLeapSystem(BaseBuildSystem):
                                     [charge, offset_radii, scaled_radii],
                                 )
 
-                    # for atom_mask in force_field_source.custom_frcmod["GBSA"]:
-                    #    atom_type = app.element.get_by_symbol(split_line[0])
-                    #    GB_radii = float(split_line[1]) / 10  # convert Angstrom to nm
-
-                    #    # Loop through each atom of the system
-                    #    for atom in [atom for atom in prmtop_file.topology.atoms()]:
-                    #        if atom.element == atom_type:
-                    #            current_param = gb_force.getParticleParameters(
-                    #                atom.index
-                    #            )
-                    #            charge = current_param[0]
-                    #            offset_radii = GB_radii - offset_factor
-                    #            scaled_radii = offset_radii * _screen_parameter(atom)[0]
-                    #            gb_force.setParticleParameters(
-                    #                atom.index, [charge, offset_radii, scaled_radii]
-                    #            )
-
         else:
             system = prmtop.createSystem(
                 nonbondedMethod=app.PME,
@@ -554,7 +527,7 @@ class PaprikaBuildTLeapSystem(BaseBuildSystem):
                 constraints=app.HBonds,
                 rigidWater=True,
                 removeCMMotion=False,
-                hydrogenMass=3.024 if self.enable_hmr else None,
+                hydrogenMass=3.024 * simtk_unit.dalton if self.enable_hmr else None,
             )
             system.setDefaultPeriodicBoxVectors(*inpcrd.getBoxVectors())
 
@@ -573,17 +546,43 @@ class PaprikaBuildTLeapSystem(BaseBuildSystem):
 
 
 class GAFFForceField:
-    @property
-    def gaff_version(self):
-        return self._gaff_version
+    # TODO: add support for parsing MOL2 file for charge/electrostatic.
 
     @property
     def data_set(self):
         return self._data_set
 
     @property
+    def gaff_version(self):
+        return self._gaff_version
+
+    @gaff_version.setter
+    def gaff_version(self, value):
+        self._gaff_version = value
+
+    @property
+    def cutoff(self):
+        return self._cutoff
+
+    @cutoff.setter
+    def cutoff(self, value: unit.Quantity):
+        self._cutoff = value
+
+    @property
     def igb(self):
         return self._igb
+
+    @igb.setter
+    def igb(self, value):
+        self._igb = value
+
+    @property
+    def sa_model(self):
+        return self._sa_model
+
+    @sa_model.setter
+    def sa_model(self, value):
+        self._sa_model = value
 
     @property
     def smiles_list(self):
@@ -601,13 +600,22 @@ class GAFFForceField:
     def frcmod_parameters(self, value):
         self._frcmod_parameters = value
 
-    def __init__(self, data_set=None, gaff_version="gaff", igb=None):
+    def __init__(
+        self,
+        data_set=None,
+        gaff_version="gaff",
+        cutoff=9.0 * unit.angstrom,
+        igb=None,
+        sa_model=None,
+    ):
         self._gaff_version = gaff_version
+        self._cutoff = cutoff
         self._data_set = data_set
         self._igb = igb
+        self._sa_model = sa_model
         self._smiles_list = []
         self._topology = None
-        self._frcmod_parameters = {}
+        self._frcmod_parameters = None
 
         if data_set is not None:
             self._initialize()
@@ -618,12 +626,12 @@ class GAFFForceField:
         # Check GAFF version
         if self.gaff_version not in ["gaff", "gaff2"]:
             raise KeyError(
-                f"Specified GAFF version {self.gaff_version} is not supported."
+                f"Specified GAFF version `{self.gaff_version}` is not supported."
             )
 
         # Collect all smiles in data set
         self._smiles_list = []
-
+        # TODO: add support for passing in a string filename and ParmEd structure object
         if isinstance(self._data_set, TaproomDataSet):
             for substance in self._data_set.substances:
                 for component in substance.components:
@@ -681,11 +689,11 @@ class GAFFForceField:
             topology.save("full.prmtop")
             self._topology = AmberPrmtopFile(
                 "full.prmtop"
-            )  # Doing this because of a bug in ParmEd
+            )  # Saving to file and rereading because of a bug in ParmEd
 
             # Generate full frcmod file
             pmd.tools.writeFrcmod(topology, "complex.frcmod").execute()
-            self._frcmod_parameters = GAFFForceField.parse_frcmod("complex.frcmod")
+            self._frcmod_parameters = GAFFForceField._parse_frcmod("complex.frcmod")
 
         shutil.rmtree(working_directory)
 
@@ -694,7 +702,7 @@ class GAFFForceField:
 
             all_bonds = _get_bonded_atom_list(self._topology.topology)
 
-            # Sets the mbondi radii
+            # Apply `mbondi` radii (igb=1)
             if self.igb == 1:
                 default_radius = 1.5
                 element_to_const_radius = {
@@ -723,7 +731,7 @@ class GAFFForceField:
                             radii = 1.2
                             mask = "H"
 
-                    # Radius of C atom depeends on what type it is
+                    # Radius of C atom depends on what type it is
                     elif element is E.carbon:
                         radii = 1.7
                         mask = "C"
@@ -738,13 +746,13 @@ class GAFFForceField:
                         self._frcmod_parameters["GBSA"].update(
                             {
                                 mask: {
-                                    "radius": radii,
+                                    "radius": radii / 10,
                                     "cosmetic": None,
                                 }
                             }
                         )
 
-            # Sets the mbondi2 radii
+            # Apply `mbondi2` radii (igb=2,5)
             elif self.igb in [2, 5]:
                 default_radius = 1.5
                 element_to_const_radius = {
@@ -785,125 +793,324 @@ class GAFFForceField:
                         self._frcmod_parameters["GBSA"].update(
                             {
                                 mask: {
-                                    "radius": radii,
+                                    "radius": radii / 10,
                                     "cosmetic": None,
                                 }
                             }
                         )
 
-    def get_parameter_value(self, tagname, atom_mask, *parameter):
-        if tagname not in self._frcmod_parameters.keys():
-            raise KeyError(f"The tag `{tagname}` does not exist in the parameter list.")
-        if atom_mask not in self._frcmod_parameters[tagname]:
-            raise KeyError(f"The atom mask `{atom_mask}` is listed under `{tagname}`.")
+    def get_parameter_value(self, tag, atom_mask, *attributes):
+        """Returns an FF parameter(s) as a dictionary. Multiple parameters
+        can be returned for a specific tag.
 
-        param_attribute = {}
-        for param in parameter:
-            if param in self._frcmod_parameters[tagname][atom_mask]:
-                param_attribute[param] = self._frcmod_parameters[tagname][atom_mask][
-                    param
-                ]
+        Parameters
+        ----------
+        tag: str
+           FF parameter tag name (MASS, BOND, ANGLE, DIHEDRAL, IMPROPER, VDW, GBSA).
+        atom_mask: str
+            The GAFF atom type for the particular parameter (bonded params
+            are separated with "-").
+        attributes: str
+            The attribute for the parameter (e.g., "rmin_half", "epsilon" for vdW).
+
+        Returns
+        -------
+        parameter: dict
+            A dictionary with the FF parameter.
+        """
+        if tag not in self._frcmod_parameters.keys():
+            raise KeyError(f"The tag `{tag}` does not exist in the parameter list.")
+        if atom_mask not in self._frcmod_parameters[tag]:
+            raise KeyError(f"The atom mask `{atom_mask}` is not listed under `{tag}`.")
+
+        parameter = {tag: {atom_mask: {}}}
+        for attribute in attributes:
+            if attribute in self._frcmod_parameters[tag][atom_mask]:
+                parameter[tag][atom_mask].update(
+                    {attribute: self._frcmod_parameters[tag][atom_mask][attribute]}
+                )
             else:
                 raise KeyError(
-                    f"The attribute `{param}` is not an attribute of `{atom_mask}`."
+                    f"`{attribute}` is not an attribute of `{tag}-{atom_mask}`."
                 )
 
-        return param_attribute
+        return parameter
 
-    def set_parameter_value(self, tagname, atom_mask, parameter, value):
-        if tagname not in self._frcmod_parameters.keys():
-            raise KeyError(f"The tag `{tagname}` does not exist in the parameter list.")
-        if atom_mask not in self._frcmod_parameters[tagname]:
-            raise KeyError(f"The atom mask `{atom_mask}` is listed under `{tagname}`.")
-        if parameter not in self._frcmod_parameters[tagname][atom_mask]:
+    def set_parameter_value(self, tag, atom_mask, attribute, value):
+        """Set the value for a FF parameter.
+
+        Parameters
+        ----------
+        tag: str
+            FF parameter tag name (MASS, BOND, ANGLE, DIHEDRAL, IMPROPER, VDW, GBSA).
+        atom_mask: str
+            The GAFF atom type for the particular parameter (bonded params
+            are separated with "-").
+        attribute: str
+            The attribute for the parameter (e.g., "rmin_half", "epsilon" for vdW).
+        value: float
+            The value for the FF parameter.
+        """
+        if tag not in self._frcmod_parameters.keys():
+            raise KeyError(f"The tag `{tag}` does not exist in the parameter list.")
+
+        if atom_mask not in self._frcmod_parameters[tag]:
+            raise KeyError(f"The atom mask `{atom_mask}` is listed under `{tag}`.")
+
+        if attribute not in self._frcmod_parameters[tag][atom_mask]:
             raise KeyError(
-                f"The attribute `{parameter}` is not an attribute of `{atom_mask}`."
+                f"The attribute `{attribute}` is not an attribute of `{tag}-{atom_mask}`."
             )
 
-        self._frcmod_parameters[tagname][atom_mask][parameter] = value
+        self._frcmod_parameters[tag][atom_mask][attribute] = value
 
-    def tag_parameter_to_optimize(self, tagname, atom_mask, *parameter):
-        if tagname not in self._frcmod_parameters.keys():
-            raise KeyError(f"The tag `{tagname}` does not exist in the parameter list.")
-        if atom_mask not in self._frcmod_parameters[tagname]:
-            raise KeyError(f"The atom mask `{atom_mask}` is listed under `{tagname}`.")
+    def tag_parameter_to_optimize(self, tag, atom_mask, *attributes):
+        """Tag a FF parameter(s) for use in a ForceBalance run. When writing
+        to file, the tagged FF parameter(s) will have a comment "# PRM ..."
+        at then end of the line.
 
-        for param in parameter:
-            if param in self._frcmod_parameters[tagname][atom_mask]:
-                cosmetic = "# PRM"
+        Parameters
+        ----------
+        tag: str
+            FF parameter tag name (MASS, BOND, ANGLE, DIHEDRAL, IMPROPER, VDW, GBSA).
+        atom_mask: str
+            The GAFF atom type for the particular parameter (bonded params
+            are separated with "-").
+        attributes: str
+            The attribute for the parameter (e.g., "rmin_half", "epsilon" for vdW).
+        """
+        if tag not in self._frcmod_parameters.keys():
+            raise KeyError(f"The tag `{tag}` does not exist in the parameter list.")
+        if atom_mask not in self._frcmod_parameters[tag]:
+            raise KeyError(f"The atom mask `{atom_mask}` is listed under `{tag}`.")
 
-                if tagname == "BOND":
-                    if param == "k":
+        cosmetic = "# PRM"
+        for attribute in attributes:
+            if attribute in self._frcmod_parameters[tag][atom_mask]:
+
+                if tag == "BOND":
+                    if attribute == "k":
                         cosmetic += " 1"
-                    elif param == "length":
+                    elif attribute == "length":
                         cosmetic += " 2"
 
-                elif tagname == "ANGLE":
-                    if param == "k":
+                elif tag == "ANGLE":
+                    if attribute == "k":
                         cosmetic += " 1"
-                    elif param == "angle":
+                    elif attribute == "angle":
                         cosmetic += " 2"
 
-                elif tagname == "DIHE":
-                    if param == "scaling":
+                elif tag == "DIHEDRAL":
+                    if attribute == "scaling":
                         cosmetic += " 1"
-                    elif param == "barrier":
+                    elif attribute == "barrier":
                         cosmetic += " 2"
-                    elif param == "phase":
+                    elif attribute == "phase":
                         cosmetic += " 3"
-                    elif param == "periodicity":
+                    elif attribute == "periodicity":
                         cosmetic += " 4"
 
-                elif tagname == "IMPROPER":
-                    if param == "barrier":
+                elif tag == "IMPROPER":
+                    if attribute == "barrier":
                         cosmetic += " 1"
-                    elif param == "phase":
+                    elif attribute == "phase":
                         cosmetic += " 2"
-                    elif param == "periodicity":
+                    elif attribute == "periodicity":
                         cosmetic += " 3"
 
-                elif tagname in "NONBON":
-                    if param == "rmin_half":
+                elif tag == "VDW":
+                    if attribute == "rmin_half":
                         cosmetic += " 1"
-                    elif param == "epsilon":
+                    elif attribute == "epsilon":
                         cosmetic += " 2"
 
-                elif tagname == "GBSA":
-                    if param == "radius":
+                elif tag == "GBSA":
+                    if attribute == "radius":
                         cosmetic += " 1"
-
-                self._frcmod_parameters[tagname][atom_mask]["cosmetic"] = cosmetic
 
             else:
                 raise KeyError(
-                    f"The attribute `{param}` is not an attribute of `{atom_mask}`."
+                    f"`{attribute}` is not an attribute of `{tag}-{atom_mask}`."
                 )
 
-    @staticmethod
-    def parse_frcmod(file_path):
-        """Reads in a frcmod file and store the information in a dictionary.
+        self._frcmod_parameters[tag][atom_mask]["cosmetic"] = cosmetic
 
-        .. note::
+    @staticmethod
+    def _parameter_to_string(tag, atom_mask, parameters):
+        """Convert a parameter to a string in AMBER frcmod file format.
+
+        Parameters
+        ----------
+        tag: str
+            FF parameter tag name (MASS, BOND, ANGLE, DIHEDRAL, IMPROPER, VDW, GBSA).
+        atom_mask: str
+            The GAFF atom type for the particular parameter (bonded params
+            are separated with "-").
+        parameters: dict
+            A dictionary containing the FF attribute and parameters.
+
+        Return
+        ------
+        parameter_line: str
+            A string with the FF parameter in AMBER frcmod format (https://ambermd.org/FileFormats.php#frcmod).
+        """
+        parameter_line = None
+
+        if tag == "MASS":
+            parameter_line = f"{atom_mask:2s}"
+            parameter_line += f"{parameters['mass']:10.3f}"
+
+        if tag == "BOND":
+            parameter_line = f"{atom_mask:5s}"
+            parameter_line += f"{parameters['k']:10.3f}"
+            parameter_line += f"{parameters['length']:10.3f}"
+
+        if tag == "ANGLE":
+            parameter_line = f"{atom_mask:8s}"
+            parameter_line += f"{parameters['k']:10.3f}"
+            parameter_line += f"{parameters['theta']:10.3f}"
+
+        if tag == "DIHEDRAL":
+            parameter_line = f"{atom_mask:11s}"
+            parameter_line += f"{parameters['scaling']:4d}"
+            parameter_line += f"{parameters['barrier']:15.8f}"
+            parameter_line += f"{parameters['phase']:10.3f}"
+            parameter_line += f"{parameters['periodicity']:10.2f}"
+            if parameters["SCEE"]:
+                parameter_line += f"  SCEE={parameters['SCEE']:.1f}"
+            if parameters["SCNB"]:
+                parameter_line += f"  SCNB={parameters['SCNB']:.1f}"
+
+        if tag == "IMPROPER":
+            parameter_line = f"{atom_mask:11s}"
+            parameter_line += f"{parameters['barrier']:15.8f}"
+            parameter_line += f"{parameters['phase']:10.3f}"
+            parameter_line += f"{parameters['periodicity']:10.2f}"
+
+        if tag == "VDW":
+            parameter_line = f"{atom_mask:4s}"
+            parameter_line += f"{parameters['rmin_half']:15.8f}"
+            parameter_line += f"{parameters['epsilon']:15.8f}"
+
+        if tag == "GBSA":
+            parameter_line = f"{atom_mask:4s}"
+            parameter_line += f"{parameters['radius']:15.8f}"
+
+        if parameters["cosmetic"]:
+            parameter_line += f"   {parameters['cosmetic']}"
+
+        assert parameter_line is not None
+
+        parameter_line += "\n"
+
+        return parameter_line
+
+    def to_file(self, file_path, write_header=False, skip_gbsa=True):
+        """Write the FF parameters to an AMBER frcmod file.
+
+        Parameters
+        ----------
+        file_path: str
+            The name of the frcmod file.
+        write_header: bool
+            Whether to print header information (used for ForceBalance runs).
+        skip_gbsa: bool
+            Whether to skip printing FF parameters for GBSA (not read in TLeap but used in ForceBalance runs).
+        """
+
+        with open(file_path, "w") as f:
+
+            for tag in self._frcmod_parameters.keys():
+                if tag == "HEADER" and write_header:
+                    f.writelines(
+                        "#evaluator: "
+                        f"gaff_version={self._gaff_version} "
+                        f"cutoff={self._cutoff.magnitude} "
+                        f"igb={self._igb} "
+                        f"sa_model={self._sa_model} \n"
+                    )
+                    continue
+                elif tag == "HEADER" and not write_header:
+                    f.writelines("Remark line goes here\n")
+                    continue
+
+                if tag == "GBSA" and skip_gbsa:
+                    continue
+
+                if tag == "DIHEDRAL":
+                    f.writelines("DIHE\n")
+                elif tag == "VDW":
+                    f.writelines("NONBON\n")
+                else:
+                    f.writelines(f"{tag}\n")
+
+                for atom_mask in self._frcmod_parameters[tag]:
+                    f.writelines(
+                        self._parameter_to_string(
+                            tag,
+                            atom_mask,
+                            self._frcmod_parameters[tag][atom_mask],
+                        )
+                    )
+                f.writelines("\n")
+
+    @classmethod
+    def from_frcmod(cls, file_path: str):
+        """Create an instance of this class by reading in a frcmod file."""
+        frcmod_pdict = cls._parse_frcmod(file_path)
+
+        gaff_version = "gaff"
+        cutoff = 9.0 * unit.angstrom
+        igb = None
+        sa_model = None
+
+        if frcmod_pdict["HEADER"]:
+            gaff_version = frcmod_pdict["HEADER"]["leap_source"]
+            cutoff = frcmod_pdict["HEADER"]["cutoff"] * unit.angstrom
+            igb = int(frcmod_pdict["HEADER"]["igb"])
+            sa_model = (
+                None
+                if frcmod_pdict["HEADER"]["sa_model"] == "None"
+                else frcmod_pdict["HEADER"]["sa_model"]
+            )
+
+        new_instance = cls(
+            data_set=None,
+            gaff_version=gaff_version,
+            cutoff=cutoff,
+            igb=igb,
+            sa_model=sa_model,
+        )
+        new_instance.frcmod_parameters = frcmod_pdict
+
+        return new_instance
+
+    @staticmethod
+    def _parse_frcmod(file_path: str) -> dict:
+        """Read in a frcmod file and stores the information in a dictionary.
+
+        .. note ::
             Parameters with polarizabilities are not supported yet and will be ignored.
 
         Parameters
         ----------
-        file: os.PathLike
-            The file path to check.
+        file_path: str
+            The fcmod file to process.
 
         Returns
         -------
         frcmod_dict: dict
-            A dictionary containing the custom parameters.
+            A dictionary containing the parameters from the frcmod file.
         """
 
         frcmod_dict = {
+            "HEADER": {},
             "MASS": {},
             "BOND": {},
             "ANGLE": {},
-            "DIHE": {},
+            "DIHEDRAL": {},
             "IMPROPER": {},
-            "NONBON": {},
+            "VDW": {},
             "GBSA": {},
         }
 
@@ -911,7 +1118,21 @@ class GAFFForceField:
 
             for i, line in enumerate(f.readlines()):
 
-                if line.strip() == 0 or line.startswith("\n") or i == 0:
+                if i == 0 and line.startswith("#evaluator:"):
+                    header = line.split()
+                    frcmod_dict["HEADER"] = {
+                        "leap_source": header[1].split("=")[-1],
+                        "cutoff": float(header[2].split("=")[-1]),
+                        "igb": int(header[3].split("=")[-1]),
+                        "sa_model": header[4].split("=")[-1],
+                    }
+                    continue
+
+                if (
+                    (i == 0 and not line.startswith("#evaluator:"))
+                    or line.strip() == 0
+                    or line.startswith("\n")
+                ):
                     continue
 
                 if re.match("MASS", line.strip().upper()):
@@ -920,17 +1141,17 @@ class GAFFForceField:
                 elif re.match("BOND|BONDS", line.strip().upper()):
                     keyword = "BOND"
                     continue
-                elif re.match("ANGLE", line.strip().upper()):
+                elif re.match("ANGLE|ANGLES", line.strip().upper()):
                     keyword = "ANGLE"
                     continue
-                elif re.match("DIHE|DIHEDRAL", line.strip().upper()):
-                    keyword = "DIHE"
+                elif re.match("DIHE|DIHEDRAL|DIHEDRALS", line.strip().upper()):
+                    keyword = "DIHEDRAL"
                     continue
                 elif re.match("IMPROPER", line.strip().upper()):
                     keyword = "IMPROPER"
                     continue
                 elif re.match("NONBON|NONB|NONBONDED", line.strip().upper()):
-                    keyword = "NONBON"
+                    keyword = "VDW"
                     continue
                 elif re.match("RADII|GBSA|GBRADII", line.strip().upper()):
                     keyword = "GBSA"
@@ -970,19 +1191,22 @@ class GAFFForceField:
                 # Build parameter dictionary
                 if keyword == "MASS":
                     param_dict = {"mass": parameter[0], "cosmetic": cosmetic}
+
                 elif keyword == "BOND":
                     param_dict = {
                         "k": parameter[0],
                         "length": parameter[1],
                         "cosmetic": cosmetic,
                     }
+
                 elif keyword == "ANGLE":
                     param_dict = {
                         "k": parameter[0],
-                        "angle": parameter[1],
+                        "theta": parameter[1],
                         "cosmetic": cosmetic,
                     }
-                elif keyword == "DIHE":
+
+                elif keyword == "DIHEDRAL":
                     param_dict = {
                         "scaling": parameter[0],
                         "barrier": parameter[1],
@@ -997,11 +1221,13 @@ class GAFFForceField:
                             param_dict["SCEE"] = float(parameter[4].split("=")[1])
                         if "SCNB" in parameter[4]:
                             param_dict["SCNB"] = float(parameter[4].split("=")[1])
+
                     if len(parameter) > 5:
                         if "SCEE" in parameter[5]:
                             param_dict["SCEE"] = float(parameter[5].split("=")[1])
                         if "SCNB" in parameter[5]:
                             param_dict["SCNB"] = float(parameter[5].split("=")[1])
+
                 elif keyword == "IMPROPER":
                     param_dict = {
                         "barrier": parameter[0],
@@ -1009,12 +1235,14 @@ class GAFFForceField:
                         "periodicity": parameter[2],
                         "cosmetic": cosmetic,
                     }
-                elif keyword == "NONBON":
+
+                elif keyword == "VDW":
                     param_dict = {
                         "rmin_half": parameter[0],
                         "epsilon": parameter[1],
                         "cosmetic": cosmetic,
                     }
+
                 elif keyword == "GBSA":
                     param_dict = {"radius": parameter[0], "cosmetic": cosmetic}
 
@@ -1023,75 +1251,39 @@ class GAFFForceField:
 
         return frcmod_dict
 
-    @staticmethod
-    def _parameter_to_string(tagname, atom_mask, parameters):
-        if tagname == "MASS":
-            parameter_line = f"{atom_mask:2s}"
-            parameter_line += f"{parameters['mass']:10.3f}"
-        if tagname == "BOND":
-            parameter_line = f"{atom_mask:5s}"
-            parameter_line += f"{parameters['k']:10.3f}"
-            parameter_line += f"{parameters['length']:10.3f}"
-        if tagname == "ANGLE":
-            parameter_line = f"{atom_mask:8s}"
-            parameter_line += f"{parameters['k']:10.3f}"
-            parameter_line += f"{parameters['angle']:10.3f}"
-        if tagname == "DIHE":
-            parameter_line = f"{atom_mask:11s}"
-            parameter_line += f"{parameters['scaling']:4d}"
-            parameter_line += f"{parameters['barrier']:15.8f}"
-            parameter_line += f"{parameters['phase']:10.3f}"
-            parameter_line += f"{parameters['periodicity']:10.2f}"
-            if parameters["SCEE"]:
-                parameter_line += f"  SCEE={parameters['SCEE']:.1f}"
-            if parameters["SCNB"]:
-                parameter_line += f"  SCNB={parameters['SCNB']:.1f}"
-        if tagname == "IMPROPER":
-            parameter_line = f"{atom_mask:11s}"
-            parameter_line += f"{parameters['barrier']:15.8f}"
-            parameter_line += f"{parameters['phase']:10.3f}"
-            parameter_line += f"{parameters['periodicity']:10.2f}"
-        if tagname == "NONBON":
-            parameter_line = f"{atom_mask:4s}"
-            parameter_line += f"{parameters['rmin_half']:15.8f}"
-            parameter_line += f"{parameters['epsilon']:15.8f}"
-        if tagname == "GBSA":
-            parameter_line = f"{atom_mask:4s}"
-            parameter_line += f"{parameters['radius']:15.8f}"
-
-        if parameters["cosmetic"]:
-            parameter_line += f"   {parameters['cosmetic']}"
-
-        parameter_line += "\n"
-
-        return parameter_line
-
-    def to_file(self, file_path, skip_gbsa=True):
-
-        with open(file_path, "w") as f:
-            f.writelines("Remark line goes here\n")
-
-            for tagname in self._frcmod_parameters.keys():
-                if skip_gbsa and tagname == "GBSA":
-                    continue
-                f.writelines(f"{tagname.upper()}\n")
-                for atom_mask in self._frcmod_parameters[tagname]:
-                    f.writelines(
-                        self._parameter_to_string(
-                            tagname,
-                            atom_mask,
-                            self._frcmod_parameters[tagname][atom_mask],
-                        )
-                    )
-                f.writelines("\n")
-
-    def json(self, file_path):
+    def json(self, file_path: str):
+        """Save current FF parameters to a JSON file."""
         with open(file_path, "w") as f:
             json.dump(self._frcmod_parameters, f)
 
-    # @classmethod
-    # def from_json(cls, file_path):
-    #    obj = cls.__new__(cls)
-    #    super(GAFFForceField, obj).__init__()
-    #    with open(file_path, "r") as f:
-    #        obj.frcmod_parameters = json.loads(f.read())
+    @classmethod
+    def from_json(cls, file_path: str):
+        """Create an instance of this class by reading in a JSON file."""
+        with open(file_path, "r") as f:
+            frcmod_pdict = json.load(f)
+
+        gaff_version = "gaff"
+        cutoff = 9.0 * unit.angstrom
+        igb = None
+        sa_model = None
+
+        if frcmod_pdict["HEADER"]:
+            gaff_version = frcmod_pdict["HEADER"]["leap_source"]
+            cutoff = frcmod_pdict["HEADER"]["cutoff"] * unit.angstrom
+            igb = int(frcmod_pdict["HEADER"]["igb"])
+            sa_model = (
+                None
+                if frcmod_pdict["HEADER"]["sa_model"] == "None"
+                else frcmod_pdict["HEADER"]["sa_model"]
+            )
+
+        new_instance = cls(
+            data_set=None,
+            gaff_version=gaff_version,
+            cutoff=cutoff,
+            igb=igb,
+            sa_model=sa_model,
+        )
+        new_instance.frcmod_parameters = frcmod_pdict
+
+        return new_instance

@@ -2,6 +2,7 @@
 A collection of wrappers around commonly employed force fields.
 """
 import abc
+import typing
 from enum import Enum
 
 from openff.evaluator import unit
@@ -137,12 +138,27 @@ class TLeapForceFieldSource(ForceFieldSource):
 
     @property
     def custom_frcmod(self):
-        """str: The file name for the custom frcmod."""
+        """dict: A dictionary containing frcmod parameters."""
         return self._custom_frcmod
+
+    @custom_frcmod.setter
+    def custom_frcmod(self, value: typing.Union[str, dict]):
+        if isinstance(value, str):
+            from openff.evaluator.protocols.paprika.forcefield import GAFFForceField
+
+            self._custom_frcmod = GAFFForceField._parse_frcmod(value)
+
+        elif isinstance(value, dict):
+            self._custom_frcmod = value
+
+        else:
+            raise KeyError(
+                "Input value must either be a string filename or dictionary."
+            )
 
     @property
     def igb(self):
-        """int: The Amber GBIS model."""
+        """int: The Amber Generalized Born Implicit Solvent (GBIS) model."""
         return self._igb
 
     @property
@@ -154,7 +170,7 @@ class TLeapForceFieldSource(ForceFieldSource):
         self,
         leap_source="leaprc.gaff2",
         cutoff=9.0 * unit.angstrom,
-        custom_frcmod=None,
+        frcmod_file=None,
         igb=None,
         sa_model=None,
     ):
@@ -168,11 +184,11 @@ class TLeapForceFieldSource(ForceFieldSource):
             `'leaprc.gaff'` and `'leaprc.gaff2'` are supported.
         cutoff: openff.evaluator.unit.Quantity
             The non-bonded interaction cutoff.
-        custom_frcmod: str
+        frcmod_file: str
             frcmod file for custom parameters.
         igb: int
             Generalized Born implicit solvent model based on Amber
-            numbering. Allowed values are 1, 2, 5, 7, and 8.
+            numbering. Allowed values are 1, 2, and 5.
         sa_model: str
             The surface area (SA) model when running GB/SA simulation.
             Can either be None or 'ACE' (analytical continuum
@@ -191,6 +207,10 @@ class TLeapForceFieldSource(ForceFieldSource):
         To create a source for the GAFF force field with the HCT GBIS model:
 
         >>> amber_gaff_gbis_source = TLeapForceFieldSource('leaprc.gaff', igb=1)
+
+        To create a source for GAFF with a modified parameter:
+
+        >>> amber_gaff_modified = TLeapForceFieldSource('leaprc.gaff', frcmod_file='custom.frcmod')
         """
         from openff.evaluator.protocols.paprika.forcefield import GAFFForceField
 
@@ -206,12 +226,31 @@ class TLeapForceFieldSource(ForceFieldSource):
         self._leap_source = leap_source
         self._cutoff = cutoff
         self._custom_frcmod = (
-            None
-            if custom_frcmod is None
-            else GAFFForceField.parse_frcmod(custom_frcmod)
+            None if frcmod_file is None else GAFFForceField._parse_frcmod(frcmod_file)
         )
         self._igb = igb
         self._sa_model = sa_model
+
+    @classmethod
+    def from_object(cls, force_field):
+        """Instantiate class from a GAFFForceField object."""
+        from openff.evaluator.protocols.paprika.forcefield import GAFFForceField
+
+        if not isinstance(force_field, GAFFForceField):
+            raise TypeError(
+                "Only `GAFFForceField` is compatible with `TLeapForceField`."
+            )
+
+        new_instance = cls(
+            leap_source=f"leaprc.{force_field.gaff_version}",
+            cutoff=force_field.cutoff,
+            igb=int(force_field.igb),
+            sa_model=force_field.sa_model,
+        )
+        if force_field.frcmod_parameters:
+            new_instance.custom_frcmod = force_field.frcmod_parameters.copy()
+
+        return new_instance
 
     def __getstate__(self):
         return {

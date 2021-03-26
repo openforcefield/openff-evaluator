@@ -10,6 +10,7 @@ from cmiles.utils import load_molecule, mol_to_smiles
 from simtk.openmm import XmlSerializer
 from simtk.openmm.app import PDBFile
 
+from openff.evaluator.datasets.taproom import TaproomDataSet
 from openff.evaluator.forcefield import LigParGenForceFieldSource, TLeapForceFieldSource
 from openff.evaluator.protocols.coordinates import BuildCoordinatesPackmol
 from openff.evaluator.protocols.forcefield import (
@@ -17,8 +18,14 @@ from openff.evaluator.protocols.forcefield import (
     BuildSmirnoffSystem,
     BuildTLeapSystem,
 )
+from openff.evaluator.protocols.paprika.coordinates import PreparePullCoordinates
+from openff.evaluator.protocols.paprika.forcefield import (
+    GAFFForceField,
+    PaprikaBuildTLeapSystem,
+)
 from openff.evaluator.substances import Substance
 from openff.evaluator.tests.utils import build_tip3p_smirnoff_force_field
+from openff.evaluator.utils import is_file_and_not_empty
 
 
 def test_build_smirnoff_system():
@@ -74,6 +81,70 @@ def test_build_tleap_system():
         assign_parameters.force_field_path = force_field_path
         assign_parameters.coordinate_file_path = build_coordinates.coordinate_file_path
         assign_parameters.substance = substance
+        assign_parameters.enable_hmr = True
+        assign_parameters.execute(directory)
+        assert path.isfile(assign_parameters.parameterized_system.system_path)
+
+        pdbfile = PDBFile(assign_parameters.parameterized_system.topology_path)
+        with open(assign_parameters.parameterized_system.system_path, "r") as f:
+            system = XmlSerializer.deserialize(f.read())
+
+        for atom in pdbfile.topology.atoms():
+            if atom.element.name == "hydrogen" and atom.residue.name != "HOH":
+                assert system.getParticleMass(atom.index) == 3.024 * simtk_unit.dalton
+
+
+def test_paprika_build_tleap_system():
+
+    with tempfile.TemporaryDirectory() as directory:
+        # Get Taproom info
+        data_set = TaproomDataSet(
+            host_codes=["acd"], guest_codes=["bam"], in_vacuum=True
+        )
+
+        host_file_paths = data_set.properties[0].metadata["host_file_paths"]
+        guest_file_paths = data_set.properties[0].metadata["guest_file_paths"]
+        guest_orientation_mask = data_set.properties[0].metadata[
+            "guest_orientation_mask"
+        ]
+        complex_file_path = data_set.properties[0].metadata["guest_orientations"][0][
+            "coordinate_path"
+        ]
+        pull_distance = data_set.properties[0].metadata["pull_distance"]
+        n_pull_windows = data_set.properties[0].metadata["n_pull_windows"]
+        substance = data_set.properties[0].substance
+
+        # Build host-guest complex coordinates
+        build_coordinates = PreparePullCoordinates("build_coordinates")
+        build_coordinates.substance = substance
+        build_coordinates.complex_file_path = complex_file_path
+        build_coordinates.guest_orientation_mask = guest_orientation_mask
+        build_coordinates.pull_window_index = 0
+        build_coordinates.pull_distance = pull_distance
+        build_coordinates.n_pull_windows = n_pull_windows
+        build_coordinates.remove_pbc_vectors = True
+        build_coordinates.execute(directory)
+
+        # Test TLeap FF
+        force_field_path = path.join(directory, "ff.json")
+        force_field = GAFFForceField(
+            data_set, gaff_version="gaff2", igb=2, sa_model="ACE"
+        )
+        assert force_field.frcmod_parameters is not None
+
+        with open(force_field_path, "w") as file:
+            file.write(TLeapForceFieldSource.from_object(force_field).json())
+
+        assert is_file_and_not_empty(force_field_path)
+
+        assign_parameters = PaprikaBuildTLeapSystem("assign_tleap_parameters")
+        assign_parameters.force_field_path = force_field_path
+        assign_parameters.substance = substance
+        assign_parameters.host_file_paths = host_file_paths
+        assign_parameters.guest_file_paths = guest_file_paths
+        assign_parameters.coordinate_file_path = (
+            build_coordinates.output_coordinate_path
+        )
         assign_parameters.enable_hmr = True
         assign_parameters.execute(directory)
         assert path.isfile(assign_parameters.parameterized_system.system_path)

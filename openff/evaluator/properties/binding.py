@@ -242,7 +242,6 @@ class HostGuestBindingAffinity(PhysicalProperty):
         solvation_protocol.count_exact_amount = False
         solvation_protocol.box_aspect_ratio = [1.0, 1.0, 2.0]
         solvation_protocol.center_solute_in_box = False
-        # solvation_protocol.tolerance = 2.4 * unit.angstrom
 
         return solvation_protocol
 
@@ -368,7 +367,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         thermalization_template: openmm.OpenMMSimulation,
         equilibration_template: openmm.OpenMMSimulation,
         production_template: openmm.OpenMMSimulation,
-        implicit_simulation: bool = False,
+        use_implicit_solvent: bool = False,
         enable_hmr: bool = False,
     ):
 
@@ -408,10 +407,10 @@ class HostGuestBindingAffinity(PhysicalProperty):
         align_coordinates.pull_window_index = ReplicatorValue(pull_replicator.id)
         align_coordinates.pull_distance = ProtocolPath("pull_distance", "global")
         align_coordinates.n_pull_windows = ProtocolPath("n_pull_windows", "global")
-        align_coordinates.remove_pbc_vectors = True if implicit_simulation else False
+        align_coordinates.remove_pbc_vectors = True if use_implicit_solvent else False
 
         # Solvate the host-guest system
-        if not implicit_simulation:
+        if not use_implicit_solvent:
             # Filter out only the solvent substance to help with the solvation step.
             filter_solvent = miscellaneous.FilterSubstanceByRole(
                 "host-guest-filter_solvent"
@@ -463,7 +462,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             "parameterized_system", apply_parameters.id
         )
         add_dummy_atoms.offset = ProtocolPath("dummy_atom_offset", "global")
-        add_dummy_atoms.implicit_simulation = implicit_simulation
+        add_dummy_atoms.implicit_simulation = use_implicit_solvent
 
         attach_coordinate_path = ProtocolPath(
             "output_coordinate_path",
@@ -609,7 +608,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             pull_free_energy,
             reference_state_work,
         ]
-        if not implicit_simulation:
+        if not use_implicit_solvent:
             protocols.insert(1, filter_solvent)
             protocols.insert(2, solvate_coordinates)
 
@@ -633,7 +632,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         thermalization_template: openmm.OpenMMSimulation,
         equilibration_template: openmm.OpenMMSimulation,
         production_template: openmm.OpenMMSimulation,
-        implicit_simulation: bool = False,
+        use_implicit_solvent: bool = False,
         enable_hmr: bool = False,
     ):
 
@@ -656,10 +655,10 @@ class HostGuestBindingAffinity(PhysicalProperty):
         align_coordinates.complex_file_path = ProtocolPath(
             "host_coordinate_path", "global"
         )
-        align_coordinates.remove_pbc_vectors = True if implicit_simulation else False
+        align_coordinates.remove_pbc_vectors = True if use_implicit_solvent else False
 
         # Solvate the host-only system
-        if not implicit_simulation:
+        if not use_implicit_solvent:
             # Filter out only the solvent substance to help with the solvation step.
             filter_solvent = miscellaneous.FilterSubstanceByRole("host-filter_solvent")
             filter_solvent.input_substance = ProtocolPath("host_substance", "global")
@@ -698,7 +697,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             "parameterized_system", apply_parameters.id
         )
         add_dummy_atoms.offset = ProtocolPath("dummy_atom_offset", "global")
-        add_dummy_atoms.implicit_simulation = implicit_simulation
+        add_dummy_atoms.implicit_simulation = use_implicit_solvent
 
         # Apply the restraints files
         generate_restraints = GenerateReleaseRestraints(
@@ -768,7 +767,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             release_production,
             analyze_release_phase,
         ]
-        if not implicit_simulation:
+        if not use_implicit_solvent:
             protocols.insert(1, filter_solvent)
             protocols.insert(2, solvate_coordinates)
 
@@ -788,7 +787,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         thermalization_template: openmm.OpenMMSimulation,
         equilibration_template: openmm.OpenMMSimulation,
         production_template: openmm.OpenMMSimulation,
-        implicit_simulation: bool = False,
+        use_implicit_solvent: bool = False,
         enable_hmr: bool = False,
     ):
 
@@ -829,7 +828,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             "n_pull_windows", "global"
         )
         align_bound_coordinates.remove_pbc_vectors = (
-            True if implicit_simulation else False
+            True if use_implicit_solvent else False
         )
 
         # Align the unbound complex
@@ -853,11 +852,11 @@ class HostGuestBindingAffinity(PhysicalProperty):
             "n_pull_windows", "global"
         )
         align_unbound_coordinates.remove_pbc_vectors = (
-            True if implicit_simulation else False
+            True if use_implicit_solvent else False
         )
 
         # Solvate the host-guest system
-        if not implicit_simulation:
+        if not use_implicit_solvent:
             # Filter out only the solvent substance to help with the solvation step.
             filter_solvent = miscellaneous.FilterSubstanceByRole(
                 "host-guest-filter_solvent"
@@ -932,7 +931,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             "parameterized_system", apply_parameters.id
         )
         add_bound_dummy_atoms.offset = ProtocolPath("dummy_atom_offset", "global")
-        add_bound_dummy_atoms.implicit_simulation = implicit_simulation
+        add_bound_dummy_atoms.implicit_simulation = use_implicit_solvent
 
         bound_coordinate_path = ProtocolPath(
             "output_coordinate_path",
@@ -953,7 +952,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             "parameterized_system", apply_parameters.id
         )
         add_unbound_dummy_atoms.offset = ProtocolPath("dummy_atom_offset", "global")
-        add_unbound_dummy_atoms.implicit_simulation = implicit_simulation
+        add_unbound_dummy_atoms.implicit_simulation = use_implicit_solvent
 
         unbound_coordinate_path = ProtocolPath(
             "output_coordinate_path",
@@ -1073,7 +1072,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             unbound_equilibration,
             unbound_production,
         ]
-        if not implicit_simulation:
+        if not use_implicit_solvent:
             protocols.insert(2, filter_solvent)
             protocols.insert(3, solvate_bound_coordinates)
             protocols.insert(4, solvate_unbound_coordinates)
@@ -1169,8 +1168,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
         n_solvent_molecules: int = 2500,
         simulation_time_steps: dict = None,
         end_states_time_steps: dict = None,
+        use_implicit_solvent: bool = False,
         enable_hmr: bool = False,
-        implicit_simulation: bool = False,
         debug: bool = False,
     ):
         """Returns the default calculation schema to use when estimating
@@ -1202,10 +1201,10 @@ class HostGuestBindingAffinity(PhysicalProperty):
         end_states_time_steps: dict, optional
             Same as ``simulation_time_steps`` but for simulating the end states
             that will be used to estimate the free energy gradient.
+        use_implicit_solvent: bool, optional
+            Whether to run a protocol for host-guest binding with implicit solvent.
         enable_hmr: bool, optional
             Whether to repartition hydrogen masses attached to heavy atoms.
-        implicit_simulation: bool, optional
-            Whether to run a protocol for host-guest binding with implicit solvent.
         debug
             Whether to return a debug schema. This is nearly identical
             to the default schema, albeit with significantly less
@@ -1275,8 +1274,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
             *simulation_templates,
         ) = cls._paprika_default_simulation_protocols(
             simulation_time_steps,
-            ensemble=Ensemble.NVT if implicit_simulation else Ensemble.NPT,
-            enable_pbc=False if implicit_simulation else True,
+            ensemble=Ensemble.NVT if use_implicit_solvent else Ensemble.NPT,
+            enable_pbc=False if use_implicit_solvent else True,
         )
 
         if end_states_time_steps:
@@ -1285,8 +1284,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
                 *end_states_simulation_templates,
             ) = cls._paprika_default_simulation_protocols(
                 end_states_time_steps,
-                ensemble=Ensemble.NVT if implicit_simulation else Ensemble.NPT,
-                enable_pbc=False if implicit_simulation else True,
+                ensemble=Ensemble.NVT if use_implicit_solvent else Ensemble.NPT,
+                enable_pbc=False if use_implicit_solvent else True,
             )
 
         if debug:
@@ -1324,6 +1323,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         }
 
         # Build the protocols to compute the attach and pull free energies.
+        # noinspection PyTypeChecker
         (
             attach_pull_protocols,
             attach_pull_replicators,
@@ -1336,11 +1336,12 @@ class HostGuestBindingAffinity(PhysicalProperty):
             solvation_template,
             minimization_template,
             *simulation_templates,
-            implicit_simulation,
+            use_implicit_solvent,
             enable_hmr,
         )
 
         # Build the protocols to compute the release free energies.
+        # noinspection PyTypeChecker
         (
             release_protocols,
             release_replicator,
@@ -1351,12 +1352,13 @@ class HostGuestBindingAffinity(PhysicalProperty):
             solvation_template,
             minimization_template,
             *simulation_templates,
-            implicit_simulation,
+            use_implicit_solvent,
             enable_hmr,
         )
 
         # Build the protocols for the end-states (for gradient calculations)
         if end_states_time_steps:
+            # noinspection PyUnboundLocalVariable,PyTypeChecker
             (
                 end_states_protocols,
                 end_states_replicator,
@@ -1373,7 +1375,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
                 solvation_template,
                 end_states_minimization_template,
                 *end_states_simulation_templates,
-                implicit_simulation,
+                use_implicit_solvent,
                 enable_hmr,
             )
 
@@ -1400,6 +1402,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
 
         # Free energy gradient
         if end_states_time_steps:
+            # noinspection PyUnboundLocalVariable
             (
                 gradient_protocols,
                 orientation_free_energy_with_gradient,
@@ -1413,12 +1416,13 @@ class HostGuestBindingAffinity(PhysicalProperty):
                 unbound_topology,
                 unbound_trajectory,
                 ProtocolPath("result", orientation_free_energy.id),
-                enable_pbc=False if implicit_simulation else True,
+                enable_pbc=False if use_implicit_solvent else True,
             )
 
         # Finally, combine all of the values together
         total_free_energy = analysis.AverageFreeEnergies("total_free_energy")
         if end_states_time_steps:
+            # noinspection PyUnboundLocalVariable
             total_free_energy.values = orientation_free_energy_with_gradient
         else:
             total_free_energy.values = ProtocolPath(
@@ -1432,6 +1436,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         calculation_schema.workflow_schema = WorkflowSchema()
 
         if end_states_time_steps:
+            # noinspection PyUnboundLocalVariable
             calculation_schema.workflow_schema.protocol_schemas = [
                 *(protocol.schema for protocol in attach_pull_protocols),
                 *(protocol.schema for protocol in release_protocols),
@@ -1441,6 +1446,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
                 *(protocol.schema for protocol in gradient_protocols),
                 total_free_energy.schema,
             ]
+            # noinspection PyUnboundLocalVariable
             calculation_schema.workflow_schema.protocol_replicators = [
                 orientation_replicator,
                 *attach_pull_replicators,
