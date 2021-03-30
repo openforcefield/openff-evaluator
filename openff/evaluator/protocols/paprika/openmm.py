@@ -326,7 +326,7 @@ class PaprikaOpenMMSimulation(OpenMMSimulation):
 
         return np.array(sem)
 
-    def _estimate_gradient_sem(self):
+    def _estimate_gradient_sem(self, return_percentage=False):
         """Estimate the SEM of the gradient of the potential energy w.r.t. FF parameters."""
 
         gradient = ComputePotentialEnergyGradient("")
@@ -338,9 +338,14 @@ class PaprikaOpenMMSimulation(OpenMMSimulation):
         gradient.gradient_parameters = self.gradient_parameters
         gradient.execute(self._directory, self._available_resources)
 
+        ave = []
         sem = []
         for gradient in gradient.potential_energy_gradients_data:
+            ave.append(gradient.value.magnitude.mean())
             sem.append(get_block_sem(gradient.value.magnitude))
+
+        if return_percentage:
+            return np.array(sem) / np.array(ave) * 100
 
         return np.array(sem)
 
@@ -352,7 +357,7 @@ class PaprikaOpenMMSimulation(OpenMMSimulation):
         if self.convergence_criteria == ConvergenceType.restraints:
             return self._estimate_restraint_sem()
         elif self.convergence_criteria == ConvergenceType.gradient:
-            return self._estimate_gradient_sem()
+            return self._estimate_gradient_sem(return_percentage=True)
         elif self.convergence_criteria == ConvergenceType.potential_energy:
             self._estimate_potential_energy_sem()
 
