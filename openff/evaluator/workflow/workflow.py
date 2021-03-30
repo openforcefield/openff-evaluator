@@ -665,7 +665,11 @@ class Workflow:
                     )
 
                     # Check if H is supported by the Implicit solvent model
-                    igb_H = {1: ["H-C", "H-N", "H-O", "H-S"], 2: ["H-N"], 5: ["H-N"]}
+                    igb_H = {
+                        1: ["H", "H-C", "H-N", "H-O", "H-S"],
+                        2: ["H", "H-N"],
+                        5: ["H", "H-N"],
+                    }
                     if (
                         parameter_key.smirks[0] == "H"
                         and parameter_key.smirks not in igb_H[force_field_source.igb]
