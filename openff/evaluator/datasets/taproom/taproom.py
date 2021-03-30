@@ -6,6 +6,7 @@ import logging
 import os
 from typing import Any, Dict, List, Optional
 
+import numpy as np
 import pkg_resources
 import yaml
 
@@ -277,6 +278,67 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             if value["restraint"] is not None
         ]
 
+    @staticmethod
+    def _generate_lambda_scaling(
+        attach_lambdas: List[float],
+        n_pull_windows: int,
+        release_lambdas: List[float],
+    ) -> Dict[str, Any]:
+        """A help method to generate lambda scaling factors for use in error/convergence
+        estimate.
+
+        Parameters
+        ----------
+        attach_lambdas
+            A list of lambdas for attach phase calculation
+        n_pull_windows
+            The number of pull windows
+        release_lambdas
+            A list of lambdas for release phase calculation
+
+        Returns
+        -------
+        lambda_scaling
+            A dictionary containing the lambda scaling factor for each APR window.
+        """
+
+        lambda_scaling = {}
+
+        # Attach phase scaling
+        n_windows = len(attach_lambdas)
+        scale = np.zeros(n_windows)
+
+        for i, fraction in enumerate(attach_lambdas):
+            if i == 0:
+                scale[i] = attach_lambdas[i + 1] / 2.0
+            elif i == n_windows - 1:
+                scale[i] = (1 - attach_lambdas[i - 1]) / 2.0
+            else:
+                scale[i] = (attach_lambdas[i + 1] - attach_lambdas[i - 1]) / 2.0
+
+        lambda_scaling.update({"attach": scale})
+
+        # Pull phase scaling
+        scale = np.ones(n_pull_windows)
+
+        lambda_scaling.update({"pull": scale})
+
+        # Release phase scaling
+        n_windows = len(release_lambdas)
+        scale = np.zeros(n_windows)
+
+        for i, fraction in enumerate(release_lambdas):
+            if i == 0:
+                scale[i] = (1 - release_lambdas[i + 1]) / 2.0
+            elif i == n_windows - 1:
+                scale[i] = release_lambdas[i - 1] / 2.0
+            else:
+                scale[i] = (release_lambdas[i - 1] - release_lambdas[i + 1]) / 2.0
+
+        lambda_scaling.update({"release": scale})
+
+        return lambda_scaling
+
     @classmethod
     def _build_metadata(
         cls,
@@ -399,6 +461,10 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         n_pull_windows = next(iter(unique_n_pull_windows))
         release_lambdas = [*next(iter(unique_release_lambdas))]
 
+        lambda_scaling = cls._generate_lambda_scaling(
+            attach_lambdas, n_pull_windows, release_lambdas
+        )
+
         metadata.update(
             {
                 "host_coordinate_path": next(iter(unique_host_structures)),
@@ -410,6 +476,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 "release_lambdas": release_lambdas,
                 "bound_window_index": [[*range(n_pull_windows)][0]],
                 "unbound_window_index": [[*range(n_pull_windows)][-1]],
+                "lambda_scaling": lambda_scaling,
             }
         )
 

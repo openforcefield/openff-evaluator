@@ -30,6 +30,10 @@ from openff.evaluator.protocols.paprika.coordinates import (
     PrepareReleaseCoordinates,
 )
 from openff.evaluator.protocols.paprika.forcefield import PaprikaBuildSystem
+from openff.evaluator.protocols.paprika.openmm import (
+    PaprikaOpenMMSimulation,
+    SimulationSteps,
+)
 from openff.evaluator.protocols.paprika.restraints import (
     ApplyRestraints,
     GenerateAttachRestraints,
@@ -248,25 +252,23 @@ class HostGuestBindingAffinity(PhysicalProperty):
     @classmethod
     def _paprika_default_simulation_protocols(
         cls,
-        simulation_time_steps: dict,
+        simulation_settings: SimulationSteps,
         ensemble: Ensemble = Ensemble.NPT,
         enable_pbc: bool = True,
     ) -> Tuple[
         openmm.OpenMMEnergyMinimisation,
         openmm.OpenMMSimulation,
         openmm.OpenMMSimulation,
-        openmm.OpenMMSimulation,
+        PaprikaOpenMMSimulation,
     ]:
         """Returns the default set of simulation protocols to use for each window
         of an APR calculation.
 
         Parameters
         ----------
-        simulation_time_steps
-            A dictionary containing `n_xxx_steps`, `out_xxx_steps` and `dt_xxx`, corresponding
-            to number of steps, output frequency and integration time step, respectively.
-            The dictionary requires three sets for `thermalization`, `equilibration` and
-            `production` runs.
+        simulation_settings
+            A class of `SimulationSteps` that contains information about the
+            simulation time steps for thermalization, equilibration and production.
         enable_pbc
             Whether to run simulations with periodic boundary condition (on by default).
 
@@ -275,30 +277,46 @@ class HostGuestBindingAffinity(PhysicalProperty):
             A protocol to perform an energy minimization, a thermalization,
             an equilibration, and finally a production simulation.
         """
+        # Energy Minimization
         energy_minimisation = openmm.OpenMMEnergyMinimisation("")
 
+        # Thermalization phase
         thermalization = openmm.OpenMMSimulation("")
-        thermalization.steps_per_iteration = simulation_time_steps[
-            "n_thermalization_steps"
-        ]
-        thermalization.output_frequency = simulation_time_steps["out_thermalization"]
-        thermalization.timestep = simulation_time_steps["dt_thermalization"]
+        thermalization.steps_per_iteration = (
+            simulation_settings.thermalization.number_of_steps
+        )
+        thermalization.output_frequency = (
+            simulation_settings.thermalization.output_frequency
+        )
+        thermalization.timestep = simulation_settings.thermalization.time_step
         thermalization.ensemble = ensemble
         thermalization.enable_pbc = enable_pbc
 
+        # Equilibration phase
         equilibration = openmm.OpenMMSimulation("")
-        equilibration.steps_per_iteration = simulation_time_steps[
-            "n_equilibration_steps"
-        ]
-        equilibration.output_frequency = simulation_time_steps["out_equilibration"]
-        equilibration.timestep = simulation_time_steps["dt_equilibration"]
+        equilibration.steps_per_iteration = (
+            simulation_settings.equilibration.number_of_steps
+        )
+        equilibration.output_frequency = (
+            simulation_settings.equilibration.output_frequency
+        )
+        equilibration.timestep = simulation_settings.equilibration.time_step
         equilibration.ensemble = ensemble
         equilibration.enable_pbc = enable_pbc
 
-        production = openmm.OpenMMSimulation("")
-        production.steps_per_iteration = simulation_time_steps["n_production_steps"]
-        production.output_frequency = simulation_time_steps["out_production"]
-        production.timestep = simulation_time_steps["dt_production"]
+        # Production phase
+        production = PaprikaOpenMMSimulation("")
+        production.steps_per_iteration = simulation_settings.production.number_of_steps
+        production.output_frequency = simulation_settings.production.output_frequency
+        production.timestep = simulation_settings.production.time_step
+        production.max_number_of_steps = (
+            simulation_settings.production.max_number_of_steps
+        )
+        production.number_of_extra_steps = (
+            simulation_settings.production.number_of_extra_steps
+        )
+        production.convergence_criteria = simulation_settings.convergence_criteria
+        production.convergence_tolerance = simulation_settings.convergence_tolerance
         production.ensemble = ensemble
         production.enable_pbc = enable_pbc
 
@@ -314,19 +332,24 @@ class HostGuestBindingAffinity(PhysicalProperty):
         minimization_template: openmm.OpenMMEnergyMinimisation,
         thermalization_template: openmm.OpenMMSimulation,
         equilibration_template: openmm.OpenMMSimulation,
-        production_template: openmm.OpenMMSimulation,
+        production_template: PaprikaOpenMMSimulation,
+        no_dummy_system: ProtocolPath = None,
+        window_number: int = None,
+        lambda_scaling: ProtocolPath = None,
+        restraints_path: ProtocolPath = None,
     ) -> Tuple[
         openmm.OpenMMEnergyMinimisation,
         openmm.OpenMMSimulation,
         openmm.OpenMMSimulation,
-        openmm.OpenMMSimulation,
+        PaprikaOpenMMSimulation,
     ]:
-
+        # Energy Minimization
         minimization = copy.deepcopy(minimization_template)
         minimization.id = f"{id_prefix}_energy_minimization_{id_suffix}"
         minimization.input_coordinate_file = coordinate_path
         minimization.parameterized_system = parameterized_system
 
+        # Thermalization phase
         thermalization = copy.deepcopy(thermalization_template)
         thermalization.id = f"{id_prefix}_thermalization_{id_suffix}"
         thermalization.input_coordinate_file = ProtocolPath(
@@ -337,6 +360,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             "thermodynamic_state", "global"
         )
 
+        # Equilibration phase
         equilibration = copy.deepcopy(equilibration_template)
         equilibration.id = f"{id_prefix}_equilibration_{id_suffix}"
         equilibration.input_coordinate_file = ProtocolPath(
@@ -347,13 +371,22 @@ class HostGuestBindingAffinity(PhysicalProperty):
             "thermodynamic_state", "global"
         )
 
+        # Production phase
         production = copy.deepcopy(production_template)
         production.id = f"{id_prefix}_production_{id_suffix}"
         production.input_coordinate_file = ProtocolPath(
             "output_coordinate_file", equilibration.id
         )
         production.parameterized_system = parameterized_system
+        production.no_dummy_system = no_dummy_system
+        production.gradient_parameters = ProtocolPath(
+            "parameter_gradient_keys", "global"
+        )
         production.thermodynamic_state = ProtocolPath("thermodynamic_state", "global")
+        production.phase = id_prefix
+        production.window_number = window_number
+        production.lambda_scaling = lambda_scaling
+        production.restraints_path = restraints_path
 
         return minimization, thermalization, equilibration, production
 
@@ -366,7 +399,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         minimization_template: openmm.OpenMMEnergyMinimisation,
         thermalization_template: openmm.OpenMMSimulation,
         equilibration_template: openmm.OpenMMSimulation,
-        production_template: openmm.OpenMMSimulation,
+        production_template: PaprikaOpenMMSimulation,
         use_implicit_solvent: bool = False,
         enable_hmr: bool = False,
     ):
@@ -532,6 +565,11 @@ class HostGuestBindingAffinity(PhysicalProperty):
             thermalization_template,
             equilibration_template,
             production_template,
+            window_number=ReplicatorValue(attach_replicator.id),
+            lambda_scaling=ProtocolPath("lambda_scaling", "global"),
+            restraints_path=ProtocolPath(
+                "restraints_path", generate_attach_restraints.id
+            ),
         )
 
         (
@@ -548,6 +586,11 @@ class HostGuestBindingAffinity(PhysicalProperty):
             thermalization_template,
             equilibration_template,
             production_template,
+            window_number=ReplicatorValue(pull_replicator.id),
+            lambda_scaling=ProtocolPath("lambda_scaling", "global"),
+            restraints_path=ProtocolPath(
+                "restraints_path", generate_pull_restraints.id
+            ),
         )
 
         # Analyze the attach phase.
@@ -631,7 +674,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         minimization_template: openmm.OpenMMEnergyMinimisation,
         thermalization_template: openmm.OpenMMSimulation,
         equilibration_template: openmm.OpenMMSimulation,
-        production_template: openmm.OpenMMSimulation,
+        production_template: PaprikaOpenMMSimulation,
         use_implicit_solvent: bool = False,
         enable_hmr: bool = False,
     ):
@@ -736,6 +779,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
             thermalization_template,
             equilibration_template,
             production_template,
+            window_number=ReplicatorValue(release_replicator.id),
+            lambda_scaling=ProtocolPath("lambda_scaling", "global"),
+            restraints_path=ProtocolPath("restraints_path", generate_restraints.id),
         )
 
         # Analyze the release phase.
@@ -786,7 +832,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         minimization_template: openmm.OpenMMEnergyMinimisation,
         thermalization_template: openmm.OpenMMSimulation,
         equilibration_template: openmm.OpenMMSimulation,
-        production_template: openmm.OpenMMSimulation,
+        production_template: PaprikaOpenMMSimulation,
         use_implicit_solvent: bool = False,
         enable_hmr: bool = False,
     ):
@@ -1032,6 +1078,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             thermalization_template,
             equilibration_template,
             production_template,
+            no_dummy_system=ProtocolPath("parameterized_system", apply_parameters.id),
         )
 
         # Setup the simulations for the unbound complex
@@ -1049,6 +1096,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             thermalization_template,
             equilibration_template,
             production_template,
+            no_dummy_system=ProtocolPath("parameterized_system", apply_parameters.id),
         )
 
         # Return the full list of the protocols which make up the bound and unbound parts
@@ -1166,8 +1214,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
         cls,
         existing_schema: SimulationSchema = None,
         n_solvent_molecules: int = 2500,
-        simulation_time_steps: dict = None,
-        end_states_time_steps: dict = None,
+        simulation_settings: SimulationSteps = SimulationSteps(),
+        end_states_settings: SimulationSteps = None,
         use_implicit_solvent: bool = False,
         enable_hmr: bool = False,
         debug: bool = False,
@@ -1190,7 +1238,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             by this method.
         n_solvent_molecules: int, optional
             The number of solvent molecules to add to the box.
-        simulation_time_steps: dict, optional
+        simulation_settings: dict, optional
             The integration timestep `dt_xxx`, number of steps to perform `n_xxx_steps`
             and output frequency `out_xxx` stored in a dictionary for thermalization,
             equilibration and production runs. The integration timesteps is a
@@ -1198,7 +1246,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             Sample generated during thermalization and equilibration runs will
             be discarded while the production run will be used in the final
             free energy.
-        end_states_time_steps: dict, optional
+        end_states_settings: dict, optional
             Same as ``simulation_time_steps`` but for simulating the end states
             that will be used to estimate the free energy gradient.
         use_implicit_solvent: bool, optional
@@ -1224,45 +1272,6 @@ class HostGuestBindingAffinity(PhysicalProperty):
             assert isinstance(existing_schema, SimulationSchema)
             calculation_schema = copy.deepcopy(existing_schema)
 
-        # Check user input for simulation time steps
-        default_time_steps = {
-            "n_thermalization_steps": 50000,
-            "n_equilibration_steps": 500000,
-            "n_production_steps": 1000000,
-            "dt_thermalization": 1.0 * unit.femtosecond,
-            "dt_equilibration": 2.0 * unit.femtosecond,
-            "dt_production": 2.0 * unit.femtosecond,
-            "out_thermalization": 10000,
-            "out_equilibration": 10000,
-            "out_production": 5000,
-        }
-        if simulation_time_steps:
-            assert all(
-                [
-                    key in default_time_steps.keys()
-                    for key in simulation_time_steps.keys()
-                ]
-            )
-
-            for key in default_time_steps:
-                if key not in simulation_time_steps:
-                    simulation_time_steps[key] = default_time_steps[key]
-        else:
-            simulation_time_steps = default_time_steps
-
-        # Check user input for end-states time steps
-        if end_states_time_steps:
-            assert all(
-                [
-                    key in default_time_steps.keys()
-                    for key in end_states_time_steps.keys()
-                ]
-            )
-
-            for key in default_time_steps:
-                if key not in end_states_time_steps:
-                    end_states_time_steps[key] = default_time_steps[key]
-
         # Initialize the protocols which will serve as templates for those
         # used in the actual workflows.
         solvation_template = cls._paprika_default_solvation_protocol(
@@ -1273,17 +1282,17 @@ class HostGuestBindingAffinity(PhysicalProperty):
             minimization_template,
             *simulation_templates,
         ) = cls._paprika_default_simulation_protocols(
-            simulation_time_steps,
+            simulation_settings,
             ensemble=Ensemble.NVT if use_implicit_solvent else Ensemble.NPT,
             enable_pbc=False if use_implicit_solvent else True,
         )
 
-        if end_states_time_steps:
+        if end_states_settings:
             (
                 end_states_minimization_template,
                 *end_states_simulation_templates,
             ) = cls._paprika_default_simulation_protocols(
-                end_states_time_steps,
+                end_states_settings,
                 ensemble=Ensemble.NVT if use_implicit_solvent else Ensemble.NPT,
                 enable_pbc=False if use_implicit_solvent else True,
             )
@@ -1357,7 +1366,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         )
 
         # Build the protocols for the end-states (for gradient calculations)
-        if end_states_time_steps:
+        if end_states_settings:
             # noinspection PyUnboundLocalVariable,PyTypeChecker
             (
                 end_states_protocols,
@@ -1401,7 +1410,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         ]
 
         # Free energy gradient
-        if end_states_time_steps:
+        if end_states_settings:
             # noinspection PyUnboundLocalVariable
             (
                 gradient_protocols,
@@ -1421,7 +1430,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
 
         # Finally, combine all of the values together
         total_free_energy = analysis.AverageFreeEnergies("total_free_energy")
-        if end_states_time_steps:
+        if end_states_settings:
             # noinspection PyUnboundLocalVariable
             total_free_energy.values = orientation_free_energy_with_gradient
         else:
@@ -1435,7 +1444,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
 
         calculation_schema.workflow_schema = WorkflowSchema()
 
-        if end_states_time_steps:
+        if end_states_settings:
             # noinspection PyUnboundLocalVariable
             calculation_schema.workflow_schema.protocol_schemas = [
                 *(protocol.schema for protocol in attach_pull_protocols),

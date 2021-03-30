@@ -163,7 +163,11 @@ class ComputePotentialEnergyGradient(Protocol):
         default_value=lambda: list(),
     )
     potential_energy_gradients = OutputAttribute(
-        docstring="The gradient of the potential energy.",
+        docstring="A list of the gradient of the potential energy w.r.t. to FF parameters.",
+        type_hint=list,
+    )
+    potential_energy_gradients_data = OutputAttribute(
+        docstring="The time series data of the gradient of the potential w.r.t to FF parameters.",
         type_hint=list,
     )
 
@@ -246,6 +250,10 @@ class ComputePotentialEnergyGradient(Protocol):
 
         self.potential_energy_gradients = [
             ParameterGradient(key=gradient.key, value=gradient.value.mean().item())
+            for gradient in observables[ObservableType.PotentialEnergy].gradients
+        ]
+        self.potential_energy_gradients_data = [
+            ParameterGradient(key=gradient.key, value=gradient.value)
             for gradient in observables[ObservableType.PotentialEnergy].gradients
         ]
 
