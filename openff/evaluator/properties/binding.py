@@ -333,7 +333,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         thermalization_template: openmm.OpenMMSimulation,
         equilibration_template: openmm.OpenMMSimulation,
         production_template: PaprikaOpenMMSimulation,
-        no_dummy_system: ProtocolPath = None,
+        pristine_system: ProtocolPath = None,
         window_number: int = None,
         lambda_scaling: ProtocolPath = None,
         restraints_path: ProtocolPath = None,
@@ -378,11 +378,11 @@ class HostGuestBindingAffinity(PhysicalProperty):
             "output_coordinate_file", equilibration.id
         )
         production.parameterized_system = parameterized_system
-        production.no_dummy_system = no_dummy_system
+        production.thermodynamic_state = ProtocolPath("thermodynamic_state", "global")
+        production.pristine_system = pristine_system
         production.gradient_parameters = ProtocolPath(
             "parameter_gradient_keys", "global"
         )
-        production.thermodynamic_state = ProtocolPath("thermodynamic_state", "global")
         production.phase = id_prefix
         production.window_number = window_number
         production.lambda_scaling = lambda_scaling
@@ -1078,7 +1078,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             thermalization_template,
             equilibration_template,
             production_template,
-            no_dummy_system=ProtocolPath("parameterized_system", apply_parameters.id),
+            pristine_system=ProtocolPath("parameterized_system", apply_parameters.id),
         )
 
         # Setup the simulations for the unbound complex
@@ -1096,7 +1096,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
             thermalization_template,
             equilibration_template,
             production_template,
-            no_dummy_system=ProtocolPath("parameterized_system", apply_parameters.id),
+            pristine_system=ProtocolPath("parameterized_system", apply_parameters.id),
         )
 
         # Return the full list of the protocols which make up the bound and unbound parts

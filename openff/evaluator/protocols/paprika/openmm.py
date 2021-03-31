@@ -183,7 +183,7 @@ class SimulationSteps:
 
 @workflow_protocol()
 class PaprikaOpenMMSimulation(OpenMMSimulation):
-    no_dummy_system = InputAttribute(
+    pristine_system = InputAttribute(
         docstring="The parameterized system object without dummy atoms.",
         type_hint=Union[ParameterizedSystem, None],
         default_value=None,
@@ -327,10 +327,17 @@ class PaprikaOpenMMSimulation(OpenMMSimulation):
         return np.array(sem)
 
     def _estimate_gradient_sem(self, return_percentage=False):
-        """Estimate the SEM of the gradient of the potential energy w.r.t. FF parameters."""
+        """Estimate the SEM of the gradient of the potential energy w.r.t. FF
+        parameters. The function can return the absolute value or the fractional
+        (as a percentage) value of the SEM.
+
+        .. note ::
+            It may be better to return the fractional value of the SEM since the
+            magnitude may vary depending on the FF parameter.
+        """
 
         gradient = ComputePotentialEnergyGradient("")
-        gradient.input_system = self.no_dummy_system
+        gradient.input_system = self.pristine_system
         gradient.topology_path = self._local_input_coordinate_path
         gradient.trajectory_path = self._local_trajectory_path
         gradient.thermodynamic_state = self.thermodynamic_state
@@ -354,6 +361,9 @@ class PaprikaOpenMMSimulation(OpenMMSimulation):
         raise NotImplementedError()
 
     def _estimate_sem(self):
+        """Estimate the SEM based on either (1) restraint forces, (2) gradient or
+        (3) total potential energy.
+        """
         if self.convergence_criteria == ConvergenceType.restraints:
             return self._estimate_restraint_sem()
         elif self.convergence_criteria == ConvergenceType.gradient:
