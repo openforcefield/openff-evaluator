@@ -31,8 +31,8 @@ from openff.evaluator.protocols.paprika.coordinates import (
 )
 from openff.evaluator.protocols.paprika.forcefield import PaprikaBuildSystem
 from openff.evaluator.protocols.paprika.openmm import (
+    APRSimulationSteps,
     PaprikaOpenMMSimulation,
-    SimulationSteps,
 )
 from openff.evaluator.protocols.paprika.restraints import (
     ApplyRestraints,
@@ -252,7 +252,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
     @classmethod
     def _paprika_default_simulation_protocols(
         cls,
-        simulation_settings: SimulationSteps,
+        simulation_settings: APRSimulationSteps,
         ensemble: Ensemble = Ensemble.NPT,
         enable_pbc: bool = True,
     ) -> Tuple[
@@ -267,7 +267,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         Parameters
         ----------
         simulation_settings
-            A class of `SimulationSteps` that contains information about the
+            A class of `APRSimulationSteps` that contains information about the
             simulation time steps for thermalization, equilibration and production.
         enable_pbc
             Whether to run simulations with periodic boundary condition (on by default).
@@ -1214,8 +1214,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
         cls,
         existing_schema: SimulationSchema = None,
         n_solvent_molecules: int = 2500,
-        simulation_settings: SimulationSteps = SimulationSteps(),
-        end_states_settings: SimulationSteps = None,
+        simulation_settings: APRSimulationSteps = APRSimulationSteps(),
+        end_states_settings: APRSimulationSteps = None,
         use_implicit_solvent: bool = False,
         enable_hmr: bool = False,
         debug: bool = False,

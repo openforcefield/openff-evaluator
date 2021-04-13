@@ -276,8 +276,8 @@ def disable_pbc(system):
 
         if (
             not isinstance(force, openmm.NonbondedForce)
-            or not isinstance(force, openmm.CustomGBForce)
-            or not isinstance(force, openmm.GBSAOBCForce)
+            and not isinstance(force, openmm.CustomGBForce)
+            and not isinstance(force, openmm.GBSAOBCForce)
         ):
             continue
 
@@ -408,6 +408,48 @@ def perturbed_gaff_system(
         The created system as well as the value of the specified ``parameter``.
     """
 
+    from simtk.openmm import System as OMMSystem
+
+    if not os.path.isfile(topology_path):
+        logger.info(
+            "GAFF topology file not found, returning an empty `system` object and "
+            "setting `parameter_value` to zero."
+        )
+
+        perturbed_system = OMMSystem()
+        parameter_value = 0.0
+
+        if scale_amount is not None:
+            parameter_value = scale_amount if scale_amount > 0.0 else 0.0
+
+        if parameter_key.tag == "Bond":
+            if parameter_key.attribute == "length":
+                parameter_value *= simtk_unit.angstrom
+            elif parameter_key.attribute == "k":
+                parameter_value *= (
+                    simtk_unit.kilocalorie_per_mole / simtk_unit.angstrom ** 2
+                )
+
+        elif parameter_key.tag == "Angle":
+            if parameter_key.attribute == "theta":
+                parameter_value *= simtk_unit.degree
+            elif parameter_key.attribute == "k":
+                parameter_value *= (
+                    simtk_unit.kilocalorie_per_mole / simtk_unit.radians ** 2
+                )
+
+        elif parameter_key.tag == "vdW":
+            if parameter_key.attribute == "rmin_half":
+                parameter_value *= simtk_unit.angstrom
+            elif parameter_key.attribute == "epsilon":
+                parameter_value *= simtk_unit.kilocalorie_per_mole
+
+        elif parameter_key.tag == "GBSA":
+            parameter_value *= simtk_unit.nanometer
+
+        return perturbed_system, parameter_value
+
+    # Load Topology and System XML
     structure = pmd.load_file(topology_path)
     with open(system_path, "r") as f:
         original_system = openmm.XmlSerializer.deserialize(f.read())
@@ -619,7 +661,18 @@ def perturbed_gaff_system(
         for force in perturbed_system.getForces():
             if isinstance(force, CustomGBForce) or isinstance(force, GBSAOBCForce):
                 gbsa_force = force
-        assert gbsa_force is not None
+
+        if gbsa_force is None:
+            logger.info(
+                "GBSA force not found in System object, returning an empty `system` object and "
+                "setting `parameter_value` to zero."
+            )
+            empty_system = OMMSystem()
+            parameter_value = (
+                scale_amount if scale_amount > 0.0 else 0.0
+            ) * simtk_unit.nanometer
+
+            return empty_system, parameter_value
 
         # Determine element of atom
         mask_element = E.get_by_symbol(parameter_key.smirks[0])

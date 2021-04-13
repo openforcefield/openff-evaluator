@@ -20,6 +20,7 @@ from openff.evaluator.forcefield import (
     ParameterGradient,
     ParameterGradientKey,
     SmirnoffForceFieldSource,
+    TLeapForceFieldSource,
 )
 from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.protocols.openmm import _compute_gradients
@@ -53,7 +54,6 @@ from openff.evaluator.workflow.attributes import (
 if TYPE_CHECKING:
     import mdtraj
     from openff.toolkit.topology import Topology
-    from openff.toolkit.typing.engines.smirnoff.forcefield import ForceField
 
 logger = logging.getLogger(__name__)
 
@@ -516,9 +516,10 @@ class BaseYankProtocol(Protocol, abc.ABC):
         self,
         trajectory: "mdtraj.Trajectory",
         topology: "Topology",
-        force_field: "ForceField",
+        input_system: "ParameterizedSystem",
         enable_pbc: bool,
         compute_resources: ComputeResources,
+        gaff_prmtop_path: str = None,
     ) -> List[ParameterGradient]:
         """Computes the value of <dU / d theta> for a specified trajectory and for
         each force field parameter (theta) of interest.
@@ -529,8 +530,8 @@ class BaseYankProtocol(Protocol, abc.ABC):
             The trajectory of interest.
         topology
             The topology of the system.
-        force_field
-            The force field containing the parameters of interest.
+        input_system
+            The parameterized system object.
         enable_pbc
             Whether periodic boundary conditions should be enabled when evaluating
             the potential energies of each frame and their gradients.
@@ -553,6 +554,17 @@ class BaseYankProtocol(Protocol, abc.ABC):
         )
 
         # Compute the gradient in the first solvent.
+        force_field_source = input_system.force_field
+        force_field = (
+            force_field_source.to_force_field()
+            if isinstance(force_field_source, SmirnoffForceFieldSource)
+            else force_field_source
+        )
+
+        gaff_system_path = None
+        if isinstance(force_field_source, TLeapForceFieldSource):
+            gaff_system_path = input_system.system_path
+
         _compute_gradients(
             self.gradient_parameters,
             observables,
@@ -561,7 +573,9 @@ class BaseYankProtocol(Protocol, abc.ABC):
             topology,
             trajectory,
             compute_resources,
-            enable_pbc,
+            gaff_system_path,
+            gaff_prmtop_path,
+            enable_pbc=enable_pbc,
         )
 
         return [
@@ -1023,6 +1037,12 @@ class SolvationYankProtocol(BaseYankProtocol):
         optional=True,
         default_value=UNDEFINED,
     )
+    use_implicit_solvent = InputAttribute(
+        docstring="Specify whether to run the solvation free energy calculation with "
+        "implicit solvent.",
+        type_hint=bool,
+        default_value=False,
+    )
 
     solution_1_free_energy = OutputAttribute(
         docstring="The free energy change of transforming the an ideal solute molecule "
@@ -1109,6 +1129,9 @@ class SolvationYankProtocol(BaseYankProtocol):
             ],
             "solvent_dsl": " or ".join(full_solvent_dsl_components),
         }
+
+        if self.use_implicit_solvent:
+            del solvation_system_dictionary["solvent_dsl"]
 
         return {"solvation-system": solvation_system_dictionary}
 
@@ -1228,6 +1251,7 @@ class SolvationYankProtocol(BaseYankProtocol):
         parameterized_system: ParameterizedSystem,
         phase_name: str,
         available_resources: ComputeResources,
+        working_directory: str,
     ) -> Tuple[
         Observable,
         "mdtraj.Trajectory",
@@ -1238,6 +1262,7 @@ class SolvationYankProtocol(BaseYankProtocol):
         """Analyzes a particular phase, extracting the relevant free energies
         and computing the required free energies."""
 
+        import parmed as pmd
         from openff.toolkit.topology import Molecule, Topology
 
         free_energies = self._analysed_output["free_energy"]
@@ -1288,22 +1313,63 @@ class SolvationYankProtocol(BaseYankProtocol):
 
         force_field_source = solution_system.force_field
 
-        if not isinstance(force_field_source, SmirnoffForceFieldSource):
+        if not isinstance(
+            force_field_source, SmirnoffForceFieldSource
+        ) and not isinstance(force_field_source, TLeapForceFieldSource):
             raise ValueError(
-                "Derivates can only be computed for systems parameterized with "
-                "SMIRNOFF force fields."
+                "Derivatives can only be computed for systems parameterized with "
+                "SMIRNOFF and GAFF force fields."
             )
 
-        force_field = force_field_source.to_force_field()
+        solution_prmtop_path = None
+        solvent_prmtop_path = None
+
+        if isinstance(force_field_source, TLeapForceFieldSource):
+            # Create GAFF prmtop file for the solution (solute + solvent) system
+            structure = pmd.openmm.topsystem.load_topology(
+                solution_trajectory.topology.to_openmm(),
+                solution_system.system,
+                solution_trajectory[0].xyz,
+            )
+            # Replace H-Bonds with a dummy bond type
+            dummy_bond_type = pmd.BondType(1.0, 1.0, list=structure.bond_types)
+            structure.bond_types.append(dummy_bond_type)
+            for bond in structure.bonds:
+                if bond.type is None:
+                    bond.type = dummy_bond_type
+
+            solution_prmtop_path = os.path.join(
+                working_directory,
+                parameterized_system.system_path.split("/")[-1].replace(
+                    ".xml", "_solution.prmtop"
+                ),
+            )
+            structure.save(solution_prmtop_path, overwrite=True)
+
+            # Create GAFF prmtop file for the solvent system
+            solvent_prmtop_path = os.path.join(
+                working_directory,
+                parameterized_system.system_path.split("/")[-1].replace(
+                    ".xml", "_solvent.prmtop"
+                ),
+            )
+            if solvent_topology.topology_molecules:
+                # Remove solute from the solution system.
+                solute_resname = [
+                    residue for residue in solution_trajectory.topology.residues
+                ][0]
+                structure.strip(solute_resname)
+                structure.save(solvent_prmtop_path, overwrite=True)
 
         solution_gradients = {
             gradient.key: gradient
             for gradient in self._compute_state_energy_gradients(
                 solution_trajectory,
                 solution_system.topology,
-                force_field,
+                solution_system,
                 solvent_topology.n_topology_atoms != 0,
                 available_resources,
+                gaff_prmtop_path=solution_prmtop_path,
             )
         }
         solvent_gradients = {
@@ -1311,9 +1377,10 @@ class SolvationYankProtocol(BaseYankProtocol):
             for gradient in self._compute_state_energy_gradients(
                 solvent_trajectory,
                 solvent_topology,
-                force_field,
+                solution_system,
                 solvent_topology.n_topology_atoms != 0,
                 available_resources,
+                gaff_prmtop_path=solvent_prmtop_path,
             )
         }
 
@@ -1351,8 +1418,13 @@ class SolvationYankProtocol(BaseYankProtocol):
             raise ValueError(
                 "There must only be a single component marked as a solute."
             )
-        if len(solvent_1_components) == 0 and len(solvent_2_components) == 0:
-            raise ValueError("At least one of the solvents must not be vacuum.")
+
+        if not self.use_implicit_solvent:
+
+            if len(solvent_1_components) == 0 and len(solvent_2_components) == 0:
+                raise ValueError(
+                    "At least one of the solvents must not be vacuum for explicit solvent simulations."
+                )
 
         # Because of quirks in where Yank looks files while doing temporary
         # directory changes, we need to copy the coordinate files locally so
@@ -1377,26 +1449,26 @@ class SolvationYankProtocol(BaseYankProtocol):
 
         # Disable the pbc of the any solvents which should be treated
         # as vacuum.
-        vacuum_system_path = None
+        vacuum_system_path = []
 
-        if len(solvent_1_components) == 0:
-            vacuum_system_path = self._local_solution_1_system
-        elif len(solvent_2_components) == 0:
-            vacuum_system_path = self._local_solution_2_system
+        if len(solvent_1_components) == 0 and self.use_implicit_solvent:
+            vacuum_system_path.append(self._local_solution_1_system)
+        if len(solvent_2_components) == 0:
+            vacuum_system_path.append(self._local_solution_2_system)
 
-        if vacuum_system_path is not None:
+        for system in vacuum_system_path:
 
             logger.info(
-                f"Disabling the periodic boundary conditions in {vacuum_system_path} "
+                f"Disabling the periodic boundary conditions in {system} "
                 f"by setting the cutoff type to NoCutoff"
             )
 
-            with open(os.path.join(directory, vacuum_system_path), "r") as file:
+            with open(os.path.join(directory, system), "r") as file:
                 vacuum_system = XmlSerializer.deserialize(file.read())
 
             disable_pbc(vacuum_system)
 
-            with open(os.path.join(directory, vacuum_system_path), "w") as file:
+            with open(os.path.join(directory, system), "w") as file:
                 file.write(XmlSerializer.serialize(vacuum_system))
 
         # Set up the yank input file.
@@ -1416,6 +1488,7 @@ class SolvationYankProtocol(BaseYankProtocol):
             self.solution_1_system,
             "solvent1",
             available_resources,
+            directory,
         )
 
         self.solution_1_trajectory_path = os.path.join(directory, "solution_1.dcd")
@@ -1442,6 +1515,7 @@ class SolvationYankProtocol(BaseYankProtocol):
             self.solution_2_system,
             "solvent2",
             available_resources,
+            directory,
         )
 
         self.solution_2_trajectory_path = os.path.join(directory, "solution_2.dcd")
@@ -1456,6 +1530,12 @@ class SolvationYankProtocol(BaseYankProtocol):
         else:
             with open(self.solvent_2_trajectory_path, "wb") as file:
                 file.write(b"")
+
+        for key in solvent_1_gradients:
+            logger.info(f"solution_1_gradients[key]: {solution_1_gradients[key]}")
+            logger.info(f"solvent_1_gradients[key]: {solvent_1_gradients[key]}")
+            logger.info(f"solvent_2_gradients[key]: {solvent_2_gradients[key]}")
+            logger.info(f"solution_2_gradients[key]: {solution_2_gradients[key]}")
 
         self.free_energy_difference = Observable(
             self.free_energy_difference.value.plus_minus(

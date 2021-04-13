@@ -68,6 +68,13 @@ class BaseBuildSystem(Protocol, abc.ABC):
         default_value=UNDEFINED,
     )
 
+    create_system_in_vacuum = InputAttribute(
+        docstring="Whether to create the system in vacuum environment. This "
+        "is to distinguish systems built with GBSA implicit solvent and vacuum.",
+        type_hint=bool,
+        default_value=False,
+    )
+
     parameterized_system = OutputAttribute(
         docstring="The parameterized system object.", type_hint=ParameterizedSystem
     )
@@ -137,6 +144,8 @@ class BaseBuildSystem(Protocol, abc.ABC):
             openmm.HarmonicAngleForce,
             openmm.PeriodicTorsionForce,
             openmm.NonbondedForce,
+            openmm.CustomGBForce,
+            openmm.GBSAOBCForce,
         ]
 
         number_of_appended_forces = 0
@@ -292,6 +301,120 @@ class BaseBuildSystem(Protocol, abc.ABC):
                         index_a + index_offset, index_b + index_offset, *parameters
                     )
 
+            elif isinstance(force_to_append, openmm.CustomGBForce):
+
+                # Set the cutoff distance
+                if (
+                    existing_force.getCutoffDistance()
+                    != force_to_append.getCutoffDistance()
+                ):
+                    existing_force.setCutoffDistance(
+                        force_to_append.getCutoffDistance()
+                    )
+
+                # Set Nonbonded Method
+                if (
+                    existing_force.getNonbondedMethod()
+                    != force_to_append.getNonbondedMethod()
+                ):
+                    existing_force.setNonbondedMethod(
+                        force_to_append.getNonbondedMethod()
+                    )
+
+                # Add per particle Parameter name
+                if (
+                    existing_force.getNumPerParticleParameters()
+                    != force_to_append.getNumPerParticleParameters()
+                ):
+                    for index in range(force_to_append.getNumPerParticleParameters()):
+                        existing_force.addPerParticleParameter(
+                            force_to_append.getPerParticleParameterName(index)
+                        )
+
+                # Add Computed Values
+                if (
+                    existing_force.getNumComputedValues()
+                    != force_to_append.getNumComputedValues()
+                ):
+                    for index in range(force_to_append.getNumComputedValues()):
+                        existing_force.addComputedValue(
+                            *force_to_append.getComputedValueParameters(index)
+                        )
+
+                # Add the Energy Terms
+                if (
+                    existing_force.getNumEnergyTerms()
+                    != force_to_append.getNumEnergyTerms()
+                ):
+                    for index in range(force_to_append.getNumEnergyTerms()):
+                        existing_force.addEnergyTerm(
+                            *force_to_append.getEnergyTermParameters(index),
+                        )
+
+                # Add the GBSA parameters for each particles
+                for index in range(force_to_append.getNumParticles()):
+
+                    index = index_map[index]
+
+                    existing_force.addParticle(
+                        force_to_append.getParticleParameters(index)
+                    )
+
+            elif isinstance(force_to_append, openmm.GBSAOBCForce):
+
+                # Set the cutoff distance
+                if (
+                    existing_force.getCutoffDistance()
+                    != force_to_append.getCutoffDistance()
+                ):
+                    existing_force.setCutoffDistance(
+                        force_to_append.getCutoffDistance()
+                    )
+
+                # Set Nonbonded Method
+                if (
+                    existing_force.getNonbondedMethod()
+                    != force_to_append.getNonbondedMethod()
+                ):
+                    existing_force.setNonbondedMethod(
+                        force_to_append.getNonbondedMethod()
+                    )
+
+                # Set the solute dielectric constant
+                if (
+                    existing_force.getSoluteDielectric()
+                    != force_to_append.getSoluteDielectric()
+                ):
+                    existing_force.setSoluteDielectric(
+                        force_to_append.getSoluteDielectric()
+                    )
+
+                # Set the solvent dielectric constant
+                if (
+                    existing_force.getSolventDielectric()
+                    != force_to_append.getSolventDielectric()
+                ):
+                    existing_force.setSolventDielectric(
+                        force_to_append.getSolventDielectric()
+                    )
+
+                # Set the surface area energy
+                if (
+                    existing_force.getSurfaceAreaEnergy()
+                    != force_to_append.getSurfaceAreaEnergy()
+                ):
+                    existing_force.setSurfaceAreaEnergy(
+                        force_to_append.getSurfaceAreaEnergy()
+                    )
+
+                # Add the GBSA parameters for each particles
+                for index in range(force_to_append.getNumParticles()):
+                    index = index_map[index]
+
+                    existing_force.addParticle(
+                        *force_to_append.getParticleParameters(index)
+                    )
+
             number_of_appended_forces += 1
 
         if number_of_appended_forces != system_to_append.getNumForces():
@@ -365,13 +488,15 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
         return component_system
 
     @staticmethod
-    def _create_empty_system(cutoff):
+    def _create_empty_system(cutoff, gbsaModel=None):
         """Creates an empty system object with stub forces.
 
         Parameters
         ----------
         cutoff: simtk.unit
             The non-bonded cutoff.
+        gbsaModel: str
+            The GBSA model to use, if specified.
 
         Returns
         -------
@@ -390,6 +515,11 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
         nonbonded_force.setNonbondedMethod(openmm.NonbondedForce.PME)
 
         system.addForce(nonbonded_force)
+
+        if gbsaModel == "HCT" or gbsaModel == "OBC1":
+            system.addForce(openmm.CustomGBForce())
+        elif gbsaModel == "OBC2":
+            system.addForce(openmm.GBSAOBCForce())
 
         return system
 
@@ -462,7 +592,17 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
         )
 
         # Create the full system object from the component templates.
-        system = self._create_empty_system(cutoff)
+        gbsaModel = None
+        if isinstance(force_field_source, TLeapForceFieldSource):
+            if force_field_source.igb and not self.create_system_in_vacuum:
+                solvent_model = {
+                    1: "HCT",
+                    2: "OBC1",
+                    5: "OBC2",
+                }
+                gbsaModel = solvent_model[force_field_source.igb]
+
+        system = self._create_empty_system(cutoff, gbsaModel)
 
         for topology_molecule in topology.topology_molecules:
 
@@ -520,6 +660,10 @@ class BuildSmirnoffSystem(BaseBuildSystem):
             )
 
         force_field = force_field_source.to_force_field()
+
+        # Remove GBSA parameters in force field for vacuum environment
+        if self.create_system_in_vacuum:
+            force_field.deregister_parameter_handler("GBSA")
 
         # Create the molecules to parameterize from the input substance.
         unique_molecules = []
@@ -860,7 +1004,25 @@ class BuildTLeapSystem(TemplateBuildSystem):
     )
 
     @staticmethod
-    def _run_tleap(molecule, force_field_source, directory):
+    def _GB_model(igb):
+        solvent_model = {
+            1: app.HCT,
+            2: app.OBC1,
+            5: app.OBC2,
+        }
+        return solvent_model[igb]
+
+    @staticmethod
+    def _GB_radii(igb):
+        gb_radii = {
+            1: "mbondi",
+            2: "mbondi2",
+            5: "mbondi2",
+        }
+        return gb_radii[igb]
+
+    @staticmethod
+    def _run_tleap(molecule, force_field_source, directory, in_vacuum=False):
         """Uses tleap to apply parameters to a particular molecule,
         generating a `.prmtop` and a `.rst7` file with the applied parameters.
 
@@ -1000,6 +1162,13 @@ class BuildTLeapSystem(TemplateBuildSystem):
             # Build the tleap input file.
             template_lines = [f"source {force_field_source.leap_source}"]
 
+            if force_field_source.igb and not in_vacuum:
+                template_lines.extend(
+                    [
+                        f"set default PBRadii {BuildTLeapSystem._GB_radii(force_field_source.igb)}"
+                    ]
+                )
+
             if frcmod_path is not None:
                 template_lines.append(
                     f"loadamberparams {frcmod_path}",
@@ -1105,16 +1274,38 @@ class BuildTLeapSystem(TemplateBuildSystem):
 
         self._generate_charges(molecule)
 
-        prmtop_path, _ = BuildTLeapSystem._run_tleap(molecule, force_field_source, "")
+        prmtop_path, _ = BuildTLeapSystem._run_tleap(
+            molecule, force_field_source, "", self.create_system_in_vacuum
+        )
         prmtop_file = openmm.app.AmberPrmtopFile(prmtop_path)
 
-        system = prmtop_file.createSystem(
-            nonbondedMethod=app.PME,
-            nonbondedCutoff=cutoff,
-            constraints=app.HBonds,
-            rigidWater=True,
-            removeCMMotion=False,
-        )
+        if force_field_source.igb and not self.create_system_in_vacuum:
+
+            system = prmtop_file.createSystem(
+                nonbondedMethod=app.NoCutoff,
+                constraints=app.HBonds,
+                implicitSolvent=BuildTLeapSystem._GB_model(force_field_source.igb),
+                gbsaModel=force_field_source.sa_model,
+                removeCMMotion=False,
+            )
+
+        elif self.create_system_in_vacuum:
+
+            system = prmtop_file.createSystem(
+                nonbondedMethod=app.NoCutoff,
+                constraints=app.HBonds,
+                removeCMMotion=False,
+            )
+
+        elif not force_field_source.igb and not self.create_system_in_vacuum:
+
+            system = prmtop_file.createSystem(
+                nonbondedMethod=app.PME,
+                nonbondedCutoff=cutoff,
+                constraints=app.HBonds,
+                rigidWater=True,
+                removeCMMotion=False,
+            )
 
         with open("component.xml", "w") as file:
             file.write(openmm.XmlSerializer.serialize(system))
@@ -1132,3 +1323,62 @@ class BuildTLeapSystem(TemplateBuildSystem):
             )
 
         super(BuildTLeapSystem, self)._execute(directory, available_resources)
+
+
+@workflow_protocol()
+class BuildSystem(Protocol, abc.ABC):
+    force_field_path = InputAttribute(
+        docstring="The file path to the force field parameters to assign to the system.",
+        type_hint=str,
+        default_value=UNDEFINED,
+    )
+    coordinate_file_path = InputAttribute(
+        docstring="The file path to the PDB coordinate file which defines the "
+        "topology of the system to which the force field parameters will be assigned.",
+        type_hint=str,
+        default_value=UNDEFINED,
+    )
+    substance = InputAttribute(
+        docstring="The composition of the system.",
+        type_hint=Substance,
+        default_value=UNDEFINED,
+    )
+    create_system_in_vacuum = InputAttribute(
+        docstring="Whether to create the system in vacuum environment. This "
+        "is to distinguish systems built with GBSA implicit solvent and vacuum.",
+        type_hint=bool,
+        default_value=False,
+    )
+    enable_hmr = InputAttribute(
+        docstring="Whether to repartition the masses of hydrogen atoms.",
+        type_hint=bool,
+        default_value=False,
+    )
+
+    parameterized_system = OutputAttribute(
+        docstring="The parameterized system object.", type_hint=ParameterizedSystem
+    )
+
+    def _execute(self, directory, available_resources):
+
+        force_field_source = ForceFieldSource.from_json(self.force_field_path)
+
+        if isinstance(force_field_source, SmirnoffForceFieldSource):
+            build_protocol = BuildSmirnoffSystem("")
+
+        elif isinstance(force_field_source, TLeapForceFieldSource):
+            build_protocol = BuildTLeapSystem("")
+
+        else:
+            raise ValueError(
+                "Only SMIRNOFF and GAFF force fields are supported by this protocol."
+            )
+
+        build_protocol.force_field_path = self.force_field_path
+        build_protocol.substance = self.substance
+        build_protocol.coordinate_file_path = self.coordinate_file_path
+        build_protocol.create_system_in_vacuum = self.create_system_in_vacuum
+        build_protocol.enable_hmr = self.enable_hmr
+        build_protocol.execute(directory, available_resources)
+
+        self.parameterized_system = build_protocol.parameterized_system

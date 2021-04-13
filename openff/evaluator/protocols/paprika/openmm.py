@@ -25,7 +25,7 @@ class ConvergenceType(Enum):
     gradient = "gradient"
 
 
-class SimulationSteps:
+class APRSimulationSteps:
     """A helper class to define the length of simulation (thermalization,
     equilibration, production) for host-guest binding affinity calculation
     with the pAPRika protocol. The production run can be extended by
@@ -33,12 +33,12 @@ class SimulationSteps:
     until convergence is reached.
 
     Examples
-    -------
+    --------
 
-    To create a protocol with (0.1 , 1.0, 2.0) ns for (thermalization, equilbiration, production)
+    To create a protocol with (0.1, 1.0, 2.0) ns for (thermalization, equilbiration, production)
     runs
 
-    >>> APR_setting = SimulationSteps(
+    >>> APR_setting = APRSimulationSteps(
     >>>     n_thermalization_steps=50000,
     >>>     n_equilibration_steps=500000,
     >>>     n_production_steps=1000000,
@@ -52,7 +52,7 @@ class SimulationSteps:
 
     """
 
-    class MDSteps:
+    class _MDSteps:
         @property
         def number_of_steps(self) -> int:
             """Number of MD steps."""
@@ -121,20 +121,20 @@ class SimulationSteps:
             return f"number_of_steps={self._number_of_steps}, time_step={self._time_step}, output_frequency={self._output_frequency}, number_of_extra_steps={self._number_of_extra_steps}, max_number_of_steps={self._max_number_of_steps}"
 
         def __repr__(self):
-            return f"<MDSteps {str(self)}>"
+            return f"<_MDSteps {str(self)}>"
 
     @property
-    def thermalization(self) -> MDSteps:
+    def thermalization(self) -> _MDSteps:
         """The settings for thermalization run."""
         return self._thermalization
 
     @property
-    def equilibration(self) -> MDSteps:
+    def equilibration(self) -> _MDSteps:
         """The settings for equilibration run."""
         return self._equilibration
 
     @property
-    def production(self) -> MDSteps:
+    def production(self) -> _MDSteps:
         """The settings for production run."""
         return self._production
 
@@ -164,13 +164,13 @@ class SimulationSteps:
         convergence_criteria=None,
         convergence_tolerance=None,
     ):
-        self._thermalization = self.MDSteps(
+        self._thermalization = self._MDSteps(
             n_thermalization_steps, dt_thermalization, out_thermalization
         )
-        self._equilibration = self.MDSteps(
+        self._equilibration = self._MDSteps(
             n_equilibration_steps, dt_equilibration, out_equilibration
         )
-        self._production = self.MDSteps(
+        self._production = self._MDSteps(
             n_production_steps,
             dt_production,
             out_production,
@@ -179,6 +179,21 @@ class SimulationSteps:
         )
         self._convergence_criteria = convergence_criteria
         self._convergence_tolerance = convergence_tolerance
+
+
+# class HFESimulationSteps:
+#     def __init__(self):
+#         self._equilibration_steps = 100000
+#         self._equilibration_output_frequency = 10000
+#         self._equilibration_time_step = 2.0 * unit.femtosecond
+#         self._number_of_iterations = 500
+#         self._steps_per_iteration = 50
+#         self._total_iterations = 2000
+#         self._max_iterations = 20
+#         self._electrostatic_lambdas_1 = None
+#         self._electrostatic_lambdas_2 = None
+#         self._steric_lambdas_1 = None
+#         self._steric_lambdas_2 = None
 
 
 @workflow_protocol()
