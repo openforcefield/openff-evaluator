@@ -18,7 +18,7 @@ from openff.evaluator.forcefield import (
     SmirnoffForceFieldSource,
     TLeapForceFieldSource,
 )
-from openff.evaluator.protocols.paprika.forcefield import GAFFForceField
+from openff.evaluator.forcefield.forcefield import GAFFForceField
 from openff.evaluator.storage.attributes import FilePath, StorageAttribute
 from openff.evaluator.substances import Substance
 from openff.evaluator.utils.exceptions import EvaluatorException

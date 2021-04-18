@@ -12,6 +12,7 @@ from simtk.openmm.app import PDBFile
 
 from openff.evaluator.datasets.taproom import TaproomDataSet
 from openff.evaluator.forcefield import LigParGenForceFieldSource, TLeapForceFieldSource
+from openff.evaluator.forcefield.forcefield import GAFFForceField
 from openff.evaluator.protocols.coordinates import BuildCoordinatesPackmol
 from openff.evaluator.protocols.forcefield import (
     BuildLigParGenSystem,
@@ -19,10 +20,7 @@ from openff.evaluator.protocols.forcefield import (
     BuildTLeapSystem,
 )
 from openff.evaluator.protocols.paprika.coordinates import PreparePullCoordinates
-from openff.evaluator.protocols.paprika.forcefield import (
-    GAFFForceField,
-    PaprikaBuildTLeapSystem,
-)
+from openff.evaluator.protocols.paprika.forcefield import PaprikaBuildTLeapSystem
 from openff.evaluator.substances import Substance
 from openff.evaluator.tests.utils import build_tip3p_smirnoff_force_field
 from openff.evaluator.utils import is_file_and_not_empty

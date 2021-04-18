@@ -20,6 +20,7 @@ from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import (
     ForceFieldSource,
+    GAFFForceField,
     LigParGenForceFieldSource,
     SmirnoffForceFieldSource,
     TLeapForceFieldSource,
@@ -553,6 +554,10 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
         # Load in the systems topology
         openmm_pdb_file = app.PDBFile(self.coordinate_file_path)
 
+        # Remove periodic vectors for implicit or vacuum systems
+        if force_field_source.igb or self.create_system_in_vacuum:
+            openmm_pdb_file.topology.setPeriodicBoxVectors(None)
+
         # Create an OFF topology for better insight into the layout of the system
         # topology.
         unique_molecules = {}
@@ -661,8 +666,18 @@ class BuildSmirnoffSystem(BaseBuildSystem):
 
         force_field = force_field_source.to_force_field()
 
+        # Remove periodic vectors in PDB file if running implicit solvent or vacuum system
+        if (
+            "GBSA" in force_field.registered_parameter_handlers
+            or self.create_system_in_vacuum
+        ):
+            pdb_file.topology.setPeriodicBoxVectors(None)
+
         # Remove GBSA parameters in force field for vacuum environment
-        if self.create_system_in_vacuum:
+        if (
+            "GBSA" in force_field.registered_parameter_handlers
+            and self.create_system_in_vacuum
+        ):
             force_field.deregister_parameter_handler("GBSA")
 
         # Create the molecules to parameterize from the input substance.
@@ -1163,16 +1178,20 @@ class BuildTLeapSystem(TemplateBuildSystem):
             template_lines = [f"source {force_field_source.leap_source}"]
 
             if force_field_source.igb and not in_vacuum:
-                template_lines.extend(
-                    [
-                        f"set default PBRadii {BuildTLeapSystem._GB_radii(force_field_source.igb)}"
-                    ]
+                template_lines.append(
+                    f"set default PBRadii {BuildTLeapSystem._GB_radii(force_field_source.igb)}"
                 )
 
             if frcmod_path is not None:
                 template_lines.append(
                     f"loadamberparams {frcmod_path}",
                 )
+
+            if force_field_source.custom_frcmod:
+                gaff_force_field = GAFFForceField()
+                gaff_force_field.frcmod_parameters = force_field_source.custom_frcmod
+                gaff_force_field.to_file("custom.frcmod")
+                template_lines.append("loadamberparams custom.frcmod")
 
             prmtop_file_name = "structure.prmtop"
             rst7_file_name = "structure.rst7"
@@ -1288,6 +1307,63 @@ class BuildTLeapSystem(TemplateBuildSystem):
                 gbsaModel=force_field_source.sa_model,
                 removeCMMotion=False,
             )
+
+            if force_field_source.custom_frcmod:
+                if len(force_field_source.custom_frcmod["GBSA"]) != 0:
+
+                    from simtk.openmm import CustomGBForce, GBSAOBCForce
+                    from simtk.openmm.app import element as E
+                    from simtk.openmm.app.internal.customgbforces import (
+                        _get_bonded_atom_list,
+                        _screen_parameter,
+                    )
+
+                    # Get GB Force object from system
+                    gbsa_force = None
+                    for force in system.getForces():
+                        if isinstance(force, CustomGBForce) or isinstance(
+                            force, GBSAOBCForce
+                        ):
+                            gbsa_force = force
+
+                    # Loop over custom GB Radii
+                    offset_factor = 0.009  # nm
+                    all_bonds = _get_bonded_atom_list(prmtop_file.topology)
+                    for atom_mask in force_field_source.custom_frcmod["GBSA"]:
+                        GB_radii = force_field_source.custom_frcmod["GBSA"][atom_mask][
+                            "radius"
+                        ]
+
+                        # Get element of atom
+                        mask_element = E.get_by_symbol(atom_mask[0])
+                        connect_element = None
+                        if "-" in atom_mask:
+                            connect_element = E.get_by_symbol(atom_mask.split("-")[-1])
+
+                        # Find atom in system
+                        for atom in prmtop_file.topology.atoms():
+                            current_atom = None
+                            element = atom.element
+
+                            if element is mask_element and connect_element is None:
+                                current_atom = atom
+
+                            elif element is mask_element and connect_element:
+                                bondeds = all_bonds[atom]
+                                if bondeds[0].element is connect_element:
+                                    current_atom = atom
+
+                            if current_atom:
+                                current_param = gbsa_force.getParticleParameters(
+                                    current_atom.index
+                                )
+                                charge = current_param[0]
+                                offset_radii = GB_radii - offset_factor
+                                scaled_radii = offset_radii * _screen_parameter(atom)[0]
+                                gbsa_force.setParticleParameters(
+                                    current_atom.index,
+                                    [charge, offset_radii, scaled_radii],
+                                )
 
         elif self.create_system_in_vacuum:
 
