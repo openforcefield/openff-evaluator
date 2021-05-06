@@ -184,6 +184,7 @@ def _compute_gradients(
     """
 
     from simtk import openmm
+    from simtk import unit as simtk_unit
 
     use_gaff_system = False
     if gaff_system_path is not None or gaff_topology_path is not None:
@@ -232,6 +233,14 @@ def _compute_gradients(
         if not enable_pbc:
             disable_pbc(reverse_system)
             disable_pbc(forward_system)
+
+        if parameter_key.tag == "GBSA" and parameter_key.attribute == "scale":
+            reverse_parameter_value = simtk_unit.Quantity(
+                reverse_parameter_value, unit=None
+            )
+            forward_parameter_value = simtk_unit.Quantity(
+                forward_parameter_value, unit=None
+            )
 
         reverse_parameter_value = openmm_quantity_to_pint(reverse_parameter_value)
         forward_parameter_value = openmm_quantity_to_pint(forward_parameter_value)

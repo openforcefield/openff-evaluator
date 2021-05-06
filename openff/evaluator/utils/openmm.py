@@ -356,6 +356,9 @@ def system_subset(
     parameter = handler.parameters[parameter_key.smirks]
     parameter_value = getattr(parameter, parameter_key.attribute)
 
+    if parameter_key.tag == "GBSA" and parameter_key.attribute == "scale":
+        parameter_value = simtk_unit.Quantity(parameter_value, unit=None)
+
     # Optionally perturb the parameter of interest.
     if scale_amount is not None:
 

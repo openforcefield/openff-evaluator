@@ -1531,12 +1531,6 @@ class SolvationYankProtocol(BaseYankProtocol):
             with open(self.solvent_2_trajectory_path, "wb") as file:
                 file.write(b"")
 
-        for key in solvent_1_gradients:
-            logger.info(f"solution_1_gradients[key]: {solution_1_gradients[key]}")
-            logger.info(f"solvent_1_gradients[key]: {solvent_1_gradients[key]}")
-            logger.info(f"solvent_2_gradients[key]: {solvent_2_gradients[key]}")
-            logger.info(f"solution_2_gradients[key]: {solution_2_gradients[key]}")
-
         self.free_energy_difference = Observable(
             self.free_energy_difference.value.plus_minus(
                 self.free_energy_difference.error
