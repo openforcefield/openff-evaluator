@@ -75,28 +75,24 @@ class PaprikaBuildSystem(Protocol, abc.ABC):
 
         if isinstance(force_field_source, SmirnoffForceFieldSource):
             build_protocol = BuildSmirnoffSystem("")
-            build_protocol.force_field_path = self.force_field_path
-            build_protocol.substance = self.substance
-            build_protocol.coordinate_file_path = self.coordinate_file_path
-            build_protocol.enable_hmr = self.enable_hmr
-            build_protocol.execute(directory, available_resources)
-            self.parameterized_system = build_protocol.parameterized_system
 
         elif isinstance(force_field_source, TLeapForceFieldSource):
             build_protocol = PaprikaBuildTLeapSystem("")
-            build_protocol.force_field_path = self.force_field_path
-            build_protocol.substance = self.substance
             build_protocol.host_file_paths = self.host_file_paths
             build_protocol.guest_file_paths = self.guest_file_paths
-            build_protocol.coordinate_file_path = self.coordinate_file_path
-            build_protocol.enable_hmr = self.enable_hmr
-            build_protocol.execute(directory, available_resources)
-            self.parameterized_system = build_protocol.parameterized_system
 
         else:
             raise ValueError(
                 "Only SMIRNOFF and GAFF force fields are supported by this protocol."
             )
+
+        build_protocol.force_field_path = self.force_field_path
+        build_protocol.substance = self.substance
+        build_protocol.coordinate_file_path = self.coordinate_file_path
+        build_protocol.enable_hmr = self.enable_hmr
+        build_protocol.execute(directory, available_resources)
+
+        self.parameterized_system = build_protocol.parameterized_system
 
 
 @workflow_protocol()
@@ -321,7 +317,7 @@ class PaprikaBuildTLeapSystem(BaseBuildSystem):
         if frcmod_file is not None:
             system.template_lines.insert(1, f"loadamberparams {frcmod_file}")
 
-        system.build(clean_files=False, ignore_warnings=True)
+        system.build(clean_files=False, ignore_warnings=ignore_warnings)
 
     def _execute(self, directory, available_resources):
 

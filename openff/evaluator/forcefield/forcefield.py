@@ -3,6 +3,7 @@ A collection of wrappers around commonly employed force fields.
 """
 import abc
 import json
+import os
 import re
 import shutil
 import tempfile
@@ -17,9 +18,8 @@ from simtk.openmm.app import AmberPrmtopFile
 from simtk.openmm.app import element as E
 
 from openff.evaluator import unit
-from openff.evaluator.substances import Component, Substance
 from openff.evaluator.utils.serialization import TypedBaseModel
-from openff.evaluator.utils.utils import is_number, temporarily_change_directory
+from openff.evaluator.utils.utils import is_number
 
 
 class ForceFieldSource(TypedBaseModel):
@@ -157,7 +157,7 @@ class TLeapForceFieldSource(ForceFieldSource):
     @custom_frcmod.setter
     def custom_frcmod(self, value: typing.Union[str, dict]):
         if isinstance(value, str):
-            self._custom_frcmod = GAFFForceField._parse_frcmod(value)
+            self._custom_frcmod = GAFFForceField.frcmod_file_to_dict(value)
 
         elif isinstance(value, dict):
             self._custom_frcmod = value
@@ -236,7 +236,9 @@ class TLeapForceFieldSource(ForceFieldSource):
         self._leap_source = leap_source
         self._cutoff = cutoff
         self._custom_frcmod = (
-            None if frcmod_file is None else GAFFForceField._parse_frcmod(frcmod_file)
+            None
+            if frcmod_file is None
+            else GAFFForceField.frcmod_file_to_dict(frcmod_file)
         )
         self._igb = igb
         self._sa_model = sa_model
@@ -373,9 +375,9 @@ class GAFFForceField:
     # TODO: add support for parsing MOL2 file for charge/electrostatic.
 
     @property
-    def data_set(self):
-        """The data set used to generate the GAFF parameters."""
-        return self._data_set
+    def smiles_list(self):
+        """list: A list containing the smiles string of the system substances."""
+        return self._smiles_list
 
     @property
     def gaff_version(self):
@@ -414,11 +416,6 @@ class GAFFForceField:
         self._sa_model = value
 
     @property
-    def smiles_list(self):
-        """list: A list containing the smiles string of the system substances."""
-        return self._smiles_list
-
-    @property
     def topology(self):
         """ParmEd.structure: The topology of the system as a ParmEd object."""
         return self._topology
@@ -434,7 +431,7 @@ class GAFFForceField:
 
     def __init__(
         self,
-        data_set=None,
+        smiles_list=None,
         gaff_version="gaff",
         cutoff=9.0 * unit.angstrom,
         frcmod_parameters=None,
@@ -443,107 +440,87 @@ class GAFFForceField:
     ):
         self._gaff_version = gaff_version
         self._cutoff = cutoff
-        self._data_set = data_set
         self._igb = igb
         self._sa_model = sa_model
-        self._smiles_list = []
+        self._smiles_list = smiles_list
         self._topology = None
         self._frcmod_parameters = (
-            self._parse_frcmod(frcmod_parameters)
+            self.frcmod_file_to_dict(frcmod_parameters)
             if isinstance(frcmod_parameters, str)
             else frcmod_parameters
         )
 
-        if data_set is not None:
+        if smiles_list is not None:
             self._initialize()
 
     def _initialize(self):
-        from openff.evaluator.datasets import PhysicalPropertyDataSet
-        from openff.evaluator.datasets.taproom import TaproomDataSet
-        from openff.evaluator.protocols.paprika.forcefield import (
-            PaprikaBuildTLeapSystem,
-        )
-
-        # Check GAFF version
-        if self.gaff_version not in ["gaff", "gaff2"]:
-            raise KeyError(
-                f"Specified GAFF version `{self.gaff_version}` is not supported."
-            )
-
-        # TODO: add support for passing in a string filename and ParmEd structure object
-        # Collect all smiles in data set
-        self._smiles_list = []
-
-        if isinstance(self._data_set, TaproomDataSet) or isinstance(
-            self._data_set, PhysicalPropertyDataSet
-        ):
-            for substance in self._data_set.substances:
-                for component in substance.components:
-                    if component.role == Component.Role.Solvent:
-                        continue
-
-                    if component.smiles not in self._smiles_list:
-                        self._smiles_list.append(component.smiles)
-
-        elif isinstance(self._data_set, Substance):
-            for component in self._data_set.components:
-                if component.role == Component.Role.Solvent:
-                    continue
-
-                if component.smiles not in self._smiles_list:
-                    self._smiles_list.append(component.smiles)
+        from paprika.build.system import TLeap
+        from paprika.evaluator.amber import generate_gaff
+        from simtk.openmm.app.internal.customgbforces import _get_bonded_atom_list
 
         # Extract GAFF parameters
         working_directory = tempfile.mkdtemp()
-        with temporarily_change_directory(working_directory):
+        molecule_list = []
 
-            molecule_list = []
+        for i, smiles in enumerate(self._smiles_list):
+            # Generate mol2 file
+            molecule = Molecule.from_smiles(smiles)
+            molecule.partial_charges = (
+                np.zeros(molecule.n_atoms) * simtk_unit.elementary_charge
+            )
+            molecule.to_file(
+                os.path.join(working_directory, f"MOL{i}.mol2"),
+                file_format="MOL2",
+            )
 
-            for i, smiles in enumerate(self._smiles_list):
-                mol = Molecule.from_smiles(smiles)
-                mol.partial_charges = (
-                    np.zeros(mol.n_atoms) * simtk_unit.elementary_charge
-                )
-                mol.to_file(f"MOL{i}.mol2", file_format="MOL2")
+            generate_gaff(
+                mol2_file=f"MOL{i}.mol2",
+                residue_name=f"MOL{i}",
+                output_name=f"MOL{i}",
+                need_gaff_atom_types=True,
+                generate_frcmod=False,
+                gaff_version=self.gaff_version,
+                directory_path=working_directory,
+            )
 
-                (
-                    mol2_file,
-                    frcmod_file,
-                    resname,
-                ) = PaprikaBuildTLeapSystem.generate_gaff_atom_types(
-                    gaff_version=self.gaff_version,
-                    mol2_file=f"MOL{i}.mol2",
-                    resname=f"MOL{i}",
-                    create_frcmod=True,
-                )
-                PaprikaBuildTLeapSystem.generate_single_topology(
-                    gaff_version=self.gaff_version,
-                    mol2_file=mol2_file,
-                    frcmod_file=frcmod_file,
-                    resname=resname,
-                )
-                molecule_list.append(f"MOL{i}.{self.gaff_version}.prmtop")
+            # Generate prmtop file
+            system = TLeap()
+            system.output_path = working_directory
+            system.output_prefix = f"MOL{i}.{self.gaff_version}"
+            system.pbc_type = None
+            system.neutralize = False
+            system.template_lines = [
+                f"source leaprc.{self.gaff_version}",
+                f"MOL{i} = loadmol2 MOL{i}.{self.gaff_version}.mol2",
+                f"saveamberparm MOL{i} {system.output_prefix}.prmtop {system.output_prefix}.rst7",
+                "quit",
+            ]
+            system.build(clean_files=False, ignore_warnings=True)
 
-            # Load Topologies in ParmEd
-            topology = pmd.load_file(molecule_list[0], structure=True)
-            for i, molecule in enumerate(molecule_list):
-                if i == 0:
-                    continue
-                topology += pmd.load_file(molecule, structure=True)
-            topology.save("full.prmtop")
-            self._topology = AmberPrmtopFile(
-                "full.prmtop"
-            )  # Saving to file and rereading because of a bug in ParmEd
+            molecule_list.append(
+                os.path.join(working_directory, f"{system.output_prefix}.prmtop")
+            )
 
-            # Generate full frcmod file
-            pmd.tools.writeFrcmod(topology, "complex.frcmod").execute()
-            self._frcmod_parameters = GAFFForceField._parse_frcmod("complex.frcmod")
+        # Generate OpenMM topology
+        topology = pmd.load_file(molecule_list[0], structure=True)
+        for molecule in molecule_list[1:]:
+            topology += pmd.load_file(molecule, structure=True)
+        topology.save(os.path.join(working_directory, "full.prmtop"), overwrite=True)
+        self._topology = AmberPrmtopFile(os.path.join(working_directory, "full.prmtop"))
 
+        # Generate full frcmod file
+        pmd.tools.writeFrcmod(
+            topology,
+            os.path.join(working_directory, "complex.frcmod"),
+        ).execute()
+        self._frcmod_parameters = GAFFForceField.frcmod_file_to_dict(
+            os.path.join(working_directory, "complex.frcmod")
+        )
+
+        # Delete temp folder
         shutil.rmtree(working_directory)
 
         if self.igb:
-            from simtk.openmm.app.internal.customgbforces import _get_bonded_atom_list
-
             all_bonds = _get_bonded_atom_list(self._topology.topology)
 
             # Apply `mbondi` radii (igb=1)
@@ -899,9 +876,9 @@ class GAFFForceField:
                 f.writelines("\n")
 
     @classmethod
-    def from_frcmod(cls, file_path: str):
+    def from_file(cls, file_path: str):
         """Create an instance of this class by reading in a frcmod file."""
-        frcmod_pdict = cls._parse_frcmod(file_path)
+        frcmod_pdict = cls.frcmod_file_to_dict(file_path)
 
         gaff_version = "gaff"
         cutoff = 9.0 * unit.angstrom
@@ -919,7 +896,6 @@ class GAFFForceField:
             )
 
         new_instance = cls(
-            data_set=None,
             gaff_version=gaff_version,
             cutoff=cutoff,
             igb=igb,
@@ -930,7 +906,7 @@ class GAFFForceField:
         return new_instance
 
     @staticmethod
-    def _parse_frcmod(file_path: str) -> dict:
+    def frcmod_file_to_dict(file_path: str) -> dict:
         """Read in a frcmod file and stores the information in a dictionary.
 
         .. note ::
@@ -1095,7 +1071,7 @@ class GAFFForceField:
 
         return frcmod_dict
 
-    def json(self, file_path: str):
+    def to_json(self, file_path: str):
         """Save current FF parameters to a JSON file."""
         with open(file_path, "w") as f:
             json.dump(self._frcmod_parameters, f)
@@ -1122,7 +1098,6 @@ class GAFFForceField:
             )
 
         new_instance = cls(
-            data_set=None,
             gaff_version=gaff_version,
             cutoff=cutoff,
             igb=igb,

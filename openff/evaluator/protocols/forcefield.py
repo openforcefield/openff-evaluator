@@ -27,7 +27,11 @@ from openff.evaluator.forcefield import (
 )
 from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.substances import Substance
-from openff.evaluator.utils.openmm import pint_quantity_to_openmm, pint_unit_to_openmm
+from openff.evaluator.utils.openmm import (
+    disable_pbc,
+    pint_quantity_to_openmm,
+    pint_unit_to_openmm,
+)
 from openff.evaluator.utils.utils import (
     get_data_filename,
     has_openeye,
@@ -513,7 +517,11 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
 
         nonbonded_force = openmm.NonbondedForce()
         nonbonded_force.setCutoffDistance(cutoff)
-        nonbonded_force.setNonbondedMethod(openmm.NonbondedForce.PME)
+        nonbonded_force.setNonbondedMethod(
+            openmm.NonbondedForce.PME
+            if gbsaModel is None
+            else openmm.NonbondedForce.NoCutoff
+        )
 
         system.addForce(nonbonded_force)
 
@@ -555,8 +563,10 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
         openmm_pdb_file = app.PDBFile(self.coordinate_file_path)
 
         # Remove periodic vectors for implicit or vacuum systems
+        include_water = True
         if force_field_source.igb or self.create_system_in_vacuum:
             openmm_pdb_file.topology.setPeriodicBoxVectors(None)
+            include_water = False
 
         # Create an OFF topology for better insight into the layout of the system
         # topology.
@@ -571,7 +581,7 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
 
         for index, (smiles, unique_molecule) in enumerate(unique_molecules.items()):
 
-            if smiles in ["O", "[H]O[H]", "[H][O][H]"]:
+            if smiles in ["O", "[H]O[H]", "[H][O][H]"] and include_water:
 
                 component_system = self._build_tip3p_system(
                     cutoff,
@@ -627,6 +637,9 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
             system.setDefaultPeriodicBoxVectors(
                 *openmm_pdb_file.topology.getPeriodicBoxVectors()
             )
+
+        if self.create_system_in_vacuum:
+            disable_pbc(system)
 
         if self.enable_hmr:
             self._repartition_hydrogen_mass(system, self.coordinate_file_path)

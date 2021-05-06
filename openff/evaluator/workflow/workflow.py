@@ -12,13 +12,14 @@ from shutil import copy as file_copy
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 from openff.evaluator.backends import ComputeResources
+from openff.evaluator.datasets.utilities import get_smiles_from_dataset
 from openff.evaluator.forcefield import (
     ForceFieldSource,
+    GAFFForceField,
     ParameterGradient,
     SmirnoffForceFieldSource,
     TLeapForceFieldSource,
 )
-from openff.evaluator.forcefield.forcefield import GAFFForceField
 from openff.evaluator.storage.attributes import FilePath, StorageAttribute
 from openff.evaluator.substances import Substance
 from openff.evaluator.utils.exceptions import EvaluatorException
@@ -587,7 +588,7 @@ class Workflow:
                     f" sources are supported."
                 )
 
-            force_field = GAFFForceField(substance, amber_type)
+            force_field = GAFFForceField(get_smiles_from_dataset(substance), amber_type)
             topology = force_field.topology.topology
             frcmod_parameters = force_field.frcmod_parameters
 

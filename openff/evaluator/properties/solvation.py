@@ -85,9 +85,7 @@ class SolvationFreeEnergy(PhysicalProperty):
         )
         build_vacuum_coordinates.max_molecules = 1
 
-        # assign_vacuum_parameters = forcefield.BaseBuildSystem(
-        #     "assign_vacuum_parameters"
-        # )
+        # Apply parameters for vacuum system.
         assign_vacuum_parameters = forcefield.BuildSystem("assign_vacuum_parameters")
         assign_vacuum_parameters.force_field_path = ProtocolPath(
             "force_field_path", "global"
@@ -126,9 +124,6 @@ class SolvationFreeEnergy(PhysicalProperty):
             build_full_coordinates.substance = ProtocolPath("substance", "global")
             build_full_coordinates.max_molecules = n_molecules
 
-            # assign_full_parameters = forcefield.BaseBuildSystem(
-            #     "assign_solvated_parameters"
-            # )
             assign_full_parameters = forcefield.BuildSystem(
                 "assign_solvated_parameters"
             )
@@ -196,11 +191,12 @@ class SolvationFreeEnergy(PhysicalProperty):
             "parameterized_system", assign_vacuum_parameters.id
         )
         run_yank.gradient_parameters = ProtocolPath("parameter_gradient_keys", "global")
-        run_yank.use_implicit_solvent = use_implicit_solvent
-        run_yank.electrostatic_lambdas_1 = [1.0, 0.0, 0.0]
-        run_yank.steric_lambdas_1 = [1.0, 1.0, 0.0]
-        run_yank.electrostatic_lambdas_2 = [1.0, 0.0, 0.0]
-        run_yank.steric_lambdas_2 = [1.0, 1.0, 0.0]
+        if use_implicit_solvent:
+            run_yank.use_implicit_solvent = True
+            run_yank.electrostatic_lambdas_1 = [1.0, 0.0, 0.0]
+            run_yank.steric_lambdas_1 = [1.0, 1.0, 0.0]
+            run_yank.electrostatic_lambdas_2 = [1.0, 0.0, 0.0]
+            run_yank.steric_lambdas_2 = [1.0, 1.0, 0.0]
 
         # Set up the group which will run yank until the free energy has been determined
         # to within a given uncertainty

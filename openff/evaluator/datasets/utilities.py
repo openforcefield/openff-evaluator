@@ -112,3 +112,32 @@ def data_frame_to_substances(data_frame: "pandas.DataFrame") -> Set[Tuple[str, .
         substances.update(list(zip(*component_columns)))
 
     return substances
+
+
+def get_smiles_from_dataset(data_set):
+    from openff.evaluator.datasets import PhysicalPropertyDataSet
+    from openff.evaluator.datasets.taproom import TaproomDataSet
+    from openff.evaluator.substances import Component, Substance
+
+    smiles_list = []
+
+    if isinstance(data_set, TaproomDataSet) or isinstance(
+        data_set, PhysicalPropertyDataSet
+    ):
+        for substance in data_set.substances:
+            for component in substance.components:
+                if component.role == Component.Role.Solvent:
+                    continue
+
+                if component.smiles not in smiles_list:
+                    smiles_list.append(component.smiles)
+
+    elif isinstance(data_set, Substance):
+        for component in data_set.components:
+            if component.role == Component.Role.Solvent:
+                continue
+
+            if component.smiles not in smiles_list:
+                smiles_list.append(component.smiles)
+
+    return smiles_list
