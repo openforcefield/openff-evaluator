@@ -323,6 +323,7 @@ class PaprikaBuildTLeapSystem(BaseBuildSystem):
 
         import simtk.openmm as openmm
         import simtk.openmm.app as app
+        from paprika.evaluator.amber import generate_gaff
 
         # Check GAFF version
         force_field_source = ForceFieldSource.from_json(self.force_field_path)
@@ -457,7 +458,6 @@ class PaprikaBuildTLeapSystem(BaseBuildSystem):
                     from simtk.openmm import CustomGBForce, GBSAOBCForce
                     from simtk.openmm.app.internal.customgbforces import (
                         _get_bonded_atom_list,
-                        _screen_parameter,
                     )
 
                     # Get GB Force object from system
@@ -475,6 +475,9 @@ class PaprikaBuildTLeapSystem(BaseBuildSystem):
                         GB_radii = gaff_force_field.frcmod_parameters["GBSA"][
                             atom_mask
                         ]["radius"]
+                        GB_scale = gaff_force_field.frcmod_parameters["GBSA"][
+                            atom_mask
+                        ]["scale"]
 
                         # Get element of atom
                         mask_element = E.get_by_symbol(atom_mask[0])
@@ -501,7 +504,7 @@ class PaprikaBuildTLeapSystem(BaseBuildSystem):
                                 )
                                 charge = current_param[0]
                                 offset_radii = GB_radii - offset_factor
-                                scaled_radii = offset_radii * _screen_parameter(atom)[0]
+                                scaled_radii = offset_radii * GB_scale
                                 gbsa_force.setParticleParameters(
                                     current_atom.index,
                                     [charge, offset_radii, scaled_radii],

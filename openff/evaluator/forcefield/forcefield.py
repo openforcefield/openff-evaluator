@@ -535,6 +535,21 @@ class GAFFForceField:
                     E.sulfur: 1.8,
                     E.chlorine: 1.7,
                 }
+                default_scale = 0.8
+                scale_factor = {
+                    "H": 0.85,
+                    "H-C": 0.85,
+                    "H-N": 0.85,
+                    "H-O": 0.85,
+                    "C": 0.72,
+                    "N": 0.79,
+                    "O": 0.85,
+                    "F": 0.88,
+                    "Si": 0.8,
+                    "P": 0.86,
+                    "S": 0.96,
+                    "Cl": 0.8,
+                }
 
                 for atom in self._topology.topology.atoms():
                     element = atom.element
@@ -551,16 +566,19 @@ class GAFFForceField:
                         else:
                             radii = 1.2
                             mask = "H"
+                        scale = scale_factor[mask]
 
                     # Radius of C atom depends on what type it is
                     elif element is E.carbon:
                         radii = 1.7
                         mask = "C"
+                        scale = scale_factor[mask]
 
                     # All other elements have fixed radii
                     else:
                         radii = element_to_const_radius.get(element, default_radius)
                         mask = element.symbol
+                        scale = scale_factor.get(mask, default_scale)
 
                     # Store radii into dictionary
                     if mask not in self._frcmod_parameters["GBSA"]:
@@ -568,6 +586,7 @@ class GAFFForceField:
                             {
                                 mask: {
                                     "radius": radii / 10,
+                                    "scale": scale,
                                     "cosmetic": None,
                                 }
                             }
@@ -585,6 +604,19 @@ class GAFFForceField:
                     E.sulfur: 1.8,
                     E.chlorine: 1.7,
                 }
+                default_scale = 0.8
+                scale_factor = {
+                    "H": 0.85,
+                    "H-N": 0.85,
+                    "C": 0.72,
+                    "N": 0.79,
+                    "O": 0.85,
+                    "F": 0.88,
+                    "Si": 0.8,
+                    "P": 0.86,
+                    "S": 0.96,
+                    "Cl": 0.8,
+                }
 
                 for atom in self._topology.topology.atoms():
                     element = atom.element
@@ -598,16 +630,19 @@ class GAFFForceField:
                         else:
                             radii = 1.2
                             mask = "H"
+                        scale = scale_factor[mask]
 
-                    # Radius of C atom depeends on what type it is
+                    # Radius of C atom depends on what type it is
                     elif element is E.carbon:
                         radii = 1.7
                         mask = "C"
+                        scale = scale_factor[mask]
 
                     # All other elements have fixed radii
                     else:
                         radii = element_to_const_radius.get(element, default_radius)
                         mask = element.symbol
+                        scale = scale_factor.get(mask, default_scale)
 
                     # Store radii into dictionary
                     if mask not in self._frcmod_parameters["GBSA"]:
@@ -615,6 +650,7 @@ class GAFFForceField:
                             {
                                 mask: {
                                     "radius": radii / 10,
+                                    "scale": scale,
                                     "cosmetic": None,
                                 }
                             }
@@ -748,6 +784,8 @@ class GAFFForceField:
                 elif tag == "GBSA":
                     if attribute == "radius":
                         cosmetic += " 1"
+                    elif attribute == "scale":
+                        cosmetic += " 2"
 
             else:
                 raise KeyError(
@@ -816,6 +854,7 @@ class GAFFForceField:
         if tag == "GBSA":
             parameter_line = f"{atom_mask:4s}"
             parameter_line += f"{parameters['radius']:15.8f}"
+            parameter_line += f"{parameters['scale']:15.8f}"
 
         if parameters["cosmetic"]:
             parameter_line += f"   {parameters['cosmetic']}"
@@ -1064,7 +1103,11 @@ class GAFFForceField:
                     }
 
                 elif keyword == "GBSA":
-                    param_dict = {"radius": parameter[0], "cosmetic": cosmetic}
+                    param_dict = {
+                        "radius": parameter[0],
+                        "scale": parameter[1],
+                        "cosmetic": cosmetic,
+                    }
 
                 # Update dictionary
                 frcmod_dict[keyword].update({mask: param_dict})

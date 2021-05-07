@@ -1328,7 +1328,6 @@ class BuildTLeapSystem(TemplateBuildSystem):
                     from simtk.openmm.app import element as E
                     from simtk.openmm.app.internal.customgbforces import (
                         _get_bonded_atom_list,
-                        _screen_parameter,
                     )
 
                     # Get GB Force object from system
@@ -1345,6 +1344,9 @@ class BuildTLeapSystem(TemplateBuildSystem):
                     for atom_mask in force_field_source.custom_frcmod["GBSA"]:
                         GB_radii = force_field_source.custom_frcmod["GBSA"][atom_mask][
                             "radius"
+                        ]
+                        GB_scale = force_field_source.custom_frcmod["GBSA"][atom_mask][
+                            "scale"
                         ]
 
                         # Get element of atom
@@ -1372,7 +1374,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
                                 )
                                 charge = current_param[0]
                                 offset_radii = GB_radii - offset_factor
-                                scaled_radii = offset_radii * _screen_parameter(atom)[0]
+                                scaled_radii = offset_radii * GB_scale
                                 gbsa_force.setParticleParameters(
                                     current_atom.index,
                                     [charge, offset_radii, scaled_radii],

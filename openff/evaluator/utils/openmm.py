@@ -448,7 +448,10 @@ def perturbed_gaff_system(
                 parameter_value *= simtk_unit.kilocalorie_per_mole
 
         elif parameter_key.tag == "GBSA":
-            parameter_value *= simtk_unit.nanometer
+            if parameter_key.attribute == "radius":
+                parameter_value *= simtk_unit.nanometer
+            elif parameter_key.attribute == "scale":
+                parameter_value *= simtk_unit.dimensionless
 
         return perturbed_system, parameter_value
 
@@ -652,7 +655,6 @@ def perturbed_gaff_system(
         from simtk.openmm.app import element as E
         from simtk.openmm.app.internal.customgbforces import (
             _get_bonded_atom_list,
-            _screen_parameter,
         )
 
         offset_factor = 0.009  # nm
@@ -673,7 +675,11 @@ def perturbed_gaff_system(
             empty_system = OMMSystem()
             parameter_value = (
                 scale_amount if scale_amount > 0.0 else 0.0
-            ) * simtk_unit.nanometer
+            )
+            if parameter_key.attribute == "radius":
+                parameter_value *= simtk_unit.nanometer
+            elif parameter_key.attribute == "scale":
+                parameter_value *= simtk_unit.dimensionless
 
             return empty_system, parameter_value
 
@@ -700,15 +706,24 @@ def perturbed_gaff_system(
                 current_param = gbsa_force.getParticleParameters(current_atom.index)
                 charge = current_param[0]
                 GB_radii = current_param[1] + offset_factor
-                perturbed_radii = GB_radii * (1.0 + scale_amount)
-                offset_radii = perturbed_radii - offset_factor
-                scaled_radii = offset_radii * _screen_parameter(atom)[0]
+                GB_scale = current_param[2] / current_param[1]
+
+                if parameter_key.attribute == "radius":
+                    GB_radii *= (1.0 + scale_amount)
+                elif parameter_key.attribute == "scale":
+                    GB_scale *= (1.0 + scale_amount)
+
+                offset_radii = GB_radii - offset_factor
+                scaled_radii = offset_radii * GB_scale
                 gbsa_force.setParticleParameters(
                     current_atom.index, [charge, offset_radii, scaled_radii]
                 )
 
         # Convert parameter to a simtk.unit.Quantity
-        parameter_value = perturbed_radii * simtk_unit.nanometer
+        if parameter_key.attribute == "radius":
+            parameter_value = GB_radii * simtk_unit.nanometer
+        elif parameter_key.attribute == "scale":
+            parameter_value = GB_scale * simtk_unit.dimensionless
 
     else:
 
