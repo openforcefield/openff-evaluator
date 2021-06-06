@@ -33,6 +33,8 @@ class SolvationFreeEnergy(PhysicalProperty):
         absolute_tolerance=UNDEFINED,
         relative_tolerance=UNDEFINED,
         n_molecules=2000,
+        lambda_values=None,
+        max_group_iterations=20,
         use_implicit_solvent=False,
     ):
         """
@@ -84,6 +86,8 @@ class SolvationFreeEnergy(PhysicalProperty):
             "filtered_substance", filter_solute.id
         )
         build_vacuum_coordinates.max_molecules = 1
+        build_vacuum_coordinates.mass_density = 0.5 * unit.grams / unit.milliliters
+        build_vacuum_coordinates.retain_packmol_files = True
 
         # Apply parameters for vacuum system.
         assign_vacuum_parameters = forcefield.BuildSystem("assign_vacuum_parameters")
@@ -106,6 +110,8 @@ class SolvationFreeEnergy(PhysicalProperty):
                 "filtered_substance", filter_solute.id
             )
             build_full_coordinates.max_molecules = 1
+            build_full_coordinates.mass_density = 0.5 * unit.grams / unit.milliliters
+            build_full_coordinates.retain_packmol_files = True
 
             assign_full_parameters = forcefield.BaseBuildSystem(
                 "assign_implicit_parameters"
@@ -123,6 +129,7 @@ class SolvationFreeEnergy(PhysicalProperty):
             )
             build_full_coordinates.substance = ProtocolPath("substance", "global")
             build_full_coordinates.max_molecules = n_molecules
+            build_full_coordinates.retain_packmol_files = True
 
             assign_full_parameters = forcefield.BuildSystem(
                 "assign_solvated_parameters"
@@ -197,11 +204,16 @@ class SolvationFreeEnergy(PhysicalProperty):
             run_yank.steric_lambdas_1 = [1.0, 1.0, 0.0]
             run_yank.electrostatic_lambdas_2 = [1.0, 0.0, 0.0]
             run_yank.steric_lambdas_2 = [1.0, 1.0, 0.0]
+        if lambda_values:
+            run_yank.electrostatic_lambdas_1 = lambda_values["elec_1"]
+            run_yank.steric_lambdas_1 = lambda_values["vdw_1"]
+            run_yank.electrostatic_lambdas_2 = lambda_values["elec_2"]
+            run_yank.steric_lambdas_2 = lambda_values["vdw_2"]
 
         # Set up the group which will run yank until the free energy has been determined
         # to within a given uncertainty
         conditional_group = groups.ConditionalGroup("conditional_group")
-        conditional_group.max_iterations = 20
+        conditional_group.max_iterations = max_group_iterations
 
         if use_target_uncertainty:
             condition = groups.ConditionalGroup.Condition()
