@@ -1108,6 +1108,8 @@ class GAFFForceField:
                         "scale": parameter[1],
                         "cosmetic": cosmetic,
                     }
+                    if len(parameter) > 1:
+                        param_dict.update({"scale": parameter[1]})
 
                 # Update dictionary
                 frcmod_dict[keyword].update({mask: param_dict})
