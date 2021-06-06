@@ -653,9 +653,7 @@ def perturbed_gaff_system(
 
         from simtk.openmm import CustomGBForce, GBSAOBCForce
         from simtk.openmm.app import element as E
-        from simtk.openmm.app.internal.customgbforces import (
-            _get_bonded_atom_list,
-        )
+        from simtk.openmm.app.internal.customgbforces import _get_bonded_atom_list
 
         offset_factor = 0.009  # nm
         prmtop = openmm.app.AmberPrmtopFile(topology_path)
@@ -673,9 +671,7 @@ def perturbed_gaff_system(
                 "setting `parameter_value` to zero."
             )
             empty_system = OMMSystem()
-            parameter_value = (
-                scale_amount if scale_amount > 0.0 else 0.0
-            )
+            parameter_value = scale_amount if scale_amount > 0.0 else 0.0
             if parameter_key.attribute == "radius":
                 parameter_value *= simtk_unit.nanometer
             elif parameter_key.attribute == "scale":
@@ -709,9 +705,9 @@ def perturbed_gaff_system(
                 GB_scale = current_param[2] / current_param[1]
 
                 if parameter_key.attribute == "radius":
-                    GB_radii *= (1.0 + scale_amount)
+                    GB_radii *= 1.0 + scale_amount
                 elif parameter_key.attribute == "scale":
-                    GB_scale *= (1.0 + scale_amount)
+                    GB_scale *= 1.0 + scale_amount
 
                 offset_radii = GB_radii - offset_factor
                 scaled_radii = offset_radii * GB_scale
