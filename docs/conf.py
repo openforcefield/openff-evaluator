@@ -50,6 +50,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.intersphinx',
     'nbsphinx',
+    'openff_sphinx_theme',
 ]
 
 # Autodoc settings
@@ -116,8 +117,9 @@ language = None
 # This pattern also affects html_static_path and html_extra_path .
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
-# The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'default'
+# The name of the Pygments (syntax highlighting) style to use. This is
+# set by openff-sphinx-theme if not supplied
+# pygments_style = 'default'
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
@@ -144,15 +146,33 @@ mathjax_path = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+html_theme = "openff_sphinx_theme"
+
+# (Optional) Logo and favicon
+html_logo = "_static/img/openff_evaluator_v1_white.png"
+html_favicon = "_static/img/favicon.svg"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
 html_theme_options = {
-    'prev_next_buttons_location': None,
-    'sticky_navigation': False
+    # Repository integration
+    # Set the repo url for the link to appear
+    "repo_url": "https://github.com/openforcefield/openff-evaluator",
+    # The name of the repo. If must be set if repo_url is set
+    "repo_name": "openff-evaluator",
+    # Must be one of github, gitlab or bitbucket
+    "repo_type": "github",
+    # Colour for sidebar captions and other accents. One of
+    # openff-blue, openff-toolkit-blue, openff-dataset-yellow,
+    # openff-evaluator-orange, aquamarine, lilac, amaranth, grape,
+    # violet, pink, pale-green, green, crimson, eggplant, turquoise,
+    # or a tuple of three ints in the range [0, 255] corresponding to
+    # a position in RGB space.
+    "color_accent": "openff-evaluator-orange",
+    # Master document name is in the logo, so we don't need this
+    "master_doc": False,
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
@@ -174,7 +194,7 @@ html_context = {
 # default: ``['localtoc.html', 'relations.html', 'sourcelink.html',
 # 'searchbox.html']``.
 #
-# html_sidebars = {}
+html_sidebars = {"**": ["globaltoc.html", "localtoc.html", "searchbox.html"]}
 
 
 # -- Options for HTMLHelp output ---------------------------------------------
