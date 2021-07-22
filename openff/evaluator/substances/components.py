@@ -38,6 +38,11 @@ class Component(AttributeClass):
         default_value=Role.Solvent,
         read_only=True,
     )
+    toolkit = Attribute(
+        docstring="The toolkit for generating the smiles string.",
+        type_hint=str,
+        default_value="rdkit",
+    )
 
     @property
     def identifier(self):
@@ -65,6 +70,7 @@ class Component(AttributeClass):
 
         self._set_value("smiles", smiles)
         self._set_value("role", role)
+        self._set_value("toolkit", toolkit)
 
     @staticmethod
     def _standardize_smiles(smiles, toolkit):
@@ -114,5 +120,7 @@ class Component(AttributeClass):
 
     def __setstate__(self, state):
         # Make sure the smiles pattern is standardized.
-        state["smiles"] = Component._standardize_smiles(state["smiles"])
+        state["smiles"] = Component._standardize_smiles(
+            state["smiles"], state["toolkit"]
+        )
         super(Component, self).__setstate__(state)
