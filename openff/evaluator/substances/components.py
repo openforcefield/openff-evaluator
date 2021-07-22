@@ -44,7 +44,7 @@ class Component(AttributeClass):
         """str: A unique identifier for this component."""
         return f"{self.smiles}{{{self.role.value}}}"
 
-    def __init__(self, smiles=UNDEFINED, role=Role.Solvent):
+    def __init__(self, smiles=UNDEFINED, role=Role.Solvent, toolkit="rdkit"):
         """Constructs a new Component object with either a label or
         a smiles string, but not both.
 
@@ -61,13 +61,13 @@ class Component(AttributeClass):
             The role of this component in the system.
         """
         if smiles != UNDEFINED:
-            smiles = self._standardize_smiles(smiles)
+            smiles = self._standardize_smiles(smiles, toolkit)
 
         self._set_value("smiles", smiles)
         self._set_value("role", role)
 
     @staticmethod
-    def _standardize_smiles(smiles):
+    def _standardize_smiles(smiles, toolkit):
         """Standardizes a SMILES pattern to be canonical (but not necessarily isomeric)
         using the `cmiles` library.
 
@@ -82,7 +82,7 @@ class Component(AttributeClass):
         """
         from cmiles.utils import load_molecule, mol_to_smiles
 
-        molecule = load_molecule(smiles, toolkit="rdkit")
+        molecule = load_molecule(smiles, toolkit=toolkit)
 
         try:
             # Try to make the smiles isomeric.

@@ -1,4 +1,5 @@
 import abc
+import logging
 import os
 from collections import defaultdict
 from typing import Dict, List
@@ -11,6 +12,8 @@ from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.substances import Component, Substance
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
+
+logger = logging.getLogger(__name__)
 
 
 def _components_by_role(substance: Substance) -> Dict[Component.Role, List[Component]]:
@@ -170,9 +173,16 @@ class PreparePullCoordinates(_PrepareAPRCoordinates):
 
         self.output_coordinate_path = os.path.join(directory, "output.pdb")
 
+        # Using openmm.app.PDBFile.topology because ParmEd may
+        # give slightly different topology for guest molecule
+        openmm_pdb = app.PDBFile(self.complex_file_path)
+
         with open(self.output_coordinate_path, "w") as file:
             app.PDBFile.writeFile(
-                host_structure.topology, host_structure.positions, file, True
+                openmm_pdb.topology,
+                host_structure.positions,
+                file,
+                True,
             )
 
 

@@ -402,10 +402,25 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
                 return False
 
             elif (
-                merge_behavior == MergeBehaviour.ExactlyEqual
-                and self_value != other_value
+                merge_behavior
+                == MergeBehaviour.ExactlyEqual
+                # and self_value != other_value
             ):
-                return False
+                if not isinstance(self_value, dict):
+                    if self_value != other_value:
+                        return False
+                else:
+                    import numpy as np
+
+                    if not all(
+                        [
+                            np.alltrue(self_value[key] == other_value[key])
+                            for key in self_value
+                        ]
+                    ):
+                        return False
+
+                # return False
 
         return True
 

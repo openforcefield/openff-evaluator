@@ -93,8 +93,8 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         self,
         host_codes: List[str] = None,
         guest_codes: List[str] = None,
-        host_guest_codes: Dict[str, str] = None,
-        exclude_systems: Dict[str, str] = None,
+        host_guest_codes: Dict[str, List[str]] = None,
+        exclude_systems: Dict[str, List[str]] = None,
         default_ionic_strength: Optional[unit.Quantity] = 150 * unit.millimolar,
         negative_buffer_ion: str = "[Cl-]",
         positive_buffer_ion: str = "[Na+]",
@@ -179,6 +179,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         from openff.toolkit.topology import Molecule
 
         receptor_molecule = Molecule.from_file(file_path, "MOL2")
+
         return receptor_molecule.to_smiles()
 
     @staticmethod
@@ -189,6 +190,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         negative_buffer_ion: str = "[Cl-]",
         positive_buffer_ion: str = "[Na+]",
         in_vacuum: bool = False,
+        toolkit="openeye",
     ):
         """Builds a substance containing a ligand and receptor solvated in an aqueous
         solution with a given ionic strength
@@ -213,17 +215,27 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
         if guest_smiles is not None:
 
-            guest = Component(smiles=guest_smiles, role=Component.Role.Ligand)
+            guest = Component(
+                smiles=guest_smiles, role=Component.Role.Ligand, toolkit=toolkit
+            )
             substance.add_component(component=guest, amount=ExactAmount(1))
 
-        host = Component(smiles=host_smiles, role=Component.Role.Receptor)
+        host = Component(
+            smiles=host_smiles, role=Component.Role.Receptor, toolkit=toolkit
+        )
         substance.add_component(component=host, amount=ExactAmount(1))
 
         if in_vacuum is False:
-            water = Component(smiles="O", role=Component.Role.Solvent)
-            sodium = Component(smiles=positive_buffer_ion, role=Component.Role.Solvent)
+            water = Component(smiles="O", role=Component.Role.Solvent, toolkit=toolkit)
+            sodium = Component(
+                smiles=positive_buffer_ion,
+                role=Component.Role.Solvent,
+                toolkit=toolkit,
+            )
             chlorine = Component(
-                smiles=negative_buffer_ion, role=Component.Role.Solvent
+                smiles=negative_buffer_ion,
+                role=Component.Role.Solvent,
+                toolkit=toolkit,
             )
 
             water_mole_fraction = 1.0
@@ -498,8 +510,8 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         self,
         host_codes: List[str],
         guest_codes: List[str],
-        host_guest_codes: Dict[str, str],
-        exclude_systems: Dict[str, str],
+        host_guest_codes: Dict[str, List[str]],
+        exclude_systems: Dict[str, List[str]],
         ionic_strength: Optional[unit.Quantity],
         negative_buffer_ion: str,
         positive_buffer_ion: str,
@@ -581,7 +593,11 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                     continue
 
                 # Exclude systems in specified
-                if exclude_systems and host_name in exclude_systems and guest_name in exclude_systems[host_name]:
+                if (
+                    exclude_systems
+                    and host_name in exclude_systems
+                    and guest_name in exclude_systems[host_name]
+                ):
                     continue
 
                 measurement_path = measurements[host_name][guest_name]["yaml"]
@@ -616,9 +632,11 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 host_mol2_path = str(
                     host_yaml_path.parent.joinpath(host_yaml["structure"])
                 )
-                host_monomer_path = str(
-                    host_yaml_path.parent.joinpath(host_yaml["monomer"])
-                )
+                host_monomer_path = None
+                if "monomer" in host_yaml:
+                    host_monomer_path = str(
+                        host_yaml_path.parent.joinpath(host_yaml["monomer"])
+                    )
                 host_smiles = self._mol2_to_smiles(host_mol2_path)
 
                 guest_yaml_path = systems[host_name][guest_name]["yaml"]
@@ -636,7 +654,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                     )
                 )
                 guest_smiles = self._mol2_to_smiles(guest_mol2_path)
-
+                logger.info(guest_smiles)
                 substance = self._build_substance(
                     guest_smiles,
                     host_smiles,

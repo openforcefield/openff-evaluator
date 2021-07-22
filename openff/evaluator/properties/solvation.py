@@ -35,6 +35,7 @@ class SolvationFreeEnergy(PhysicalProperty):
         n_molecules=2000,
         lambda_values=None,
         max_group_iterations=20,
+        n_iterations=2000,
         use_implicit_solvent=False,
     ):
         """
@@ -227,7 +228,7 @@ class SolvationFreeEnergy(PhysicalProperty):
 
         # Define the total number of iterations that yank should run for.
         total_iterations = miscellaneous.MultiplyValue("total_iterations")
-        total_iterations.value = 2000
+        total_iterations.value = n_iterations
         total_iterations.multiplier = ProtocolPath(
             "current_iteration", conditional_group.id
         )
