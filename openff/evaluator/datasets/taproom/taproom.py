@@ -4,7 +4,7 @@ An API for importing a data set from the `taproom
 """
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import pkg_resources
@@ -91,9 +91,11 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
     def __init__(
         self,
-        host_codes: List[str] = None,
-        guest_codes: List[str] = None,
+        host_codes: Union[str, List[str]] = None,
+        guest_codes: Union[str, List[str]] = None,
         host_guest_codes: Dict[str, List[str]] = None,
+        sampl_set: Union[int, List[int]] = None,
+        sampl_guest_codes: Union[int, List[int]] = None,
         exclude_systems: Dict[str, List[str]] = None,
         default_ionic_strength: Optional[unit.Quantity] = 150 * unit.millimolar,
         negative_buffer_ion: str = "[Cl-]",
@@ -116,6 +118,13 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             each host molecule to load from ``taproom``. This option provides greater
             control for choosing the host-guest systems. If specified, host_codes and
             guest_codes will be ignored.
+        sampl_set
+            The SAMPL challenge set (4, 5, ... etc.) to load as the data set. Can be
+            combined with ``host_codes`` to further filter the data from the ``taproom``
+            repository.
+        sampl_guest_codes
+            The SAMPL guest molecule code (each guest molecule in SAMPL challenges are
+            labelled with a common letter e.g., G0, G1, C1, C3).
         exclude_systems
             A dictionary for host-guest systems to exclude from the list generated
             from the lists of host_codes and guest_codes.
@@ -149,11 +158,39 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         if unlicensed_library is not None:
             raise MissingOptionalDependency(unlicensed_library, True)
 
+        # Converts variables
+        host_codes = TaproomDataSet._convert_variable_to_list(host_codes)
+        guest_codes = TaproomDataSet._convert_variable_to_list(guest_codes)
+        sampl_set = TaproomDataSet._convert_variable_to_list(sampl_set)
+        sampl_guest_codes = TaproomDataSet._convert_variable_to_list(sampl_guest_codes)
+
+        # Check user selection
+        if host_guest_codes:
+            if host_codes is not None or guest_codes is not None:
+                raise ValueError(
+                    "Cannot specify individual host-guest codes if the dictionary `host_guest_codes` is specified."
+                )
+        if sampl_set and sampl_guest_codes:
+            if host_codes is None:
+                raise ValueError(
+                    "Need to specify host molecule if specifying individual guest molecule from SAMPL data set."
+                )
+            if guest_codes is not None:
+                raise ValueError(
+                    "Cannot specify both `guest_codes` and `sampl_guest_codes`."
+                )
+        elif sampl_set is None and sampl_guest_codes:
+            raise ValueError(
+                "Need to specify SAMPL set if selecting guest molecules with SAMPL-specific name."
+            )
+
         # TODO: Don't overwrite the taproom ionic strength and buffer ions.
         self._initialize(
             host_codes,
             guest_codes,
             host_guest_codes,
+            sampl_set,
+            sampl_guest_codes,
             exclude_systems,
             default_ionic_strength,
             negative_buffer_ion,
@@ -161,6 +198,17 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             in_vacuum,
             attach_apr_meta_data,
         )
+
+    @staticmethod
+    def _convert_variable_to_list(variable) -> Union[None, List]:
+        """Converts a single value to a list."""
+        if variable is None:
+            return None
+
+        if not isinstance(variable, list):
+            return [variable]
+
+        return variable
 
     @staticmethod
     def _mol2_to_smiles(file_path: str) -> str:
@@ -190,7 +238,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         negative_buffer_ion: str = "[Cl-]",
         positive_buffer_ion: str = "[Na+]",
         in_vacuum: bool = False,
-        toolkit="openeye",
+        toolkit: str = "openeye",
     ):
         """Builds a substance containing a ligand and receptor solvated in an aqueous
         solution with a given ionic strength
@@ -203,6 +251,8 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             The SMILES descriptor of the host.
         ionic_strength
             The ionic strength of the aqueous solvent.
+        toolkit
+            The toolkit to use to generate smiles string.
 
         Returns
         -------
@@ -511,6 +561,8 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         host_codes: List[str],
         guest_codes: List[str],
         host_guest_codes: Dict[str, List[str]],
+        sampl_set: List[int],
+        sampl_guest_codes: List[str],
         exclude_systems: Dict[str, List[str]],
         ionic_strength: Optional[unit.Quantity],
         negative_buffer_ion: str,
@@ -533,6 +585,13 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             each host molecule to load from ``taproom``. This option provides greater
             control for choosing the host-guest systems. If specified, host_codes and
             guest_codes will be ignored.
+        sampl_set
+            The SAMPL challenge set (4, 5, ... etc.) to load as the data set. Can be
+            combined with ``host_codes`` to further filter the data from the ``taproom``
+            repository.
+        sampl_guest_codes
+            The SAMPL guest molecule code (each guest molecule in SAMPL challenges are
+            labelled with a common letter e.g., G0, G1, C1, C3).
         exclude_systems
             A dictionary for host-guest systems to exclude from the list generated
             from the lists of host_codes and guest_codes.
@@ -583,6 +642,8 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             if host_guest_codes:
                 guest_codes = host_guest_codes[host_name]
 
+            orientations = [orientation for orientation in systems[host_name]["yaml"]]
+
             for guest_name in measurements[host_name]:
 
                 if guest_codes and guest_name not in guest_codes:
@@ -592,7 +653,31 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 if host_name not in systems or guest_name not in systems[host_name]:
                     continue
 
-                # Exclude systems in specified
+                # Load host and guest YAML files
+                host_yaml_path = systems[host_name]["yaml"][orientations[0]]
+                with open(host_yaml_path, "r") as file:
+                    host_yaml = yaml.safe_load(file)
+
+                guest_yaml_path = systems[host_name][guest_name]["yaml"]
+                with open(guest_yaml_path, "r") as file:
+                    guest_yaml = yaml.safe_load(file)
+
+                # Filter based on SAMPL data set
+                if sampl_set:
+                    if (
+                        "data_set" in guest_yaml
+                        and guest_yaml["data_set"]["SAMPL"] in sampl_set
+                    ):
+                        if (
+                            sampl_guest_codes
+                            and guest_yaml["data_set"]["guest_id"]
+                            not in sampl_guest_codes
+                        ):
+                            continue
+                    else:
+                        continue
+
+                # Exclude systems
                 if (
                     exclude_systems
                     and host_name in exclude_systems
@@ -600,6 +685,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 ):
                     continue
 
+                # Extract information on experimental measurement
                 measurement_path = measurements[host_name][guest_name]["yaml"]
 
                 with open(measurement_path, "r") as file:
@@ -621,14 +707,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                     guest_identifier=guest_name,
                 )
 
-                orientations = [
-                    orientation for orientation in systems[host_name]["yaml"]
-                ]
-                host_yaml_path = systems[host_name]["yaml"][orientations[0]]
-
-                with open(host_yaml_path, "r") as file:
-                    host_yaml = yaml.safe_load(file)
-
+                # Host info
                 host_mol2_path = str(
                     host_yaml_path.parent.joinpath(host_yaml["structure"])
                 )
@@ -637,25 +716,21 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                     host_monomer_path = str(
                         host_yaml_path.parent.joinpath(host_yaml["monomer"])
                     )
-                host_smiles = self._mol2_to_smiles(host_mol2_path)
-
-                guest_yaml_path = systems[host_name][guest_name]["yaml"]
-
+                host_smiles = TaproomDataSet._mol2_to_smiles(host_mol2_path)
                 host_tleap_template = str(
                     systems[host_name]["path"].joinpath(f"build_{host_name}.in")
                 )
 
-                with open(guest_yaml_path, "r") as file:
-                    guest_yaml = yaml.safe_load(file)
-
+                # Guest info
                 guest_mol2_path = str(
                     host_yaml_path.parent.joinpath(guest_name).joinpath(
                         guest_yaml["structure"]
                     )
                 )
-                guest_smiles = self._mol2_to_smiles(guest_mol2_path)
-                logger.info(guest_smiles)
-                substance = self._build_substance(
+                guest_smiles = TaproomDataSet._mol2_to_smiles(guest_mol2_path)
+
+                # Build substance
+                substance = TaproomDataSet._build_substance(
                     guest_smiles,
                     host_smiles,
                     ionic_strength,
@@ -663,7 +738,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                     positive_buffer_ion,
                     in_vacuum,
                 )
-                host_only_substance = self._build_substance(
+                host_only_substance = TaproomDataSet._build_substance(
                     None,
                     host_smiles,
                     ionic_strength,
@@ -672,6 +747,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                     in_vacuum,
                 )
 
+                # Build metadata
                 measured_property = HostGuestBindingAffinity(
                     thermodynamic_state=ThermodynamicState(temperature, pressure),
                     phase=PropertyPhase.Liquid,
@@ -683,7 +759,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
                 if attach_apr_meta_data:
 
-                    measured_property.metadata = self._build_metadata(
+                    measured_property.metadata = TaproomDataSet._build_metadata(
                         systems[host_name]["yaml"],
                         systems[host_name][guest_name]["yaml"],
                         host_only_substance,
