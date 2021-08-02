@@ -169,12 +169,12 @@ class PreparePullCoordinates(_PrepareAPRCoordinates):
         )
 
         # Using openmm.app.PDBFile.topology because ParmEd may
-        # give slightly different topology for some guest molecule
+        # give slightly different topology for some molecule
         openmm_pdb = app.PDBFile(self.complex_file_path)
 
         if self.remove_pbc_vectors:
             openmm_pdb.topology.setPeriodicBoxVectors(None)
-            #host_structure.topology.setPeriodicBoxVectors(None)
+            # host_structure.topology.setPeriodicBoxVectors(None)
 
         self.output_coordinate_path = os.path.join(directory, "output.pdb")
 
@@ -214,14 +214,23 @@ class PrepareReleaseCoordinates(_PrepareAPRCoordinates):
 
         host_structure = Setup.prepare_host_structure(host_file_path)
 
+        # Using openmm.app.PDBFile.topology because ParmEd may
+        # give slightly different topology for some molecule
+        pdbfile = app.PDBFile(host_file_path)
+
         if self.remove_pbc_vectors:
-            host_structure.topology.setPeriodicBoxVectors(None)
+            pdbfile.topology.setPeriodicBoxVectors(None)
+            # host_structure.topology.setPeriodicBoxVectors(None)
 
         self.output_coordinate_path = os.path.join(directory, "output.pdb")
 
         with open(self.output_coordinate_path, "w") as file:
             app.PDBFile.writeFile(
-                host_structure.topology, host_structure.positions, file, True
+                # host_structure.topology,
+                pdbfile.topology,
+                host_structure.positions,
+                file,
+                True,
             )
 
 

@@ -323,8 +323,8 @@ class PaprikaBuildTLeapSystem(BaseBuildSystem):
 
         import simtk.openmm as openmm
         import simtk.openmm.app as app
-        from paprika.evaluator.amber import generate_gaff
 
+        # from paprika.evaluator.amber import generate_gaff
         # Check GAFF version
         force_field_source = ForceFieldSource.from_json(self.force_field_path)
         if force_field_source.leap_source == "leaprc.gaff2":
