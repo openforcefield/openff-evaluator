@@ -101,6 +101,10 @@ class _Multiprocessor:
                             worker_logger.info(
                                 f"LSBJOBID: {os.environ.get('LSB_JOBID')}"
                             )
+                        elif os.environ.get("SLURM_JOB_ID") is not None:
+                            worker_logger.info(
+                                f"SLURMJOBID: {os.environ.get('SLURM_JOB_ID')}"
+                            )
                         worker_logger.info(f"PLATFORM: {platform.platform()}")
                         worker_logger.info("-----------------------------------------")
                         worker_logger.info(
@@ -507,6 +511,7 @@ class DaskLSFBackend(BaseDaskJobQueueBackend):
     --------
     dask_jobqueue.LSFCluster
     DaskPBSBackend
+    DaskSLURMBackend
     """
 
     def __init__(
@@ -611,8 +616,9 @@ class DaskPBSBackend(BaseDaskJobQueueBackend):
 
     See Also
     --------
-    dask_jobqueue.LSFCluster
+    dask_jobqueue.PBSCluster
     DaskLSFBackend
+    DaskSLURMBackend
     """
 
     def __init__(
@@ -629,7 +635,7 @@ class DaskPBSBackend(BaseDaskJobQueueBackend):
         adaptive_class=None,
     ):
 
-        """Constructs a new DaskLSFBackend object
+        """Constructs a new DaskPBSBackend object
 
         Parameters
         ----------
@@ -693,6 +699,81 @@ class DaskPBSBackend(BaseDaskJobQueueBackend):
         from dask_jobqueue import PBSCluster
 
         return PBSCluster
+
+
+class DaskSLURMBackend(BaseDaskJobQueueBackend):
+    """An openff-evaluator backend which uses a `dask_jobqueue.SLURMCluster`
+    object to run calculations within an existing SLURM queue.
+
+    See Also
+    --------
+    dask_jobqueue.SLURMCluster
+    DaskLSFBackend
+    DaskPBSBackend
+    """
+
+    def __init__(
+            self,
+            minimum_number_of_workers=1,
+            maximum_number_of_workers=1,
+            resources_per_worker=QueueWorkerResources(),
+            queue_name="default",
+            setup_script_commands=None,
+            extra_script_options=None,
+            adaptive_interval="10000ms",
+            disable_nanny_process=False,
+            adaptive_class=None,
+    ):
+        """Constructs a new DaskSLURMBackend object
+
+        Examples
+        --------
+        To create a SLURM queueing compute backend which will attempt to spin up
+        workers which have access to a single GPU.
+
+        >>> # Create a resource object which will request a worker with
+        >>> # one gpu which will stay alive for five hours.
+        >>> from openff.evaluator.backends import QueueWorkerResources
+        >>>
+        >>> resources = QueueWorkerResources(number_of_threads=1,
+        >>>                                  number_of_gpus=1,
+        >>>                                  preferred_gpu_toolkit=QueueWorkerResources.GPUToolkit.CUDA,
+        >>>                                  wallclock_time_limit='05:00')
+        >>>
+        >>> # Define the set of commands which will set up the correct environment
+        >>> # for each of the workers.
+        >>> setup_script_commands = [
+        >>>     'module load cuda/9.2',
+        >>> ]
+        >>>
+        >>> # Create the backend which will adaptively try to spin up between one and
+        >>> # ten workers with the requested resources depending on the calculation load.
+        >>> from openff.evaluator.backends.dask import DaskSLURMBackend
+        >>>
+        >>> slurm_backend = DaskSLURMBackend(minimum_number_of_workers=1,
+        >>>                                  maximum_number_of_workers=10,
+        >>>                                  resources_per_worker=resources,
+        >>>                                  queue_name='gpuqueue',
+        >>>                                  setup_script_commands=setup_script_commands)
+        """
+
+        super().__init__(
+            minimum_number_of_workers,
+            maximum_number_of_workers,
+            resources_per_worker,
+            queue_name,
+            setup_script_commands,
+            extra_script_options,
+            adaptive_interval,
+            disable_nanny_process,
+            cluster_type="slurm",
+            adaptive_class=adaptive_class,
+        )
+
+    def _get_cluster_class(self):
+        from dask_jobqueue import SLURMCluster
+
+        return SLURMCluster
 
 
 class DaskLocalCluster(BaseDaskBackend):
