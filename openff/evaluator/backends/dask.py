@@ -713,16 +713,16 @@ class DaskSLURMBackend(BaseDaskJobQueueBackend):
     """
 
     def __init__(
-            self,
-            minimum_number_of_workers=1,
-            maximum_number_of_workers=1,
-            resources_per_worker=QueueWorkerResources(),
-            queue_name="default",
-            setup_script_commands=None,
-            extra_script_options=None,
-            adaptive_interval="10000ms",
-            disable_nanny_process=False,
-            adaptive_class=None,
+        self,
+        minimum_number_of_workers=1,
+        maximum_number_of_workers=1,
+        resources_per_worker=QueueWorkerResources(),
+        queue_name="default",
+        setup_script_commands=None,
+        extra_script_options=None,
+        adaptive_interval="10000ms",
+        disable_nanny_process=False,
+        adaptive_class=None,
     ):
         """Constructs a new DaskSLURMBackend object
 
