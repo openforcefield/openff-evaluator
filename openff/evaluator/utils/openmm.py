@@ -366,7 +366,8 @@ def system_subset(
     )
     parameter_value = getattr(parameter, parameter_key.attribute)
 
-    if parameter_key.tag in ["GBSA", "CustomOBC"] and parameter_key.attribute in [
+    # Convert float values to unitless simtk.Quantity
+    if parameter_key.attribute in [
         "scale",
         "alpha",
         "beta",
@@ -379,19 +380,41 @@ def system_subset(
     # Optionally perturb the parameter of interest.
     if scale_amount is not None:
 
-        if (
-            numpy.isclose(parameter_value.value_in_unit(parameter_value.unit), 0.0)
-            and parameter_key.attribute != "offset_radius"
-        ):
+        parameter_unit = parameter_value.unit
+
+        if numpy.isclose(parameter_value.value_in_unit(parameter_unit), 0.0):
             # Careful thought needs to be given to this. Consider cases such as
             # epsilon or sigma where negative values are not allowed.
-            parameter_value = (
-                scale_amount if scale_amount > 0.0 else 0.0
-            ) * parameter_value.unit
+            parameter_value = scale_amount if scale_amount > 0.0 else 0.0
+
+            # Add units back in if not a unitless quantity
+            if parameter_key.attribute not in [
+                "scale",
+                "alpha",
+                "beta",
+                "gamma",
+                "solvent_dielectric",
+                "solute_dielectric",
+            ]:
+                parameter_value *= parameter_unit
         else:
             parameter_value *= 1.0 + scale_amount
 
     setattr(parameter, parameter_key.attribute, parameter_value)
+
+    if (
+        parameter_key.attribute
+        in [
+            "scale",
+            "alpha",
+            "beta",
+            "gamma",
+            "solvent_dielectric",
+            "solute_dielectric",
+        ]
+        and isinstance(parameter_value, float)
+    ):
+        parameter_value = simtk_unit.Quantity(parameter_value, unit=None)
 
     # Create the parameterized sub-system.
     system = force_field_subset.create_openmm_system(topology)
