@@ -1,7 +1,16 @@
+from enum import Enum
+
 import numpy
 import pint.compat
 
 from openff.evaluator import unit
+
+
+class ParameterLevel(Enum):
+    """Enum class used to define Global and Per-particle parameters"""
+
+    Global = "global"
+    PerParticle = "per-particle"
 
 
 class ParameterGradientKey:
@@ -17,30 +26,43 @@ class ParameterGradientKey:
     def attribute(self):
         return self._attribute
 
-    def __init__(self, tag=None, smirks=None, attribute=None):
+    @property
+    def level(self):
+        return self._level
+
+    def __init__(
+        self, tag=None, smirks=None, attribute=None, level=ParameterLevel.PerParticle
+    ):
 
         self._tag = tag
         self._smirks = smirks
         self._attribute = attribute
+        self._level = level
 
     def __getstate__(self):
 
-        return {"tag": self._tag, "smirks": self._smirks, "attribute": self._attribute}
+        return {
+            "tag": self._tag,
+            "smirks": self._smirks,
+            "attribute": self._attribute,
+            "level": self._level,
+        }
 
     def __setstate__(self, state):
 
         self._tag = state["tag"]
         self._smirks = state["smirks"]
         self._attribute = state["attribute"]
+        self._level = state["level"]
 
     def __str__(self):
-        return f"tag={self._tag} smirks={self._smirks} attribute={self._attribute}"
+        return f"tag={self._tag} smirks={self._smirks} attribute={self._attribute} level={self._level}"
 
     def __repr__(self):
         return f"<ParameterGradientKey {str(self)}>"
 
     def __hash__(self):
-        return hash((self._tag, self._smirks, self._attribute))
+        return hash((self._tag, self._smirks, self._attribute, self._level))
 
     def __eq__(self, other):
 
@@ -49,6 +71,7 @@ class ParameterGradientKey:
             and self._tag == other._tag
             and self._smirks == other._smirks
             and self._attribute == other._attribute
+            and self._level == other._level
         )
 
     def __ne__(self, other):

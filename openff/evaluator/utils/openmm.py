@@ -16,7 +16,7 @@ from simtk import unit as simtk_unit
 
 from openff.evaluator import unit
 from openff.evaluator.attributes.attributes import UndefinedAttribute
-from openff.evaluator.forcefield import ParameterGradientKey
+from openff.evaluator.forcefield import ParameterGradientKey, ParameterLevel
 
 if TYPE_CHECKING:
 
@@ -321,7 +321,7 @@ def system_subset(
     from openff.toolkit.typing.engines.smirnoff import ForceField
 
     # Create the force field subset.
-    force_field_subset = ForceField()
+    force_field_subset = ForceField(load_plugins=True)
 
     handlers_to_register = {parameter_key.tag}
 
@@ -333,11 +333,17 @@ def system_subset(
             {"Electrostatics", "ChargeIncrementModel", "LibraryCharges"}
         )
 
-    if parameter_key.tag == "GBSA":
+    if parameter_key.tag in ["GBSA", "CustomOBC"]:
         # CustomGBForce and GBSAOBCForce requires the nonbonded parameters
         # loaded otherwise the parameters will be set to zero.
         handlers_to_register.update(
-            {"vdW", "Electrostatics", "LibraryCharges", "ToolkitAM1BCC"}
+            {
+                "vdW",
+                "Electrostatics",
+                "ChargeIncrementModel",
+                "LibraryCharges",
+                "ToolkitAM1BCC",
+            }
         )
 
     registered_handlers = force_field.registered_parameter_handlers
@@ -353,16 +359,30 @@ def system_subset(
 
     handler = force_field_subset.get_parameter_handler(parameter_key.tag)
 
-    parameter = handler.parameters[parameter_key.smirks]
+    parameter = (
+        handler.parameters[parameter_key.smirks]
+        if parameter_key.level == ParameterLevel.PerParticle
+        else handler
+    )
     parameter_value = getattr(parameter, parameter_key.attribute)
 
-    if parameter_key.tag == "GBSA" and parameter_key.attribute == "scale":
+    if parameter_key.tag in ["GBSA", "CustomOBC"] and parameter_key.attribute in [
+        "scale",
+        "alpha",
+        "beta",
+        "gamma",
+        "solvent_dielectric",
+        "solute_dielectric",
+    ]:
         parameter_value = simtk_unit.Quantity(parameter_value, unit=None)
 
     # Optionally perturb the parameter of interest.
     if scale_amount is not None:
 
-        if numpy.isclose(parameter_value.value_in_unit(parameter_value.unit), 0.0):
+        if (
+            numpy.isclose(parameter_value.value_in_unit(parameter_value.unit), 0.0)
+            and parameter_key.attribute != "offset_radius"
+        ):
             # Careful thought needs to be given to this. Consider cases such as
             # epsilon or sigma where negative values are not allowed.
             parameter_value = (

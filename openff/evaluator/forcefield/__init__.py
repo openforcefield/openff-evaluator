@@ -5,7 +5,7 @@ from .forcefield import (
     SmirnoffForceFieldSource,
     TLeapForceFieldSource,
 )
-from .gradients import ParameterGradient, ParameterGradientKey
+from .gradients import ParameterGradient, ParameterGradientKey, ParameterLevel
 
 __all__ = [
     ForceFieldSource,
@@ -13,6 +13,7 @@ __all__ = [
     LigParGenForceFieldSource,
     GAFFForceField,
     TLeapForceFieldSource,
+    ParameterLevel,
     ParameterGradient,
     ParameterGradientKey,
 ]

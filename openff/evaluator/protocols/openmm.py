@@ -234,7 +234,14 @@ def _compute_gradients(
             disable_pbc(reverse_system)
             disable_pbc(forward_system)
 
-        if parameter_key.tag == "GBSA" and parameter_key.attribute == "scale":
+        if parameter_key.tag in ["GBSA", "CustomOBC"] and parameter_key.attribute == [
+            "scale",
+            "alpha",
+            "beta",
+            "gamma",
+            "solvent_dielectric",
+            "solute_dielectric",
+        ]:
             reverse_parameter_value = simtk_unit.Quantity(
                 reverse_parameter_value, unit=None
             )
