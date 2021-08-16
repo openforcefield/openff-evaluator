@@ -695,6 +695,92 @@ class DaskPBSBackend(BaseDaskJobQueueBackend):
         return PBSCluster
 
 
+class DaskSLURMBackend(BaseDaskJobQueueBackend):
+    """An openff-evaluator backend which uses a `dask_jobqueue.SLURMCluster`
+    object to run calculations within an existing SLURM queue.
+    See Also
+    --------
+    dask_jobqueue.SLURMCluster
+    DaskSLURMBackend
+    """
+
+    def __init__(
+        self,
+        minimum_number_of_workers=1,
+        maximum_number_of_workers=1,
+        resources_per_worker=QueueWorkerResources(),
+        queue_name="default",
+        setup_script_commands=None,
+        extra_script_options=None,
+        adaptive_interval="10000ms",
+        disable_nanny_process=False,
+        resource_line=None,
+        adaptive_class=None,
+    ):
+
+        """Constructs a new DaskSLURMBackend object
+        Parameters
+        ----------
+        resource_line: str
+            The string to pass to the `#SBATCH ` line.
+        Examples
+        --------
+        To create a SLURM queueing compute backend which will attempt to spin up
+        workers which have access to a single GPU.
+        >>> # Create a resource object which will request a worker with
+        >>> # one gpu which will stay alive for five hours.
+        >>> from openff.evaluator.backends import QueueWorkerResources
+        >>>
+        >>> resources = QueueWorkerResources(number_of_threads=1,
+        >>>                                  number_of_gpus=1,
+        >>>                                  preferred_gpu_toolkit=QueueWorkerResources.GPUToolkit.CUDA,
+        >>>                                  wallclock_time_limit='05:00')
+        >>>
+        >>> # Define the set of commands which will set up the correct environment
+        >>> # for each of the workers.
+        >>> setup_script_commands = [
+        >>>     'module load cuda/9.2',
+        >>> ]
+        >>>
+        >>> # Create the backend which will adaptively try to spin up between one and
+        >>> # ten workers with the requested resources depending on the calculation load.
+        >>> from openff.evaluator.backends.dask import DaskSLURMBackend
+        >>>
+        >>> pbs_backend = DaskPBSBackend(minimum_number_of_workers=1,
+        >>>                              maximum_number_of_workers=10,
+        >>>                              resources_per_worker=resources,
+        >>>                              queue_name='gpuqueue',
+        >>>                              setup_script_commands=setup_script_commands)
+        """
+
+        super().__init__(
+            minimum_number_of_workers,
+            maximum_number_of_workers,
+            resources_per_worker,
+            queue_name,
+            setup_script_commands,
+            extra_script_options,
+            adaptive_interval,
+            disable_nanny_process,
+            cluster_type="slurm",
+            adaptive_class=adaptive_class,
+        )
+
+        self._resource_line = resource_line
+
+    def _get_extra_cluster_kwargs(self):
+
+        extra_kwargs = super(DaskSLURMBackend, self)._get_extra_cluster_kwargs()
+        extra_kwargs.update({"resource_spec": self._resource_line})
+
+        return extra_kwargs
+
+    def _get_cluster_class(self):
+        from dask_jobqueue import SLURMCluster
+
+        return SLURMCluster
+
+
 class DaskLocalCluster(BaseDaskBackend):
     """An openff-evaluator backend which uses a `dask` `LocalCluster`
     object to run calculations on a single machine.
