@@ -70,7 +70,7 @@ class SmirnoffForceFieldSource(ForceFieldSource):
         """
         from openff.toolkit.typing.engines import smirnoff
 
-        return smirnoff.ForceField(self._inner_xml)
+        return smirnoff.ForceField(self._inner_xml, load_plugins=True)
 
     @classmethod
     def from_object(cls, force_field):
@@ -117,7 +117,9 @@ class SmirnoffForceFieldSource(ForceFieldSource):
 
         from openff.toolkit.typing.engines.smirnoff import ForceField
 
-        force_field = ForceField(file_path, allow_cosmetic_attributes=True)
+        force_field = ForceField(
+            file_path, allow_cosmetic_attributes=True, load_plugins=True
+        )
         return cls.from_object(force_field)
 
     def __getstate__(self):

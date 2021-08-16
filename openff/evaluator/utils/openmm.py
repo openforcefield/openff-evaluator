@@ -382,7 +382,9 @@ def system_subset(
 
         parameter_unit = parameter_value.unit
 
-        if numpy.isclose(parameter_value.value_in_unit(parameter_unit), 0.0):
+        if numpy.isclose(
+            parameter_value.value_in_unit(parameter_unit), 0.0
+        ) and parameter_key.attribute not in ["offset_radius"]:
             # Careful thought needs to be given to this. Consider cases such as
             # epsilon or sigma where negative values are not allowed.
             parameter_value = scale_amount if scale_amount > 0.0 else 0.0
