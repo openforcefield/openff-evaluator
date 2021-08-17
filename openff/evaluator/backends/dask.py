@@ -101,7 +101,7 @@ class _Multiprocessor:
                             worker_logger.info(
                                 f"LSBJOBID: {os.environ.get('LSB_JOBID')}"
                             )
-                        elif os.environ.get("SLURM_JOBID") is not None:
+                        elif os.environ.get("SLURM_JOB_ID") is not None:
                             worker_logger.info(
                                 f"SLURMJOBID: {os.environ.get('SLURM_JOBID')}"
                             )
