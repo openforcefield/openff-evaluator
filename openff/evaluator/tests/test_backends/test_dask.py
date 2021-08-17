@@ -24,7 +24,7 @@ def test_dask_job_script_creation():
     cpu_backend.stop()
 
 
-@pytest.mark.parametrize("cluster_class", [DaskLSFBackend, DaskPBSBackend])
+@pytest.mark.parametrize("cluster_class", [DaskLSFBackend, DaskPBSBackend, DaskSLURMBackend])
 def test_dask_jobqueue_backend_creation(cluster_class):
     """Test creating and starting a new dask jobqueue backend."""
 
