@@ -101,6 +101,11 @@ class _Multiprocessor:
                             worker_logger.info(
                                 f"LSBJOBID: {os.environ.get('LSB_JOBID')}"
                             )
+                        elif os.environ.get("SLURM_JOBID") is not None:
+                            worker_logger.info(
+                                f"SLURMJOBID: {os.environ.get('SLURM_JOBID')}"
+                            )
+
                         worker_logger.info(f"PLATFORM: {platform.platform()}")
                         worker_logger.info("-----------------------------------------")
                         worker_logger.info(
@@ -714,15 +719,12 @@ class DaskSLURMBackend(BaseDaskJobQueueBackend):
         extra_script_options=None,
         adaptive_interval="10000ms",
         disable_nanny_process=False,
-        resource_line=None,
         adaptive_class=None,
     ):
 
         """Constructs a new DaskSLURMBackend object
         Parameters
         ----------
-        resource_line: str
-            The string to pass to the `#SBATCH ` line.
         Examples
         --------
         To create a SLURM queueing compute backend which will attempt to spin up
@@ -766,12 +768,10 @@ class DaskSLURMBackend(BaseDaskJobQueueBackend):
             adaptive_class=adaptive_class,
         )
 
-        self._resource_line = resource_line
 
     def _get_extra_cluster_kwargs(self):
 
         extra_kwargs = super(DaskSLURMBackend, self)._get_extra_cluster_kwargs()
-        extra_kwargs.update({"resource_spec": self._resource_line})
 
         return extra_kwargs
 
