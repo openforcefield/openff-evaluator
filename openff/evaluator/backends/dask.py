@@ -766,13 +766,6 @@ class DaskSLURMBackend(BaseDaskJobQueueBackend):
             adaptive_class=adaptive_class,
         )
 
-
-    def _get_extra_cluster_kwargs(self):
-
-        extra_kwargs = super(DaskSLURMBackend, self)._get_extra_cluster_kwargs()
-
-        return extra_kwargs
-
     def _get_cluster_class(self):
         from dask_jobqueue import SLURMCluster
 
