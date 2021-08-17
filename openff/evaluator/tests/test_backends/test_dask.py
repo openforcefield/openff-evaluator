@@ -4,6 +4,7 @@ from openff.evaluator.backends import QueueWorkerResources
 from openff.evaluator.backends.dask import (
     DaskLSFBackend,
     DaskPBSBackend,
+    DaskSLURMBackend,
     _Multiprocessor,
 )
 from openff.evaluator.workflow.plugins import registered_workflow_protocols
