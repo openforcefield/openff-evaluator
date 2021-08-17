@@ -722,9 +722,7 @@ class DaskSLURMBackend(BaseDaskJobQueueBackend):
         adaptive_class=None,
     ):
 
-        """Constructs a new DaskSLURMBackend object
-        Parameters
-        ----------
+        """
         Examples
         --------
         To create a SLURM queueing compute backend which will attempt to spin up
