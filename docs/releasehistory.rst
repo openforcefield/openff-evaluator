@@ -8,6 +8,45 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
+X.X.X
+-----
+
+A patch release that ...
+
+New Features
+""""""""""""
+
+* PR `#366 <https://github.com/openforcefield/openff-evaluator/pull/366>`_: Support gradients of handler attributes.
+
+0.3.4
+-----
+
+A patch release which adds the option (and enables it by default) to remove working files, such as simulated
+trajectories, when they are no longer needed.
+
+Behaviour Changes
+"""""""""""""""""
+
+* PR `#349 <https://github.com/openforcefield/openff-evaluator/pull/349>`_: Working files are deleted by default after an estimation batch completes.
+
+0.3.3
+-----
+
+This release facilitates the migration of the `openff-evaluator` package from `omnia` to `conda-forge`. This mainly
+involves changes which update the package to use the new namespaces introduced in the `openff-tookit` package, rather
+than the old and now deprecated `openforcefield` namespaces.
+
+Bugfixes
+""""""""
+
+* PR `#346 <https://github.com/openforcefield/openff-evaluator/pull/346>`_: Remove the unsupported `encoding` json kwarg.
+
+New Features
+""""""""""""
+
+* PR `#341 <https://github.com/openforcefield/openff-evaluator/pull/341>`_: Replace usages of dynamic Pint classes with internal static variants.
+* PR `#343 <https://github.com/openforcefield/openff-evaluator/pull/343>`_: Migrate to the new OpenFF Toolkit namespace.
+* PR `#345 <https://github.com/openforcefield/openff-evaluator/pull/345>`_: Migrate all reference from `omnia` to `conda-forge`.
 
 0.3.2
 -----
@@ -173,7 +212,7 @@ Breaking Changes
 0.1.2
 -----
 
-A patch release offering minor bug fixes and quality of life improvements. 
+A patch release offering minor bug fixes and quality of life improvements.
 
 Bugfixes
 """"""""
@@ -308,12 +347,12 @@ Bugfixes
 0.0.6 - Solvation Free Energies
 -------------------------------
 
-This release centers around two key changes - 
+This release centers around two key changes -
 
 i) a general refactoring of the protocol classes to be much cleaner and extensible through the removal of the old stub functions and the addition of cleaner descriptors.
 ii) the addition of workflows to estimate solvation free energies via the new ``SolvationYankProtocol`` and ``SolvationFreeEnergy`` classes.
 
-The implemented free energy workflow is still rather basic, and does not yet support calculating parameter gradients or estimation from cached simulation data through reweighting. 
+The implemented free energy workflow is still rather basic, and does not yet support calculating parameter gradients or estimation from cached simulation data through reweighting.
 
 A new table has been added to the documentation to make clear which built-in properties support which features.
 
@@ -397,11 +436,11 @@ remedied by the follow steps:
 * Change all instances of ``PropertyEstimatorClient.request_estimate(force_field=...)`` to ``PropertyEstimatorClient.request_estimate(force_field_source=...)``
 
 
-0.0.3 - ExcessMolarVolume and Typing Improvements 
+0.0.3 - ExcessMolarVolume and Typing Improvements
 -------------------------------------------------
 
 This release implements a number of bug fixes and adds two key new features, namely built in support
-for estimating excess molar volume measurements, and improved type checking for protocol inputs 
+for estimating excess molar volume measurements, and improved type checking for protocol inputs
 and outputs.
 
 New Features

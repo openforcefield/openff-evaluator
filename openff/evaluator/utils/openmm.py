@@ -364,6 +364,7 @@ def system_subset(
         if parameter_key.smirks is None
         else handler.parameters[parameter_key.smirks]
     )
+
     parameter_value = getattr(parameter, parameter_key.attribute)
 
     # Convert float values to unitless simtk.Quantity

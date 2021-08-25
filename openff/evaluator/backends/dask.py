@@ -103,7 +103,7 @@ class _Multiprocessor:
                             )
                         elif os.environ.get("SLURM_JOB_ID") is not None:
                             worker_logger.info(
-                                f"SLURMJOBID: {os.environ.get('SLURM_JOB_ID')}"
+                                f"SLURMJOBID: {os.environ.get('SLURM_JOBID')}"
                             )
                         worker_logger.info(f"PLATFORM: {platform.platform()}")
                         worker_logger.info("-----------------------------------------")
@@ -708,8 +708,7 @@ class DaskSLURMBackend(BaseDaskJobQueueBackend):
     See Also
     --------
     dask_jobqueue.SLURMCluster
-    DaskLSFBackend
-    DaskPBSBackend
+    DaskSLURMBackend
     """
 
     def __init__(
@@ -724,8 +723,7 @@ class DaskSLURMBackend(BaseDaskJobQueueBackend):
         disable_nanny_process=False,
         adaptive_class=None,
     ):
-        """Constructs a new DaskSLURMBackend object
-
+        """
         Examples
         --------
         To create a SLURM queueing compute backend which will attempt to spin up
@@ -750,11 +748,11 @@ class DaskSLURMBackend(BaseDaskJobQueueBackend):
         >>> # ten workers with the requested resources depending on the calculation load.
         >>> from openff.evaluator.backends.dask import DaskSLURMBackend
         >>>
-        >>> slurm_backend = DaskSLURMBackend(minimum_number_of_workers=1,
-        >>>                                  maximum_number_of_workers=10,
-        >>>                                  resources_per_worker=resources,
-        >>>                                  queue_name='gpuqueue',
-        >>>                                  setup_script_commands=setup_script_commands)
+        >>> pbs_backend = DaskPBSBackend(minimum_number_of_workers=1,
+        >>>                              maximum_number_of_workers=10,
+        >>>                              resources_per_worker=resources,
+        >>>                              queue_name='gpuqueue',
+        >>>                              setup_script_commands=setup_script_commands)
         """
 
         super().__init__(

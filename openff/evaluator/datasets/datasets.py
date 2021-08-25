@@ -543,7 +543,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         from openff.evaluator import properties
 
         property_header_matches = {
-            re.match(r"^([a-zA-Z]+) Value \(([a-zA-Z0-9+-/\s]*)\)$", header)
+            re.match(r"^([a-zA-Z]+) Value \(([a-zA-Z0-9+-/\s*^]*)\)$", header)
             for header in data_frame
             if header.find(" Value ") >= 0
         }
