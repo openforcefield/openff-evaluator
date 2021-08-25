@@ -1,6 +1,7 @@
 from random import randint, random
 
 import mdtraj
+import numpy
 import numpy as np
 import pytest
 from openff.toolkit.topology import Molecule, Topology
@@ -220,6 +221,28 @@ def test_system_subset_vdw():
     assert np.isclose(epsilon_1.value_in_unit(simtk_unit.kilojoules_per_mole), 0.5)
 
 
+def test_system_subset_vdw_cutoff():
+    """Test that handler attributes are correctly handled."""
+
+    # Create a dummy topology
+    topology: Topology = Molecule.from_smiles("Cl").to_topology()
+    topology.box_vectors = numpy.eye(3) * simtk_unit.nanometers
+
+    # Create the system subset.
+    system, parameter_value = system_subset(
+        parameter_key=ParameterGradientKey("vdW", None, "cutoff"),
+        force_field=hydrogen_chloride_force_field(True, True),
+        topology=topology,
+        scale_amount=0.5,
+    )
+
+    assert system.getNumForces() == 1
+    assert system.getNumParticles() == 2
+
+    cutoff = system.getForce(0).getCutoffDistance()
+    assert np.isclose(cutoff.value_in_unit(simtk_unit.angstrom), 9.0)
+
+
 def test_system_subset_library_charge():
 
     force_field = hydrogen_chloride_force_field(True, False)
@@ -292,7 +315,9 @@ def test_system_subset_charge_increment():
     assert np.isclose(epsilon_1.value_in_unit(simtk_unit.kilojoules_per_mole), 0.0)
 
 
-@pytest.mark.parametrize("smirks, all_zeros", [("[#6X4:1]", True), ("[#8:1]", False)])
+@pytest.mark.parametrize(
+    "smirks, all_zeros", [("[#6X4:1]", True), ("[#8:1]", False), (None, False)]
+)
 def test_compute_gradients(tmpdir, smirks, all_zeros):
 
     # Load a short trajectory.
@@ -310,7 +335,11 @@ def test_compute_gradients(tmpdir, smirks, all_zeros):
     )
 
     _compute_gradients(
-        [ParameterGradientKey("vdW", smirks, "epsilon")],
+        [
+            ParameterGradientKey(
+                "vdW", smirks, "epsilon" if smirks is not None else "cutoff"
+            )
+        ],
         observables,
         ForceField("openff-1.2.0.offxml"),
         ThermodynamicState(298.15 * unit.kelvin, 1.0 * unit.atmosphere),
@@ -325,10 +354,10 @@ def test_compute_gradients(tmpdir, smirks, all_zeros):
     if all_zeros:
         assert np.allclose(
             observables["PotentialEnergy"].gradients[0].value,
-            0.0 * unit.kilojoule / unit.kilocalorie,
+            0.0 * observables["PotentialEnergy"].gradients[0].value.units,
         )
     else:
         assert not np.allclose(
             observables["PotentialEnergy"].gradients[0].value,
-            0.0 * unit.kilojoule / unit.kilocalorie,
+            0.0 * observables["PotentialEnergy"].gradients[0].value.units,
         )
