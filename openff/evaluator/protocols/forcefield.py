@@ -682,16 +682,16 @@ class BuildSmirnoffSystem(BaseBuildSystem):
         # Remove periodic vectors in PDB file if running implicit solvent or vacuum system
         if (
             "GBSA" in force_field.registered_parameter_handlers
+            or "CustomGBSA" in force_field.registered_parameter_handlers
             or self.create_system_in_vacuum
         ):
             pdb_file.topology.setPeriodicBoxVectors(None)
 
         # Remove GBSA parameters in force field for vacuum environment
-        if (
-            "GBSA" in force_field.registered_parameter_handlers
-            and self.create_system_in_vacuum
-        ):
-            force_field.deregister_parameter_handler("GBSA")
+        if self.create_system_in_vacuum:
+            for gbsa in ["GBSA", "CustomGBSA"]:
+                if gbsa in force_field.registered_parameter_handlers:
+                    force_field.deregister_parameter_handler(gbsa)
 
         # Create the molecules to parameterize from the input substance.
         unique_molecules = []

@@ -16,7 +16,7 @@ from simtk import unit as simtk_unit
 
 from openff.evaluator import unit
 from openff.evaluator.attributes.attributes import UndefinedAttribute
-from openff.evaluator.forcefield import ParameterGradientKey, ParameterLevel
+from openff.evaluator.forcefield import ParameterGradientKey
 
 if TYPE_CHECKING:
 
@@ -333,7 +333,7 @@ def system_subset(
             {"Electrostatics", "ChargeIncrementModel", "LibraryCharges"}
         )
 
-    if parameter_key.tag in ["GBSA", "CustomOBC"]:
+    if parameter_key.tag in ["GBSA", "CustomGBSA"]:
         # CustomGBForce and GBSAOBCForce requires the nonbonded parameters
         # loaded otherwise the parameters will be set to zero.
         handlers_to_register.update(
@@ -360,9 +360,9 @@ def system_subset(
     handler = force_field_subset.get_parameter_handler(parameter_key.tag)
 
     parameter = (
-        handler.parameters[parameter_key.smirks]
-        if parameter_key.level == ParameterLevel.PerParticle
-        else handler
+        handler
+        if parameter_key.smirks is None
+        else handler.parameters[parameter_key.smirks]
     )
     parameter_value = getattr(parameter, parameter_key.attribute)
 
