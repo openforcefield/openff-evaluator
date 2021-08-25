@@ -435,7 +435,7 @@ class _Compound:
         """
         from cmiles.utils import load_molecule, mol_to_smiles
         from openff.toolkit.topology import Molecule
-        from openff.toolkit.utils import LicenseError
+        from openff.toolkit.utils import InvalidIUPACNameError, LicenseError
 
         if common_name is None:
             return None
@@ -453,7 +453,7 @@ class _Compound:
 
         except LicenseError:
             smiles = None
-        except ValueError:
+        except (ValueError, InvalidIUPACNameError):
             smiles = None
 
         return smiles
