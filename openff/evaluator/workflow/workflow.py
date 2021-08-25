@@ -17,7 +17,6 @@ from openff.evaluator.forcefield import (
     ForceFieldSource,
     GAFFForceField,
     ParameterGradient,
-    ParameterLevel,
     SmirnoffForceFieldSource,
     TLeapForceFieldSource,
 )
@@ -740,7 +739,16 @@ class Workflow:
 
                 contains_parameter = False
 
-                if parameter_key.level == ParameterLevel.PerParticle:
+                if parameter_key.smirks is None:
+
+                    if hasattr(
+                        force_field.get_parameter_handler(parameter_key.tag),
+                        parameter_key.attribute,
+                    ):
+
+                        contains_parameter = True
+
+                else:
 
                     for parameter in labelled_molecule[
                         parameter_key.tag
@@ -751,14 +759,6 @@ class Workflow:
 
                         contains_parameter = True
                         break
-
-                elif parameter_key.level == ParameterLevel.Global:
-
-                    if hasattr(
-                        force_field.get_parameter_handler(parameter_key.tag),
-                        parameter_key.attribute,
-                    ):
-                        contains_parameter = True
 
                 if not contains_parameter:
                     continue
