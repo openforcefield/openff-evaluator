@@ -273,8 +273,8 @@ class AddDummyAtoms(Protocol):
         # Shift the structure to avoid issues with the PBC
         input_structure.coordinates += numpy.array(
             [
-                input_structure.box[0] * 0.5,
-                input_structure.box[1] * 0.5,
+                input_structure.box[0] * 0.45,
+                input_structure.box[1] * 0.45,
                 -input_structure.coordinates[-1, 2] + 1.0,
             ]
         )

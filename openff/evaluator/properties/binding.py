@@ -18,6 +18,8 @@ from openff.evaluator.protocols import (
 )
 from openff.evaluator.protocols.paprika.analysis import (
     AnalyzeAPRPhase,
+    ComputeFreeEnergyGradient,
+    ComputePotentialEnergyGradient,
     ComputeReferenceWork,
     ComputeSymmetryCorrection,
 )
@@ -29,8 +31,10 @@ from openff.evaluator.protocols.paprika.coordinates import (
 from openff.evaluator.protocols.paprika.restraints import (
     ApplyRestraints,
     GenerateAttachRestraints,
+    GenerateBoundRestraints,
     GeneratePullRestraints,
     GenerateReleaseRestraints,
+    GenerateUnboundRestraints,
 )
 from openff.evaluator.substances import Component
 from openff.evaluator.thermodynamics import Ensemble
@@ -234,17 +238,13 @@ class HostGuestBindingAffinity(PhysicalProperty):
         solvation_protocol.count_exact_amount = False
         solvation_protocol.box_aspect_ratio = [1.0, 1.0, 2.0]
         solvation_protocol.center_solute_in_box = False
+
         return solvation_protocol
 
     @classmethod
     def _paprika_default_simulation_protocols(
         cls,
-        n_thermalization_steps: int,
-        n_equilibration_steps: int,
-        n_production_steps: int,
-        dt_thermalization: unit.Quantity,
-        dt_equilibration: unit.Quantity,
-        dt_production: unit.Quantity,
+        simulation_time_steps: dict,
     ) -> Tuple[
         openmm.OpenMMEnergyMinimisation,
         openmm.OpenMMSimulation,
@@ -256,22 +256,11 @@ class HostGuestBindingAffinity(PhysicalProperty):
 
         Parameters
         ----------
-        n_thermalization_steps
-            The number of thermalization simulations steps to perform.
-            Sample generated during this step will be discarded.
-        n_equilibration_steps
-            The number of equilibration simulations steps to perform.
-            Sample generated during this step will be discarded.
-        n_production_steps
-            The number of production simulations steps to perform.
-            Sample generated during this step will be used in the final
-            free energy calculation.
-        dt_thermalization
-            The integration timestep during thermalization
-        dt_equilibration
-            The integration timestep during equilibration
-        dt_production
-            The integration timestep during production
+        simulation_time_steps
+            A dictionary containing `n_xxx_steps`, `out_xxx_steps` and `dt_xxx`, corresponding
+            to number of steps, output frequency and integration time step, respectively.
+            The dictionary requires three sets for `thermalization`, `equilibration` and
+            `production` runs.
 
         Returns
         -------
@@ -281,19 +270,23 @@ class HostGuestBindingAffinity(PhysicalProperty):
         energy_minimisation = openmm.OpenMMEnergyMinimisation("")
 
         thermalization = openmm.OpenMMSimulation("")
-        thermalization.steps_per_iteration = n_thermalization_steps
-        thermalization.output_frequency = 10000
-        thermalization.timestep = dt_thermalization
+        thermalization.steps_per_iteration = simulation_time_steps[
+            "n_thermalization_steps"
+        ]
+        thermalization.output_frequency = simulation_time_steps["out_thermalization"]
+        thermalization.timestep = simulation_time_steps["dt_thermalization"]
 
         equilibration = openmm.OpenMMSimulation("")
-        equilibration.steps_per_iteration = n_equilibration_steps
-        equilibration.output_frequency = 10000
-        equilibration.timestep = dt_equilibration
+        equilibration.steps_per_iteration = simulation_time_steps[
+            "n_equilibration_steps"
+        ]
+        equilibration.output_frequency = simulation_time_steps["out_equilibration"]
+        equilibration.timestep = simulation_time_steps["dt_equilibration"]
 
         production = openmm.OpenMMSimulation("")
-        production.steps_per_iteration = n_production_steps
-        production.output_frequency = 5000
-        production.timestep = dt_production
+        production.steps_per_iteration = simulation_time_steps["n_production_steps"]
+        production.output_frequency = simulation_time_steps["out_production"]
+        production.timestep = simulation_time_steps["dt_production"]
 
         return energy_minimisation, thermalization, equilibration, production
 
@@ -738,16 +731,361 @@ class HostGuestBindingAffinity(PhysicalProperty):
         )
 
     @classmethod
+    def _paprika_build_end_states_protocol(
+        cls,
+        orientation_replicator: ProtocolReplicator,
+        restraint_schemas: Dict[str, ProtocolPath],
+        solvation_template: coordinates.SolvateExistingStructure,
+        minimization_template: openmm.OpenMMEnergyMinimisation,
+        thermalization_template: openmm.OpenMMSimulation,
+        equilibration_template: openmm.OpenMMSimulation,
+        production_template: openmm.OpenMMSimulation,
+    ):
+
+        # Define a replicator to set and solvate the coordinates for the bound and unbound system
+        orientation_placeholder = orientation_replicator.placeholder_id
+
+        bound_replicator = ProtocolReplicator(
+            f"bound_replicator_{orientation_placeholder}"
+        )
+        bound_replicator.template_values = ProtocolPath("bound_window_index", "global")
+        bound_replicator_id = (
+            f"{bound_replicator.placeholder_id}_" f"{orientation_placeholder}"
+        )
+        unbound_replicator = ProtocolReplicator(
+            f"unbound_replicator_{orientation_placeholder}"
+        )
+        unbound_replicator.template_values = ProtocolPath(
+            "unbound_window_index", "global"
+        )
+        unbound_replicator_id = (
+            f"{unbound_replicator.placeholder_id}_" f"{orientation_placeholder}"
+        )
+
+        # Filter out only the solvent substance to help with the solvation step.
+        filter_solvent = miscellaneous.FilterSubstanceByRole(
+            "host-guest-filter_solvent"
+        )
+        filter_solvent.input_substance = ProtocolPath("substance", "global")
+        filter_solvent.component_roles = [Component.Role.Solvent]
+
+        # Align the bound complex
+        align_bound_coordinates = PreparePullCoordinates(
+            f"state_bound_align_coordinates_{bound_replicator_id}"
+        )
+        align_bound_coordinates.substance = ProtocolPath("substance", "global")
+        align_bound_coordinates.complex_file_path = ProtocolPath(
+            f"guest_orientations[{orientation_placeholder}].coordinate_path", "global"
+        )
+        align_bound_coordinates.guest_orientation_mask = ProtocolPath(
+            "guest_orientation_mask", "global"
+        )
+        align_bound_coordinates.pull_window_index = ReplicatorValue(bound_replicator.id)
+        align_bound_coordinates.pull_distance = ProtocolPath("pull_distance", "global")
+        align_bound_coordinates.n_pull_windows = ProtocolPath(
+            "n_pull_windows", "global"
+        )
+
+        # Align the unbound complex
+        align_unbound_coordinates = PreparePullCoordinates(
+            f"state_unbound_align_coordinates_{unbound_replicator_id}"
+        )
+        align_unbound_coordinates.substance = ProtocolPath("substance", "global")
+        align_unbound_coordinates.complex_file_path = ProtocolPath(
+            f"guest_orientations[{orientation_placeholder}].coordinate_path", "global"
+        )
+        align_unbound_coordinates.guest_orientation_mask = ProtocolPath(
+            "guest_orientation_mask", "global"
+        )
+        align_unbound_coordinates.pull_window_index = ReplicatorValue(
+            unbound_replicator.id
+        )
+        align_unbound_coordinates.pull_distance = ProtocolPath(
+            "pull_distance", "global"
+        )
+        align_unbound_coordinates.n_pull_windows = ProtocolPath(
+            "n_pull_windows", "global"
+        )
+
+        # Solvate the bound structure
+        solvate_bound_coordinates = copy.deepcopy(solvation_template)
+        solvate_bound_coordinates.id = (
+            f"state_bound_solvate_coordinates_{bound_replicator_id}"
+        )
+        solvate_bound_coordinates.substance = ProtocolPath(
+            "filtered_substance", filter_solvent.id
+        )
+        solvate_bound_coordinates.solute_coordinate_file = ProtocolPath(
+            "output_coordinate_path", align_bound_coordinates.id
+        )
+
+        # Solvate the unbound structure
+        solvate_unbound_coordinates = copy.deepcopy(solvation_template)
+        solvate_unbound_coordinates.id = (
+            f"state_unbound_solvate_coordinates_{unbound_replicator_id}"
+        )
+        solvate_unbound_coordinates.substance = ProtocolPath(
+            "filtered_substance", filter_solvent.id
+        )
+        solvate_unbound_coordinates.solute_coordinate_file = ProtocolPath(
+            "output_coordinate_path", align_unbound_coordinates.id
+        )
+
+        # Apply the force field parameters. This only needs to be done once.
+        apply_parameters = forcefield.BuildSmirnoffSystem(
+            f"state_bound_apply_parameters_{orientation_placeholder}"
+        )
+        apply_parameters.force_field_path = ProtocolPath("force_field_path", "global")
+        apply_parameters.substance = ProtocolPath("substance", "global")
+        apply_parameters.coordinate_file_path = ProtocolPath(
+            "coordinate_file_path",
+            f"state_bound_solvate_coordinates_0_{orientation_placeholder}",
+        )
+
+        # Add dummy atoms to the bound system
+        add_bound_dummy_atoms = AddDummyAtoms(
+            f"state_bound_add_dummy_atoms_{bound_replicator_id}"
+        )
+        add_bound_dummy_atoms.substance = ProtocolPath("substance", "global")
+        add_bound_dummy_atoms.input_coordinate_path = ProtocolPath(
+            "coordinate_file_path", solvate_bound_coordinates.id
+        )
+        add_bound_dummy_atoms.input_system = ProtocolPath(
+            "parameterized_system", apply_parameters.id
+        )
+        add_bound_dummy_atoms.offset = ProtocolPath("dummy_atom_offset", "global")
+
+        bound_coordinate_path = ProtocolPath(
+            "output_coordinate_path",
+            f"state_bound_add_dummy_atoms_0_{orientation_placeholder}",
+        )
+        bound_system = ProtocolPath(
+            "output_system",
+            f"state_bound_add_dummy_atoms_0_{orientation_placeholder}",
+        )
+
+        # Add dummy atoms to the unbound system
+        add_unbound_dummy_atoms = AddDummyAtoms(
+            f"state_unbound_add_dummy_atoms_{unbound_replicator_id}"
+        )
+        add_unbound_dummy_atoms.substance = ProtocolPath("substance", "global")
+        add_unbound_dummy_atoms.input_coordinate_path = ProtocolPath(
+            "coordinate_file_path", solvate_unbound_coordinates.id
+        )
+        add_unbound_dummy_atoms.input_system = ProtocolPath(
+            "parameterized_system", apply_parameters.id
+        )
+        add_unbound_dummy_atoms.offset = ProtocolPath("dummy_atom_offset", "global")
+
+        unbound_coordinate_path = ProtocolPath(
+            "output_coordinate_path",
+            f"state_unbound_add_dummy_atoms_0_{orientation_placeholder}",
+        )
+        unbound_system = ProtocolPath(
+            "output_system",
+            f"state_unbound_add_dummy_atoms_0_{orientation_placeholder}",
+        )
+
+        # Generate restraints for the bound complex
+        generate_bound_restraints = GenerateBoundRestraints(
+            f"state_bound_generate_restraints_{orientation_placeholder}"
+        )
+        generate_bound_restraints.complex_coordinate_path = bound_coordinate_path
+        generate_bound_restraints.attach_lambdas = ProtocolPath(
+            "attach_lambdas", "global"
+        )
+        generate_bound_restraints.restraint_schemas = restraint_schemas
+
+        # Generate restraints for the unbound complex
+        new_restraint_schemas = {
+            "static": ProtocolPath(
+                f"guest_orientations[{orientation_placeholder}].static_restraints",
+                "global",
+            ),
+            "guest": ProtocolPath("guest_restraints", "global"),
+        }
+        generate_unbound_restraints = GenerateUnboundRestraints(
+            f"state_unbound_generate_restraints_{orientation_placeholder}"
+        )
+        generate_unbound_restraints.complex_coordinate_path = unbound_coordinate_path
+        generate_unbound_restraints.attach_lambdas = ProtocolPath(
+            "attach_lambdas", "global"
+        )
+        generate_unbound_restraints.n_pull_windows = ProtocolPath(
+            "n_pull_windows", "global"
+        )
+        generate_unbound_restraints.restraint_schemas = new_restraint_schemas
+
+        # Apply restraints to the bound complex
+        apply_bound_restraints = ApplyRestraints(
+            f"state_bound_apply_restraints_{bound_replicator_id}"
+        )
+        apply_bound_restraints.restraints_path = ProtocolPath(
+            "restraints_path", generate_bound_restraints.id
+        )
+        apply_bound_restraints.phase = "attach"
+        apply_bound_restraints.window_index = 0
+        apply_bound_restraints.input_coordinate_path = bound_coordinate_path
+        apply_bound_restraints.input_system = bound_system
+
+        # Apply restraints to the unbound complex
+        apply_unbound_restraints = ApplyRestraints(
+            f"state_unbound_apply_restraints_{unbound_replicator_id}"
+        )
+        apply_unbound_restraints.restraints_path = ProtocolPath(
+            "restraints_path", generate_unbound_restraints.id
+        )
+        apply_unbound_restraints.phase = "pull"
+        apply_unbound_restraints.window_index = -1
+        apply_unbound_restraints.input_coordinate_path = unbound_coordinate_path
+        apply_unbound_restraints.input_system = unbound_system
+
+        # Setup the simulations for the bound complex
+        (
+            bound_minimization,
+            bound_thermalization,
+            bound_equilibration,
+            bound_production,
+        ) = cls._paprika_build_simulation_protocols(
+            ProtocolPath("output_coordinate_path", add_bound_dummy_atoms.id),
+            ProtocolPath("output_system", apply_bound_restraints.id),
+            "state_bound",
+            bound_replicator_id,
+            minimization_template,
+            thermalization_template,
+            equilibration_template,
+            production_template,
+        )
+
+        # Setup the simulations for the unbound complex
+        (
+            unbound_minimization,
+            unbound_thermalization,
+            unbound_equilibration,
+            unbound_production,
+        ) = cls._paprika_build_simulation_protocols(
+            ProtocolPath("output_coordinate_path", add_unbound_dummy_atoms.id),
+            ProtocolPath("output_system", apply_unbound_restraints.id),
+            "state_unbound",
+            unbound_replicator_id,
+            minimization_template,
+            thermalization_template,
+            equilibration_template,
+            production_template,
+        )
+
+        # Return the full list of the protocols which make up the bound and unbound parts
+        # for the gradient calculation.
+        protocols = [
+            filter_solvent,
+            align_bound_coordinates,
+            align_unbound_coordinates,
+            solvate_bound_coordinates,
+            solvate_unbound_coordinates,
+            apply_parameters,
+            add_bound_dummy_atoms,
+            add_unbound_dummy_atoms,
+            generate_bound_restraints,
+            generate_unbound_restraints,
+            apply_bound_restraints,
+            apply_unbound_restraints,
+            bound_minimization,
+            bound_thermalization,
+            bound_equilibration,
+            bound_production,
+            unbound_minimization,
+            unbound_thermalization,
+            unbound_equilibration,
+            unbound_production,
+        ]
+        protocol_replicators = [bound_replicator, unbound_replicator]
+
+        return (
+            protocols,
+            protocol_replicators,
+            bound_replicator_id,
+            unbound_replicator_id,
+            ProtocolPath("parameterized_system", apply_parameters.id),
+            ProtocolPath("output_coordinate_path", add_bound_dummy_atoms.id),
+            ProtocolPath("trajectory_file_path", bound_production.id),
+            ProtocolPath("output_coordinate_path", add_unbound_dummy_atoms.id),
+            ProtocolPath("trajectory_file_path", unbound_production.id),
+        )
+
+    @classmethod
+    def _paprika_free_energy_gradient_protocol(
+        cls,
+        orientation_replicator: ProtocolReplicator,
+        bound_replicator_id: str,
+        unbound_replicator_id: str,
+        parameterized_system: ProtocolPath,
+        bound_topology: ProtocolPath,
+        bound_trajectory: ProtocolPath,
+        unbound_topology: ProtocolPath,
+        unbound_trajectory: ProtocolPath,
+        orientation_free_energy: ProtocolPath,
+    ):
+
+        # Compute the potential energy gradients for the bound complex
+        bound_gradients = ComputePotentialEnergyGradient(
+            f"state_bound_gradient_{bound_replicator_id}"
+        )
+        bound_gradients.topology_path = bound_topology
+        bound_gradients.trajectory_path = bound_trajectory
+        bound_gradients.input_system = parameterized_system
+        bound_gradients.gradient_parameters = ProtocolPath(
+            "parameter_gradient_keys", "global"
+        )
+        bound_gradients.thermodynamic_state = ProtocolPath(
+            "thermodynamic_state", "global"
+        )
+
+        # Compute the potential energy gradients for the unbound complex
+        unbound_gradients = ComputePotentialEnergyGradient(
+            f"state_unbound_gradient_{unbound_replicator_id}"
+        )
+        unbound_gradients.topology_path = unbound_topology
+        unbound_gradients.trajectory_path = unbound_trajectory
+        unbound_gradients.input_system = parameterized_system
+        unbound_gradients.gradient_parameters = ProtocolPath(
+            "parameter_gradient_keys", "global"
+        )
+        unbound_gradients.thermodynamic_state = ProtocolPath(
+            "thermodynamic_state", "global"
+        )
+
+        # Compute the free energy gradients
+        free_energy_gradients = ComputeFreeEnergyGradient(
+            f"free_energy_gradient_{orientation_replicator.placeholder_id}"
+        )
+        free_energy_gradients.orientation_free_energy = orientation_free_energy
+        free_energy_gradients.bound_state_gradients = ProtocolPath(
+            "potential_energy_gradients", bound_gradients.id
+        )
+        free_energy_gradients.unbound_state_gradients = ProtocolPath(
+            "potential_energy_gradients", unbound_gradients.id
+        )
+
+        # Return the full list of the protocols which make up the bound and unbound parts
+        # for the gradient calculation.
+        protocols = [
+            bound_gradients,
+            unbound_gradients,
+            free_energy_gradients,
+        ]
+
+        return (
+            protocols,
+            ProtocolPath("result", free_energy_gradients.id),
+        )
+
+    @classmethod
     def default_paprika_schema(
         cls,
         existing_schema: SimulationSchema = None,
         n_solvent_molecules: int = 2500,
-        n_thermalization_steps: int = 50000,
-        n_equilibration_steps: int = 200000,
-        n_production_steps: int = 2500000,
-        dt_thermalization: unit.Quantity = 1.0 * unit.femtosecond,
-        dt_equilibration: unit.Quantity = 2.0 * unit.femtosecond,
-        dt_production: unit.Quantity = 2.0 * unit.femtosecond,
+        simulation_time_steps: dict = None,
+        end_states_time_steps: dict = None,
         debug: bool = False,
     ):
         """Returns the default calculation schema to use when estimating
@@ -766,24 +1104,19 @@ class HostGuestBindingAffinity(PhysicalProperty):
             An existing schema whose settings to use. If set,
             the schema's `workflow_schema` will be overwritten
             by this method.
-        n_solvent_molecules
+        n_solvent_molecules: int, optional
             The number of solvent molecules to add to the box.
-        n_thermalization_steps
-            The number of thermalization simulations steps to perform.
-            Sample generated during this step will be discarded.
-        n_equilibration_steps
-            The number of equilibration simulations steps to perform.
-            Sample generated during this step will be discarded.
-        n_production_steps
-            The number of production simulations steps to perform.
-            Sample generated during this step will be used in the final
-            free energy calculation.
-        dt_thermalization
-            The integration timestep during thermalization
-        dt_equilibration
-            The integration timestep during equilibration
-        dt_production
-            The integration timestep during production
+        simulation_time_steps: dict, optional
+            The integration timestep `dt_xxx`, number of steps to perform `n_xxx_steps`
+            and output frequency `out_xxx` stored in a dictionary for thermalization,
+            equilibration and production runs. The integration timesteps is a
+            pint.Quantity, and number of steps and output frequency are integers.
+            Sample generated during thermalization and equilibration runs will
+            be discarded while the production run will be used in the final
+            free energy.
+        end_states_time_steps: dict, optional
+            Same as ``simulation_time_steps`` but for simulating the end states
+            that will be used to estimate the free energy gradient.
         debug
             Whether to return a debug schema. This is nearly identical
             to the default schema, albeit with significantly less
@@ -803,6 +1136,45 @@ class HostGuestBindingAffinity(PhysicalProperty):
             assert isinstance(existing_schema, SimulationSchema)
             calculation_schema = copy.deepcopy(existing_schema)
 
+        # Check user input for simulation time steps
+        default_time_steps = {
+            "n_thermalization_steps": 50000,
+            "n_equilibration_steps": 500000,
+            "n_production_steps": 1000000,
+            "dt_thermalization": 1.0 * unit.femtosecond,
+            "dt_equilibration": 2.0 * unit.femtosecond,
+            "dt_production": 2.0 * unit.femtosecond,
+            "out_thermalization": 10000,
+            "out_equilibration": 10000,
+            "out_production": 5000,
+        }
+        if simulation_time_steps:
+            assert all(
+                [
+                    key in default_time_steps.keys()
+                    for key in simulation_time_steps.keys()
+                ]
+            )
+
+            for key in default_time_steps:
+                if key not in simulation_time_steps:
+                    simulation_time_steps[key] = default_time_steps[key]
+        else:
+            simulation_time_steps = default_time_steps
+
+        # Check user input for end-states time steps
+        if end_states_time_steps:
+            assert all(
+                [
+                    key in default_time_steps.keys()
+                    for key in end_states_time_steps.keys()
+                ]
+            )
+
+            for key in default_time_steps:
+                if key not in end_states_time_steps:
+                    end_states_time_steps[key] = default_time_steps[key]
+
         # Initialize the protocols which will serve as templates for those
         # used in the actual workflows.
         solvation_template = cls._paprika_default_solvation_protocol(
@@ -812,14 +1184,13 @@ class HostGuestBindingAffinity(PhysicalProperty):
         (
             minimization_template,
             *simulation_templates,
-        ) = cls._paprika_default_simulation_protocols(
-            n_thermalization_steps=n_thermalization_steps,
-            n_equilibration_steps=n_equilibration_steps,
-            n_production_steps=n_production_steps,
-            dt_thermalization=dt_thermalization,
-            dt_equilibration=dt_equilibration,
-            dt_production=dt_production,
-        )
+        ) = cls._paprika_default_simulation_protocols(simulation_time_steps)
+
+        if end_states_time_steps:
+            (
+                end_states_minimization_template,
+                *end_states_simulation_templates,
+            ) = cls._paprika_default_simulation_protocols(end_states_time_steps)
 
         if debug:
 
@@ -883,6 +1254,26 @@ class HostGuestBindingAffinity(PhysicalProperty):
             *simulation_templates,
         )
 
+        # Build the protocols for the end-states (for gradient calculations)
+        if end_states_time_steps:
+            (
+                end_states_protocols,
+                end_states_replicator,
+                bound_replicator_id,
+                unbound_replicator_id,
+                end_states_parameterized_system,
+                bound_topology,
+                bound_trajectory,
+                unbound_topology,
+                unbound_trajectory,
+            ) = cls._paprika_build_end_states_protocol(
+                orientation_replicator,
+                restraint_schemas,
+                solvation_template,
+                end_states_minimization_template,
+                *end_states_simulation_templates,
+            )
+
         # Compute the symmetry correction.
         symmetry_correction = ComputeSymmetryCorrection("symmetry_correction")
         symmetry_correction.n_microstates = ProtocolPath(
@@ -904,27 +1295,67 @@ class HostGuestBindingAffinity(PhysicalProperty):
             ProtocolPath("result", symmetry_correction.id),
         ]
 
+        # Free energy gradient
+        if end_states_time_steps:
+            (
+                gradient_protocols,
+                orientation_free_energy_with_gradient,
+            ) = cls._paprika_free_energy_gradient_protocol(
+                orientation_replicator,
+                bound_replicator_id,
+                unbound_replicator_id,
+                end_states_parameterized_system,
+                bound_topology,
+                bound_trajectory,
+                unbound_topology,
+                unbound_trajectory,
+                ProtocolPath("result", orientation_free_energy.id),
+            )
+
         # Finally, combine all of the values together
         total_free_energy = analysis.AverageFreeEnergies("total_free_energy")
-        total_free_energy.values = ProtocolPath("result", orientation_free_energy.id)
+        if end_states_time_steps:
+            total_free_energy.values = orientation_free_energy_with_gradient
+        else:
+            total_free_energy.values = ProtocolPath(
+                "result", orientation_free_energy.id
+            )
+
         total_free_energy.thermodynamic_state = ProtocolPath(
             "thermodynamic_state", "global"
         )
 
         calculation_schema.workflow_schema = WorkflowSchema()
 
-        calculation_schema.workflow_schema.protocol_schemas = [
-            *(protocol.schema for protocol in attach_pull_protocols),
-            *(protocol.schema for protocol in release_protocols),
-            symmetry_correction.schema,
-            orientation_free_energy.schema,
-            total_free_energy.schema,
-        ]
-        calculation_schema.workflow_schema.protocol_replicators = [
-            orientation_replicator,
-            *attach_pull_replicators,
-            release_replicator,
-        ]
+        if end_states_time_steps:
+            calculation_schema.workflow_schema.protocol_schemas = [
+                *(protocol.schema for protocol in attach_pull_protocols),
+                *(protocol.schema for protocol in release_protocols),
+                *(protocol.schema for protocol in end_states_protocols),
+                symmetry_correction.schema,
+                orientation_free_energy.schema,
+                *(protocol.schema for protocol in gradient_protocols),
+                total_free_energy.schema,
+            ]
+            calculation_schema.workflow_schema.protocol_replicators = [
+                orientation_replicator,
+                *attach_pull_replicators,
+                release_replicator,
+                *end_states_replicator,
+            ]
+        else:
+            calculation_schema.workflow_schema.protocol_schemas = [
+                *(protocol.schema for protocol in attach_pull_protocols),
+                *(protocol.schema for protocol in release_protocols),
+                symmetry_correction.schema,
+                orientation_free_energy.schema,
+                total_free_energy.schema,
+            ]
+            calculation_schema.workflow_schema.protocol_replicators = [
+                orientation_replicator,
+                *attach_pull_replicators,
+                release_replicator,
+            ]
 
         # Define where the final value comes from.
         calculation_schema.workflow_schema.final_value_source = ProtocolPath(

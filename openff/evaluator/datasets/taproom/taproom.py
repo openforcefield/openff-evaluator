@@ -398,6 +398,8 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 "n_pull_windows": n_pull_windows,
                 "release_windows_indices": [*range(len(attach_lambdas))],
                 "release_lambdas": release_lambdas,
+                "bound_window_index": [[*range(n_pull_windows)][0]],
+                "unbound_window_index": [[*range(n_pull_windows)][-1]],
             }
         )
 
