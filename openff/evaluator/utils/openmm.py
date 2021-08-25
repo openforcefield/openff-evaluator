@@ -338,7 +338,12 @@ def system_subset(
 
     handler = force_field_subset.get_parameter_handler(parameter_key.tag)
 
-    parameter = handler.parameters[parameter_key.smirks]
+    parameter = (
+        handler
+        if parameter_key.smirks is None
+        else handler.parameters[parameter_key.smirks]
+    )
+
     parameter_value = getattr(parameter, parameter_key.attribute)
 
     # Optionally perturb the parameter of interest.
