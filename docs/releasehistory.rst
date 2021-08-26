@@ -8,14 +8,21 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
-X.X.X
+0.3.5
 -----
 
-A patch release that ...
+Bugfixes
+""""""""
+
+* PR `#367 <https://github.com/openforcefield/openff-evaluator/pull/367>`_: Fix #365 - to/from_pandas does not roundtrip.
+* PR `#368 <https://github.com/openforcefield/openff-evaluator/pull/368>`_: Fix #364 - Parsing an invalid IUPAC name raises an exception rather than a warning.
+* PR `#371 <https://github.com/openforcefield/openff-evaluator/pull/371>`_: Fix gradients of non-Quantity parameters.
+
 
 New Features
 """"""""""""
 
+* PR `#362 <https://github.com/openforcefield/openff-evaluator/pull/362>`_: Support dask-jobqueue Slurm backend.
 * PR `#366 <https://github.com/openforcefield/openff-evaluator/pull/366>`_: Support gradients of handler attributes.
 
 0.3.4
