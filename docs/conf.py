@@ -123,7 +123,7 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
-
+ 
 # Set up the intershinx mappings.
 intersphinx_mapping = {
     'python': ('https://docs.python.org/', None),
