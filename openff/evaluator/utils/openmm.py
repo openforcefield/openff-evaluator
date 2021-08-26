@@ -371,26 +371,18 @@ def system_subset(
     if not is_quantity:
         parameter_value = parameter_value * simtk_unit.dimensionless
 
-    # Convert float values to unitless simtk.Quantity
-    if not isinstance(parameter_value, simtk_unit.Quantity):
-        parameter_value = parameter_value * simtk_unit.dimensionless
-
     # Optionally perturb the parameter of interest.
     if scale_amount is not None:
-
-        parameter_unit = parameter_value.unit
-
-        if numpy.isclose(parameter_value.value_in_unit(parameter_unit), 0.0):
+        if numpy.isclose(parameter_value.value_in_unit(parameter_value.unit), 0.0):
             # Careful thought needs to be given to this. Consider cases such as
             # epsilon or sigma where negative values are not allowed.
-            parameter_value = scale_amount if scale_amount > 0.0 else 0.0
-
-            if parameter_unit != simtk_unit.dimensionless:
-                parameter_value = parameter_value * parameter_unit
-
+            parameter_value = (
+                                  scale_amount if scale_amount > 0.0 else 0.0
+                              ) * parameter_value.unit
         else:
             parameter_value *= 1.0 + scale_amount
 
+    setattr(parameter, parameter_key.attribute, parameter_value)
     if not isinstance(parameter_value, simtk_unit.Quantity):
         # Handle the case where OMM down-converts a dimensionless quantity to a float.
         parameter_value = parameter_value * simtk_unit.dimensionless
@@ -402,9 +394,6 @@ def system_subset(
         if is_quantity
         else parameter_value.value_in_unit(simtk_unit.dimensionless),
     )
-
-    if not isinstance(parameter_value, simtk_unit.Quantity):
-        parameter_value = parameter_value * simtk_unit.dimensionless
 
     # Create the parameterized sub-system.
     system = force_field_subset.create_openmm_system(topology)
