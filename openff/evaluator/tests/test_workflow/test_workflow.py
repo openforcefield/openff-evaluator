@@ -1,16 +1,20 @@
 """
 Units tests for openff.evaluator.layers.simulation
 """
+import os
 import tempfile
 
 import pytest
+from openff.toolkit.typing.engines.smirnoff import ForceField
 
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.backends.dask import DaskLocalCluster
+from openff.evaluator.forcefield import ParameterGradientKey, SmirnoffForceFieldSource
 from openff.evaluator.protocols.groups import ConditionalGroup
 from openff.evaluator.protocols.miscellaneous import DummyProtocol
+from openff.evaluator.substances import Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.workflow import (
     ProtocolGroup,
@@ -259,3 +263,53 @@ def test_replicated_ids():
         f"The children of replicated protocol {group_a.id} must also contain the "
         "replicators placeholder" in str(error_info.value)
     )
+
+
+def test_find_relevant_gradient_keys(tmpdir):
+
+    from simtk import unit as simtk_unit
+
+    force_field = ForceField()
+
+    vdw_handler = force_field.get_parameter_handler("vdW")
+    vdw_handler.add_parameter(
+        {
+            "smirks": "[#1:1]",
+            "epsilon": 0.0 * simtk_unit.kilocalorie_per_mole,
+            "sigma": 1.0 * simtk_unit.angstrom,
+        }
+    )
+    vdw_handler.add_parameter(
+        {
+            "smirks": "[#17:1]",
+            "epsilon": 0.0 * simtk_unit.kilocalorie_per_mole,
+            "sigma": 1.0 * simtk_unit.angstrom,
+        }
+    )
+    vdw_handler.add_parameter(
+        {
+            "smirks": "[#6:1]",
+            "epsilon": 0.0 * simtk_unit.kilocalorie_per_mole,
+            "sigma": 1.0 * simtk_unit.angstrom,
+        }
+    )
+
+    force_field_path = os.path.join(tmpdir, "ff.json")
+    SmirnoffForceFieldSource.from_object(force_field).json(force_field_path)
+
+    expected_gradient_keys = {
+        ParameterGradientKey(tag="vdW", smirks=None, attribute="scale14"),
+        ParameterGradientKey(tag="vdW", smirks="[#1:1]", attribute="epsilon"),
+    }
+
+    gradient_keys = Workflow._find_relevant_gradient_keys(
+        Substance.from_components("[H]Cl"),
+        force_field_path,
+        [
+            *expected_gradient_keys,
+            ParameterGradientKey(tag="vdW", smirks="[#6:1]", attribute="sigma"),
+        ],
+    )
+
+    assert len(gradient_keys) == len(expected_gradient_keys)
+    assert {*gradient_keys} == expected_gradient_keys

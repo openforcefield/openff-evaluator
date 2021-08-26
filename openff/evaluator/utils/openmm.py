@@ -366,6 +366,10 @@ def system_subset(
     )
 
     parameter_value = getattr(parameter, parameter_key.attribute)
+    is_quantity = isinstance(parameter_value, simtk_unit.Quantity)
+
+    if not is_quantity:
+        parameter_value = parameter_value * simtk_unit.dimensionless
 
     # Convert float values to unitless simtk.Quantity
     if not isinstance(parameter_value, simtk_unit.Quantity):
@@ -387,7 +391,17 @@ def system_subset(
         else:
             parameter_value *= 1.0 + scale_amount
 
-    setattr(parameter, parameter_key.attribute, parameter_value)
+    if not isinstance(parameter_value, simtk_unit.Quantity):
+        # Handle the case where OMM down-converts a dimensionless quantity to a float.
+        parameter_value = parameter_value * simtk_unit.dimensionless
+
+    setattr(
+        parameter,
+        parameter_key.attribute,
+        parameter_value
+        if is_quantity
+        else parameter_value.value_in_unit(simtk_unit.dimensionless),
+    )
 
     if not isinstance(parameter_value, simtk_unit.Quantity):
         parameter_value = parameter_value * simtk_unit.dimensionless

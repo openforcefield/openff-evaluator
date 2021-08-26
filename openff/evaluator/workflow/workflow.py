@@ -739,26 +739,16 @@ class Workflow:
 
                 contains_parameter = False
 
-                if parameter_key.smirks is None:
+                for parameter in labelled_molecule[parameter_key.tag].store.values():
 
-                    if hasattr(
-                        force_field.get_parameter_handler(parameter_key.tag),
-                        parameter_key.attribute,
+                    if (
+                        parameter_key.smirks is not None
+                        and parameter.smirks != parameter_key.smirks
                     ):
+                        continue
 
-                        contains_parameter = True
-
-                else:
-
-                    for parameter in labelled_molecule[
-                        parameter_key.tag
-                    ].store.values():
-
-                        if parameter.smirks != parameter_key.smirks:
-                            continue
-
-                        contains_parameter = True
-                        break
+                    contains_parameter = True
+                    break
 
                 if not contains_parameter:
                     continue
