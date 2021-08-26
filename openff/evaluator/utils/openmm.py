@@ -295,10 +295,8 @@ def system_subset(
     """Produces an OpenMM system containing the minimum number of forces while
     still containing a specified force field parameter, and those other parameters
     which may interact with it (e.g. in the case of vdW parameters).
-
     The value of the parameter of interest may optionally be perturbed by an amount
     specified by ``scale_amount``.
-
     Parameters
     ----------
     parameter_key
@@ -310,7 +308,6 @@ def system_subset(
     scale_amount: float, optional
         The optional amount to perturb the ``parameter`` by such that
         ``parameter = (1.0 + scale_amount) * parameter``.
-
     Returns
     -------
         The created system as well as the value of the specified ``parameter``.
@@ -373,16 +370,16 @@ def system_subset(
 
     # Optionally perturb the parameter of interest.
     if scale_amount is not None:
+
         if numpy.isclose(parameter_value.value_in_unit(parameter_value.unit), 0.0):
             # Careful thought needs to be given to this. Consider cases such as
             # epsilon or sigma where negative values are not allowed.
             parameter_value = (
-                                  scale_amount if scale_amount > 0.0 else 0.0
-                              ) * parameter_value.unit
+                scale_amount if scale_amount > 0.0 else 0.0
+            ) * parameter_value.unit
         else:
             parameter_value *= 1.0 + scale_amount
 
-    setattr(parameter, parameter_key.attribute, parameter_value)
     if not isinstance(parameter_value, simtk_unit.Quantity):
         # Handle the case where OMM down-converts a dimensionless quantity to a float.
         parameter_value = parameter_value * simtk_unit.dimensionless
@@ -397,7 +394,6 @@ def system_subset(
 
     # Create the parameterized sub-system.
     system = force_field_subset.create_openmm_system(topology)
-
     return system, parameter_value
 
 
