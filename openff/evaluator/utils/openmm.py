@@ -345,6 +345,10 @@ def system_subset(
     )
 
     parameter_value = getattr(parameter, parameter_key.attribute)
+    is_quantity = isinstance(parameter_value, simtk_unit.Quantity)
+
+    if not is_quantity:
+        parameter_value = parameter_value * simtk_unit.dimensionless
 
     # Optionally perturb the parameter of interest.
     if scale_amount is not None:
@@ -358,7 +362,13 @@ def system_subset(
         else:
             parameter_value *= 1.0 + scale_amount
 
-    setattr(parameter, parameter_key.attribute, parameter_value)
+    setattr(
+        parameter,
+        parameter_key.attribute,
+        parameter_value
+        if is_quantity or not isinstance(parameter_value, simtk_unit.Quantity)
+        else parameter_value.value_in_unit(simtk_unit.dimensionless),
+    )
 
     # Create the parameterized sub-system.
     system = force_field_subset.create_openmm_system(topology)
