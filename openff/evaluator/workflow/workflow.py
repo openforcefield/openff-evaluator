@@ -602,7 +602,10 @@ class Workflow:
 
                 for parameter in labelled_molecule[parameter_key.tag].store.values():
 
-                    if parameter.smirks != parameter_key.smirks:
+                    if (
+                        parameter_key.smirks is not None
+                        and parameter.smirks != parameter_key.smirks
+                    ):
                         continue
 
                     contains_parameter = True
