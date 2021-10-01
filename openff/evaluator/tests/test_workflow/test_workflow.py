@@ -321,7 +321,7 @@ def test_find_relevant_gradient_keys(tmpdir):
 def test_generate_default_metadata_defaults():
     dummy_property = create_dummy_property(Density)
     dummy_forcefield = "smirnoff99Frosst-1.1.0.offxml"
-    data = Workflow().generate_default_metadata(dummy_property,
+    data = Workflow.generate_default_metadata(dummy_property,
                                                 dummy_forcefield)
     assert data["parameter_gradient_keys"] == []
     assert data["target_uncertainty"] == math.inf
