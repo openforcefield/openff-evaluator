@@ -270,7 +270,7 @@ def disable_pbc(system):
 
         force = system.getForce(force_index)
 
-        if not isinstance(force, openmm.NonbondedForce):
+        if not isinstance(force, (openmm.NonbondedForce, openmm.CustomNonbondedForce)):
             continue
 
         force.setNonbondedMethod(
