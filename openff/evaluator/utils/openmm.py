@@ -345,8 +345,8 @@ def system_subset(
         vdw_handler.add_parameter(
             parameter_kwargs={
                 "smirks": "[*:1]",
-                "epsilon": 0.0 * unit.kilocalories_per_mole,
-                "sigma": 1.0 * unit.angstrom,
+                "epsilon": 0.0 * simtk_unit.kilocalories_per_mole,
+                "sigma": 1.0 * simtk_unit.angstrom,
             }
         )
 
