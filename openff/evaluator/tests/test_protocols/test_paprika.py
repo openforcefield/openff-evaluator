@@ -216,8 +216,8 @@ def test_prepare_pull_coordinates(tmp_path, dummy_complex, window_index, expecte
 def test_add_dummy_atoms(tmp_path, dummy_complex):
 
     import mdtraj
-    from simtk import openmm
-    from simtk import unit as simtk_unit
+    import openmm
+    from openmm import unit as openmm_unit
 
     # Create an empty system to add the dummy atoms to.
     system_path = os.path.join(tmp_path, "input.xml")
@@ -269,7 +269,9 @@ def test_add_dummy_atoms(tmp_path, dummy_complex):
 
     assert system.getNumParticles() == 3
     assert all(
-        numpy.isclose(system.getParticleMass(i).value_in_unit(simtk_unit.dalton), 207.0)
+        numpy.isclose(
+            system.getParticleMass(i).value_in_unit(openmm_unit.dalton), 207.0
+        )
         for i in range(3)
     )
 
@@ -302,7 +304,7 @@ def validate_generated_restraints(restraints_path, expected_restraint_types, pha
 
 def validate_system_file(system_path, expected_force_groups):
 
-    from simtk import openmm
+    import openmm
 
     assert os.path.isfile(system_path)
 
@@ -370,7 +372,7 @@ def test_apply_attach_restraints(
     tmp_path, dummy_complex, complex_file_path, attach_restraints_path
 ):
 
-    from simtk import openmm
+    import openmm
 
     with open(os.path.join(tmp_path, "system.xml"), "w") as file:
         file.write(openmm.XmlSerializer.serialize(openmm.System()))
@@ -395,7 +397,7 @@ def test_apply_pull_restraints(
     tmp_path, dummy_complex, complex_file_path, pull_restraints_path
 ):
 
-    from simtk import openmm
+    import openmm
 
     with open(os.path.join(tmp_path, "system.xml"), "w") as file:
         file.write(openmm.XmlSerializer.serialize(openmm.System()))
@@ -420,7 +422,7 @@ def test_apply_release_restraints(
     tmp_path, dummy_complex, complex_file_path, release_restraints_path
 ):
 
-    from simtk import openmm
+    import openmm
 
     with open(os.path.join(tmp_path, "system.xml"), "w") as file:
         file.write(openmm.XmlSerializer.serialize(openmm.System()))

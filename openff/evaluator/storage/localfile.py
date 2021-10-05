@@ -18,7 +18,7 @@ class LocalFileStorage(StorageBackend):
     @property
     def root_directory(self):
         """str: Returns the directory in which all stored objects are located."""
-        return self.root_directory
+        return self._root_directory
 
     def __init__(self, root_directory="stored_data"):
 

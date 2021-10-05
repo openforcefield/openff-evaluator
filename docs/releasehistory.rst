@@ -8,6 +8,22 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
+0.3.6
+-----
+
+Bugfixes
+""""""""
+
+* PR `#375 <https://github.com/openforcefield/openff-evaluator/pull/375>`_: Fix #374 - import from collections.abc
+* PR `#384 <https://github.com/openforcefield/openff-evaluator/pull/384>`_: Fix #382 - Default keyword arguments result in error
+* PR `#387 <https://github.com/openforcefield/openff-evaluator/pull/387>`_: Fix #380 - Recursion error in local file storage
+
+New Features
+""""""""""""
+
+* PR `#385 <https://github.com/openforcefield/openff-evaluator/pull/385>`_: Support custom OpenMM nonbonded forces
+* PR `#386 <https://github.com/openforcefield/openff-evaluator/pull/386>`_: Migrate to new OpenMM namespace
+
 0.3.5
 -----
 

@@ -1,9 +1,11 @@
 """
 Units tests for openff.evaluator.layers.simulation
 """
+import math
 import os
 import tempfile
 
+import numpy
 import pytest
 from openff.toolkit.typing.engines.smirnoff import ForceField
 
@@ -12,9 +14,11 @@ from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.backends.dask import DaskLocalCluster
 from openff.evaluator.forcefield import ParameterGradientKey, SmirnoffForceFieldSource
+from openff.evaluator.properties import Density
 from openff.evaluator.protocols.groups import ConditionalGroup
 from openff.evaluator.protocols.miscellaneous import DummyProtocol
 from openff.evaluator.substances import Substance
+from openff.evaluator.tests.utils import create_dummy_property
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.workflow import (
     ProtocolGroup,
@@ -267,7 +271,7 @@ def test_replicated_ids():
 
 def test_find_relevant_gradient_keys(tmpdir):
 
-    from simtk import unit as simtk_unit
+    from openmm import unit as openmm_unit
 
     force_field = ForceField()
 
@@ -275,22 +279,22 @@ def test_find_relevant_gradient_keys(tmpdir):
     vdw_handler.add_parameter(
         {
             "smirks": "[#1:1]",
-            "epsilon": 0.0 * simtk_unit.kilocalorie_per_mole,
-            "sigma": 1.0 * simtk_unit.angstrom,
+            "epsilon": 0.0 * openmm_unit.kilocalorie_per_mole,
+            "sigma": 1.0 * openmm_unit.angstrom,
         }
     )
     vdw_handler.add_parameter(
         {
             "smirks": "[#17:1]",
-            "epsilon": 0.0 * simtk_unit.kilocalorie_per_mole,
-            "sigma": 1.0 * simtk_unit.angstrom,
+            "epsilon": 0.0 * openmm_unit.kilocalorie_per_mole,
+            "sigma": 1.0 * openmm_unit.angstrom,
         }
     )
     vdw_handler.add_parameter(
         {
             "smirks": "[#6:1]",
-            "epsilon": 0.0 * simtk_unit.kilocalorie_per_mole,
-            "sigma": 1.0 * simtk_unit.angstrom,
+            "epsilon": 0.0 * openmm_unit.kilocalorie_per_mole,
+            "sigma": 1.0 * openmm_unit.angstrom,
         }
     )
 
@@ -313,3 +317,18 @@ def test_find_relevant_gradient_keys(tmpdir):
 
     assert len(gradient_keys) == len(expected_gradient_keys)
     assert {*gradient_keys} == expected_gradient_keys
+
+
+def test_generate_default_metadata_defaults():
+    dummy_property = create_dummy_property(Density)
+    dummy_forcefield = "smirnoff99Frosst-1.1.0.offxml"
+
+    data = Workflow.generate_default_metadata(dummy_property, dummy_forcefield)
+
+    assert data["parameter_gradient_keys"] == []
+    assert numpy.isclose(
+        data["target_uncertainty"], math.inf * unit.gram / unit.milliliter
+    )
+    assert numpy.isclose(
+        data["per_component_uncertainty"], math.inf * unit.gram / unit.milliliter
+    )

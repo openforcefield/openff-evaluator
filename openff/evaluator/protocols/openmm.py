@@ -41,10 +41,10 @@ from openff.evaluator.workflow import workflow_protocol
 
 if TYPE_CHECKING:
 
+    import openmm
     from mdtraj import Trajectory
     from openff.toolkit.topology import Topology
     from openff.toolkit.typing.engines.smirnoff import ForceField
-    from simtk import openmm
 
 logger = logging.getLogger(__name__)
 
@@ -80,10 +80,10 @@ def _evaluate_energies(
     -------
         The array containing the evaluated potentials.
     """
-    from simtk import openmm
-    from simtk import unit as simtk_unit
+    import openmm
+    from openmm import unit as openmm_unit
 
-    integrator = openmm.VerletIntegrator(0.1 * simtk_unit.femtoseconds)
+    integrator = openmm.VerletIntegrator(0.1 * openmm_unit.femtoseconds)
 
     platform = setup_platform_with_resources(compute_resources, high_precision)
     openmm_context = openmm.Context(system, integrator, platform)
@@ -92,7 +92,7 @@ def _evaluate_energies(
     reduced_potentials = np.zeros(trajectory.n_frames, dtype=np.float64)
 
     temperature = pint_quantity_to_openmm(thermodynamic_state.temperature)
-    beta = 1.0 / (simtk_unit.BOLTZMANN_CONSTANT_kB * temperature)
+    beta = 1.0 / (openmm_unit.BOLTZMANN_CONSTANT_kB * temperature)
 
     pressure = pint_quantity_to_openmm(thermodynamic_state.pressure)
 
@@ -109,13 +109,13 @@ def _evaluate_energies(
         state = openmm_context.getState(getEnergy=True)
 
         potential_energy = state.getPotentialEnergy()
-        unreduced_potential = potential_energy / simtk_unit.AVOGADRO_CONSTANT_NA
+        unreduced_potential = potential_energy / openmm_unit.AVOGADRO_CONSTANT_NA
 
         if pressure is not None and enable_pbc:
             unreduced_potential += pressure * state.getPeriodicBoxVolume()
 
         potentials[frame_index] = potential_energy.value_in_unit(
-            simtk_unit.kilojoule_per_mole
+            openmm_unit.kilojoule_per_mole
         )
         reduced_potentials[frame_index] = unreduced_potential * beta
 
@@ -174,7 +174,7 @@ def _compute_gradients(
         The amount to perturb for the force field parameter by.
     """
 
-    from simtk import openmm
+    import openmm
 
     gradients = defaultdict(list)
     observables.clear_gradients()
@@ -330,9 +330,9 @@ class OpenMMEnergyMinimisation(BaseEnergyMinimisation):
 
     def _execute(self, directory, available_resources):
 
-        from simtk import openmm
-        from simtk import unit as simtk_unit
-        from simtk.openmm import app
+        import openmm
+        from openmm import app
+        from openmm import unit as openmm_unit
 
         platform = setup_platform_with_resources(available_resources)
 
@@ -340,20 +340,10 @@ class OpenMMEnergyMinimisation(BaseEnergyMinimisation):
         system = self.parameterized_system.system
 
         if not self.enable_pbc:
-
-            for force_index in range(system.getNumForces()):
-
-                force = system.getForce(force_index)
-
-                if not isinstance(force, openmm.NonbondedForce):
-                    continue
-
-                force.setNonbondedMethod(
-                    0
-                )  # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1
+            disable_pbc(system=system)
 
         # TODO: Expose the constraint tolerance
-        integrator = openmm.VerletIntegrator(0.002 * simtk_unit.picoseconds)
+        integrator = openmm.VerletIntegrator(0.002 * openmm_unit.picoseconds)
         simulation = app.Simulation(
             input_pdb_file.topology, system, integrator, platform
         )
@@ -386,7 +376,7 @@ class OpenMMSimulation(BaseSimulation):
     This protocol employs the Langevin integrator implemented in the ``openmmtools``
     package to propagate the state of the system using the default BAOAB splitting [1]_.
     Further, simulations which are run in the NPT simulation will have a Monte Carlo
-    barostat (simtk.openmm.MonteCarloBarostat) applied every 25 steps (the OpenMM
+    barostat (openmm.MonteCarloBarostat) applied every 25 steps (the OpenMM
     default).
 
     References
@@ -455,7 +445,7 @@ class OpenMMSimulation(BaseSimulation):
     def _execute(self, directory, available_resources):
 
         import mdtraj
-        from simtk.openmm import app
+        from openmm import app
 
         # We handle most things in OMM units here.
         temperature = self.thermodynamic_state.temperature
@@ -557,7 +547,7 @@ class OpenMMSimulation(BaseSimulation):
 
         Returns
         -------
-        simtk.openmm.Context
+        openmm.Context
             The created openmm context which takes advantage
             of the available compute resources.
         openmmtools.integrators.LangevinIntegrator
@@ -565,9 +555,9 @@ class OpenMMSimulation(BaseSimulation):
             the simulation.
         """
 
+        import openmm
         import openmmtools
-        from simtk import openmm
-        from simtk.openmm import app
+        from openmm import app
 
         # Create a platform with the correct resources.
         if not self.allow_gpu_platforms:
@@ -642,10 +632,10 @@ class OpenMMSimulation(BaseSimulation):
         current_step_number: int
             The total number of steps which have been taken so
             far.
-        context: simtk.openmm.Context
+        context: openmm.Context
             The current OpenMM context.
         """
-        from simtk import openmm
+        import openmm
 
         # Write the current state to disk
         state = context.getState(
@@ -790,7 +780,7 @@ class OpenMMSimulation(BaseSimulation):
 
         Parameters
         ----------
-        context: simtk.openmm.Context
+        context: openmm.Context
             The current OpenMM context.
 
         Returns
@@ -798,7 +788,7 @@ class OpenMMSimulation(BaseSimulation):
         int
             The current step number.
         """
-        from simtk import openmm
+        import openmm
 
         current_step_number = 0
 
@@ -915,12 +905,12 @@ class OpenMMSimulation(BaseSimulation):
 
         Parameters
         ----------
-        context: simtk.openmm.Context
+        context: openmm.Context
             The OpenMM context to run with.
-        integrator: simtk.openmm.Integrator
+        integrator: openmm.Integrator
             The integrator to evolve the simulation with.
         """
-        from simtk.openmm import app
+        from openmm import app
 
         # Define how many steps should be taken.
         total_number_of_steps = (

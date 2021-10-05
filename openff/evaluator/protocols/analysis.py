@@ -34,7 +34,7 @@ from openff.evaluator.workflow.attributes import (
 )
 
 if typing.TYPE_CHECKING:
-    from simtk import openmm
+    import openmm
 
 
 E0 = 8.854187817e-12 * unit.farad / unit.meter  # Taken from QCElemental
@@ -578,8 +578,8 @@ class ComputeDipoleMoments(Protocol):
             The charge on each atom in the system if any are present, otherwise
             none.
         """
-        from simtk import openmm
-        from simtk import unit as simtk_unit
+        import openmm
+        from openmm import unit as openmm_unit
 
         forces = [
             system.getForce(force_index)
@@ -601,7 +601,7 @@ class ComputeDipoleMoments(Protocol):
             [
                 forces[0]
                 .getParticleParameters(atom_index)[0]
-                .value_in_unit(simtk_unit.elementary_charge)
+                .value_in_unit(openmm_unit.elementary_charge)
                 for atom_index in range(forces[0].getNumParticles())
             ]
         )
