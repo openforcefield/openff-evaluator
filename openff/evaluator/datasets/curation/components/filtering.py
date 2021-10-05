@@ -123,7 +123,9 @@ class FilterDuplicates(CurationComponent):
                 property_data = component_data[component_data[value_header].notna()]
 
                 if uncertainty_header in component_data:
-                    property_data = property_data.sort_values(uncertainty_header)
+                    property_data = property_data.sort_values(
+                        uncertainty_header, na_position="first"
+                    )
 
                 property_data = property_data.drop_duplicates(
                     subset=subset_columns, keep="last"
