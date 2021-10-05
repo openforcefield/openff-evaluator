@@ -39,3 +39,4 @@ dependencies:
   - paprika
   - taproom
   - dataclasses
+  - smirnoff-plugins # For testing custom nonbonded forces

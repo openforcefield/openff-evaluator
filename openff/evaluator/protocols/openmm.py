@@ -340,17 +340,7 @@ class OpenMMEnergyMinimisation(BaseEnergyMinimisation):
         system = self.parameterized_system.system
 
         if not self.enable_pbc:
-
-            for force_index in range(system.getNumForces()):
-
-                force = system.getForce(force_index)
-
-                if not isinstance(force, openmm.NonbondedForce):
-                    continue
-
-                force.setNonbondedMethod(
-                    0
-                )  # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1
+            disable_pbc(system=system)
 
         # TODO: Expose the constraint tolerance
         integrator = openmm.VerletIntegrator(0.002 * simtk_unit.picoseconds)

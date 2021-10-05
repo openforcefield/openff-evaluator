@@ -6,14 +6,24 @@ import os
 import tempfile
 from os import path
 
+import mdtraj
+import numpy
+from openff.toolkit.topology import Molecule, Topology
+from openff.toolkit.typing.engines.smirnoff import ForceField
+from simtk import unit as simtk_unit
+from smirnoff_plugins.handlers.nonbonded import DoubleExponential
+
 from openff.evaluator import unit
 from openff.evaluator.backends import ComputeResources
+from openff.evaluator.forcefield import ParameterGradientKey
 from openff.evaluator.protocols.coordinates import BuildCoordinatesPackmol
 from openff.evaluator.protocols.forcefield import BuildSmirnoffSystem
 from openff.evaluator.protocols.openmm import (
     OpenMMEnergyMinimisation,
     OpenMMEvaluateEnergies,
     OpenMMSimulation,
+    _compute_gradients,
+    _evaluate_energies,
 )
 from openff.evaluator.substances import Substance
 from openff.evaluator.tests.utils import build_tip3p_smirnoff_force_field
@@ -161,3 +171,80 @@ def test_evaluate_energies_openmm():
 
         assert ObservableType.ReducedPotential in reduced_potentials.output_observables
         assert ObservableType.PotentialEnergy in reduced_potentials.output_observables
+
+
+def test_smirnoff_plugin_gradients():
+    molecule = Molecule.from_smiles("C")
+    molecule.generate_conformers(n_conformers=1)
+
+    conformer = molecule.conformers[0].value_in_unit(simtk_unit.nanometers)
+    conformer = numpy.vstack([conformer, conformer + 0.5])
+
+    topology = Topology.from_molecules([Molecule.from_smiles("C")] * 2)
+
+    epsilon = 0.1094
+
+    custom_handler = DoubleExponential(version="0.3")
+    custom_handler.add_parameter(
+        parameter_kwargs={
+            "smirks": "[#6X4:1]",
+            "r_min": 1.908 * simtk_unit.angstrom,
+            "epsilon": epsilon * simtk_unit.kilocalories_per_mole,
+        }
+    )
+    custom_handler.add_parameter(
+        parameter_kwargs={
+            "smirks": "[#1:1]-[#6X4]",
+            "r_min": 1.487 * simtk_unit.angstrom,
+            "epsilon": 0.0 * simtk_unit.kilocalories_per_mole,
+        }
+    )
+
+    force_field = ForceField(load_plugins=True)
+    force_field.register_parameter_handler(custom_handler)
+
+    vdw_handler = force_field.get_parameter_handler("vdW")
+    vdw_handler.add_parameter(
+        parameter_kwargs={
+            "smirks": "[*:1]",
+            "epsilon": 0.0 * simtk_unit.kilocalories_per_mole,
+            "sigma": 1.0 * simtk_unit.angstrom,
+        }
+    )
+
+    trajectory = mdtraj.Trajectory(
+        xyz=conformer.reshape((1, 10, 3)) * simtk_unit.nanometers,
+        topology=topology.to_openmm(),
+    )
+
+    observables = _evaluate_energies(
+        ThermodynamicState(
+            temperature=298.15 * unit.kelvin, pressure=1.0 * unit.atmosphere
+        ),
+        force_field.create_openmm_system(topology),
+        trajectory,
+        ComputeResources(),
+        enable_pbc=False,
+    )
+    _compute_gradients(
+        [
+            ParameterGradientKey(
+                tag="DoubleExponential", smirks="[#6X4:1]", attribute="epsilon"
+            )
+        ],
+        observables,
+        force_field,
+        ThermodynamicState(
+            temperature=298.15 * unit.kelvin, pressure=1.0 * unit.atmosphere
+        ),
+        topology,
+        trajectory,
+        ComputeResources(),
+        enable_pbc=False,
+    )
+
+    assert numpy.isclose(
+        observables[ObservableType.PotentialEnergy].gradients[0].value,
+        observables[ObservableType.PotentialEnergy].value
+        / (epsilon * unit.kilocalorie / unit.mole),
+    )

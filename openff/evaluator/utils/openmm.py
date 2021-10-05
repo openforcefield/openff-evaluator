@@ -270,7 +270,7 @@ def disable_pbc(system):
 
         force = system.getForce(force_index)
 
-        if not isinstance(force, openmm.NonbondedForce):
+        if not isinstance(force, (openmm.NonbondedForce, openmm.CustomNonbondedForce)):
             continue
 
         force.setNonbondedMethod(
@@ -337,6 +337,18 @@ def system_subset(
         )
 
     handler = force_field_subset.get_parameter_handler(parameter_key.tag)
+
+    if handler._OPENMMTYPE == openmm.CustomNonbondedForce:
+        vdw_handler = force_field_subset.get_parameter_handler("vdW")
+        # we need a generic blank parameter to work around this toolkit issue
+        # <https://github.com/openforcefield/openff-toolkit/issues/1102>
+        vdw_handler.add_parameter(
+            parameter_kwargs={
+                "smirks": "[*:1]",
+                "epsilon": 0.0 * simtk_unit.kilocalories_per_mole,
+                "sigma": 1.0 * simtk_unit.angstrom,
+            }
+        )
 
     parameter = (
         handler
