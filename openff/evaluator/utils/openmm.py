@@ -338,6 +338,18 @@ def system_subset(
 
     handler = force_field_subset.get_parameter_handler(parameter_key.tag)
 
+    if handler._OPENMMTYPE == openmm.CustomNonbondedForce:
+        vdw_handler = force_field_subset.get_parameter_handler("vdW")
+        # we need a generic blank parameter to work around this toolkit issue
+        # <https://github.com/openforcefield/openff-toolkit/issues/1102>
+        vdw_handler.add_parameter(
+            parameter_kwargs={
+                "smirks": "[*:1]",
+                "epsilon": 0.0 * unit.kilocalories_per_mole,
+                "sigma": 1.0 * unit.angstrom,
+            }
+        )
+
     parameter = (
         handler
         if parameter_key.smirks is None
