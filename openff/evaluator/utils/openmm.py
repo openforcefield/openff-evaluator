@@ -6,9 +6,9 @@ import logging
 from typing import TYPE_CHECKING, Optional, Tuple
 
 import numpy
+import openmm
+from openmm import unit as _openmm_unit
 from pint import UndefinedUnitError
-from simtk import openmm
-from simtk import unit as simtk_unit
 
 from openff.evaluator import unit
 from openff.evaluator.attributes.attributes import UndefinedAttribute
@@ -39,7 +39,7 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
     Platform
         The created platform
     """
-    from simtk.openmm import Platform
+    from openmm import Platform
 
     # Setup the requested platform:
     if compute_resources.number_of_gpus > 0:
@@ -106,11 +106,11 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
 
 
 def openmm_quantity_to_pint(openmm_quantity):
-    """Converts a `simtk.unit.Quantity` to a `openff.evaluator.unit.Quantity`.
+    """Converts a `openmm.unit.Quantity` to a `openff.evaluator.unit.Quantity`.
 
     Parameters
     ----------
-    openmm_quantity: simtk.unit.Quantity
+    openmm_quantity: openmm.unit.Quantity
         The quantity to convert.
 
     Returns
@@ -122,7 +122,7 @@ def openmm_quantity_to_pint(openmm_quantity):
     if openmm_quantity is None or isinstance(openmm_quantity, UndefinedAttribute):
         return None
 
-    assert isinstance(openmm_quantity, simtk_unit.Quantity)
+    assert isinstance(openmm_quantity, _openmm_unit.Quantity)
 
     openmm_unit = openmm_quantity.unit
     openmm_raw_value = openmm_quantity.value_in_unit(openmm_unit)
@@ -134,11 +134,11 @@ def openmm_quantity_to_pint(openmm_quantity):
 
 
 def openmm_unit_to_pint(openmm_unit):
-    """Converts a `simtk.unit.Unit` to a `openff.evaluator.unit.Unit`.
+    """Converts a `openmm.unit.Unit` to a `openff.evaluator.unit.Unit`.
 
     Parameters
     ----------
-    openmm_unit: simtk.unit.Unit
+    openmm_unit: openmm.unit.Unit
         The unit to convert.
 
     Returns
@@ -151,7 +151,7 @@ def openmm_unit_to_pint(openmm_unit):
     if openmm_unit is None or isinstance(openmm_unit, UndefinedAttribute):
         return None
 
-    assert isinstance(openmm_unit, simtk_unit.Unit)
+    assert isinstance(openmm_unit, _openmm_unit.Unit)
 
     openmm_unit_string = unit_to_string(openmm_unit)
 
@@ -179,7 +179,7 @@ def openmm_unit_to_pint(openmm_unit):
 
 
 def pint_quantity_to_openmm(pint_quantity):
-    """Converts a `openff.evaluator.unit.Quantity` to a `simtk.unit.Quantity`.
+    """Converts a `openff.evaluator.unit.Quantity` to a `openmm.unit.Quantity`.
 
     Notes
     -----
@@ -192,7 +192,7 @@ def pint_quantity_to_openmm(pint_quantity):
 
     Returns
     -------
-    simtk.unit.Quantity
+    openmm.unit.Quantity
         The converted quantity.
     """
 
@@ -211,7 +211,7 @@ def pint_quantity_to_openmm(pint_quantity):
 
 
 def pint_unit_to_openmm(pint_unit):
-    """Converts a `openff.evaluator.unit.Unit` to a `simtk.unit.Unit`.
+    """Converts a `openff.evaluator.unit.Unit` to a `openmm.unit.Unit`.
 
     Notes
     -----
@@ -224,7 +224,7 @@ def pint_unit_to_openmm(pint_unit):
 
     Returns
     -------
-    simtk.unit.Unit
+    openmm.unit.Unit
         The converted unit.
     """
     from openff.toolkit.utils import string_to_unit
@@ -261,7 +261,7 @@ def disable_pbc(system):
 
     Parameters
     ----------
-    system: simtk.openmm.system
+    system: openmm.system
         The system which should have periodic boundary conditions
         disabled.
     """
@@ -283,7 +283,7 @@ def system_subset(
     force_field: "ForceField",
     topology: "Topology",
     scale_amount: Optional[float] = None,
-) -> Tuple["openmm.System", "simtk_unit.Quantity"]:
+) -> Tuple["openmm.System", "_openmm_unit.Quantity"]:
     """Produces an OpenMM system containing the minimum number of forces while
     still containing a specified force field parameter, and those other parameters
     which may interact with it (e.g. in the case of vdW parameters).
@@ -309,7 +309,7 @@ def system_subset(
     """
 
     # As this method deals mainly with the toolkit, we stick to
-    # simtk units here.
+    # openmm units here.
     from openff.toolkit.typing.engines.smirnoff import ForceField
 
     # Create the force field subset.
@@ -345,8 +345,8 @@ def system_subset(
         vdw_handler.add_parameter(
             parameter_kwargs={
                 "smirks": "[*:1]",
-                "epsilon": 0.0 * simtk_unit.kilocalories_per_mole,
-                "sigma": 1.0 * simtk_unit.angstrom,
+                "epsilon": 0.0 * _openmm_unit.kilocalories_per_mole,
+                "sigma": 1.0 * _openmm_unit.angstrom,
             }
         )
 
@@ -357,10 +357,10 @@ def system_subset(
     )
 
     parameter_value = getattr(parameter, parameter_key.attribute)
-    is_quantity = isinstance(parameter_value, simtk_unit.Quantity)
+    is_quantity = isinstance(parameter_value, _openmm_unit.Quantity)
 
     if not is_quantity:
-        parameter_value = parameter_value * simtk_unit.dimensionless
+        parameter_value = parameter_value * _openmm_unit.dimensionless
 
     # Optionally perturb the parameter of interest.
     if scale_amount is not None:
@@ -374,16 +374,16 @@ def system_subset(
         else:
             parameter_value *= 1.0 + scale_amount
 
-    if not isinstance(parameter_value, simtk_unit.Quantity):
+    if not isinstance(parameter_value, _openmm_unit.Quantity):
         # Handle the case where OMM down-converts a dimensionless quantity to a float.
-        parameter_value = parameter_value * simtk_unit.dimensionless
+        parameter_value = parameter_value * _openmm_unit.dimensionless
 
     setattr(
         parameter,
         parameter_key.attribute,
         parameter_value
         if is_quantity
-        else parameter_value.value_in_unit(simtk_unit.dimensionless),
+        else parameter_value.value_in_unit(_openmm_unit.dimensionless),
     )
 
     # Create the parameterized sub-system.

@@ -4,7 +4,7 @@ Units tests for openff-evaluator.protocols.coordinates
 import tempfile
 
 import pytest
-from simtk.openmm.app import PDBFile
+from openmm.app import PDBFile
 
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.protocols.coordinates import (

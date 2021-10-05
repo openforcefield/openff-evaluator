@@ -215,7 +215,7 @@ def test_compute_state_energy_gradients(tmpdir):
 
 def test_analyze_phase(monkeypatch, tmpdir):
 
-    from simtk import unit as simtk_unit
+    from openmm import unit as openmm_unit
 
     # Generate the required inputs
     build_tip3p_smirnoff_force_field().json(os.path.join(tmpdir, "ff.json"))
@@ -261,11 +261,11 @@ def test_analyze_phase(monkeypatch, tmpdir):
         "general": {"solvent1": {"nstates": 1}},
         "free_energy": {
             "solvent1": {
-                "kT": 1.0 / simtk_unit.kilojoules_per_mole,
+                "kT": 1.0 / openmm_unit.kilojoules_per_mole,
                 "free_energy_diff": 0.0,
-                "free_energy_diff_unit": 0.0 * simtk_unit.kilojoules_per_mole,
+                "free_energy_diff_unit": 0.0 * openmm_unit.kilojoules_per_mole,
                 "free_energy_diff_error": 0.0,
-                "free_energy_diff_error_unit": 0.0 * simtk_unit.kilojoules_per_mole,
+                "free_energy_diff_error_unit": 0.0 * openmm_unit.kilojoules_per_mole,
             }
         },
     }

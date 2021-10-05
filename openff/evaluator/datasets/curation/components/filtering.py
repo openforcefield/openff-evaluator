@@ -684,7 +684,7 @@ class FilterByCharged(CurationComponent):
     ) -> pandas.DataFrame:
 
         from openff.toolkit.topology import Molecule
-        from simtk import unit as simtk_unit
+        from openmm import unit as openmm_unit
 
         def filter_function(data_row):
 
@@ -699,7 +699,7 @@ class FilterByCharged(CurationComponent):
                 atom_charges = [
                     atom.formal_charge
                     if isinstance(atom.formal_charge, int)
-                    else atom.formal_charge.value_in_unit(simtk_unit.elementary_charge)
+                    else atom.formal_charge.value_in_unit(openmm_unit.elementary_charge)
                     for atom in molecule.atoms
                 ]
 
