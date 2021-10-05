@@ -12,9 +12,9 @@ import textwrap
 from enum import Enum
 
 import numpy as np
+import openmm
 import requests
-from simtk import openmm
-from simtk.openmm import app
+from openmm import app
 
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import (
@@ -72,9 +72,9 @@ class BaseBuildSystem(Protocol, abc.ABC):
 
         Parameters
         ----------
-        existing_system: simtk.openmm.System, optional
+        existing_system: openmm.System, optional
             The base system to extend.
-        system_to_append: simtk.openmm.System
+        system_to_append: openmm.System
             The system to append.
         index_map: dict of int and int, optional
             A map to apply to the indices of atoms in the `system_to_append`.
@@ -278,7 +278,7 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
 
     @staticmethod
     def _build_tip3p_system(cutoff, cell_vectors):
-        """Builds a `simtk.openmm.System` object containing a single water model
+        """Builds a `openmm.System` object containing a single water model
 
         Parameters
         ----------
@@ -289,7 +289,7 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
 
         Returns
         -------
-        simtk.openmm.System
+        openmm.System
             The created system.
         """
 
@@ -320,12 +320,12 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
 
         Parameters
         ----------
-        cutoff: simtk.unit
+        cutoff: openmm.unit
             The non-bonded cutoff.
 
         Returns
         -------
-        simtk.openmm.System
+        openmm.System
             The created system object.
         """
 
@@ -353,12 +353,12 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
             The molecule to parameterize.
         force_field_source: ForceFieldSource
             The tleap source which describes which parameters to apply.
-        cutoff: simtk.unit
+        cutoff: openmm.unit
             The non-bonded cutoff.
 
         Returns
         -------
-        simtk.openmm.System
+        openmm.System
             The parameterized system.
         """
         raise NotImplementedError()
@@ -544,18 +544,18 @@ class BuildLigParGenSystem(TemplateBuildSystem):
 
         Returns
         -------
-        simtk.openmm.app.ForceField
+        openmm.app.ForceField
             The force field template.
         """
-        from simtk import unit as simtk_unit
+        from openmm import unit as openmm_unit
 
         initial_request_url = force_field_source.request_url
         empty_stream = io.BytesIO(b"\r\n")
 
         total_charge = molecule.total_charge
 
-        if isinstance(total_charge, simtk_unit.Quantity):
-            total_charge = total_charge.value_in_unit(simtk_unit.elementary_charge)
+        if isinstance(total_charge, openmm_unit.Quantity):
+            total_charge = total_charge.value_in_unit(openmm_unit.elementary_charge)
 
         charge_model = "cm1abcc"
 
@@ -640,10 +640,10 @@ class BuildLigParGenSystem(TemplateBuildSystem):
 
         Returns
         -------
-        simtk.openmm.System
+        openmm.System
             The parameterized system.
         """
-        from simtk import unit as simtk_unit
+        from openmm import unit as openmm_unit
 
         template = self._built_template(molecule, force_field_source)
 
@@ -652,7 +652,7 @@ class BuildLigParGenSystem(TemplateBuildSystem):
         box_vectors = np.eye(3) * 10.0
 
         openmm_topology = off_topology.to_openmm()
-        openmm_topology.setPeriodicBoxVectors(box_vectors * simtk_unit.nanometer)
+        openmm_topology.setPeriodicBoxVectors(box_vectors * openmm_unit.nanometer)
 
         system = template.createSystem(
             topology=openmm_topology,
@@ -679,10 +679,10 @@ class BuildLigParGenSystem(TemplateBuildSystem):
 
         Parameters
         ----------
-        system: simtk.openmm.System
+        system: openmm.System
             The system object to apply the OPLS mixing rules to.
         """
-        from simtk import unit as simtk_unit
+        from openmm import unit as openmm_unit
 
         forces = [system.getForce(index) for index in range(system.getNumForces())]
         forces = [force for force in forces if isinstance(force, openmm.NonbondedForce)]
@@ -738,7 +738,7 @@ class BuildLigParGenSystem(TemplateBuildSystem):
                 custom_force.addExclusion(index_a, index_b)
 
                 if not np.isclose(
-                    epsilon.value_in_unit(simtk_unit.kilojoule_per_mole), 0.0
+                    epsilon.value_in_unit(openmm_unit.kilojoule_per_mole), 0.0
                 ):
                     sigma_14 = np.sqrt(
                         lennard_jones_parameters[index_a][0]
@@ -825,7 +825,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
         str
             The file path to the `rst7` file.
         """
-        from simtk import unit as simtk_unit
+        from openmm import unit as openmm_unit
 
         # Change into the working directory.
         with temporarily_change_directory(directory):
@@ -835,7 +835,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
 
             # Save the molecule charges to a file.
             charges = [
-                x.value_in_unit(simtk_unit.elementary_charge)
+                x.value_in_unit(openmm_unit.elementary_charge)
                 for x in molecule.partial_charges
             ]
 
@@ -1043,7 +1043,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
 
         Returns
         -------
-        simtk.openmm.System
+        openmm.System
             The parameterized system.
         """
 

@@ -7,7 +7,7 @@ from enum import Enum
 from os import path
 
 import numpy as np
-from simtk.openmm import app
+from openmm import app
 
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
@@ -446,7 +446,7 @@ class BuildDockedCoordinates(Protocol):
 
         import mdtraj
         from openeye import oechem, oedocking
-        from simtk import unit as simtk_unit
+        from openmm import unit as openmm_unit
 
         if (
             len(self.ligand_substance.components) != 1
@@ -542,13 +542,13 @@ class BuildDockedCoordinates(Protocol):
         complex_positions = []
 
         complex_positions.extend(
-            ligand_trajectory.openmm_positions(0).value_in_unit(simtk_unit.angstrom)
+            ligand_trajectory.openmm_positions(0).value_in_unit(openmm_unit.angstrom)
         )
         complex_positions.extend(
-            receptor_trajectory.openmm_positions(0).value_in_unit(simtk_unit.angstrom)
+            receptor_trajectory.openmm_positions(0).value_in_unit(openmm_unit.angstrom)
         )
 
-        complex_positions *= simtk_unit.angstrom
+        complex_positions *= openmm_unit.angstrom
 
         self.docked_complex_coordinate_path = path.join(directory, "complex.pdb")
 

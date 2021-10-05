@@ -846,7 +846,7 @@ class _PureOrMixtureData:
         """
 
         from openff.toolkit.topology import Molecule
-        from simtk import unit as simtk_unit
+        from openmm import unit as openmm_unit
 
         try:
 
@@ -861,7 +861,7 @@ class _PureOrMixtureData:
                 f"{smiles} smiles pattern: {formatted_exception}"
             )
 
-        molecular_weight = 0.0 * simtk_unit.dalton
+        molecular_weight = 0.0 * openmm_unit.dalton
 
         for atom in molecule.atoms:
             molecular_weight += atom.mass

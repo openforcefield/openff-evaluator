@@ -52,7 +52,7 @@ class ZeroGradients(Protocol, abc.ABC):
 
     def _execute(self, directory, available_resources):
 
-        from simtk import unit as simtk_unit
+        from openmm import unit as openmm_unit
 
         force_field_source = ForceFieldSource.from_json(self.force_field_path)
 
@@ -70,7 +70,7 @@ class ZeroGradients(Protocol, abc.ABC):
 
             value = getattr(parameter, gradient_key.attribute)
 
-            if isinstance(value, simtk_unit.Quantity):
+            if isinstance(value, openmm_unit.Quantity):
                 return openmm_quantity_to_pint(value).units
 
             return unit.dimensionless
