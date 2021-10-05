@@ -622,7 +622,7 @@ class Workflow:
     def generate_default_metadata(
         physical_property,
         force_field_path,
-        parameter_gradient_keys=None,
+        parameter_gradient_keys=UNDEFINED,
         target_uncertainty=None,
     ):
         """Generates the default global metadata dictionary.
@@ -1100,7 +1100,6 @@ class WorkflowGraph:
         output_to_store,
         results_by_id,
     ):
-
         """Collects all of the simulation to store, and saves it into a directory
         whose path will be passed to the storage backend to process.
 
