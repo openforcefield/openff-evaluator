@@ -10,7 +10,7 @@ import mdtraj
 import numpy
 from openff.toolkit.topology import Molecule, Topology
 from openff.toolkit.typing.engines.smirnoff import ForceField
-from simtk import unit as simtk_unit
+from openmm import unit as openmm_unit
 from smirnoff_plugins.handlers.nonbonded import DoubleExponential
 
 from openff.evaluator import unit
@@ -177,7 +177,7 @@ def test_smirnoff_plugin_gradients():
     molecule = Molecule.from_smiles("C")
     molecule.generate_conformers(n_conformers=1)
 
-    conformer = molecule.conformers[0].value_in_unit(simtk_unit.nanometers)
+    conformer = molecule.conformers[0].value_in_unit(openmm_unit.nanometers)
     conformer = numpy.vstack([conformer, conformer + 0.5])
 
     topology = Topology.from_molecules([Molecule.from_smiles("C")] * 2)
@@ -188,15 +188,15 @@ def test_smirnoff_plugin_gradients():
     custom_handler.add_parameter(
         parameter_kwargs={
             "smirks": "[#6X4:1]",
-            "r_min": 1.908 * simtk_unit.angstrom,
-            "epsilon": epsilon * simtk_unit.kilocalories_per_mole,
+            "r_min": 1.908 * openmm_unit.angstrom,
+            "epsilon": epsilon * openmm_unit.kilocalories_per_mole,
         }
     )
     custom_handler.add_parameter(
         parameter_kwargs={
             "smirks": "[#1:1]-[#6X4]",
-            "r_min": 1.487 * simtk_unit.angstrom,
-            "epsilon": 0.0 * simtk_unit.kilocalories_per_mole,
+            "r_min": 1.487 * openmm_unit.angstrom,
+            "epsilon": 0.0 * openmm_unit.kilocalories_per_mole,
         }
     )
 
@@ -207,13 +207,13 @@ def test_smirnoff_plugin_gradients():
     vdw_handler.add_parameter(
         parameter_kwargs={
             "smirks": "[*:1]",
-            "epsilon": 0.0 * simtk_unit.kilocalories_per_mole,
-            "sigma": 1.0 * simtk_unit.angstrom,
+            "epsilon": 0.0 * openmm_unit.kilocalories_per_mole,
+            "sigma": 1.0 * openmm_unit.angstrom,
         }
     )
 
     trajectory = mdtraj.Trajectory(
-        xyz=conformer.reshape((1, 10, 3)) * simtk_unit.nanometers,
+        xyz=conformer.reshape((1, 10, 3)) * openmm_unit.nanometers,
         topology=topology.to_openmm(),
     )
 

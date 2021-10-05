@@ -267,7 +267,7 @@ def test_replicated_ids():
 
 def test_find_relevant_gradient_keys(tmpdir):
 
-    from simtk import unit as simtk_unit
+    from openmm import unit as openmm_unit
 
     force_field = ForceField()
 
@@ -275,22 +275,22 @@ def test_find_relevant_gradient_keys(tmpdir):
     vdw_handler.add_parameter(
         {
             "smirks": "[#1:1]",
-            "epsilon": 0.0 * simtk_unit.kilocalorie_per_mole,
-            "sigma": 1.0 * simtk_unit.angstrom,
+            "epsilon": 0.0 * openmm_unit.kilocalorie_per_mole,
+            "sigma": 1.0 * openmm_unit.angstrom,
         }
     )
     vdw_handler.add_parameter(
         {
             "smirks": "[#17:1]",
-            "epsilon": 0.0 * simtk_unit.kilocalorie_per_mole,
-            "sigma": 1.0 * simtk_unit.angstrom,
+            "epsilon": 0.0 * openmm_unit.kilocalorie_per_mole,
+            "sigma": 1.0 * openmm_unit.angstrom,
         }
     )
     vdw_handler.add_parameter(
         {
             "smirks": "[#6:1]",
-            "epsilon": 0.0 * simtk_unit.kilocalorie_per_mole,
-            "sigma": 1.0 * simtk_unit.angstrom,
+            "epsilon": 0.0 * openmm_unit.kilocalorie_per_mole,
+            "sigma": 1.0 * openmm_unit.angstrom,
         }
     )
 

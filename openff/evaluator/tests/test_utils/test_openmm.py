@@ -11,7 +11,7 @@ from openff.toolkit.typing.engines.smirnoff.parameters import (
     ElectrostaticsHandler,
     LibraryChargeHandler,
 )
-from simtk import unit as simtk_unit
+from openmm import unit as openmm_unit
 
 from openff.evaluator import unit
 from openff.evaluator.backends import ComputeResources
@@ -29,8 +29,10 @@ from openff.evaluator.utils.openmm import (
 
 def test_daltons():
 
-    openmm_quantity = random() * simtk_unit.dalton
-    openmm_raw_value = openmm_quantity.value_in_unit(simtk_unit.gram / simtk_unit.mole)
+    openmm_quantity = random() * openmm_unit.dalton
+    openmm_raw_value = openmm_quantity.value_in_unit(
+        openmm_unit.gram / openmm_unit.mole
+    )
 
     pint_quantity = openmm_quantity_to_pint(openmm_quantity)
     pint_raw_value = pint_quantity.to(unit.gram / unit.mole).magnitude
@@ -41,14 +43,14 @@ def test_daltons():
 @pytest.mark.parametrize(
     "openmm_unit",
     [
-        simtk_unit.dalton,
-        simtk_unit.kilojoules_per_mole,
-        simtk_unit.angstrom,
-        simtk_unit.kelvin,
-        simtk_unit.atmosphere,
-        simtk_unit.gram,
-        simtk_unit.liter,
-        simtk_unit.gram / simtk_unit.liter,
+        openmm_unit.dalton,
+        openmm_unit.kilojoules_per_mole,
+        openmm_unit.angstrom,
+        openmm_unit.kelvin,
+        openmm_unit.atmosphere,
+        openmm_unit.gram,
+        openmm_unit.liter,
+        openmm_unit.gram / openmm_unit.liter,
     ],
 )
 @pytest.mark.parametrize(
@@ -97,20 +99,20 @@ def test_pint_to_openmm(pint_unit, value):
 def test_constants():
 
     assert np.isclose(
-        simtk_unit.AVOGADRO_CONSTANT_NA.value_in_unit((1.0 / simtk_unit.mole).unit),
+        openmm_unit.AVOGADRO_CONSTANT_NA.value_in_unit((1.0 / openmm_unit.mole).unit),
         (1.0 * unit.avogadro_constant).to((1.0 / unit.mole).units).magnitude,
     )
 
     assert np.isclose(
-        simtk_unit.BOLTZMANN_CONSTANT_kB.value_in_unit(
-            simtk_unit.joule / simtk_unit.kelvin
+        openmm_unit.BOLTZMANN_CONSTANT_kB.value_in_unit(
+            openmm_unit.joule / openmm_unit.kelvin
         ),
         (1.0 * unit.boltzmann_constant).to(unit.joule / unit.kelvin).magnitude,
     )
 
     assert np.isclose(
-        simtk_unit.MOLAR_GAS_CONSTANT_R.value_in_unit(
-            simtk_unit.joule / simtk_unit.kelvin / simtk_unit.mole
+        openmm_unit.MOLAR_GAS_CONSTANT_R.value_in_unit(
+            openmm_unit.joule / openmm_unit.kelvin / openmm_unit.mole
         ),
         (1.0 * unit.molar_gas_constant)
         .to(unit.joule / unit.kelvin / unit.mole)
@@ -118,8 +120,8 @@ def test_constants():
     )
 
     assert np.isclose(
-        simtk_unit.SPEED_OF_LIGHT_C.value_in_unit(
-            simtk_unit.meter / simtk_unit.seconds
+        openmm_unit.SPEED_OF_LIGHT_C.value_in_unit(
+            openmm_unit.meter / openmm_unit.seconds
         ),
         (1.0 * unit.speed_of_light).to(unit.meter / unit.seconds).magnitude,
     )
@@ -136,27 +138,27 @@ def hydrogen_chloride_force_field(
     # Add a Vdw handler.
     vdw_handler = vdWHandler(version=0.3)
     vdw_handler.method = "cutoff"
-    vdw_handler.cutoff = 6.0 * simtk_unit.angstrom
+    vdw_handler.cutoff = 6.0 * openmm_unit.angstrom
     vdw_handler.scale14 = 1.0
     vdw_handler.add_parameter(
         {
             "smirks": "[#1:1]",
-            "epsilon": 0.0 * simtk_unit.kilojoules_per_mole,
-            "sigma": 1.0 * simtk_unit.angstrom,
+            "epsilon": 0.0 * openmm_unit.kilojoules_per_mole,
+            "sigma": 1.0 * openmm_unit.angstrom,
         }
     )
     vdw_handler.add_parameter(
         {
             "smirks": "[#17:1]",
-            "epsilon": 2.0 * simtk_unit.kilojoules_per_mole,
-            "sigma": 2.0 * simtk_unit.angstrom,
+            "epsilon": 2.0 * openmm_unit.kilojoules_per_mole,
+            "sigma": 2.0 * openmm_unit.angstrom,
         }
     )
     force_field.register_parameter_handler(vdw_handler)
 
     # Add an electrostatic, a library charge and a charge increment handler.
     electrostatics_handler = ElectrostaticsHandler(version=0.3)
-    electrostatics_handler.cutoff = 6.0 * simtk_unit.angstrom
+    electrostatics_handler.cutoff = 6.0 * openmm_unit.angstrom
     electrostatics_handler.method = "PME"
     force_field.register_parameter_handler(electrostatics_handler)
 
@@ -166,13 +168,13 @@ def hydrogen_chloride_force_field(
         library_charge_handler.add_parameter(
             parameter_kwargs={
                 "smirks": "[#1:1]",
-                "charge1": 1.0 * simtk_unit.elementary_charge,
+                "charge1": 1.0 * openmm_unit.elementary_charge,
             }
         )
         library_charge_handler.add_parameter(
             parameter_kwargs={
                 "smirks": "[#17:1]",
-                "charge1": -1.0 * simtk_unit.elementary_charge,
+                "charge1": -1.0 * openmm_unit.elementary_charge,
             }
         )
         force_field.register_parameter_handler(library_charge_handler)
@@ -183,8 +185,8 @@ def hydrogen_chloride_force_field(
         charge_increment_handler.add_parameter(
             parameter_kwargs={
                 "smirks": "[#1:1]-[#17:2]",
-                "charge_increment1": -1.0 * simtk_unit.elementary_charge,
-                "charge_increment2": 1.0 * simtk_unit.elementary_charge,
+                "charge_increment1": -1.0 * openmm_unit.elementary_charge,
+                "charge_increment2": 1.0 * openmm_unit.elementary_charge,
             }
         )
         force_field.register_parameter_handler(charge_increment_handler)
@@ -211,14 +213,14 @@ def test_system_subset_vdw():
     charge_0, sigma_0, epsilon_0 = system.getForce(0).getParticleParameters(0)
     charge_1, sigma_1, epsilon_1 = system.getForce(0).getParticleParameters(1)
 
-    assert np.isclose(charge_0.value_in_unit(simtk_unit.elementary_charge), 0.0)
-    assert np.isclose(charge_1.value_in_unit(simtk_unit.elementary_charge), 0.0)
+    assert np.isclose(charge_0.value_in_unit(openmm_unit.elementary_charge), 0.0)
+    assert np.isclose(charge_1.value_in_unit(openmm_unit.elementary_charge), 0.0)
 
-    assert np.isclose(sigma_0.value_in_unit(simtk_unit.angstrom), 2.0)
-    assert np.isclose(sigma_1.value_in_unit(simtk_unit.angstrom), 1.0)
+    assert np.isclose(sigma_0.value_in_unit(openmm_unit.angstrom), 2.0)
+    assert np.isclose(sigma_1.value_in_unit(openmm_unit.angstrom), 1.0)
 
-    assert np.isclose(epsilon_0.value_in_unit(simtk_unit.kilojoules_per_mole), 2.0)
-    assert np.isclose(epsilon_1.value_in_unit(simtk_unit.kilojoules_per_mole), 0.5)
+    assert np.isclose(epsilon_0.value_in_unit(openmm_unit.kilojoules_per_mole), 2.0)
+    assert np.isclose(epsilon_1.value_in_unit(openmm_unit.kilojoules_per_mole), 0.5)
 
 
 def test_system_subset_vdw_cutoff():
@@ -226,7 +228,7 @@ def test_system_subset_vdw_cutoff():
 
     # Create a dummy topology
     topology: Topology = Molecule.from_smiles("Cl").to_topology()
-    topology.box_vectors = numpy.eye(3) * simtk_unit.nanometers
+    topology.box_vectors = numpy.eye(3) * openmm_unit.nanometers
 
     # Create the system subset.
     system, parameter_value = system_subset(
@@ -240,7 +242,7 @@ def test_system_subset_vdw_cutoff():
     assert system.getNumParticles() == 2
 
     cutoff = system.getForce(0).getCutoffDistance()
-    assert np.isclose(cutoff.value_in_unit(simtk_unit.angstrom), 9.0)
+    assert np.isclose(cutoff.value_in_unit(openmm_unit.angstrom), 9.0)
 
 
 def test_system_subset_library_charge():
@@ -249,7 +251,7 @@ def test_system_subset_library_charge():
 
     # Ensure a zero charge after perturbation.
     force_field.get_parameter_handler("LibraryCharges").parameters["[#1:1]"].charge1 = (
-        1.5 * simtk_unit.elementary_charge
+        1.5 * openmm_unit.elementary_charge
     )
 
     # Create a dummy topology
@@ -269,14 +271,14 @@ def test_system_subset_library_charge():
     charge_0, sigma_0, epsilon_0 = system.getForce(0).getParticleParameters(0)
     charge_1, sigma_1, epsilon_1 = system.getForce(0).getParticleParameters(1)
 
-    assert np.isclose(charge_0.value_in_unit(simtk_unit.elementary_charge), -1.5)
-    assert np.isclose(charge_1.value_in_unit(simtk_unit.elementary_charge), 1.5)
+    assert np.isclose(charge_0.value_in_unit(openmm_unit.elementary_charge), -1.5)
+    assert np.isclose(charge_1.value_in_unit(openmm_unit.elementary_charge), 1.5)
 
-    assert np.isclose(sigma_0.value_in_unit(simtk_unit.angstrom), 10.0)
-    assert np.isclose(sigma_1.value_in_unit(simtk_unit.angstrom), 10.0)
+    assert np.isclose(sigma_0.value_in_unit(openmm_unit.angstrom), 10.0)
+    assert np.isclose(sigma_1.value_in_unit(openmm_unit.angstrom), 10.0)
 
-    assert np.isclose(epsilon_0.value_in_unit(simtk_unit.kilojoules_per_mole), 0.0)
-    assert np.isclose(epsilon_1.value_in_unit(simtk_unit.kilojoules_per_mole), 0.0)
+    assert np.isclose(epsilon_0.value_in_unit(openmm_unit.kilojoules_per_mole), 0.0)
+    assert np.isclose(epsilon_1.value_in_unit(openmm_unit.kilojoules_per_mole), 0.0)
 
 
 def test_system_subset_charge_increment():
@@ -305,14 +307,14 @@ def test_system_subset_charge_increment():
     charge_0, sigma_0, epsilon_0 = system.getForce(0).getParticleParameters(0)
     charge_1, sigma_1, epsilon_1 = system.getForce(0).getParticleParameters(1)
 
-    assert not np.isclose(charge_0.value_in_unit(simtk_unit.elementary_charge), -1.0)
-    assert np.isclose(charge_1.value_in_unit(simtk_unit.elementary_charge), 1.0)
+    assert not np.isclose(charge_0.value_in_unit(openmm_unit.elementary_charge), -1.0)
+    assert np.isclose(charge_1.value_in_unit(openmm_unit.elementary_charge), 1.0)
 
-    assert np.isclose(sigma_0.value_in_unit(simtk_unit.angstrom), 10.0)
-    assert np.isclose(sigma_1.value_in_unit(simtk_unit.angstrom), 10.0)
+    assert np.isclose(sigma_0.value_in_unit(openmm_unit.angstrom), 10.0)
+    assert np.isclose(sigma_1.value_in_unit(openmm_unit.angstrom), 10.0)
 
-    assert np.isclose(epsilon_0.value_in_unit(simtk_unit.kilojoules_per_mole), 0.0)
-    assert np.isclose(epsilon_1.value_in_unit(simtk_unit.kilojoules_per_mole), 0.0)
+    assert np.isclose(epsilon_0.value_in_unit(openmm_unit.kilojoules_per_mole), 0.0)
+    assert np.isclose(epsilon_1.value_in_unit(openmm_unit.kilojoules_per_mole), 0.0)
 
 
 @pytest.mark.parametrize(
