@@ -15,8 +15,8 @@ Bugfixes
 """"""""
 
 * PR `#375 <https://github.com/openforcefield/openff-evaluator/pull/375>`_: Fix #374 - import from collections.abc
+* PR `#384 <https://github.com/openforcefield/openff-evaluator/pull/384>`_: Fix #382 - Default keyword arguments result in error
 * PR `#387 <https://github.com/openforcefield/openff-evaluator/pull/387>`_: Fix #380 - Recursion error in local file storage
-* PR `#388 <https://github.com/openforcefield/openff-evaluator/pull/388>`_: Fix #382 - Default keyword arguments result in error
 
 New Features
 """"""""""""
