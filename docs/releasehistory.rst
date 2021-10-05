@@ -14,7 +14,8 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 Bugfixes
 """"""""
 
-* PR `#375 <https://github.com/openforcefield/openff-evaluator/pull/375>`_: Fix import from collections.abc
+* PR `#375 <https://github.com/openforcefield/openff-evaluator/pull/375>`_: Fix #374 - import from collections.abc
+* PR `#387 <https://github.com/openforcefield/openff-evaluator/pull/387>`_: Fix #380 - Recursion error in local file storage
 
 New Features
 """"""""""""
