@@ -13,16 +13,17 @@ from openff.toolkit.typing.engines.smirnoff import ForceField
 from simtk import unit as simtk_unit
 from smirnoff_plugins.handlers.nonbonded import DoubleExponential
 
-from openff.evaluator.forcefield import ParameterGradientKey
-from openff.evaluator.protocols.openmm import _compute_gradients, _evaluate_energies
 from openff.evaluator import unit
 from openff.evaluator.backends import ComputeResources
+from openff.evaluator.forcefield import ParameterGradientKey
 from openff.evaluator.protocols.coordinates import BuildCoordinatesPackmol
 from openff.evaluator.protocols.forcefield import BuildSmirnoffSystem
 from openff.evaluator.protocols.openmm import (
     OpenMMEnergyMinimisation,
     OpenMMEvaluateEnergies,
     OpenMMSimulation,
+    _compute_gradients,
+    _evaluate_energies,
 )
 from openff.evaluator.substances import Substance
 from openff.evaluator.tests.utils import build_tip3p_smirnoff_force_field
