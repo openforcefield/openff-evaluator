@@ -34,6 +34,8 @@ from openff.evaluator.utils.openmm import (
     pint_quantity_to_openmm,
     setup_platform_with_resources,
     system_subset,
+    update_context_with_pdb,
+    update_context_with_positions,
 )
 from openff.evaluator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from openff.evaluator.utils.utils import is_file_and_not_empty
@@ -99,12 +101,12 @@ def _evaluate_energies(
     for frame_index in range(trajectory.n_frames):
 
         positions = trajectory.xyz[frame_index]
+        box_vectors = None
 
         if enable_pbc:
             box_vectors = trajectory.openmm_boxes(frame_index)
-            openmm_context.setPeriodicBoxVectors(*box_vectors)
 
-        openmm_context.setPositions(positions)
+        update_context_with_positions(openmm_context, positions, box_vectors)
 
         state = openmm_context.getState(getEnergy=True)
 
@@ -348,13 +350,7 @@ class OpenMMEnergyMinimisation(BaseEnergyMinimisation):
             input_pdb_file.topology, system, integrator, platform
         )
 
-        box_vectors = input_pdb_file.topology.getPeriodicBoxVectors()
-
-        if box_vectors is None:
-            box_vectors = simulation.system.getDefaultPeriodicBoxVectors()
-
-        simulation.context.setPeriodicBoxVectors(*box_vectors)
-        simulation.context.setPositions(input_pdb_file.positions)
+        update_context_with_pdb(simulation.context, input_pdb_file)
 
         simulation.minimizeEnergy(
             pint_quantity_to_openmm(self.tolerance), self.max_iterations
@@ -605,6 +601,7 @@ class OpenMMSimulation(BaseSimulation):
 
         # Initialize the context with the correct positions etc.
         input_pdb_file = app.PDBFile(self.input_coordinate_file)
+        box_vectors = None
 
         if self.enable_pbc:
 
@@ -617,9 +614,10 @@ class OpenMMSimulation(BaseSimulation):
                     "The input file must contain box vectors when running with PBC."
                 )
 
-            context.setPeriodicBoxVectors(*box_vectors)
+        update_context_with_positions(
+            context, input_pdb_file.getPositions(asNumpy=True), box_vectors
+        )
 
-        context.setPositions(input_pdb_file.positions)
         context.setVelocitiesToTemperature(temperature)
 
         return context, integrator

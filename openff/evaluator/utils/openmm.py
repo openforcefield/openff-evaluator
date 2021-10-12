@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Optional, Tuple
 
 import numpy
 import openmm
+from openmm import app
 from openmm import unit as _openmm_unit
 from pint import UndefinedUnitError
 
@@ -389,3 +390,83 @@ def system_subset(
     # Create the parameterized sub-system.
     system = force_field_subset.create_openmm_system(topology)
     return system, parameter_value
+
+
+def update_context_with_positions(
+    context: openmm.Context,
+    positions: _openmm_unit.Quantity,
+    box_vectors: Optional[_openmm_unit.Quantity],
+):
+    """Set a collection of positions and box vectors on an OpenMM context and compute
+    any extra positions such as v-site positions.
+
+    Parameters
+    ----------
+    context
+        The OpenMM context to set the positions on.
+    positions
+        A unit wrapped numpy array with shape=(n_atoms, 3) that contains the positions
+        to set.
+    box_vectors
+        An optional unit wrapped numpy array with shape=(3, 3) that contains the box
+        vectors to set.
+    """
+
+    system = context.getSystem()
+
+    n_vsites = sum(
+        1 for i in range(system.getNumParticles()) if system.isVirtualSite(i)
+    )
+    n_atoms = system.getNumParticles() - n_vsites
+
+    if len(positions) != n_atoms and len(positions) != (n_atoms + n_vsites):
+
+        raise ValueError(
+            "The length of the positions array does not match either the "
+            "the number of atoms or the number of atoms + v-sites."
+        )
+
+    if n_vsites > 0 and len(positions) != (n_atoms + n_vsites):
+
+        positions = (
+            numpy.vstack(
+                [
+                    positions.value_in_unit(_openmm_unit.nanometers),
+                    numpy.zeros((n_vsites, 3)),
+                ]
+            )
+            * _openmm_unit.nanometers
+        )
+
+    if box_vectors is not None:
+        context.setPeriodicBoxVectors(*box_vectors)
+
+    context.setPositions(positions)
+
+    if n_vsites > 0:
+        context.computeVirtualSites()
+
+
+def update_context_with_pdb(
+    context: openmm.Context,
+    pdb_file: app.PDBFile,
+):
+    """Extracts the positions and box vectors from a PDB file object and set these
+    on an OpenMM context and compute any extra positions such as v-site positions.
+
+    Parameters
+    ----------
+    context
+        The OpenMM context to set the positions on.
+    pdb_file
+        The PDB file object to extract the positions and box vectors from.
+    """
+
+    positions = pdb_file.getPositions(asNumpy=True)
+
+    box_vectors = pdb_file.topology.getPeriodicBoxVectors()
+
+    if box_vectors is None:
+        box_vectors = context.getSystem().getDefaultPeriodicBoxVectors()
+
+    update_context_with_positions(context, positions, box_vectors)
