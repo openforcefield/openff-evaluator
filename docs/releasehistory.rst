@@ -8,6 +8,14 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
+0.3.7
+-----
+
+Bugfixes
+""""""""
+
+* PR `#389 <https://github.com/openforcefield/openff-evaluator/pull/389>`_: Fix v-site positions not set by OpenMM
+
 0.3.6
 -----
 
