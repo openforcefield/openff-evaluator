@@ -1,8 +1,10 @@
+import os.path
 from random import randint, random
 
 import mdtraj
 import numpy
 import numpy as np
+import openmm
 import pytest
 from openff.toolkit.topology import Molecule, Topology
 from openff.toolkit.typing.engines.smirnoff import ForceField, vdWHandler
@@ -10,8 +12,10 @@ from openff.toolkit.typing.engines.smirnoff.parameters import (
     ChargeIncrementModelHandler,
     ElectrostaticsHandler,
     LibraryChargeHandler,
+    VirtualSiteHandler,
 )
 from openmm import unit as openmm_unit
+from openmm.app import PDBFile
 
 from openff.evaluator import unit
 from openff.evaluator.backends import ComputeResources
@@ -24,6 +28,8 @@ from openff.evaluator.utils.openmm import (
     openmm_quantity_to_pint,
     pint_quantity_to_openmm,
     system_subset,
+    update_context_with_pdb,
+    update_context_with_positions,
 )
 
 
@@ -128,7 +134,9 @@ def test_constants():
 
 
 def hydrogen_chloride_force_field(
-    library_charge: bool, charge_increment: bool
+    library_charge: bool,
+    charge_increment: bool,
+    vsite: bool,
 ) -> ForceField:
     """Returns a SMIRNOFF force field which is able to parameterize hydrogen chloride."""
 
@@ -191,6 +199,21 @@ def hydrogen_chloride_force_field(
         )
         force_field.register_parameter_handler(charge_increment_handler)
 
+    if vsite:
+
+        vsite_handler = VirtualSiteHandler(version=0.3)
+        vsite_handler.add_parameter(
+            {
+                "smirks": "[#1:1]-[#17:2]",
+                "type": "BondCharge",
+                "distance": -0.2 * openmm_unit.nanometers,
+                "match": "once",
+                "charge_increment1": 0.0 * openmm_unit.elementary_charge,
+                "charge_increment2": 0.0 * openmm_unit.elementary_charge,
+            }
+        )
+        force_field.register_parameter_handler(vsite_handler)
+
     return force_field
 
 
@@ -202,7 +225,7 @@ def test_system_subset_vdw():
     # Create the system subset.
     system, parameter_value = system_subset(
         parameter_key=ParameterGradientKey("vdW", "[#1:1]", "epsilon"),
-        force_field=hydrogen_chloride_force_field(True, True),
+        force_field=hydrogen_chloride_force_field(True, True, False),
         topology=topology,
         scale_amount=0.5,
     )
@@ -233,7 +256,7 @@ def test_system_subset_vdw_cutoff():
     # Create the system subset.
     system, parameter_value = system_subset(
         parameter_key=ParameterGradientKey("vdW", None, "cutoff"),
-        force_field=hydrogen_chloride_force_field(True, True),
+        force_field=hydrogen_chloride_force_field(True, True, False),
         topology=topology,
         scale_amount=0.5,
     )
@@ -247,7 +270,7 @@ def test_system_subset_vdw_cutoff():
 
 def test_system_subset_library_charge():
 
-    force_field = hydrogen_chloride_force_field(True, False)
+    force_field = hydrogen_chloride_force_field(True, False, False)
 
     # Ensure a zero charge after perturbation.
     force_field.get_parameter_handler("LibraryCharges").parameters["[#1:1]"].charge1 = (
@@ -296,7 +319,7 @@ def test_system_subset_charge_increment():
         parameter_key=ParameterGradientKey(
             "ChargeIncrementModel", "[#1:1]-[#17:2]", "charge_increment1"
         ),
-        force_field=hydrogen_chloride_force_field(False, True),
+        force_field=hydrogen_chloride_force_field(False, True, False),
         topology=topology,
         scale_amount=0.5,
     )
@@ -363,3 +386,73 @@ def test_compute_gradients(tmpdir, smirks, all_zeros):
             observables["PotentialEnergy"].gradients[0].value,
             0.0 * observables["PotentialEnergy"].gradients[0].value.units,
         )
+
+
+@pytest.mark.parametrize(
+    "box_vectors", [None, (numpy.eye(3) * 3.0) * openmm_unit.nanometers]
+)
+def test_update_context_with_positions(box_vectors):
+
+    force_field = hydrogen_chloride_force_field(True, False, True)
+
+    topology: Topology = Molecule.from_smiles("Cl").to_topology()
+    system = force_field.create_openmm_system(topology)
+
+    context = openmm.Context(
+        system, openmm.VerletIntegrator(0.1 * openmm_unit.femtoseconds)
+    )
+
+    positions = numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]) * openmm_unit.angstrom
+
+    update_context_with_positions(context, positions, box_vectors)
+
+    context_positions = context.getState(getPositions=True).getPositions(asNumpy=True)
+    context_box_vectors = context.getState(getPositions=True).getPeriodicBoxVectors()
+
+    assert numpy.allclose(
+        context_positions.value_in_unit(openmm_unit.angstrom),
+        numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]]),
+    )
+
+    assert numpy.isclose(
+        context_box_vectors[0].x, (2.0 if box_vectors is None else 3.0)
+    )
+    assert numpy.isclose(
+        context_box_vectors[1].y, (2.0 if box_vectors is None else 3.0)
+    )
+    assert numpy.isclose(
+        context_box_vectors[2].z, (2.0 if box_vectors is None else 3.0)
+    )
+
+
+def test_update_context_with_pdb(tmpdir):
+
+    force_field = hydrogen_chloride_force_field(True, False, True)
+
+    topology: Topology = Molecule.from_smiles("Cl").to_topology()
+    system = force_field.create_openmm_system(topology)
+
+    context = openmm.Context(
+        system, openmm.VerletIntegrator(0.1 * openmm_unit.femtoseconds)
+    )
+
+    positions = numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]) * openmm_unit.angstrom
+
+    pdb_path = os.path.join(tmpdir, "tmp.pdb")
+    topology.to_file(pdb_path, positions)
+
+    pdb_file = PDBFile(pdb_path)
+
+    update_context_with_pdb(context, pdb_file)
+
+    context_positions = context.getState(getPositions=True).getPositions(asNumpy=True)
+    context_box_vectors = context.getState(getPositions=True).getPeriodicBoxVectors()
+
+    assert numpy.allclose(
+        context_positions.value_in_unit(openmm_unit.angstrom),
+        numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]]),
+    )
+
+    assert numpy.isclose(context_box_vectors[0].x, 2.0)
+    assert numpy.isclose(context_box_vectors[1].y, 2.0)
+    assert numpy.isclose(context_box_vectors[2].z, 2.0)
