@@ -418,15 +418,6 @@ def update_context_with_positions(
         1 for i in range(system.getNumParticles()) if system.isVirtualSite(i)
     )
 
-    if any(
-        not system.isVirtualSite(system.getNumParticles() - n_vsites + i)
-        for i in range(n_vsites)
-    ):
-
-        raise ValueError(
-            "Virtual sites currently **have** to be added to the end of a system."
-        )
-
     n_atoms = system.getNumParticles() - n_vsites
 
     if len(positions) != n_atoms and len(positions) != (n_atoms + n_vsites):
@@ -438,15 +429,18 @@ def update_context_with_positions(
 
     if n_vsites > 0 and len(positions) != (n_atoms + n_vsites):
 
-        positions = (
-            numpy.vstack(
-                [
-                    positions.value_in_unit(_openmm_unit.nanometers),
-                    numpy.zeros((n_vsites, 3)),
-                ]
-            )
-            * _openmm_unit.nanometers
-        )
+        new_positions = numpy.zeros((system.getNumParticles(), 3))
+
+        i = 0
+
+        for j in range(system.getNumParticles()):
+
+            if not system.isVirtualSite(j):
+                # take an old position and update the index
+                new_positions[j] = positions[i].value_in_unit(_openmm_unit.nanometers)
+                i += 1
+
+        positions = new_positions * _openmm_unit.nanometers
 
     if box_vectors is not None:
         context.setPeriodicBoxVectors(*box_vectors)
