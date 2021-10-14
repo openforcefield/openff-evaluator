@@ -30,6 +30,8 @@ from openff.evaluator.utils.observables import (
 )
 from openff.evaluator.utils.openmm import (
     disable_pbc,
+    extract_atom_indices,
+    extract_positions,
     openmm_quantity_to_pint,
     pint_quantity_to_openmm,
     setup_platform_with_resources,
@@ -356,7 +358,11 @@ class OpenMMEnergyMinimisation(BaseEnergyMinimisation):
             pint_quantity_to_openmm(self.tolerance), self.max_iterations
         )
 
-        positions = simulation.context.getState(getPositions=True).getPositions()
+        positions = extract_positions(
+            simulation.context.getState(getPositions=True),
+            # Discard any v-sites.
+            extract_atom_indices(system),
+        )
 
         self.output_coordinate_file = os.path.join(directory, "minimised.pdb")
 
@@ -424,6 +430,45 @@ class OpenMMSimulation(BaseSimulation):
             self.topology = topology
             self.system = system
             self.currentStep = current_step
+
+    class _DCDReporter:
+        def __init__(self, file, append=False):
+
+            self._append = append
+
+            mode = "r+b" if append else "wb"
+
+            self._out = open(file, mode)
+
+            self._dcd = None
+            self._atom_indices = None
+
+        def report(self, simulation, state):
+
+            from openmm import app
+
+            if self._dcd is None:
+
+                self._dcd = app.DCDFile(
+                    self._out,
+                    simulation.topology,
+                    simulation.integrator.getStepSize(),
+                    simulation.currentStep,
+                    0,
+                    self._append,
+                )
+
+                system = simulation.system
+
+                self._atom_indices = extract_atom_indices(system)
+
+            self._dcd.writeModel(
+                extract_positions(state, self._atom_indices),
+                periodicBoxVectors=state.getPeriodicBoxVectors(),
+            )
+
+        def __del__(self):
+            self._out.close()
 
     def __init__(self, protocol_id):
 
@@ -924,9 +969,7 @@ class OpenMMSimulation(BaseSimulation):
         # Build the reporters which we will use to report the state
         # of the simulation.
         append_trajectory = is_file_and_not_empty(self._local_trajectory_path)
-        dcd_reporter = app.DCDReporter(
-            self._local_trajectory_path, 0, append_trajectory
-        )
+        dcd_reporter = self._DCDReporter(self._local_trajectory_path, append_trajectory)
 
         statistics_file = open(self._local_statistics_path, "a+")
 
@@ -988,7 +1031,7 @@ class OpenMMSimulation(BaseSimulation):
 
         final_state = context.getState(getPositions=True)
 
-        positions = final_state.getPositions()
+        positions = extract_positions(final_state, extract_atom_indices(system))
         topology.setPeriodicBoxVectors(final_state.getPeriodicBoxVectors())
 
         with open(self.output_coordinate_file, "w+") as configuration_file:

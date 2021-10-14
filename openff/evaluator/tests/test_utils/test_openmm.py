@@ -25,6 +25,8 @@ from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils import get_data_filename
 from openff.evaluator.utils.observables import ObservableArray, ObservableFrame
 from openff.evaluator.utils.openmm import (
+    extract_atom_indices,
+    extract_positions,
     openmm_quantity_to_pint,
     pint_quantity_to_openmm,
     system_subset,
@@ -453,6 +455,24 @@ def test_update_context_with_pdb(tmpdir):
         numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]]),
     )
 
+    assert numpy.allclose(
+        extract_positions(context.getState(getPositions=True), [2]).value_in_unit(
+            openmm_unit.angstrom
+        ),
+        numpy.array([[2.0, 0.0, 0.0]]),
+    )
+
     assert numpy.isclose(context_box_vectors[0].x, 2.0)
     assert numpy.isclose(context_box_vectors[1].y, 2.0)
     assert numpy.isclose(context_box_vectors[2].z, 2.0)
+
+
+def test_extract_atom_indices():
+
+    force_field = hydrogen_chloride_force_field(True, False, True)
+
+    topology: Topology = Molecule.from_smiles("Cl").to_topology()
+    system = force_field.create_openmm_system(topology)
+
+    assert system.getNumParticles() == 3
+    assert extract_atom_indices(system) == [0, 1]
