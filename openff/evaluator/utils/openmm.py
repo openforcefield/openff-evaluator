@@ -3,7 +3,7 @@ A set of utilities for helping to perform simulations using openmm.
 """
 import copy
 import logging
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import numpy
 import openmm
@@ -474,3 +474,25 @@ def update_context_with_pdb(
         box_vectors = context.getSystem().getDefaultPeriodicBoxVectors()
 
     update_context_with_positions(context, positions, box_vectors)
+
+
+def extract_atom_indices(system: openmm.System) -> List[int]:
+    """Returns the indices of atoms in a system excluding any virtual sites."""
+
+    return [i for i in range(system.getNumParticles()) if not system.isVirtualSite(i)]
+
+
+def extract_positions(
+    state: openmm.State,
+    particle_indices: Optional[List[int]] = None,
+) -> _openmm_unit.Quantity:
+    """Extracts the positions from an OpenMM context, optionally excluding any v-site
+    positions which should be uniquely defined by the atomic positions.
+    """
+
+    positions = state.getPositions(asNumpy=True)
+
+    if particle_indices is not None:
+        positions = positions[particle_indices]
+
+    return positions
