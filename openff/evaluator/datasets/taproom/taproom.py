@@ -97,6 +97,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         sampl_set: Union[int, List[int]] = None,
         sampl_guest_codes: Union[int, List[int]] = None,
         exclude_systems: Dict[str, List[str]] = None,
+        n_solvent_molecules: int = 2500,
         default_ionic_strength: Optional[unit.Quantity] = 150 * unit.millimolar,
         negative_buffer_ion: str = "[Cl-]",
         positive_buffer_ion: str = "[Na+]",
@@ -128,6 +129,9 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         exclude_systems
             A dictionary for host-guest systems to exclude from the list generated
             from the lists of host_codes and guest_codes.
+        n_solvent_molecules: int, optional
+            The default number of solvent molecules to add to the box if not
+            specified in the ``taproom`` YAML file.
         default_ionic_strength
             The default ionic strength to use for measurements. The value
             specified in ``taproom`` will be ignored and this value used
@@ -192,6 +196,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             sampl_set,
             sampl_guest_codes,
             exclude_systems,
+            n_solvent_molecules,
             default_ionic_strength,
             negative_buffer_ion,
             positive_buffer_ion,
@@ -419,6 +424,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         host_yaml_paths: Dict[str, str],
         guest_yaml_path: str,
         host_substance: Substance,
+        n_solvent_molecules: int,
     ) -> Dict[str, Any]:
         """Constructs the metadata dictionary for a given host-guest
         system.
@@ -431,6 +437,8 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             The file path to the guest YAML file.
         host_substance
             A substance containing only the host molecule.
+        n_solvent_molecules
+            The number of solvent molecules to pack in the simulation box.
 
         Returns
         -------
@@ -439,6 +447,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
         from paprika.restraints.read_yaml import read_yaml
 
+        # noinspection PyTypeChecker
         guest_spec = read_yaml(guest_yaml_path)
 
         guest_aliases = {
@@ -482,8 +491,11 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
         unique_host_structures = set()
 
+        n_waters = n_solvent_molecules
+
         for orientation, host_yaml_path in host_yaml_paths.items():
 
+            # noinspection PyTypeChecker
             host_spec = read_yaml(host_yaml_path)
 
             root_host_path = os.path.dirname(host_yaml_path)
@@ -519,6 +531,14 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 tuple(host_spec["calculation"]["lambda"]["release"])
             )
 
+            try:
+                n_waters = host_spec["calculation"]["system"]["waters"]
+            except TypeError:
+                logger.info(
+                    f"Number of water molecules not specified in YAML file, "
+                    f"using default value of {n_solvent_molecules}."
+                )
+
         if len(unique_host_structures) != 1:
             raise NotImplementedError("There must only be a single host structure.")
 
@@ -551,6 +571,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 "bound_window_index": [[*range(n_pull_windows)][0]],
                 "unbound_window_index": [[*range(n_pull_windows)][-1]],
                 "lambda_scaling": lambda_scaling,
+                "n_solvent_molecules": n_waters,
             }
         )
 
@@ -564,6 +585,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         sampl_set: List[int],
         sampl_guest_codes: List[str],
         exclude_systems: Dict[str, List[str]],
+        n_solvent_molecules: Optional[int],
         ionic_strength: Optional[unit.Quantity],
         negative_buffer_ion: str,
         positive_buffer_ion: str,
@@ -595,6 +617,9 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         exclude_systems
             A dictionary for host-guest systems to exclude from the list generated
             from the lists of host_codes and guest_codes.
+        n_solvent_molecules:
+            The default number of solvent molecules to use if not specified in
+            ``taproom``.
         ionic_strength
             The default ionic strength to use for measurements. The value
             specified in ``taproom`` will be ignored and this value used
@@ -763,6 +788,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                         systems[host_name]["yaml"],
                         systems[host_name][guest_name]["yaml"],
                         host_only_substance,
+                        n_solvent_molecules,
                     )
                     measured_property.metadata["host_file_paths"].update(
                         {

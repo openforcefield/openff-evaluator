@@ -235,14 +235,13 @@ class HostGuestBindingAffinity(PhysicalProperty):
 
     @classmethod
     def _paprika_default_solvation_protocol(
-        cls, n_solvent_molecules: int
+        cls,
     ) -> coordinates.SolvateExistingStructure:
         """Returns the default protocol to use for solvating each window
         of an APR calculation.
         """
 
         solvation_protocol = coordinates.SolvateExistingStructure("")
-        solvation_protocol.max_molecules = n_solvent_molecules
         solvation_protocol.count_exact_amount = False
         solvation_protocol.box_aspect_ratio = [1.0, 1.0, 2.0]
         solvation_protocol.center_solute_in_box = False
@@ -334,7 +333,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         equilibration_template: openmm.OpenMMSimulation,
         production_template: PaprikaOpenMMSimulation,
         pristine_system: ProtocolPath = None,
-        window_number: int = None,
+        window_number: ReplicatorValue = None,
         lambda_scaling: ProtocolPath = None,
         restraints_path: ProtocolPath = None,
     ) -> Tuple[
@@ -458,6 +457,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
             )
             solvate_coordinates.solute_coordinate_file = ProtocolPath(
                 "output_coordinate_path", align_coordinates.id
+            )
+            solvate_coordinates.max_molecules = ProtocolPath(
+                "n_solvent_molecules", "global"
             )
 
             coordinate_file_path = ProtocolPath(
@@ -715,6 +717,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
             solvate_coordinates.solute_coordinate_file = ProtocolPath(
                 "output_coordinate_path", align_coordinates.id
             )
+            solvate_coordinates.max_molecules = ProtocolPath(
+                "n_solvent_molecules", "global"
+            )
 
             coordinate_file_path = ProtocolPath(
                 "coordinate_file_path", solvate_coordinates.id
@@ -921,6 +926,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
             solvate_bound_coordinates.solute_coordinate_file = ProtocolPath(
                 "output_coordinate_path", align_bound_coordinates.id
             )
+            solvate_bound_coordinates.max_molecules = ProtocolPath(
+                "n_solvent_molecules", "global"
+            )
 
             # Solvate the unbound structure
             solvate_unbound_coordinates = copy.deepcopy(solvation_template)
@@ -932,6 +940,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
             )
             solvate_unbound_coordinates.solute_coordinate_file = ProtocolPath(
                 "output_coordinate_path", align_unbound_coordinates.id
+            )
+            solvate_unbound_coordinates.max_molecules = ProtocolPath(
+                "n_solvent_molecules", "global"
             )
 
             bound_align_coordinate = ProtocolPath(
@@ -1213,7 +1224,6 @@ class HostGuestBindingAffinity(PhysicalProperty):
     def default_paprika_schema(
         cls,
         existing_schema: SimulationSchema = None,
-        n_solvent_molecules: int = 2500,
         simulation_settings: APRSimulationSteps = APRSimulationSteps(),
         end_states_settings: APRSimulationSteps = None,
         use_implicit_solvent: bool = False,
@@ -1236,8 +1246,6 @@ class HostGuestBindingAffinity(PhysicalProperty):
             An existing schema whose settings to use. If set,
             the schema's `workflow_schema` will be overwritten
             by this method.
-        n_solvent_molecules: int, optional
-            The number of solvent molecules to add to the box.
         simulation_settings: dict, optional
             The integration timestep `dt_xxx`, number of steps to perform `n_xxx_steps`
             and output frequency `out_xxx` stored in a dictionary for thermalization,
@@ -1274,9 +1282,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
 
         # Initialize the protocols which will serve as templates for those
         # used in the actual workflows.
-        solvation_template = cls._paprika_default_solvation_protocol(
-            n_solvent_molecules=n_solvent_molecules
-        )
+        solvation_template = cls._paprika_default_solvation_protocol()
 
         (
             minimization_template,
