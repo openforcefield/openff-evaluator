@@ -235,7 +235,7 @@ def pint_unit_to_openmm(pint_unit):
 
     assert isinstance(pint_unit, unit.Unit)
 
-    pint_unit_string = f"{pint_unit:!s}"
+    pint_unit_string = f"{pint_unit:C}"
 
     # Handle a unit name change in pint 0.10.*
     pint_unit_string = pint_unit_string.replace("standard_atmosphere", "atmosphere")
