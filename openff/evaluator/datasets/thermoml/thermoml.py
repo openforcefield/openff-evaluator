@@ -2144,7 +2144,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
             return_value = cls.from_xml(request.text, source)
 
-        except HTTPError:
+        except (HTTPError, requests.exceptions.HTTPError):
             logger.warning(f"No ThermoML file could not be found at {url}")
 
         return return_value
