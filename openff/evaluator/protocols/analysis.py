@@ -7,8 +7,8 @@ import typing
 from os import path
 
 import numpy as np
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import ParameterGradient, SmirnoffForceFieldSource
 from openff.evaluator.forcefield.system import ParameterizedSystem

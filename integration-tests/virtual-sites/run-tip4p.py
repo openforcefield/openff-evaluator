@@ -1,9 +1,9 @@
 import shutil
 
 from openff.toolkit.typing.engines.smirnoff import ForceField, ParameterList
+from openff.units import unit
 from openmm import unit as openmm_unit
 
-from openff.evaluator import unit
 from openff.evaluator.forcefield import ParameterGradientKey, SmirnoffForceFieldSource
 from openff.evaluator.protocols.coordinates import BuildCoordinatesPackmol
 from openff.evaluator.protocols.forcefield import BuildSmirnoffSystem

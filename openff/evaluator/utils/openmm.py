@@ -7,11 +7,11 @@ from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import numpy
 import openmm
+from openff.units import unit
 from openmm import app
 from openmm import unit as _openmm_unit
 from pint import UndefinedUnitError
 
-from openff.evaluator import unit
 from openff.evaluator.attributes.attributes import UndefinedAttribute
 from openff.evaluator.forcefield import ParameterGradientKey
 

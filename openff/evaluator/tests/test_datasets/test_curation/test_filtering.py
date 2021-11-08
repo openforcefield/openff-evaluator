@@ -3,9 +3,9 @@ from typing import List, Tuple
 import numpy
 import pandas
 import pytest
+from openff.units import unit
 from pydantic import ValidationError
 
-from openff.evaluator import unit
 from openff.evaluator.datasets import (
     MeasurementSource,
     PhysicalPropertyDataSet,

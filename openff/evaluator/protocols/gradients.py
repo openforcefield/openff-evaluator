@@ -6,8 +6,8 @@ import abc
 from typing import Union
 
 import numpy
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import (
     ForceFieldSource,

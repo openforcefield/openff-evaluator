@@ -7,8 +7,8 @@ from enum import Enum, IntEnum
 
 import numpy as np
 import pytest
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.client import EvaluatorClient
 from openff.evaluator.utils.serialization import (
     TypedBaseModel,

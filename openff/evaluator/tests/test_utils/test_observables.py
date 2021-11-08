@@ -6,8 +6,8 @@ from typing import List, Tuple, Type, Union
 
 import numpy
 import pytest
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.forcefield import ParameterGradient, ParameterGradientKey
 from openff.evaluator.tests.utils import does_not_raise
 from openff.evaluator.utils import get_data_filename

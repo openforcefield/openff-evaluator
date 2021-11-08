@@ -1,7 +1,8 @@
 import os
 import tempfile
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.datasets import PropertyPhase
 from openff.evaluator.forcefield import SmirnoffForceFieldSource
 from openff.evaluator.layers import registered_calculation_schemas

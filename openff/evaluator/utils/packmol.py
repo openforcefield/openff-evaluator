@@ -19,8 +19,8 @@ from distutils.spawn import find_executable
 from functools import reduce
 
 import numpy as np
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.substances import Component
 from openff.evaluator.utils.openmm import openmm_quantity_to_pint
 from openff.evaluator.utils.utils import temporarily_change_directory

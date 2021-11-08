@@ -3,8 +3,8 @@ import tempfile
 
 import numpy as np
 import pytest
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.forcefield import ParameterGradient, ParameterGradientKey
 from openff.evaluator.protocols.analysis import (
     AverageDielectricConstant,

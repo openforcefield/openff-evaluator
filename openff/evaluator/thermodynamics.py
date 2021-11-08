@@ -3,7 +3,8 @@ Defines an API for defining thermodynamic states.
 """
 from enum import Enum
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 
 

@@ -2,8 +2,8 @@ import os
 
 import numpy
 import pytest
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.protocols.paprika.analysis import (

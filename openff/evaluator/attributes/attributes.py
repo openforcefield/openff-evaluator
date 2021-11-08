@@ -7,7 +7,8 @@ import inspect
 from collections.abc import Iterable, Mapping
 from enum import Enum, IntEnum, IntFlag
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.attributes.typing import is_instance_of_type, is_supported_type
 from openff.evaluator.utils.serialization import TypedBaseModel
 

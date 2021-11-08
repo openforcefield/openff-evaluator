@@ -7,8 +7,8 @@ import tempfile
 import mdtraj
 import numpy as np
 import pytest
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import ParameterGradientKey
 from openff.evaluator.protocols.coordinates import BuildCoordinatesPackmol

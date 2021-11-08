@@ -11,8 +11,8 @@ from xml.etree import ElementTree
 
 import numpy as np
 import requests
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.datasets import (
     MeasurementSource,
     PhysicalPropertyDataSet,

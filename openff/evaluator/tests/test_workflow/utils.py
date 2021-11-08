@@ -1,6 +1,7 @@
 from typing import Union
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.layers import registered_calculation_schemas
 from openff.evaluator.workflow import Protocol, Workflow, workflow_protocol

@@ -14,10 +14,10 @@ from openff.toolkit.typing.engines.smirnoff.parameters import (
     LibraryChargeHandler,
     VirtualSiteHandler,
 )
+from openff.units import unit
 from openmm import unit as openmm_unit
 from openmm.app import PDBFile
 
-from openff.evaluator import unit
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import ParameterGradientKey
 from openff.evaluator.protocols.openmm import _compute_gradients

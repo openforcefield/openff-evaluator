@@ -2,8 +2,8 @@ import tempfile
 
 import numpy as np
 import pytest
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.protocols.reweighting import (
     ConcatenateObservables,

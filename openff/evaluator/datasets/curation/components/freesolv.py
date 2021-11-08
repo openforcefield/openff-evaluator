@@ -113,7 +113,9 @@ class ImportFreeSolv(CurationComponent):
         n_processes,
     ) -> pandas.DataFrame:
 
-        from openff.evaluator import properties, substances, unit
+        from openff.units import unit
+
+        from openff.evaluator import properties, substances
 
         # Convert the data frame into data rows.
         free_solv_data_frame = cls._download_free_solv()

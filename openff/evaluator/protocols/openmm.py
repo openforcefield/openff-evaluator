@@ -12,8 +12,8 @@ from typing import TYPE_CHECKING, List
 
 import numpy as np
 import pandas as pd
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import (
     ParameterGradient,

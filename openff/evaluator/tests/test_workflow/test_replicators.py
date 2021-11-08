@@ -2,7 +2,8 @@
 Units tests for openff.evaluator.layers.simulation
 """
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.properties import Density
 from openff.evaluator.protocols.groups import ProtocolGroup
 from openff.evaluator.protocols.miscellaneous import AddValues, DummyProtocol
