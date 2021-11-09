@@ -60,7 +60,7 @@ class ImportThermoMLData(CurationComponent):
     def _download_data(cls, schema: ImportThermoMLDataSchema):
 
         v2020_tarball = "https://data.nist.gov/od/ds/mds2-2422/ThermoML.v2020-09-30.tgz"
-        request = requests.get(v2020, stream=True)
+        request = requests.get(v2020_tarball, stream=True)
 
         # Make sure the request went ok.
         try:
