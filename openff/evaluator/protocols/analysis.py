@@ -8,6 +8,7 @@ from os import path
 
 import numpy as np
 from openff.units import unit
+from openff.units.openmm import from_openmm
 
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import ParameterGradient, SmirnoffForceFieldSource
@@ -20,7 +21,7 @@ from openff.evaluator.utils.observables import (
     ObservableFrame,
     bootstrap,
 )
-from openff.evaluator.utils.openmm import openmm_quantity_to_pint, system_subset
+from openff.evaluator.utils.openmm import system_subset
 from openff.evaluator.utils.timeseries import (
     TimeSeriesStatistics,
     analyze_time_series,
@@ -629,8 +630,8 @@ class ComputeDipoleMoments(Protocol):
                 key, force_field, topology, 0.1
             )
 
-            reverse_value = openmm_quantity_to_pint(reverse_value)
-            forward_value = openmm_quantity_to_pint(forward_value)
+            reverse_value = from_openmm(reverse_value)
+            forward_value = from_openmm(forward_value)
 
             reverse_charges = self._extract_charges(reverse_system)
             forward_charges = self._extract_charges(forward_system)

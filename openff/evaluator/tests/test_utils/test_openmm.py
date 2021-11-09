@@ -15,6 +15,7 @@ from openff.toolkit.typing.engines.smirnoff.parameters import (
     VirtualSiteHandler,
 )
 from openff.units import unit
+from openff.units.openmm import from_openmm, to_openmm
 from openmm import unit as openmm_unit
 from openmm.app import PDBFile
 
@@ -27,8 +28,6 @@ from openff.evaluator.utils.observables import ObservableArray, ObservableFrame
 from openff.evaluator.utils.openmm import (
     extract_atom_indices,
     extract_positions,
-    openmm_quantity_to_pint,
-    pint_quantity_to_openmm,
     system_subset,
     update_context_with_pdb,
     update_context_with_positions,
@@ -42,7 +41,7 @@ def test_daltons():
         openmm_unit.gram / openmm_unit.mole
     )
 
-    pint_quantity = openmm_quantity_to_pint(openmm_quantity)
+    pint_quantity = from_openmm(openmm_quantity)
     pint_raw_value = pint_quantity.to(unit.gram / unit.mole).magnitude
 
     assert np.allclose(openmm_raw_value, pint_raw_value)
@@ -70,7 +69,7 @@ def test_openmm_to_pint(openmm_unit, value):
     openmm_quantity = value * openmm_unit
     openmm_raw_value = openmm_quantity.value_in_unit(openmm_unit)
 
-    pint_quantity = openmm_quantity_to_pint(openmm_quantity)
+    pint_quantity = from_openmm(openmm_quantity)
     pint_raw_value = pint_quantity.magnitude
 
     assert np.allclose(openmm_raw_value, pint_raw_value)
@@ -98,7 +97,7 @@ def test_pint_to_openmm(pint_unit, value):
     pint_quantity = value * pint_unit
     pint_raw_value = pint_quantity.magnitude
 
-    openmm_quantity = pint_quantity_to_openmm(pint_quantity)
+    openmm_quantity = to_openmm(pint_quantity)
     openmm_raw_value = openmm_quantity.value_in_unit(openmm_quantity.unit)
 
     assert np.allclose(openmm_raw_value, pint_raw_value)

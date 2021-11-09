@@ -12,6 +12,7 @@ from xml.etree import ElementTree
 import numpy as np
 import requests
 from openff.units import unit
+from openff.units.openmm import from_openmm
 
 from openff.evaluator.datasets import (
     MeasurementSource,
@@ -20,7 +21,6 @@ from openff.evaluator.datasets import (
 )
 from openff.evaluator.substances import Component, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
-from openff.evaluator.utils.openmm import openmm_quantity_to_pint
 
 logger = logging.getLogger(__name__)
 
@@ -866,7 +866,7 @@ class _PureOrMixtureData:
         for atom in molecule.atoms:
             molecular_weight += atom.mass
 
-        return openmm_quantity_to_pint(molecular_weight)
+        return from_openmm(molecular_weight)
 
     @staticmethod
     def _solvent_mole_fractions_to_moles(
