@@ -25,9 +25,10 @@ def test_import_thermoml_data(requests_mock):
 
         with open(tar_file.name, "rb") as file:
 
-            requests_mock.get(
-                "https://trc.nist.gov/ThermoML/IJT.tgz", content=file.read()
+            v2020_tarball = (
+                "https://data.nist.gov/od/ds/mds2-2422/ThermoML.v2020-09-30.tgz"
             )
+            requests_mock.get(v2020_tarball, content=file.read())
 
         data_frame = ImportThermoMLData.apply(
             pandas.DataFrame(), ImportThermoMLDataSchema(journal_names=["IJT"])

@@ -59,23 +59,19 @@ class ImportThermoMLData(CurationComponent):
     @classmethod
     def _download_data(cls, schema: ImportThermoMLDataSchema):
 
-        for journal in schema.journal_names:
+        v2020_tarball = "https://data.nist.gov/od/ds/mds2-2422/ThermoML.v2020-09-30.tgz"
+        request = requests.get(v2020, stream=True)
 
-            # Download the archive of all properties from the journal.
-            request = requests.get(
-                f"{schema.root_archive_url}/{journal}.tgz", stream=True
-            )
+        # Make sure the request went ok.
+        try:
+            request.raise_for_status()
+        except requests.exceptions.HTTPError as error:
+            print(error.response.text)
+            raise
 
-            # Make sure the request went ok.
-            try:
-                request.raise_for_status()
-            except requests.exceptions.HTTPError as error:
-                print(error.response.text)
-                raise
-
-                # Unzip the files into the temporary directory.
-            tar_file = tarfile.open(fileobj=io.BytesIO(request.content))
-            tar_file.extractall()
+            # Unzip the files into the temporary directory.
+        tar_file = tarfile.open(fileobj=io.BytesIO(request.content))
+        tar_file.extractall()
 
     @classmethod
     def _process_archive(cls, file_path: str) -> pandas.DataFrame:
