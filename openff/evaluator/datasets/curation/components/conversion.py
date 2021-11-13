@@ -59,7 +59,11 @@ class ConvertExcessDensityData(CurationComponent):
     def _molecular_weight(cls, smiles):
 
         from openff.toolkit.topology import Molecule
-        from openmm import unit as openmm_unit
+
+        try:
+            from openmm import unit as openmm_unit
+        except ImportError:
+            from simtk.openmm import unit as openmm_unit
 
         molecule = Molecule.from_smiles(smiles, allow_undefined_stereo=True)
 

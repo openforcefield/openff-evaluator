@@ -6,9 +6,16 @@ import logging
 from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import numpy
-import openmm
-from openmm import app
-from openmm import unit as _openmm_unit
+
+try:
+    import openmm
+    from openmm import app
+    from openmm import unit as _openmm_unit
+except ImportError:
+    from simtk import openmm
+    from simtk.openmm import app
+    from simtk.openmm import unit as _openmm_unit
+
 from pint import UndefinedUnitError
 
 from openff.evaluator import unit
@@ -40,7 +47,10 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
     Platform
         The created platform
     """
-    from openmm import Platform
+    try:
+        from openmm import Platform
+    except ImportError:
+        from simtk.openmm import Platform
 
     # Setup the requested platform:
     if compute_resources.number_of_gpus > 0:

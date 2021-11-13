@@ -10,7 +10,12 @@ import mdtraj
 import numpy
 from openff.toolkit.topology import Molecule, Topology
 from openff.toolkit.typing.engines.smirnoff import ForceField
-from openmm import unit as openmm_unit
+
+try:
+    from openmm import unit as openmm_unit
+except ImportError:
+    from simtk.openmm import unit as openmm_unit
+
 from smirnoff_plugins.handlers.nonbonded import DoubleExponential
 
 from openff.evaluator import unit
