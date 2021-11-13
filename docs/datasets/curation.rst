@@ -123,9 +123,7 @@ Data Extraction
     )
 
     # Import all data collected from the IJT journal.
-    data_frame = ImportThermoMLData.apply(
-        pandas.DataFrame(), ImportThermoMLDataSchema(journal_names=["IJT"])
-    )
+    data_frame = ImportThermoMLData.apply(pandas.DataFrame(), ImportThermoMLDataSchema())
 
 Filtration
 """"""""""

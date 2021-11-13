@@ -8,6 +8,21 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
+0.3.9
+-----
+
+Bugfixes
+""""""""
+
+* PR `#402 <https://github.com/openforcefield/openff-evaluator/pull/402>`_: Fix importing full ThermoML archive
+
+Behaviour Changes
+"""""""""""""""""
+
+The way that ThermoML archive files are served was changed in 2021 so that individual journal archives are no longer
+made available. Instead, now only the full ThermoML archive can be downloaded. Because of this, the ``ImportThermoMLDataSchema``
+schema no longer allows users to select which journal to pull data from.
+
 0.3.8
 -----
 
