@@ -4,7 +4,12 @@ from random import randint, random
 import mdtraj
 import numpy
 import numpy as np
-import openmm
+
+try:
+    import openmm
+except ImportError:
+    from simtk import openmm
+
 import pytest
 from openff.toolkit.topology import Molecule, Topology
 from openff.toolkit.typing.engines.smirnoff import ForceField, vdWHandler
@@ -14,8 +19,13 @@ from openff.toolkit.typing.engines.smirnoff.parameters import (
     LibraryChargeHandler,
     VirtualSiteHandler,
 )
-from openmm import unit as openmm_unit
-from openmm.app import PDBFile
+
+try:
+    from openmm import unit as openmm_unit
+    from openmm.app import PDBFile
+except ImportError:
+    from simtk.openmm import unit as openmm_unit
+    from simtk.openmm.app import PDBFile
 
 from openff.evaluator import unit
 from openff.evaluator.backends import ComputeResources

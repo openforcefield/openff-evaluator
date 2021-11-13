@@ -306,7 +306,10 @@ def _ion_residue_name(molecule):
     str
         The residue name of the ion
     """
-    from openmm import unit as openmm_unit
+    try:
+        from openmm import unit as openmm_unit
+    except ImportError:
+        from simtk.openmm import unit as openmm_unit
 
     element_symbol = molecule.atoms[0].element.symbol
     charge_symbol = ""

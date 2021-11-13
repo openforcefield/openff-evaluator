@@ -7,7 +7,11 @@ from enum import Enum
 from os import path
 
 import numpy as np
-from openmm import app
+
+try:
+    from openmm import app
+except ImportError:
+    from simtk.openmm import app
 
 from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
@@ -446,7 +450,11 @@ class BuildDockedCoordinates(Protocol):
 
         import mdtraj
         from openeye import oechem, oedocking
-        from openmm import unit as openmm_unit
+
+        try:
+            from openmm import unit as openmm_unit
+        except ImportError:
+            from simtk.openmm import unit as openmm_unit
 
         if (
             len(self.ligand_substance.components) != 1

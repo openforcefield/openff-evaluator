@@ -12,9 +12,17 @@ import textwrap
 from enum import Enum
 
 import numpy as np
-import openmm
+
+try:
+    import openmm
+except ImportError:
+    from simtk import openmm
 import requests
-from openmm import app
+
+try:
+    from openmm import app
+except ImportError:
+    from simtk.openmm import app
 
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import (
@@ -547,7 +555,10 @@ class BuildLigParGenSystem(TemplateBuildSystem):
         openmm.app.ForceField
             The force field template.
         """
-        from openmm import unit as openmm_unit
+        try:
+            from openmm import unit as openmm_unit
+        except ImportError:
+            from simtk.openmm import unit as openmm_unit
 
         initial_request_url = force_field_source.request_url
         empty_stream = io.BytesIO(b"\r\n")
@@ -643,7 +654,10 @@ class BuildLigParGenSystem(TemplateBuildSystem):
         openmm.System
             The parameterized system.
         """
-        from openmm import unit as openmm_unit
+        try:
+            from openmm import unit as openmm_unit
+        except ImportError:
+            from simtk.openmm import unit as openmm_unit
 
         template = self._built_template(molecule, force_field_source)
 
@@ -682,7 +696,10 @@ class BuildLigParGenSystem(TemplateBuildSystem):
         system: openmm.System
             The system object to apply the OPLS mixing rules to.
         """
-        from openmm import unit as openmm_unit
+        try:
+            from openmm import unit as openmm_unit
+        except ImportError:
+            from simtk.openmm import unit as openmm_unit
 
         forces = [system.getForce(index) for index in range(system.getNumForces())]
         forces = [force for force in forces if isinstance(force, openmm.NonbondedForce)]
@@ -825,7 +842,10 @@ class BuildTLeapSystem(TemplateBuildSystem):
         str
             The file path to the `rst7` file.
         """
-        from openmm import unit as openmm_unit
+        try:
+            from openmm import unit as openmm_unit
+        except ImportError:
+            from simtk.openmm import unit as openmm_unit
 
         # Change into the working directory.
         with temporarily_change_directory(directory):

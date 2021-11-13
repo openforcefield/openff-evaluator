@@ -686,7 +686,11 @@ class FilterByCharged(CurationComponent):
     ) -> pandas.DataFrame:
 
         from openff.toolkit.topology import Molecule
-        from openmm import unit as openmm_unit
+
+        try:
+            from openmm import unit as openmm_unit
+        except ImportError:
+            from simtk.openmm import unit as openmm_unit
 
         def filter_function(data_row):
 
