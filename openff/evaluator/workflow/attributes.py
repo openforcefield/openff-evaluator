@@ -17,10 +17,11 @@ def __getattr__(clsname):
         if us_cls is not None:
             warnings.filterwarnings("default", category=DeprecationWarning)
             warnings.warn(
-                f"{clsname} is a DEPRECATED spelling and will be removed"
-                f"in a future release. Please use {us_clsname} instead."
+                f"{clsname} is a DEPRECATED spelling and will be removed "
+                f"in a future release. Please use {us_clsname} instead.",
+                DeprecationWarning
             )
-            return type(clsname, (us_cls,), {})
+            return us_cls
     raise AttributeError(f"module {__name__} has no attribute {clsname}")
 
 
