@@ -42,4 +42,4 @@ dependencies:
   - dataclasses
   - smirnoff-plugins # For testing custom nonbonded forces
   - pip:
-    - git+https://github.com/openforcefield/openff-units.git@openmm-dalton
+    - git+https://github.com/openforcefield/openff-units.git
