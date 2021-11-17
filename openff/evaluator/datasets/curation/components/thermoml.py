@@ -4,7 +4,7 @@ import logging
 import os
 import tarfile
 from multiprocessing import Pool
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import pandas
 import requests
@@ -19,10 +19,6 @@ from openff.evaluator.datasets.thermoml import ThermoMLDataSet
 from openff.evaluator.utils.utils import temporarily_change_directory
 
 logger = logging.getLogger(__name__)
-
-
-def _default_journals():
-    return ["JCED", "JCT", "FPE", "TCA", "IJT"]
 
 
 class ImportThermoMLDataSchema(CurationComponentSchema):
@@ -41,13 +37,10 @@ class ImportThermoMLDataSchema(CurationComponentSchema):
         "into, and to restore the output of this component from.",
     )
 
-    journal_names: List[Literal["JCED", "JCT", "FPE", "TCA", "IJT"]] = Field(
-        default_factory=_default_journals,
-        description="The abbreviated names of the journals to import data from.",
-    )
     root_archive_url: HttpUrl = Field(
-        default="https://trc.nist.gov/ThermoML",
-        description="The root url where the ThermoML archives can be downloaded from.",
+        default="https://data.nist.gov/od/ds/mds2-2422/ThermoML.v2020-09-30.tgz",
+        description="The root url where the main ThermoML archive can be downloaded "
+        "from.",
     )
 
 
@@ -59,23 +52,19 @@ class ImportThermoMLData(CurationComponent):
     @classmethod
     def _download_data(cls, schema: ImportThermoMLDataSchema):
 
-        for journal in schema.journal_names:
+        # Download the archive of all properties from the journal.
+        request = requests.get(schema.root_archive_url, stream=True)
 
-            # Download the archive of all properties from the journal.
-            request = requests.get(
-                f"{schema.root_archive_url}/{journal}.tgz", stream=True
-            )
+        # Make sure the request went ok.
+        try:
+            request.raise_for_status()
+        except requests.exceptions.HTTPError as error:
+            print(error.response.text)
+            raise
 
-            # Make sure the request went ok.
-            try:
-                request.raise_for_status()
-            except requests.exceptions.HTTPError as error:
-                print(error.response.text)
-                raise
-
-                # Unzip the files into the temporary directory.
-            tar_file = tarfile.open(fileobj=io.BytesIO(request.content))
-            tar_file.extractall()
+            # Unzip the files into the temporary directory.
+        tar_file = tarfile.open(fileobj=io.BytesIO(request.content))
+        tar_file.extractall()
 
     @classmethod
     def _process_archive(cls, file_path: str) -> pandas.DataFrame:
@@ -124,7 +113,7 @@ class ImportThermoMLData(CurationComponent):
             cls._download_data(schema)
 
             # Get the names of the extracted files
-            file_names = glob.glob("*.xml")
+            file_names = glob.glob(os.path.join("10.*", "*.xml"))
 
             logger.debug("Processing archives")
 

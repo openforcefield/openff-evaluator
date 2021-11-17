@@ -150,7 +150,11 @@ class BaseYankProtocol(Protocol, abc.ABC):
         """
 
         from openff.toolkit.topology import Molecule, Topology
-        from openmm import app
+
+        try:
+            from openmm import app
+        except ImportError:
+            from simtk.openmm import app
 
         if role is None:
             return "all"
@@ -455,7 +459,10 @@ class BaseYankProtocol(Protocol, abc.ABC):
 
             if setup_only is True:
 
-                from openmm import unit as openmm_unit
+                try:
+                    from openmm import unit as openmm_unit
+                except ImportError:
+                    from simtk.openmm import unit as openmm_unit
 
                 return {
                     "free_energy": {
@@ -1321,7 +1328,10 @@ class SolvationYankProtocol(BaseYankProtocol):
 
     def _execute(self, directory, available_resources):
 
-        from openmm import XmlSerializer
+        try:
+            from openmm import XmlSerializer
+        except ImportError:
+            from simtk.openmm import XmlSerializer
 
         solute_components = [
             component

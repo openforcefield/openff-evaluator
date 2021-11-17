@@ -141,7 +141,11 @@ class PreparePullCoordinates(_PrepareAPRCoordinates):
 
     def _execute(self, directory, available_resources):
 
-        from openmm import app
+        try:
+            from openmm import app
+        except ImportError:
+            from simtk.openmm import app
+
         from paprika.evaluator import Setup
 
         atom_indices_by_role = _atom_indices_by_role(
@@ -177,7 +181,12 @@ class PrepareReleaseCoordinates(_PrepareAPRCoordinates):
     def _execute(self, directory, available_resources):
 
         import mdtraj
-        from openmm import app
+
+        try:
+            from openmm import app
+        except ImportError:
+            from simtk.openmm import app
+
         from paprika.evaluator import Setup
 
         mdtraj_trajectory = mdtraj.load_pdb(self.complex_file_path)
@@ -248,7 +257,12 @@ class AddDummyAtoms(Protocol):
     def _execute(self, directory, available_resources):
 
         import parmed.geometry
-        from openmm import NonbondedForce, XmlSerializer, app
+
+        try:
+            from openmm import NonbondedForce, XmlSerializer, app
+        except ImportError:
+            from simtk.openmm import NonbondedForce, XmlSerializer, app
+
         from paprika.evaluator import Setup
 
         # Extract the host atoms to determine the offset of the dummy atoms.

@@ -8,7 +8,11 @@ from os import path
 
 import numpy as np
 from openff.units import unit
-from openmm import app
+
+try:
+    from openmm import app
+except ImportError:
+    from simtk.openmm import app
 
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.substances import Component, ExactAmount, MoleFraction, Substance
@@ -446,7 +450,11 @@ class BuildDockedCoordinates(Protocol):
 
         import mdtraj
         from openeye import oechem, oedocking
-        from openmm import unit as openmm_unit
+
+        try:
+            from openmm import unit as openmm_unit
+        except ImportError:
+            from simtk.openmm import unit as openmm_unit
 
         if (
             len(self.ligand_substance.components) != 1

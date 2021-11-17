@@ -44,7 +44,11 @@ from openff.evaluator.workflow import workflow_protocol
 
 if TYPE_CHECKING:
 
-    import openmm
+    try:
+        import openmm
+    except ImportError:
+        from simtk import openmm
+
     from mdtraj import Trajectory
     from openff.toolkit.topology import Topology
     from openff.toolkit.typing.engines.smirnoff import ForceField
@@ -83,8 +87,12 @@ def _evaluate_energies(
     -------
         The array containing the evaluated potentials.
     """
-    import openmm
-    from openmm import unit as openmm_unit
+    try:
+        import openmm
+        from openmm import unit as openmm_unit
+    except ImportError:
+        from simtk import openmm
+        from simtk.openmm import unit as openmm_unit
 
     integrator = openmm.VerletIntegrator(0.1 * openmm_unit.femtoseconds)
 
@@ -177,7 +185,10 @@ def _compute_gradients(
         The amount to perturb for the force field parameter by.
     """
 
-    import openmm
+    try:
+        import openmm
+    except ImportError:
+        from simtk import openmm
 
     gradients = defaultdict(list)
     observables.clear_gradients()
@@ -333,9 +344,14 @@ class OpenMMEnergyMinimisation(BaseEnergyMinimisation):
 
     def _execute(self, directory, available_resources):
 
-        import openmm
-        from openmm import app
-        from openmm import unit as openmm_unit
+        try:
+            import openmm
+            from openmm import app
+            from openmm import unit as openmm_unit
+        except ImportError:
+            from simtk import openmm
+            from simtk.openmm import app
+            from simtk.openmm import unit as openmm_unit
 
         platform = setup_platform_with_resources(available_resources)
 
@@ -442,7 +458,10 @@ class OpenMMSimulation(BaseSimulation):
 
         def report(self, simulation, state):
 
-            from openmm import app
+            try:
+                from openmm import app
+            except ImportError:
+                from simtk.openmm import app
 
             if self._dcd is None:
 
@@ -483,7 +502,11 @@ class OpenMMSimulation(BaseSimulation):
     def _execute(self, directory, available_resources):
 
         import mdtraj
-        from openmm import app
+
+        try:
+            from openmm import app
+        except ImportError:
+            from simtk.openmm import app
 
         # We handle most things in OMM units here.
         temperature = self.thermodynamic_state.temperature
@@ -593,9 +616,14 @@ class OpenMMSimulation(BaseSimulation):
             the simulation.
         """
 
-        import openmm
         import openmmtools
-        from openmm import app
+
+        try:
+            import openmm
+            from openmm import app
+        except ImportError:
+            from simtk import openmm
+            from simtk.openmm import app
 
         # Create a platform with the correct resources.
         if not self.allow_gpu_platforms:
@@ -675,7 +703,10 @@ class OpenMMSimulation(BaseSimulation):
         context: openmm.Context
             The current OpenMM context.
         """
-        import openmm
+        try:
+            import openmm
+        except ImportError:
+            from simtk import openmm
 
         # Write the current state to disk
         state = context.getState(
@@ -828,7 +859,10 @@ class OpenMMSimulation(BaseSimulation):
         int
             The current step number.
         """
-        import openmm
+        try:
+            import openmm
+        except ImportError:
+            from simtk import openmm
 
         current_step_number = 0
 
@@ -950,7 +984,10 @@ class OpenMMSimulation(BaseSimulation):
         integrator: openmm.Integrator
             The integrator to evolve the simulation with.
         """
-        from openmm import app
+        try:
+            from openmm import app
+        except ImportError:
+            from simtk.openmm import app
 
         # Define how many steps should be taken.
         total_number_of_steps = (

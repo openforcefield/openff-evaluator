@@ -270,8 +270,10 @@ def test_replicated_ids():
 
 
 def test_find_relevant_gradient_keys(tmpdir):
-
-    from openmm import unit as openmm_unit
+    try:
+        from openmm import unit as openmm_unit
+    except ImportError:
+        from simtk.openmm import unit as openmm_unit
 
     force_field = ForceField()
 
