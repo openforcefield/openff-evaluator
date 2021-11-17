@@ -3,12 +3,28 @@ A collection of descriptors used to mark-up class fields which
 hold importance to the workflow engine, such as the inputs or
 outputs of workflow protocols.
 """
+import warnings
+
 from enum import Enum
 
 from openff.evaluator.attributes import UNDEFINED, Attribute
 
 
-class BaseMergeBehaviour(Enum):
+def __getattr__(clsname):
+    if "Behaviour" in clsname:
+        us_clsname = clsname.replace("Behaviour", "Behavior")
+        us_cls = globals().get(us_clsname)
+        if us_cls is not None:
+            warnings.filterwarnings("default", category=DeprecationWarning)
+            warnings.warn(
+                f"{clsname} is a DEPRECATED spelling and will be removed"
+                f"in a future release. Please use {us_clsname} instead."
+            )
+            return type(clsname, (us_cls,), {})
+    raise AttributeError(f"module {__name__} has no attribute {clsname}")
+
+
+class BaseMergeBehavior(Enum):
     """A base class for enums which will describes how attributes should
     be handled when attempting to merge similar protocols.
     """
@@ -16,7 +32,7 @@ class BaseMergeBehaviour(Enum):
     pass
 
 
-class MergeBehaviour(BaseMergeBehaviour):
+class MergeBehavior(BaseMergeBehavior):
     """A enum which describes how attributes should be handled when
     attempting to merge similar protocols.
 
@@ -32,7 +48,7 @@ class MergeBehaviour(BaseMergeBehaviour):
     Custom = "Custom"
 
 
-class InequalityMergeBehaviour(BaseMergeBehaviour):
+class InequalityMergeBehavior(BaseMergeBehavior):
     """A enum which describes how attributes which can be compared
     with inequalities should be merged.
 
@@ -78,39 +94,38 @@ class InputAttribute(Attribute):
         type_hint,
         default_value,
         optional=False,
-        merge_behavior=MergeBehaviour.ExactlyEqual,
+        merge_behavior=MergeBehavior.ExactlyEqual,
     ):
-
         """Initializes a new InputAttribute object.
 
         Parameters
         ----------
-        merge_behavior: BaseMergeBehaviour
+        merge_behavior: BaseMergeBehavior
             An enum describing how this input should be handled when considering
             whether to, and actually merging two different objects.
         """
 
         docstring = f"**Input** - {docstring}"
 
-        if not isinstance(merge_behavior, BaseMergeBehaviour):
+        if not isinstance(merge_behavior, BaseMergeBehavior):
             raise ValueError(
-                "The merge behaviour must inherit from `BaseMergeBehaviour`"
+                "The merge behaviour must inherit from `BaseMergeBehavior`"
             )
 
         if (
-            merge_behavior == InequalityMergeBehaviour.SmallestValue
-            or merge_behavior == InequalityMergeBehaviour.LargestValue
+            merge_behavior == InequalityMergeBehavior.SmallestValue
+            or merge_behavior == InequalityMergeBehavior.LargestValue
         ):
 
             merge_docstring = ""
 
-            if merge_behavior == InequalityMergeBehaviour.SmallestValue:
+            if merge_behavior == InequalityMergeBehavior.SmallestValue:
                 merge_docstring = (
                     "When two protocols are merged, the smallest value of "
                     "this attribute from either protocol is retained."
                 )
 
-            if merge_behavior == InequalityMergeBehaviour.SmallestValue:
+            if merge_behavior == InequalityMergeBehavior.SmallestValue:
                 merge_docstring = (
                     "When two protocols are merged, the largest value of "
                     "this attribute from either protocol is retained."

@@ -17,9 +17,9 @@ from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 from openff.evaluator.workflow import ProtocolGroup, workflow_protocol
 from openff.evaluator.workflow.attributes import (
-    InequalityMergeBehaviour,
+    InequalityMergeBehavior,
     InputAttribute,
-    MergeBehaviour,
+    MergeBehavior,
     OutputAttribute,
 )
 from openff.evaluator.workflow.utils import ProtocolPath
@@ -84,7 +84,7 @@ class ConditionalGroup(ProtocolGroup):
         "the group will cleanly exit.",
         type_hint=list,
         default_value=[],
-        merge_behavior=MergeBehaviour.Custom,
+        merge_behavior=MergeBehavior.Custom,
     )
 
     current_iteration = OutputAttribute(
@@ -98,7 +98,7 @@ class ConditionalGroup(ProtocolGroup):
         "groups conditions.",
         type_hint=int,
         default_value=100,
-        merge_behavior=InequalityMergeBehaviour.LargestValue,
+        merge_behavior=InequalityMergeBehavior.LargestValue,
     )
 
     def __init__(self, protocol_id):

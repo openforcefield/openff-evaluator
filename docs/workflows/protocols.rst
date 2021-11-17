@@ -4,7 +4,7 @@
 .. |input_attribute|              replace:: :py:class:`~openff.evaluator.workflow.attributes.InputAttribute`
 .. |output_attribute|             replace:: :py:class:`~openff.evaluator.workflow.attributes.OutputAttribute`
 .. |undefined|                    replace:: :py:class:`~openff.evaluator.attributes.UNDEFINED`
-.. |inequality_merge_behavior|    replace:: :py:class:`~openff.evaluator.workflow.attributes.InequalityMergeBehaviour`
+.. |inequality_merge_behavior|    replace:: :py:class:`~openff.evaluator.workflow.attributes.InequalityMergeBehavior`
 
 .. |openmm_simulation|    replace:: :py:class:`~openff.evaluator.protocols.openmm.OpenMMSimulation`
 
@@ -183,7 +183,7 @@ if two protocols can be merged::
         docstring="The maximum number of molecules to be added to the system.",
         type_hint=int,
         default_value=1000,
-        merge_behavior=MergeBehaviour.ExactlyEqual
+        merge_behavior=MergeBehavior.ExactlyEqual
     )
 
 The most common behavior is to require that the inputs must be ``ExactlyEqual`` in order for two protocols two be
@@ -194,14 +194,14 @@ just wish to take the larger / smaller of the two inputs::
     timestep = InputAttribute(
         docstring="The timestep to evolve the system by at each step.",
         type_hint=unit.Quantity,
-        merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        merge_behavior=InequalityMergeBehavior.SmallestValue,
         default_value=2.0 * unit.femtosecond,
     )
 
     total_number_of_iterations = InputAttribute(
         docstring="The number of times to propogate the system forward by.",
         type_hint=int,
-        merge_behavior=InequalityMergeBehaviour.LargestValue,
+        merge_behavior=InequalityMergeBehavior.LargestValue,
         default_value=1,
     )
 
