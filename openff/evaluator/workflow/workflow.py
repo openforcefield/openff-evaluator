@@ -9,7 +9,8 @@ from math import sqrt
 from os import makedirs, path
 from shutil import copy as file_copy
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import (

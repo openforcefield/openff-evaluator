@@ -4,8 +4,8 @@ from collections import defaultdict
 from typing import Dict, List
 
 import numpy
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.substances import Component, Substance

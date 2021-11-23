@@ -7,13 +7,13 @@ from enum import Enum
 from os import path
 
 import numpy as np
+from openff.units import unit
 
 try:
     from openmm import app
 except ImportError:
     from simtk.openmm import app
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.substances import Component, ExactAmount, MoleFraction, Substance
 from openff.evaluator.utils import packmol

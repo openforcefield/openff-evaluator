@@ -11,8 +11,7 @@ from enum import Enum
 
 import dateutil.parser
 import numpy as np
-
-from openff.evaluator import unit
+from openff.units import unit
 
 
 def _type_string_to_object(type_string):

@@ -1,6 +1,7 @@
 import os
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.protocols.paprika.restraints import ApplyRestraints
 from openff.evaluator.thermodynamics import ThermodynamicState

@@ -4,12 +4,6 @@ from random import randint, random
 import mdtraj
 import numpy
 import numpy as np
-
-try:
-    import openmm
-except ImportError:
-    from simtk import openmm
-
 import pytest
 from openff.toolkit.topology import Molecule, Topology
 from openff.toolkit.typing.engines.smirnoff import ForceField, vdWHandler
@@ -19,15 +13,19 @@ from openff.toolkit.typing.engines.smirnoff.parameters import (
     LibraryChargeHandler,
     VirtualSiteHandler,
 )
+from openff.units import unit
 
 try:
+    import openmm
+    from openff.units.openmm import from_openmm, to_openmm
     from openmm import unit as openmm_unit
     from openmm.app import PDBFile
 except ImportError:
+    from simtk import openmm
     from simtk.openmm import unit as openmm_unit
     from simtk.openmm.app import PDBFile
+    from openff.units.simtk import from_simtk as from_openmm, to_simtk as to_openmm
 
-from openff.evaluator import unit
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import ParameterGradientKey
 from openff.evaluator.protocols.openmm import _compute_gradients
@@ -37,8 +35,6 @@ from openff.evaluator.utils.observables import ObservableArray, ObservableFrame
 from openff.evaluator.utils.openmm import (
     extract_atom_indices,
     extract_positions,
-    openmm_quantity_to_pint,
-    pint_quantity_to_openmm,
     system_subset,
     update_context_with_pdb,
     update_context_with_positions,
@@ -52,7 +48,7 @@ def test_daltons():
         openmm_unit.gram / openmm_unit.mole
     )
 
-    pint_quantity = openmm_quantity_to_pint(openmm_quantity)
+    pint_quantity = from_openmm(openmm_quantity)
     pint_raw_value = pint_quantity.to(unit.gram / unit.mole).magnitude
 
     assert np.allclose(openmm_raw_value, pint_raw_value)
@@ -80,7 +76,7 @@ def test_openmm_to_pint(openmm_unit, value):
     openmm_quantity = value * openmm_unit
     openmm_raw_value = openmm_quantity.value_in_unit(openmm_unit)
 
-    pint_quantity = openmm_quantity_to_pint(openmm_quantity)
+    pint_quantity = from_openmm(openmm_quantity)
     pint_raw_value = pint_quantity.magnitude
 
     assert np.allclose(openmm_raw_value, pint_raw_value)
@@ -108,7 +104,7 @@ def test_pint_to_openmm(pint_unit, value):
     pint_quantity = value * pint_unit
     pint_raw_value = pint_quantity.magnitude
 
-    openmm_quantity = pint_quantity_to_openmm(pint_quantity)
+    openmm_quantity = to_openmm(pint_quantity)
     openmm_raw_value = openmm_quantity.value_in_unit(openmm_quantity.unit)
 
     assert np.allclose(openmm_raw_value, pint_raw_value)

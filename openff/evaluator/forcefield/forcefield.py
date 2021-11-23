@@ -4,7 +4,8 @@ A collection of wrappers around commonly employed force fields.
 import abc
 from enum import Enum
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.utils.serialization import TypedBaseModel
 
 

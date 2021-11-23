@@ -19,10 +19,10 @@ from distutils.spawn import find_executable
 from functools import reduce
 
 import numpy as np
+from openff.units import unit
+from openff.units.openmm import from_openmm
 
-from openff.evaluator import unit
 from openff.evaluator.substances import Component
-from openff.evaluator.utils.openmm import openmm_quantity_to_pint
 from openff.evaluator.utils.utils import temporarily_change_directory
 
 logger = logging.getLogger(__name__)
@@ -148,7 +148,7 @@ def _approximate_box_size_by_density(
         molecule_mass = reduce(
             (lambda x, y: x + y), [atom.mass for atom in molecule.atoms]
         )
-        molecule_mass = openmm_quantity_to_pint(molecule_mass) / unit.avogadro_constant
+        molecule_mass = from_openmm(molecule_mass) / unit.avogadro_constant
 
         molecule_volume = molecule_mass / mass_density
 

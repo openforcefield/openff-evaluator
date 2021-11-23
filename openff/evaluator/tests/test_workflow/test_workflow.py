@@ -8,8 +8,8 @@ import tempfile
 import numpy
 import pytest
 from openff.toolkit.typing.engines.smirnoff import ForceField
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.backends.dask import DaskLocalCluster
