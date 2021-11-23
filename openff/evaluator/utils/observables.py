@@ -24,8 +24,8 @@ from typing import (
 import numpy
 import pandas
 import pint.compat
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.forcefield import ParameterGradient, ParameterGradientKey
 
 # noinspection PyTypeChecker
@@ -40,7 +40,6 @@ class _Observable(abc.ABC):
         return [*self._gradients]
 
     def __init__(self, value=None, gradients=None):
-
         self._value = None
         self._gradients = None
 
@@ -98,7 +97,6 @@ class _Observable(abc.ABC):
         other_value = other
 
         if isinstance(other, self.__class__):
-
             other_value = other._value
 
             self_gradients, other_gradients = self._compatible_gradients(other)
@@ -126,13 +124,11 @@ class _Observable(abc.ABC):
         return -self.__sub__(other)
 
     def __mul__(self, other: Union[float, int, unit.Quantity, T]) -> T:
-
         if (
             isinstance(other, float)
             or isinstance(other, int)
             or isinstance(other, unit.Quantity)
         ):
-
             if (
                 isinstance(other, unit.Quantity)
                 and isinstance(other.magnitude, numpy.ndarray)
@@ -178,7 +174,6 @@ class _Observable(abc.ABC):
         return self * -1.0
 
     def __truediv__(self, other: Union[float, int, unit.Quantity, T]):
-
         if not isinstance(other, self.__class__):
             return self * (1.0 / other)
 
@@ -205,7 +200,6 @@ class _Observable(abc.ABC):
         )
 
     def __rtruediv__(self, other: Union[float, int, unit.Quantity, T]):
-
         if isinstance(other, self.__class__):
             return self.__truediv__(other)
 
@@ -286,25 +280,21 @@ class Observable(_Observable):
         value: Union[unit.Measurement, unit.Quantity],
         gradients: List[ParameterGradient],
     ):
-
         if value is not None and not isinstance(
             value, (unit.Quantity, unit.Measurement)
         ):
-
             raise TypeError(
                 "The value must be either an `openff.evaluator.unit.Measurement` or "
                 "an `openff.evaluator.unit.Quantity`."
             )
 
         if value is not None and not isinstance(value, unit.Measurement):
-
             if value is not None and not isinstance(value.magnitude, (int, float)):
                 raise TypeError("The value must be a unit-wrapped integer or float.")
 
             value = value.plus_minus(0.0 * value.units)
 
         if gradients is not None:
-
             if value is None:
                 raise ValueError("A valid value must be provided.")
 
@@ -313,7 +303,6 @@ class Observable(_Observable):
                 and isinstance(gradient.value.magnitude, (int, float))
                 for gradient in gradients
             ):
-
                 raise TypeError(
                     "The gradient values must be unit-wrapped integers or floats."
                 )
@@ -338,11 +327,9 @@ class ObservableArray(_Observable):
         super(ObservableArray, self).__init__(value, gradients)
 
     def _initialize(self, value: unit.Quantity, gradients: List[ParameterGradient]):
-
         expected_types = (int, float, numpy.ndarray)
 
         if value is not None:
-
             if not isinstance(value, unit.Quantity) or not isinstance(
                 value.magnitude, expected_types
             ):
@@ -355,7 +342,6 @@ class ObservableArray(_Observable):
 
             # Ensure the inner array has a uniform shape.
             if value.magnitude.ndim > 2:
-
                 raise ValueError(
                     "The wrapped array must not contain more than two dimensions."
                 )
@@ -366,7 +352,6 @@ class ObservableArray(_Observable):
         reshaped_gradients = []
 
         if gradients is not None:
-
             if value is None:
                 raise ValueError("A valid value must be provided.")
 
@@ -376,7 +361,6 @@ class ObservableArray(_Observable):
                 and isinstance(gradient.value.magnitude, expected_types)
                 for gradient in gradients
             ):
-
                 raise TypeError(
                     "The gradient values must be unit-wrapped integers, floats "
                     "or numpy arrays."
@@ -385,7 +369,6 @@ class ObservableArray(_Observable):
             # Make sure the gradient values are all numpy arrays and make sure the each
             # have the same shape as the value.
             for gradient in gradients:
-
                 gradient_value = gradient.value.magnitude
 
                 if not isinstance(gradient.value.magnitude, numpy.ndarray):
@@ -395,20 +378,17 @@ class ObservableArray(_Observable):
                     gradient_value = gradient_value.reshape(-1, 1)
 
                 if gradient_value.ndim > 2:
-
                     raise ValueError(
                         "Gradient values must not contain more than two dimensions."
                     )
 
                 if value.magnitude.shape[1] != gradient_value.shape[1]:
-
                     raise ValueError(
                         f"Gradient values should be {value.magnitude.shape[1]}-"
                         f"dimensional to match the dimensionality of the value."
                     )
 
                 if gradient_value.shape[0] != value.magnitude.shape[0]:
-
                     raise ValueError(
                         f"Gradient values should have a length of "
                         f"{value.magnitude.shape[0]} to match the length of the value."
@@ -552,7 +532,7 @@ class ObservableFrame(MutableMapping[Union[str, ObservableType], ObservableArray
         ObservableType.KineticEnergy: unit.kilojoules / unit.mole,
         ObservableType.TotalEnergy: unit.kilojoules / unit.mole,
         ObservableType.Temperature: unit.kelvin,
-        ObservableType.Volume: unit.nanometer ** 3,
+        ObservableType.Volume: unit.nanometer**3,
         ObservableType.Density: unit.gram / unit.milliliter,
         ObservableType.Enthalpy: unit.kilojoules / unit.mole,
         ObservableType.ReducedPotential: unit.dimensionless,
@@ -591,7 +571,6 @@ class ObservableFrame(MutableMapping[Union[str, ObservableType], ObservableArray
         )
 
         if isinstance(key, str):
-
             try:
                 key = ObservableType(key)
             except ValueError:
@@ -606,25 +585,21 @@ class ObservableFrame(MutableMapping[Union[str, ObservableType], ObservableArray
         return self._observables[self._validate_key(key)]
 
     def __setitem__(self, key: Union[str, ObservableType], value: ObservableArray):
-
         key = self._validate_key(key)
 
         if value.value is None or not isinstance(value.value.magnitude, numpy.ndarray):
-
             raise ValueError(
                 "The value of the observable must be a unit-wrapped numpy array with"
                 "shape=(n_measurements,) or shape=(n_measurements, 1)."
             )
 
         if not len(value) == len(self) and len(self) > 0:
-
             raise ValueError(
                 f"The length of the data ({len(value)}) must match the "
                 f"length of the data already in the frame ({len(self)})."
             )
 
         if value.value.dimensionality != self._units[key].dimensionality:
-
             raise ValueError(
                 f"{key.value} data must have units compatible with {self._units[key]}."
             )
@@ -662,7 +637,6 @@ class ObservableFrame(MutableMapping[Union[str, ObservableType], ObservableArray
             The imported observables.
         """
         with open(file_path, "r") as file:
-
             file_contents = file.read()
 
             if len(file_contents) < 1:
@@ -687,7 +661,7 @@ class ObservableFrame(MutableMapping[Union[str, ObservableType], ObservableArray
             "Kinetic Energy (kJ/mole)": unit.kilojoules / unit.mole,
             "Total Energy (kJ/mole)": unit.kilojoules / unit.mole,
             "Temperature (K)": unit.kelvin,
-            "Box Volume (nm^3)": unit.nanometer ** 3,
+            "Box Volume (nm^3)": unit.nanometer**3,
             "Density (g/mL)": unit.gram / unit.milliliter,
         }
 
@@ -700,7 +674,6 @@ class ObservableFrame(MutableMapping[Union[str, ObservableType], ObservableArray
         }
 
         if pressure is not None:
-
             observables[ObservableType.Enthalpy] = ObservableArray(
                 value=(
                     observables[ObservableType.TotalEnergy].value
@@ -758,7 +731,6 @@ class ObservableFrame(MutableMapping[Union[str, ObservableType], ObservableArray
             {*observable_frame} == expected_observables
             for observable_frame in observable_frames
         ):
-
             raise ValueError(
                 "The observable frames must contain the same types of observable."
             )
@@ -781,7 +753,6 @@ class ObservableFrame(MutableMapping[Union[str, ObservableType], ObservableArray
             observable.clear_gradients()
 
     def __setstate__(self, state):
-
         self._observables = {}
 
         for key, value in state["observables"].items():
@@ -862,7 +833,6 @@ def bootstrap(
     bootstrapped_values = numpy.zeros(iterations)
 
     for bootstrap_iteration in range(iterations):
-
         sample_observables: Dict[str, ObservableArray] = {
             key: ObservableArray(
                 value=(numpy.zeros(observables[key].value.magnitude.shape))
@@ -874,13 +844,11 @@ def bootstrap(
         start_index = 0
 
         for sub_count in sub_counts:
-
             # Choose the sample size as a percentage of the full data set.
             sample_size = min(math.floor(sub_count * relative_sample_size), sub_count)
             sample_indices = numpy.random.choice(sub_count, sample_size)
 
             for key in observables:
-
                 sub_data = observables[key].subset(
                     range(start_index, start_index + sub_count)
                 )

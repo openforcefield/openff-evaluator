@@ -7,7 +7,8 @@ import inspect
 from collections.abc import Iterable, Mapping
 from enum import Enum, IntEnum, IntFlag
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.attributes.typing import is_instance_of_type, is_supported_type
 from openff.evaluator.utils.serialization import TypedBaseModel
 
@@ -68,7 +69,6 @@ class AttributeClass(TypedBaseModel):
         attribute_names = self.get_attributes()
 
         for name in attribute_names:
-
             attribute = getattr(self.__class__, name)
             attribute_value = getattr(self, name)
 
@@ -84,7 +84,6 @@ class AttributeClass(TypedBaseModel):
                 attribute_value.validate(attribute_type)
 
             elif isinstance(attribute_value, Mapping):
-
                 iterable_values = (
                     attribute_value[x]
                     for x in attribute_value
@@ -94,7 +93,6 @@ class AttributeClass(TypedBaseModel):
             elif isinstance(attribute_value, Iterable) and not isinstance(
                 attribute_value, (unit.Quantity, unit.Measurement)
             ):
-
                 iterable_values = (
                     x for x in attribute_value if isinstance(x, AttributeClass)
                 )
@@ -123,7 +121,6 @@ class AttributeClass(TypedBaseModel):
         attribute_names = []
 
         for base_class in all_bases:
-
             found_attributes = [
                 attribute_name
                 for attribute_name in base_class.__dict__
@@ -131,7 +128,6 @@ class AttributeClass(TypedBaseModel):
             ]
 
             if attribute_type is not None:
-
                 found_attributes = [
                     name
                     for name in found_attributes
@@ -168,12 +164,10 @@ class AttributeClass(TypedBaseModel):
         return return_object
 
     def __getstate__(self):
-
         attribute_names = self.get_attributes()
         attributes = {}
 
         for attribute_name in attribute_names:
-
             attribute = getattr(self.__class__, attribute_name)
             attribute_value = getattr(self, attribute_name)
 
@@ -185,15 +179,12 @@ class AttributeClass(TypedBaseModel):
         return attributes
 
     def __setstate__(self, state):
-
         attribute_names = self.get_attributes()
 
         for name in attribute_names:
-
             attribute = getattr(self.__class__, name)
 
             if not attribute.optional and name not in state:
-
                 raise IndexError(
                     f"The {name} attribute was not present in " f"the state dictionary."
                 )
@@ -249,7 +240,6 @@ class Attribute:
         """
 
         if not is_supported_type(type_hint):
-
             raise ValueError(
                 f"The {type_hint} type is not supported by the "
                 f"workflow type hinting system."
@@ -271,14 +261,12 @@ class Attribute:
             isinstance(default_value, (list, tuple, set, frozenset))
             and len(default_value) <= 4
         ):
-
             docstring = (
                 f"{docstring} The default value of this attribute "
                 f"is ``{str(default_value)}``."
             )
 
         elif default_value == UNDEFINED:
-
             optional_string = "" if optional else " and must be set by the user."
 
             docstring = (
@@ -290,7 +278,6 @@ class Attribute:
         self.read_only = read_only
 
         if self.optional and self.read_only:
-
             raise ValueError("An attribute cannot be both optional and read-only")
 
         if optional is True:
@@ -303,7 +290,6 @@ class Attribute:
         self.type_hint = type_hint
 
     def _set_value(self, instance, value):
-
         if (
             isinstance(value, int)
             and isinstance(self.type_hint, type)
@@ -327,7 +313,6 @@ class Attribute:
             and not isinstance(value, PlaceholderValue)
             and not value == UNDEFINED
         ):
-
             raise ValueError(
                 f"The {self._private_attribute_name[1:]} attribute can only accept "
                 f"values of type {self.type_hint}"
@@ -339,7 +324,6 @@ class Attribute:
         self._private_attribute_name = "_" + name
 
     def __get__(self, instance, owner=None):
-
         if instance is None:
             # Handle the case where this is called on the class directly,
             # rather than an instance.
@@ -363,7 +347,6 @@ class Attribute:
         return getattr(instance, self._private_attribute_name)
 
     def __set__(self, instance, value):
-
         if self.read_only:
             raise ValueError("This attribute is read-only.")
 

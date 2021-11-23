@@ -9,8 +9,8 @@ import time
 
 import dateutil.parser
 import numpy
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import Attribute, PlaceholderValue
 from openff.evaluator.datasets import PropertyPhase
 from openff.evaluator.layers import calculation_layer
@@ -123,7 +123,6 @@ class ReweightingLayer(WorkflowCalculationLayer):
 
         # First remove any data measured outside of the allowed temperature range.
         for data_tuple in data_list:
-
             _, data_object, data_directory = data_tuple
 
             if (
@@ -179,7 +178,6 @@ class ReweightingLayer(WorkflowCalculationLayer):
         required_force_field_keys = set()
 
         for key in template_queries:
-
             query = copy.deepcopy(template_queries[key])
 
             # Fill in any place holder values.
@@ -198,7 +196,6 @@ class ReweightingLayer(WorkflowCalculationLayer):
             stored_data_tuples = []
 
             for query_list in query_results.values():
-
                 query_list = ReweightingLayer._rank_cached_data(
                     query_list,
                     physical_property.thermodynamic_state.temperature,
@@ -215,7 +212,6 @@ class ReweightingLayer(WorkflowCalculationLayer):
                 query_data_tuples = []
 
                 for storage_key, data_object, data_directory in query_list:
-
                     object_path = os.path.join(working_directory, f"{storage_key}")
                     force_field_path = os.path.join(
                         working_directory, f"{data_object.force_field_id}"
@@ -240,11 +236,9 @@ class ReweightingLayer(WorkflowCalculationLayer):
 
         # Make a local copy of the required force fields
         for force_field_id in required_force_field_keys:
-
             force_field_path = os.path.join(working_directory, force_field_id)
 
             if not os.path.isfile(force_field_path):
-
                 existing_force_field = storage_backend.retrieve_force_field(
                     force_field_id
                 )

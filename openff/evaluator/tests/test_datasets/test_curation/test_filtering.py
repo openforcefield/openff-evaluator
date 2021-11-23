@@ -3,9 +3,9 @@ from typing import List, Tuple
 import numpy
 import pandas
 import pytest
+from openff.units import unit
 from pydantic import ValidationError
 
-from openff.evaluator import unit
 from openff.evaluator.datasets import (
     MeasurementSource,
     PhysicalPropertyDataSet,
@@ -86,9 +86,7 @@ def _build_data_frame(
     data_rows = []
 
     for substance, include_properties in substance_entries:
-
         for property_type, include_property in zip(property_types, include_properties):
-
             if not include_property:
                 continue
 
@@ -108,7 +106,6 @@ def _build_data_frame(
 
 @pytest.fixture(scope="module")
 def data_frame() -> pandas.DataFrame:
-
     temperatures = [298.15, 318.15]
     pressures = [101.325, 101.0]
 
@@ -133,11 +130,9 @@ def data_frame() -> pandas.DataFrame:
     data_entries = []
 
     for temperature, pressure, property_type, mole_fraction in loop_variables:
-
         n_components = len(mole_fraction)
 
         for smiles_tuple in smiles[n_components]:
-
             substance = Substance()
 
             for smiles_pattern, x in zip(smiles_tuple, mole_fraction):
@@ -164,7 +159,6 @@ def data_frame() -> pandas.DataFrame:
 
 
 def test_filter_duplicates(data_frame):
-
     filtered_frame = FilterDuplicates.apply(data_frame, FilterDuplicatesSchema(), 1)
 
     pure_data: pandas.DataFrame = filtered_frame[filtered_frame["N Components"] == 1]
@@ -185,19 +179,16 @@ def test_filter_duplicates(data_frame):
 
 
 def test_validate_filter_by_temperature():
-
     # Ensure a valid schema passes
     FilterByTemperatureSchema(minimum_temperature=1.0, maximum_temperature=2.0)
 
     # Test that an exception is raised when the minimum temperature is
     # greater than the maximum.
     with pytest.raises(ValidationError):
-
         FilterByTemperatureSchema(minimum_temperature=2.0, maximum_temperature=1.0)
 
 
 def test_filter_by_temperature(data_frame):
-
     # Apply a filter which should have no effect.
     filtered_frame = FilterByTemperature.apply(
         data_frame,
@@ -247,7 +238,6 @@ def test_validate_filter_by_pressure():
 
 
 def test_filter_by_pressure(data_frame):
-
     # Apply a filter which should have no effect.
     filtered_frame = FilterByPressure.apply(
         data_frame,
@@ -287,7 +277,6 @@ def test_filter_by_pressure(data_frame):
 
 
 def test_validate_filter_by_mole_fraction():
-
     # Ensure a valid schema passes
     FilterByMoleFractionSchema(
         mole_fraction_ranges={2: [[(0.2, 0.8)]], 3: [[(0.1, 0.2)], [(0.4, 0.5)]]}
@@ -315,7 +304,6 @@ def test_validate_filter_by_mole_fraction():
 
 
 def test_filter_by_mole_fraction(data_frame):
-
     data_rows = [
         {"N Components": 1, "Component 1": "CCCCC", "Mole Fraction 1": 1.0},
         {
@@ -386,7 +374,6 @@ def test_filter_by_mole_fraction(data_frame):
 
 
 def test_filter_by_racemic():
-
     data_rows = [
         {"N Components": 1, "Component 1": "N[C@H](C)C(=O)O"},
         {"N Components": 1, "Component 1": "N[C@@H](C)C(=O)O"},
@@ -438,12 +425,10 @@ def test_validate_filter_by_elements():
     # Test that an exception is raised when mutually exclusive options
     # are provided.
     with pytest.raises(ValidationError):
-
         FilterByElementsSchema(allowed_elements=["C"], forbidden_elements=["C"])
 
 
 def test_filter_by_elements(data_frame):
-
     # Apply a filter which should have no effect.
     filtered_frame = FilterByElements.apply(
         data_frame,
@@ -481,7 +466,6 @@ def test_filter_by_elements(data_frame):
 
 
 def test_validate_filter_by_property():
-
     # Ensure a valid schema passes
     FilterByPropertyTypesSchema(property_types=["Density"])
     FilterByPropertyTypesSchema(
@@ -495,7 +479,6 @@ def test_validate_filter_by_property():
 
 
 def test_filter_by_property(data_frame):
-
     # Apply a filter which should have no effect.
     filtered_frame = FilterByPropertyTypes.apply(
         data_frame,
@@ -642,7 +625,6 @@ def test_filter_by_property_strict_n_components():
 
 
 def test_filter_stereochemistry(data_frame):
-
     # Ensure molecules with undefined stereochemistry are filtered.
     filtered_frame = FilterByStereochemistry.apply(
         data_frame,
@@ -653,7 +635,6 @@ def test_filter_stereochemistry(data_frame):
 
 
 def test_filter_charged():
-
     thermodynamic_state = ThermodynamicState(
         temperature=298.15 * unit.kelvin,
         pressure=101.325 * unit.kilopascal,
@@ -748,7 +729,6 @@ def test_validate_filter_by_smiles():
 
 
 def test_filter_by_smiles(data_frame):
-
     # Strictly only retain hydrocarbons. This should only leave pure
     # properties.
     filtered_frame = FilterBySmiles.apply(
@@ -830,7 +810,6 @@ def test_find_smirks_matches():
 
 
 def test_filter_by_smirks(data_frame):
-
     # Apply a filter which should do nothing.
     filtered_frame = FilterBySmirks.apply(
         data_frame,
@@ -871,7 +850,6 @@ def test_filter_by_smirks(data_frame):
 
 
 def test_filter_by_n_components(data_frame):
-
     # Apply a filter which should do nothing
     filtered_frame = FilterByNComponents.apply(
         data_frame, FilterByNComponentsSchema(n_components=[1, 2])
@@ -904,14 +882,12 @@ def test_validate_filter_by_substances():
     # Test that an exception is raised when mutually exclusive options
     # are provided.
     with pytest.raises(ValidationError):
-
         FilterBySubstancesSchema(
             substances_to_include=[("C",)], substances_to_exclude=[("C",)]
         )
 
 
 def test_filter_by_substances(data_frame):
-
     # Retain only the pure hydrocarbons.
     filtered_frame = FilterBySubstances.apply(
         data_frame, FilterBySubstancesSchema(substances_to_include=[("C",)])
@@ -974,14 +950,12 @@ def test_validate_environment():
     # Test that an exception is raised when mutually exclusive options
     # are provided.
     with pytest.raises(ValidationError):
-
         FilterByEnvironmentsSchema(
             per_component_environments={1: [[ChemicalEnvironment.Alcohol]]},
             environments=[ChemicalEnvironment.Alcohol],
         )
 
     with pytest.raises(ValidationError):
-
         FilterByEnvironmentsSchema(
             environments=[ChemicalEnvironment.Alcohol],
             at_least_one_environment=True,

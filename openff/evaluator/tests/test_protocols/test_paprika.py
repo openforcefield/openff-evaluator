@@ -4,8 +4,8 @@ import numpy
 import pytest
 from openff.toolkit.topology import Molecule, Topology
 from openff.toolkit.typing.engines.smirnoff import ForceField
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import (
     ParameterGradient,
@@ -43,7 +43,6 @@ from openff.evaluator.utils.observables import Observable
 
 @pytest.fixture(scope="module")
 def dummy_complex() -> Substance:
-
     substance = Substance()
 
     substance.add_component(
@@ -58,7 +57,6 @@ def dummy_complex() -> Substance:
 
 @pytest.fixture()
 def complex_file_path(tmp_path):
-
     import parmed.geometry
     from paprika.evaluator import Setup
 
@@ -110,7 +108,6 @@ def restraints_schema():
 
 @pytest.fixture()
 def attach_restraints_path(tmp_path, complex_file_path, restraints_schema):
-
     protocol = GenerateAttachRestraints("")
     protocol.complex_coordinate_path = complex_file_path
     protocol.attach_lambdas = [1.0]
@@ -122,7 +119,6 @@ def attach_restraints_path(tmp_path, complex_file_path, restraints_schema):
 
 @pytest.fixture()
 def pull_restraints_path(tmp_path, complex_file_path, restraints_schema):
-
     protocol = GeneratePullRestraints("")
     protocol.complex_coordinate_path = complex_file_path
     protocol.attach_lambdas = [0.0]
@@ -135,7 +131,6 @@ def pull_restraints_path(tmp_path, complex_file_path, restraints_schema):
 
 @pytest.fixture()
 def release_restraints_path(tmp_path, complex_file_path, restraints_schema):
-
     protocol = GenerateReleaseRestraints("")
     protocol.host_coordinate_path = complex_file_path
     protocol.release_lambdas = [1.0]
@@ -147,7 +142,6 @@ def release_restraints_path(tmp_path, complex_file_path, restraints_schema):
 
 @pytest.fixture()
 def bound_restraints_path(tmp_path, complex_file_path, restraints_schema):
-
     protocol = GenerateBoundRestraints("")
     protocol.complex_coordinate_path = complex_file_path
     protocol.attach_lambdas = [1.0]
@@ -159,7 +153,6 @@ def bound_restraints_path(tmp_path, complex_file_path, restraints_schema):
 
 @pytest.fixture()
 def unbound_restraints_path(tmp_path, complex_file_path, restraints_schema):
-
     protocol = GenerateUnboundRestraints("")
     protocol.complex_coordinate_path = complex_file_path
     protocol.attach_lambdas = [0.0]
@@ -171,7 +164,6 @@ def unbound_restraints_path(tmp_path, complex_file_path, restraints_schema):
 
 
 def test_components_by_role(dummy_complex):
-
     components_by_role = _components_by_role(dummy_complex)
 
     assert len(components_by_role) == 2
@@ -187,7 +179,6 @@ def test_components_by_role(dummy_complex):
 
 
 def test_atom_indices_by_role(dummy_complex):
-
     atom_indices_by_role = _atom_indices_by_role(
         dummy_complex,
         get_data_filename(os.path.join("test", "molecules", "methanol_methane.pdb")),
@@ -251,7 +242,6 @@ def test_prepare_pull_coordinates(tmp_path, dummy_complex, window_index, expecte
 
 
 def test_add_dummy_atoms(tmp_path, dummy_complex):
-
     import mdtraj
     from simtk import openmm
     from simtk import unit as simtk_unit
@@ -315,7 +305,6 @@ def test_add_dummy_atoms(tmp_path, dummy_complex):
 
 
 def validate_generated_restraints(restraints_path, expected_restraint_types, phase):
-
     restraints_dictionary = ApplyRestraints.load_restraints(restraints_path)
     restraints_dictionary = {
         restraint_type: restraints
@@ -338,7 +327,6 @@ def validate_generated_restraints(restraints_path, expected_restraint_types, pha
 
 
 def validate_system_file(system_path, expected_force_groups):
-
     from simtk import openmm
 
     assert os.path.isfile(system_path)
@@ -353,7 +341,6 @@ def validate_system_file(system_path, expected_force_groups):
 
 
 def test_generate_attach_restraints(tmp_path, complex_file_path, restraints_schema):
-
     protocol = GenerateAttachRestraints("")
     protocol.complex_coordinate_path = complex_file_path
     protocol.attach_lambdas = [0.0, 0.5, 1.0]
@@ -371,7 +358,6 @@ def test_generate_attach_restraints(tmp_path, complex_file_path, restraints_sche
 
 
 def test_generate_pull_restraints(tmp_path, complex_file_path, restraints_schema):
-
     protocol = GeneratePullRestraints("")
     protocol.complex_coordinate_path = complex_file_path
     protocol.attach_lambdas = [0.0, 1.0]
@@ -388,7 +374,6 @@ def test_generate_pull_restraints(tmp_path, complex_file_path, restraints_schema
 
 
 def test_generate_release_restraints(tmp_path, complex_file_path, restraints_schema):
-
     protocol = GenerateReleaseRestraints("")
     protocol.host_coordinate_path = complex_file_path
     protocol.release_lambdas = [1.0, 0.0]
@@ -404,7 +389,6 @@ def test_generate_release_restraints(tmp_path, complex_file_path, restraints_sch
 
 
 def test_generate_bound_restraints(tmp_path, complex_file_path, restraints_schema):
-
     protocol = GenerateBoundRestraints("")
     protocol.complex_coordinate_path = complex_file_path
     protocol.attach_lambdas = [0.0, 1.0]
@@ -420,7 +404,6 @@ def test_generate_bound_restraints(tmp_path, complex_file_path, restraints_schem
 
 
 def test_generate_unbound_restraints(tmp_path, complex_file_path, restraints_schema):
-
     protocol = GenerateUnboundRestraints("")
     protocol.complex_coordinate_path = complex_file_path
     protocol.attach_lambdas = [0.0, 1.0]
@@ -437,7 +420,6 @@ def test_generate_unbound_restraints(tmp_path, complex_file_path, restraints_sch
 def test_apply_attach_restraints(
     tmp_path, dummy_complex, complex_file_path, attach_restraints_path
 ):
-
     from simtk import openmm
 
     with open(os.path.join(tmp_path, "system.xml"), "w") as file:
@@ -462,7 +444,6 @@ def test_apply_attach_restraints(
 def test_apply_pull_restraints(
     tmp_path, dummy_complex, complex_file_path, pull_restraints_path
 ):
-
     from simtk import openmm
 
     with open(os.path.join(tmp_path, "system.xml"), "w") as file:
@@ -487,7 +468,6 @@ def test_apply_pull_restraints(
 def test_apply_release_restraints(
     tmp_path, dummy_complex, complex_file_path, release_restraints_path
 ):
-
     from simtk import openmm
 
     with open(os.path.join(tmp_path, "system.xml"), "w") as file:
@@ -512,7 +492,6 @@ def test_apply_release_restraints(
 def test_apply_bound_restraints(
     tmp_path, dummy_complex, complex_file_path, bound_restraints_path
 ):
-
     from simtk import openmm
 
     with open(os.path.join(tmp_path, "system.xml"), "w") as file:
@@ -537,7 +516,6 @@ def test_apply_bound_restraints(
 def test_apply_unbound_restraints(
     tmp_path, dummy_complex, complex_file_path, unbound_restraints_path
 ):
-
     from simtk import openmm
 
     with open(os.path.join(tmp_path, "system.xml"), "w") as file:
@@ -560,7 +538,6 @@ def test_apply_unbound_restraints(
 
 
 def test_compute_reference_work(tmp_path, complex_file_path):
-
     # Generate a dummy set of pull restraints
     restraints_protocol = GeneratePullRestraints("")
     restraints_protocol.complex_coordinate_path = complex_file_path
@@ -600,7 +577,6 @@ def test_compute_reference_work(tmp_path, complex_file_path):
 @pytest.mark.parametrize("temperature", [298.15, 308.15])
 @pytest.mark.parametrize("n_microstates", [1, 2])
 def test_compute_symmetry_correction(temperature, n_microstates):
-
     protocol = ComputeSymmetryCorrection("")
     protocol.thermodynamic_state = ThermodynamicState(
         temperature=temperature * unit.kelvin
@@ -619,7 +595,6 @@ def test_compute_symmetry_correction(temperature, n_microstates):
 
 
 def test_compute_potential_energy_gradient(tmp_path):
-
     import mdtraj
     from simtk import openmm
 
@@ -678,7 +653,6 @@ def test_compute_potential_energy_gradient(tmp_path):
 
 
 def test_compute_free_energy_gradient(tmp_path):
-
     protocol = ComputeFreeEnergyGradient("")
     protocol.bound_state_gradients = [
         [
@@ -712,7 +686,6 @@ def test_compute_free_energy_gradient(tmp_path):
 
 
 def test_analyse_apr(tmp_path, monkeypatch, complex_file_path):
-
     import mdtraj
     from paprika.evaluator import Analyze
 

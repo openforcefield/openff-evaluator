@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Set, Tuple
 
 if TYPE_CHECKING:
-
     import pandas
 
 
@@ -27,7 +26,6 @@ def reorder_data_frame(data_frame: "pandas.DataFrame") -> "pandas.DataFrame":
     max_n_components = data_frame["N Components"].max()
 
     if max_n_components > 2:
-
         raise NotImplementedError(
             "Reordering more than 2 components has not yet been robustly tested."
         )
@@ -35,7 +33,6 @@ def reorder_data_frame(data_frame: "pandas.DataFrame") -> "pandas.DataFrame":
     ordered_frames = []
 
     for n_components in range(min_n_components, max_n_components + 1):
-
         component_frame = data_frame[data_frame["N Components"] == n_components]
         ordered_frame = data_frame[data_frame["N Components"] == n_components].copy()
 
@@ -45,15 +42,12 @@ def reorder_data_frame(data_frame: "pandas.DataFrame") -> "pandas.DataFrame":
         substance_headers = ["Component", "Role", "Mole Fraction", "Exact Amount"]
 
         for component_index in range(n_components):
-
             indices = component_order[f"Component {component_index + 1}"]
 
             for substance_header in substance_headers:
-
                 component_header = f"{substance_header} {component_index + 1}"
 
                 for replacement_index in range(n_components):
-
                     if component_index == replacement_index:
                         continue
 
@@ -102,7 +96,6 @@ def data_frame_to_substances(data_frame: "pandas.DataFrame") -> Set[Tuple[str, .
     max_n_components = data_frame["N Components"].max()
 
     for n_components in range(min_n_components, max_n_components + 1):
-
         component_data = ordered_data[ordered_data["N Components"] == n_components]
 
         component_columns = (

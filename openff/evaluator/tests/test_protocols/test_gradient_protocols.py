@@ -2,8 +2,8 @@ import os
 import tempfile
 
 import numpy as np
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.forcefield import ParameterGradientKey
 from openff.evaluator.protocols.gradients import ZeroGradients
 from openff.evaluator.tests.utils import build_tip3p_smirnoff_force_field
@@ -11,9 +11,7 @@ from openff.evaluator.utils.observables import ObservableArray
 
 
 def test_zero_gradient():
-
     with tempfile.TemporaryDirectory() as directory:
-
         force_field_path = os.path.join(directory, "ff.json")
 
         with open(force_field_path, "w") as file:
@@ -37,5 +35,4 @@ def test_zero_gradient():
         } == {*gradient_keys}
 
         for gradient in zero_gradients.output_observables.gradients:
-
             assert np.allclose(gradient.value, 0.0)

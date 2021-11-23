@@ -6,8 +6,8 @@ from typing import List, Tuple, Type, Union
 
 import numpy
 import pytest
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.forcefield import ParameterGradient, ParameterGradientKey
 from openff.evaluator.tests.utils import does_not_raise
 from openff.evaluator.utils import get_data_filename
@@ -27,7 +27,6 @@ def _compare_observables(
     observable_a: Union[Observable, ObservableArray],
     observable_b: Union[Observable, ObservableArray],
 ):
-
     assert isinstance(observable_a, type(observable_b))
 
     assert isinstance(observable_a.value.magnitude, type(observable_b.value.magnitude))
@@ -49,7 +48,6 @@ def _compare_observables(
     assert {*observable_a_gradients} == {*observable_b_gradients}
 
     for gradient_key in observable_a_gradients:
-
         gradient_a = observable_a_gradients[gradient_key]
         gradient_b = observable_b_gradients[gradient_key]
 
@@ -65,7 +63,6 @@ def _mock_observable(
     gradient_values: List[Tuple[str, str, str, ValueType]],
     object_type: Union[Type[Observable], Type[ObservableArray]],
 ):
-
     return object_type(
         value=value,
         gradients=[
@@ -125,7 +122,6 @@ def test_observable_array_valid_initializer(
     expected_value: unit.Quantity,
     expected_gradient_values: List[unit.Quantity],
 ):
-
     observable = ObservableArray(
         value,
         [
@@ -257,7 +253,6 @@ def test_observable_array_valid_initializer(
 def test_observable_array_invalid_initializer(
     value, gradients, expected_raises, expected_message
 ):
-
     with expected_raises as error_info:
         ObservableArray(value, gradients)
 
@@ -266,7 +261,6 @@ def test_observable_array_invalid_initializer(
 
 @pytest.mark.parametrize("value", [0.1, numpy.ones(1)])
 def test_observable_array_round_trip(value):
-
     observable = ObservableArray(
         value=value * unit.kelvin,
         gradients=[
@@ -290,7 +284,6 @@ def test_observable_array_round_trip(value):
 
 
 def test_observable_array_subset():
-
     observable = ObservableArray(
         value=numpy.arange(4) * unit.kelvin,
         gradients=[
@@ -311,7 +304,6 @@ def test_observable_array_subset():
 
 
 def test_observable_array_join():
-
     gradient_unit = unit.mole / unit.kilojoule
 
     observables = [
@@ -338,7 +330,6 @@ def test_observable_array_join():
 
 
 def test_observable_array_join_single():
-
     gradient_unit = unit.mole / unit.kilojoule
 
     joined = ObservableArray.join(
@@ -427,7 +418,6 @@ def test_observable_array_len():
     ],
 )
 def test_observables_join_fail(observables, expected_raises, expected_message):
-
     with expected_raises as error_info:
         ObservableArray.join(*observables)
 
@@ -510,7 +500,6 @@ def test_observables_join_fail(observables, expected_raises, expected_message):
     ],
 )
 def test_observable_initializer(value, gradients, expected_raises, expected_message):
-
     with expected_raises as error_info:
         Observable(value, gradients)
 
@@ -519,7 +508,6 @@ def test_observable_initializer(value, gradients, expected_raises, expected_mess
 
 
 def test_observable_round_trip():
-
     observable = Observable(
         value=(0.1 * unit.kelvin).plus_minus(0.2 * unit.kelvin),
         gradients=[
@@ -703,10 +691,10 @@ def test_subtract_observables(value_a, value_b, expected_value):
                     object_type,
                 ),
                 _mock_observable(
-                    8.0 * unit.kelvin ** 2,
+                    8.0 * unit.kelvin**2,
                     [
-                        ("vdW", "[#1:1]", "epsilon", 20.0 * unit.kelvin ** 2),
-                        ("vdW", "[#6:1]", "epsilon", 16.0 * unit.kelvin ** 2),
+                        ("vdW", "[#1:1]", "epsilon", 20.0 * unit.kelvin**2),
+                        ("vdW", "[#6:1]", "epsilon", 16.0 * unit.kelvin**2),
                     ],
                     object_type,
                 ),
@@ -722,10 +710,10 @@ def test_subtract_observables(value_a, value_b, expected_value):
                     object_type,
                 ),
                 _mock_observable(
-                    8.0 * unit.kelvin ** 2,
+                    8.0 * unit.kelvin**2,
                     [
-                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin ** 2),
-                        ("vdW", "[#6:1]", "epsilon", 8.0 * unit.kelvin ** 2),
+                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin**2),
+                        ("vdW", "[#6:1]", "epsilon", 8.0 * unit.kelvin**2),
                     ],
                     object_type,
                 ),
@@ -891,7 +879,6 @@ def test_divide_observables(value_a, value_b, expected_value):
     ],
 )
 def test_frame_constructor(observables):
-
     observable_frame = ObservableFrame(observables)
 
     assert all(observable_type in observable_frame for observable_type in observables)
@@ -902,7 +889,6 @@ def test_frame_constructor(observables):
 
 
 def test_frame_round_trip():
-
     observable_frame = ObservableFrame(
         {"Temperature": ObservableArray(value=numpy.ones(2) * unit.kelvin)}
     )
@@ -930,7 +916,6 @@ def test_frame_validate_key(key, expected):
 
 @pytest.mark.parametrize("key", [ObservableType.Temperature, "Temperature"])
 def test_frame_magic_functions(key):
-
     observable_frame = ObservableFrame()
     assert len(observable_frame) == 0
 
@@ -954,7 +939,7 @@ def test_frame_magic_functions(key):
                 {"Temperature": ObservableArray(value=numpy.ones(2) * unit.kelvin)}
             ),
             "Volume",
-            numpy.ones(1) * unit.nanometer ** 3,
+            numpy.ones(1) * unit.nanometer**3,
             pytest.raises(ValueError),
             "The length of the data (1) must match the length of the data already in "
             "the frame (2).",
@@ -971,7 +956,6 @@ def test_frame_magic_functions(key):
 def test_frame_set_invalid_item(
     observable_frame, key, value, expected_raises, expected_message
 ):
-
     with expected_raises as error_info:
         observable_frame[key] = ObservableArray(value=value)
 
@@ -984,7 +968,6 @@ def test_frame_set_invalid_item(
 
 @pytest.mark.parametrize("pressure", [None, 1 * unit.atmosphere])
 def test_frame_from_openmm(pressure):
-
     observable_frame = ObservableFrame.from_openmm(
         get_data_filename("test/statistics/openmm_statistics.csv"), pressure
     )
@@ -1002,7 +985,7 @@ def test_frame_from_openmm(pressure):
         ObservableType.KineticEnergy: 5939.683117957521 * unit.kilojoule / unit.mole,
         ObservableType.TotalEnergy: 13874.51498645249 * unit.kilojoule / unit.mole,
         ObservableType.Temperature: 286.38157154881503 * unit.kelvin,
-        ObservableType.Volume: 26.342326662784938 * unit.nanometer ** 3,
+        ObservableType.Volume: 26.342326662784938 * unit.nanometer**3,
         ObservableType.Density: 0.6139877476363793 * unit.gram / unit.milliliter,
     }
 
@@ -1014,14 +997,13 @@ def test_frame_from_openmm(pressure):
             13874.51498645249 * unit.kilojoule / unit.mole
             + pressure
             * 26.342326662784938
-            * unit.nanometer ** 3
+            * unit.nanometer**3
             * unit.avogadro_constant
         )
         assert numpy.isclose(observable_frame["Enthalpy"].value[0], expected_enthalpy)
 
 
 def test_frame_subset():
-
     observable_frame = ObservableFrame(
         {
             "Temperature": ObservableArray(
@@ -1049,7 +1031,6 @@ def test_frame_subset():
 
 
 def test_frame_join():
-
     gradient_unit = unit.mole / unit.kilojoule
 
     observable_frames = [
@@ -1105,7 +1086,7 @@ def test_frame_join():
                 ObservableFrame(
                     {
                         "Volume": ObservableArray(
-                            value=numpy.ones(2) * unit.nanometer ** 3
+                            value=numpy.ones(2) * unit.nanometer**3
                         )
                     }
                 ),
@@ -1116,7 +1097,6 @@ def test_frame_join():
     ],
 )
 def test_frame_join_fail(observable_frames, expected_raises, expected_message):
-
     with expected_raises as error_info:
         ObservableFrame.join(*observable_frames)
 
@@ -1149,7 +1129,6 @@ def test_frame_join_fail(observable_frames, expected_raises, expected_message):
 )
 def test_bootstrap(data_values, expected_error, sub_counts):
     def bootstrap_function(values: ObservableArray) -> Observable:
-
         return Observable(
             value=values.value.mean().plus_minus(0.0 * values.value.units),
             gradients=[

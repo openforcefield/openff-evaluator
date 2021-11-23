@@ -80,7 +80,6 @@ class InputAttribute(Attribute):
         optional=False,
         merge_behavior=MergeBehaviour.ExactlyEqual,
     ):
-
         """Initializes a new InputAttribute object.
 
         Parameters
@@ -101,7 +100,6 @@ class InputAttribute(Attribute):
             merge_behavior == InequalityMergeBehaviour.SmallestValue
             or merge_behavior == InequalityMergeBehaviour.LargestValue
         ):
-
             merge_docstring = ""
 
             if merge_behavior == InequalityMergeBehaviour.SmallestValue:

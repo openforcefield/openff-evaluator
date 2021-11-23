@@ -5,8 +5,8 @@ import operator
 from collections import defaultdict
 
 import numpy as np
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import Attribute, AttributeClass
 from openff.evaluator.substances import Amount, Component, ExactAmount, MoleFraction
 
@@ -82,7 +82,6 @@ class Substance(AttributeClass):
         identifier_split = []
 
         for component_identifier in component_identifiers:
-
             component_amounts = sorted(
                 self.amounts[component_identifier], key=lambda x: type(x).__name__
             )
@@ -122,7 +121,6 @@ class Substance(AttributeClass):
         return_substance = cls()
 
         for component in components:
-
             if isinstance(component, str):
                 component = Component(smiles=component)
 
@@ -150,11 +148,9 @@ class Substance(AttributeClass):
         amount.validate()
 
         if isinstance(amount, MoleFraction):
-
             total_mole_fraction = amount.value
 
             for component_identifier in self.amounts:
-
                 total_mole_fraction += sum(
                     [
                         amount.value
@@ -167,13 +163,11 @@ class Substance(AttributeClass):
                 total_mole_fraction = 1.0
 
             if total_mole_fraction > 1.0:
-
                 raise ValueError(
                     f"The total mole fraction of this substance {total_mole_fraction} exceeds 1.0"
                 )
 
         if component.identifier not in self.amounts:
-
             components = (*self.components, component)
             self._set_value("components", components)
 
@@ -189,9 +183,7 @@ class Substance(AttributeClass):
         # Check to see if an amount of the same type already exists in
         # the substance, such that this amount should be appended to it.
         for existing_amount in all_amounts:
-
             if not type(existing_amount) is type(amount):
-
                 remaining_amounts.append(existing_amount)
                 continue
 
@@ -199,7 +191,6 @@ class Substance(AttributeClass):
             break
 
         if existing_amount_of_type is not None:
-
             # Append any existing amounts to the new amount.
             amount = type(amount)(existing_amount_of_type.value + amount.value)
 
@@ -275,18 +266,15 @@ class Substance(AttributeClass):
         remaining_molecule_slots = maximum_molecules
 
         for index, component in enumerate(self.components):
-
             amounts = self.amounts[component.identifier]
 
             for amount in amounts:
-
                 if not isinstance(amount, ExactAmount) or not count_exact_amount:
                     continue
 
                 remaining_molecule_slots -= amount.value
 
         if remaining_molecule_slots < 0:
-
             raise ValueError(
                 f"The required number of molecules {maximum_molecules - remaining_molecule_slots} "
                 f"exceeds the provided maximum number ({maximum_molecules})."
@@ -298,9 +286,7 @@ class Substance(AttributeClass):
         n_mole_fractions = defaultdict(int)
 
         for component in self.components:
-
             for amount in self.amounts[component.identifier]:
-
                 n_amount_molecules = amount.to_number_of_molecules(
                     remaining_molecule_slots, tolerance
                 )
@@ -327,7 +313,6 @@ class Substance(AttributeClass):
             and sum(n_mole_fractions.values()) > 0
             and n_truncation_attempts < max_truncation_attempts
         ):
-
             largest_component = max(
                 n_mole_fractions.items(), key=operator.itemgetter(1)
             )[0]
@@ -344,7 +329,6 @@ class Substance(AttributeClass):
             n_truncation_attempts += 1
 
         if total_molecules > maximum_molecules:
-
             raise ValueError(
                 f"The total number of molecules ({total_molecules}) exceeds the maximum "
                 f"number ({maximum_molecules}). This should not be able to happen."
@@ -398,7 +382,6 @@ class Substance(AttributeClass):
         assert "amounts" in state
 
         for key in state["amounts"]:
-
             assert isinstance(state["amounts"][key], (list, tuple))
             state["amounts"][key] = tuple(state["amounts"][key])
 
@@ -423,7 +406,6 @@ class Substance(AttributeClass):
         assert all(len(x) > 0 for x in self.amounts.values())
 
         for component in self.components:
-
             component.validate(attribute_type)
             amounts = self.amounts[component.identifier]
 
@@ -437,11 +419,9 @@ class Substance(AttributeClass):
         )
 
         if contains_mole_fraction:
-
             total_mole_fraction = 0.0
 
             for component_identifier in self.amounts:
-
                 total_mole_fraction += sum(
                     [
                         amount.value
@@ -451,7 +431,6 @@ class Substance(AttributeClass):
                 )
 
             if not np.isclose(total_mole_fraction, 1.0):
-
                 raise ValueError(
                     f"The total mole fraction of this substance "
                     f"({total_mole_fraction}) must equal 1.0"

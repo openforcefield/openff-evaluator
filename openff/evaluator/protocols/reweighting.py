@@ -9,8 +9,8 @@ from os import path
 
 import numpy as np
 import pymbar
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import ParameterGradient
 from openff.evaluator.forcefield.system import ParameterizedSystem
@@ -55,11 +55,9 @@ class ConcatenateTrajectories(Protocol):
     )
 
     def _execute(self, directory, available_resources):
-
         import mdtraj
 
         if len(self.input_coordinate_paths) != len(self.input_trajectory_paths):
-
             raise ValueError(
                 "There should be the same number of coordinate and trajectory paths."
             )
@@ -74,7 +72,6 @@ class ConcatenateTrajectories(Protocol):
         for coordinate_path, trajectory_path in zip(
             self.input_coordinate_paths, self.input_trajectory_paths
         ):
-
             output_coordinate_path = output_coordinate_path or coordinate_path
             trajectories.append(mdtraj.load_dcd(trajectory_path, coordinate_path))
 
@@ -106,7 +103,6 @@ class ConcatenateObservables(Protocol):
     )
 
     def _execute(self, directory, available_resources):
-
         if len(self.input_observables) == 0:
             raise ValueError("No arrays were given to concatenate.")
 
@@ -268,7 +264,6 @@ class BaseMBARProtocol(Protocol, abc.ABC):
         weight_gradients = []
 
         for gradient in target_reduced_potentials.gradients:
-
             gradient_value = gradient.value.magnitude.flatten()
 
             # Compute the numerator of the gradient. We need to specifically ask for the
@@ -320,11 +315,10 @@ class BaseMBARProtocol(Protocol, abc.ABC):
             .magnitude
         )
 
-        effective_samples = 1.0 / np.sum(weights ** 2)
+        effective_samples = 1.0 / np.sum(weights**2)
         return float(effective_samples)
 
     def _execute(self, directory, available_resources):
-
         # Retrieve the observables to reweight.
         observables = self._observables()
 
@@ -332,7 +326,6 @@ class BaseMBARProtocol(Protocol, abc.ABC):
             raise ValueError("There were no observables to reweight.")
 
         if len(self.frame_counts) != len(self.reference_reduced_potentials):
-
             raise ValueError("A frame count must be provided for each reference state.")
 
         expected_frames = sum(self.frame_counts)
@@ -345,7 +338,6 @@ class BaseMBARProtocol(Protocol, abc.ABC):
                 *observables.values(),
             ]
         ):
-
             raise ValueError(
                 f"The length of the input arrays do not match the expected length "
                 f"specified by the frame counts ({expected_frames})."
@@ -369,14 +361,12 @@ class BaseMBARProtocol(Protocol, abc.ABC):
         )
 
         if self.effective_samples < self.required_effective_samples:
-
             raise ValueError(
                 f"There was not enough effective samples to reweight - "
                 f"{self.effective_samples} < {self.required_effective_samples}"
             )
 
         if self.bootstrap_uncertainties:
-
             self.value = bootstrap(
                 self._bootstrap_function,
                 self.bootstrap_iterations,
@@ -388,7 +378,6 @@ class BaseMBARProtocol(Protocol, abc.ABC):
             )
 
         else:
-
             self.value = self._bootstrap_function(
                 reference_reduced_potentials=reference_reduced_potentials,
                 target_reduced_potentials=self.target_reduced_potentials,
@@ -468,7 +457,6 @@ class BaseMBARProtocol(Protocol, abc.ABC):
         ]
 
         if return_type == Observable:
-
             average_value = average_value.item()
             average_gradients = [
                 ParameterGradient(key=gradient.key, value=gradient.value.item())
@@ -476,7 +464,6 @@ class BaseMBARProtocol(Protocol, abc.ABC):
             ]
 
         else:
-
             average_value = average_value.reshape(1, -1)
             average_gradients = [
                 ParameterGradient(key=gradient.key, value=gradient.value.reshape(1, -1))
@@ -484,7 +471,6 @@ class BaseMBARProtocol(Protocol, abc.ABC):
             ]
 
         if self.bootstrap_uncertainties is False:
-
             # Unfortunately we need to re-compute the average observable for now
             # as pymbar does not expose an easier way to compute the average
             # uncertainty.
@@ -557,7 +543,6 @@ class ReweightDielectricConstant(BaseMBARProtocol):
         target_reduced_potentials: ObservableArray,
         **observables: ObservableArray,
     ) -> Observable:
-
         volumes = observables.pop("volumes")
         dipole_moments = observables.pop("dipole_moments")
 
@@ -576,9 +561,7 @@ class ReweightDielectricConstant(BaseMBARProtocol):
         return dielectric_constant
 
     def _execute(self, directory, available_resources):
-
         if not self.bootstrap_uncertainties:
-
             raise ValueError(
                 "The uncertainty in the average dielectric constant should only be "
                 "computed using bootstrapping."

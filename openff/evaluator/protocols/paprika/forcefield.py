@@ -7,8 +7,19 @@ from typing import Optional, Union
 import numpy as np
 import parmed as pmd
 from paprika.build.system import TLeap
-from simtk import unit as simtk_unit
-from simtk.openmm.app import element as E
+
+try:
+    import openmm
+    import openmm.app as app
+    import openmm.unit as openmm_unit
+    from openmm.app import element as E
+except ImportError:
+    import simtk.openmm as openmm
+    import simtk.openmm.app as app
+    from simtk import unit as openmm_unit
+    from simtk.openmm.app import element as E
+
+from openff.units.openmm import to_openmm
 
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import (
@@ -21,7 +32,6 @@ from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.protocols.forcefield import BaseBuildSystem, BuildSmirnoffSystem
 from openff.evaluator.substances import Substance
 from openff.evaluator.utils import is_file_and_not_empty
-from openff.evaluator.utils.openmm import pint_quantity_to_openmm
 from openff.evaluator.utils.utils import temporarily_change_directory
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
@@ -70,7 +80,6 @@ class PaprikaBuildSystem(Protocol, abc.ABC):
     )
 
     def _execute(self, directory, available_resources):
-
         force_field_source = ForceFieldSource.from_json(self.force_field_path)
 
         if isinstance(force_field_source, SmirnoffForceFieldSource):
@@ -169,7 +178,6 @@ class PaprikaBuildTLeapSystem(BaseBuildSystem):
         """
 
         with temporarily_change_directory(working_directory):
-
             processed_mol2 = mol2_file.split("/")[-1].replace(
                 ".mol2", f".{gaff_version}.mol2"
             )
@@ -208,7 +216,6 @@ class PaprikaBuildTLeapSystem(BaseBuildSystem):
                 file.write(antechamber_error.decode())
 
             if not os.path.isfile(processed_mol2):
-
                 raise RuntimeError(
                     f"antechamber failed to assign atom types to the input mol2 file "
                     f"({mol2_file})"
@@ -320,10 +327,6 @@ class PaprikaBuildTLeapSystem(BaseBuildSystem):
         system.build(clean_files=False, ignore_warnings=ignore_warnings)
 
     def _execute(self, directory, available_resources):
-
-        import simtk.openmm as openmm
-        import simtk.openmm.app as app
-
         # from paprika.evaluator.amber import generate_gaff
         # Check GAFF version
         force_field_source = ForceFieldSource.from_json(self.force_field_path)
@@ -412,9 +415,9 @@ class PaprikaBuildTLeapSystem(BaseBuildSystem):
         if force_field_source.igb is None:
             pdbfile = app.PDBFile(self.coordinate_file_path)
             vector = pdbfile.topology.getPeriodicBoxVectors()
-            vec_x = vector[0][0].value_in_unit(simtk_unit.angstrom)
-            vec_y = vector[1][1].value_in_unit(simtk_unit.angstrom)
-            vec_z = vector[2][2].value_in_unit(simtk_unit.angstrom)
+            vec_x = vector[0][0].value_in_unit(openmm_unit.angstrom)
+            vec_y = vector[1][1].value_in_unit(openmm_unit.angstrom)
+            vec_z = vector[2][2].value_in_unit(openmm_unit.angstrom)
             system.template_lines += [
                 f"set model box {{ {vec_x:.3f} {vec_y:.3f} {vec_z:.3f} }}"
             ]
@@ -448,29 +451,23 @@ class PaprikaBuildTLeapSystem(BaseBuildSystem):
                 constraints=app.HBonds,
                 implicitSolvent=solvent_model[force_field_source.igb],
                 gbsaModel=force_field_source.sa_model,
-                hydrogenMass=3.024 * simtk_unit.dalton if self.enable_hmr else None,
+                hydrogenMass=3.024 * openmm_unit.dalton if self.enable_hmr else None,
             )
 
             # Change GB radii if specified in custom_frcmod file.
             if force_field_source.custom_frcmod:
                 if len(force_field_source.custom_frcmod["GBSA"]) != 0:
-
-                    from simtk.openmm import CustomGBForce, GBSAOBCForce
-                    from simtk.openmm.app.internal.customgbforces import (
-                        _get_bonded_atom_list,
-                    )
-
                     # Get GB Force object from system
                     gbsa_force = None
                     for force in system.getForces():
-                        if isinstance(force, CustomGBForce) or isinstance(
-                            force, GBSAOBCForce
+                        if isinstance(force, openmm.CustomGBForce) or isinstance(
+                            force, openmm.GBSAOBCForce
                         ):
                             gbsa_force = force
 
                     # Loop over custom GB Radii
                     offset_factor = 0.009  # nm
-                    all_bonds = _get_bonded_atom_list(prmtop.topology)
+                    all_bonds = app.internal._get_bonded_atom_list(prmtop.topology)
                     for atom_mask in gaff_force_field.frcmod_parameters["GBSA"]:
                         GB_radii = gaff_force_field.frcmod_parameters["GBSA"][
                             atom_mask
@@ -513,11 +510,11 @@ class PaprikaBuildTLeapSystem(BaseBuildSystem):
         else:
             system = prmtop.createSystem(
                 nonbondedMethod=app.PME,
-                nonbondedCutoff=pint_quantity_to_openmm(force_field_source.cutoff),
+                nonbondedCutoff=to_openmm(force_field_source.cutoff),
                 constraints=app.HBonds,
                 rigidWater=True,
                 removeCMMotion=False,
-                hydrogenMass=3.024 * simtk_unit.dalton if self.enable_hmr else None,
+                hydrogenMass=3.024 * openmm_unit.dalton if self.enable_hmr else None,
             )
             system.setDefaultPeriodicBoxVectors(*inpcrd.getBoxVectors())
 

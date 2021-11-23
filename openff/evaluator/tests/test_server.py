@@ -4,7 +4,8 @@ Units tests for the openff.evaluator.server module.
 import tempfile
 from time import sleep
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.backends.dask import DaskLocalCluster
 from openff.evaluator.client import EvaluatorClient, RequestOptions
 from openff.evaluator.datasets import PhysicalPropertyDataSet
@@ -36,7 +37,6 @@ class QuickCalculationLayer(CalculationLayer):
     def _schedule_calculation(
         cls, calculation_backend, storage_backend, layer_directory, batch
     ):
-
         futures = [
             calculation_backend.submit_task(
                 QuickCalculationLayer.process_property,
@@ -57,13 +57,9 @@ class QuickCalculationLayer(CalculationLayer):
 
 
 def test_server_spin_up():
-
     with tempfile.TemporaryDirectory() as directory:
-
         with temporarily_change_directory(directory):
-
             with DaskLocalCluster() as calculation_backend:
-
                 server = EvaluatorServer(
                     calculation_backend=calculation_backend,
                     working_directory=directory,
@@ -74,7 +70,6 @@ def test_server_spin_up():
 
 
 def test_launch_batch():
-
     # Set up a dummy data set
     data_set = PhysicalPropertyDataSet()
     data_set.add_properties(
@@ -93,11 +88,8 @@ def test_launch_batch():
     batch.validate()
 
     with tempfile.TemporaryDirectory() as directory:
-
         with temporarily_change_directory(directory):
-
             with DaskLocalCluster() as calculation_backend:
-
                 server = EvaluatorServer(
                     calculation_backend=calculation_backend,
                     working_directory=directory,
@@ -114,7 +106,6 @@ def test_launch_batch():
 
 
 def test_same_component_batching():
-
     thermodynamic_state = ThermodynamicState(
         temperature=1.0 * unit.kelvin, pressure=1.0 * unit.atmosphere
     )
@@ -124,7 +115,7 @@ def test_same_component_batching():
         Density(
             thermodynamic_state=thermodynamic_state,
             substance=Substance.from_components("O", "C"),
-            value=0.0 * unit.kilogram / unit.meter ** 3,
+            value=0.0 * unit.kilogram / unit.meter**3,
         ),
         EnthalpyOfVaporization(
             thermodynamic_state=thermodynamic_state,
@@ -134,7 +125,7 @@ def test_same_component_batching():
         Density(
             thermodynamic_state=thermodynamic_state,
             substance=Substance.from_components("O", "CO"),
-            value=0.0 * unit.kilogram / unit.meter ** 3,
+            value=0.0 * unit.kilogram / unit.meter**3,
         ),
         EnthalpyOfVaporization(
             thermodynamic_state=thermodynamic_state,
@@ -150,7 +141,6 @@ def test_same_component_batching():
     submission.options = options
 
     with DaskLocalCluster() as calculation_backend:
-
         server = EvaluatorServer(calculation_backend)
         batches = server._batch_by_same_component(submission, "")
 
@@ -161,7 +151,6 @@ def test_same_component_batching():
 
 
 def test_shared_component_batching():
-
     thermodynamic_state = ThermodynamicState(
         temperature=1.0 * unit.kelvin, pressure=1.0 * unit.atmosphere
     )
@@ -171,7 +160,7 @@ def test_shared_component_batching():
         Density(
             thermodynamic_state=thermodynamic_state,
             substance=Substance.from_components("O", "C"),
-            value=0.0 * unit.kilogram / unit.meter ** 3,
+            value=0.0 * unit.kilogram / unit.meter**3,
         ),
         EnthalpyOfVaporization(
             thermodynamic_state=thermodynamic_state,
@@ -181,7 +170,7 @@ def test_shared_component_batching():
         Density(
             thermodynamic_state=thermodynamic_state,
             substance=Substance.from_components("O", "CO"),
-            value=0.0 * unit.kilogram / unit.meter ** 3,
+            value=0.0 * unit.kilogram / unit.meter**3,
         ),
         EnthalpyOfVaporization(
             thermodynamic_state=thermodynamic_state,
@@ -197,7 +186,6 @@ def test_shared_component_batching():
     submission.options = options
 
     with DaskLocalCluster() as calculation_backend:
-
         server = EvaluatorServer(calculation_backend)
         batches = server._batch_by_shared_component(submission, "")
 

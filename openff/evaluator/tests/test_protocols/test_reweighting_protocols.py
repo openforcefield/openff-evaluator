@@ -2,8 +2,8 @@ import tempfile
 
 import numpy as np
 import pytest
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.protocols.reweighting import (
     ConcatenateObservables,
@@ -17,7 +17,6 @@ from openff.evaluator.utils.observables import ObservableArray, ObservableFrame
 
 
 def test_concatenate_trajectories():
-
     import mdtraj
 
     coordinate_path = get_data_filename("test/trajectories/water.pdb")
@@ -26,7 +25,6 @@ def test_concatenate_trajectories():
     original_trajectory = mdtraj.load(trajectory_path, top=coordinate_path)
 
     with tempfile.TemporaryDirectory() as temporary_directory:
-
         concatenate_protocol = ConcatenateTrajectories("concatenate_protocol")
         concatenate_protocol.input_coordinate_paths = [coordinate_path, coordinate_path]
         concatenate_protocol.input_trajectory_paths = [trajectory_path, trajectory_path]
@@ -57,7 +55,6 @@ def test_concatenate_trajectories():
     ],
 )
 def test_concatenate_observables(observables):
-
     concatenate_protocol = ConcatenateObservables("")
     concatenate_protocol.input_observables = observables
     concatenate_protocol.execute()
@@ -66,9 +63,7 @@ def test_concatenate_observables(observables):
 
 
 def test_reweight_observables():
-
     with tempfile.TemporaryDirectory() as directory:
-
         reweight_protocol = ReweightObservable("")
         reweight_protocol.observable = ObservableArray(value=np.zeros(10) * unit.kelvin)
         reweight_protocol.reference_reduced_potentials = [
@@ -84,15 +79,13 @@ def test_reweight_observables():
 
 
 def test_reweight_dielectric_constant():
-
     with tempfile.TemporaryDirectory() as directory:
-
         reweight_protocol = ReweightDielectricConstant("")
         reweight_protocol.dipole_moments = ObservableArray(
             value=np.zeros((10, 3)) * unit.elementary_charge * unit.nanometers
         )
         reweight_protocol.volumes = ObservableArray(
-            value=np.ones((10, 1)) * unit.nanometer ** 3
+            value=np.ones((10, 1)) * unit.nanometer**3
         )
         reweight_protocol.reference_reduced_potentials = [
             ObservableArray(value=np.zeros(10) * unit.dimensionless)

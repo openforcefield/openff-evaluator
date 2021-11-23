@@ -1,7 +1,8 @@
 """
 A collection of enthalpy physical property definitions.
 """
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.attributes import UNDEFINED, PlaceholderValue
 from openff.evaluator.datasets import PhysicalProperty, PropertyPhase
 from openff.evaluator.datasets.thermoml import thermoml_property
@@ -43,7 +44,6 @@ class EnthalpyOfMixing(EstimableExcessProperty):
         relative_tolerance: float = UNDEFINED,
         n_effective_samples: int = 50,
     ) -> ReweightingSchema:
-
         calculation_schema = super(EnthalpyOfMixing, cls)._default_reweighting_schema(
             ObservableType.ReducedPotential,
             absolute_tolerance,
@@ -241,7 +241,6 @@ class EnthalpyOfVaporization(PhysicalProperty):
         )
 
         if use_target_uncertainty:
-
             condition = groups.ConditionalGroup.Condition()
             condition.type = groups.ConditionalGroup.Condition.Type.LessThan
 

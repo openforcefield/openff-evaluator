@@ -36,7 +36,6 @@ class DummyDescriptor2:
 
 
 def test_get_nested_attribute():
-
     dummy_object = DummyNestedClass()
     dummy_object.object_a = "a"
 

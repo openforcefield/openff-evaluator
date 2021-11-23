@@ -89,7 +89,6 @@ class GenerateAttachRestraints(_GenerateRestraints):
     )
 
     def _execute(self, directory, available_resources):
-
         from paprika.evaluator import Setup
 
         # Construct the restraints to keep the host in place and
@@ -151,7 +150,6 @@ class GeneratePullRestraints(GenerateAttachRestraints):
     )
 
     def _execute(self, directory, available_resources):
-
         from paprika.evaluator import Setup
 
         # Construct the restraints to keep the host in place and
@@ -185,7 +183,6 @@ class GeneratePullRestraints(GenerateAttachRestraints):
         for restraint in (
             static_restraints + conformational_restraints + guest_restraints
         ):
-
             for key in restraint.phase["attach"]:
                 restraint.phase["attach"][key] = None
 
@@ -220,7 +217,6 @@ class GenerateReleaseRestraints(_GenerateRestraints):
     )
 
     def _execute(self, directory, available_resources):
-
         from paprika.evaluator import Setup
 
         # Construct the restraints to keep the host in place and
@@ -254,7 +250,6 @@ class GenerateBoundRestraints(GenerateAttachRestraints):
     for the protocols which will apply them to the parameterized system."""
 
     def _execute(self, directory, available_resources):
-
         from paprika.evaluator import Setup
 
         # Construct the restraints to keep the host in place
@@ -319,7 +314,6 @@ class GenerateUnboundRestraints(GeneratePullRestraints):
         # Remove the attach phases from the restraints as these restraints are
         # only being used for the pull phase.
         for restraint in static_restraints + guest_restraints:
-
             for key in restraint.phase["attach"]:
                 restraint.phase["attach"][key] = None
 
@@ -380,7 +374,6 @@ class ApplyRestraints(Protocol):
         restraints = []
 
         for restraint_dictionary in restraint_dictionaries:
-
             restraint = DAT_restraint()
             restraint.__dict__ = restraint_dictionary
 
@@ -401,7 +394,6 @@ class ApplyRestraints(Protocol):
             ]
 
             for class_property in properties:
-
                 if f"_{class_property}" in restraint.__dict__.keys():
                     restraint.__dict__[class_property] = restraint.__dict__[
                         f"_{class_property}"
@@ -438,7 +430,6 @@ class ApplyRestraints(Protocol):
         return restraints
 
     def _execute(self, directory, available_resources):
-
         from paprika.restraints.openmm import (
             apply_dat_restraint,
             apply_positional_restraints,
@@ -462,12 +453,10 @@ class ApplyRestraints(Protocol):
         restraints = self.load_restraints(self.restraints_path)
 
         for restraint_type in force_groups:
-
             if restraint_type not in restraints:
                 continue
 
             for restraint in restraints[restraint_type]:
-
                 apply_dat_restraint(
                     system,
                     restraint,

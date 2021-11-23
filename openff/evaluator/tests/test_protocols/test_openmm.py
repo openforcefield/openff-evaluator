@@ -6,7 +6,8 @@ import os
 import tempfile
 from os import path
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.protocols.coordinates import BuildCoordinatesPackmol
 from openff.evaluator.protocols.forcefield import BuildSmirnoffSystem
@@ -52,9 +53,7 @@ def _setup_dummy_system(directory):
 
 
 def test_run_energy_minimisation():
-
     with tempfile.TemporaryDirectory() as directory:
-
         coordinate_path, parameterized_system = _setup_dummy_system(directory)
 
         energy_minimisation = OpenMMEnergyMinimisation("energy_minimisation")
@@ -65,11 +64,9 @@ def test_run_energy_minimisation():
 
 
 def test_run_openmm_simulation():
-
     thermodynamic_state = ThermodynamicState(298 * unit.kelvin, 1.0 * unit.atmosphere)
 
     with tempfile.TemporaryDirectory() as directory:
-
         coordinate_path, parameterized_system = _setup_dummy_system(directory)
 
         npt_equilibration = OpenMMSimulation("npt_equilibration")
@@ -86,13 +83,11 @@ def test_run_openmm_simulation():
 
 
 def test_run_openmm_simulation_checkpoints():
-
     import mdtraj
 
     thermodynamic_state = ThermodynamicState(298 * unit.kelvin, 1.0 * unit.atmosphere)
 
     with tempfile.TemporaryDirectory() as directory:
-
         coordinate_path, parameterized_system = _setup_dummy_system(directory)
 
         # Check that executing twice doesn't run the simulation twice
@@ -142,12 +137,10 @@ def test_run_openmm_simulation_checkpoints():
 
 
 def test_evaluate_energies_openmm():
-
     substance = Substance.from_components("O")
     thermodynamic_state = ThermodynamicState(298 * unit.kelvin, 1.0 * unit.atmosphere)
 
     with tempfile.TemporaryDirectory() as directory:
-
         coordinate_path, parameterized_system = _setup_dummy_system(directory)
 
         reduced_potentials = OpenMMEvaluateEnergies("")

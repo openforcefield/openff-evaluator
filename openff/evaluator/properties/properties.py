@@ -1,7 +1,8 @@
 import abc
 from typing import Dict, Optional, Tuple
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.attributes import UNDEFINED, PlaceholderValue
 from openff.evaluator.datasets import PhysicalProperty, PropertyPhase
 from openff.evaluator.layers.reweighting import ReweightingSchema
@@ -62,7 +63,6 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             ObservableType.Volume,
             ObservableType.Density,
         ]:
-
             n_molar_molecules = miscellaneous.DivideValue(f"n_molar_molecules{suffix}")
             n_molar_molecules.value = n_molecules
             n_molar_molecules.divisor = (1.0 * unit.avogadro_constant).to("mole**-1")

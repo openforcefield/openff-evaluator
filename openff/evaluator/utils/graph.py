@@ -61,14 +61,12 @@ def _visit_protocol(graph, current_key, closed_list, closure):
     indirect_dependencies = []
 
     for dependent in graph[current_key]:
-
         _visit_protocol(graph, dependent, closed_list, closure)
         indirect_dependencies.extend(closure[dependent])
 
     closure[current_key].extend(indirect_dependencies)
 
     for i in range(len(graph[current_key]) - 1, -1, -1):
-
         dependent = graph[current_key][i]
         closure[current_key].append(dependent)
 
@@ -99,7 +97,6 @@ def find_root_nodes(graph):
     root_nodes = []
 
     for node_key in dependencies:
-
         if len(dependencies[node_key]) > 0:
             continue
 
@@ -140,18 +137,15 @@ def topological_sort(graph):
     apply_transitive_reduction(graph_copy)
 
     while len(open_list) > 0:
-
         current_node_key = open_list.pop()
         sorted_order.append(current_node_key)
 
         for i in range(len(graph_copy[current_node_key]) - 1, -1, -1):
-
             comparison_node_key = graph_copy[current_node_key].pop(i)
 
             has_incoming_edges = False
 
             for node_key in graph_copy:
-
                 if comparison_node_key not in graph_copy[node_key]:
                     continue
 
@@ -196,12 +190,10 @@ def dependants_to_dependencies(graph):
     dependencies = {}
 
     for node in graph:
-
         if node not in dependencies:
             dependencies[node] = []
 
         for dependant in graph[node]:
-
             if dependant not in dependencies:
                 dependencies[dependant] = []
 
@@ -245,7 +237,6 @@ def append_uuid(base_id, uuid):
         The uuid appended id of the form uuid|base_id
     """
     if base_id.find("|") >= 0:
-
         base_id_split = base_id.split("|")
 
         if len(base_id_split) != 2:

@@ -2,7 +2,8 @@ import os
 import uuid
 from contextlib import contextmanager
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.datasets import (
     CalculationSource,
     PhysicalPropertyDataSet,
@@ -48,7 +49,6 @@ def create_dummy_substance(number_of_components, elements=None):
     mole_fraction = 1.0 / number_of_components
 
     for index in range(number_of_components):
-
         smiles_pattern = "".join(elements * (index + 1))
 
         substance.add_component(Component(smiles_pattern), MoleFraction(mole_fraction))
@@ -104,7 +104,6 @@ def create_dummy_simulation_data(
     number_of_molecules=1,
     calculation_id=None,
 ):
-
     """Creates a dummy `StoredSimulationData` object and
     the corresponding data directory.
 

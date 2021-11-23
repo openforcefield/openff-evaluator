@@ -7,8 +7,8 @@ import tempfile
 import mdtraj
 import numpy as np
 import pytest
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import ParameterGradientKey
 from openff.evaluator.protocols.coordinates import BuildCoordinatesPackmol
@@ -25,7 +25,6 @@ from openff.evaluator.utils.utils import get_data_filename, temporarily_change_d
 
 
 def _setup_dummy_system(directory, substance, number_of_molecules, force_field_path):
-
     os.makedirs(directory, exist_ok=True)
 
     build_coordinates = BuildCoordinatesPackmol("coordinates")
@@ -46,7 +45,6 @@ def _setup_dummy_system(directory, substance, number_of_molecules, force_field_p
 
 
 def test_ligand_receptor_yank_protocol():
-
     full_substance = Substance()
 
     full_substance.add_component(
@@ -77,9 +75,7 @@ def test_ligand_receptor_yank_protocol():
     )
 
     with tempfile.TemporaryDirectory() as directory:
-
         with temporarily_change_directory(directory):
-
             force_field_path = "ff.json"
 
             with open(force_field_path, "w") as file:
@@ -115,7 +111,6 @@ def test_ligand_receptor_yank_protocol():
 
 @pytest.mark.parametrize("solvent_smiles", ["O", "C(Cl)Cl"])
 def test_solvation_yank_protocol(solvent_smiles):
-
     full_substance = Substance()
 
     full_substance.add_component(
@@ -144,9 +139,7 @@ def test_solvation_yank_protocol(solvent_smiles):
     )
 
     with tempfile.TemporaryDirectory() as directory:
-
         with temporarily_change_directory(directory):
-
             force_field_path = "ff.json"
 
             with open(force_field_path, "w") as file:
@@ -183,7 +176,6 @@ def test_solvation_yank_protocol(solvent_smiles):
 
 
 def test_compute_state_energy_gradients(tmpdir):
-
     build_tip3p_smirnoff_force_field().json(os.path.join(tmpdir, "ff.json"))
 
     _, parameterized_system = _setup_dummy_system(
@@ -214,7 +206,6 @@ def test_compute_state_energy_gradients(tmpdir):
 
 
 def test_analyze_phase(monkeypatch, tmpdir):
-
     from simtk import unit as simtk_unit
 
     # Generate the required inputs

@@ -5,8 +5,8 @@ from collections import defaultdict
 from typing import Dict, List
 
 import numpy
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.substances import Component, Substance
@@ -62,14 +62,11 @@ def _atom_indices_by_role(
     atom_indices = defaultdict(list)
 
     for component_role in components_by_role:
-
         for component in components_by_role[component_role]:
-
             # Find the indices of all instances of this component.
             off_molecule = off_molecules[component]
 
             for topology_molecule in off_topology.topology_molecules:
-
                 if (
                     topology_molecule.reference_molecule.to_smiles()
                     != off_molecule.to_smiles()
@@ -149,7 +146,6 @@ class PreparePullCoordinates(_PrepareAPRCoordinates):
     )
 
     def _execute(self, directory, available_resources):
-
         from paprika.evaluator import Setup
         from simtk.openmm import app
 
@@ -195,7 +191,6 @@ class PrepareReleaseCoordinates(_PrepareAPRCoordinates):
     """
 
     def _execute(self, directory, available_resources):
-
         import mdtraj
         from paprika.evaluator import Setup
         from simtk.openmm import app
@@ -284,7 +279,6 @@ class AddDummyAtoms(Protocol):
     )
 
     def _execute(self, directory, available_resources):
-
         import parmed.geometry
         from paprika.evaluator import Setup
         from simtk.openmm import (
@@ -339,7 +333,6 @@ class AddDummyAtoms(Protocol):
             system.addParticle(mass=207)
 
         for force in system.getForces():
-
             if isinstance(force, NonbondedForce):
                 force.addParticle(0.0, 1.0, 0.0)
                 force.addParticle(0.0, 1.0, 0.0)

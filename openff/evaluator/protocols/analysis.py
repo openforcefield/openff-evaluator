@@ -7,8 +7,9 @@ import typing
 from os import path
 
 import numpy as np
+from openff.units import unit
+from openff.units.openmm import from_openmm
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import ParameterGradient, SmirnoffForceFieldSource
 from openff.evaluator.forcefield.system import ParameterizedSystem
@@ -20,7 +21,7 @@ from openff.evaluator.utils.observables import (
     ObservableFrame,
     bootstrap,
 )
-from openff.evaluator.utils.openmm import openmm_quantity_to_pint, system_subset
+from openff.evaluator.utils.openmm import system_subset
 from openff.evaluator.utils.timeseries import (
     TimeSeriesStatistics,
     analyze_time_series,
@@ -219,7 +220,6 @@ class BaseAverageObservable(Protocol, abc.ABC):
         gradients = []
 
         for gradient_key in observable_gradients:
-
             gradient = observable_gradients[gradient_key]
 
             value = np.mean(gradient.value, axis=0) - self.thermodynamic_state.beta * (
@@ -246,7 +246,6 @@ class BaseAverageObservable(Protocol, abc.ABC):
         return return_type(value=mean_observable, gradients=gradients)
 
     def _execute(self, directory, available_resources):
-
         # Retrieve the list of observables to compute the average using.
         observables = self._observables()
 
@@ -269,7 +268,6 @@ class BaseAverageObservable(Protocol, abc.ABC):
             )
 
         if self.potential_energies != UNDEFINED:
-
             potential_gradients = {
                 gradient.key for gradient in self.potential_energies.gradients
             }
@@ -279,7 +277,6 @@ class BaseAverageObservable(Protocol, abc.ABC):
                 != potential_gradients
                 for observable in observables.values()
             ):
-
                 raise ValueError(
                     "The potential energies must have been differentiated with respect "
                     "to the same force field parameters as the observables of interest."
@@ -291,7 +288,6 @@ class BaseAverageObservable(Protocol, abc.ABC):
         statistical_inefficiency = 0.0
 
         for observable in observables.values():
-
             observable_statistics = analyze_time_series(observable.value.magnitude)
 
             equilibration_index = max(
@@ -324,7 +320,6 @@ class BaseAverageObservable(Protocol, abc.ABC):
         }
 
         if self.potential_energies != UNDEFINED:
-
             self.potential_energies = self.potential_energies.subset(
                 [index + equilibration_index for index in uncorrelated_indices]
             )
@@ -387,7 +382,6 @@ class AverageDielectricConstant(BaseAverageObservable):
         return {"dipole_moments": self.dipole_moments, "volumes": self.volumes}
 
     def _bootstrap_function(self, **kwargs: ObservableArray):
-
         return compute_dielectric_constant(
             kwargs.pop("dipole_moments"),
             kwargs.pop("volumes"),
@@ -427,7 +421,6 @@ class AverageFreeEnergies(Protocol):
     )
 
     def _execute(self, directory, available_resources):
-
         from scipy.special import logsumexp
 
         default_unit = unit.kilocalorie / unit.mole
@@ -462,7 +455,6 @@ class AverageFreeEnergies(Protocol):
         mean_gradients = []
 
         for gradient_key, gradient_values in value_gradients_by_key.items():
-
             expected_unit = value_gradients[0][gradient_key].units
 
             d_log_mean_numerator, d_mean_numerator_sign = logsumexp(
@@ -485,11 +477,9 @@ class AverageFreeEnergies(Protocol):
         cycle_result = np.empty(self.bootstrap_cycles)
 
         for cycle_index, cycle in enumerate(range(self.bootstrap_cycles)):
-
             cycle_values = np.empty(len(self.values))
 
             for value_index, value in enumerate(self.values):
-
                 cycle_mean = value.value.to(default_unit).magnitude
                 cycle_sem = value.error.to(default_unit).magnitude
 
@@ -528,7 +518,6 @@ class AverageFreeEnergies(Protocol):
             expected_gradients == {gradient.key for gradient in value.gradients}
             for value in self.values
         ):
-
             raise ValueError(
                 "The values must contain gradient information for the same set of "
                 "force field parameters."
@@ -588,7 +577,6 @@ class ComputeDipoleMoments(Protocol):
         ]
 
         if len(forces) > 1:
-
             raise ValueError(
                 f"The system must contain no more than one non-bonded force, however "
                 f"{len(forces)} were found."
@@ -608,7 +596,6 @@ class ComputeDipoleMoments(Protocol):
         return charges * unit.elementary_charge
 
     def _compute_charge_derivatives(self, n_atoms: int):
-
         d_charge_d_theta = {key: np.zeros(n_atoms) for key in self.gradient_parameters}
 
         if len(self.gradient_parameters) > 0 and not isinstance(
@@ -623,14 +610,13 @@ class ComputeDipoleMoments(Protocol):
         topology = self.parameterized_system.topology
 
         for key in self.gradient_parameters:
-
             reverse_system, reverse_value = system_subset(key, force_field, topology)
             forward_system, forward_value = system_subset(
                 key, force_field, topology, 0.1
             )
 
-            reverse_value = openmm_quantity_to_pint(reverse_value)
-            forward_value = openmm_quantity_to_pint(forward_value)
+            reverse_value = from_openmm(reverse_value)
+            forward_value = from_openmm(forward_value)
 
             reverse_charges = self._extract_charges(reverse_system)
             forward_charges = self._extract_charges(forward_system)
@@ -646,7 +632,6 @@ class ComputeDipoleMoments(Protocol):
         return d_charge_d_theta
 
     def _execute(self, directory, available_resources):
-
         import mdtraj
 
         charges = self._extract_charges(self.parameterized_system.system)
@@ -658,7 +643,6 @@ class ComputeDipoleMoments(Protocol):
         for chunk in mdtraj.iterload(
             self.trajectory_path, top=self.parameterized_system.topology_path, chunk=50
         ):
-
             xyz = chunk.xyz.transpose(0, 2, 1) * unit.nanometers
 
             dipole_moments.extend(xyz.dot(charges))
@@ -776,7 +760,6 @@ class DecorrelateTrajectory(BaseDecorrelateProtocol):
         """
 
         while True:
-
             frame = file.read_as_traj(topology, n_frames=1, stride=stride)
 
             if len(frame) == 0:
@@ -785,7 +768,6 @@ class DecorrelateTrajectory(BaseDecorrelateProtocol):
             yield frame
 
     def _execute(self, directory, available_resources):
-
         import mdtraj
         from mdtraj.formats.dcd import DCDTrajectoryFile
         from mdtraj.utils import in_units_of
@@ -810,11 +792,8 @@ class DecorrelateTrajectory(BaseDecorrelateProtocol):
 
         with DCDTrajectoryFile(self.input_trajectory_path, "r") as input_file:
             with DCDTrajectoryFile(self.output_trajectory_path, "w") as output_file:
-
                 for frame in self._yield_frame(input_file, topology, 1):
-
                     if frame_count in uncorrelated_indices:
-
                         output_file.write(
                             xyz=in_units_of(
                                 frame.xyz, base_distance_unit, output_file.distance_unit
@@ -851,7 +830,6 @@ class DecorrelateObservables(BaseDecorrelateProtocol):
     )
 
     def _execute(self, directory, available_resources):
-
         assert len(self.input_observables) == self._n_expected()
 
         uncorrelated_indices = self._uncorrelated_indices()

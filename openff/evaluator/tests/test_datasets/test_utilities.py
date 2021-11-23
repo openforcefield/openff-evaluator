@@ -50,7 +50,6 @@ def test_reorder_data_frame():
     assert reordered_data_frame.loc[0, "N Components"] == 1
 
     for index in [1, 2]:
-
         assert reordered_data_frame.loc[index, "N Components"] == 2
         assert reordered_data_frame.loc[index, "Component 1"] == "CC"
         assert reordered_data_frame.loc[index, "Role 1"] == "Solvent"

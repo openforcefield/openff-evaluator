@@ -5,8 +5,8 @@ import json
 
 import numpy
 import pytest
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.datasets import (
     CalculationSource,
@@ -28,7 +28,6 @@ from openff.evaluator.utils.serialization import TypedJSONEncoder
 
 
 def test_physical_property_state_methods():
-
     dummy_property = create_dummy_property(Density)
     property_state = dummy_property.__getstate__()
 
@@ -44,7 +43,6 @@ def test_physical_property_state_methods():
 
 
 def test_physical_property_id_generation():
-
     dummy_property_1 = create_dummy_property(Density)
     dummy_property_2 = create_dummy_property(Density)
 
@@ -77,7 +75,6 @@ def test_to_pandas():
     data_set = PhysicalPropertyDataSet()
 
     for temperature in [298 * unit.kelvin, 300 * unit.kelvin, 302 * unit.kelvin]:
-
         thermodynamic_state = ThermodynamicState(
             temperature=temperature, pressure=1.0 * unit.atmosphere
         )
@@ -104,7 +101,6 @@ def test_to_pandas():
         data_set.add_properties(dielectric_property)
 
     for temperature in [298 * unit.kelvin, 300 * unit.kelvin, 302 * unit.kelvin]:
-
         thermodynamic_state = ThermodynamicState(
             temperature=temperature, pressure=1.0 * unit.atmosphere
         )
@@ -122,8 +118,8 @@ def test_to_pandas():
             thermodynamic_state=thermodynamic_state,
             phase=PropertyPhase.Liquid,
             substance=binary_substance,
-            value=1 * unit.meter ** 3 / unit.mole,
-            uncertainty=0.11 * unit.meter ** 3 / unit.mole,
+            value=1 * unit.meter**3 / unit.mole,
+            uncertainty=0.11 * unit.meter**3 / unit.mole,
             source=source,
         )
 
@@ -171,8 +167,8 @@ def test_from_pandas():
             thermodynamic_state=thermodynamic_state,
             phase=PropertyPhase.Liquid,
             substance=Substance.from_components("CO", "O"),
-            value=1.0 * unit.kilogram / unit.meter ** 3,
-            uncertainty=1.0 * unit.kilogram / unit.meter ** 3,
+            value=1.0 * unit.kilogram / unit.meter**3,
+            uncertainty=1.0 * unit.kilogram / unit.meter**3,
             source=MeasurementSource(doi="10.5281/zenodo.596537"),
         ),
         EnthalpyOfVaporization(
@@ -197,7 +193,6 @@ def test_from_pandas():
     assert len(original_data_set) == len(recreated_data_set)
 
     for original_property in original_data_set:
-
         recreated_property = next(
             x for x in recreated_data_set if x.id == original_property.id
         )
@@ -222,7 +217,6 @@ def test_from_pandas():
 
 
 def test_sources_substances():
-
     physical_property = create_dummy_property(Density)
 
     data_set = PhysicalPropertyDataSet()
@@ -233,7 +227,6 @@ def test_sources_substances():
 
 
 def test_properties_by_type():
-
     density = create_dummy_property(Density)
     dielectric = create_dummy_property(DielectricConstant)
 
@@ -250,7 +243,6 @@ def test_properties_by_type():
 
 
 def test_phase_from_string():
-
     assert PropertyPhase.from_string("") == PropertyPhase.Undefined
 
     phase_enums = [
@@ -268,7 +260,6 @@ def test_phase_from_string():
 
 
 def test_validate_data_set():
-
     valid_property = Density(
         ThermodynamicState(298 * unit.kelvin, 1 * unit.atmosphere),
         PropertyPhase.Liquid,

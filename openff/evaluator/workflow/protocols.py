@@ -37,7 +37,6 @@ logger = logging.getLogger(__name__)
 
 class ProtocolMeta(abc.ABCMeta):
     def __init__(cls, name, bases, dct):
-
         super().__init__(name, bases, dct)
 
         cls._input_attributes = [
@@ -120,14 +119,12 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
         return_dependencies = []
 
         for input_path in self.required_inputs:
-
             value_references = self.get_value_references(input_path)
 
             if len(value_references) == 0:
                 continue
 
             for value_reference in value_references.values():
-
                 if value_reference in return_dependencies:
                     continue
 
@@ -135,7 +132,6 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
                     value_reference.start_protocol is None
                     or value_reference.start_protocol == self.id
                 ):
-
                     continue
 
                 return_dependencies.append(value_reference)
@@ -162,7 +158,6 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
         inputs = {}
 
         for input_path in self.required_inputs:
-
             if (
                 len(input_path.protocol_path) > 0
                 and input_path.protocol_path != self.id
@@ -187,7 +182,6 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
 
         # Make sure this protocol matches the schema type.
         if self.__class__.__name__ != schema.type:
-
             raise ValueError(
                 f"The schema type {schema.type} does not match this protocol."
             )
@@ -195,7 +189,6 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
         self.id = schema.id
 
         for input_full_path in schema.inputs:
-
             value = copy.deepcopy(schema.inputs[input_full_path])
 
             input_path = ProtocolPath.from_string(input_full_path)
@@ -240,7 +233,6 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
         self.id = graph.append_uuid(self.id, value)
 
         for input_path in self.required_inputs:
-
             input_path.append_uuid(value)
 
             value_references = self.get_value_references(input_path)
@@ -267,7 +259,6 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
         """
 
         for input_path in self.required_inputs:
-
             input_path.replace_protocol(old_id, new_id)
 
             if input_path.start_protocol is not None or (
@@ -299,7 +290,6 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
         inputs_to_consider = set()
 
         for input_path in self.required_inputs:
-
             # Do not consider paths that point to child (e.g grouped) protocols.
             # These should be handled by the container classes themselves.
             if (
@@ -315,7 +305,6 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
                     and input_path.start_protocol == self.id
                 )
             ):
-
                 continue
 
             # If no merge behaviour flag is present (for example in the case of
@@ -356,7 +345,6 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
         inputs_to_consider = self._find_inputs_to_merge()
 
         for input_path in inputs_to_consider:
-
             # Do a quick sanity check that the other protocol
             # does in fact also require this input.
             if input_path not in other.required_inputs:
@@ -376,7 +364,6 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
                 isinstance(other_value, PlaceholderValue)
                 and not isinstance(self_value, PlaceholderValue)
             ):
-
                 # We cannot safely merge inputs when only one of the values
                 # is currently known.
                 return False
@@ -384,7 +371,6 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
             if isinstance(self_value, ProtocolPath) and isinstance(
                 other_value, ProtocolPath
             ):
-
                 other_value_post_merge = ProtocolPath.from_string(other_value.full_path)
 
                 for original_id, new_id in path_replacements:
@@ -445,7 +431,6 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
         inputs_to_consider = self._find_inputs_to_merge()
 
         for input_path in inputs_to_consider:
-
             merge_behavior = getattr(
                 type(self), input_path.property_name
             ).merge_behavior
@@ -459,7 +444,6 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
             if isinstance(self.get_value(input_path), ProtocolPath) or isinstance(
                 other.get_value(input_path), ProtocolPath
             ):
-
                 continue
 
             if merge_behavior == InequalityMergeBehaviour.SmallestValue:
@@ -503,15 +487,12 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
             and not isinstance(input_value, tuple)
             and not isinstance(input_value, dict)
         ):
-
             return {}
 
         return_paths = {}
 
         if isinstance(input_value, list) or isinstance(input_value, tuple):
-
             for index, list_value in enumerate(input_value):
-
                 if not isinstance(list_value, ProtocolPath):
                     continue
 
@@ -521,9 +502,7 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
                 return_paths[path_index] = list_value
 
         else:
-
             for dict_key in input_value:
-
                 if not isinstance(input_value[dict_key], ProtocolPath):
                     continue
 
@@ -563,7 +542,6 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
             reference_path.property_name.count(ProtocolPath.property_separator) >= 1
             or reference_path.property_name.find("[") > 0
         ):
-
             raise ValueError(
                 "The expected attribute cannot be found for "
                 "nested property names: {}".format(reference_path.property_name)
@@ -589,7 +567,6 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
             reference_path.start_protocol is not None
             and reference_path.start_protocol != self.id
         ):
-
             raise ValueError("The reference path does not target this protocol.")
 
         if reference_path.property_name is None or reference_path.property_name == "":
@@ -612,7 +589,6 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
             reference_path.start_protocol is not None
             and reference_path.start_protocol != self.id
         ):
-
             raise ValueError("The reference path does not target this protocol.")
 
         if reference_path.property_name is None or reference_path.property_name == "":
@@ -736,7 +712,6 @@ class ProtocolGraph:
         return self._root_protocols
 
     def __init__(self):
-
         self._protocols_by_id = {}
         self._root_protocols = []
 
@@ -766,16 +741,12 @@ class ProtocolGraph:
             dependants_graph[protocol_id] = set()
 
         for protocol in protocols.values():
-
             for dependency in protocol.dependencies:
-
                 # Check for external dependencies.
                 if dependency.start_protocol not in internal_protocol_ids:
-
                     if allow_external_dependencies:
                         continue
                     else:
-
                         raise ValueError(
                             f"The {dependency.start_protocol} dependency "
                             f"is outside of this graph."
@@ -847,7 +818,6 @@ class ProtocolGraph:
         )
 
         for parent_protocol_id in parent_protocol_ids:
-
             existing_protocols.extend(
                 x
                 for x in full_dependants_graph[parent_protocol_id]
@@ -868,7 +838,6 @@ class ProtocolGraph:
         # Start by checking to see if the starting protocol of the workflow graph is
         # already present in the full graph.
         for existing_id in existing_protocols:
-
             protocol = self._protocols_by_id[existing_id]
 
             if not protocol.can_merge(protocol_to_insert):
@@ -881,7 +850,6 @@ class ProtocolGraph:
         merged_ids = {}
 
         if existing_protocol is not None:
-
             # Make a note that the existing protocol should be used in place
             # of this workflows version.
             protocols_to_add[protocol_id] = existing_protocol
@@ -890,12 +858,10 @@ class ProtocolGraph:
             merged_ids[protocol_to_insert.id] = existing_protocol.id
 
             for old_id, new_id in merged_ids.items():
-
                 for dependant_id in dependant_ids:
                     protocols_to_add[dependant_id].replace_protocol(old_id, new_id)
 
             for parent_id in parent_protocol_ids:
-
                 if parent_id not in protocols_to_add:
                     continue
 
@@ -903,7 +869,6 @@ class ProtocolGraph:
                     full_dependants_graph[parent_id].append(existing_protocol.id)
 
         else:
-
             # Add the protocol as a new protocol in the graph.
             self._protocols_by_id[protocol_id] = protocol_to_insert
             existing_protocol = self._protocols_by_id[protocol_id]
@@ -914,7 +879,6 @@ class ProtocolGraph:
                 self._root_protocols.append(protocol_id)
 
             for parent_id in parent_protocol_ids:
-
                 if protocol_id not in full_dependants_graph[parent_id]:
                     full_dependants_graph[parent_id].append(protocol_id)
 
@@ -943,7 +907,6 @@ class ProtocolGraph:
 
         # Make sure we aren't trying to add protocols with conflicting ids.
         if len(conflicting_ids) > 0:
-
             raise ValueError(
                 f"The graph already contains protocols with ids {conflicting_ids}"
             )
@@ -994,7 +957,6 @@ class ProtocolGraph:
         parent_protocol_ids.update(child_to_existing_parents)
 
         for protocol_id in protocol_execution_order:
-
             parent_ids = parent_protocol_ids.get(protocol_id) or []
             inserted_id, new_ids = self._add_protocol(
                 protocol_id,
@@ -1073,7 +1035,6 @@ class ProtocolGraph:
         protocol_outputs = {}
 
         for protocol_id in execution_order:
-
             protocol = self._protocols_by_id[protocol_id]
             parent_outputs = []
 
@@ -1087,7 +1048,6 @@ class ProtocolGraph:
             directory = os.path.join(root_directory, directory_name)
 
             if calculation_backend is not None:
-
                 protocol_outputs[protocol_id] = calculation_backend.submit_task(
                     ProtocolGraph._execute_protocol,
                     directory,
@@ -1098,7 +1058,6 @@ class ProtocolGraph:
                 )
 
             else:
-
                 protocol_outputs[protocol_id] = ProtocolGraph._execute_protocol(
                     directory,
                     protocol,
@@ -1161,18 +1120,14 @@ class ProtocolGraph:
         # We need to make sure ALL exceptions are handled within this method,
         # to avoid accidentally killing the compute backend / server.
         try:
-
             # Check if the output of this protocol already exists and
             # whether we allow returning the found output.
             if os.path.isfile(output_path) and enable_checkpointing:
-
                 with open(output_path) as file:
                     outputs = json.load(file, cls=TypedJSONDecoder)
 
                 if not isinstance(outputs, WorkflowException):
-
                     for protocol_path, output in outputs.items():
-
                         protocol_path = ProtocolPath.from_string(protocol_path)
                         protocol.set_value(protocol_path, output)
 
@@ -1183,7 +1138,6 @@ class ProtocolGraph:
             previous_outputs = {}
 
             for parent_id, previous_output_path in previous_output_paths:
-
                 with open(previous_output_path) as file:
                     parent_output = json.load(file, cls=TypedJSONDecoder)
 
@@ -1193,14 +1147,12 @@ class ProtocolGraph:
                     return protocol.id, previous_output_path
 
                 for protocol_path, output_value in parent_output.items():
-
                     protocol_path = ProtocolPath.from_string(protocol_path)
 
                     if (
                         protocol_path.start_protocol is None
                         or protocol_path.start_protocol != parent_id
                     ):
-
                         protocol_path.prepend_protocol_id(parent_id)
 
                     previous_outputs[protocol_path] = output_value
@@ -1208,11 +1160,9 @@ class ProtocolGraph:
             # Pass the outputs of previously executed protocols as input to the
             # protocol to execute.
             for input_path in protocol.required_inputs:
-
                 value_references = protocol.get_value_references(input_path)
 
                 for source_path, target_path in value_references.items():
-
                     if (
                         target_path.start_protocol == input_path.start_protocol
                         or target_path.start_protocol == protocol.id
@@ -1228,12 +1178,10 @@ class ProtocolGraph:
                     nested_property_name = None
 
                     if property_name.find(".") > 0:
-
                         nested_property_name = ".".join(property_name.split(".")[1:])
                         property_name = property_name.split(".")[0]
 
                     if property_name.find("[") >= 0 or property_name.find("]") >= 0:
-
                         property_name, property_index = extract_variable_index_and_name(
                             property_name
                         )
@@ -1268,7 +1216,6 @@ class ProtocolGraph:
             logger.info(f"{protocol.id} finished executing after {execution_time} ms")
 
         except Exception as e:
-
             logger.info(f"Protocol failed to execute: {protocol.id}")
 
             if not safe_exceptions:
@@ -1307,9 +1254,7 @@ class ProtocolGroup(Protocol):
         # Pull each of an individual protocols inputs up so that they
         # become a required input of the group.
         for protocol in self._protocols:
-
             for input_path in protocol.required_inputs:
-
                 input_path = input_path.copy()
 
                 if input_path.start_protocol != protocol.id:
@@ -1341,9 +1286,7 @@ class ProtocolGroup(Protocol):
         outputs = super(ProtocolGroup, self).outputs
 
         for protocol in self._protocols:
-
             for output_path in protocol.outputs:
-
                 output_value = protocol.get_value(output_path)
                 output_path = output_path.copy()
 
@@ -1379,7 +1322,6 @@ class ProtocolGroup(Protocol):
         self._enable_checkpointing = True
 
     def _get_schema(self, schema_type=ProtocolGroupSchema, *args):
-
         protocol_schemas = {x.id: x.schema for x in self._protocols}
 
         schema = super(ProtocolGroup, self)._get_schema(
@@ -1404,7 +1346,6 @@ class ProtocolGroup(Protocol):
         protocols_to_add = []
 
         for protocol_schema in schema_value.protocol_schemas.values():
-
             protocol = Protocol.from_schema(protocol_schema)
             protocols_to_add.append(protocol)
 
@@ -1419,9 +1360,7 @@ class ProtocolGroup(Protocol):
             The protocols to add.
         """
         for protocol in protocols:
-
             if protocol.id in self.protocols:
-
                 raise ValueError(
                     f"The {self.id} group already contains a protocol "
                     f"with id {protocol.id}."
@@ -1468,19 +1407,16 @@ class ProtocolGroup(Protocol):
 
         # Rebuild the inner graph
         if old_id in self.protocols:
-
             self._inner_graph = ProtocolGraph()
             self._inner_graph.add_protocols(
                 *self._protocols, allow_external_dependencies=True
             )
 
     def _execute(self, directory, available_resources):
-
         # Update the inputs of protocols which require values
         # from the protocol group itself (i.e. the current
         # iteration from a conditional group).
         for required_input in self.required_inputs:
-
             if required_input.start_protocol != self.id:
                 continue
 
@@ -1490,7 +1426,6 @@ class ProtocolGroup(Protocol):
                 continue
 
             for input_path, value_reference in value_references.items():
-
                 if (
                     value_reference.protocol_path != self.id
                     and value_reference.start_protocol is not None
@@ -1508,7 +1443,6 @@ class ProtocolGroup(Protocol):
         )
 
     def can_merge(self, other, path_replacements=None):
-
         if path_replacements is None:
             path_replacements = []
 
@@ -1523,7 +1457,6 @@ class ProtocolGroup(Protocol):
         # Ensure that at least one root protocol from each group can be merged.
         for self_id in self._inner_graph.root_protocols:
             for other_id in other._inner_graph.root_protocols:
-
                 if self.protocols[self_id].can_merge(
                     other.protocols[other_id], path_replacements
                 ):
@@ -1532,7 +1465,6 @@ class ProtocolGroup(Protocol):
         return False
 
     def merge(self, other):
-
         assert isinstance(other, ProtocolGroup)
         merged_ids = super(ProtocolGroup, self).merge(other)
 
@@ -1552,11 +1484,9 @@ class ProtocolGroup(Protocol):
         return merged_ids
 
     def get_value_references(self, input_path):
-
         values_references = super(ProtocolGroup, self).get_value_references(input_path)
 
         for key, value_reference in values_references.items():
-
             if value_reference.start_protocol not in self.protocols:
                 continue
 
@@ -1593,7 +1523,6 @@ class ProtocolGroup(Protocol):
         target_protocol_id = reference_path_clone.pop_next_in_path()
 
         if target_protocol_id not in self.protocols:
-
             raise ValueError(
                 "The reference path does not target this protocol "
                 "or any of its children."
@@ -1602,7 +1531,6 @@ class ProtocolGroup(Protocol):
         return target_protocol_id, reference_path_clone
 
     def get_class_attribute(self, reference_path):
-
         if (
             len(reference_path.protocol_path) == 0
             or reference_path.protocol_path == self.id
@@ -1613,7 +1541,6 @@ class ProtocolGroup(Protocol):
         return self.protocols[target_protocol_id].get_class_attribute(truncated_path)
 
     def get_value(self, reference_path):
-
         if (
             len(reference_path.protocol_path) == 0
             or reference_path.protocol_path == self.id
@@ -1624,7 +1551,6 @@ class ProtocolGroup(Protocol):
         return self.protocols[target_protocol_id].get_value(truncated_path)
 
     def set_value(self, reference_path, value):
-
         if (
             len(reference_path.protocol_path) == 0
             or reference_path.protocol_path == self.id
@@ -1645,7 +1571,6 @@ class ProtocolGroup(Protocol):
         template_value=None,
         update_input_references=False,
     ):
-
         protocols, replication_map = replicator.apply(
             self.protocols, template_values, template_index, template_value
         )
@@ -1653,7 +1578,6 @@ class ProtocolGroup(Protocol):
         if (
             template_index >= 0 or template_value is not None
         ) and update_input_references is True:
-
             raise ValueError(
                 "Specific template indices and values cannot be passed "
                 "when `update_input_references` is True"

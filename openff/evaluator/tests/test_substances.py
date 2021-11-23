@@ -17,13 +17,11 @@ from openff.evaluator.substances import Component, ExactAmount, MoleFraction, Su
     ],
 )
 def test_component_standardization(smiles, expected):
-
     component = Component(smiles=smiles)
     assert component.smiles == expected
 
 
 def test_add_mole_fractions():
-
     substance = Substance()
 
     substance.add_component(Component("C"), MoleFraction(0.5))
@@ -42,7 +40,6 @@ def test_add_mole_fractions():
 
 
 def test_multiple_amounts():
-
     substance = Substance()
 
     sodium = Component("[Na+]")
@@ -71,7 +68,6 @@ def test_multiple_amounts():
 
 
 def test_truncate_n_molecules():
-
     substance = Substance()
 
     substance.add_component(
@@ -99,6 +95,5 @@ def test_truncate_n_molecules():
 
 
 def test_substance_len():
-
     substance = Substance.from_components("C", "CC", "CCC", "CCC")
     assert len(substance) == 3

@@ -6,8 +6,9 @@ import abc
 from typing import Union
 
 import numpy
+from openff.units import unit
+from openff.units.openmm import from_openmm
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import (
     ForceFieldSource,
@@ -15,7 +16,6 @@ from openff.evaluator.forcefield import (
     SmirnoffForceFieldSource,
 )
 from openff.evaluator.utils.observables import Observable, ObservableArray
-from openff.evaluator.utils.openmm import openmm_quantity_to_pint
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
 
@@ -51,8 +51,10 @@ class ZeroGradients(Protocol, abc.ABC):
     )
 
     def _execute(self, directory, available_resources):
-
-        from simtk import unit as simtk_unit
+        try:
+            from openmm.unit import openmm_unit
+        except ImportError:
+            from simtk import unit as openmm_unit
 
         force_field_source = ForceFieldSource.from_json(self.force_field_path)
 
@@ -62,7 +64,6 @@ class ZeroGradients(Protocol, abc.ABC):
         force_field = force_field_source.to_force_field()
 
         def _get_parameter_unit(gradient_key):
-
             parameter = force_field.get_parameter_handler(gradient_key.tag)
 
             if gradient_key.smirks is not None:
@@ -70,8 +71,8 @@ class ZeroGradients(Protocol, abc.ABC):
 
             value = getattr(parameter, gradient_key.attribute)
 
-            if isinstance(value, simtk_unit.Quantity):
-                return openmm_quantity_to_pint(value).units
+            if isinstance(value, openmm_unit.Quantity):
+                return from_openmm(value).units
 
             return unit.dimensionless
 
@@ -83,7 +84,6 @@ class ZeroGradients(Protocol, abc.ABC):
         self.input_observables.clear_gradients()
 
         if isinstance(self.input_observables, Observable):
-
             self.output_observables = Observable(
                 value=self.input_observables.value,
                 gradients=[
@@ -100,7 +100,6 @@ class ZeroGradients(Protocol, abc.ABC):
             )
 
         elif isinstance(self.input_observables, ObservableArray):
-
             self.output_observables = ObservableArray(
                 value=self.input_observables.value,
                 gradients=[

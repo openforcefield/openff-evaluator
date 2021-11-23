@@ -12,8 +12,16 @@ from typing import TYPE_CHECKING, List
 
 import numpy as np
 import pandas as pd
+from openff.units import unit
+from openff.units.openmm import from_openmm, to_openmm
 
-from openff.evaluator import unit
+try:
+    import openmm.app as app
+    import openmm.unit as openmm_unit
+except ImportError:
+    from simtk.openmm import app
+    import simtk.unit as openmm_unit
+
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import (
     ParameterGradient,
@@ -30,9 +38,7 @@ from openff.evaluator.utils.observables import (
 )
 from openff.evaluator.utils.openmm import (
     disable_pbc,
-    openmm_quantity_to_pint,
     perturbed_gaff_system,
-    pint_quantity_to_openmm,
     setup_platform_with_resources,
     system_subset,
 )
@@ -41,11 +47,14 @@ from openff.evaluator.utils.utils import is_file_and_not_empty
 from openff.evaluator.workflow import workflow_protocol
 
 if TYPE_CHECKING:
-
     from mdtraj import Trajectory
     from openff.toolkit.topology import Topology
     from openff.toolkit.typing.engines.smirnoff import ForceField
-    from simtk import openmm
+
+    try:
+        import openmm
+    except ImportError:
+        from simtk import openmm
 
 logger = logging.getLogger(__name__)
 
@@ -81,10 +90,8 @@ def _evaluate_energies(
     -------
         The array containing the evaluated potentials.
     """
-    from simtk import openmm
-    from simtk import unit as simtk_unit
 
-    integrator = openmm.VerletIntegrator(0.1 * simtk_unit.femtoseconds)
+    integrator = openmm.VerletIntegrator(0.1 * openmm_unit.femtoseconds)
 
     platform = setup_platform_with_resources(compute_resources, high_precision)
     openmm_context = openmm.Context(system, integrator, platform)
@@ -92,13 +99,12 @@ def _evaluate_energies(
     potentials = np.zeros(trajectory.n_frames, dtype=np.float64)
     reduced_potentials = np.zeros(trajectory.n_frames, dtype=np.float64)
 
-    temperature = pint_quantity_to_openmm(thermodynamic_state.temperature)
-    beta = 1.0 / (simtk_unit.BOLTZMANN_CONSTANT_kB * temperature)
+    temperature = to_openmm(thermodynamic_state.temperature)
+    beta = 1.0 / (openmm_unit.BOLTZMANN_CONSTANT_kB * temperature)
 
-    pressure = pint_quantity_to_openmm(thermodynamic_state.pressure)
+    pressure = to_openmm(thermodynamic_state.pressure)
 
     for frame_index in range(trajectory.n_frames):
-
         positions = trajectory.xyz[frame_index]
 
         if enable_pbc:
@@ -110,13 +116,13 @@ def _evaluate_energies(
         state = openmm_context.getState(getEnergy=True)
 
         potential_energy = state.getPotentialEnergy()
-        unreduced_potential = potential_energy / simtk_unit.AVOGADRO_CONSTANT_NA
+        unreduced_potential = potential_energy / openmm_unit.AVOGADRO_CONSTANT_NA
 
         if pressure is not None and enable_pbc:
             unreduced_potential += pressure * state.getPeriodicBoxVolume()
 
         potentials[frame_index] = potential_energy.value_in_unit(
-            simtk_unit.kilojoule_per_mole
+            openmm_unit.kilojoule_per_mole
         )
         reduced_potentials[frame_index] = unreduced_potential * beta
 
@@ -183,8 +189,6 @@ def _compute_gradients(
         The amount to perturb for the force field parameter by.
     """
 
-    from simtk import openmm
-
     use_gaff_system = False
     if gaff_system_path is not None or gaff_topology_path is not None:
         assert gaff_system_path is not None and gaff_topology_path is not None
@@ -198,7 +202,6 @@ def _compute_gradients(
     topology.box_vectors = trajectory.openmm_boxes(0) if enable_pbc else None
 
     for parameter_key in gradient_parameters:
-
         # Build the slightly perturbed systems.
         if not use_gaff_system:
             reverse_system, reverse_parameter_value = system_subset(
@@ -232,8 +235,8 @@ def _compute_gradients(
             disable_pbc(reverse_system)
             disable_pbc(forward_system)
 
-        reverse_parameter_value = openmm_quantity_to_pint(reverse_parameter_value)
-        forward_parameter_value = openmm_quantity_to_pint(forward_parameter_value)
+        reverse_parameter_value = from_openmm(reverse_parameter_value)
+        forward_parameter_value = from_openmm(forward_parameter_value)
 
         # Evaluate the energies using the reverse and forward sub-systems.
         if reverse_xml != forward_xml and (
@@ -254,7 +257,6 @@ def _compute_gradients(
                 enable_pbc,
             )
         else:
-
             zeros = np.zeros(len(trajectory))
 
             reverse_energies = forward_energies = ObservableFrame(
@@ -346,7 +348,6 @@ def _compute_gradients(
             )
 
     for observable_type in observables:
-
         observables[observable_type] = ObservableArray(
             value=observables[observable_type].value,
             gradients=gradients[observable_type],
@@ -360,20 +361,13 @@ class OpenMMEnergyMinimisation(BaseEnergyMinimisation):
     """
 
     def _execute(self, directory, available_resources):
-
-        from simtk import openmm
-        from simtk import unit as simtk_unit
-        from simtk.openmm import app
-
         platform = setup_platform_with_resources(available_resources)
 
         input_pdb_file = app.PDBFile(self.input_coordinate_file)
         system = self.parameterized_system.system
 
         if not self.enable_pbc:
-
             for force_index in range(system.getNumForces()):
-
                 force = system.getForce(force_index)
 
                 if not isinstance(force, openmm.NonbondedForce):
@@ -384,7 +378,7 @@ class OpenMMEnergyMinimisation(BaseEnergyMinimisation):
                 )  # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1
 
         # TODO: Expose the constraint tolerance
-        integrator = openmm.VerletIntegrator(0.002 * simtk_unit.picoseconds)
+        integrator = openmm.VerletIntegrator(0.002 * openmm_unit.picoseconds)
         simulation = app.Simulation(
             input_pdb_file.topology, system, integrator, platform
         )
@@ -397,9 +391,7 @@ class OpenMMEnergyMinimisation(BaseEnergyMinimisation):
         simulation.context.setPeriodicBoxVectors(*box_vectors)
         simulation.context.setPositions(input_pdb_file.positions)
 
-        simulation.minimizeEnergy(
-            pint_quantity_to_openmm(self.tolerance), self.max_iterations
-        )
+        simulation.minimizeEnergy(to_openmm(self.tolerance), self.max_iterations)
 
         positions = simulation.context.getState(getPositions=True).getPositions()
 
@@ -439,7 +431,6 @@ class OpenMMSimulation(BaseSimulation):
             steps_per_iteration=-1,
             current_step_number=0,
         ):
-
             self.output_frequency = output_frequency
             self.checkpoint_frequency = checkpoint_frequency
             self.steps_per_iteration = steps_per_iteration
@@ -471,7 +462,6 @@ class OpenMMSimulation(BaseSimulation):
             self.currentStep = current_step
 
     def __init__(self, protocol_id):
-
         super().__init__(protocol_id)
 
         self._checkpoint_path = None
@@ -484,22 +474,19 @@ class OpenMMSimulation(BaseSimulation):
         self._integrator = None
 
     def _execute(self, directory, available_resources):
-
         import mdtraj
-        from simtk.openmm import app
 
         # We handle most things in OMM units here.
         temperature = self.thermodynamic_state.temperature
-        openmm_temperature = pint_quantity_to_openmm(temperature)
+        openmm_temperature = to_openmm(temperature)
 
         pressure = (
             None if self.ensemble == Ensemble.NVT else self.thermodynamic_state.pressure
         )
 
-        openmm_pressure = pint_quantity_to_openmm(pressure)
+        openmm_pressure = to_openmm(pressure)
 
         if openmm_temperature is None:
-
             raise ValueError(
                 "A temperature must be set to perform a simulation in any ensemble"
             )
@@ -519,7 +506,6 @@ class OpenMMSimulation(BaseSimulation):
 
         # Set up the simulation objects.
         if self._context is None or self._integrator is None:
-
             self._context, self._integrator = self._setup_simulation_objects(
                 openmm_temperature, openmm_pressure, available_resources
             )
@@ -528,7 +514,6 @@ class OpenMMSimulation(BaseSimulation):
         local_input_coordinate_path = os.path.join(directory, "input.pdb")
 
         if not is_file_and_not_empty(local_input_coordinate_path):
-
             input_pdb_file = app.PDBFile(self.input_coordinate_file)
 
             with open(local_input_coordinate_path, "w+") as configuration_file:
@@ -597,12 +582,9 @@ class OpenMMSimulation(BaseSimulation):
         """
 
         import openmmtools
-        from simtk import openmm
-        from simtk.openmm import app
 
         # Create a platform with the correct resources.
         if not self.allow_gpu_platforms:
-
             from openff.evaluator.backends import ComputeResources
 
             available_resources = ComputeResources(
@@ -618,7 +600,6 @@ class OpenMMSimulation(BaseSimulation):
 
         # Disable the periodic boundary conditions if requested.
         if not self.enable_pbc:
-
             disable_pbc(system)
             pressure = None
 
@@ -632,8 +613,8 @@ class OpenMMSimulation(BaseSimulation):
         system = openmm_state.get_system(remove_thermostat=True)
 
         # Set up the integrator.
-        thermostat_friction = pint_quantity_to_openmm(self.thermostat_friction)
-        timestep = pint_quantity_to_openmm(self.timestep)
+        thermostat_friction = to_openmm(self.thermostat_friction)
+        timestep = to_openmm(self.timestep)
 
         integrator = openmmtools.integrators.LangevinIntegrator(
             temperature=temperature,
@@ -648,12 +629,10 @@ class OpenMMSimulation(BaseSimulation):
         input_pdb_file = app.PDBFile(self.input_coordinate_file)
 
         if self.enable_pbc:
-
             # Optionally set up the box vectors.
             box_vectors = input_pdb_file.topology.getPeriodicBoxVectors()
 
             if box_vectors is None:
-
                 raise ValueError(
                     "The input file must contain box vectors when running with PBC."
                 )
@@ -711,7 +690,6 @@ class OpenMMSimulation(BaseSimulation):
             The number of frames to truncate to.
         """
         with open(self._local_statistics_path) as file:
-
             header_line = file.readline()
             file_contents = re.sub("#.*\n", "", file.read())
 
@@ -723,7 +701,6 @@ class OpenMMSimulation(BaseSimulation):
         statistics_length = len(existing_statistics_array)
 
         if statistics_length < number_of_frames:
-
             raise ValueError(
                 f"The saved number of statistics frames ({statistics_length}) "
                 f"is less than expected ({number_of_frames})."
@@ -735,7 +712,6 @@ class OpenMMSimulation(BaseSimulation):
         truncated_statistics_array = existing_statistics_array[0:number_of_frames]
 
         with open(self._local_statistics_path, "w") as file:
-
             file.write(f"{header_line}")
             truncated_statistics_array.to_csv(file, index=False, header=False)
 
@@ -770,7 +746,6 @@ class OpenMMSimulation(BaseSimulation):
 
         # Make sure there is at least the expected number of frames.
         if trajectory_length < number_of_frames:
-
             raise ValueError(
                 f"The saved number of trajectory frames ({trajectory_length}) "
                 f"is less than expected ({number_of_frames})."
@@ -784,11 +759,8 @@ class OpenMMSimulation(BaseSimulation):
         temporary_trajectory_path = f"{self._local_trajectory_path}.tmp"
 
         with DCDTrajectoryFile(self._local_trajectory_path, "r") as input_file:
-
             with DCDTrajectoryFile(temporary_trajectory_path, "w") as output_file:
-
                 for frame_index in range(0, number_of_frames):
-
                     frame = input_file.read_as_traj(topology, n_frames=1, stride=1)
 
                     output_file.write(
@@ -837,14 +809,12 @@ class OpenMMSimulation(BaseSimulation):
         if not is_file_and_not_empty(
             self._checkpoint_path
         ) or not is_file_and_not_empty(self._state_path):
-
             logger.info("No checkpoint files were found.")
             return current_step_number
 
         if not is_file_and_not_empty(
             self._local_statistics_path
         ) or not is_file_and_not_empty(self._local_trajectory_path):
-
             raise ValueError(
                 "Checkpoint files were correctly found, but the trajectory "
                 "or statistics files seem to be missing. This should not happen."
@@ -864,7 +834,6 @@ class OpenMMSimulation(BaseSimulation):
             or self.checkpoint_frequency != checkpoint.checkpoint_frequency
             or self.steps_per_iteration != checkpoint.steps_per_iteration
         ):
-
             raise ValueError(
                 "Neither the output frequency, the checkpoint "
                 "frequency, nor the steps per iteration can "
@@ -996,7 +965,6 @@ class OpenMMSimulation(BaseSimulation):
         checkpoint_counter = 0
 
         while current_step < total_number_of_steps:
-
             steps_to_take = min(
                 self.output_frequency, total_number_of_steps - current_step
             )
@@ -1045,7 +1013,6 @@ class OpenMMEvaluateEnergies(BaseEvaluateEnergies):
     """
 
     def _execute(self, directory, available_resources):
-
         import mdtraj
 
         # Load in the inputs.
@@ -1071,7 +1038,6 @@ class OpenMMEvaluateEnergies(BaseEvaluateEnergies):
         if not isinstance(
             self.parameterized_system.force_field, SmirnoffForceFieldSource
         ):
-
             raise ValueError(
                 "Derivates can only be computed for systems parameterized with SMIRNOFF "
                 "force fields."

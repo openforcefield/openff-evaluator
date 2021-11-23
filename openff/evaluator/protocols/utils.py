@@ -4,7 +4,8 @@ A set of utilities for setting up property estimation workflows.
 from dataclasses import astuple, dataclass
 from typing import Generic, Optional, Tuple, TypeVar
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.attributes import PlaceholderValue
 from openff.evaluator.datasets import PropertyPhase
 from openff.evaluator.protocols import (
@@ -310,7 +311,6 @@ def generate_reweighting_protocols(
     ReweightingProtocols[analysis.AverageObservable, reweighting.ReweightObservable],
     ProtocolReplicator,
 ]:
-
     assert observable_type not in [
         ObservableType.KineticEnergy,
         ObservableType.TotalEnergy,
@@ -339,14 +339,12 @@ def generate_reweighting_protocols(
         and observable_type != ObservableType.Enthalpy
         and observable_type != ObservableType.ReducedPotential
     ):
-
         protocols.zero_gradients.input_observables = ProtocolPath(
             f"output_observables[{observable_type.value}]",
             protocols.join_observables.id,
         )
 
     else:
-
         protocols.zero_gradients = None
         protocols.decorrelate_observable = protocols.decorrelate_target_potential
         protocols.reweight_observable.observable = ProtocolPath(
@@ -485,12 +483,10 @@ def generate_simulation_protocols(
 
     # Set up a conditional group to ensure convergence of uncertainty
     if conditional_group is None:
-
         conditional_group = groups.ConditionalGroup(f"conditional_group{id_suffix}")
         conditional_group.max_iterations = 100
 
         if use_target_uncertainty:
-
             condition = groups.ConditionalGroup.Condition()
             condition.right_hand_value = ProtocolPath("target_uncertainty", "global")
             condition.type = groups.ConditionalGroup.Condition.Type.LessThan
@@ -509,7 +505,6 @@ def generate_simulation_protocols(
 
     # Point the analyse protocol to the correct data sources
     if not isinstance(analysis_protocol, analysis.BaseAverageObservable):
-
         raise ValueError(
             "The analysis protocol must inherit from either the "
             "AverageTrajectoryObservable or BaseAverageObservable "

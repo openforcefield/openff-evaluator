@@ -7,9 +7,13 @@ from enum import Enum
 from os import path
 
 import numpy as np
-from simtk.openmm import app
+from openff.units import unit
 
-from openff.evaluator import unit
+try:
+    from openmm import app
+except ImportError:
+    from simtk.openmm import app
+
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.substances import Component, ExactAmount, MoleFraction, Substance
 from openff.evaluator.utils import packmol
@@ -119,7 +123,6 @@ class BuildCoordinatesPackmol(Protocol):
         molecules = []
 
         for component in self.substance.components:
-
             molecule = Molecule.from_smiles(component.smiles)
             molecules.append(molecule)
 
@@ -135,7 +138,6 @@ class BuildCoordinatesPackmol(Protocol):
         total_n_molecules = sum(number_of_molecules)
 
         if not self.count_exact_amount:
-
             n_exact_molecule = sum(
                 amount.value
                 for component in self.substance.components
@@ -146,7 +148,6 @@ class BuildCoordinatesPackmol(Protocol):
             total_n_molecules -= n_exact_molecule
 
         if total_n_molecules > self.max_molecules:
-
             raise ValueError(
                 f"The number of molecules to create ({total_n_molecules}) is "
                 f"greater than the maximum number requested ({self.max_molecules})."
@@ -178,7 +179,6 @@ class BuildCoordinatesPackmol(Protocol):
 
         # Handle any exact amounts.
         for component in self.substance.components:
-
             exact_amounts = [
                 amount
                 for amount in self.substance.get_amounts(component)
@@ -196,7 +196,6 @@ class BuildCoordinatesPackmol(Protocol):
         number_of_new_mole_fractions = 0
 
         for index, component in enumerate(self.substance.components):
-
             mole_fractions = [
                 amount
                 for amount in self.substance.get_amounts(component)
@@ -226,7 +225,6 @@ class BuildCoordinatesPackmol(Protocol):
         output_substance = Substance()
 
         for component, amounts in new_amounts.items():
-
             for amount in amounts:
                 output_substance.add_component(component, amount)
 
@@ -251,7 +249,6 @@ class BuildCoordinatesPackmol(Protocol):
         trajectory.save_pdb(self.coordinate_file_path)
 
     def _execute(self, directory, available_resources):
-
         molecules, number_of_molecules, exception = self._build_molecule_arrays()
 
         self.output_number_of_molecules = sum(number_of_molecules)
@@ -301,7 +298,6 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
     )
 
     def _execute(self, directory, available_resources):
-
         molecules, number_of_molecules, exception = self._build_molecule_arrays()
 
         packmol_directory = path.join(directory, "packmol_files")
@@ -443,7 +439,6 @@ class BuildDockedCoordinates(Protocol):
         return ligand.to_openeye()
 
     def _execute(self, directory, available_resources):
-
         import mdtraj
         from openeye import oechem, oedocking
         from simtk import unit as simtk_unit
@@ -452,7 +447,6 @@ class BuildDockedCoordinates(Protocol):
             len(self.ligand_substance.components) != 1
             or self.ligand_substance.components[0].role != Component.Role.Ligand
         ):
-
             raise ValueError(
                 "The ligand substance must contain a single ligand component."
             )
@@ -520,7 +514,6 @@ class BuildDockedCoordinates(Protocol):
         )
 
         for receptor_atom in receptor_residue.atoms:
-
             new_atom = complex_topology.add_atom(
                 receptor_atom.name,
                 receptor_atom.element,
@@ -531,7 +524,6 @@ class BuildDockedCoordinates(Protocol):
             atom_mapping[receptor_atom] = new_atom
 
         for bond in receptor_trajectory.topology.bonds:
-
             complex_topology.add_bond(
                 atom_mapping[bond[0]],
                 atom_mapping[bond[1]],

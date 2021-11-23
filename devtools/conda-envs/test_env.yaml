@@ -12,7 +12,8 @@ dependencies:
   - codecov
 
     # Standard dependencies
-  - openff-toolkit
+  - openff-toolkit >=0.10.0
+  - openff-units >=0.1.4
   - smirnoff99frosst
   - numpy
   - pandas

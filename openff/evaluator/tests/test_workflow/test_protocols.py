@@ -6,8 +6,8 @@ import os
 import tempfile
 
 import pytest
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.backends.dask import DaskLocalCluster
@@ -29,7 +29,6 @@ class ExceptionProtocol(Protocol):
 
 
 def test_nested_protocol_paths():
-
     value_protocol_a = DummyProtocol("protocol_a")
     value_protocol_a.input_value = (1 * unit.kelvin).plus_minus(0.1 * unit.kelvin)
 
@@ -63,7 +62,6 @@ def test_nested_protocol_paths():
     assert isinstance(input_values, dict) and len(input_values) == 3
 
     for index, value_reference in enumerate(input_values):
-
         input_value = add_values_protocol.get_value(value_reference)
         assert input_value.full_path == add_values_protocol.values[index].full_path
 
@@ -82,7 +80,6 @@ def test_nested_protocol_paths():
     assert isinstance(input_values, dict) and len(input_values) == 2
 
     for index, value_reference in enumerate(input_values):
-
         input_value = dummy_dict_protocol.get_value(value_reference)
 
         dummy_dict_keys = list(dummy_dict_protocol.input_value.keys())
@@ -113,7 +110,6 @@ def test_nested_protocol_paths():
 
 
 def build_merge(prefix):
-
     # a - b \
     #       | - e - f
     # c - d /
@@ -164,7 +160,6 @@ def build_fork(prefix):
 
 
 def build_easy_graph():
-
     protocol_a = DummyProtocol("protocol_a")
     protocol_a.input_value = 1
     protocol_b = DummyProtocol("protocol_b")
@@ -174,7 +169,6 @@ def build_easy_graph():
 
 
 def build_medium_graph():
-
     # a - b \
     #       | - e - f
     # c - d /
@@ -189,13 +183,11 @@ def build_medium_graph():
 
 
 def build_hard_graph():
-
     # a - b \                    / i - j
     #       | - e - f - g - h - |
     # c - d /                   \ k - l
 
     def build_graph(prefix):
-
         merger = build_merge(prefix)
         fork = build_fork(prefix)
 
@@ -210,7 +202,6 @@ def build_hard_graph():
     [build_easy_graph(), build_medium_graph(), build_hard_graph()],
 )
 def test_protocol_graph_simple(protocols_a, protocols_b):
-
     # Make sure that the graph can merge simple protocols
     # when they are added one after the other.
     protocol_graph = ProtocolGraph()
@@ -253,7 +244,6 @@ def test_protocol_graph_simple(protocols_a, protocols_b):
     [(DaskLocalCluster(), None), (None, ComputeResources())],
 )
 def test_protocol_graph_execution(calculation_backend, compute_resources):
-
     if calculation_backend is not None:
         calculation_backend.start()
 
@@ -266,7 +256,6 @@ def test_protocol_graph_execution(calculation_backend, compute_resources):
     protocol_graph.add_protocols(protocol_a, protocol_b)
 
     with tempfile.TemporaryDirectory() as directory:
-
         results = protocol_graph.execute(
             directory, calculation_backend, compute_resources
         )
@@ -290,7 +279,6 @@ def test_protocol_graph_execution(calculation_backend, compute_resources):
 
 def test_protocol_group_merging():
     def build_protocols(prefix):
-
         #     .-------------------.
         #     |          / i - j -|- b
         # a - | g - h - |         |
@@ -330,7 +318,6 @@ def test_protocol_group_merging():
 
 
 def test_protocol_group_execution():
-
     protocol_a = DummyProtocol("protocol_a")
     protocol_a.input_value = 1
     protocol_b = DummyProtocol("protocol_b")
@@ -340,7 +327,6 @@ def test_protocol_group_execution():
     protocol_group.add_protocols(protocol_a, protocol_b)
 
     with tempfile.TemporaryDirectory() as directory:
-
         protocol_group.execute(directory, ComputeResources())
 
     value_path = ProtocolPath("output_value", protocol_group.id, protocol_b.id)
@@ -350,7 +336,6 @@ def test_protocol_group_execution():
 
 
 def test_protocol_group_exceptions():
-
     exception_protocol = ExceptionProtocol("exception_protocol")
 
     protocol_group = ProtocolGroup("protocol_group")

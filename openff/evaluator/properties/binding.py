@@ -5,7 +5,8 @@ import copy
 import logging
 from typing import Dict, Tuple
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.datasets import PhysicalProperty
 from openff.evaluator.layers import register_calculation_schema
 from openff.evaluator.layers.simulation import SimulationLayer, SimulationSchema
@@ -407,7 +408,6 @@ class HostGuestBindingAffinity(PhysicalProperty):
         use_implicit_solvent: bool = False,
         enable_hmr: bool = False,
     ):
-
         # Define a replicator to set and solvate up the coordinates for each pull window
         orientation_placeholder = orientation_replicator.placeholder_id
 
@@ -685,7 +685,6 @@ class HostGuestBindingAffinity(PhysicalProperty):
         use_implicit_solvent: bool = False,
         enable_hmr: bool = False,
     ):
-
         # Define a replicator to set up each release window
         release_replicator = ProtocolReplicator("release_replicator")
         release_replicator.template_values = ProtocolPath(
@@ -846,7 +845,6 @@ class HostGuestBindingAffinity(PhysicalProperty):
         use_implicit_solvent: bool = False,
         enable_hmr: bool = False,
     ):
-
         # Define a replicator to set and solvate the coordinates for the bound and unbound system
         orientation_placeholder = orientation_replicator.placeholder_id
 
@@ -1169,7 +1167,6 @@ class HostGuestBindingAffinity(PhysicalProperty):
         orientation_free_energy: ProtocolPath,
         enable_pbc: bool = True,
     ):
-
         # Compute the potential energy gradients for the bound complex
         bound_gradients = ComputePotentialEnergyGradient(
             f"state_bound_gradient_{bound_replicator_id}"
@@ -1309,12 +1306,10 @@ class HostGuestBindingAffinity(PhysicalProperty):
             )
 
         if debug:
-
             solvation_template.max_molecules = 10
             solvation_template.mass_density = 0.01 * unit.grams / unit.milliliters
 
             for simulation_template in simulation_templates:
-
                 simulation_template.ensemble = Ensemble.NVT
                 simulation_template.steps_per_iteration = 500
                 simulation_template.output_frequency = 50

@@ -19,12 +19,10 @@ def test_import_thermoml_data(requests_mock):
     source_path = get_data_filename(os.path.join("test", "properties", "mass.xml"))
 
     with NamedTemporaryFile(suffix="tgz") as tar_file:
-
         with tarfile.open(tar_file.name, "w:gz") as tar:
             tar.add(source_path, arcname=os.path.basename(source_path))
 
         with open(tar_file.name, "rb") as file:
-
             requests_mock.get(
                 "https://trc.nist.gov/ThermoML/IJT.tgz", content=file.read()
             )

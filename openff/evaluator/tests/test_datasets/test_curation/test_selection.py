@@ -3,8 +3,8 @@ from typing import Tuple
 import numpy
 import pandas
 import pytest
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.datasets import (
     MeasurementSource,
     PhysicalPropertyDataSet,
@@ -33,7 +33,6 @@ except ImportError:
 
 @pytest.fixture(scope="module")
 def data_frame() -> pandas.DataFrame:
-
     temperatures = [303.15, 298.15]
     property_types = [Density, EnthalpyOfVaporization]
 
@@ -43,9 +42,7 @@ def data_frame() -> pandas.DataFrame:
         return (numpy.random.rand() / 2.0 + 0.51) / 10.0
 
     for temperature in temperatures:
-
         for index, property_type in enumerate(property_types):
-
             noise = _temperature_noise()
             noise *= 1 if index == 0 else -1
 
@@ -241,7 +238,6 @@ def test_mixture_distance_metric_symmetry(
     reason="OpenEye is required for this test.",
 )
 def test_select_substances():
-
     training_substances = [("CCCCC",), ("CCCCC", "CCCCCO")]
 
     data_rows = [
@@ -338,11 +334,9 @@ def test_select_substances_per_property():
     reason="OpenEye should not be installed for this test.",
 )
 def test_missing_openeye_dependency():
-
     data_frame = pandas.DataFrame([{"N Components": 1, "Component 1": "CCCCC"}])
 
     with pytest.raises(MissingOptionalDependency):
-
         SelectSubstances.apply(
             data_frame,
             SelectSubstancesSchema(

@@ -10,16 +10,19 @@ from typing import TYPE_CHECKING, Optional, Tuple
 
 import numpy
 import parmed as pmd
-from pint import UndefinedUnitError
-from simtk import openmm
-from simtk import unit as simtk_unit
 
-from openff.evaluator import unit
-from openff.evaluator.attributes.attributes import UndefinedAttribute
+try:
+    import openmm
+    import openmm.app as app
+    import openmm.unit as _openmm_unit
+except ImportError:
+    from simtk import openmm
+    import simtk.openmm.app as app
+    import simtk.unit as _openmm_unit
+
 from openff.evaluator.forcefield import ParameterGradientKey
 
 if TYPE_CHECKING:
-
     from openff.toolkit.topology import Topology
     from openff.toolkit.typing.engines.smirnoff import ForceField
 
@@ -47,7 +50,6 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
 
     # Setup the requested platform:
     if compute_resources.number_of_gpus > 0:
-
         # TODO: Make sure use mixing precision - CUDA, OpenCL.
         # TODO: Deterministic forces = True
 
@@ -68,7 +70,6 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
         platform = Platform.getPlatformByName(platform_name)
 
         if compute_resources.gpu_device_indices is not None:
-
             property_platform_name = platform_name
 
             if toolkit_enum == ComputeResources.GPUToolkit.CUDA:
@@ -89,7 +90,6 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
         )
 
     else:
-
         if not high_precision:
             # noinspection PyCallByClass,PyTypeChecker
             platform = Platform.getPlatformByName("CPU")
@@ -109,155 +109,6 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
     return platform
 
 
-def openmm_quantity_to_pint(openmm_quantity):
-    """Converts a `simtk.unit.Quantity` to a `openff.evaluator.unit.Quantity`.
-
-    Parameters
-    ----------
-    openmm_quantity: simtk.unit.Quantity
-        The quantity to convert.
-
-    Returns
-    -------
-    openff.evaluator.unit.Quantity
-        The converted quantity.
-    """
-
-    if openmm_quantity is None or isinstance(openmm_quantity, UndefinedAttribute):
-        return None
-
-    assert isinstance(openmm_quantity, simtk_unit.Quantity)
-
-    openmm_unit = openmm_quantity.unit
-    openmm_raw_value = openmm_quantity.value_in_unit(openmm_unit)
-
-    pint_unit = openmm_unit_to_pint(openmm_unit)
-    pint_quantity = openmm_raw_value * pint_unit
-
-    return pint_quantity
-
-
-def openmm_unit_to_pint(openmm_unit):
-    """Converts a `simtk.unit.Unit` to a `openff.evaluator.unit.Unit`.
-
-    Parameters
-    ----------
-    openmm_unit: simtk.unit.Unit
-        The unit to convert.
-
-    Returns
-    -------
-    openff.evaluator.unit.Unit
-        The converted unit.
-    """
-    from openff.toolkit.utils import unit_to_string
-
-    if openmm_unit is None or isinstance(openmm_unit, UndefinedAttribute):
-        return None
-
-    assert isinstance(openmm_unit, simtk_unit.Unit)
-
-    openmm_unit_string = unit_to_string(openmm_unit)
-
-    # Handle the case whereby OMM treats daltons as having
-    # units of g / mol, whereas SI and pint define them to
-    # have units of kg.
-    openmm_unit_string = (
-        None
-        if openmm_unit_string is None
-        else openmm_unit_string.replace("dalton", "(gram / mole)")
-    )
-
-    try:
-        pint_unit = unit(openmm_unit_string).units
-    except UndefinedUnitError:
-
-        logger.info(
-            f"The {openmm_unit_string} OMM unit string (based on the {openmm_unit} object) "
-            f"is not supported."
-        )
-
-        raise
-
-    return pint_unit
-
-
-def pint_quantity_to_openmm(pint_quantity):
-    """Converts a `openff.evaluator.unit.Quantity` to a `simtk.unit.Quantity`.
-
-    Notes
-    -----
-    Not all pint units are available in OpenMM.
-
-    Parameters
-    ----------
-    pint_quantity: openff.evaluator.unit.Quantity
-        The quantity to convert.
-
-    Returns
-    -------
-    simtk.unit.Quantity
-        The converted quantity.
-    """
-
-    if pint_quantity is None or isinstance(pint_quantity, UndefinedAttribute):
-        return None
-
-    assert isinstance(pint_quantity, unit.Quantity)
-
-    pint_unit = pint_quantity.units
-    pint_raw_value = pint_quantity.magnitude
-
-    openmm_unit = pint_unit_to_openmm(pint_unit)
-    openmm_quantity = pint_raw_value * openmm_unit
-
-    return openmm_quantity
-
-
-def pint_unit_to_openmm(pint_unit):
-    """Converts a `openff.evaluator.unit.Unit` to a `simtk.unit.Unit`.
-
-    Notes
-    -----
-    Not all pint units are available in OpenMM.
-
-    Parameters
-    ----------
-    pint_unit: openff.evaluator.unit.Unit
-        The unit to convert.
-
-    Returns
-    -------
-    simtk.unit.Unit
-        The converted unit.
-    """
-    from openff.toolkit.utils import string_to_unit
-
-    if pint_unit is None or isinstance(pint_unit, UndefinedAttribute):
-        return None
-
-    assert isinstance(pint_unit, unit.Unit)
-
-    pint_unit_string = f"{pint_unit:C}"
-
-    # Handle a unit name change in pint 0.10.*
-    pint_unit_string = pint_unit_string.replace("standard_atmosphere", "atmosphere")
-
-    try:
-        # noinspection PyTypeChecker
-        openmm_unit = string_to_unit(pint_unit_string)
-    except AttributeError:
-
-        logger.info(
-            f"The {pint_unit_string} pint unit string (based on the {pint_unit} object) "
-            f"could not be understood by `openff.toolkit.utils.string_to_unit`"
-        )
-
-        raise
-
-    return openmm_unit
-
-
 def disable_pbc(system):
     """Disables any periodic boundary conditions being applied
     to non-bonded forces by setting the non-bonded method to
@@ -271,7 +122,6 @@ def disable_pbc(system):
     """
 
     for force_index in range(system.getNumForces()):
-
         force = system.getForce(force_index)
 
         if (
@@ -291,7 +141,7 @@ def system_subset(
     force_field: "ForceField",
     topology: "Topology",
     scale_amount: Optional[float] = None,
-) -> Tuple["openmm.System", "simtk_unit.Quantity"]:
+) -> Tuple["openmm.System", "_openmm_unit.Quantity"]:
     """Produces an OpenMM system containing the minimum number of forces while
     still containing a specified force field parameter, and those other parameters
     which may interact with it (e.g. in the case of vdW parameters).
@@ -346,7 +196,6 @@ def system_subset(
     registered_handlers = force_field.registered_parameter_handlers
 
     for handler_to_register in handlers_to_register:
-
         if handler_to_register not in registered_handlers:
             continue
 
@@ -363,14 +212,13 @@ def system_subset(
     )
 
     parameter_value = getattr(parameter, parameter_key.attribute)
-    is_quantity = isinstance(parameter_value, simtk_unit.Quantity)
+    is_quantity = isinstance(parameter_value, _openmm_unit.Quantity)
 
     if not is_quantity:
-        parameter_value = parameter_value * simtk_unit.dimensionless
+        parameter_value = parameter_value * _openmm_unit.dimensionless
 
     # Optionally perturb the parameter of interest.
     if scale_amount is not None:
-
         if numpy.isclose(parameter_value.value_in_unit(parameter_value.unit), 0.0):
             # Careful thought needs to be given to this. Consider cases such as
             # epsilon or sigma where negative values are not allowed.
@@ -380,16 +228,16 @@ def system_subset(
         else:
             parameter_value *= 1.0 + scale_amount
 
-    if not isinstance(parameter_value, simtk_unit.Quantity):
+    if not isinstance(parameter_value, _openmm_unit.Quantity):
         # Handle the case where OMM down-converts a dimensionless quantity to a float.
-        parameter_value = parameter_value * simtk_unit.dimensionless
+        parameter_value = parameter_value * _openmm_unit.dimensionless
 
     setattr(
         parameter,
         parameter_key.attribute,
         parameter_value
         if is_quantity
-        else parameter_value.value_in_unit(simtk_unit.dimensionless),
+        else parameter_value.value_in_unit(_openmm_unit.dimensionless),
     )
 
     # Create the parameterized sub-system.
@@ -403,7 +251,7 @@ def perturbed_gaff_system(
     topology_path: str,
     enable_pbc: bool,
     scale_amount: Optional[float] = None,
-) -> Tuple["openmm.System", "simtk_unit.Quantity"]:
+) -> Tuple["openmm.System", "_openmm_unit.Quantity"]:
     """Produces an OpenMM system with perturbed parameters used in gradient
     calculations.
 
@@ -429,15 +277,13 @@ def perturbed_gaff_system(
         The created system as well as the value of the specified ``parameter``.
     """
 
-    from simtk.openmm import System as OMMSystem
-
     if not os.path.isfile(topology_path):
         logger.info(
             "GAFF topology file not found, returning an empty `system` object and "
             "setting `parameter_value` to zero."
         )
 
-        perturbed_system = OMMSystem()
+        perturbed_system = openmm.System()
         parameter_value = 0.0
 
         if scale_amount is not None:
@@ -445,31 +291,31 @@ def perturbed_gaff_system(
 
         if parameter_key.tag == "Bond":
             if parameter_key.attribute == "length":
-                parameter_value *= simtk_unit.angstrom
+                parameter_value *= _openmm_unit.angstrom
             elif parameter_key.attribute == "k":
                 parameter_value *= (
-                    simtk_unit.kilocalorie_per_mole / simtk_unit.angstrom ** 2
+                    _openmm_unit.kilocalorie_per_mole / _openmm_unit.angstrom**2
                 )
 
         elif parameter_key.tag == "Angle":
             if parameter_key.attribute == "theta":
-                parameter_value *= simtk_unit.degree
+                parameter_value *= _openmm_unit.degree
             elif parameter_key.attribute == "k":
                 parameter_value *= (
-                    simtk_unit.kilocalorie_per_mole / simtk_unit.radians ** 2
+                    _openmm_unit.kilocalorie_per_mole / _openmm_unit.radians**2
                 )
 
         elif parameter_key.tag == "vdW":
             if parameter_key.attribute == "rmin_half":
-                parameter_value *= simtk_unit.angstrom
+                parameter_value *= _openmm_unit.angstrom
             elif parameter_key.attribute == "epsilon":
-                parameter_value *= simtk_unit.kilocalorie_per_mole
+                parameter_value *= _openmm_unit.kilocalorie_per_mole
 
         elif parameter_key.tag == "GBSA":
             if parameter_key.attribute == "radius":
-                parameter_value *= simtk_unit.nanometer
+                parameter_value *= _openmm_unit.nanometer
             elif parameter_key.attribute == "scale":
-                parameter_value *= simtk_unit.dimensionless
+                parameter_value *= _openmm_unit.dimensionless
 
         return perturbed_system, parameter_value
 
@@ -480,9 +326,6 @@ def perturbed_gaff_system(
     perturbed_system = copy.deepcopy(original_system)
 
     if parameter_key.tag == "Bond":
-
-        from simtk.openmm import HarmonicBondForce
-
         # Bond atom types
         bond_type = parameter_key.smirks.replace("-", " ").split()
         bond_list = []
@@ -507,20 +350,20 @@ def perturbed_gaff_system(
 
         # Set parameter_value with simtk units
         if parameter_key.attribute == "length":
-            rbond *= (1.0 + scale_amount) * simtk_unit.angstrom
+            rbond *= (1.0 + scale_amount) * _openmm_unit.angstrom
             parameter_value = rbond
         elif parameter_key.attribute == "k":
             kbond *= (
                 (1.0 + scale_amount)
-                * simtk_unit.kilocalorie_per_mole
-                / simtk_unit.angstrom ** 2
+                * _openmm_unit.kilocalorie_per_mole
+                / _openmm_unit.angstrom**2
             )
             parameter_value = kbond
 
         # Get bond force from system
         bond_force = None
         for force in perturbed_system.getForces():
-            if isinstance(force, HarmonicBondForce):
+            if isinstance(force, openmm.HarmonicBondForce):
                 bond_force
 
         # Assign perturbed parameter to system
@@ -533,9 +376,6 @@ def perturbed_gaff_system(
                     bond_force.setBondParameters(bond_index, atom1, atom2, rbond, kbond)
 
     elif parameter_key.tag == "Angle":
-
-        from simtk.openmm import HarmonicAngleForce
-
         # Angle atom types
         angle_type = parameter_key.smirks.replace("-", " ").split()
         angle_list = []
@@ -564,20 +404,20 @@ def perturbed_gaff_system(
 
         # Set parameter_value with simtk units
         if parameter_key.attribute == "theta":
-            theta *= (1.0 + scale_amount) * simtk_unit.degree
+            theta *= (1.0 + scale_amount) * _openmm_unit.degree
             parameter_value = theta
         elif parameter_key.attribute == "k":
             kangle *= (
                 (1.0 + scale_amount)
-                * simtk_unit.kilocalorie_per_mole
-                / simtk_unit.radians ** 2
+                * _openmm_unit.kilocalorie_per_mole
+                / _openmm_unit.radians**2
             )
             parameter_value = kangle
 
         # Get angle force from system
         angle_force = None
         for force in perturbed_system.getForces():
-            if isinstance(force, HarmonicAngleForce):
+            if isinstance(force, openmm.HarmonicAngleForce):
                 angle_force = force
 
         # Assign perturbed parameter to system
@@ -593,27 +433,21 @@ def perturbed_gaff_system(
                     )
 
     elif parameter_key.tag == "Dihedral":
-
         raise NotImplementedError(
             f"Gradient calculations for `{parameter_key.tag}` is currently not supported with GAFF calculations."
         )
 
     elif parameter_key.tag == "Improper":
-
         raise NotImplementedError(
             f"Gradient calculations for `{parameter_key.tag}` is currently not supported with GAFF calculations."
         )
 
     elif parameter_key.tag == "Electrostatic":
-
         raise NotImplementedError(
             f"Gradient calculations for `{parameter_key.tag}` is currently not supported with GAFF calculations."
         )
 
     elif parameter_key.tag == "vdW":
-
-        from simtk.openmm import CustomGBForce, GBSAOBCForce, NonbondedForce
-
         # Get current LJ parameters
         lj_index = structure.LJ_types[parameter_key.smirks] - 1
         lj_radius = structure.LJ_radius[lj_index]
@@ -622,10 +456,10 @@ def perturbed_gaff_system(
         # Determine which parameter to perturb
         if parameter_key.attribute == "rmin_half":
             lj_radius *= 1.0 + scale_amount
-            parameter_value = lj_radius * simtk_unit.angstrom
+            parameter_value = lj_radius * _openmm_unit.angstrom
         elif parameter_key.attribute == "epsilon":
             lj_depth *= 1.0 + scale_amount
-            parameter_value = lj_depth * simtk_unit.kilocalorie_per_mole
+            parameter_value = lj_depth * _openmm_unit.kilocalorie_per_mole
 
         # Update LJ parameters with perturbed parameters
         pmd.tools.changeLJSingleType(
@@ -649,15 +483,17 @@ def perturbed_gaff_system(
         gb_force = None
         nb_force = None
         for force in original_system.getForces():
-            if isinstance(force, CustomGBForce) or isinstance(force, GBSAOBCForce):
+            if isinstance(force, openmm.CustomGBForce) or isinstance(
+                force, openmm.GBSAOBCForce
+            ):
                 gb_force = force
-            elif isinstance(force, NonbondedForce):
+            elif isinstance(force, openmm.NonbondedForce):
                 nb_force = force
 
         perturbed_system = prmtop_file.createSystem(
-            nonbondedMethod=openmm.app.PME if gb_force is None else openmm.app.NoCutoff,
+            nonbondedMethod=app.PME if gb_force is None else app.NoCutoff,
             nonbondedCutoff=nb_force.getCutoffDistance(),
-            constraints=openmm.app.HBonds,
+            constraints=app.HBonds,
             rigidWater=True,
         )
         if enable_pbc and original_system.usesPeriodicBoundaryConditions():
@@ -668,19 +504,16 @@ def perturbed_gaff_system(
         shutil.rmtree(working_directory)
 
     elif parameter_key.tag == "GBSA":
-
-        from simtk.openmm import CustomGBForce, GBSAOBCForce
-        from simtk.openmm.app import element as E
-        from simtk.openmm.app.internal.customgbforces import _get_bonded_atom_list
-
         offset_factor = 0.009  # nm
-        prmtop = openmm.app.AmberPrmtopFile(topology_path)
-        all_bonds = _get_bonded_atom_list(prmtop.topology)
+        prmtop = app.AmberPrmtopFile(topology_path)
+        all_bonds = app.internal._get_bonded_atom_list(prmtop.topology)
 
         # Get GB force object
         gbsa_force = None
         for force in perturbed_system.getForces():
-            if isinstance(force, CustomGBForce) or isinstance(force, GBSAOBCForce):
+            if isinstance(force, openmm.CustomGBForce) or isinstance(
+                force, openmm.GBSAOBCForce
+            ):
                 gbsa_force = force
 
         if gbsa_force is None:
@@ -688,20 +521,22 @@ def perturbed_gaff_system(
                 "GBSA force not found in System object, returning an empty `system` object and "
                 "setting `parameter_value` to zero."
             )
-            empty_system = OMMSystem()
+            empty_system = openmm.System()
             parameter_value = scale_amount if scale_amount > 0.0 else 0.0
             if parameter_key.attribute == "radius":
-                parameter_value *= simtk_unit.nanometer
+                parameter_value *= _openmm_unit.nanometer
             elif parameter_key.attribute == "scale":
-                parameter_value *= simtk_unit.dimensionless
+                parameter_value *= _openmm_unit.dimensionless
 
             return empty_system, parameter_value
 
         # Determine element of atom
-        mask_element = E.get_by_symbol(parameter_key.smirks[0])
+        mask_element = app.element.get_by_symbol(parameter_key.smirks[0])
         connect_element = None
         if "-" in parameter_key.smirks[0]:
-            connect_element = E.get_by_symbol(parameter_key.smirks.split("-")[-1])
+            connect_element = app.element.get_by_symbol(
+                parameter_key.smirks.split("-")[-1]
+            )
 
         # Find atom in system to change GB radii
         for atom in prmtop.topology.atoms():
@@ -733,16 +568,19 @@ def perturbed_gaff_system(
                     current_atom.index, [charge, offset_radii, scaled_radii]
                 )
 
-        # Convert parameter to a simtk.unit.Quantity
+        # Convert parameter to a openmm.unit.Quantity
         if parameter_key.attribute == "radius":
-            parameter_value = GB_radii * simtk_unit.nanometer
+            parameter_value = GB_radii * _openmm_unit.nanometer
         elif parameter_key.attribute == "scale":
-            parameter_value = GB_scale * simtk_unit.dimensionless
+            parameter_value = GB_scale * _openmm_unit.dimensionless
 
     else:
-
         raise ValueError(
             f"The parameter `{parameter_key.tag}` is not supported for GAFF gradient calculation."
         )
 
     return perturbed_system, parameter_value
+
+
+def extract_atom_indices():
+    return None

@@ -2,7 +2,8 @@
 A collection of physical property definitions relating to
 solvation free energies.
 """
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.datasets import PhysicalProperty
 from openff.evaluator.layers import register_calculation_schema

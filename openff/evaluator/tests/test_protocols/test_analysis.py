@@ -3,8 +3,8 @@ import tempfile
 
 import numpy as np
 import pytest
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.forcefield import ParameterGradient, ParameterGradientKey
 from openff.evaluator.protocols.analysis import (
     AverageDielectricConstant,
@@ -24,9 +24,7 @@ from openff.evaluator.utils.timeseries import TimeSeriesStatistics
 
 
 def test_average_observable():
-
     with tempfile.TemporaryDirectory() as temporary_directory:
-
         average_observable = AverageObservable("")
         average_observable.observable = ObservableArray(1.0 * unit.kelvin)
         average_observable.bootstrap_iterations = 1
@@ -36,15 +34,13 @@ def test_average_observable():
 
 
 def test_average_dielectric_constant():
-
     with tempfile.TemporaryDirectory() as temporary_directory:
-
         average_observable = AverageDielectricConstant("")
         average_observable.dipole_moments = ObservableArray(
             np.zeros((1, 3)) * unit.elementary_charge * unit.nanometer
         )
         average_observable.volumes = ObservableArray(
-            np.ones((1, 1)) * unit.nanometer ** 3
+            np.ones((1, 1)) * unit.nanometer**3
         )
         average_observable.thermodynamic_state = ThermodynamicState(
             298.15 * unit.kelvin, 1.0 * unit.atmosphere
@@ -118,7 +114,6 @@ def test_average_free_energies_protocol():
 
 
 def test_compute_dipole_moments(tmpdir):
-
     coordinate_path = get_data_filename("test/trajectories/water.pdb")
     trajectory_path = get_data_filename("test/trajectories/water.dcd")
 
@@ -149,14 +144,12 @@ def test_compute_dipole_moments(tmpdir):
 
 
 def test_decorrelate_trajectory():
-
     import mdtraj
 
     coordinate_path = get_data_filename("test/trajectories/water.pdb")
     trajectory_path = get_data_filename("test/trajectories/water.dcd")
 
     with tempfile.TemporaryDirectory() as temporary_directory:
-
         protocol = DecorrelateTrajectory("")
         protocol.input_coordinate_file = coordinate_path
         protocol.input_trajectory_path = trajectory_path
@@ -170,12 +163,10 @@ def test_decorrelate_trajectory():
 
 
 def test_decorrelate_observables():
-
     with tempfile.TemporaryDirectory() as temporary_directory:
-
         protocol = DecorrelateObservables("")
         protocol.input_observables = ObservableArray(
-            np.ones((10, 1)) * unit.nanometer ** 3
+            np.ones((10, 1)) * unit.nanometer**3
         )
         protocol.time_series_statistics = TimeSeriesStatistics(10, 4, 2.0, 2)
         protocol.execute(temporary_directory)

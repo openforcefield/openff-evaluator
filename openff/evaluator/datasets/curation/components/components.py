@@ -11,15 +11,12 @@ logger = logging.getLogger(__name__)
 
 
 class _MetaCurationComponent(type):
-
     components = {}
 
     def __init__(cls, name, bases, attrs):
-
         type.__init__(cls, name, bases, attrs)
 
         if name in _MetaCurationComponent.components:
-
             raise ValueError(
                 "Cannot have more than one curation component with the same name"
             )
@@ -93,7 +90,6 @@ class CurationComponent(metaclass=_MetaCurationComponent):
         n_filtered = len(modified_data_frame)
 
         if n_filtered != n_data_points:
-
             direction = "removed" if n_filtered < n_data_points else "added"
 
             logger.info(
@@ -102,7 +98,6 @@ class CurationComponent(metaclass=_MetaCurationComponent):
             )
 
         if isinstance(data_set, PhysicalPropertyDataSet):
-
             modified_data_frame = PhysicalPropertyDataSet.from_pandas(
                 modified_data_frame
             )

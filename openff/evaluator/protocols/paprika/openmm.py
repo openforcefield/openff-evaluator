@@ -461,7 +461,6 @@ class PaprikaOpenMMSimulation(OpenMMSimulation):
         checkpoint_counter = 0
 
         while current_step < total_number_of_steps:
-
             steps_to_take = min(
                 self.output_frequency, total_number_of_steps - current_step
             )
@@ -535,7 +534,6 @@ class PaprikaOpenMMSimulation(OpenMMSimulation):
         openmm_pressure = pint_quantity_to_openmm(pressure)
 
         if openmm_temperature is None:
-
             raise ValueError(
                 "A temperature must be set to perform a simulation in any ensemble"
             )
@@ -555,7 +553,6 @@ class PaprikaOpenMMSimulation(OpenMMSimulation):
 
         # Set up the simulation objects.
         if self._context is None or self._integrator is None:
-
             self._context, self._integrator = self._setup_simulation_objects(
                 openmm_temperature, openmm_pressure, available_resources
             )
@@ -564,7 +561,6 @@ class PaprikaOpenMMSimulation(OpenMMSimulation):
         self._local_input_coordinate_path = os.path.join(directory, "input.pdb")
 
         if not is_file_and_not_empty(self._local_input_coordinate_path):
-
             input_pdb_file = app.PDBFile(self.input_coordinate_file)
 
             with open(self._local_input_coordinate_path, "w+") as configuration_file:

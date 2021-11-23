@@ -1,8 +1,8 @@
 import numpy
 import pandas
 import pytest
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.datasets import (
     MeasurementSource,
     PhysicalPropertyDataSet,
@@ -23,7 +23,6 @@ from openff.evaluator.thermodynamics import ThermodynamicState
 
 @pytest.fixture(scope="module")
 def data_frame() -> pandas.DataFrame:
-
     data_set = PhysicalPropertyDataSet()
     data_set.add_properties(
         Density(

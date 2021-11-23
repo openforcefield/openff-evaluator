@@ -106,18 +106,14 @@ def _statistical_inefficiency(
     statistical_inefficiency = 1.0
 
     while current_timestep < number_of_timesteps - 1:
-
-        autocorrelation_function = (
+        autocorrelation_function = np.sum(
             np.sum(
-                np.sum(
-                    time_series_shifted[0 : (number_of_timesteps - current_timestep)]
-                    * time_series_shifted[current_timestep:number_of_timesteps],
-                    axis=1,
-                ),
-                axis=0,
-            )
-            / (float(number_of_timesteps - current_timestep) * sigma_squared)
-        )
+                time_series_shifted[0 : (number_of_timesteps - current_timestep)]
+                * time_series_shifted[current_timestep:number_of_timesteps],
+                axis=1,
+            ),
+            axis=0,
+        ) / (float(number_of_timesteps - current_timestep) * sigma_squared)
 
         if autocorrelation_function <= 0.0 and current_timestep > minimum_samples:
             break
@@ -172,7 +168,6 @@ def analyze_time_series(
 
     # Special case if the time series is constant.
     if np.isclose(time_series.std(), 0.0):
-
         return TimeSeriesStatistics(
             n_total_points=len(time_series),
             n_uncorrelated_points=1,
@@ -183,7 +178,6 @@ def analyze_time_series(
     effect_samples_array = np.ones([n_timesteps - 1])
 
     for current_timestep in range(0, n_timesteps - 1):
-
         try:
             statistical_inefficiency_array[
                 current_timestep
@@ -192,7 +186,6 @@ def analyze_time_series(
             )
 
         except ParameterError:
-
             # Fix for issue https://github.com/choderalab/pymbar/issues/122
             statistical_inefficiency_array[current_timestep] = (
                 n_timesteps - current_timestep + 1

@@ -9,7 +9,8 @@ from math import sqrt
 from os import makedirs, path
 from shutil import copy as file_copy
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.datasets.utilities import get_smiles_from_dataset
@@ -126,7 +127,6 @@ class Workflow:
         schema = WorkflowSchema.parse_json(schema.json())
 
         if schema.final_value_source != UNDEFINED:
-
             self._final_value_source = schema.final_value_source
             self._final_value_source.append_uuid(self.uuid)
 
@@ -135,9 +135,7 @@ class Workflow:
         self._outputs_to_store = {}
 
         if schema.outputs_to_store != UNDEFINED:
-
             for label in schema.outputs_to_store:
-
                 self._append_uuid_to_output_to_store(schema.outputs_to_store[label])
                 self._outputs_to_store[label] = self._build_output_to_store(
                     schema.outputs_to_store[label]
@@ -154,7 +152,6 @@ class Workflow:
         """
 
         for attribute_name in output_to_store.get_attributes(StorageAttribute):
-
             attribute_value = getattr(output_to_store, attribute_name)
 
             if not isinstance(attribute_value, ProtocolPath):
@@ -178,7 +175,6 @@ class Workflow:
         """
 
         for attribute_name in output_to_store.get_attributes(StorageAttribute):
-
             attribute_value = getattr(output_to_store, attribute_name)
 
             if (
@@ -205,16 +201,13 @@ class Workflow:
         self._apply_replicators(schema)
 
         for protocol_schema in schema.protocol_schemas:
-
             protocol = protocol_schema.to_protocol()
 
             # Try to set global properties on each of the protocols
             for input_path in protocol.required_inputs:
-
                 value_references = protocol.get_value_references(input_path)
 
                 for source_path, value_reference in value_references.items():
-
                     if not value_reference.is_global:
                         continue
 
@@ -249,7 +242,6 @@ class Workflow:
 
         # Get the list of values which will be passed to the newly created protocols.
         if isinstance(replicator.template_values, ProtocolPath):
-
             if not replicator.template_values.is_global:
                 raise invalid_value_error
 
@@ -263,9 +255,7 @@ class Workflow:
         evaluated_template_values = []
 
         for template_value in replicator.template_values:
-
             if not isinstance(template_value, ProtocolPath):
-
                 evaluated_template_values.append(template_value)
                 continue
 
@@ -293,14 +283,12 @@ class Workflow:
             return
 
         while len(schema.protocol_replicators) > 0:
-
             replicator = schema.protocol_replicators.pop(0)
 
             # Apply this replicator
             self._apply_replicator(schema, replicator)
 
             if schema.json().find(replicator.placeholder_id) >= 0:
-
                 raise RuntimeError(
                     f"The {replicator.id} replicator was not fully applied."
                 )
@@ -325,7 +313,6 @@ class Workflow:
         protocols = {}
 
         for protocol_schema in schema.protocol_schemas:
-
             protocol = protocol_schema.to_protocol()
             protocols[protocol.id] = protocol
 
@@ -363,7 +350,6 @@ class Workflow:
         outputs_to_replicate = []
 
         if schema.outputs_to_store != UNDEFINED:
-
             outputs_to_replicate = [
                 label
                 for label in schema.outputs_to_store
@@ -373,11 +359,9 @@ class Workflow:
         # Check to see if there are any outputs to store pointing to
         # protocols which are being replicated.
         for output_label in outputs_to_replicate:
-
             output_to_replicate = schema.outputs_to_store.pop(output_label)
 
             for index, template_value in enumerate(template_values):
-
                 replicated_label = output_label.replace(
                     replicator.placeholder_id, str(index)
                 )
@@ -386,11 +370,9 @@ class Workflow:
                 for attribute_name in replicated_output.get_attributes(
                     StorageAttribute
                 ):
-
                     attribute_value = getattr(replicated_output, attribute_name)
 
                     if isinstance(attribute_value, ProtocolPath):
-
                         attribute_value = ProtocolPath.from_string(
                             attribute_value.full_path.replace(
                                 replicator.placeholder_id, str(index)
@@ -398,9 +380,7 @@ class Workflow:
                         )
 
                     elif isinstance(attribute_value, ReplicatorValue):
-
                         if attribute_value.replicator_id != replicator.id:
-
                             # Make sure to handle nested dependent replicators.
                             attribute_value.replicator_id = (
                                 attribute_value.replicator_id.replace(
@@ -438,16 +418,13 @@ class Workflow:
         replicators = []
 
         for original_replicator in schema.protocol_replicators:
-
             # Check whether this replicator will be replicated.
             if replicator.placeholder_id not in original_replicator.id:
-
                 replicators.append(original_replicator)
                 continue
 
             # Create the replicated replicators
             for template_index in new_indices:
-
                 replicator_id = original_replicator.id.replace(
                     replicator.placeholder_id, template_index
                 )
@@ -458,7 +435,6 @@ class Workflow:
                 # Make sure to replace any reference to the applied replicator
                 # with the actual index.
                 if isinstance(new_replicator.template_values, ProtocolPath):
-
                     updated_path = new_replicator.template_values.full_path.replace(
                         replicator.placeholder_id, template_index
                     )
@@ -468,13 +444,10 @@ class Workflow:
                     )
 
                 elif isinstance(new_replicator.template_values, list):
-
                     updated_values = []
 
                     for template_value in new_replicator.template_values:
-
                         if not isinstance(template_value, ProtocolPath):
-
                             updated_values.append(template_value)
                             continue
 
@@ -513,7 +486,6 @@ class Workflow:
         )
 
         if new_id in [x.id for x in self._protocols]:
-
             raise ValueError(
                 "A protocol with the same id already exists in this workflow."
             )
@@ -526,7 +498,6 @@ class Workflow:
             new_protocol = new_protocol.id
 
         if not update_paths_only:
-
             for protocol in self._protocols:
                 protocol.replace_protocol(old_protocol, new_protocol)
 
@@ -534,11 +505,9 @@ class Workflow:
             self._final_value_source.replace_protocol(old_protocol, new_protocol)
 
         for output_label in self._outputs_to_store:
-
             output_to_store = self._outputs_to_store[output_label]
 
             for attribute_name in output_to_store.get_attributes(StorageAttribute):
-
                 attribute_value = getattr(output_to_store, attribute_name)
 
                 if not isinstance(attribute_value, ProtocolPath):
@@ -595,7 +564,6 @@ class Workflow:
             reduced_parameter_keys = []
 
             for parameter_key in parameter_gradient_keys:
-
                 if parameter_key.smirks is None:
                     raise KeyError(
                         "The attribute `atom_type` needs to be specified in `ParameterKeyGradient` "
@@ -605,11 +573,9 @@ class Workflow:
                 contains_parameter = False
 
                 if parameter_key.tag == "Bond":
-
                     bond_type = parameter_key.smirks.replace("-", " ").split()
 
                     for bond in frcmod_parameters["BOND"]:
-
                         bond = bond.replace("-", " ").split()
                         atom_type1 = bond.split("-")[0]
                         atom_type2 = bond.split("-")[1]
@@ -622,11 +588,9 @@ class Workflow:
                             break
 
                 elif parameter_key.tag == "Angle":
-
                     angle_type = parameter_key.smirks.replace("-", " ").split()
 
                     for angle in frcmod_parameters["ANGLE"]:
-
                         angle = angle.replace("-", " ").split()
                         atom_type1 = angle.split("-")[0]
                         atom_type2 = angle.split("-")[1]
@@ -650,7 +614,6 @@ class Workflow:
                     raise NotImplementedError()
 
                 elif parameter_key.tag == "vdW":
-
                     lj_atom_type = parameter_key.smirks
 
                     for atom_type in frcmod_parameters["VDW"]:
@@ -659,7 +622,6 @@ class Workflow:
                             break
 
                 elif parameter_key.tag == "GBSA":
-
                     from simtk.openmm.app import element as E
                     from simtk.openmm.app.internal.customgbforces import (
                         _get_bonded_atom_list,
@@ -728,9 +690,7 @@ class Workflow:
         reduced_parameter_keys = []
 
         for labelled_molecule in labelled_molecules:
-
             for parameter_key in parameter_gradient_keys:
-
                 if (
                     parameter_key.tag not in labelled_molecule
                     or parameter_key in reduced_parameter_keys
@@ -740,7 +700,6 @@ class Workflow:
                 contains_parameter = False
 
                 for parameter in labelled_molecule[parameter_key.tag].store.values():
-
                     if (
                         parameter_key.smirks is not None
                         and parameter.smirks != parameter_key.smirks
@@ -806,7 +765,6 @@ class Workflow:
         components = []
 
         for component in physical_property.substance.components:
-
             component_substance = Substance.from_components(component)
             components.append(component_substance)
 
@@ -979,7 +937,6 @@ class WorkflowGraph:
         return self._protocol_graph.root_protocols
 
     def __init__(self):
-
         super(WorkflowGraph, self).__init__()
 
         self._workflows_to_execute = {}
@@ -1002,7 +959,6 @@ class WorkflowGraph:
         existing_uuids = [x for x in workflow_uuids if x in self._workflows_to_execute]
 
         if len(existing_uuids) > 0:
-
             raise ValueError(
                 f"Workflows with the uuids {existing_uuids} are already in the graph."
             )
@@ -1010,7 +966,6 @@ class WorkflowGraph:
         original_protocols = []
 
         for workflow in workflows:
-
             original_protocols.extend(workflow.protocols.values())
             self._workflows_to_execute[workflow.uuid] = workflow
 
@@ -1021,12 +976,10 @@ class WorkflowGraph:
 
         # Update the workflow to use the possibly merged protocols
         for original_id, new_id in merged_protocol_ids.items():
-
             original_protocol = original_id
             new_protocol = new_id
 
             for workflow in workflows:
-
                 if (
                     retrieve_uuid(
                         original_protocol
@@ -1079,7 +1032,6 @@ class WorkflowGraph:
         value_futures = []
 
         for workflow_id in self._workflows_to_execute:
-
             workflow = self._workflows_to_execute[workflow_id]
             data_futures = []
 
@@ -1087,18 +1039,14 @@ class WorkflowGraph:
             # will use to populate things such as a final property value
             # or gradient keys.
             if workflow.final_value_source != UNDEFINED:
-
                 protocol_id = workflow.final_value_source.start_protocol
                 data_futures.append(protocol_outputs[protocol_id])
 
             if workflow.outputs_to_store != UNDEFINED:
-
                 for output_label, output_to_store in workflow.outputs_to_store.items():
-
                     for attribute_name in output_to_store.get_attributes(
                         StorageAttribute
                     ):
-
                         attribute_value = getattr(output_to_store, attribute_name)
 
                         if not isinstance(attribute_value, ProtocolPath):
@@ -1112,7 +1060,6 @@ class WorkflowGraph:
                 data_futures = [*protocol_outputs.values()]
 
             if calculation_backend is None:
-
                 value_futures.append(
                     WorkflowGraph._gather_results(
                         root_directory,
@@ -1124,7 +1071,6 @@ class WorkflowGraph:
                 )
 
             else:
-
                 value_futures.append(
                     calculation_backend.submit_task(
                         WorkflowGraph._gather_results,
@@ -1173,25 +1119,21 @@ class WorkflowGraph:
         return_object.workflow_id = workflow_id
 
         try:
-
             results_by_id = {}
 
             for protocol_id, protocol_result_path in protocol_result_paths:
-
                 with open(protocol_result_path, "r") as file:
                     protocol_results = json.load(file, cls=TypedJSONDecoder)
 
                 # Make sure none of the protocols failed and we actually have a value
                 # and uncertainty.
                 if isinstance(protocol_results, EvaluatorException):
-
                     return_object.exceptions.append(protocol_results)
                     return return_object
 
                 # Store the protocol results in a dictionary, with keys of the
                 # path to the original protocol output.
                 for protocol_path, output_value in protocol_results.items():
-
                     protocol_path = ProtocolPath.from_string(protocol_path)
 
                     if (
@@ -1203,7 +1145,6 @@ class WorkflowGraph:
                     results_by_id[protocol_path] = output_value
 
             if value_reference is not None:
-
                 return_object.value = results_by_id[value_reference].value.plus_minus(
                     results_by_id[value_reference].error
                 )
@@ -1212,7 +1153,6 @@ class WorkflowGraph:
             return_object.data_to_store = []
 
             for output_to_store in outputs_to_store.values():
-
                 unique_id = str(uuid.uuid4()).replace("-", "")
 
                 data_object_path = path.join(directory, f"data_{unique_id}.json")
@@ -1239,7 +1179,6 @@ class WorkflowGraph:
         output_to_store,
         results_by_id,
     ):
-
         """Collects all of the simulation to store, and saves it into a directory
         whose path will be passed to the storage backend to process.
 
@@ -1260,12 +1199,10 @@ class WorkflowGraph:
         makedirs(data_directory, exist_ok=True)
 
         for attribute_name in output_to_store.get_attributes(StorageAttribute):
-
             attribute = getattr(output_to_store.__class__, attribute_name)
             attribute_value = getattr(output_to_store, attribute_name)
 
             if isinstance(attribute_value, ProtocolPath):
-
                 # Strip any nested attribute accessors before retrieving the result
                 property_name = attribute_value.property_name.split(".")[0].split("[")[
                     0
@@ -1275,7 +1212,6 @@ class WorkflowGraph:
                 result = results_by_id[result_path]
 
                 if result_path != attribute_value:
-
                     result = get_nested_attribute(
                         {property_name: result}, attribute_value.property_name
                     )

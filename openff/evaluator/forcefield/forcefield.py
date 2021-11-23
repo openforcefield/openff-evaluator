@@ -13,11 +13,18 @@ from enum import Enum
 import numpy as np
 import parmed as pmd
 from openff.toolkit.topology import Molecule
-from simtk import unit as simtk_unit
-from simtk.openmm.app import AmberPrmtopFile
-from simtk.openmm.app import element as E
 
-from openff.evaluator import unit
+try:
+    import openmm.unit as openmm_unit
+    from openmm.app import AmberPrmtopFile
+    from openmm.app import element as E
+except ImportError:
+    from simtk import unit as openmm_unit
+    from simtk.openmm.app import AmberPrmtopFile
+    from simtk.openmm.app import element as E
+
+from openff.units import unit
+
 from openff.evaluator.utils.serialization import TypedBaseModel
 from openff.evaluator.utils.utils import is_number
 
@@ -300,7 +307,6 @@ class LigParGenForceFieldSource(ForceFieldSource):
     """
 
     class ChargeModel(Enum):
-
         CM1A_1_14_LBCC = "1.14*CM1A-LBCC"
         CM1A_1_14 = "1.14*CM1A"
 
@@ -468,7 +474,7 @@ class GAFFForceField:
             # Generate mol2 file
             molecule = Molecule.from_smiles(smiles)
             molecule.partial_charges = (
-                np.zeros(molecule.n_atoms) * simtk_unit.elementary_charge
+                np.zeros(molecule.n_atoms) * openmm_unit.elementary_charge
             )
             molecule.to_file(
                 os.path.join(working_directory, f"MOL{i}.mol2"),
@@ -746,7 +752,6 @@ class GAFFForceField:
         cosmetic = "# PRM"
         for attribute in attributes:
             if attribute in self._frcmod_parameters[tag][atom_mask]:
-
                 if tag == "BOND":
                     if attribute == "k":
                         cosmetic += " 1"
@@ -881,7 +886,6 @@ class GAFFForceField:
         """
 
         with open(file_path, "w") as f:
-
             for tag in self._frcmod_parameters.keys():
                 if tag == "HEADER" and write_header:
                     f.writelines(
@@ -976,9 +980,7 @@ class GAFFForceField:
         }
 
         with open(file_path, "r") as f:
-
             for i, line in enumerate(f.readlines()):
-
                 if i == 0 and line.startswith("#evaluator_io:"):
                     header = line.split()
                     frcmod_dict["HEADER"] = {

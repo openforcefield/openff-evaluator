@@ -1,7 +1,8 @@
 import os
 import tempfile
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.backends.dask import DaskLocalCluster
 from openff.evaluator.client import RequestOptions
 from openff.evaluator.forcefield import SmirnoffForceFieldSource
@@ -48,9 +49,7 @@ def test_workflow_layer():
     batch.options = options
 
     with tempfile.TemporaryDirectory() as directory:
-
         with temporarily_change_directory(directory):
-
             # Create a directory for the layer.
             layer_directory = "simulation_layer"
             os.makedirs(layer_directory)
@@ -67,7 +66,6 @@ def test_workflow_layer():
             with DaskLocalCluster() as calculation_backend:
 
                 def dummy_callback(returned_request):
-
                     assert len(returned_request.estimated_properties) == 2
                     assert len(returned_request.exceptions) == 0
 

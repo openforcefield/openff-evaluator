@@ -3,13 +3,12 @@ Units tests for openff.evaluator.thermodynamics
 """
 import pint
 import pytest
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.thermodynamics import ThermodynamicState
 
 
 def test_state_equality():
-
     state_a = ThermodynamicState(
         temperature=1.0 * unit.kelvin, pressure=1.0 * unit.pascals
     )
@@ -62,6 +61,5 @@ def test_state_valid_checks(state):
     ],
 )
 def test_state_invalid_checks(state):
-
     with pytest.raises((ValueError, AssertionError, pint.errors.DimensionalityError)):
         state.validate()

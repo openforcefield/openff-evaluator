@@ -26,7 +26,6 @@ def _default_journals():
 
 
 class ImportThermoMLDataSchema(CurationComponentSchema):
-
     type: Literal["ImportThermoMLData"] = "ImportThermoMLData"
 
     retain_uncertainties: bool = Field(
@@ -58,9 +57,7 @@ class ImportThermoMLData(CurationComponent):
 
     @classmethod
     def _download_data(cls, schema: ImportThermoMLDataSchema):
-
         for journal in schema.journal_names:
-
             # Download the archive of all properties from the journal.
             request = requests.get(
                 f"{schema.root_archive_url}/{journal}.tgz", stream=True
@@ -79,7 +76,6 @@ class ImportThermoMLData(CurationComponent):
 
     @classmethod
     def _process_archive(cls, file_path: str) -> pandas.DataFrame:
-
         logger.debug(f"Processing {file_path}")
 
         # noinspection PyBroadException
@@ -87,7 +83,6 @@ class ImportThermoMLData(CurationComponent):
             data_set = ThermoMLDataSet.from_file(file_path)
 
         except Exception:
-
             logger.exception(
                 f"An exception was raised when processing {file_path}. This file will "
                 f"be skipped."
@@ -109,16 +104,13 @@ class ImportThermoMLData(CurationComponent):
         schema: ImportThermoMLDataSchema,
         n_processes,
     ) -> pandas.DataFrame:
-
         if schema.cache_file_name is not None and os.path.isfile(
             schema.cache_file_name
         ):
-
             cached_data = pandas.read_csv(schema.cache_file_name)
             return cached_data
 
         with temporarily_change_directory():
-
             logger.debug("Downloading archive data")
 
             cls._download_data(schema)
@@ -138,7 +130,6 @@ class ImportThermoMLData(CurationComponent):
         thermoml_data_frame = pandas.concat(data_frames, ignore_index=True, sort=False)
 
         for header in thermoml_data_frame:
-
             if header.find(" Uncertainty ") >= 0 and not schema.retain_uncertainties:
                 thermoml_data_frame = thermoml_data_frame.drop(header, axis=1)
 
