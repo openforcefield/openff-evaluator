@@ -12,7 +12,6 @@ from xml.etree import ElementTree
 import numpy as np
 import requests
 from openff.units import unit
-from openff.units.openmm import from_openmm
 
 from openff.evaluator.datasets import (
     MeasurementSource,
@@ -848,11 +847,6 @@ class _PureOrMixtureData:
         from openff.toolkit.topology import Molecule
 
         try:
-            from openmm import unit as openmm_unit
-        except ImportError:
-            from simtk.openmm import unit as openmm_unit
-
-        try:
 
             molecule = Molecule.from_smiles(smiles)
 
@@ -865,12 +859,14 @@ class _PureOrMixtureData:
                 f"{smiles} smiles pattern: {formatted_exception}"
             )
 
-        molecular_weight = 0.0 * openmm_unit.dalton
+        molecular_weight = 0.0 * unit.dalton
 
         for atom in molecule.atoms:
             molecular_weight += atom.mass
 
-        return from_openmm(molecular_weight)
+        # Molecuar weight in Daltons is not per-mol by SI definitions, but
+        # divide through by Avogadro's number as if it is
+        return molecular_weight / unit.mol
 
     @staticmethod
     def _solvent_mole_fractions_to_moles(
@@ -1068,7 +1064,7 @@ class _PureOrMixtureData:
                         mass_fractions[compound_index].to(unit.dimensionless).magnitude
                     )
 
-        total_mass = 1 * unit.gram
+        total_mass = 1 * unit.dalton
         total_solvent_mass = total_mass
 
         moles = {}

@@ -64,20 +64,16 @@ def _atom_indices_by_role(
 
             # Find the indices of all instances of this component.
             off_molecule = off_molecules[component]
+            reference_smiles = off_molecule.to_smiles()
 
-            for topology_molecule in off_topology.topology_molecules:
+            for molecule in off_topology.molecules:
 
-                if (
-                    topology_molecule.reference_molecule.to_smiles()
-                    != off_molecule.to_smiles()
-                ):
+                if molecule.to_smiles() != reference_smiles:
                     continue
 
+                atom_start_topology_index = off_topology.atom_index(molecule.atom(0))
                 atom_indices[component_role].extend(
-                    [
-                        i + topology_molecule.atom_start_topology_index
-                        for i in range(topology_molecule.n_atoms)
-                    ]
+                    [i + atom_start_topology_index for i in range(molecule.n_atoms)]
                 )
 
     return atom_indices

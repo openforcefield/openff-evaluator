@@ -72,6 +72,7 @@ jobs:
         run: |
 
           curl https://homepage.univie.ac.at/norbert.haider/download/chemistry/checkmol/checkmol.pas > checkmol.pas
+          wc -l checkmol.pas
           fpc checkmol.pas -S2
 
           echo $(pwd) >> $GITHUB_PATH

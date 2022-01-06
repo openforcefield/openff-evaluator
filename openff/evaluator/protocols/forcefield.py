@@ -17,7 +17,9 @@ try:
     import openmm
 except ImportError:
     from simtk import openmm
+
 import requests
+from openff.units import unit
 from openff.units.openmm import to_openmm
 
 try:
@@ -422,6 +424,28 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
         # Create the full system object from the component templates.
         system = self._create_empty_system(cutoff)
 
+        groupings = topology.identical_molecule_groups
+
+        for unique_molecule_index, group in groupings.items():
+            unique_molecule = topology.molecule(unique_molecule_index)
+
+            smiles = unique_molecule.to_smiles()
+            system_template = system_templates[smiles]
+
+            index_map = {}
+            # {0: [[0, {0: 0, 1: 1, 2: 2}],
+            #     [1, {0: 0, 1: 1, 2: 2}],
+            #     [2, {0: 0, 1: 1, 2: 2}]]}
+
+            for duplicate_molecule_index, _ in group:
+                duplicate_molecule = topology.molecule(duplicate_molecule_index)
+
+                for index, atom in enumerate(duplicate_molecule.atoms):
+                    index_map[atom.molecule_particle_index] = index
+
+                self._append_system(system, system_template, index_map)
+
+        """
         for topology_molecule in topology.topology_molecules:
 
             smiles = topology_molecule.reference_molecule.to_smiles()
@@ -434,7 +458,7 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
 
             # Append the component template to the full system.
             self._append_system(system, system_template, index_map)
-
+        """
         if openmm_pdb_file.topology.getPeriodicBoxVectors() is not None:
 
             system.setDefaultPeriodicBoxVectors(
@@ -555,18 +579,13 @@ class BuildLigParGenSystem(TemplateBuildSystem):
         openmm.app.ForceField
             The force field template.
         """
-        try:
-            from openmm import unit as openmm_unit
-        except ImportError:
-            from simtk.openmm import unit as openmm_unit
-
         initial_request_url = force_field_source.request_url
         empty_stream = io.BytesIO(b"\r\n")
 
         total_charge = molecule.total_charge
 
-        if isinstance(total_charge, openmm_unit.Quantity):
-            total_charge = total_charge.value_in_unit(openmm_unit.elementary_charge)
+        if isinstance(total_charge, unit.Quantity):
+            total_charge = total_charge.m_as(unit.elementary_charge)
 
         charge_model = "cm1abcc"
 
@@ -842,11 +861,6 @@ class BuildTLeapSystem(TemplateBuildSystem):
         str
             The file path to the `rst7` file.
         """
-        try:
-            from openmm import unit as openmm_unit
-        except ImportError:
-            from simtk.openmm import unit as openmm_unit
-
         # Change into the working directory.
         with temporarily_change_directory(directory):
 
@@ -854,10 +868,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
             molecule.to_file(initial_file_path, file_format="SDF")
 
             # Save the molecule charges to a file.
-            charges = [
-                x.value_in_unit(openmm_unit.elementary_charge)
-                for x in molecule.partial_charges
-            ]
+            charges = [x.m_as(unit.elementary_charge) for x in molecule.partial_charges]
 
             with open("charges.txt", "w") as file:
                 file.write(textwrap.fill(" ".join(map(str, charges)), width=70))

@@ -196,7 +196,7 @@ def _compute_gradients(
     if enable_pbc:
         # Make sure the PBC are set on the topology otherwise the cut-off will be
         # set incorrectly.
-        topology.box_vectors = trajectory.openmm_boxes(0)
+        topology.box_vectors = from_openmm(trajectory.openmm_boxes(0))
 
     for parameter_key in gradient_parameters:
 
@@ -216,9 +216,6 @@ def _compute_gradients(
         if not enable_pbc:
             disable_pbc(reverse_system)
             disable_pbc(forward_system)
-
-        reverse_parameter_value = from_openmm(reverse_parameter_value)
-        forward_parameter_value = from_openmm(forward_parameter_value)
 
         # Evaluate the energies using the reverse and forward sub-systems.
         if reverse_xml != forward_xml:

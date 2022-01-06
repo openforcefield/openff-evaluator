@@ -6,15 +6,16 @@ import logging
 from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import numpy
+from openff.units import unit
 
 try:
     import openmm
     from openmm import app
-    from openmm import unit as _openmm_unit
+    from openmm import unit as openmm_unit
 except ImportError:
     from simtk import openmm
     from simtk.openmm import app
-    from simtk.openmm import unit as _openmm_unit
+    from simtk.openmm import unit as openmm_unit
 
 from openff.evaluator.forcefield import ParameterGradientKey
 
@@ -141,7 +142,7 @@ def system_subset(
     force_field: "ForceField",
     topology: "Topology",
     scale_amount: Optional[float] = None,
-) -> Tuple["openmm.System", "_openmm_unit.Quantity"]:
+) -> Tuple["openmm.System", "unit.Quantity"]:
     """Produces an OpenMM system containing the minimum number of forces while
     still containing a specified force field parameter, and those other parameters
     which may interact with it (e.g. in the case of vdW parameters).
@@ -203,8 +204,8 @@ def system_subset(
         vdw_handler.add_parameter(
             parameter_kwargs={
                 "smirks": "[*:1]",
-                "epsilon": 0.0 * _openmm_unit.kilocalories_per_mole,
-                "sigma": 1.0 * _openmm_unit.angstrom,
+                "epsilon": 0.0 * unit.kilocalories_per_mole,
+                "sigma": 1.0 * unit.angstrom,
             }
         )
 
@@ -215,33 +216,32 @@ def system_subset(
     )
 
     parameter_value = getattr(parameter, parameter_key.attribute)
-    is_quantity = isinstance(parameter_value, _openmm_unit.Quantity)
+    is_quantity = isinstance(parameter_value, unit.Quantity)
 
     if not is_quantity:
-        parameter_value = parameter_value * _openmm_unit.dimensionless
+        parameter_value = parameter_value * unit.dimensionless
 
     # Optionally perturb the parameter of interest.
     if scale_amount is not None:
 
-        if numpy.isclose(parameter_value.value_in_unit(parameter_value.unit), 0.0):
+        if numpy.isclose(parameter_value.m, 0.0):
             # Careful thought needs to be given to this. Consider cases such as
             # epsilon or sigma where negative values are not allowed.
             parameter_value = (
                 scale_amount if scale_amount > 0.0 else 0.0
-            ) * parameter_value.unit
+            ) * parameter_value.units
         else:
             parameter_value *= 1.0 + scale_amount
 
-    if not isinstance(parameter_value, _openmm_unit.Quantity):
-        # Handle the case where OMM down-converts a dimensionless quantity to a float.
-        parameter_value = parameter_value * _openmm_unit.dimensionless
+    # Pretty sure Pint doesn't do this, but need to check
+    # if not isinstance(parameter_value, unit.Quantity):
+    #     # Handle the case where OMM down-converts a dimensionless quantity to a float.
+    #     parameter_value = parameter_value * unit.dimensionless
 
     setattr(
         parameter,
         parameter_key.attribute,
-        parameter_value
-        if is_quantity
-        else parameter_value.value_in_unit(_openmm_unit.dimensionless),
+        parameter_value if is_quantity else parameter_value.m_as(unit.dimensionless),
     )
 
     # Create the parameterized sub-system.
@@ -251,8 +251,8 @@ def system_subset(
 
 def update_context_with_positions(
     context: openmm.Context,
-    positions: _openmm_unit.Quantity,
-    box_vectors: Optional[_openmm_unit.Quantity],
+    positions: openmm_unit.Quantity,
+    box_vectors: Optional[openmm_unit.Quantity],
 ):
     """Set a collection of positions and box vectors on an OpenMM context and compute
     any extra positions such as v-site positions.
@@ -294,10 +294,10 @@ def update_context_with_positions(
 
             if not system.isVirtualSite(j):
                 # take an old position and update the index
-                new_positions[j] = positions[i].value_in_unit(_openmm_unit.nanometers)
+                new_positions[j] = positions[i].value_in_unit(openmm_unit.nanometers)
                 i += 1
 
-        positions = new_positions * _openmm_unit.nanometers
+        positions = new_positions * openmm_unit.nanometers
 
     if box_vectors is not None:
         context.setPeriodicBoxVectors(*box_vectors)
@@ -342,7 +342,7 @@ def extract_atom_indices(system: openmm.System) -> List[int]:
 def extract_positions(
     state: openmm.State,
     particle_indices: Optional[List[int]] = None,
-) -> _openmm_unit.Quantity:
+) -> openmm_unit.Quantity:
     """Extracts the positions from an OpenMM context, optionally excluding any v-site
     positions which should be uniquely defined by the atomic positions.
     """
