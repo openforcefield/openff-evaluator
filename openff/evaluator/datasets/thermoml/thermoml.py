@@ -12,7 +12,6 @@ from xml.etree import ElementTree
 import numpy as np
 import requests
 from openff.units import unit
-from openff.units.openmm import from_openmm
 
 from openff.evaluator.datasets import (
     MeasurementSource,
@@ -848,11 +847,6 @@ class _PureOrMixtureData:
         from openff.toolkit.topology import Molecule
 
         try:
-            from openmm import unit as openmm_unit
-        except ImportError:
-            from simtk.openmm import unit as openmm_unit
-
-        try:
 
             molecule = Molecule.from_smiles(smiles)
 
@@ -865,12 +859,12 @@ class _PureOrMixtureData:
                 f"{smiles} smiles pattern: {formatted_exception}"
             )
 
-        molecular_weight = 0.0 * openmm_unit.dalton
+        molecular_weight = 0.0 * unit.gram / unit.mol
 
         for atom in molecule.atoms:
-            molecular_weight += atom.mass
+            molecular_weight += atom.mass * unit.gram / unit.mol
 
-        return from_openmm(molecular_weight)
+        return molecular_weight
 
     @staticmethod
     def _solvent_mole_fractions_to_moles(

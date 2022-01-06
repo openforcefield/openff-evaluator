@@ -60,17 +60,10 @@ class ConvertExcessDensityData(CurationComponent):
 
         from openff.toolkit.topology import Molecule
 
-        try:
-            from openmm import unit as openmm_unit
-        except ImportError:
-            from simtk.openmm import unit as openmm_unit
-
         molecule = Molecule.from_smiles(smiles, allow_undefined_stereo=True)
 
-        molecular_weight = sum(
-            atom.mass.value_in_unit(openmm_unit.gram / openmm_unit.mole)
-            for atom in molecule.atoms
-        )
+        # atom.mass from the toolkit it in g/mol, not tagged with units
+        molecular_weight = sum(atom.mass for atom in molecule.atoms)
 
         return molecular_weight
 

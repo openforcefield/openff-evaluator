@@ -1,4 +1,4 @@
-name: test
+name: evaluator-test-env
 channels:
   - conda-forge
 dependencies:
@@ -41,3 +41,15 @@ dependencies:
   - taproom
   - dataclasses
   - smirnoff-plugins # For testing custom nonbonded forces
+  # Stuff that should be pulled in once beta packages are built
+  - mendeleev
+  - cached_property
+  - cachetools
+  # Temporary/dev stuff
+  - mamba
+  - black
+  - isort
+  - flake8
+  - ipdb
+  - pip:
+    - git+https://github.com/openforcefield/openff-toolkit.git@topology-biopolymer-refactor
