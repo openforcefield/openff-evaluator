@@ -126,7 +126,7 @@ class QueueWorkerResources(ComputeResources):
         number_of_gpus=0,
         preferred_gpu_toolkit=None,
         per_thread_memory_limit=1 * unit.gigabytes,
-        wallclock_time_limit="01:00:00",
+        wallclock_time_limit="01:00",
     ):
         """Constructs a new ComputeResources object.
 
@@ -143,8 +143,8 @@ class QueueWorkerResources(ComputeResources):
             The maximum amount of memory available to each thread.
         wallclock_time_limit: str
             The maximum amount of wall clock time that a worker can run for. This should
-            be a string of the form `HH:MM:SS` where HH is the number of hours, MM the number
-            of minutes, and SS is the number of seconds
+            be a string of the form `HH:MM` where HH is the number of hours and MM the number
+            of minutes
         """
 
         super().__init__(number_of_threads, number_of_gpus, preferred_gpu_toolkit)
@@ -165,7 +165,7 @@ class QueueWorkerResources(ComputeResources):
         assert wallclock_time_limit is not None
         assert isinstance(wallclock_time_limit, str) and len(wallclock_time_limit) > 0
 
-        wallclock_pattern = re.compile(r"\d\d:\d\d:\d\d")
+        wallclock_pattern = re.compile(r"\d\d:\d\d")
         assert wallclock_pattern.match(wallclock_time_limit) is not None
 
     def __getstate__(self):
