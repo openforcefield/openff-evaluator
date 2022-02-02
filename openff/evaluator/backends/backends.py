@@ -143,8 +143,8 @@ class QueueWorkerResources(ComputeResources):
             The maximum amount of memory available to each thread.
         wallclock_time_limit: str
             The maximum amount of wall clock time that a worker can run for. This should
-            be a string of the form `HH:MM:SS` where HH is the number of hours and MM the number
-            of minutes
+            be a string of the form `HH:MM:SS` where HH is the number of hours, MM the number
+            of minutes, and SS is the number of seconds
         """
 
         super().__init__(number_of_threads, number_of_gpus, preferred_gpu_toolkit)
