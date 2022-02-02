@@ -3,8 +3,8 @@ from typing import Tuple
 import numpy
 import pandas
 import pytest
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.datasets import (
     MeasurementSource,
     PhysicalPropertyDataSet,

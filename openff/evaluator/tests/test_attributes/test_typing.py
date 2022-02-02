@@ -6,8 +6,8 @@ import typing
 from random import random
 
 import pytest
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.attributes.typing import (
     is_instance_of_type,
     is_type_subclass_of_type,

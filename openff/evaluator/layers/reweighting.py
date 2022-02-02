@@ -9,8 +9,8 @@ import time
 
 import dateutil.parser
 import numpy
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import Attribute, PlaceholderValue
 from openff.evaluator.datasets import PropertyPhase
 from openff.evaluator.layers import calculation_layer

@@ -5,8 +5,8 @@ import operator
 from collections import defaultdict
 
 import numpy as np
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import Attribute, AttributeClass
 from openff.evaluator.substances import Amount, Component, ExactAmount, MoleFraction
 

@@ -1,9 +1,9 @@
 import os
 
 from openff.toolkit.typing.engines.smirnoff import ForceField
+from openff.units import unit
 
 from openff import evaluator
-from openff.evaluator import unit
 from openff.evaluator.backends import QueueWorkerResources
 from openff.evaluator.backends.dask import DaskLSFBackend
 from openff.evaluator.client import EvaluatorClient, RequestOptions

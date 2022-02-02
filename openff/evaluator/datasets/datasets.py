@@ -9,8 +9,8 @@ from enum import IntFlag, unique
 
 import numpy
 import pandas
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 from openff.evaluator.datasets import CalculationSource, MeasurementSource, Source
 from openff.evaluator.substances import Component, ExactAmount, MoleFraction, Substance
@@ -543,7 +543,7 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         from openff.evaluator import properties
 
         property_header_matches = {
-            re.match(r"^([a-zA-Z]+) Value \(([a-zA-Z0-9+-/\s]*)\)$", header)
+            re.match(r"^([a-zA-Z]+) Value \(([a-zA-Z0-9+-/\s*^]*)\)$", header)
             for header in data_frame
             if header.find(" Value ") >= 0
         }

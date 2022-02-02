@@ -9,7 +9,8 @@ from math import sqrt
 from os import makedirs, path
 from shutil import copy as file_copy
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import (
@@ -602,7 +603,10 @@ class Workflow:
 
                 for parameter in labelled_molecule[parameter_key.tag].store.values():
 
-                    if parameter.smirks != parameter_key.smirks:
+                    if (
+                        parameter_key.smirks is not None
+                        and parameter.smirks != parameter_key.smirks
+                    ):
                         continue
 
                     contains_parameter = True
@@ -619,7 +623,7 @@ class Workflow:
     def generate_default_metadata(
         physical_property,
         force_field_path,
-        parameter_gradient_keys=None,
+        parameter_gradient_keys=UNDEFINED,
         target_uncertainty=None,
     ):
         """Generates the default global metadata dictionary.
@@ -1097,7 +1101,6 @@ class WorkflowGraph:
         output_to_store,
         results_by_id,
     ):
-
         """Collects all of the simulation to store, and saves it into a directory
         whose path will be passed to the storage backend to process.
 

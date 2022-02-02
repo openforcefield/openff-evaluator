@@ -123,7 +123,9 @@ class FilterDuplicates(CurationComponent):
                 property_data = component_data[component_data[value_header].notna()]
 
                 if uncertainty_header in component_data:
-                    property_data = property_data.sort_values(uncertainty_header)
+                    property_data = property_data.sort_values(
+                        uncertainty_header, na_position="first"
+                    )
 
                 property_data = property_data.drop_duplicates(
                     subset=subset_columns, keep="last"
@@ -684,7 +686,11 @@ class FilterByCharged(CurationComponent):
     ) -> pandas.DataFrame:
 
         from openff.toolkit.topology import Molecule
-        from simtk import unit as simtk_unit
+
+        try:
+            from openmm import unit as openmm_unit
+        except ImportError:
+            from simtk.openmm import unit as openmm_unit
 
         def filter_function(data_row):
 
@@ -699,7 +705,7 @@ class FilterByCharged(CurationComponent):
                 atom_charges = [
                     atom.formal_charge
                     if isinstance(atom.formal_charge, int)
-                    else atom.formal_charge.value_in_unit(simtk_unit.elementary_charge)
+                    else atom.formal_charge.value_in_unit(openmm_unit.elementary_charge)
                     for atom in molecule.atoms
                 ]
 

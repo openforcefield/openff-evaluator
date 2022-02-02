@@ -8,6 +8,70 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
+0.3.9
+-----
+
+Bugfixes
+""""""""
+
+* PR `#402 <https://github.com/openforcefield/openff-evaluator/pull/402>`_: Fix importing full ThermoML archive
+
+Behaviour Changes
+"""""""""""""""""
+
+The way that ThermoML archive files are served was changed in 2021 so that individual journal archives are no longer
+made available. Instead, now only the full ThermoML archive can be downloaded. Because of this, the ``ImportThermoMLDataSchema``
+schema no longer allows users to select which journal to pull data from.
+
+0.3.8
+-----
+
+Bugfixes
+""""""""
+
+* PR `#390 <https://github.com/openforcefield/openff-evaluator/pull/390>`_: Fix excluding v-sites from OpenMM positions
+
+0.3.7
+-----
+
+Bugfixes
+""""""""
+
+* PR `#389 <https://github.com/openforcefield/openff-evaluator/pull/389>`_: Fix v-site positions not set by OpenMM
+
+0.3.6
+-----
+
+Bugfixes
+""""""""
+
+* PR `#375 <https://github.com/openforcefield/openff-evaluator/pull/375>`_: Fix #374 - import from collections.abc
+* PR `#379 <https://github.com/openforcefield/openff-evaluator/pull/379>`_: Fix #378 - 'FilterDuplicates` unintentionally selects values without uncertainty if multiple are present
+* PR `#384 <https://github.com/openforcefield/openff-evaluator/pull/384>`_: Fix #382 - Default keyword arguments result in error
+* PR `#387 <https://github.com/openforcefield/openff-evaluator/pull/387>`_: Fix #380 - Recursion error in local file storage
+
+New Features
+""""""""""""
+
+* PR `#385 <https://github.com/openforcefield/openff-evaluator/pull/385>`_: Support custom OpenMM nonbonded forces
+* PR `#386 <https://github.com/openforcefield/openff-evaluator/pull/386>`_: Migrate to new OpenMM namespace
+
+0.3.5
+-----
+
+Bugfixes
+""""""""
+
+* PR `#367 <https://github.com/openforcefield/openff-evaluator/pull/367>`_: Fix #365 - to/from_pandas does not roundtrip.
+* PR `#368 <https://github.com/openforcefield/openff-evaluator/pull/368>`_: Fix #364 - Parsing an invalid IUPAC name raises an exception rather than a warning.
+* PR `#371 <https://github.com/openforcefield/openff-evaluator/pull/371>`_: Fix gradients of non-Quantity parameters.
+
+
+New Features
+""""""""""""
+
+* PR `#362 <https://github.com/openforcefield/openff-evaluator/pull/362>`_: Support dask-jobqueue Slurm backend.
+* PR `#366 <https://github.com/openforcefield/openff-evaluator/pull/366>`_: Support gradients of handler attributes.
 
 0.3.4
 -----
@@ -203,7 +267,7 @@ Breaking Changes
 0.1.2
 -----
 
-A patch release offering minor bug fixes and quality of life improvements. 
+A patch release offering minor bug fixes and quality of life improvements.
 
 Bugfixes
 """"""""
@@ -338,12 +402,12 @@ Bugfixes
 0.0.6 - Solvation Free Energies
 -------------------------------
 
-This release centers around two key changes - 
+This release centers around two key changes -
 
 i) a general refactoring of the protocol classes to be much cleaner and extensible through the removal of the old stub functions and the addition of cleaner descriptors.
 ii) the addition of workflows to estimate solvation free energies via the new ``SolvationYankProtocol`` and ``SolvationFreeEnergy`` classes.
 
-The implemented free energy workflow is still rather basic, and does not yet support calculating parameter gradients or estimation from cached simulation data through reweighting. 
+The implemented free energy workflow is still rather basic, and does not yet support calculating parameter gradients or estimation from cached simulation data through reweighting.
 
 A new table has been added to the documentation to make clear which built-in properties support which features.
 
@@ -427,11 +491,11 @@ remedied by the follow steps:
 * Change all instances of ``PropertyEstimatorClient.request_estimate(force_field=...)`` to ``PropertyEstimatorClient.request_estimate(force_field_source=...)``
 
 
-0.0.3 - ExcessMolarVolume and Typing Improvements 
+0.0.3 - ExcessMolarVolume and Typing Improvements
 -------------------------------------------------
 
 This release implements a number of bug fixes and adds two key new features, namely built in support
-for estimating excess molar volume measurements, and improved type checking for protocol inputs 
+for estimating excess molar volume measurements, and improved type checking for protocol inputs
 and outputs.
 
 New Features

@@ -4,7 +4,8 @@ A set of utilities for setting up property estimation workflows.
 from dataclasses import astuple, dataclass
 from typing import Generic, Optional, Tuple, TypeVar
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.attributes import PlaceholderValue
 from openff.evaluator.datasets import PropertyPhase
 from openff.evaluator.protocols import (

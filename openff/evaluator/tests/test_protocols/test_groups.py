@@ -2,8 +2,8 @@ import random
 import tempfile
 
 import pytest
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.protocols.groups import ConditionalGroup
 from openff.evaluator.protocols.miscellaneous import AddValues, DummyProtocol

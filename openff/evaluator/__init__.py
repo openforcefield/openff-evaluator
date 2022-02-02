@@ -3,11 +3,10 @@ openff-evaluator
 A physical property evaluation toolkit from the Open Forcefield Consortium.
 """
 
+from openff.units import unit
+
 from ._version import get_versions
 from .plugins import register_default_plugins, register_external_plugins
-from .utils.units import DEFAULT_UNIT_REGISTRY
-
-unit = DEFAULT_UNIT_REGISTRY
 
 # Load the default plugins
 register_default_plugins()

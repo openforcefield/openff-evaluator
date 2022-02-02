@@ -4,7 +4,8 @@ Units tests for the openff.evaluator.server module.
 import tempfile
 from time import sleep
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.backends.dask import DaskLocalCluster
 from openff.evaluator.client import EvaluatorClient, RequestOptions
 from openff.evaluator.datasets import PhysicalPropertyDataSet

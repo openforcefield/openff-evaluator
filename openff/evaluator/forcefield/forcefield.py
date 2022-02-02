@@ -4,7 +4,8 @@ A collection of wrappers around commonly employed force fields.
 import abc
 from enum import Enum
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.utils.serialization import TypedBaseModel
 
 
@@ -56,7 +57,7 @@ class SmirnoffForceFieldSource(ForceFieldSource):
         """
         from openff.toolkit.typing.engines import smirnoff
 
-        return smirnoff.ForceField(self._inner_xml)
+        return smirnoff.ForceField(self._inner_xml, load_plugins=True)
 
     @classmethod
     def from_object(cls, force_field):

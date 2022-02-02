@@ -12,11 +12,12 @@ dependencies:
   - codecov
 
     # Standard dependencies
-  - openff-toolkit
+  - openff-toolkit >=0.10.0
+  - openff-units >=0.1.4
   - smirnoff99frosst
   - numpy
   - pandas
-  - openmm
+  - openmm >=7.6
   - networkx
   - pint >=0.16.1
   - packmol
@@ -39,3 +40,4 @@ dependencies:
   - paprika
   - taproom
   - dataclasses
+  - smirnoff-plugins # For testing custom nonbonded forces

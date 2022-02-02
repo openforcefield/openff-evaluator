@@ -5,7 +5,7 @@ import abc
 import re
 from enum import Enum
 
-from openff.evaluator import unit
+from openff.units import unit
 
 
 class ComputeResources:
@@ -110,7 +110,7 @@ class QueueWorkerResources(ComputeResources):
 
     @property
     def per_thread_memory_limit(self):
-        """simtk.Quantity: The maximum amount of memory available to each thread, such that
+        """openmm.unit.Quantity: The maximum amount of memory available to each thread, such that
         the total memory limit will be `per_cpu_memory_limit * number_of_threads`."""
         return self._per_thread_memory_limit
 
@@ -139,7 +139,7 @@ class QueueWorkerResources(ComputeResources):
 
         Parameters
         ----------
-        per_thread_memory_limit: simtk.Quantity
+        per_thread_memory_limit: openmm.unit.Quantity
             The maximum amount of memory available to each thread.
         wallclock_time_limit: str
             The maximum amount of wall clock time that a worker can run for. This should

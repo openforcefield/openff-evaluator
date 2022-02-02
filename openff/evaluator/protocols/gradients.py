@@ -6,6 +6,8 @@ import abc
 from typing import Union
 
 import numpy
+from openff.units import unit
+from openff.units.openmm import from_openmm
 
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import (
@@ -14,7 +16,6 @@ from openff.evaluator.forcefield import (
     SmirnoffForceFieldSource,
 )
 from openff.evaluator.utils.observables import Observable, ObservableArray
-from openff.evaluator.utils.openmm import openmm_quantity_to_pint
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
 
@@ -51,6 +52,11 @@ class ZeroGradients(Protocol, abc.ABC):
 
     def _execute(self, directory, available_resources):
 
+        try:
+            from openmm import unit as openmm_unit
+        except ImportError:
+            from simtk.openmm import unit as openmm_unit
+
         force_field_source = ForceFieldSource.from_json(self.force_field_path)
 
         if not isinstance(force_field_source, SmirnoffForceFieldSource):
@@ -58,15 +64,22 @@ class ZeroGradients(Protocol, abc.ABC):
 
         force_field = force_field_source.to_force_field()
 
+        def _get_parameter_unit(gradient_key):
+
+            parameter = force_field.get_parameter_handler(gradient_key.tag)
+
+            if gradient_key.smirks is not None:
+                parameter = parameter.parameters[gradient_key.smirks]
+
+            value = getattr(parameter, gradient_key.attribute)
+
+            if isinstance(value, openmm_unit.Quantity):
+                return from_openmm(value).units
+
+            return unit.dimensionless
+
         parameter_units = {
-            gradient_key: openmm_quantity_to_pint(
-                getattr(
-                    force_field.get_parameter_handler(gradient_key.tag).parameters[
-                        gradient_key.smirks
-                    ],
-                    gradient_key.attribute,
-                )
-            ).units
+            gradient_key: _get_parameter_unit(gradient_key)
             for gradient_key in self.gradient_parameters
         }
 

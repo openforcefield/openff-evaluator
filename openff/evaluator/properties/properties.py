@@ -1,7 +1,8 @@
 import abc
 from typing import Dict, Optional, Tuple
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.attributes import UNDEFINED, PlaceholderValue
 from openff.evaluator.datasets import PhysicalProperty, PropertyPhase
 from openff.evaluator.layers.reweighting import ReweightingSchema

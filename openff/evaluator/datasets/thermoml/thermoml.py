@@ -11,8 +11,9 @@ from xml.etree import ElementTree
 
 import numpy as np
 import requests
+from openff.units import unit
+from openff.units.openmm import from_openmm
 
-from openff.evaluator import unit
 from openff.evaluator.datasets import (
     MeasurementSource,
     PhysicalPropertyDataSet,
@@ -20,7 +21,6 @@ from openff.evaluator.datasets import (
 )
 from openff.evaluator.substances import Component, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
-from openff.evaluator.utils.openmm import openmm_quantity_to_pint
 
 logger = logging.getLogger(__name__)
 
@@ -435,7 +435,7 @@ class _Compound:
         """
         from cmiles.utils import load_molecule, mol_to_smiles
         from openff.toolkit.topology import Molecule
-        from openff.toolkit.utils import LicenseError
+        from openff.toolkit.utils import InvalidIUPACNameError, LicenseError
 
         if common_name is None:
             return None
@@ -453,7 +453,7 @@ class _Compound:
 
         except LicenseError:
             smiles = None
-        except ValueError:
+        except (ValueError, InvalidIUPACNameError):
             smiles = None
 
         return smiles
@@ -846,7 +846,11 @@ class _PureOrMixtureData:
         """
 
         from openff.toolkit.topology import Molecule
-        from simtk import unit as simtk_unit
+
+        try:
+            from openmm import unit as openmm_unit
+        except ImportError:
+            from simtk.openmm import unit as openmm_unit
 
         try:
 
@@ -861,12 +865,12 @@ class _PureOrMixtureData:
                 f"{smiles} smiles pattern: {formatted_exception}"
             )
 
-        molecular_weight = 0.0 * simtk_unit.dalton
+        molecular_weight = 0.0 * openmm_unit.dalton
 
         for atom in molecule.atoms:
             molecular_weight += atom.mass
 
-        return openmm_quantity_to_pint(molecular_weight)
+        return from_openmm(molecular_weight)
 
     @staticmethod
     def _solvent_mole_fractions_to_moles(
@@ -2144,7 +2148,7 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
             return_value = cls.from_xml(request.text, source)
 
-        except HTTPError:
+        except (HTTPError, requests.exceptions.HTTPError):
             logger.warning(f"No ThermoML file could not be found at {url}")
 
         return return_value

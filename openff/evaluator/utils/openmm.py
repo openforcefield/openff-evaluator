@@ -3,15 +3,19 @@ A set of utilities for helping to perform simulations using openmm.
 """
 import copy
 import logging
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import numpy
-from pint import UndefinedUnitError
-from simtk import openmm
-from simtk import unit as simtk_unit
 
-from openff.evaluator import unit
-from openff.evaluator.attributes.attributes import UndefinedAttribute
+try:
+    import openmm
+    from openmm import app
+    from openmm import unit as _openmm_unit
+except ImportError:
+    from simtk import openmm
+    from simtk.openmm import app
+    from simtk.openmm import unit as _openmm_unit
+
 from openff.evaluator.forcefield import ParameterGradientKey
 
 if TYPE_CHECKING:
@@ -39,7 +43,10 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
     Platform
         The created platform
     """
-    from simtk.openmm import Platform
+    try:
+        from openmm import Platform
+    except ImportError:
+        from simtk.openmm import Platform
 
     # Setup the requested platform:
     if compute_resources.number_of_gpus > 0:
@@ -105,155 +112,6 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
     return platform
 
 
-def openmm_quantity_to_pint(openmm_quantity):
-    """Converts a `simtk.unit.Quantity` to a `openff.evaluator.unit.Quantity`.
-
-    Parameters
-    ----------
-    openmm_quantity: simtk.unit.Quantity
-        The quantity to convert.
-
-    Returns
-    -------
-    openff.evaluator.unit.Quantity
-        The converted quantity.
-    """
-
-    if openmm_quantity is None or isinstance(openmm_quantity, UndefinedAttribute):
-        return None
-
-    assert isinstance(openmm_quantity, simtk_unit.Quantity)
-
-    openmm_unit = openmm_quantity.unit
-    openmm_raw_value = openmm_quantity.value_in_unit(openmm_unit)
-
-    pint_unit = openmm_unit_to_pint(openmm_unit)
-    pint_quantity = openmm_raw_value * pint_unit
-
-    return pint_quantity
-
-
-def openmm_unit_to_pint(openmm_unit):
-    """Converts a `simtk.unit.Unit` to a `openff.evaluator.unit.Unit`.
-
-    Parameters
-    ----------
-    openmm_unit: simtk.unit.Unit
-        The unit to convert.
-
-    Returns
-    -------
-    openff.evaluator.unit.Unit
-        The converted unit.
-    """
-    from openff.toolkit.utils import unit_to_string
-
-    if openmm_unit is None or isinstance(openmm_unit, UndefinedAttribute):
-        return None
-
-    assert isinstance(openmm_unit, simtk_unit.Unit)
-
-    openmm_unit_string = unit_to_string(openmm_unit)
-
-    # Handle the case whereby OMM treats daltons as having
-    # units of g / mol, whereas SI and pint define them to
-    # have units of kg.
-    openmm_unit_string = (
-        None
-        if openmm_unit_string is None
-        else openmm_unit_string.replace("dalton", "(gram / mole)")
-    )
-
-    try:
-        pint_unit = unit(openmm_unit_string).units
-    except UndefinedUnitError:
-
-        logger.info(
-            f"The {openmm_unit_string} OMM unit string (based on the {openmm_unit} object) "
-            f"is not supported."
-        )
-
-        raise
-
-    return pint_unit
-
-
-def pint_quantity_to_openmm(pint_quantity):
-    """Converts a `openff.evaluator.unit.Quantity` to a `simtk.unit.Quantity`.
-
-    Notes
-    -----
-    Not all pint units are available in OpenMM.
-
-    Parameters
-    ----------
-    pint_quantity: openff.evaluator.unit.Quantity
-        The quantity to convert.
-
-    Returns
-    -------
-    simtk.unit.Quantity
-        The converted quantity.
-    """
-
-    if pint_quantity is None or isinstance(pint_quantity, UndefinedAttribute):
-        return None
-
-    assert isinstance(pint_quantity, unit.Quantity)
-
-    pint_unit = pint_quantity.units
-    pint_raw_value = pint_quantity.magnitude
-
-    openmm_unit = pint_unit_to_openmm(pint_unit)
-    openmm_quantity = pint_raw_value * openmm_unit
-
-    return openmm_quantity
-
-
-def pint_unit_to_openmm(pint_unit):
-    """Converts a `openff.evaluator.unit.Unit` to a `simtk.unit.Unit`.
-
-    Notes
-    -----
-    Not all pint units are available in OpenMM.
-
-    Parameters
-    ----------
-    pint_unit: openff.evaluator.unit.Unit
-        The unit to convert.
-
-    Returns
-    -------
-    simtk.unit.Unit
-        The converted unit.
-    """
-    from openff.toolkit.utils import string_to_unit
-
-    if pint_unit is None or isinstance(pint_unit, UndefinedAttribute):
-        return None
-
-    assert isinstance(pint_unit, unit.Unit)
-
-    pint_unit_string = f"{pint_unit:!s}"
-
-    # Handle a unit name change in pint 0.10.*
-    pint_unit_string = pint_unit_string.replace("standard_atmosphere", "atmosphere")
-
-    try:
-        # noinspection PyTypeChecker
-        openmm_unit = string_to_unit(pint_unit_string)
-    except AttributeError:
-
-        logger.info(
-            f"The {pint_unit_string} pint unit string (based on the {pint_unit} object) "
-            f"could not be understood by `openff.toolkit.utils.string_to_unit`"
-        )
-
-        raise
-
-    return openmm_unit
-
-
 def disable_pbc(system):
     """Disables any periodic boundary conditions being applied
     to non-bonded forces by setting the non-bonded method to
@@ -261,7 +119,7 @@ def disable_pbc(system):
 
     Parameters
     ----------
-    system: simtk.openmm.system
+    system: openmm.system
         The system which should have periodic boundary conditions
         disabled.
     """
@@ -270,7 +128,7 @@ def disable_pbc(system):
 
         force = system.getForce(force_index)
 
-        if not isinstance(force, openmm.NonbondedForce):
+        if not isinstance(force, (openmm.NonbondedForce, openmm.CustomNonbondedForce)):
             continue
 
         force.setNonbondedMethod(
@@ -283,7 +141,7 @@ def system_subset(
     force_field: "ForceField",
     topology: "Topology",
     scale_amount: Optional[float] = None,
-) -> Tuple["openmm.System", "simtk_unit.Quantity"]:
+) -> Tuple["openmm.System", "_openmm_unit.Quantity"]:
     """Produces an OpenMM system containing the minimum number of forces while
     still containing a specified force field parameter, and those other parameters
     which may interact with it (e.g. in the case of vdW parameters).
@@ -309,7 +167,7 @@ def system_subset(
     """
 
     # As this method deals mainly with the toolkit, we stick to
-    # simtk units here.
+    # openmm units here.
     from openff.toolkit.typing.engines.smirnoff import ForceField
 
     # Create the force field subset.
@@ -338,8 +196,29 @@ def system_subset(
 
     handler = force_field_subset.get_parameter_handler(parameter_key.tag)
 
-    parameter = handler.parameters[parameter_key.smirks]
+    if handler._OPENMMTYPE == openmm.CustomNonbondedForce:
+        vdw_handler = force_field_subset.get_parameter_handler("vdW")
+        # we need a generic blank parameter to work around this toolkit issue
+        # <https://github.com/openforcefield/openff-toolkit/issues/1102>
+        vdw_handler.add_parameter(
+            parameter_kwargs={
+                "smirks": "[*:1]",
+                "epsilon": 0.0 * _openmm_unit.kilocalories_per_mole,
+                "sigma": 1.0 * _openmm_unit.angstrom,
+            }
+        )
+
+    parameter = (
+        handler
+        if parameter_key.smirks is None
+        else handler.parameters[parameter_key.smirks]
+    )
+
     parameter_value = getattr(parameter, parameter_key.attribute)
+    is_quantity = isinstance(parameter_value, _openmm_unit.Quantity)
+
+    if not is_quantity:
+        parameter_value = parameter_value * _openmm_unit.dimensionless
 
     # Optionally perturb the parameter of interest.
     if scale_amount is not None:
@@ -353,8 +232,124 @@ def system_subset(
         else:
             parameter_value *= 1.0 + scale_amount
 
-    setattr(parameter, parameter_key.attribute, parameter_value)
+    if not isinstance(parameter_value, _openmm_unit.Quantity):
+        # Handle the case where OMM down-converts a dimensionless quantity to a float.
+        parameter_value = parameter_value * _openmm_unit.dimensionless
+
+    setattr(
+        parameter,
+        parameter_key.attribute,
+        parameter_value
+        if is_quantity
+        else parameter_value.value_in_unit(_openmm_unit.dimensionless),
+    )
 
     # Create the parameterized sub-system.
     system = force_field_subset.create_openmm_system(topology)
     return system, parameter_value
+
+
+def update_context_with_positions(
+    context: openmm.Context,
+    positions: _openmm_unit.Quantity,
+    box_vectors: Optional[_openmm_unit.Quantity],
+):
+    """Set a collection of positions and box vectors on an OpenMM context and compute
+    any extra positions such as v-site positions.
+
+    Parameters
+    ----------
+    context
+        The OpenMM context to set the positions on.
+    positions
+        A unit wrapped numpy array with shape=(n_atoms, 3) that contains the positions
+        to set.
+    box_vectors
+        An optional unit wrapped numpy array with shape=(3, 3) that contains the box
+        vectors to set.
+    """
+
+    system = context.getSystem()
+
+    n_vsites = sum(
+        1 for i in range(system.getNumParticles()) if system.isVirtualSite(i)
+    )
+
+    n_atoms = system.getNumParticles() - n_vsites
+
+    if len(positions) != n_atoms and len(positions) != (n_atoms + n_vsites):
+
+        raise ValueError(
+            "The length of the positions array does not match either the "
+            "the number of atoms or the number of atoms + v-sites."
+        )
+
+    if n_vsites > 0 and len(positions) != (n_atoms + n_vsites):
+
+        new_positions = numpy.zeros((system.getNumParticles(), 3))
+
+        i = 0
+
+        for j in range(system.getNumParticles()):
+
+            if not system.isVirtualSite(j):
+                # take an old position and update the index
+                new_positions[j] = positions[i].value_in_unit(_openmm_unit.nanometers)
+                i += 1
+
+        positions = new_positions * _openmm_unit.nanometers
+
+    if box_vectors is not None:
+        context.setPeriodicBoxVectors(*box_vectors)
+
+    context.setPositions(positions)
+
+    if n_vsites > 0:
+        context.computeVirtualSites()
+
+
+def update_context_with_pdb(
+    context: openmm.Context,
+    pdb_file: app.PDBFile,
+):
+    """Extracts the positions and box vectors from a PDB file object and set these
+    on an OpenMM context and compute any extra positions such as v-site positions.
+
+    Parameters
+    ----------
+    context
+        The OpenMM context to set the positions on.
+    pdb_file
+        The PDB file object to extract the positions and box vectors from.
+    """
+
+    positions = pdb_file.getPositions(asNumpy=True)
+
+    box_vectors = pdb_file.topology.getPeriodicBoxVectors()
+
+    if box_vectors is None:
+        box_vectors = context.getSystem().getDefaultPeriodicBoxVectors()
+
+    update_context_with_positions(context, positions, box_vectors)
+
+
+def extract_atom_indices(system: openmm.System) -> List[int]:
+    """Returns the indices of atoms in a system excluding any virtual sites."""
+
+    return [i for i in range(system.getNumParticles()) if not system.isVirtualSite(i)]
+
+
+def extract_positions(
+    state: openmm.State,
+    particle_indices: Optional[List[int]] = None,
+) -> _openmm_unit.Quantity:
+    """Extracts the positions from an OpenMM context, optionally excluding any v-site
+    positions which should be uniquely defined by the atomic positions.
+    """
+
+    positions = state.getPositions(asNumpy=True)
+
+    if particle_indices is not None:
+        positions = positions[particle_indices]
+
+    return positions

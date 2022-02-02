@@ -21,17 +21,17 @@ jobs:
       OE_LICENSE: ${{ github.workspace }}/oe_license.txt
 
     strategy:
-
+      fail-fast: false
       matrix:
         os: [macOS-latest, ubuntu-latest]
-        python-version: [3.6, 3.7]
+        python-version: [3.8, 3.9]
         openeye: [true, false]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v2.3.5
 
       - name: Setup Conda Environment
-        uses: conda-incubator/setup-miniconda@v2
+        uses: conda-incubator/setup-miniconda@v2.1.1
         with:
 
           python-version: ${{ matrix.python-version }}
@@ -43,12 +43,6 @@ jobs:
           auto-activate-base: false
 
           show-channel-urls: true
-
-      - name: Conda Environment Information
-        shell: bash -l {0}
-        run: |
-          conda info
-          conda list
 
       - name: Install OpenEye
         if: matrix.openeye
@@ -88,6 +82,12 @@ jobs:
 
           python setup.py develop --no-deps
 
+      - name: Conda Environment Information
+        shell: bash -l {0}
+        run: |
+          conda info
+          conda list
+
       - name: Run tests
         shell: bash -l {0}
         run: |
@@ -95,9 +95,8 @@ jobs:
           pytest -v --cov=openff openff/evaluator/tests/ --cov-report=xml --color=yes
 
       - name: Code coverage
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v2.1.0
         with:
           file: ./coverage.xml
           flags: unittests
-          fail_ci_if_error: true
           name: codecov-${{ matrix.os }}-py${{ matrix.python-version }}

@@ -9,8 +9,8 @@ from os import path
 
 import numpy as np
 import pymbar
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import ParameterGradient
 from openff.evaluator.forcefield.system import ParameterizedSystem

@@ -5,8 +5,8 @@ math operations.
 import typing
 
 import numpy as np
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import ParameterGradient, ParameterGradientKey
 from openff.evaluator.substances import Component, MoleFraction, Substance

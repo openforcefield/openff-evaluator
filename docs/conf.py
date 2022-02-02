@@ -69,7 +69,7 @@ autodoc_mock_imports = [
     'pydantic',
     'pymbar',
     'scipy',
-    'simtk',
+    'openmm',
     'typing_extensions',
     'yaml',
 ]
@@ -160,11 +160,9 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-html_context = {
-    'css_files': [
-        '_static/css/theme_overrides.css',  # override wide tables in RTD theme
-    ],
-}
+html_css_files = [
+    '_static/css/theme_overrides.css',  # override wide tables in RTD theme
+]
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.

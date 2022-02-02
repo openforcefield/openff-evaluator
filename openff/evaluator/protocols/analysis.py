@@ -7,8 +7,9 @@ import typing
 from os import path
 
 import numpy as np
+from openff.units import unit
+from openff.units.openmm import from_openmm
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import ParameterGradient, SmirnoffForceFieldSource
 from openff.evaluator.forcefield.system import ParameterizedSystem
@@ -20,7 +21,7 @@ from openff.evaluator.utils.observables import (
     ObservableFrame,
     bootstrap,
 )
-from openff.evaluator.utils.openmm import openmm_quantity_to_pint, system_subset
+from openff.evaluator.utils.openmm import system_subset
 from openff.evaluator.utils.timeseries import (
     TimeSeriesStatistics,
     analyze_time_series,
@@ -34,7 +35,11 @@ from openff.evaluator.workflow.attributes import (
 )
 
 if typing.TYPE_CHECKING:
-    from simtk import openmm
+
+    try:
+        import openmm
+    except ImportError:
+        from simtk import openmm
 
 
 E0 = 8.854187817e-12 * unit.farad / unit.meter  # Taken from QCElemental
@@ -578,8 +583,12 @@ class ComputeDipoleMoments(Protocol):
             The charge on each atom in the system if any are present, otherwise
             none.
         """
-        from simtk import openmm
-        from simtk import unit as simtk_unit
+        try:
+            import openmm
+            from openmm import unit as openmm_unit
+        except ImportError:
+            from simtk import openmm
+            from simtk.openmm import unit as openmm_unit
 
         forces = [
             system.getForce(force_index)
@@ -601,7 +610,7 @@ class ComputeDipoleMoments(Protocol):
             [
                 forces[0]
                 .getParticleParameters(atom_index)[0]
-                .value_in_unit(simtk_unit.elementary_charge)
+                .value_in_unit(openmm_unit.elementary_charge)
                 for atom_index in range(forces[0].getNumParticles())
             ]
         )
@@ -629,8 +638,8 @@ class ComputeDipoleMoments(Protocol):
                 key, force_field, topology, 0.1
             )
 
-            reverse_value = openmm_quantity_to_pint(reverse_value)
-            forward_value = openmm_quantity_to_pint(forward_value)
+            reverse_value = from_openmm(reverse_value)
+            forward_value = from_openmm(forward_value)
 
             reverse_charges = self._extract_charges(reverse_system)
             forward_charges = self._extract_charges(forward_system)

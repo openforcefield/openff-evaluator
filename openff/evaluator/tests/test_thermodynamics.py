@@ -3,8 +3,8 @@ Units tests for openff.evaluator.thermodynamics
 """
 import pint
 import pytest
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.thermodynamics import ThermodynamicState
 
 

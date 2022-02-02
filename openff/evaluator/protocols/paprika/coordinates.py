@@ -4,8 +4,8 @@ from collections import defaultdict
 from typing import Dict, List
 
 import numpy
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.substances import Component, Substance
@@ -141,8 +141,12 @@ class PreparePullCoordinates(_PrepareAPRCoordinates):
 
     def _execute(self, directory, available_resources):
 
+        try:
+            from openmm import app
+        except ImportError:
+            from simtk.openmm import app
+
         from paprika.evaluator import Setup
-        from simtk.openmm import app
 
         atom_indices_by_role = _atom_indices_by_role(
             self.substance, self.complex_file_path
@@ -177,8 +181,13 @@ class PrepareReleaseCoordinates(_PrepareAPRCoordinates):
     def _execute(self, directory, available_resources):
 
         import mdtraj
+
+        try:
+            from openmm import app
+        except ImportError:
+            from simtk.openmm import app
+
         from paprika.evaluator import Setup
-        from simtk.openmm import app
 
         mdtraj_trajectory = mdtraj.load_pdb(self.complex_file_path)
 
@@ -248,8 +257,13 @@ class AddDummyAtoms(Protocol):
     def _execute(self, directory, available_resources):
 
         import parmed.geometry
+
+        try:
+            from openmm import NonbondedForce, XmlSerializer, app
+        except ImportError:
+            from simtk.openmm import NonbondedForce, XmlSerializer, app
+
         from paprika.evaluator import Setup
-        from simtk.openmm import NonbondedForce, XmlSerializer, app
 
         # Extract the host atoms to determine the offset of the dummy atoms.
         # noinspection PyTypeChecker

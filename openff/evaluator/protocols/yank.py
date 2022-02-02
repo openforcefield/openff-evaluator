@@ -12,8 +12,9 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import yaml
+from openff.units import unit
+from openff.units.openmm import from_openmm, to_openmm
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import (
@@ -32,12 +33,7 @@ from openff.evaluator.utils.observables import (
     ObservableFrame,
     ObservableType,
 )
-from openff.evaluator.utils.openmm import (
-    disable_pbc,
-    openmm_quantity_to_pint,
-    pint_quantity_to_openmm,
-    setup_platform_with_resources,
-)
+from openff.evaluator.utils.openmm import disable_pbc, setup_platform_with_resources
 from openff.evaluator.utils.timeseries import (
     TimeSeriesStatistics,
     get_uncorrelated_indices,
@@ -154,7 +150,11 @@ class BaseYankProtocol(Protocol, abc.ABC):
         """
 
         from openff.toolkit.topology import Molecule, Topology
-        from simtk.openmm import app
+
+        try:
+            from openmm import app
+        except ImportError:
+            from simtk.openmm import app
 
         if role is None:
             return "all"
@@ -278,10 +278,10 @@ class BaseYankProtocol(Protocol, abc.ABC):
             "verbose": self.verbose,
             "output_dir": ".",
             "temperature": quantity_to_string(
-                pint_quantity_to_openmm(self.thermodynamic_state.temperature)
+                to_openmm(self.thermodynamic_state.temperature)
             ),
             "pressure": quantity_to_string(
-                pint_quantity_to_openmm(self.thermodynamic_state.pressure)
+                to_openmm(self.thermodynamic_state.pressure)
             ),
             "minimize": False,
             "number_of_equilibration_iterations": (
@@ -291,9 +291,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
             "default_nsteps_per_iteration": self.steps_per_iteration,
             "start_from_trailblaze_samples": False,
             "checkpoint_interval": self.checkpoint_interval,
-            "default_timestep": quantity_to_string(
-                pint_quantity_to_openmm(self.timestep)
-            ),
+            "default_timestep": quantity_to_string(to_openmm(self.timestep)),
             "annihilate_electrostatics": True,
             "annihilate_sterics": False,
             "platform": platform_name,
@@ -461,13 +459,16 @@ class BaseYankProtocol(Protocol, abc.ABC):
 
             if setup_only is True:
 
-                from simtk import unit as simtk_unit
+                try:
+                    from openmm import unit as openmm_unit
+                except ImportError:
+                    from simtk.openmm import unit as openmm_unit
 
                 return {
                     "free_energy": {
-                        "free_energy_diff_unit": 0.0 * simtk_unit.kilojoules_per_mole,
+                        "free_energy_diff_unit": 0.0 * openmm_unit.kilojoules_per_mole,
                         "free_energy_diff_error_unit": 0.0
-                        * simtk_unit.kilojoules_per_mole,
+                        * openmm_unit.kilojoules_per_mole,
                     }
                 }
 
@@ -620,8 +621,8 @@ class BaseYankProtocol(Protocol, abc.ABC):
         self._analysed_output = analysed_output
 
         self.free_energy_difference = Observable(
-            value=openmm_quantity_to_pint(free_energy_difference).plus_minus(
-                openmm_quantity_to_pint(free_energy_difference_std)
+            value=from_openmm(free_energy_difference).plus_minus(
+                from_openmm(free_energy_difference_std)
             )
         )
 
@@ -1244,13 +1245,13 @@ class SolvationYankProtocol(BaseYankProtocol):
 
         # Extract the free energy change.
         free_energy = -Observable(
-            openmm_quantity_to_pint(
+            from_openmm(
                 (
                     free_energies[phase_name]["free_energy_diff"]
                     * free_energies[phase_name]["kT"]
                 )
             ).plus_minus(
-                openmm_quantity_to_pint(
+                from_openmm(
                     free_energies[phase_name]["free_energy_diff_error"]
                     * free_energies[phase_name]["kT"]
                 )
@@ -1327,7 +1328,10 @@ class SolvationYankProtocol(BaseYankProtocol):
 
     def _execute(self, directory, available_resources):
 
-        from simtk.openmm import XmlSerializer
+        try:
+            from openmm import XmlSerializer
+        except ImportError:
+            from simtk.openmm import XmlSerializer
 
         solute_components = [
             component
