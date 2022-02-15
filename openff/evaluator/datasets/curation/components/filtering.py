@@ -705,7 +705,7 @@ class FilterByCharged(CurationComponent):
                 atom_charges = [
                     atom.formal_charge
                     if isinstance(atom.formal_charge, int)
-                    else atom.formal_charge.value_in_unit(openmm_unit.elementary_charge)
+                    else atom.formal_charge.m_as(unit.elementary_charge)
                     for atom in molecule.atoms
                 ]
 

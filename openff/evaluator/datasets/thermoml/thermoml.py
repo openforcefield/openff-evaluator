@@ -859,12 +859,14 @@ class _PureOrMixtureData:
                 f"{smiles} smiles pattern: {formatted_exception}"
             )
 
-        molecular_weight = 0.0 * unit.gram / unit.mol
+        molecular_weight = 0.0 * unit.dalton
 
         for atom in molecule.atoms:
-            molecular_weight += atom.mass * unit.gram / unit.mol
+            molecular_weight += atom.mass
 
-        return molecular_weight
+        # Molecuar weight in Daltons is not per-mol by SI definitions, but
+        # divide through by Avogadro's number as if it is
+        return molecular_weight / unit.mol
 
     @staticmethod
     def _solvent_mole_fractions_to_moles(
@@ -1062,7 +1064,7 @@ class _PureOrMixtureData:
                         mass_fractions[compound_index].to(unit.dimensionless).magnitude
                     )
 
-        total_mass = 1 * unit.gram
+        total_mass = 1 * unit.dalton
         total_solvent_mass = total_mass
 
         moles = {}
