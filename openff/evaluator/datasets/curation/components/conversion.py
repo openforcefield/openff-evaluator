@@ -62,8 +62,8 @@ class ConvertExcessDensityData(CurationComponent):
 
         molecule = Molecule.from_smiles(smiles, allow_undefined_stereo=True)
 
-        # atom.mass from the toolkit it in g/mol, not tagged with units
-        molecular_weight = sum(atom.mass for atom in molecule.atoms)
+        # Atom.mass is guaranteed to be in Daltons
+        molecular_weight = sum(atom.mass.m for atom in molecule.atoms)
 
         return molecular_weight
 

@@ -144,13 +144,12 @@ def _approximate_box_size_by_density(
 
     for (molecule, number) in zip(molecules, n_copies):
 
+        # The toolkit reports masses as daltons
         molecule_mass = reduce(
             (lambda x, y: x + y), [atom.mass for atom in molecule.atoms]
         )
-        molecule_mass = molecule_mass * unit.dalton
 
         molecule_volume = molecule_mass / mass_density
-
         volume += molecule_volume * number
 
     box_length = volume ** (1.0 / 3.0) * box_scaleup_factor
@@ -305,7 +304,7 @@ def _ion_residue_name(molecule):
     str
         The residue name of the ion
     """
-    element_symbol = molecule.atoms[0].element.symbol
+    element_symbol = molecule.atoms[0].symbol
     charge_symbol = ""
 
     formal_charge = molecule.atoms[0].formal_charge

@@ -9,6 +9,7 @@ import pandas
 from pydantic import Field, root_validator, validator
 from scipy.optimize import linear_sum_assignment
 from typing_extensions import Literal
+from openff.units import unit
 
 from openff.evaluator.datasets.curation.components import (
     CurationComponent,
@@ -429,7 +430,7 @@ class FilterByElements(CurationComponent):
 
                 if schema.allowed_elements is not None and not all(
                     [
-                        x.element.symbol in schema.allowed_elements
+                        x.symbol in schema.allowed_elements
                         for x in molecule.atoms
                     ]
                 ):
