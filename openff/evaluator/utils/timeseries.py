@@ -107,17 +107,14 @@ def _statistical_inefficiency(
 
     while current_timestep < number_of_timesteps - 1:
 
-        autocorrelation_function = (
+        autocorrelation_function = np.sum(
             np.sum(
-                np.sum(
-                    time_series_shifted[0 : (number_of_timesteps - current_timestep)]
-                    * time_series_shifted[current_timestep:number_of_timesteps],
-                    axis=1,
-                ),
-                axis=0,
-            )
-            / (float(number_of_timesteps - current_timestep) * sigma_squared)
-        )
+                time_series_shifted[0 : (number_of_timesteps - current_timestep)]
+                * time_series_shifted[current_timestep:number_of_timesteps],
+                axis=1,
+            ),
+            axis=0,
+        ) / (float(number_of_timesteps - current_timestep) * sigma_squared)
 
         if autocorrelation_function <= 0.0 and current_timestep > minimum_samples:
             break
