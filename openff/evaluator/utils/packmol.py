@@ -140,7 +140,7 @@ def _approximate_box_size_by_density(
         A list of the three box lengths in units compatible with angstroms.
     """
 
-    volume = 0.0 * unit.angstrom ** 3
+    volume = 0.0 * unit.angstrom**3
 
     for (molecule, number) in zip(molecules, n_copies):
 
