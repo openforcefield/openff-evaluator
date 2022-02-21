@@ -360,6 +360,9 @@ class OpenMMEnergyMinimisation(BaseEnergyMinimisation):
 
         if not self.enable_pbc:
             disable_pbc(system=system)
+        logger.info(f"GPU Device index: {platform.getPropertyDefaultValue('DeviceIndex')}")
+        logger.info(f"GPU precision: {platform.getPropertyDefaultValue('Precision')}")
+        logger.info(f"Platform property: {platform.getName()}")
 
         # TODO: Expose the constraint tolerance
         integrator = openmm.VerletIntegrator(0.002 * openmm_unit.picoseconds)
