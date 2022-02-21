@@ -438,7 +438,7 @@ class FilterByElements(CurationComponent):
 
                 if schema.forbidden_elements is not None and any(
                     [
-                        x.element.symbol in schema.forbidden_elements
+                        x.symbol in schema.forbidden_elements
                         for x in molecule.atoms
                     ]
                 ):
