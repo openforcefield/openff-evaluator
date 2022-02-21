@@ -68,14 +68,12 @@ def _atom_indices_by_role(
 
             for molecule in off_topology.molecules:
 
-                if (molecule.to_smiles() != reference_smiles):
+                if molecule.to_smiles() != reference_smiles:
                     continue
 
                 atom_start_topology_index = off_topology.atom_index(molecule.atom(0))
                 atom_indices[component_role].extend(
-                    [
-                        i + atom_start_topology_index for i in range(molecule.n_atoms)
-                    ]
+                    [i + atom_start_topology_index for i in range(molecule.n_atoms)]
                 )
 
     return atom_indices
