@@ -30,28 +30,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2.3.5
 
-      - name: Install PASCAL Compiler (MacOS)
-        shell: bash -l {0}
-        if: startsWith(matrix.os, 'macOS')
-        run: |
-          brew install fpc
-
-      - name: Install PASCAL Compiler (Ubuntu)
-        shell: bash -l {0}
-        if: startsWith(matrix.os, 'ubuntu')
-        run: |
-          sudo apt-get install fp-compiler
-
-      - name: Install checkmol
-        shell: bash -l {0}
-        run: |
-
-          curl -v https://homepage.univie.ac.at/norbert.haider/download/chemistry/checkmol/checkmol.pas > checkmol.pas
-          wc -l checkmol.pas
-          fpc checkmol.pas -S2
-
-          echo $(pwd) >> $GITHUB_PATH
-
       - name: Setup Conda Environment
         uses: conda-incubator/setup-miniconda@v2.1.1
         with:
@@ -76,6 +54,28 @@ jobs:
           python -c "from openeye import oechem; assert oechem.OEChemIsLicensed()"
         env:
           SECRET_OE_LICENSE: ${{ secrets.OE_LICENSE }}
+
+      - name: Install PASCAL Compiler (MacOS)
+        shell: bash -l {0}
+        if: startsWith(matrix.os, 'macOS')
+        run: |
+          brew install fpc
+
+      - name: Install PASCAL Compiler (Ubuntu)
+        shell: bash -l {0}
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo apt-get install fp-compiler
+
+      - name: Install checkmol
+        shell: bash -l {0}
+        run: |
+
+          curl https://homepage.univie.ac.at/norbert.haider/download/chemistry/checkmol/checkmol.pas > checkmol.pas
+          wc -l checkmol.pas
+          fpc checkmol.pas -S2
+
+          echo $(pwd) >> $GITHUB_PATH
 
       - name: Install Package
         shell: bash -l {0}
