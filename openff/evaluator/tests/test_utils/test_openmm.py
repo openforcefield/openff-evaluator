@@ -154,27 +154,27 @@ def hydrogen_chloride_force_field(
     # Add a Vdw handler.
     vdw_handler = vdWHandler(version=0.3)
     vdw_handler.method = "cutoff"
-    vdw_handler.cutoff = 6.0 * openmm_unit.angstrom
+    vdw_handler.cutoff = 6.0 * unit.angstrom
     vdw_handler.scale14 = 1.0
     vdw_handler.add_parameter(
         {
             "smirks": "[#1:1]",
-            "epsilon": 0.0 * openmm_unit.kilojoules_per_mole,
-            "sigma": 1.0 * openmm_unit.angstrom,
+            "epsilon": 0.0 * unit.kilojoules_per_mole,
+            "sigma": 1.0 * unit.angstrom,
         }
     )
     vdw_handler.add_parameter(
         {
             "smirks": "[#17:1]",
-            "epsilon": 2.0 * openmm_unit.kilojoules_per_mole,
-            "sigma": 2.0 * openmm_unit.angstrom,
+            "epsilon": 2.0 * unit.kilojoules_per_mole,
+            "sigma": 2.0 * unit.angstrom,
         }
     )
     force_field.register_parameter_handler(vdw_handler)
 
     # Add an electrostatic, a library charge and a charge increment handler.
     electrostatics_handler = ElectrostaticsHandler(version=0.3)
-    electrostatics_handler.cutoff = 6.0 * openmm_unit.angstrom
+    electrostatics_handler.cutoff = 6.0 * unit.angstrom
     electrostatics_handler.method = "PME"
     force_field.register_parameter_handler(electrostatics_handler)
 
@@ -184,13 +184,13 @@ def hydrogen_chloride_force_field(
         library_charge_handler.add_parameter(
             parameter_kwargs={
                 "smirks": "[#1:1]",
-                "charge1": 1.0 * openmm_unit.elementary_charge,
+                "charge1": 1.0 * unit.elementary_charge,
             }
         )
         library_charge_handler.add_parameter(
             parameter_kwargs={
                 "smirks": "[#17:1]",
-                "charge1": -1.0 * openmm_unit.elementary_charge,
+                "charge1": -1.0 * unit.elementary_charge,
             }
         )
         force_field.register_parameter_handler(library_charge_handler)
@@ -201,8 +201,8 @@ def hydrogen_chloride_force_field(
         charge_increment_handler.add_parameter(
             parameter_kwargs={
                 "smirks": "[#1:1]-[#17:2]",
-                "charge_increment1": -1.0 * openmm_unit.elementary_charge,
-                "charge_increment2": 1.0 * openmm_unit.elementary_charge,
+                "charge_increment1": -1.0 * unit.elementary_charge,
+                "charge_increment2": 1.0 * unit.elementary_charge,
             }
         )
         force_field.register_parameter_handler(charge_increment_handler)
@@ -214,10 +214,10 @@ def hydrogen_chloride_force_field(
             {
                 "smirks": "[#1:1]-[#17:2]",
                 "type": "BondCharge",
-                "distance": -0.2 * openmm_unit.nanometers,
+                "distance": -0.2 * unit.nanometers,
                 "match": "once",
-                "charge_increment1": 0.0 * openmm_unit.elementary_charge,
-                "charge_increment2": 0.0 * openmm_unit.elementary_charge,
+                "charge_increment1": 0.0 * unit.elementary_charge,
+                "charge_increment2": 0.0 * unit.elementary_charge,
             }
         )
         force_field.register_parameter_handler(vsite_handler)
@@ -259,7 +259,7 @@ def test_system_subset_vdw_cutoff():
 
     # Create a dummy topology
     topology: Topology = Molecule.from_smiles("Cl").to_topology()
-    topology.box_vectors = numpy.eye(3) * openmm_unit.nanometers
+    topology.box_vectors = numpy.eye(3) * unit.nanometers
 
     # Create the system subset.
     system, parameter_value = system_subset(
@@ -282,7 +282,7 @@ def test_system_subset_library_charge():
 
     # Ensure a zero charge after perturbation.
     force_field.get_parameter_handler("LibraryCharges").parameters["[#1:1]"].charge1 = (
-        1.5 * openmm_unit.elementary_charge
+        1.5 * unit.elementary_charge
     )
 
     # Create a dummy topology
