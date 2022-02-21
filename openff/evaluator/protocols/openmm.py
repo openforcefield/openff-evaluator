@@ -217,9 +217,6 @@ def _compute_gradients(
             disable_pbc(reverse_system)
             disable_pbc(forward_system)
 
-        reverse_parameter_value = reverse_parameter_value
-        forward_parameter_value = forward_parameter_value
-
         # Evaluate the energies using the reverse and forward sub-systems.
         if reverse_xml != forward_xml:
             reverse_energies = _evaluate_energies(
