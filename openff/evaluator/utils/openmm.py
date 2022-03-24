@@ -63,7 +63,7 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
         )
         precision_level = ComputeResources.GPUPrecision(
             compute_resources.preferred_gpu_precision
-        ).name
+        )
 
         # Get platform for running on GPUs.
         if toolkit_enum == ComputeResources.GPUToolkit.auto:
@@ -73,14 +73,16 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
             # noinspection PyCallByClass,PyTypeChecker
             platform = get_fastest_platform(minimum_precision=precision_level)
 
-        else:
-
-            platform_name = "CUDA"
-            if toolkit_enum == ComputeResources.GPUToolkit.OpenCL:
-                platform_name = "OpenCL"
-
+        elif toolkit_enum == ComputeResources.GPUToolkit.CUDA:
             # noinspection PyCallByClass,PyTypeChecker
-            platform = Platform.getPlatformByName(platform_name)
+            platform = Platform.getPlatformByName("CUDA")
+
+        elif toolkit_enum == ComputeResources.GPUToolkit.OpenCL:
+            # noinspection PyCallByClass,PyTypeChecker
+            platform = Platform.getPlatformByName("OpenCL")
+
+        else:
+            raise KeyError(f"Specified GPU toolkit {toolkit_enum} is not supported.")
 
         # Set GPU device index
         if compute_resources.gpu_device_indices is not None:
@@ -92,7 +94,7 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
             )
 
         # Set GPU precision level
-        platform.setPropertyDefaultValue("Precision", precision_level)
+        platform.setPropertyDefaultValue("Precision", precision_level.value)
         if high_precision:
             platform.setPropertyDefaultValue("Precision", "double")
 
@@ -100,7 +102,7 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
         logger.info(
             "Setting up an openmm platform on GPU {} with {} kernel and {} precision".format(
                 compute_resources.gpu_device_indices or 0,
-                platform_name,
+                platform.getName(),
                 platform.getPropertyDefaultValue("Precision"),
             )
         )
@@ -113,6 +115,7 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
             platform.setPropertyDefaultValue(
                 "Threads", str(compute_resources.number_of_threads)
             )
+
         else:
             # noinspection PyCallByClass,PyTypeChecker
             platform = Platform.getPlatformByName("Reference")
