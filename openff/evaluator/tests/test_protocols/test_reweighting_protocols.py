@@ -92,7 +92,7 @@ def test_reweight_dielectric_constant():
             value=np.zeros((10, 3)) * unit.elementary_charge * unit.nanometers
         )
         reweight_protocol.volumes = ObservableArray(
-            value=np.ones((10, 1)) * unit.nanometer ** 3
+            value=np.ones((10, 1)) * unit.nanometer**3
         )
         reweight_protocol.reference_reduced_potentials = [
             ObservableArray(value=np.zeros(10) * unit.dimensionless)
