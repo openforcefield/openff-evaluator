@@ -269,19 +269,18 @@ class BaseYankProtocol(Protocol, abc.ABC):
 
             # A platform which runs on GPUs has been requested.
             if toolkit_enum == ComputeResources.GPUToolkit.auto:
-                from openmmtools.utils import get_fastest_platform
-
-                precision_level = ComputeResources.GPUPrecision(
-                    available_resources.preferred_gpu_precision
-                ).name
-                platform = get_fastest_platform(minimum_precision=precision_level)
-                platform_name = platform.getName()
+                platform_name = "fastest"
 
             elif toolkit_enum == ComputeResources.GPUToolkit.CUDA:
                 platform_name = "CUDA"
 
             elif toolkit_enum == ComputeResources.GPUToolkit.OpenCL:
                 platform_name = "OpenCL"
+
+            else:
+                raise KeyError(
+                    f"Specified GPU toolkit {toolkit_enum} is not supported in Yank."
+                )
 
         return {
             "verbose": self.verbose,
