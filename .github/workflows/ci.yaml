@@ -28,7 +28,7 @@ jobs:
         openeye: [true, false]
 
     steps:
-      - uses: actions/checkout@v3.0.1
+      - uses: actions/checkout@v3.0.2
 
       - name: Setup Conda Environment
         uses: conda-incubator/setup-miniconda@v2.1.1
