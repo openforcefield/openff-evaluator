@@ -1361,7 +1361,6 @@ class SolvationYankProtocol(BaseYankProtocol):
                 structure.strip(solute_resname)
                 structure.save(solvent_prmtop_path, overwrite=True)
 
-
         enable_pbc = False if self.use_implicit_solvent else True
 
         solution_gradients = {
