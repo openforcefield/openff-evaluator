@@ -44,7 +44,7 @@ def test_average_dielectric_constant():
             np.zeros((1, 3)) * unit.elementary_charge * unit.nanometer
         )
         average_observable.volumes = ObservableArray(
-            np.ones((1, 1)) * unit.nanometer ** 3
+            np.ones((1, 1)) * unit.nanometer**3
         )
         average_observable.thermodynamic_state = ThermodynamicState(
             298.15 * unit.kelvin, 1.0 * unit.atmosphere
@@ -175,7 +175,7 @@ def test_decorrelate_observables():
 
         protocol = DecorrelateObservables("")
         protocol.input_observables = ObservableArray(
-            np.ones((10, 1)) * unit.nanometer ** 3
+            np.ones((10, 1)) * unit.nanometer**3
         )
         protocol.time_series_statistics = TimeSeriesStatistics(10, 4, 2.0, 2)
         protocol.execute(temporary_directory)

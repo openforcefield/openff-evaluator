@@ -145,7 +145,7 @@ class ExcessMolarVolume(EstimableExcessProperty):
 
     @classmethod
     def default_unit(cls):
-        return unit.centimeter ** 3 / unit.mole
+        return unit.centimeter**3 / unit.mole
 
     @classmethod
     def _observable_type(cls) -> ObservableType:

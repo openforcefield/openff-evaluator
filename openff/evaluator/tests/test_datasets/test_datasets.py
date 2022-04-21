@@ -122,8 +122,8 @@ def test_to_pandas():
             thermodynamic_state=thermodynamic_state,
             phase=PropertyPhase.Liquid,
             substance=binary_substance,
-            value=1 * unit.meter ** 3 / unit.mole,
-            uncertainty=0.11 * unit.meter ** 3 / unit.mole,
+            value=1 * unit.meter**3 / unit.mole,
+            uncertainty=0.11 * unit.meter**3 / unit.mole,
             source=source,
         )
 
@@ -171,8 +171,8 @@ def test_from_pandas():
             thermodynamic_state=thermodynamic_state,
             phase=PropertyPhase.Liquid,
             substance=Substance.from_components("CO", "O"),
-            value=1.0 * unit.kilogram / unit.meter ** 3,
-            uncertainty=1.0 * unit.kilogram / unit.meter ** 3,
+            value=1.0 * unit.kilogram / unit.meter**3,
+            uncertainty=1.0 * unit.kilogram / unit.meter**3,
             source=MeasurementSource(doi="10.5281/zenodo.596537"),
         ),
         EnthalpyOfVaporization(

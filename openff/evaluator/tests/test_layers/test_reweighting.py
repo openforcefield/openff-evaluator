@@ -64,7 +64,7 @@ def test_storage_retrieval():
             thermodynamic_state=state,
         ),
         ExcessMolarVolume(
-            value=1.0 * unit.meter ** 3, substance=mixture, thermodynamic_state=state
+            value=1.0 * unit.meter**3, substance=mixture, thermodynamic_state=state
         ),
     ]
     expected_data_per_property = {

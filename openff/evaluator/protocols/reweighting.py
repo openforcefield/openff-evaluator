@@ -320,7 +320,7 @@ class BaseMBARProtocol(Protocol, abc.ABC):
             .magnitude
         )
 
-        effective_samples = 1.0 / np.sum(weights ** 2)
+        effective_samples = 1.0 / np.sum(weights**2)
         return float(effective_samples)
 
     def _execute(self, directory, available_resources):
