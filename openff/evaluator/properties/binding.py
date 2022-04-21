@@ -245,6 +245,7 @@ class HostGuestBindingAffinity(PhysicalProperty):
         solvation_protocol.count_exact_amount = False
         solvation_protocol.box_aspect_ratio = [1.0, 1.0, 2.0]
         solvation_protocol.center_solute_in_box = False
+        solvation_protocol.tolerance = 2.4 * unit.angstrom
 
         return solvation_protocol
 
@@ -278,6 +279,10 @@ class HostGuestBindingAffinity(PhysicalProperty):
         """
         # Energy Minimization
         energy_minimisation = openmm.OpenMMEnergyMinimisation("")
+        energy_minimisation.tolerance = (
+            10.0 * unit.kilojoules / unit.mole / unit.nanometer
+        )
+        energy_minimisation.enable_pbc = False
 
         # Thermalization phase
         thermalization = openmm.OpenMMSimulation("")
