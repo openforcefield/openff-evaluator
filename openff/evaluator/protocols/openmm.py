@@ -232,26 +232,6 @@ def _compute_gradients(
             disable_pbc(reverse_system)
             disable_pbc(forward_system)
 
-        reverse_name = "/home/jsetiadi/Documents/Workspace1/test-kernel/reverse-1.xml"
-        if os.path.exists(reverse_name):
-            reverse_name = (
-                "/home/jsetiadi/Documents/Workspace1/test-kernel/reverse-2.xml"
-            )
-        forward_name = "/home/jsetiadi/Documents/Workspace1/test-kernel/forward-1.xml"
-        if os.path.exists(forward_name):
-            forward_name = (
-                "/home/jsetiadi/Documents/Workspace1/test-kernel/forward-2.xml"
-            )
-        with open(reverse_name, "w") as f:
-            f.write(reverse_xml)
-        with open(forward_name, "w") as f:
-            f.write(forward_xml)
-
-        off_name = "/home/jsetiadi/Documents/Workspace1/test-kernel/ff-1.offxml"
-        if os.path.exists(off_name):
-            off_name = "/home/jsetiadi/Documents/Workspace1/test-kernel/ff-2.offxml"
-        force_field.to_file(off_name)
-
         reverse_parameter_value = openmm_quantity_to_pint(reverse_parameter_value)
         forward_parameter_value = openmm_quantity_to_pint(forward_parameter_value)
 
