@@ -1361,13 +1361,16 @@ class SolvationYankProtocol(BaseYankProtocol):
                 structure.strip(solute_resname)
                 structure.save(solvent_prmtop_path, overwrite=True)
 
+
+        enable_pbc = False if self.use_implicit_solvent else True
+
         solution_gradients = {
             gradient.key: gradient
             for gradient in self._compute_state_energy_gradients(
                 solution_trajectory,
                 solution_system.topology,
                 solution_system,
-                solvent_topology.n_topology_atoms != 0,
+                solvent_topology.n_topology_atoms != 0 and enable_pbc,
                 available_resources,
                 gaff_prmtop_path=solution_prmtop_path,
             )
