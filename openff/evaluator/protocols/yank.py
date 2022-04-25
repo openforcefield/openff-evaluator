@@ -187,19 +187,18 @@ class BaseYankProtocol(Protocol, abc.ABC):
 
         all_openmm_atoms = list(openmm_topology.atoms())
 
-        # Find the resiude names of the molecules which have the correct
-        # role.
-        for topology_molecule in topology.topology_molecules:
+        # Find the resiude names of the molecules which have the correct role.
+        for molecule in topology.molecules:
 
-            molecule_smiles = topology_molecule.reference_molecule.to_smiles()
+            molecule_smiles = molecule.to_smiles()
 
             if molecule_smiles not in component_smiles:
                 continue
 
             molecule_residue_names = set(
                 [
-                    all_openmm_atoms[topology_atom.topology_atom_index].residue.name
-                    for topology_atom in topology_molecule.atoms
+                    all_openmm_atoms[topology.atom_index(atom)].residue.name
+                    for atom in molecule.atoms
                 ]
             )
 
