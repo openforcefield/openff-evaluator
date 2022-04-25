@@ -209,12 +209,21 @@ def hydrogen_chloride_force_field(
 
     if vsite:
 
+        # Molecule is intended to look like
+        # mapping       :2    :1
+        #               H --- Cl -- VS
+        # position (A)  0     1     2
+        # because the hydrogen is tagged as :1, it's the singular parent (0.10.5+ definitions), so
+        # for the virtual site to be on the far side of the chlorine, it needs to be positive in
+        # value and with a distance of 1 A
+        # https://openforcefield.github.io/standards/standards/smirnoff/#virtualsites-virtual-sites-for-off-atom-charges
+        # https://open-forcefield-toolkit.readthedocs.io/en/0.10.5/users/virtualsites.html
         vsite_handler = VirtualSiteHandler(version=0.3)
         vsite_handler.add_parameter(
             {
                 "smirks": "[#1:1]-[#17:2]",
                 "type": "BondCharge",
-                "distance": -0.2 * unit.nanometers,
+                "distance": 0.1 * unit.nanometers,
                 "match": "once",
                 "charge_increment1": 0.0 * unit.elementary_charge,
                 "charge_increment2": 0.0 * unit.elementary_charge,
@@ -228,7 +237,7 @@ def hydrogen_chloride_force_field(
 def test_system_subset_vdw():
 
     # Create a dummy topology
-    topology = Molecule.from_smiles("Cl").to_topology()
+    topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
 
     # Create the system subset.
     system, parameter_value = system_subset(
@@ -258,7 +267,7 @@ def test_system_subset_vdw_cutoff():
     """Test that handler attributes are correctly handled."""
 
     # Create a dummy topology
-    topology: Topology = Molecule.from_smiles("Cl").to_topology()
+    topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
     topology.box_vectors = numpy.eye(3) * unit.nanometers
 
     # Create the system subset.
@@ -286,7 +295,7 @@ def test_system_subset_library_charge():
     )
 
     # Create a dummy topology
-    topology = Molecule.from_smiles("Cl").to_topology()
+    topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
 
     # Create the system subset.
     system, parameter_value = system_subset(
@@ -320,7 +329,7 @@ def test_system_subset_charge_increment():
     )
 
     # Create a dummy topology
-    topology = Molecule.from_smiles("Cl").to_topology()
+    topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
 
     # Create the system subset.
     system, parameter_value = system_subset(
@@ -403,7 +412,7 @@ def test_update_context_with_positions(box_vectors):
 
     force_field = hydrogen_chloride_force_field(True, False, True)
 
-    topology: Topology = Molecule.from_smiles("Cl").to_topology()
+    topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
     system = force_field.create_openmm_system(topology)
 
     context = openmm.Context(
@@ -417,18 +426,18 @@ def test_update_context_with_positions(box_vectors):
     context_positions = context.getState(getPositions=True).getPositions(asNumpy=True)
     context_box_vectors = context.getState(getPositions=True).getPeriodicBoxVectors()
 
-    assert numpy.allclose(
+    numpy.testing.assert_allclose(
         context_positions.value_in_unit(openmm_unit.angstrom),
         numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]]),
     )
 
-    assert numpy.isclose(
+    numpy.testing.assert_allclose(
         context_box_vectors[0].x, (2.0 if box_vectors is None else 3.0)
     )
-    assert numpy.isclose(
+    numpy.testing.assert_allclose(
         context_box_vectors[1].y, (2.0 if box_vectors is None else 3.0)
     )
-    assert numpy.isclose(
+    numpy.testing.assert_allclose(
         context_box_vectors[2].z, (2.0 if box_vectors is None else 3.0)
     )
 
@@ -437,7 +446,7 @@ def test_update_context_with_pdb(tmpdir):
 
     force_field = hydrogen_chloride_force_field(True, False, True)
 
-    topology: Topology = Molecule.from_smiles("Cl").to_topology()
+    topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
     system = force_field.create_openmm_system(topology)
 
     context = openmm.Context(
@@ -456,28 +465,28 @@ def test_update_context_with_pdb(tmpdir):
     context_positions = context.getState(getPositions=True).getPositions(asNumpy=True)
     context_box_vectors = context.getState(getPositions=True).getPeriodicBoxVectors()
 
-    assert numpy.allclose(
+    numpy.testing.assert_allclose(
         context_positions.value_in_unit(openmm_unit.angstrom),
         numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]]),
     )
 
-    assert numpy.allclose(
+    numpy.testing.assert_allclose(
         extract_positions(context.getState(getPositions=True), [2]).value_in_unit(
             openmm_unit.angstrom
         ),
         numpy.array([[2.0, 0.0, 0.0]]),
     )
 
-    assert numpy.isclose(context_box_vectors[0].x, 2.0)
-    assert numpy.isclose(context_box_vectors[1].y, 2.0)
-    assert numpy.isclose(context_box_vectors[2].z, 2.0)
+    numpy.testing.assert_allclose(context_box_vectors[0].x, 2.0)
+    numpy.testing.assert_allclose(context_box_vectors[1].y, 2.0)
+    numpy.testing.assert_allclose(context_box_vectors[2].z, 2.0)
 
 
 def test_extract_atom_indices():
 
     force_field = hydrogen_chloride_force_field(True, False, True)
 
-    topology: Topology = Molecule.from_smiles("Cl").to_topology()
+    topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
     system = force_field.create_openmm_system(topology)
 
     assert system.getNumParticles() == 3
