@@ -378,7 +378,7 @@ def openmm_quantity_to_pint(openmm_quantity):
     if openmm_quantity is None or isinstance(openmm_quantity, UndefinedAttribute):
         return None
 
-    if openmm_quantity.units == simtk_unit.atmosphere:
+    if openmm_quantity.unit == simtk_unit.atmosphere:
         return openmm_quantity.value_in_unit(simtk_unit.atmosphere) * unit.standard_atmosphere
 
     return from_simtk(openmm_quantity)
