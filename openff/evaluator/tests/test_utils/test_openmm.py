@@ -17,14 +17,12 @@ from openff.units import unit
 
 try:
     import openmm
-    from openff.units.openmm import from_openmm, to_openmm
     from openmm import unit as openmm_unit
     from openmm.app import PDBFile
 except ImportError:
     from simtk import openmm
     from simtk.openmm import unit as openmm_unit
     from simtk.openmm.app import PDBFile
-    from openff.units.simtk import from_simtk as from_openmm, to_simtk as to_openmm
 
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import ParameterGradientKey
@@ -37,7 +35,7 @@ from openff.evaluator.utils.openmm import (
     extract_positions,
     system_subset,
     update_context_with_pdb,
-    update_context_with_positions,
+    update_context_with_positions, pint_quantity_to_openmm, openmm_quantity_to_pint,
 )
 
 
@@ -48,7 +46,7 @@ def test_daltons():
         openmm_unit.gram / openmm_unit.mole
     )
 
-    pint_quantity = from_openmm(openmm_quantity)
+    pint_quantity = openmm_quantity_to_pint(openmm_quantity)
     pint_raw_value = pint_quantity.to(unit.gram / unit.mole).magnitude
 
     assert np.allclose(openmm_raw_value, pint_raw_value)
@@ -76,7 +74,7 @@ def test_openmm_to_pint(openmm_unit, value):
     openmm_quantity = value * openmm_unit
     openmm_raw_value = openmm_quantity.value_in_unit(openmm_unit)
 
-    pint_quantity = from_openmm(openmm_quantity)
+    pint_quantity = openmm_quantity_to_pint(openmm_quantity)
     pint_raw_value = pint_quantity.magnitude
 
     assert np.allclose(openmm_raw_value, pint_raw_value)
@@ -104,7 +102,7 @@ def test_pint_to_openmm(pint_unit, value):
     pint_quantity = value * pint_unit
     pint_raw_value = pint_quantity.magnitude
 
-    openmm_quantity = to_openmm(pint_quantity)
+    openmm_quantity = pint_quantity_to_openmm(pint_quantity)
     openmm_raw_value = openmm_quantity.value_in_unit(openmm_quantity.unit)
 
     assert np.allclose(openmm_raw_value, pint_raw_value)

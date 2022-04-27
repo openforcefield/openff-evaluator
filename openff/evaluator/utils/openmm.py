@@ -371,12 +371,17 @@ def openmm_quantity_to_pint(openmm_quantity):
         The converted quantity.
     """
 
-    from openff.units.openmm import from_openmm
+    from openff.units import unit
+    from openff.units.simtk import from_simtk
+    from simtk import unit as simtk_unit
 
     if openmm_quantity is None or isinstance(openmm_quantity, UndefinedAttribute):
         return None
 
-    return from_openmm(openmm_quantity)
+    if openmm_quantity.units == simtk_unit.atmosphere:
+        return openmm_quantity.value_in_unit(simtk_unit.atmosphere) * unit.standard_atmosphere
+
+    return from_simtk(openmm_quantity)
 
 
 def pint_quantity_to_openmm(pint_quantity):
@@ -397,9 +402,14 @@ def pint_quantity_to_openmm(pint_quantity):
         The converted quantity.
     """
 
-    from openff.units.openmm import to_openmm
+    from openff.units import unit
+    from openff.units.simtk import to_simtk
+    from simtk import unit as simtk_unit
 
     if pint_quantity is None or isinstance(pint_quantity, UndefinedAttribute):
         return None
 
-    return to_openmm(pint_quantity)
+    if pint_quantity.units == unit.standard_atmosphere:
+        return pint_quantity.m_as(unit.standard_atmosphere) * simtk_unit.atmosphere
+
+    return to_simtk(pint_quantity)

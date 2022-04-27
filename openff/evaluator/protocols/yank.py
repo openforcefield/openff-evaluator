@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 import numpy as np
 import yaml
 from openff.units import unit
-from openff.units.openmm import from_openmm, to_openmm
 
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.backends import ComputeResources
@@ -33,7 +32,8 @@ from openff.evaluator.utils.observables import (
     ObservableFrame,
     ObservableType,
 )
-from openff.evaluator.utils.openmm import disable_pbc, setup_platform_with_resources
+from openff.evaluator.utils.openmm import disable_pbc, setup_platform_with_resources, \
+    pint_quantity_to_openmm, openmm_quantity_to_pint
 from openff.evaluator.utils.timeseries import (
     TimeSeriesStatistics,
     get_uncorrelated_indices,
@@ -278,10 +278,10 @@ class BaseYankProtocol(Protocol, abc.ABC):
             "verbose": self.verbose,
             "output_dir": ".",
             "temperature": quantity_to_string(
-                to_openmm(self.thermodynamic_state.temperature)
+                pint_quantity_to_openmm(self.thermodynamic_state.temperature)
             ),
             "pressure": quantity_to_string(
-                to_openmm(self.thermodynamic_state.pressure)
+                pint_quantity_to_openmm(self.thermodynamic_state.pressure)
             ),
             "minimize": False,
             "number_of_equilibration_iterations": (
@@ -291,7 +291,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
             "default_nsteps_per_iteration": self.steps_per_iteration,
             "start_from_trailblaze_samples": False,
             "checkpoint_interval": self.checkpoint_interval,
-            "default_timestep": quantity_to_string(to_openmm(self.timestep)),
+            "default_timestep": quantity_to_string(pint_quantity_to_openmm(self.timestep)),
             "annihilate_electrostatics": True,
             "annihilate_sterics": False,
             "platform": platform_name,
@@ -621,8 +621,8 @@ class BaseYankProtocol(Protocol, abc.ABC):
         self._analysed_output = analysed_output
 
         self.free_energy_difference = Observable(
-            value=from_openmm(free_energy_difference).plus_minus(
-                from_openmm(free_energy_difference_std)
+            value=openmm_quantity_to_pint(free_energy_difference).plus_minus(
+                openmm_quantity_to_pint(free_energy_difference_std)
             )
         )
 
@@ -1245,13 +1245,13 @@ class SolvationYankProtocol(BaseYankProtocol):
 
         # Extract the free energy change.
         free_energy = -Observable(
-            from_openmm(
+            openmm_quantity_to_pint(
                 (
                     free_energies[phase_name]["free_energy_diff"]
                     * free_energies[phase_name]["kT"]
                 )
             ).plus_minus(
-                from_openmm(
+                openmm_quantity_to_pint(
                     free_energies[phase_name]["free_energy_diff_error"]
                     * free_energies[phase_name]["kT"]
                 )

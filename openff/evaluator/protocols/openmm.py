@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING, List
 import numpy as np
 import pandas as pd
 from openff.units import unit
-from openff.units.openmm import from_openmm, to_openmm
 
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import (
@@ -36,7 +35,7 @@ from openff.evaluator.utils.openmm import (
     setup_platform_with_resources,
     system_subset,
     update_context_with_pdb,
-    update_context_with_positions,
+    update_context_with_positions, pint_quantity_to_openmm, openmm_quantity_to_pint,
 )
 from openff.evaluator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from openff.evaluator.utils.utils import is_file_and_not_empty
@@ -102,10 +101,10 @@ def _evaluate_energies(
     potentials = np.zeros(trajectory.n_frames, dtype=np.float64)
     reduced_potentials = np.zeros(trajectory.n_frames, dtype=np.float64)
 
-    temperature = to_openmm(thermodynamic_state.temperature)
+    temperature = pint_quantity_to_openmm(thermodynamic_state.temperature)
     beta = 1.0 / (openmm_unit.BOLTZMANN_CONSTANT_kB * temperature)
 
-    pressure = to_openmm(thermodynamic_state.pressure)
+    pressure = pint_quantity_to_openmm(thermodynamic_state.pressure)
 
     for frame_index in range(trajectory.n_frames):
 
@@ -217,8 +216,8 @@ def _compute_gradients(
             disable_pbc(reverse_system)
             disable_pbc(forward_system)
 
-        reverse_parameter_value = from_openmm(reverse_parameter_value)
-        forward_parameter_value = from_openmm(forward_parameter_value)
+        reverse_parameter_value = openmm_quantity_to_pint(reverse_parameter_value)
+        forward_parameter_value = openmm_quantity_to_pint(forward_parameter_value)
 
         # Evaluate the energies using the reverse and forward sub-systems.
         if reverse_xml != forward_xml:
@@ -369,7 +368,7 @@ class OpenMMEnergyMinimisation(BaseEnergyMinimisation):
 
         update_context_with_pdb(simulation.context, input_pdb_file)
 
-        simulation.minimizeEnergy(to_openmm(self.tolerance), self.max_iterations)
+        simulation.minimizeEnergy(pint_quantity_to_openmm(self.tolerance), self.max_iterations)
 
         positions = extract_positions(
             simulation.context.getState(getPositions=True),
@@ -510,13 +509,13 @@ class OpenMMSimulation(BaseSimulation):
 
         # We handle most things in OMM units here.
         temperature = self.thermodynamic_state.temperature
-        openmm_temperature = to_openmm(temperature)
+        openmm_temperature = pint_quantity_to_openmm(temperature)
 
         pressure = (
             None if self.ensemble == Ensemble.NVT else self.thermodynamic_state.pressure
         )
 
-        openmm_pressure = to_openmm(pressure)
+        openmm_pressure = pint_quantity_to_openmm(pressure)
 
         if openmm_temperature is None:
 
@@ -657,8 +656,8 @@ class OpenMMSimulation(BaseSimulation):
         system = openmm_state.get_system(remove_thermostat=True)
 
         # Set up the integrator.
-        thermostat_friction = to_openmm(self.thermostat_friction)
-        timestep = to_openmm(self.timestep)
+        thermostat_friction = pint_quantity_to_openmm(self.thermostat_friction)
+        timestep = pint_quantity_to_openmm(self.timestep)
 
         integrator = openmmtools.integrators.LangevinIntegrator(
             temperature=temperature,
