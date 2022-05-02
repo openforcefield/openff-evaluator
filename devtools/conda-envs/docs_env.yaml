@@ -23,6 +23,7 @@ dependencies:
     - networkx
     - pint >=0.10.1
     - uncertainties
+    - openff-units
 
     - pip:
       - git+https://github.com/openforcefield/openff-sphinx-theme.git@main
