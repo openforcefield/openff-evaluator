@@ -269,7 +269,7 @@ Host-guest binding free energies are currently computed using the attach-pull-re
 :cite:`2019:slochower` through integration with the `pAPRika <https://github.com/slochower/pAPRika>`_ framework.
 
 References
-----------
+""""""""""
 
 .. bibliography:: properties.bib
     :cited:

@@ -57,7 +57,7 @@ Supported Operations
 
 .. rst-class:: spaced-list
 
-    - **+ and -**: |observable| objects can be summed with and subtracted from other |observable| objects,
+    - **+** and **-**: |observable| objects can be summed with and subtracted from other |observable| objects,
       |quantity| objects, floats or integers. When two |observable| objects are summed / subtracted, their gradients are
       combined by summing / subtracting also. When an |observable| is summed / subtracted with a |quantity|,
       |float| or |int| object it is assumed that these objects do not depend on any force field parameters.

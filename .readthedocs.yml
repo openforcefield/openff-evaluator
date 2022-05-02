@@ -1,15 +1,21 @@
-# .readthedocs.yml
+# https://docs.readthedocs.io/en/stable/config-file/v2.html
+version: 2
+
+sphinx:
+  configuration: docs/conf.py
 
 build:
-  image: stable
+  os: ubuntu-20.04
+  tools:
+    python: "mambaforge-4.10"
 
 python:
-  version: 3.7
-  setup_py_install: true
-
-# Build PDF in addition to default HTML and JSON
-formats:
-    - pdf
+  install:
+  - method: setuptools
+    path: .
 
 conda:
-  file: docs/environment.yml
+  environment: devtools/conda-envs/docs_env.yaml
+
+formats:
+  - pdf
