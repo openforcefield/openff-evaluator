@@ -15,7 +15,7 @@ python:
     path: .
 
 conda:
-  environment: devtools/conda-envs/docs.yaml
-  
+  environment: devtools/conda-envs/docs_env.yaml
+
 formats:
   - pdf
