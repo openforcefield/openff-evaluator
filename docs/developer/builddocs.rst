@@ -13,10 +13,10 @@ to build a local version such as when
 In these cases, the docs can be built locally by doing the following::
 
     git clone https://github.com/openforcefield/openff-evaluator.git
-    cd openff-evaluator/docs
-    conda env create --name openff-evaluator-docs --file environment.yaml
+    cd openff-evaluator
+    conda env create --name openff-evaluator-docs --file devtools/conda-envs/docs_env.yaml
     conda activate openff-evaluator-docs
-    rm -rf api && make clean && make html
+    rm -rf docs/api docs/_build/html && sphinx-build -b html -j auto docs docs/_build/html
 
-The above will yield a new directory named `_build` which will contain the built
-html files which can be viewed in your local browser.
+The above will yield a new directory named `docs/_build` which will contain the
+built html files which can be viewed in your local browser.

@@ -7,7 +7,7 @@ import tempfile
 
 import numpy
 import pytest
-from openff.toolkit.typing.engines.smirnoff import ForceField
+from openff.toolkit.typing.engines.smirnoff import ForceField, VirtualSiteHandler
 from openff.units import unit
 
 from openff.evaluator.attributes import UNDEFINED
@@ -295,6 +295,18 @@ def test_find_relevant_gradient_keys(tmpdir):
             "sigma": 1.0 * unit.angstrom,
         }
     )
+    vsite_handler = VirtualSiteHandler(version=0.3)
+    vsite_handler.add_parameter(
+        {
+            "smirks": "[#1:1][#17:2]",
+            "type": "BondCharge",
+            "distance": 0.1 * unit.nanometers,
+            "match": "all_permutations",
+            "charge_increment1": 0.0 * unit.elementary_charge,
+            "charge_increment2": 0.0 * unit.elementary_charge,
+        }
+    )
+    force_field.register_parameter_handler(vsite_handler)
 
     force_field_path = os.path.join(tmpdir, "ff.json")
     SmirnoffForceFieldSource.from_object(force_field).json(force_field_path)
@@ -302,6 +314,9 @@ def test_find_relevant_gradient_keys(tmpdir):
     expected_gradient_keys = {
         ParameterGradientKey(tag="vdW", smirks=None, attribute="scale14"),
         ParameterGradientKey(tag="vdW", smirks="[#1:1]", attribute="epsilon"),
+        ParameterGradientKey(
+            tag="VirtualSites", smirks="[#1:1][#17:2]", attribute="distance"
+        ),
     }
 
     gradient_keys = Workflow._find_relevant_gradient_keys(
