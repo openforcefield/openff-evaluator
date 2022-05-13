@@ -189,11 +189,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             The built substance.
         """
         from openff.toolkit.topology import Molecule
-
-        try:
-            from openmm import unit as openmm_unit
-        except ImportError:
-            from simtk.openmm import unit as openmm_unit
+        from openmm import unit as openmm_unit
 
         substance = Substance()
 

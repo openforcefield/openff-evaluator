@@ -12,20 +12,11 @@ import textwrap
 from enum import Enum
 
 import numpy as np
-
-try:
-    import openmm
-except ImportError:
-    from simtk import openmm
-
+import openmm
 import requests
 from openff.units import unit
 from openff.units.openmm import to_openmm
-
-try:
-    from openmm import app
-except ImportError:
-    from simtk.openmm import app
+from openmm import app
 
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import (
@@ -673,10 +664,7 @@ class BuildLigParGenSystem(TemplateBuildSystem):
         openmm.System
             The parameterized system.
         """
-        try:
-            from openmm import unit as openmm_unit
-        except ImportError:
-            from simtk.openmm import unit as openmm_unit
+        from openmm import unit as openmm_unit
 
         template = self._built_template(molecule, force_field_source)
 
@@ -715,10 +703,7 @@ class BuildLigParGenSystem(TemplateBuildSystem):
         system: openmm.System
             The system object to apply the OPLS mixing rules to.
         """
-        try:
-            from openmm import unit as openmm_unit
-        except ImportError:
-            from simtk.openmm import unit as openmm_unit
+        from openmm import unit as openmm_unit
 
         forces = [system.getForce(index) for index in range(system.getNumForces())]
         forces = [force for force in forces if isinstance(force, openmm.NonbondedForce)]

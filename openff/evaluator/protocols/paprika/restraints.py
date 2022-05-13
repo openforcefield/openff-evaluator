@@ -350,11 +350,7 @@ class ApplyRestraints(Protocol):
 
     def _execute(self, directory, available_resources):
 
-        try:
-            from openmm import XmlSerializer
-        except ImportError:
-            from simtk.openmm import XmlSerializer
-
+        from openmm import XmlSerializer
         from paprika.restraints.openmm import (
             apply_dat_restraint,
             apply_positional_restraints,

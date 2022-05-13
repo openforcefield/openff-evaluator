@@ -52,10 +52,7 @@ class ZeroGradients(Protocol, abc.ABC):
 
     def _execute(self, directory, available_resources):
 
-        try:
-            from openmm import unit as openmm_unit
-        except ImportError:
-            from simtk.openmm import unit as openmm_unit
+        from openmm import unit as openmm_unit
 
         force_field_source = ForceFieldSource.from_json(self.force_field_path)
 

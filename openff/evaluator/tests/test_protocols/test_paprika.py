@@ -216,13 +216,8 @@ def test_prepare_pull_coordinates(tmp_path, dummy_complex, window_index, expecte
 def test_add_dummy_atoms(tmp_path, dummy_complex):
 
     import mdtraj
-
-    try:
-        import openmm
-        from openmm import unit as openmm_unit
-    except ImportError:
-        from simtk import openmm
-        from simtk.openmm import unit as openmm_unit
+    import openmm
+    from openmm import unit as openmm_unit
 
     # Create an empty system to add the dummy atoms to.
     system_path = os.path.join(tmp_path, "input.xml")
@@ -308,10 +303,7 @@ def validate_generated_restraints(restraints_path, expected_restraint_types, pha
 
 
 def validate_system_file(system_path, expected_force_groups):
-    try:
-        import openmm
-    except ImportError:
-        from simtk import openmm
+    import openmm
 
     assert os.path.isfile(system_path)
 
@@ -378,10 +370,7 @@ def test_generate_release_restraints(tmp_path, complex_file_path, restraints_sch
 def test_apply_attach_restraints(
     tmp_path, dummy_complex, complex_file_path, attach_restraints_path
 ):
-    try:
-        import openmm
-    except ImportError:
-        from simtk import openmm
+    import openmm
 
     with open(os.path.join(tmp_path, "system.xml"), "w") as file:
         file.write(openmm.XmlSerializer.serialize(openmm.System()))
@@ -405,10 +394,7 @@ def test_apply_attach_restraints(
 def test_apply_pull_restraints(
     tmp_path, dummy_complex, complex_file_path, pull_restraints_path
 ):
-    try:
-        import openmm
-    except ImportError:
-        from simtk import openmm
+    import openmm
 
     with open(os.path.join(tmp_path, "system.xml"), "w") as file:
         file.write(openmm.XmlSerializer.serialize(openmm.System()))
@@ -432,10 +418,7 @@ def test_apply_pull_restraints(
 def test_apply_release_restraints(
     tmp_path, dummy_complex, complex_file_path, release_restraints_path
 ):
-    try:
-        import openmm
-    except ImportError:
-        from simtk import openmm
+    import openmm
 
     with open(os.path.join(tmp_path, "system.xml"), "w") as file:
         file.write(openmm.XmlSerializer.serialize(openmm.System()))
