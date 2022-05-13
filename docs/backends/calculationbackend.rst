@@ -5,8 +5,6 @@
 .. |stop|                   replace:: :py:meth:`~openff.evaluator.backends.CalculationBackend.stop`
 .. |submit_task|            replace:: :py:meth:`~openff.evaluator.backends.CalculationBackend.submit_task`
 
-submit_task
-
 Calculation Backends
 ====================
 
