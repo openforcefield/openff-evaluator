@@ -217,7 +217,7 @@ def hydrogen_chloride_force_field(
                 "smirks": "[#1:1]-[#17:2]",
                 "type": "BondCharge",
                 "distance": 0.1 * unit.nanometers,
-                "match": "once",
+                "match": "all_permutations",
                 "charge_increment1": 0.0 * unit.elementary_charge,
                 "charge_increment2": 0.0 * unit.elementary_charge,
             }

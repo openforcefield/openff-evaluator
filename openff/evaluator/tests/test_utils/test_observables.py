@@ -964,7 +964,7 @@ def test_frame_magic_functions(key):
             "Temperature",
             numpy.ones(1) * unit.pascals,
             pytest.raises(ValueError),
-            "Temperature data must have units compatible with K.",
+            "Temperature data must have units compatible with kelvin.",
         ),
     ],
 )
