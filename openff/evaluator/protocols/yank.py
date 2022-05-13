@@ -411,7 +411,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
         trajectory = extract_trajectory(
             checkpoint_path, state_index=state_index, image_molecules=True
         )
-        trajectory = trajectory[statistics.equilibration_index:]
+        trajectory = trajectory[statistics.equilibration_index :]
 
         uncorrelated_indices = timeseries.get_uncorrelated_indices(
             statistics.n_total_points - statistics.equilibration_index,

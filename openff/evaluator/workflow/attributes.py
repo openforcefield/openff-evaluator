@@ -4,7 +4,6 @@ hold importance to the workflow engine, such as the inputs or
 outputs of workflow protocols.
 """
 import warnings
-
 from enum import Enum
 
 from openff.evaluator.attributes import UNDEFINED, Attribute
@@ -19,7 +18,7 @@ def __getattr__(clsname):
             warnings.warn(
                 f"{clsname} is a DEPRECATED spelling and will be removed "
                 f"in a future release. Please use {us_clsname} instead.",
-                DeprecationWarning
+                DeprecationWarning,
             )
             return us_cls
     raise AttributeError(f"module {__name__} has no attribute {clsname}")
