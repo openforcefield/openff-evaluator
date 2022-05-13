@@ -215,7 +215,7 @@ def hydrogen_chloride_force_field(
                 "smirks": "[#1:1]-[#17:2]",
                 "type": "BondCharge",
                 "distance": -0.2 * openmm_unit.nanometers,
-                "match": "once",
+                "match": "all_permutations",
                 "charge_increment1": 0.0 * openmm_unit.elementary_charge,
                 "charge_increment2": 0.0 * openmm_unit.elementary_charge,
             }
@@ -403,7 +403,7 @@ def test_update_context_with_positions(box_vectors):
 
     force_field = hydrogen_chloride_force_field(True, False, True)
 
-    topology: Topology = Molecule.from_smiles("Cl").to_topology()
+    topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
     system = force_field.create_openmm_system(topology)
 
     context = openmm.Context(
@@ -419,7 +419,7 @@ def test_update_context_with_positions(box_vectors):
 
     assert numpy.allclose(
         context_positions.value_in_unit(openmm_unit.angstrom),
-        numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]]),
+        numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]]),
     )
 
     assert numpy.isclose(
@@ -437,7 +437,7 @@ def test_update_context_with_pdb(tmpdir):
 
     force_field = hydrogen_chloride_force_field(True, False, True)
 
-    topology: Topology = Molecule.from_smiles("Cl").to_topology()
+    topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
     system = force_field.create_openmm_system(topology)
 
     context = openmm.Context(
@@ -458,14 +458,14 @@ def test_update_context_with_pdb(tmpdir):
 
     assert numpy.allclose(
         context_positions.value_in_unit(openmm_unit.angstrom),
-        numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]]),
+        numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]]),
     )
 
     assert numpy.allclose(
         extract_positions(context.getState(getPositions=True), [2]).value_in_unit(
             openmm_unit.angstrom
         ),
-        numpy.array([[2.0, 0.0, 0.0]]),
+        numpy.array([[-1.0, 0.0, 0.0]]),
     )
 
     assert numpy.isclose(context_box_vectors[0].x, 2.0)

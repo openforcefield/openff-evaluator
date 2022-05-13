@@ -12,7 +12,7 @@ dependencies:
   - codecov
 
     # Standard dependencies
-  - openff-toolkit >=0.10.0
+  - openff-toolkit >=0.10.6
   - openff-units >=0.1.4
   - smirnoff99frosst
   - numpy

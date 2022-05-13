@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import numpy
 
+from openff.evaluator.attributes.attributes import UndefinedAttribute
+
 try:
     import openmm
     from openmm import app
@@ -370,3 +372,51 @@ def extract_positions(
         positions = positions[particle_indices]
 
     return positions
+
+
+def openmm_quantity_to_pint(openmm_quantity):
+    """Converts a `openmm.unit.Quantity` to a `openff.evaluator.unit.Quantity`.
+
+    Parameters
+    ----------
+    openmm_quantity: openmm.unit.Quantity
+        The quantity to convert.
+
+    Returns
+    -------
+    openff.evaluator.unit.Quantity
+        The converted quantity.
+    """
+
+    from openff.units.openmm import from_openmm
+
+    if openmm_quantity is None or isinstance(openmm_quantity, UndefinedAttribute):
+        return None
+
+    return from_openmm(openmm_quantity)
+
+
+def pint_quantity_to_openmm(pint_quantity):
+    """Converts a `openff.evaluator.unit.Quantity` to a `openmm.unit.Quantity`.
+
+    Notes
+    -----
+    Not all pint units are available in OpenMM.
+
+    Parameters
+    ----------
+    pint_quantity: openff.evaluator.unit.Quantity
+        The quantity to convert.
+
+    Returns
+    -------
+    openmm.unit.Quantity
+        The converted quantity.
+    """
+
+    from openff.units.openmm import to_openmm
+
+    if pint_quantity is None or isinstance(pint_quantity, UndefinedAttribute):
+        return None
+
+    return to_openmm(pint_quantity)
