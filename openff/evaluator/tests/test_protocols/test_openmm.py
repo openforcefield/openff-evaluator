@@ -10,6 +10,7 @@ import mdtraj
 import numpy
 from openff.toolkit.topology import Molecule, Topology
 from openff.toolkit.typing.engines.smirnoff import ForceField
+from openff.units import unit
 
 try:
     from openmm import unit as openmm_unit
@@ -18,7 +19,6 @@ except ImportError:
 
 from smirnoff_plugins.handlers.nonbonded import DoubleExponential
 
-from openff.evaluator import unit
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import ParameterGradientKey
 from openff.evaluator.protocols.coordinates import BuildCoordinatesPackmol

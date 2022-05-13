@@ -1,7 +1,6 @@
 import numpy
 import pint.compat
-
-from openff.evaluator import unit
+from openff.units import unit
 
 
 class ParameterGradientKey:

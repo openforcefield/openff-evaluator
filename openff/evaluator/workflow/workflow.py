@@ -9,7 +9,8 @@ from math import sqrt
 from os import makedirs, path
 from shutil import copy as file_copy
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import (
@@ -544,8 +545,39 @@ class Workflow:
                 attribute_value.replace_protocol(old_protocol, new_protocol)
 
     @staticmethod
+    def label_molecules(force_field, topology):
+
+        from openff.toolkit.topology import Topology
+        from openff.toolkit.typing.engines.smirnoff.parameters import VirtualSiteHandler
+
+        molecule_labels = list()
+
+        for molecule_idx, molecule in enumerate(topology.reference_molecules):
+            top_mol = Topology.from_molecules([molecule])
+            current_molecule_labels = dict()
+            param_is_list = False
+            for tag, parameter_handler in force_field._parameter_handlers.items():
+
+                if type(parameter_handler) == VirtualSiteHandler:
+                    param_is_list = True
+
+                matches = parameter_handler.find_matches(top_mol, unique=True)
+
+                if param_is_list:
+                    parameter_matches = matches
+                else:
+                    parameter_matches = matches.__class__()
+                    for match in matches:
+                        parameter_matches[match] = matches[match].parameter_type
+
+                current_molecule_labels[tag] = parameter_matches
+
+            molecule_labels.append(current_molecule_labels)
+        return molecule_labels
+
+    @classmethod
     def _find_relevant_gradient_keys(
-        substance, force_field_path, parameter_gradient_keys
+        cls, substance, force_field_path, parameter_gradient_keys
     ):
         """Extract only those keys which may be applied to the
         given substance.
@@ -584,7 +616,7 @@ class Workflow:
             all_molecules.append(Molecule.from_smiles(component.smiles))
 
         topology = Topology.from_molecules(all_molecules)
-        labelled_molecules = force_field.label_molecules(topology)
+        labelled_molecules = cls.label_molecules(force_field, topology)
 
         reduced_parameter_keys = []
 
@@ -600,7 +632,16 @@ class Workflow:
 
                 contains_parameter = False
 
-                for parameter in labelled_molecule[parameter_key.tag].store.values():
+                labelled_parameters = (
+                    [
+                        match.parameter_type
+                        for match in labelled_molecule[parameter_key.tag]
+                    ]
+                    if isinstance(labelled_molecule[parameter_key.tag], list)
+                    else [*labelled_molecule[parameter_key.tag].store.values()]
+                )
+
+                for parameter in labelled_parameters:
 
                     if (
                         parameter_key.smirks is not None

@@ -2,7 +2,8 @@ import os
 import uuid
 from contextlib import contextmanager
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.datasets import (
     CalculationSource,
     PhysicalPropertyDataSet,

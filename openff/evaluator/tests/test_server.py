@@ -4,7 +4,8 @@ Units tests for the openff.evaluator.server module.
 import tempfile
 from time import sleep
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.backends.dask import DaskLocalCluster
 from openff.evaluator.client import EvaluatorClient, RequestOptions
 from openff.evaluator.datasets import PhysicalPropertyDataSet
@@ -124,7 +125,7 @@ def test_same_component_batching():
         Density(
             thermodynamic_state=thermodynamic_state,
             substance=Substance.from_components("O", "C"),
-            value=0.0 * unit.kilogram / unit.meter ** 3,
+            value=0.0 * unit.kilogram / unit.meter**3,
         ),
         EnthalpyOfVaporization(
             thermodynamic_state=thermodynamic_state,
@@ -134,7 +135,7 @@ def test_same_component_batching():
         Density(
             thermodynamic_state=thermodynamic_state,
             substance=Substance.from_components("O", "CO"),
-            value=0.0 * unit.kilogram / unit.meter ** 3,
+            value=0.0 * unit.kilogram / unit.meter**3,
         ),
         EnthalpyOfVaporization(
             thermodynamic_state=thermodynamic_state,
@@ -171,7 +172,7 @@ def test_shared_component_batching():
         Density(
             thermodynamic_state=thermodynamic_state,
             substance=Substance.from_components("O", "C"),
-            value=0.0 * unit.kilogram / unit.meter ** 3,
+            value=0.0 * unit.kilogram / unit.meter**3,
         ),
         EnthalpyOfVaporization(
             thermodynamic_state=thermodynamic_state,
@@ -181,7 +182,7 @@ def test_shared_component_batching():
         Density(
             thermodynamic_state=thermodynamic_state,
             substance=Substance.from_components("O", "CO"),
-            value=0.0 * unit.kilogram / unit.meter ** 3,
+            value=0.0 * unit.kilogram / unit.meter**3,
         ),
         EnthalpyOfVaporization(
             thermodynamic_state=thermodynamic_state,

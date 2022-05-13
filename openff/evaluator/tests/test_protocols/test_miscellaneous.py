@@ -7,8 +7,8 @@ import tempfile
 from functools import reduce
 
 import pytest
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import ParameterGradient, ParameterGradientKey
 from openff.evaluator.protocols.miscellaneous import (

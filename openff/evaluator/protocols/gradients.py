@@ -6,8 +6,9 @@ import abc
 from typing import Union
 
 import numpy
+from openff.units import unit
+from openff.units.openmm import from_openmm
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import (
     ForceFieldSource,
@@ -15,7 +16,6 @@ from openff.evaluator.forcefield import (
     SmirnoffForceFieldSource,
 )
 from openff.evaluator.utils.observables import Observable, ObservableArray
-from openff.evaluator.utils.openmm import openmm_quantity_to_pint
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
 
@@ -74,7 +74,7 @@ class ZeroGradients(Protocol, abc.ABC):
             value = getattr(parameter, gradient_key.attribute)
 
             if isinstance(value, openmm_unit.Quantity):
-                return openmm_quantity_to_pint(value).units
+                return from_openmm(value).units
 
             return unit.dimensionless
 

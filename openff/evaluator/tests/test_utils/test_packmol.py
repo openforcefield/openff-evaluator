@@ -3,8 +3,8 @@ Units tests for openff.evaluator.utils.packmol
 """
 import numpy as np
 import pytest
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.utils import packmol
 from openff.evaluator.utils.packmol import PackmolRuntimeException
 

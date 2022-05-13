@@ -8,6 +8,22 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
+0.3.11
+-----
+
+Bugfixes
+""""""""
+
+* PR `#445 <https://github.com/openforcefield/openff-evaluator/pull/445>`_: Fix OpenMM unit utils API regression
+
+0.3.10
+-----
+
+Bugfixes
+""""""""
+
+* PR `#444 <https://github.com/openforcefield/openff-evaluator/pull/444>`_: Fix labelling molecules with virtual sites
+
 0.3.9
 -----
 

@@ -4,7 +4,8 @@ A collection of density physical property definitions.
 import copy
 from typing import Dict, Tuple
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.datasets import PhysicalProperty
 from openff.evaluator.layers import register_calculation_schema
 from openff.evaluator.layers.simulation import SimulationLayer, SimulationSchema

@@ -19,10 +19,10 @@ from distutils.spawn import find_executable
 from functools import reduce
 
 import numpy as np
+from openff.units import unit
+from openff.units.openmm import from_openmm
 
-from openff.evaluator import unit
 from openff.evaluator.substances import Component
-from openff.evaluator.utils.openmm import openmm_quantity_to_pint
 from openff.evaluator.utils.utils import temporarily_change_directory
 
 logger = logging.getLogger(__name__)
@@ -141,14 +141,14 @@ def _approximate_box_size_by_density(
         A list of the three box lengths in units compatible with angstroms.
     """
 
-    volume = 0.0 * unit.angstrom ** 3
+    volume = 0.0 * unit.angstrom**3
 
     for (molecule, number) in zip(molecules, n_copies):
 
         molecule_mass = reduce(
             (lambda x, y: x + y), [atom.mass for atom in molecule.atoms]
         )
-        molecule_mass = openmm_quantity_to_pint(molecule_mass) / unit.avogadro_constant
+        molecule_mass = from_openmm(molecule_mass) / unit.avogadro_constant
 
         molecule_volume = molecule_mass / mass_density
 

@@ -323,7 +323,7 @@ class EvaluatorClient:
     >>> data_set = ThermoMLDataSet.from_doi('10.1016/j.jct.2016.10.001')
     >>>
     >>> # Filter the dataset to only include densities measured between 130-260 K
-    >>> from openff.evaluator import unit
+    >>> from openff.units import unit
     >>> from openff.evaluator.properties import Density
     >>>
     >>> data_set.filter_by_property_types(Density)

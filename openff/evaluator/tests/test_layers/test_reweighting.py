@@ -1,7 +1,8 @@
 import os
 import tempfile
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.datasets import PropertyPhase
 from openff.evaluator.forcefield import SmirnoffForceFieldSource
 from openff.evaluator.layers import registered_calculation_schemas
@@ -64,7 +65,7 @@ def test_storage_retrieval():
             thermodynamic_state=state,
         ),
         ExcessMolarVolume(
-            value=1.0 * unit.meter ** 3, substance=mixture, thermodynamic_state=state
+            value=1.0 * unit.meter**3, substance=mixture, thermodynamic_state=state
         ),
     ]
     expected_data_per_property = {

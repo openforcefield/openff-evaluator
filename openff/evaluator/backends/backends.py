@@ -5,7 +5,7 @@ import abc
 import re
 from enum import Enum
 
-from openff.evaluator import unit
+from openff.units import unit
 
 
 class ComputeResources:

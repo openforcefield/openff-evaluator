@@ -24,8 +24,8 @@ from typing import (
 import numpy
 import pandas
 import pint.compat
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.forcefield import ParameterGradient, ParameterGradientKey
 
 # noinspection PyTypeChecker
@@ -552,7 +552,7 @@ class ObservableFrame(MutableMapping[Union[str, ObservableType], ObservableArray
         ObservableType.KineticEnergy: unit.kilojoules / unit.mole,
         ObservableType.TotalEnergy: unit.kilojoules / unit.mole,
         ObservableType.Temperature: unit.kelvin,
-        ObservableType.Volume: unit.nanometer ** 3,
+        ObservableType.Volume: unit.nanometer**3,
         ObservableType.Density: unit.gram / unit.milliliter,
         ObservableType.Enthalpy: unit.kilojoules / unit.mole,
         ObservableType.ReducedPotential: unit.dimensionless,
@@ -687,7 +687,7 @@ class ObservableFrame(MutableMapping[Union[str, ObservableType], ObservableArray
             "Kinetic Energy (kJ/mole)": unit.kilojoules / unit.mole,
             "Total Energy (kJ/mole)": unit.kilojoules / unit.mole,
             "Temperature (K)": unit.kelvin,
-            "Box Volume (nm^3)": unit.nanometer ** 3,
+            "Box Volume (nm^3)": unit.nanometer**3,
             "Density (g/mL)": unit.gram / unit.milliliter,
         }
 

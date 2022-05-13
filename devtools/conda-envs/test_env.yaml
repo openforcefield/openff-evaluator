@@ -12,13 +12,14 @@ dependencies:
   - codecov
 
     # Standard dependencies
-  - openff-toolkit >=0.10.0
+  - openff-toolkit >=0.10.6
+  - openff-units >=0.1.4
   - smirnoff99frosst
   - numpy
   - pandas
   - openmm >=7.6
   - networkx
-  - pint >=0.16.1
+  - pint >=0.19.0
   - packmol
   - pymbar >=3.0.5
   - mdtraj >=1.9.3

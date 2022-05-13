@@ -8,8 +8,8 @@ from typing import Any, Dict, List, Optional
 
 import pkg_resources
 import yaml
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.datasets import PhysicalPropertyDataSet, PropertyPhase, Source
 from openff.evaluator.properties import HostGuestBindingAffinity
 from openff.evaluator.substances import Component, ExactAmount, MoleFraction, Substance

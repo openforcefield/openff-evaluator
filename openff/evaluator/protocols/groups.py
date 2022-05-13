@@ -13,7 +13,8 @@ import typing
 from enum import Enum, unique
 from os import path
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 from openff.evaluator.workflow import ProtocolGroup, workflow_protocol
 from openff.evaluator.workflow.attributes import (

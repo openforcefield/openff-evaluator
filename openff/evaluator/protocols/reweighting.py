@@ -9,8 +9,8 @@ from os import path
 
 import numpy as np
 import pymbar
+from openff.units import unit
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import ParameterGradient
 from openff.evaluator.forcefield.system import ParameterizedSystem
@@ -320,7 +320,7 @@ class BaseMBARProtocol(Protocol, abc.ABC):
             .magnitude
         )
 
-        effective_samples = 1.0 / np.sum(weights ** 2)
+        effective_samples = 1.0 / np.sum(weights**2)
         return float(effective_samples)
 
     def _execute(self, directory, available_resources):

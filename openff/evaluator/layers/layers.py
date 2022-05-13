@@ -6,7 +6,8 @@ import collections
 import logging
 from os import path
 
-from openff.evaluator import unit
+from openff.units import unit
+
 from openff.evaluator.attributes import (
     UNDEFINED,
     Attribute,

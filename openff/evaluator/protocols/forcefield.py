@@ -18,6 +18,7 @@ try:
 except ImportError:
     from simtk import openmm
 import requests
+from openff.units.openmm import to_openmm
 
 try:
     from openmm import app
@@ -33,7 +34,6 @@ from openff.evaluator.forcefield import (
 )
 from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.substances import Substance
-from openff.evaluator.utils.openmm import pint_quantity_to_openmm
 from openff.evaluator.utils.utils import (
     get_data_filename,
     has_openeye,
@@ -376,7 +376,7 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
         from openff.toolkit.topology import Molecule, Topology
 
         force_field_source = ForceFieldSource.from_json(self.force_field_path)
-        cutoff = pint_quantity_to_openmm(force_field_source.cutoff)
+        cutoff = to_openmm(force_field_source.cutoff)
 
         # Load in the systems topology
         openmm_pdb_file = app.PDBFile(self.coordinate_file_path)
