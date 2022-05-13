@@ -408,9 +408,9 @@ Workflow API
     :nosignatures:
     :toctree: api/generated/
 
-    BaseMergeBehaviour
-    MergeBehaviour
-    InequalityMergeBehaviour
+    BaseMergeBehavior
+    MergeBehavior
+    InequalityMergeBehavior
     InputAttribute
     OutputAttribute
 

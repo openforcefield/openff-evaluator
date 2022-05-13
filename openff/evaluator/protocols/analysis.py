@@ -29,7 +29,7 @@ from openff.evaluator.utils.timeseries import (
 )
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import (
-    InequalityMergeBehaviour,
+    InequalityMergeBehavior,
     InputAttribute,
     OutputAttribute,
 )
@@ -132,13 +132,13 @@ class BaseAverageObservable(Protocol, abc.ABC):
         docstring="The number of bootstrap iterations to perform.",
         type_hint=int,
         default_value=250,
-        merge_behavior=InequalityMergeBehaviour.LargestValue,
+        merge_behavior=InequalityMergeBehavior.LargestValue,
     )
     bootstrap_sample_size = InputAttribute(
         docstring="The relative sample size to use for bootstrapping.",
         type_hint=float,
         default_value=1.0,
-        merge_behavior=InequalityMergeBehaviour.LargestValue,
+        merge_behavior=InequalityMergeBehavior.LargestValue,
     )
 
     thermodynamic_state = InputAttribute(

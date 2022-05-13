@@ -25,9 +25,9 @@ from openff.evaluator.workflow import (
     workflow_protocol,
 )
 from openff.evaluator.workflow.attributes import (
-    InequalityMergeBehaviour,
+    InequalityMergeBehavior,
     InputAttribute,
-    MergeBehaviour,
+    MergeBehavior,
     OutputAttribute,
 )
 from openff.evaluator.workflow.utils import ProtocolPath
@@ -402,7 +402,7 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
                 return False
 
             elif (
-                merge_behavior == MergeBehaviour.ExactlyEqual
+                merge_behavior == MergeBehavior.ExactlyEqual
                 and self_value != other_value
             ):
                 return False
@@ -436,8 +436,8 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
             ).merge_behavior
 
             if (
-                merge_behavior == MergeBehaviour.ExactlyEqual
-                or merge_behavior == MergeBehaviour.Custom
+                merge_behavior == MergeBehavior.ExactlyEqual
+                or merge_behavior == MergeBehavior.Custom
             ):
                 continue
 
@@ -447,9 +447,9 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
 
                 continue
 
-            if merge_behavior == InequalityMergeBehaviour.SmallestValue:
+            if merge_behavior == InequalityMergeBehavior.SmallestValue:
                 value = min(self.get_value(input_path), other.get_value(input_path))
-            elif merge_behavior == InequalityMergeBehaviour.LargestValue:
+            elif merge_behavior == InequalityMergeBehavior.LargestValue:
                 value = max(self.get_value(input_path), other.get_value(input_path))
             else:
                 raise NotImplementedError()

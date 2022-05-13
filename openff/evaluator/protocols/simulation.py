@@ -13,7 +13,7 @@ from openff.evaluator.thermodynamics import Ensemble, ThermodynamicState
 from openff.evaluator.utils.observables import ObservableFrame
 from openff.evaluator.workflow import Protocol
 from openff.evaluator.workflow.attributes import (
-    InequalityMergeBehaviour,
+    InequalityMergeBehavior,
     InputAttribute,
     OutputAttribute,
 )
@@ -69,7 +69,7 @@ class BaseSimulation(Protocol, abc.ABC):
         "by this protocol will be `total_number_of_iterations * "
         "steps_per_iteration`.",
         type_hint=int,
-        merge_behavior=InequalityMergeBehaviour.LargestValue,
+        merge_behavior=InequalityMergeBehavior.LargestValue,
         default_value=1000000,
     )
     total_number_of_iterations = InputAttribute(
@@ -78,7 +78,7 @@ class BaseSimulation(Protocol, abc.ABC):
         "steps performed by this protocol will be `total_number_of_iterations * "
         "steps_per_iteration`.",
         type_hint=int,
-        merge_behavior=InequalityMergeBehaviour.LargestValue,
+        merge_behavior=InequalityMergeBehavior.LargestValue,
         default_value=1,
     )
 
@@ -86,7 +86,7 @@ class BaseSimulation(Protocol, abc.ABC):
         docstring="The frequency (in number of steps) with which to write to the "
         "output statistics and trajectory files.",
         type_hint=int,
-        merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        merge_behavior=InequalityMergeBehavior.SmallestValue,
         default_value=3000,
     )
     checkpoint_frequency = InputAttribute(
@@ -95,7 +95,7 @@ class BaseSimulation(Protocol, abc.ABC):
         "`checkpoint_frequency==2`, a checkpoint file would be saved every "
         "200 steps.",
         type_hint=int,
-        merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        merge_behavior=InequalityMergeBehavior.SmallestValue,
         optional=True,
         default_value=10,
     )
@@ -103,7 +103,7 @@ class BaseSimulation(Protocol, abc.ABC):
     timestep = InputAttribute(
         docstring="The timestep to evolve the system by at each step.",
         type_hint=unit.Quantity,
-        merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        merge_behavior=InequalityMergeBehavior.SmallestValue,
         default_value=2.0 * unit.femtosecond,
     )
 
@@ -121,7 +121,7 @@ class BaseSimulation(Protocol, abc.ABC):
     thermostat_friction = InputAttribute(
         docstring="The thermostat friction coefficient.",
         type_hint=unit.Quantity,
-        merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        merge_behavior=InequalityMergeBehavior.SmallestValue,
         default_value=1.0 / unit.picoseconds,
     )
 
