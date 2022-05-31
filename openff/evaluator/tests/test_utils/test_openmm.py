@@ -211,6 +211,7 @@ def hydrogen_chloride_force_field(
         # value and with a distance of 1 A
         # https://openforcefield.github.io/standards/standards/smirnoff/#virtualsites-virtual-sites-for-off-atom-charges
         # https://open-forcefield-toolkit.readthedocs.io/en/0.10.5/users/virtualsites.html
+
         vsite_handler = VirtualSiteHandler(version=0.3)
         vsite_handler.add_parameter(
             {
@@ -421,7 +422,7 @@ def test_update_context_with_positions(box_vectors):
 
     numpy.testing.assert_allclose(
         context_positions.value_in_unit(openmm_unit.angstrom),
-        numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]]),
+        numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]]),
     )
 
     numpy.testing.assert_allclose(
@@ -460,7 +461,7 @@ def test_update_context_with_pdb(tmpdir):
 
     numpy.testing.assert_allclose(
         context_positions.value_in_unit(openmm_unit.angstrom),
-        numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]]),
+        numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]]),
     )
 
     numpy.testing.assert_allclose(
