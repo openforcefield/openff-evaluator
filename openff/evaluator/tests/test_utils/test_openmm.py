@@ -468,7 +468,7 @@ def test_update_context_with_pdb(tmpdir):
         extract_positions(context.getState(getPositions=True), [2]).value_in_unit(
             openmm_unit.angstrom
         ),
-        numpy.array([[-1.0, 0.0, 0.0]]),
+        numpy.array([[2.0, 0.0, 0.0]]),
     )
 
     numpy.testing.assert_allclose(context_box_vectors[0].x, 2.0)
