@@ -23,9 +23,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macOS-latest, ubuntu-latest]
-        python-version: [3.8, 3.9]
-        openeye: [true, false]
+        # os: [macOS-latest, ubuntu-latest]
+        # python-version: [3.8, 3.9]
+        # openeye: [true, false]
+        os: [ubuntu-latest]
+        python-version: [3.9]
+        openeye: [true]
 
     steps:
       - uses: actions/checkout@v3.0.2
