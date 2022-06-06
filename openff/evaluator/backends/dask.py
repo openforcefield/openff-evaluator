@@ -828,7 +828,7 @@ class DaskLocalCluster(BaseDaskBackend):
             name=None,
             n_workers=self._number_of_workers,
             threads_per_worker=self._resources_per_worker.number_of_threads,
-            processes=False
+            processes=False,
         )
 
         if self._resources_per_worker.number_of_gpus > 0:
