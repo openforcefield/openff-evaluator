@@ -32,7 +32,7 @@ Bugfixes
 
 * PR `#402 <https://github.com/openforcefield/openff-evaluator/pull/402>`_: Fix importing full ThermoML archive
 
-Behaviour Changes
+Behavior Changes
 """""""""""""""""
 
 The way that ThermoML archive files are served was changed in 2021 so that individual journal archives are no longer
@@ -95,7 +95,7 @@ New Features
 A patch release which adds the option (and enables it by default) to remove working files, such as simulated
 trajectories, when they are no longer needed.
 
-Behaviour Changes
+Behavior Changes
 """""""""""""""""
 
 * PR `#349 <https://github.com/openforcefield/openff-evaluator/pull/349>`_: Working files are deleted by default after an estimation batch completes.
@@ -190,7 +190,7 @@ New Features
 * PR `#312 <https://github.com/openforcefield/openff-evaluator/pull/312>`_: Support caching free energy data.
 * PR `#324 <https://github.com/openforcefield/openff-evaluator/pull/324>`_: Adds new miscellaneous ``DummyProtocol`` protocol.
 
-Behaviour Changes
+Behavior Changes
 """""""""""""""""
 
 * PR `#280 <https://github.com/openforcefield/openff-evaluator/pull/280>`_: Migrate to thermodynamic gradients.

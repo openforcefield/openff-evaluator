@@ -41,7 +41,7 @@ from openff.evaluator.utils.timeseries import (
 from openff.evaluator.utils.utils import temporarily_change_directory
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import (
-    InequalityMergeBehaviour,
+    InequalityMergeBehavior,
     InputAttribute,
     OutputAttribute,
 )
@@ -69,32 +69,32 @@ class BaseYankProtocol(Protocol, abc.ABC):
         docstring="The number of iterations used for equilibration before production "
         "run. Only post-equilibration iterations are written to file.",
         type_hint=int,
-        merge_behavior=InequalityMergeBehaviour.LargestValue,
+        merge_behavior=InequalityMergeBehavior.LargestValue,
         default_value=1,
     )
     number_of_iterations = InputAttribute(
         docstring="The number of YANK iterations to perform.",
         type_hint=int,
-        merge_behavior=InequalityMergeBehaviour.LargestValue,
+        merge_behavior=InequalityMergeBehavior.LargestValue,
         default_value=5000,
     )
     steps_per_iteration = InputAttribute(
         docstring="The number of steps per YANK iteration to perform.",
         type_hint=int,
-        merge_behavior=InequalityMergeBehaviour.LargestValue,
+        merge_behavior=InequalityMergeBehavior.LargestValue,
         default_value=500,
     )
     checkpoint_interval = InputAttribute(
         docstring="The number of iterations between saving YANK checkpoint files.",
         type_hint=int,
-        merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        merge_behavior=InequalityMergeBehavior.SmallestValue,
         default_value=1,
     )
 
     timestep = InputAttribute(
         docstring="The length of the timestep to take.",
         type_hint=unit.Quantity,
-        merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        merge_behavior=InequalityMergeBehavior.SmallestValue,
         default_value=2 * unit.femtosecond,
     )
 

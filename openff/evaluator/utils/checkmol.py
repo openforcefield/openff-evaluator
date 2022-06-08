@@ -207,7 +207,7 @@ class ChemicalEnvironment(Enum):
     BoronicAcidEster = "Boronic Acid Ester"
     Alkene = "Alkene"
     Alkyne = "Alkyne"
-    Aromatic = "Aromaticatic"
+    Aromatic = "Aromatic"
     Heterocycle = "Heterocycle"
     AlphaAminoacid = "Alpha Aminoacid"
     AlphaHydroxyacid = "Alpha Hydroxyacid"
