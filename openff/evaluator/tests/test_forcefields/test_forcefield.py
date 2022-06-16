@@ -9,12 +9,14 @@ def test_load_smirnoff_plugins():
         "test/forcefields/buckingham-force-field.offxml"
     )
 
+    obj = SmirnoffForceFieldSource.from_path(force_field_path, load_plugins=True)
+
+    assert "DampedBuckingham68" in obj.to_force_field().registered_parameter_handlers
+
+    SmirnoffForceFieldSource.from_path(force_field_path)
+
     with pytest.raises(
         KeyError,
         match="Cannot find a registered parameter handler class for tag 'DampedBuckingham68'",
     ):
         SmirnoffForceFieldSource.from_path(force_field_path)
-
-    obj = SmirnoffForceFieldSource.from_path(force_field_path, load_plugins=True)
-
-    assert "DampedBuckingham68" in obj.to_force_field().registered_parameter_handlers
