@@ -82,7 +82,7 @@ class SmirnoffForceFieldSource(ForceFieldSource):
         return cls(force_field.to_string("XML", True))
 
     @classmethod
-    def from_path(cls, file_path):
+    def from_path(cls, file_path: str, load_plugins: bool = False):
         """Creates a new `SmirnoffForceFieldSource` from the file path to a
         `ForceField` object.
 
@@ -95,6 +95,10 @@ class SmirnoffForceFieldSource(ForceFieldSource):
         file_path: str
             The file path to the force field object. This may also be the
             name of a file which can be loaded via an entry point.
+        load_plugins: bool, optional. Default = False
+            Whether to load ``ParameterHandler`` classes which have been registered
+            by installed plugins.
+
 
         Returns
         -------
@@ -104,7 +108,11 @@ class SmirnoffForceFieldSource(ForceFieldSource):
 
         from openff.toolkit.typing.engines.smirnoff import ForceField
 
-        force_field = ForceField(file_path, allow_cosmetic_attributes=True)
+        force_field = ForceField(
+            file_path,
+            allow_cosmetic_attributes=True,
+            load_plugins=load_plugins,
+        )
         return cls.from_object(force_field)
 
     def __getstate__(self):
