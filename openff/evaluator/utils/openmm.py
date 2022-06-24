@@ -237,6 +237,7 @@ def system_subset(
     )
 
     # Create the parameterized sub-system.
+
     system = force_field_subset.create_openmm_system(topology)
     return system, parameter_value
 
@@ -393,3 +394,50 @@ def pint_quantity_to_openmm(pint_quantity):
         return None
 
     return to_openmm(pint_quantity)
+
+
+def openmm_unit_to_string(input_unit: openmm.unit.Unit) -> str:
+    """
+    Serialize an openmm.unit.Unit to string.
+
+    Taken from https://github.com/openforcefield/openff-toolkit/blob/97462b88a4b50a608e10f735ee503c655f9b64d3/openff/toolkit/utils/utils.py#L170-L204
+    """
+    if input_unit == openmm_unit.dimensionless:
+        return "dimensionless"
+
+    # Decompose output_unit into a tuples of (base_dimension_unit, exponent)
+    unit_string = None
+
+    for unit_component in input_unit.iter_base_or_scaled_units():
+        unit_component_name = unit_component[0].name
+        # Convert, for example "elementary charge" --> "elementary_charge"
+        unit_component_name = unit_component_name.replace(" ", "_")
+        if unit_component[1] == 1:
+            contribution = "{}".format(unit_component_name)
+        else:
+            contribution = "{}**{}".format(unit_component_name, int(unit_component[1]))
+        if unit_string is None:
+            unit_string = contribution
+        else:
+            unit_string += " * {}".format(contribution)
+
+    return unit_string
+
+
+def openmm_quantity_to_string(input_quantity: openmm.unit.Quantity) -> str:
+    """
+    Serialize a openmm.unit.Quantity to string.
+
+    Taken from https://github.com/openforcefield/openff-toolkit/blob/97462b88a4b50a608e10f735ee503c655f9b64d3/openff/toolkit/utils/utils.py
+    """
+    if input_quantity is None:
+        return None
+
+    unitless_value = input_quantity.value_in_unit(input_quantity.unit)
+
+    if isinstance(unitless_value, numpy.ndarray):
+        unitless_value = list(unitless_value)
+
+    unit_string = openmm_unit_to_string(input_quantity.unit)
+
+    return f"{unitless_value} * {unit_string}"

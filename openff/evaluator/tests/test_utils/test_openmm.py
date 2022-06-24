@@ -168,7 +168,7 @@ def hydrogen_chloride_force_field(
     # Add an electrostatic, a library charge and a charge increment handler.
     electrostatics_handler = ElectrostaticsHandler(version=0.3)
     electrostatics_handler.cutoff = 6.0 * unit.angstrom
-    electrostatics_handler.method = "PME"
+    electrostatics_handler.periodic_potential = "PME"
     force_field.register_parameter_handler(electrostatics_handler)
 
     if library_charge:

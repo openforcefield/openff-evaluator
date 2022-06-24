@@ -249,7 +249,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
             A yaml compatible dictionary of YANK options.
         """
 
-        from openff.toolkit.utils import quantity_to_string
+        from openff.evaluator.utils.openmm import openmm_quantity_to_string
 
         platform_name = "CPU"
 
@@ -272,10 +272,10 @@ class BaseYankProtocol(Protocol, abc.ABC):
         return {
             "verbose": self.verbose,
             "output_dir": ".",
-            "temperature": quantity_to_string(
+            "temperature": openmm_quantity_to_string(
                 to_openmm(self.thermodynamic_state.temperature)
             ),
-            "pressure": quantity_to_string(
+            "pressure": openmm_quantity_to_string(
                 to_openmm(self.thermodynamic_state.pressure)
             ),
             "minimize": False,
@@ -286,7 +286,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
             "default_nsteps_per_iteration": self.steps_per_iteration,
             "start_from_trailblaze_samples": False,
             "checkpoint_interval": self.checkpoint_interval,
-            "default_timestep": quantity_to_string(to_openmm(self.timestep)),
+            "default_timestep": openmm_quantity_to_string(to_openmm(self.timestep)),
             "annihilate_electrostatics": True,
             "annihilate_sterics": False,
             "platform": platform_name,
@@ -763,10 +763,17 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
             force_field_source = SmirnoffForceFieldSource.parse_json(file.read())
 
         force_field = force_field_source.to_force_field()
-        charge_method = force_field.get_parameter_handler("Electrostatics").method
+        charge_method = force_field.get_parameter_handler(
+            "Electrostatics"
+        ).periodic_potential
+
+        if charge_method == "Ewald3D-ConductingBoundary":
+            charge_method = "PME"
 
         if charge_method.lower() != "pme":
-            raise ValueError("Currently only PME electrostatics are supported.")
+            raise ValueError(
+                f"Currently only PME electrostatics are supported. Found electrostatics method {charge_method}."
+            )
 
         return {"default": {"nonbonded_method": charge_method}}
 
