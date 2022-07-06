@@ -226,7 +226,7 @@ class CalculationLayer(abc.ABC):
 
             results = list(results_future.result())
 
-            if len(results) > 0 and isinstance(results[0], collections.Iterable):
+            if len(results) > 0 and isinstance(results[0], collections.abc.Iterable):
                 results = results[0]
 
             results_future.release()
