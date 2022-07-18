@@ -13,7 +13,6 @@ from openff.evaluator.substances import Component, ExactAmount, MoleFraction, Su
         ("C1=CC=CC=C1", "c1ccccc1"),
         ("c1ccccc1", "c1ccccc1"),
         ("[C@H](F)(Cl)Br", "F[C@@H](Cl)Br"),
-        ("C(F)(Cl)Br", "FC(Cl)Br"),
     ],
 )
 def test_component_standardization(smiles, expected):
