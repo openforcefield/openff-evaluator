@@ -69,7 +69,7 @@ class Component(AttributeClass):
     @staticmethod
     def _standardize_smiles(smiles):
         """Standardizes a SMILES pattern to be canonical (but not necessarily isomeric)
-        using the `cmiles` library.
+        using the OpenFF Toolkit.
 
         Parameters
         ----------
@@ -80,19 +80,20 @@ class Component(AttributeClass):
         -------
         The standardized SMILES pattern.
         """
-        from cmiles.utils import load_molecule, mol_to_smiles
+        from openff.toolkit.topology import Molecule
+        from openff.toolkit.utils.rdkit_wrapper import RDKitToolkitWrapper
 
-        molecule = load_molecule(smiles, toolkit="rdkit")
+        molecule = Molecule.from_smiles(smiles, toolkit_registry=RDKitToolkitWrapper())
 
         try:
             # Try to make the smiles isomeric.
-            smiles = mol_to_smiles(
-                molecule, isomeric=True, explicit_hydrogen=False, mapped=False
+            smiles = molecule.to_smiles(
+                isomeric=True, explicit_hydrogens=False, mapped=False
             )
         except ValueError:
             # Fall-back to non-isomeric.
-            smiles = mol_to_smiles(
-                molecule, isomeric=False, explicit_hydrogen=False, mapped=False
+            smiles = molecule.to_smiles(
+                isomeric=False, explicit_hydrogens=False, mapped=False
             )
 
         return smiles

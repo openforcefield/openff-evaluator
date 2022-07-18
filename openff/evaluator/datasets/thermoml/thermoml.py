@@ -377,7 +377,7 @@ class _Compound:
         str, optional
             None if the identifier cannot be converted, otherwise the converted SMILES pattern.
         """
-        from cmiles.utils import mol_to_smiles
+        from openff.toolkit.topology import Molecule
 
         try:
             import rdkit.Chem
@@ -393,7 +393,11 @@ class _Compound:
             raise ValueError(f"The InchI string ({inchi_string}) could not be parsed")
 
         try:
-            return mol_to_smiles(molecule, explicit_hydrogen=False, mapped=False)
+            return Molecule.from_rdkit(molecule).to_smiles(
+                isomeric=True,
+                explicit_hydrogens=False,
+                mapped=False,
+            )
         except ValueError:
             return None
 
@@ -411,13 +415,17 @@ class _Compound:
         str, optional
             None if the identifier cannot be converted, otherwise the converted SMILES pattern.
         """
-        from cmiles.utils import load_molecule, mol_to_smiles
+        from openff.toolkit.topology import Molecule
+        from openff.toolkit.utils.rdkit_wrapper import RDKitToolkitWrapper
 
         if thermoml_string is None:
             raise ValueError("The string cannot be `None`.")
 
-        molecule = load_molecule(thermoml_string, toolkit="rdkit")
-        return mol_to_smiles(molecule, explicit_hydrogen=False, mapped=False)
+        molecule = Molecule.from_smiles(
+            thermoml_string, toolkit_registry=RDKitToolkitWrapper()
+        )
+
+        return molecule.to_smiles(isomeric=True, explicit_hydrogens=False, mapped=False)
 
     @staticmethod
     def smiles_from_common_name(common_name):
@@ -432,7 +440,6 @@ class _Compound:
         str, None
             None if the identifier cannot be converted, otherwise the converted SMILES pattern.
         """
-        from cmiles.utils import load_molecule, mol_to_smiles
         from openff.toolkit.topology import Molecule
         from openff.toolkit.utils import InvalidIUPACNameError, LicenseError
 
@@ -442,9 +449,10 @@ class _Compound:
         try:
 
             molecule = Molecule.from_iupac(common_name, allow_undefined_stereo=True)
-            cmiles_molecule = load_molecule(molecule.to_smiles(), toolkit="rdkit")
-            smiles = mol_to_smiles(
-                cmiles_molecule, explicit_hydrogen=False, mapped=False
+            smiles = molecule.to_smiles(
+                isomeric=True,
+                explicit_hydrogens=False,
+                mapped=False,
             )
 
             if isinstance(smiles, str) and len(smiles) == 0:
