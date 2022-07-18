@@ -1,5 +1,7 @@
 name: evaluator
 channels:
+    - conda-forge/label/openff-tooklit_rc
+    - conda-forge/label/openff-interchange_rc
     - conda-forge
 dependencies:
     # Base depends
@@ -23,6 +25,7 @@ dependencies:
     - networkx
     - pint >=0.10.1
     - uncertainties
+    - openff-toolkit >=0.11.0rc3
     - openff-units
 
     - pip:

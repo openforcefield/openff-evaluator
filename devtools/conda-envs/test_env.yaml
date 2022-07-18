@@ -1,6 +1,8 @@
 name: evaluator-test-env
 channels:
   - conda-forge
+  - conda-forge/label/openff-tooklit_rc
+  - conda-forge/label/openff-interchange_rc
 dependencies:
     # Base depends
   - python
@@ -41,10 +43,4 @@ dependencies:
   - taproom
   - dataclasses
   - smirnoff-plugins # For testing custom nonbonded forces
-  # Stuff that should be pulled in once beta packages are built
-  - cached_property
-  - cachetools
-  - python-constraint
-  - pip:
-    - git+https://github.com/openforcefield/openff-toolkit.git@topology-biopolymer-refactor
-    - git+https://github.com/openforcefield/openff-interchange.git@main
+  - openff-toolkit >=0.11.0rc3
