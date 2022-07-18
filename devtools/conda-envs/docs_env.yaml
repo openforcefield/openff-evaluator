@@ -1,6 +1,6 @@
 name: evaluator
 channels:
-    - conda-forge/label/openff-tooklit_rc
+    - conda-forge/label/openff-toolkit_rc
     - conda-forge/label/openff-interchange_rc
     - conda-forge
 dependencies:
