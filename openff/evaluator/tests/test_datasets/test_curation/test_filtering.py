@@ -641,7 +641,7 @@ def test_filter_by_property_strict_n_components():
     }
 
 
-@pytest.skip(reason="Functionality broken by SMILES parsing failures")
+@pytest.xfail(reason="Functionality broken by SMILES parsing failures")
 def test_filter_stereochemistry(data_frame):
 
     # Ensure molecules with undefined stereochemistry are filtered.
