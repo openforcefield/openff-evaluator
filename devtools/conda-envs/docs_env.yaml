@@ -26,7 +26,6 @@ dependencies:
     - pint >=0.10.1
     - uncertainties
     - openff-toolkit >=0.11.0rc3
-    - openff-units
 
     - pip:
       - git+https://github.com/openforcefield/openff-sphinx-theme.git@main

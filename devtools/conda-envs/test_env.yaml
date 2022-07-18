@@ -1,8 +1,8 @@
 name: evaluator-test-env
 channels:
-  - conda-forge
-  - conda-forge/label/openff-tooklit_rc
+  - conda-forge/label/openff-toolkit_rc
   - conda-forge/label/openff-interchange_rc
+  - conda-forge
 dependencies:
     # Base depends
   - python
@@ -14,14 +14,12 @@ dependencies:
   - codecov
 
     # Standard dependencies
-  - openff-toolkit >=0.10.6
-  - openff-units >=0.1.6
+  - openff-toolkit >=0.11.0rc3
   - smirnoff99frosst
   - numpy
   - pandas
   - openmm >=7.6
   - networkx
-  - pint >=0.19.0
   - packmol
   - pymbar >=3.0.5
   - mdtraj >=1.9.3
@@ -38,9 +36,8 @@ dependencies:
   - rdkit
   - cmiles
   - python-dateutil
-  - pydantic
+  - pydantic <2.0.0a0
   - paprika
   - taproom
   - dataclasses
   - smirnoff-plugins # For testing custom nonbonded forces
-  - openff-toolkit >=0.11.0rc3
