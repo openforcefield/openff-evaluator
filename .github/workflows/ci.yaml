@@ -27,12 +27,12 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-          # macOS-latest
+          - macOS-latest
         python-version:
-          # 3.8
+          - 3.8
           - 3.9
         openeye:
-          # true
+          - true
           - false
 
     steps:
@@ -80,7 +80,6 @@ jobs:
         run: |
 
           curl https://homepage.univie.ac.at/norbert.haider/download/chemistry/checkmol/checkmol.pas > checkmol.pas
-          wc -l checkmol.pas
           fpc checkmol.pas -S2
 
           echo $(pwd) >> $GITHUB_PATH
