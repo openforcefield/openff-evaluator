@@ -465,7 +465,7 @@ def analyse_functional_groups(smiles):
         raise MissingOptionalDependency(
             "checkmol",
             False,
-            "Checkmol can be obtianed for free from "
+            "Checkmol can be obtained for free from "
             "http://merian.pch.univie.ac.at/~nhaider/cheminf/cmmm.html.",
         )
 
