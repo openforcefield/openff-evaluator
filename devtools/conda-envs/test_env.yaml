@@ -16,7 +16,7 @@ dependencies:
     # Standard dependencies
   - openff-toolkit >=0.11.0rc3
   - smirnoff99frosst
-  - numpy
+  - numpy >=1.20
   - pandas
   - openmm >=7.6
   - networkx
@@ -41,3 +41,4 @@ dependencies:
   - taproom
   - dataclasses
   - smirnoff-plugins # For testing custom nonbonded forces
+  - numba >=0.55.2  # older versions do not support numpy 1.22, but is mangled in packaged dependency trees
