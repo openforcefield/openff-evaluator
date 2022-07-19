@@ -5,7 +5,8 @@ import re
 import tempfile
 from os import path
 
-from cmiles.utils import load_molecule, mol_to_smiles
+from openff.toolkit.topology import Molecule
+from openff.toolkit.utils.rdkit_wrapper import RDKitToolkitWrapper
 
 from openff.evaluator.forcefield import LigParGenForceFieldSource, TLeapForceFieldSource
 from openff.evaluator.protocols.coordinates import BuildCoordinatesPackmol
@@ -79,9 +80,11 @@ def test_build_ligpargen_system(requests_mock):
         context.status_code = 200
         smiles = re.search(r'"smiData"\r\n\r\n(.*?)\r\n', request.text).group(1)
 
-        cmiles_molecule = load_molecule(smiles, toolkit="rdkit")
-        smiles = mol_to_smiles(
-            cmiles_molecule, isomeric=False, explicit_hydrogen=False, mapped=False
+        molecule = Molecule.from_smiles(smiles, toolkit_registry=RDKitToolkitWrapper())
+        smiles = molecule.to_smiles(
+            isomeric=False,
+            explicit_hydrogens=False,
+            mapped=False,
         )
 
         assert smiles == "C"

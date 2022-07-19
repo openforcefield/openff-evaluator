@@ -12,18 +12,11 @@ import textwrap
 from enum import Enum
 
 import numpy as np
-
-try:
-    import openmm
-except ImportError:
-    from simtk import openmm
+import openmm
 import requests
+from openff.units import unit
 from openff.units.openmm import to_openmm
-
-try:
-    from openmm import app
-except ImportError:
-    from simtk.openmm import app
+from openmm import app
 
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import (
@@ -374,6 +367,7 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
     def _execute(self, directory, available_resources):
 
         from openff.toolkit.topology import Molecule, Topology
+        from openff.toolkit.utils.rdkit_wrapper import RDKitToolkitWrapper
 
         force_field_source = ForceFieldSource.from_json(self.force_field_path)
         cutoff = to_openmm(force_field_source.cutoff)
@@ -386,8 +380,12 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
         unique_molecules = {}
 
         for component in self.substance:
-            unique_molecule = Molecule.from_smiles(component.smiles)
-            unique_molecules[unique_molecule.to_smiles()] = unique_molecule
+            unique_molecule = Molecule.from_smiles(
+                component.smiles, toolkit_registry=RDKitToolkitWrapper()
+            )
+            unique_molecules[
+                unique_molecule.to_smiles(toolkit_registry=RDKitToolkitWrapper())
+            ] = unique_molecule
 
         # Parameterize each component in the system.
         system_templates = {}
@@ -422,17 +420,25 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
         # Create the full system object from the component templates.
         system = self._create_empty_system(cutoff)
 
-        for topology_molecule in topology.topology_molecules:
+        groupings = topology.identical_molecule_groups
 
-            smiles = topology_molecule.reference_molecule.to_smiles()
+        for unique_molecule_index, group in groupings.items():
+            unique_molecule = topology.molecule(unique_molecule_index)
+
+            smiles = unique_molecule.to_smiles(toolkit_registry=RDKitToolkitWrapper())
             system_template = system_templates[smiles]
 
             index_map = {}
+            # {0: [[0, {0: 0, 1: 1, 2: 2}],
+            #     [1, {0: 0, 1: 1, 2: 2}],
+            #     [2, {0: 0, 1: 1, 2: 2}]]}
 
-            for index, topology_atom in enumerate(topology_molecule.atoms):
-                index_map[topology_atom.atom.molecule_particle_index] = index
+            for duplicate_molecule_index, _ in group:
+                duplicate_molecule = topology.molecule(duplicate_molecule_index)
 
-            # Append the component template to the full system.
+                for index, atom in enumerate(duplicate_molecule.atoms):
+                    index_map[atom.molecule_particle_index] = index
+
             self._append_system(system, system_template, index_map)
 
         if openmm_pdb_file.topology.getPeriodicBoxVectors() is not None:
@@ -555,18 +561,13 @@ class BuildLigParGenSystem(TemplateBuildSystem):
         openmm.app.ForceField
             The force field template.
         """
-        try:
-            from openmm import unit as openmm_unit
-        except ImportError:
-            from simtk.openmm import unit as openmm_unit
-
         initial_request_url = force_field_source.request_url
         empty_stream = io.BytesIO(b"\r\n")
 
         total_charge = molecule.total_charge
 
-        if isinstance(total_charge, openmm_unit.Quantity):
-            total_charge = total_charge.value_in_unit(openmm_unit.elementary_charge)
+        if isinstance(total_charge, unit.Quantity):
+            total_charge = total_charge.m_as(unit.elementary_charge)
 
         charge_model = "cm1abcc"
 
@@ -654,10 +655,7 @@ class BuildLigParGenSystem(TemplateBuildSystem):
         openmm.System
             The parameterized system.
         """
-        try:
-            from openmm import unit as openmm_unit
-        except ImportError:
-            from simtk.openmm import unit as openmm_unit
+        from openmm import unit as openmm_unit
 
         template = self._built_template(molecule, force_field_source)
 
@@ -696,10 +694,7 @@ class BuildLigParGenSystem(TemplateBuildSystem):
         system: openmm.System
             The system object to apply the OPLS mixing rules to.
         """
-        try:
-            from openmm import unit as openmm_unit
-        except ImportError:
-            from simtk.openmm import unit as openmm_unit
+        from openmm import unit as openmm_unit
 
         forces = [system.getForce(index) for index in range(system.getNumForces())]
         forces = [force for force in forces if isinstance(force, openmm.NonbondedForce)]
@@ -842,11 +837,6 @@ class BuildTLeapSystem(TemplateBuildSystem):
         str
             The file path to the `rst7` file.
         """
-        try:
-            from openmm import unit as openmm_unit
-        except ImportError:
-            from simtk.openmm import unit as openmm_unit
-
         # Change into the working directory.
         with temporarily_change_directory(directory):
 
@@ -854,10 +844,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
             molecule.to_file(initial_file_path, file_format="SDF")
 
             # Save the molecule charges to a file.
-            charges = [
-                x.value_in_unit(openmm_unit.elementary_charge)
-                for x in molecule.partial_charges
-            ]
+            charges = [x.m_as(unit.elementary_charge) for x in molecule.partial_charges]
 
             with open("charges.txt", "w") as file:
                 file.write(textwrap.fill(" ".join(map(str, charges)), width=70))

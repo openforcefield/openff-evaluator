@@ -29,17 +29,14 @@ from openff.evaluator.utils.timeseries import (
 )
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import (
-    InequalityMergeBehaviour,
+    InequalityMergeBehavior,
     InputAttribute,
     OutputAttribute,
 )
 
 if typing.TYPE_CHECKING:
 
-    try:
-        import openmm
-    except ImportError:
-        from simtk import openmm
+    import openmm
 
 
 E0 = 8.854187817e-12 * unit.farad / unit.meter  # Taken from QCElemental
@@ -132,13 +129,13 @@ class BaseAverageObservable(Protocol, abc.ABC):
         docstring="The number of bootstrap iterations to perform.",
         type_hint=int,
         default_value=250,
-        merge_behavior=InequalityMergeBehaviour.LargestValue,
+        merge_behavior=InequalityMergeBehavior.LargestValue,
     )
     bootstrap_sample_size = InputAttribute(
         docstring="The relative sample size to use for bootstrapping.",
         type_hint=float,
         default_value=1.0,
-        merge_behavior=InequalityMergeBehaviour.LargestValue,
+        merge_behavior=InequalityMergeBehavior.LargestValue,
     )
 
     thermodynamic_state = InputAttribute(
@@ -583,12 +580,8 @@ class ComputeDipoleMoments(Protocol):
             The charge on each atom in the system if any are present, otherwise
             none.
         """
-        try:
-            import openmm
-            from openmm import unit as openmm_unit
-        except ImportError:
-            from simtk import openmm
-            from simtk.openmm import unit as openmm_unit
+        import openmm
+        from openmm import unit as openmm_unit
 
         forces = [
             system.getForce(force_index)

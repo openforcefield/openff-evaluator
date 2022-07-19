@@ -270,10 +270,6 @@ def test_replicated_ids():
 
 
 def test_find_relevant_gradient_keys(tmpdir):
-    try:
-        from openmm import unit as openmm_unit
-    except ImportError:
-        from simtk.openmm import unit as openmm_unit
 
     force_field = ForceField()
 
@@ -281,22 +277,22 @@ def test_find_relevant_gradient_keys(tmpdir):
     vdw_handler.add_parameter(
         {
             "smirks": "[#1:1]",
-            "epsilon": 0.0 * openmm_unit.kilocalorie_per_mole,
-            "sigma": 1.0 * openmm_unit.angstrom,
+            "epsilon": 0.0 * unit.kilocalorie_per_mole,
+            "sigma": 1.0 * unit.angstrom,
         }
     )
     vdw_handler.add_parameter(
         {
             "smirks": "[#17:1]",
-            "epsilon": 0.0 * openmm_unit.kilocalorie_per_mole,
-            "sigma": 1.0 * openmm_unit.angstrom,
+            "epsilon": 0.0 * unit.kilocalorie_per_mole,
+            "sigma": 1.0 * unit.angstrom,
         }
     )
     vdw_handler.add_parameter(
         {
             "smirks": "[#6:1]",
-            "epsilon": 0.0 * openmm_unit.kilocalorie_per_mole,
-            "sigma": 1.0 * openmm_unit.angstrom,
+            "epsilon": 0.0 * unit.kilocalorie_per_mole,
+            "sigma": 1.0 * unit.angstrom,
         }
     )
     vsite_handler = VirtualSiteHandler(version=0.3)
@@ -304,10 +300,10 @@ def test_find_relevant_gradient_keys(tmpdir):
         {
             "smirks": "[#1:1][#17:2]",
             "type": "BondCharge",
-            "distance": 0.1 * openmm_unit.nanometers,
+            "distance": 0.1 * unit.nanometers,
             "match": "all_permutations",
-            "charge_increment1": 0.0 * openmm_unit.elementary_charge,
-            "charge_increment2": 0.0 * openmm_unit.elementary_charge,
+            "charge_increment1": 0.0 * unit.elementary_charge,
+            "charge_increment2": 0.0 * unit.elementary_charge,
         }
     )
     force_field.register_parameter_handler(vsite_handler)

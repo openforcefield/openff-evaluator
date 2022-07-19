@@ -7,11 +7,7 @@ from openff.evaluator.utils.serialization import TypedBaseModel
 if TYPE_CHECKING:
 
     from openff.toolkit.topology import Topology
-
-    try:
-        from openmm import System
-    except ImportError:
-        from simtk.openmm import System
+    from openmm import System
 
 
 class ParameterizedSystem(TypedBaseModel):
@@ -35,11 +31,7 @@ class ParameterizedSystem(TypedBaseModel):
     def topology(self) -> "Topology":
 
         from openff.toolkit.topology import Molecule, Topology
-
-        try:
-            from openmm import app
-        except ImportError:
-            from simtk.openmm import app
+        from openmm import app
 
         pdb_file = app.PDBFile(self._topology_path)
 
@@ -59,10 +51,7 @@ class ParameterizedSystem(TypedBaseModel):
 
     @property
     def system(self) -> "System":
-        try:
-            import openmm
-        except ImportError:
-            from simtk import openmm
+        import openmm
 
         with open(self._system_path) as file:
             system = openmm.XmlSerializer.deserialize(file.read())

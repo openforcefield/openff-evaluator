@@ -214,10 +214,7 @@ def test_compute_state_energy_gradients(tmpdir):
 
 
 def test_analyze_phase(monkeypatch, tmpdir):
-    try:
-        from openmm import unit as openmm_unit
-    except ImportError:
-        from simtk.openmm import unit as openmm_unit
+    from openmm import unit as openmm_unit
 
     # Generate the required inputs
     build_tip3p_smirnoff_force_field().json(os.path.join(tmpdir, "ff.json"))

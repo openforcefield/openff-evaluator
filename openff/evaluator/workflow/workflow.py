@@ -638,8 +638,15 @@ class Workflow:
                         for match in labelled_molecule[parameter_key.tag]
                     ]
                     if isinstance(labelled_molecule[parameter_key.tag], list)
-                    else [*labelled_molecule[parameter_key.tag].store.values()]
+                    else [*labelled_molecule[parameter_key.tag].values()]
                 )
+
+                if isinstance(labelled_parameters[0], list):
+                    # Virtual sites create a nested list, so unwrap it ... unless we
+                    # instead need to wrap the others into lists of lists ...
+                    labelled_parameters = [
+                        x.parameter_type for y in labelled_parameters for x in y
+                    ]
 
                 for parameter in labelled_parameters:
 

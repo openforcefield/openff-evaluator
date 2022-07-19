@@ -41,7 +41,7 @@ from openff.evaluator.utils.timeseries import (
 from openff.evaluator.utils.utils import temporarily_change_directory
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import (
-    InequalityMergeBehaviour,
+    InequalityMergeBehavior,
     InputAttribute,
     OutputAttribute,
 )
@@ -69,32 +69,32 @@ class BaseYankProtocol(Protocol, abc.ABC):
         docstring="The number of iterations used for equilibration before production "
         "run. Only post-equilibration iterations are written to file.",
         type_hint=int,
-        merge_behavior=InequalityMergeBehaviour.LargestValue,
+        merge_behavior=InequalityMergeBehavior.LargestValue,
         default_value=1,
     )
     number_of_iterations = InputAttribute(
         docstring="The number of YANK iterations to perform.",
         type_hint=int,
-        merge_behavior=InequalityMergeBehaviour.LargestValue,
+        merge_behavior=InequalityMergeBehavior.LargestValue,
         default_value=5000,
     )
     steps_per_iteration = InputAttribute(
         docstring="The number of steps per YANK iteration to perform.",
         type_hint=int,
-        merge_behavior=InequalityMergeBehaviour.LargestValue,
+        merge_behavior=InequalityMergeBehavior.LargestValue,
         default_value=500,
     )
     checkpoint_interval = InputAttribute(
         docstring="The number of iterations between saving YANK checkpoint files.",
         type_hint=int,
-        merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        merge_behavior=InequalityMergeBehavior.SmallestValue,
         default_value=1,
     )
 
     timestep = InputAttribute(
         docstring="The length of the timestep to take.",
         type_hint=unit.Quantity,
-        merge_behavior=InequalityMergeBehaviour.SmallestValue,
+        merge_behavior=InequalityMergeBehavior.SmallestValue,
         default_value=2 * unit.femtosecond,
     )
 
@@ -150,11 +150,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
         """
 
         from openff.toolkit.topology import Molecule, Topology
-
-        try:
-            from openmm import app
-        except ImportError:
-            from simtk.openmm import app
+        from openmm import app
 
         if role is None:
             return "all"
@@ -187,19 +183,18 @@ class BaseYankProtocol(Protocol, abc.ABC):
 
         all_openmm_atoms = list(openmm_topology.atoms())
 
-        # Find the resiude names of the molecules which have the correct
-        # role.
-        for topology_molecule in topology.topology_molecules:
+        # Find the resiude names of the molecules which have the correct role.
+        for molecule in topology.molecules:
 
-            molecule_smiles = topology_molecule.reference_molecule.to_smiles()
+            molecule_smiles = molecule.to_smiles()
 
             if molecule_smiles not in component_smiles:
                 continue
 
             molecule_residue_names = set(
                 [
-                    all_openmm_atoms[topology_atom.topology_atom_index].residue.name
-                    for topology_atom in topology_molecule.atoms
+                    all_openmm_atoms[topology.atom_index(atom)].residue.name
+                    for atom in molecule.atoms
                 ]
             )
 
@@ -254,7 +249,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
             A yaml compatible dictionary of YANK options.
         """
 
-        from openff.toolkit.utils import quantity_to_string
+        from openff.evaluator.utils.openmm import openmm_quantity_to_string
 
         platform_name = "CPU"
 
@@ -277,10 +272,10 @@ class BaseYankProtocol(Protocol, abc.ABC):
         return {
             "verbose": self.verbose,
             "output_dir": ".",
-            "temperature": quantity_to_string(
+            "temperature": openmm_quantity_to_string(
                 to_openmm(self.thermodynamic_state.temperature)
             ),
-            "pressure": quantity_to_string(
+            "pressure": openmm_quantity_to_string(
                 to_openmm(self.thermodynamic_state.pressure)
             ),
             "minimize": False,
@@ -291,7 +286,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
             "default_nsteps_per_iteration": self.steps_per_iteration,
             "start_from_trailblaze_samples": False,
             "checkpoint_interval": self.checkpoint_interval,
-            "default_timestep": quantity_to_string(to_openmm(self.timestep)),
+            "default_timestep": openmm_quantity_to_string(to_openmm(self.timestep)),
             "annihilate_electrostatics": True,
             "annihilate_sterics": False,
             "platform": platform_name,
@@ -459,10 +454,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
 
             if setup_only is True:
 
-                try:
-                    from openmm import unit as openmm_unit
-                except ImportError:
-                    from simtk.openmm import unit as openmm_unit
+                from openmm import unit as openmm_unit
 
                 return {
                     "free_energy": {
@@ -771,10 +763,17 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
             force_field_source = SmirnoffForceFieldSource.parse_json(file.read())
 
         force_field = force_field_source.to_force_field()
-        charge_method = force_field.get_parameter_handler("Electrostatics").method
+        charge_method = force_field.get_parameter_handler(
+            "Electrostatics"
+        ).periodic_potential
+
+        if charge_method == "Ewald3D-ConductingBoundary":
+            charge_method = "PME"
 
         if charge_method.lower() != "pme":
-            raise ValueError("Currently only PME electrostatics are supported.")
+            raise ValueError(
+                f"Currently only PME electrostatics are supported. Found electrostatics method {charge_method}."
+            )
 
         return {"default": {"nonbonded_method": charge_method}}
 
@@ -1328,10 +1327,7 @@ class SolvationYankProtocol(BaseYankProtocol):
 
     def _execute(self, directory, available_resources):
 
-        try:
-            from openmm import XmlSerializer
-        except ImportError:
-            from simtk.openmm import XmlSerializer
+        from openmm import XmlSerializer
 
         solute_components = [
             component

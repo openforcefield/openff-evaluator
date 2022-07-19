@@ -13,6 +13,23 @@ from molecular simulation and molecular simulation data.
 
 See the [documentation](https://openff-evaluator.readthedocs.io) for more information.
 
+### How To Cite:
+
+Please cite the [JCTC paper](https://doi.org/10.1021/acs.jctc.1c01111) or use this BibTeX reference:
+
+```
+@article{boothroyd2022open,
+  title={Open Force Field Evaluator: An Automated, Efficient, and Scalable Framework for the Estimation of Physical Properties from Molecular Simulation},
+  author={Boothroyd, Simon and Wang, Lee-Ping and Mobley, David L and Chodera, John D and Shirts, Michael R},
+  journal={Journal of Chemical Theory and Computation},
+  volume={18},
+  number={6},
+  pages={3566--3576},
+  year={2022},
+  publisher={ACS Publications}
+}
+```
+
 #### Getting Started
 
 The best place to get acquainted with the framework is through the mini-tutorial series.

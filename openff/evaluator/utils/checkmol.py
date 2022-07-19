@@ -207,7 +207,7 @@ class ChemicalEnvironment(Enum):
     BoronicAcidEster = "Boronic Acid Ester"
     Alkene = "Alkene"
     Alkyne = "Alkyne"
-    Aromatic = "Aromaticatic"
+    Aromatic = "Aromatic"
     Heterocycle = "Heterocycle"
     AlphaAminoacid = "Alpha Aminoacid"
     AlphaHydroxyacid = "Alpha Hydroxyacid"
@@ -465,7 +465,7 @@ def analyse_functional_groups(smiles):
         raise MissingOptionalDependency(
             "checkmol",
             False,
-            "Checkmol can be optianed for free from "
+            "Checkmol can be obtained for free from "
             "http://merian.pch.univie.ac.at/~nhaider/cheminf/cmmm.html.",
         )
 

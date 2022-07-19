@@ -8,15 +8,11 @@ from os import path
 
 import mdtraj
 import numpy
+import pytest
 from openff.toolkit.topology import Molecule, Topology
 from openff.toolkit.typing.engines.smirnoff import ForceField
 from openff.units import unit
-
-try:
-    from openmm import unit as openmm_unit
-except ImportError:
-    from simtk.openmm import unit as openmm_unit
-
+from openmm import unit as openmm_unit
 from smirnoff_plugins.handlers.nonbonded import DoubleExponential
 
 from openff.evaluator.backends import ComputeResources
@@ -178,11 +174,14 @@ def test_evaluate_energies_openmm():
         assert ObservableType.PotentialEnergy in reduced_potentials.output_observables
 
 
+@pytest.mark.xfail(
+    reason="Broken until smirnoff_plugins is made compatible with openff.units"
+)
 def test_smirnoff_plugin_gradients():
     molecule = Molecule.from_smiles("C")
     molecule.generate_conformers(n_conformers=1)
 
-    conformer = molecule.conformers[0].value_in_unit(openmm_unit.nanometers)
+    conformer = molecule.conformers[0].m_as(unit.nanometer)
     conformer = numpy.vstack([conformer, conformer + 0.5])
 
     topology = Topology.from_molecules([Molecule.from_smiles("C")] * 2)
@@ -212,8 +211,8 @@ def test_smirnoff_plugin_gradients():
     vdw_handler.add_parameter(
         parameter_kwargs={
             "smirks": "[*:1]",
-            "epsilon": 0.0 * openmm_unit.kilocalories_per_mole,
-            "sigma": 1.0 * openmm_unit.angstrom,
+            "epsilon": 0.0 * unit.kilocalories_per_mole,
+            "sigma": 1.0 * unit.angstrom,
         }
     )
 

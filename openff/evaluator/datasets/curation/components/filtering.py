@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 import numpy
 import pandas
+from openff.units import unit
 from pydantic import Field, root_validator, validator
 from scipy.optimize import linear_sum_assignment
 from typing_extensions import Literal
@@ -428,18 +429,12 @@ class FilterByElements(CurationComponent):
                 molecule = Molecule.from_smiles(smiles, allow_undefined_stereo=True)
 
                 if schema.allowed_elements is not None and not all(
-                    [
-                        x.element.symbol in schema.allowed_elements
-                        for x in molecule.atoms
-                    ]
+                    [x.symbol in schema.allowed_elements for x in molecule.atoms]
                 ):
                     return False
 
                 if schema.forbidden_elements is not None and any(
-                    [
-                        x.element.symbol in schema.forbidden_elements
-                        for x in molecule.atoms
-                    ]
+                    [x.symbol in schema.forbidden_elements for x in molecule.atoms]
                 ):
                     return False
 
@@ -687,11 +682,6 @@ class FilterByCharged(CurationComponent):
 
         from openff.toolkit.topology import Molecule
 
-        try:
-            from openmm import unit as openmm_unit
-        except ImportError:
-            from simtk.openmm import unit as openmm_unit
-
         def filter_function(data_row):
 
             n_components = data_row["N Components"]
@@ -705,7 +695,7 @@ class FilterByCharged(CurationComponent):
                 atom_charges = [
                     atom.formal_charge
                     if isinstance(atom.formal_charge, int)
-                    else atom.formal_charge.value_in_unit(openmm_unit.elementary_charge)
+                    else atom.formal_charge.m_as(unit.elementary_charge)
                     for atom in molecule.atoms
                 ]
 

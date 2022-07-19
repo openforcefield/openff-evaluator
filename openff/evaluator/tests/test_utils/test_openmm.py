@@ -4,6 +4,7 @@ from random import randint, random
 import mdtraj
 import numpy
 import numpy as np
+import openmm
 import pytest
 from openff.toolkit.topology import Molecule, Topology
 from openff.toolkit.typing.engines.smirnoff import ForceField, vdWHandler
@@ -14,17 +15,9 @@ from openff.toolkit.typing.engines.smirnoff.parameters import (
     VirtualSiteHandler,
 )
 from openff.units import unit
-
-try:
-    import openmm
-    from openff.units.openmm import from_openmm, to_openmm
-    from openmm import unit as openmm_unit
-    from openmm.app import PDBFile
-except ImportError:
-    from simtk import openmm
-    from simtk.openmm import unit as openmm_unit
-    from simtk.openmm.app import PDBFile
-    from openff.units.simtk import from_simtk as from_openmm, to_simtk as to_openmm
+from openff.units.openmm import from_openmm, to_openmm
+from openmm import unit as openmm_unit
+from openmm.app import PDBFile
 
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import ParameterGradientKey
@@ -154,28 +147,28 @@ def hydrogen_chloride_force_field(
     # Add a Vdw handler.
     vdw_handler = vdWHandler(version=0.3)
     vdw_handler.method = "cutoff"
-    vdw_handler.cutoff = 6.0 * openmm_unit.angstrom
+    vdw_handler.cutoff = 6.0 * unit.angstrom
     vdw_handler.scale14 = 1.0
     vdw_handler.add_parameter(
         {
             "smirks": "[#1:1]",
-            "epsilon": 0.0 * openmm_unit.kilojoules_per_mole,
-            "sigma": 1.0 * openmm_unit.angstrom,
+            "epsilon": 0.0 * unit.kilojoules_per_mole,
+            "sigma": 1.0 * unit.angstrom,
         }
     )
     vdw_handler.add_parameter(
         {
             "smirks": "[#17:1]",
-            "epsilon": 2.0 * openmm_unit.kilojoules_per_mole,
-            "sigma": 2.0 * openmm_unit.angstrom,
+            "epsilon": 2.0 * unit.kilojoules_per_mole,
+            "sigma": 2.0 * unit.angstrom,
         }
     )
     force_field.register_parameter_handler(vdw_handler)
 
     # Add an electrostatic, a library charge and a charge increment handler.
     electrostatics_handler = ElectrostaticsHandler(version=0.3)
-    electrostatics_handler.cutoff = 6.0 * openmm_unit.angstrom
-    electrostatics_handler.method = "PME"
+    electrostatics_handler.cutoff = 6.0 * unit.angstrom
+    electrostatics_handler.periodic_potential = "PME"
     force_field.register_parameter_handler(electrostatics_handler)
 
     if library_charge:
@@ -184,13 +177,13 @@ def hydrogen_chloride_force_field(
         library_charge_handler.add_parameter(
             parameter_kwargs={
                 "smirks": "[#1:1]",
-                "charge1": 1.0 * openmm_unit.elementary_charge,
+                "charge1": 1.0 * unit.elementary_charge,
             }
         )
         library_charge_handler.add_parameter(
             parameter_kwargs={
                 "smirks": "[#17:1]",
-                "charge1": -1.0 * openmm_unit.elementary_charge,
+                "charge1": -1.0 * unit.elementary_charge,
             }
         )
         force_field.register_parameter_handler(library_charge_handler)
@@ -201,23 +194,33 @@ def hydrogen_chloride_force_field(
         charge_increment_handler.add_parameter(
             parameter_kwargs={
                 "smirks": "[#1:1]-[#17:2]",
-                "charge_increment1": -1.0 * openmm_unit.elementary_charge,
-                "charge_increment2": 1.0 * openmm_unit.elementary_charge,
+                "charge_increment1": -1.0 * unit.elementary_charge,
+                "charge_increment2": 1.0 * unit.elementary_charge,
             }
         )
         force_field.register_parameter_handler(charge_increment_handler)
 
     if vsite:
 
+        # Molecule is intended to look like
+        # mapping       :2    :1
+        #               H --- Cl -- VS
+        # position (A)  0     1     2
+        # because the hydrogen is tagged as :1, it's the singular parent (0.10.5+ definitions), so
+        # for the virtual site to be on the far side of the chlorine, it needs to be positive in
+        # value and with a distance of 1 A
+        # https://openforcefield.github.io/standards/standards/smirnoff/#virtualsites-virtual-sites-for-off-atom-charges
+        # https://open-forcefield-toolkit.readthedocs.io/en/0.10.5/users/virtualsites.html
+
         vsite_handler = VirtualSiteHandler(version=0.3)
         vsite_handler.add_parameter(
             {
                 "smirks": "[#1:1]-[#17:2]",
                 "type": "BondCharge",
-                "distance": -0.2 * openmm_unit.nanometers,
+                "distance": 0.1 * unit.nanometers,
                 "match": "all_permutations",
-                "charge_increment1": 0.0 * openmm_unit.elementary_charge,
-                "charge_increment2": 0.0 * openmm_unit.elementary_charge,
+                "charge_increment1": 0.0 * unit.elementary_charge,
+                "charge_increment2": 0.0 * unit.elementary_charge,
             }
         )
         force_field.register_parameter_handler(vsite_handler)
@@ -228,7 +231,7 @@ def hydrogen_chloride_force_field(
 def test_system_subset_vdw():
 
     # Create a dummy topology
-    topology = Molecule.from_smiles("Cl").to_topology()
+    topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
 
     # Create the system subset.
     system, parameter_value = system_subset(
@@ -258,8 +261,8 @@ def test_system_subset_vdw_cutoff():
     """Test that handler attributes are correctly handled."""
 
     # Create a dummy topology
-    topology: Topology = Molecule.from_smiles("Cl").to_topology()
-    topology.box_vectors = numpy.eye(3) * openmm_unit.nanometers
+    topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
+    topology.box_vectors = numpy.eye(3) * unit.nanometers
 
     # Create the system subset.
     system, parameter_value = system_subset(
@@ -282,11 +285,11 @@ def test_system_subset_library_charge():
 
     # Ensure a zero charge after perturbation.
     force_field.get_parameter_handler("LibraryCharges").parameters["[#1:1]"].charge1 = (
-        1.5 * openmm_unit.elementary_charge
+        1.5 * unit.elementary_charge
     )
 
     # Create a dummy topology
-    topology = Molecule.from_smiles("Cl").to_topology()
+    topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
 
     # Create the system subset.
     system, parameter_value = system_subset(
@@ -305,8 +308,8 @@ def test_system_subset_library_charge():
     assert np.isclose(charge_0.value_in_unit(openmm_unit.elementary_charge), -1.5)
     assert np.isclose(charge_1.value_in_unit(openmm_unit.elementary_charge), 1.5)
 
-    assert np.isclose(sigma_0.value_in_unit(openmm_unit.angstrom), 10.0)
-    assert np.isclose(sigma_1.value_in_unit(openmm_unit.angstrom), 10.0)
+    assert np.isclose(sigma_0.value_in_unit(openmm_unit.angstrom), 0.0)
+    assert np.isclose(sigma_1.value_in_unit(openmm_unit.angstrom), 0.0)
 
     assert np.isclose(epsilon_0.value_in_unit(openmm_unit.kilojoules_per_mole), 0.0)
     assert np.isclose(epsilon_1.value_in_unit(openmm_unit.kilojoules_per_mole), 0.0)
@@ -320,7 +323,7 @@ def test_system_subset_charge_increment():
     )
 
     # Create a dummy topology
-    topology = Molecule.from_smiles("Cl").to_topology()
+    topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
 
     # Create the system subset.
     system, parameter_value = system_subset(
@@ -417,18 +420,18 @@ def test_update_context_with_positions(box_vectors):
     context_positions = context.getState(getPositions=True).getPositions(asNumpy=True)
     context_box_vectors = context.getState(getPositions=True).getPeriodicBoxVectors()
 
-    assert numpy.allclose(
+    numpy.testing.assert_allclose(
         context_positions.value_in_unit(openmm_unit.angstrom),
-        numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]]),
+        numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]]),
     )
 
-    assert numpy.isclose(
+    numpy.testing.assert_allclose(
         context_box_vectors[0].x, (2.0 if box_vectors is None else 3.0)
     )
-    assert numpy.isclose(
+    numpy.testing.assert_allclose(
         context_box_vectors[1].y, (2.0 if box_vectors is None else 3.0)
     )
-    assert numpy.isclose(
+    numpy.testing.assert_allclose(
         context_box_vectors[2].z, (2.0 if box_vectors is None else 3.0)
     )
 
@@ -456,28 +459,28 @@ def test_update_context_with_pdb(tmpdir):
     context_positions = context.getState(getPositions=True).getPositions(asNumpy=True)
     context_box_vectors = context.getState(getPositions=True).getPeriodicBoxVectors()
 
-    assert numpy.allclose(
+    numpy.testing.assert_allclose(
         context_positions.value_in_unit(openmm_unit.angstrom),
-        numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]]),
+        numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]]),
     )
 
-    assert numpy.allclose(
+    numpy.testing.assert_allclose(
         extract_positions(context.getState(getPositions=True), [2]).value_in_unit(
             openmm_unit.angstrom
         ),
-        numpy.array([[-1.0, 0.0, 0.0]]),
+        numpy.array([[2.0, 0.0, 0.0]]),
     )
 
-    assert numpy.isclose(context_box_vectors[0].x, 2.0)
-    assert numpy.isclose(context_box_vectors[1].y, 2.0)
-    assert numpy.isclose(context_box_vectors[2].z, 2.0)
+    numpy.testing.assert_allclose(context_box_vectors[0].x, 2.0)
+    numpy.testing.assert_allclose(context_box_vectors[1].y, 2.0)
+    numpy.testing.assert_allclose(context_box_vectors[2].z, 2.0)
 
 
 def test_extract_atom_indices():
 
     force_field = hydrogen_chloride_force_field(True, False, True)
 
-    topology: Topology = Molecule.from_smiles("Cl").to_topology()
+    topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
     system = force_field.create_openmm_system(topology)
 
     assert system.getNumParticles() == 3

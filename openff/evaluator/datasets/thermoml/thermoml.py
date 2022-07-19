@@ -12,7 +12,6 @@ from xml.etree import ElementTree
 import numpy as np
 import requests
 from openff.units import unit
-from openff.units.openmm import from_openmm
 
 from openff.evaluator.datasets import (
     MeasurementSource,
@@ -378,7 +377,7 @@ class _Compound:
         str, optional
             None if the identifier cannot be converted, otherwise the converted SMILES pattern.
         """
-        from cmiles.utils import mol_to_smiles
+        from openff.toolkit.topology import Molecule
 
         try:
             import rdkit.Chem
@@ -394,7 +393,11 @@ class _Compound:
             raise ValueError(f"The InchI string ({inchi_string}) could not be parsed")
 
         try:
-            return mol_to_smiles(molecule, explicit_hydrogen=False, mapped=False)
+            return Molecule.from_rdkit(molecule).to_smiles(
+                isomeric=True,
+                explicit_hydrogens=False,
+                mapped=False,
+            )
         except ValueError:
             return None
 
@@ -412,13 +415,17 @@ class _Compound:
         str, optional
             None if the identifier cannot be converted, otherwise the converted SMILES pattern.
         """
-        from cmiles.utils import load_molecule, mol_to_smiles
+        from openff.toolkit.topology import Molecule
+        from openff.toolkit.utils.rdkit_wrapper import RDKitToolkitWrapper
 
         if thermoml_string is None:
             raise ValueError("The string cannot be `None`.")
 
-        molecule = load_molecule(thermoml_string, toolkit="rdkit")
-        return mol_to_smiles(molecule, explicit_hydrogen=False, mapped=False)
+        molecule = Molecule.from_smiles(
+            thermoml_string, toolkit_registry=RDKitToolkitWrapper()
+        )
+
+        return molecule.to_smiles(isomeric=True, explicit_hydrogens=False, mapped=False)
 
     @staticmethod
     def smiles_from_common_name(common_name):
@@ -433,7 +440,6 @@ class _Compound:
         str, None
             None if the identifier cannot be converted, otherwise the converted SMILES pattern.
         """
-        from cmiles.utils import load_molecule, mol_to_smiles
         from openff.toolkit.topology import Molecule
         from openff.toolkit.utils import InvalidIUPACNameError, LicenseError
 
@@ -443,9 +449,10 @@ class _Compound:
         try:
 
             molecule = Molecule.from_iupac(common_name, allow_undefined_stereo=True)
-            cmiles_molecule = load_molecule(molecule.to_smiles(), toolkit="rdkit")
-            smiles = mol_to_smiles(
-                cmiles_molecule, explicit_hydrogen=False, mapped=False
+            smiles = molecule.to_smiles(
+                isomeric=True,
+                explicit_hydrogens=False,
+                mapped=False,
             )
 
             if isinstance(smiles, str) and len(smiles) == 0:
@@ -848,11 +855,6 @@ class _PureOrMixtureData:
         from openff.toolkit.topology import Molecule
 
         try:
-            from openmm import unit as openmm_unit
-        except ImportError:
-            from simtk.openmm import unit as openmm_unit
-
-        try:
 
             molecule = Molecule.from_smiles(smiles)
 
@@ -865,12 +867,14 @@ class _PureOrMixtureData:
                 f"{smiles} smiles pattern: {formatted_exception}"
             )
 
-        molecular_weight = 0.0 * openmm_unit.dalton
+        molecular_weight = 0.0 * unit.dalton
 
         for atom in molecule.atoms:
             molecular_weight += atom.mass
 
-        return from_openmm(molecular_weight)
+        # Molecuar weight in Daltons is not per-mol by SI definitions, but
+        # divide through by Avogadro's number as if it is
+        return molecular_weight / unit.mol
 
     @staticmethod
     def _solvent_mole_fractions_to_moles(
@@ -1068,7 +1072,7 @@ class _PureOrMixtureData:
                         mass_fractions[compound_index].to(unit.dimensionless).magnitude
                     )
 
-        total_mass = 1 * unit.gram
+        total_mass = 1 * unit.dalton
         total_solvent_mass = total_mass
 
         moles = {}

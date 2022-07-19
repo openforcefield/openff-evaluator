@@ -8,6 +8,31 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
+0.4.0
+-----
+
+Behavior Changes
+"""""""""""""""""
+
+This release is intended to be compatible with OpenFF Toolkit version 0.11.0 and newer and is not
+compatible with older versions. To use OpenFF Evaluator in environments with older versions of the
+toolkit (0.10.x and older) please use the 0.3.x release line.
+
+The `simtk` namespace is no longer supported. It is recommended to use OpenMM 7.6 or newer.
+
+Unit-bearing quantities are now handled by `openff-units` instead of the `openmm.units` units
+module. See the ```openff-units`` Documentation <https://github.com/openforcefield/openff-units>`_
+for more information, including OpenMM interoperability.
+
+The use of `CMILES <https://github.com/openforcefield/cmiles>`_ has been replaced with equivalent
+behavior using the OpenFF Toolkit as CMILES is no longer actively maintained.
+
+Documentation
+"""""""""""""
+
+* PR `#409 <https://github.com/openforcefield/openff-evaluator/pull/409>`_: Replaces some uses of `Behaviour` with the American spelling `Behaviour`.
+* PR `#413 <https://github.com/openforcefield/openff-evaluator/pull/413>`_: Adds a brief citation recommendation.
+
 0.3.11
 -----
 
@@ -32,7 +57,7 @@ Bugfixes
 
 * PR `#402 <https://github.com/openforcefield/openff-evaluator/pull/402>`_: Fix importing full ThermoML archive
 
-Behaviour Changes
+Behavior Changes
 """""""""""""""""
 
 The way that ThermoML archive files are served was changed in 2021 so that individual journal archives are no longer
@@ -95,7 +120,7 @@ New Features
 A patch release which adds the option (and enables it by default) to remove working files, such as simulated
 trajectories, when they are no longer needed.
 
-Behaviour Changes
+Behavior Changes
 """""""""""""""""
 
 * PR `#349 <https://github.com/openforcefield/openff-evaluator/pull/349>`_: Working files are deleted by default after an estimation batch completes.
@@ -190,7 +215,7 @@ New Features
 * PR `#312 <https://github.com/openforcefield/openff-evaluator/pull/312>`_: Support caching free energy data.
 * PR `#324 <https://github.com/openforcefield/openff-evaluator/pull/324>`_: Adds new miscellaneous ``DummyProtocol`` protocol.
 
-Behaviour Changes
+Behavior Changes
 """""""""""""""""
 
 * PR `#280 <https://github.com/openforcefield/openff-evaluator/pull/280>`_: Migrate to thermodynamic gradients.

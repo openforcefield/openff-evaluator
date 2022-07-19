@@ -69,7 +69,7 @@ class Component(AttributeClass):
     @staticmethod
     def _standardize_smiles(smiles):
         """Standardizes a SMILES pattern to be canonical (but not necessarily isomeric)
-        using the `cmiles` library.
+        using the OpenFF Toolkit.
 
         Parameters
         ----------
@@ -80,19 +80,38 @@ class Component(AttributeClass):
         -------
         The standardized SMILES pattern.
         """
-        from cmiles.utils import load_molecule, mol_to_smiles
+        from openff.toolkit.topology import Molecule
+        from openff.toolkit.utils.rdkit_wrapper import RDKitToolkitWrapper
+        from openff.toolkit.utils.toolkit_registry import ToolkitRegistry
 
-        molecule = load_molecule(smiles, toolkit="rdkit")
+        # This parsing was previously done with `cmiles.utils.load_molecule`, which
+        # * did NOT enforce stereochemistry while parsing SMILES and
+        # * implicitly used the same toolkit to write the SMILES back from an object
+        # This is hard-coded to keep test results consistent across OpenEye status
+        # and compared to older versions; if desired this could be relaxed
+        rdkit_registry = ToolkitRegistry(toolkit_precedence=[RDKitToolkitWrapper()])
+
+        molecule = Molecule.from_smiles(
+            smiles,
+            toolkit_registry=rdkit_registry,
+            allow_undefined_stereo=True,
+        )
 
         try:
             # Try to make the smiles isomeric.
-            smiles = mol_to_smiles(
-                molecule, isomeric=True, explicit_hydrogen=False, mapped=False
+            smiles = molecule.to_smiles(
+                isomeric=True,
+                explicit_hydrogens=False,
+                mapped=False,
+                toolkit_registry=rdkit_registry,
             )
         except ValueError:
             # Fall-back to non-isomeric.
-            smiles = mol_to_smiles(
-                molecule, isomeric=False, explicit_hydrogen=False, mapped=False
+            smiles = molecule.to_smiles(
+                isomeric=False,
+                explicit_hydrogens=False,
+                mapped=False,
+                toolkit_registry=rdkit_registry,
             )
 
         return smiles

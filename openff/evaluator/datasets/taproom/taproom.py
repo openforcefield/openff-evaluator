@@ -190,11 +190,6 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         """
         from openff.toolkit.topology import Molecule
 
-        try:
-            from openmm import unit as openmm_unit
-        except ImportError:
-            from simtk.openmm import unit as openmm_unit
-
         substance = Substance()
 
         if guest_smiles is not None:
@@ -238,13 +233,13 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
         host_molecule_charge = Molecule.from_smiles(host_smiles).total_charge
         guest_molecule_charge = (
-            0.0 * openmm_unit.elementary_charge
+            0.0 * unit.elementary_charge
             if guest_smiles is None
             else Molecule.from_smiles(guest_smiles).total_charge
         )
 
-        net_charge = (host_molecule_charge + guest_molecule_charge).value_in_unit(
-            openmm_unit.elementary_charge
+        net_charge = (host_molecule_charge + guest_molecule_charge).m_as(
+            unit.elementary_charge
         )
         n_counter_ions = abs(int(net_charge))
 
