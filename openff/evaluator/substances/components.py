@@ -83,7 +83,13 @@ class Component(AttributeClass):
         from openff.toolkit.topology import Molecule
         from openff.toolkit.utils.rdkit_wrapper import RDKitToolkitWrapper
 
-        molecule = Molecule.from_smiles(smiles, toolkit_registry=RDKitToolkitWrapper())
+        # This parsing was previously done with `cmiles.utils.load_molecule`, which did NOT enforce
+        # the stereochemistry check that `Molecule` does
+        molecule = Molecule.from_smiles(
+            smiles,
+            toolkit_registry=RDKitToolkitWrapper(),
+            allow_undefined_stereo=True,
+        )
 
         try:
             # Try to make the smiles isomeric.
