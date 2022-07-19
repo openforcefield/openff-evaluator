@@ -29,8 +29,9 @@ jobs:
           - ubuntu-latest
           - macOS-latest
         python-version:
-          - 3.8
-          - 3.9
+          - "3.8"
+          - "3.9"
+          - "3.10"
         openeye:
           - true
           - false
