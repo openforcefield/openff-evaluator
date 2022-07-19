@@ -115,7 +115,7 @@ def data_frame() -> pandas.DataFrame:
     properties = [Density, EnthalpyOfMixing]
 
     mole_fractions = [(1.0,), (1.0,), (0.25, 0.75), (0.75, 0.25)]
-    smiles = {1: [("C(Cl)Cl",), ("C",)], 2: [("CO", "C"), ("C", "CO")]}
+    smiles = {1: [("C(F)(Cl)(Br)",), ("C",)], 2: [("CO", "C"), ("C", "CO")]}
 
     loop_variables = [
         (
@@ -641,7 +641,6 @@ def test_filter_by_property_strict_n_components():
     }
 
 
-@pytest.mark.xfail(reason="Functionality broken by SMILES parsing failures")
 def test_filter_stereochemistry(data_frame):
 
     # Ensure molecules with undefined stereochemistry are filtered.
@@ -800,7 +799,7 @@ def test_filter_by_smiles(data_frame):
     assert len(pure_data) == 16
 
     unique_components = {*pure_data["Component 1"].unique()}
-    assert unique_components == {"C(Cl)(Cl)"} or unique_components == {"ClCCl"}
+    assert unique_components == {"C(F)(Cl)(Br)"} or unique_components == {"FC(Cl)Br"}
 
     assert len(binary_data) == 0
 
@@ -854,7 +853,7 @@ def test_filter_by_smirks(data_frame):
     assert len(pure_data) == 16
 
     unique_components = {*pure_data["Component 1"].unique()}
-    assert unique_components == {"C(Cl)(Cl)"} or unique_components == {"ClCCl"}
+    assert unique_components == {"C(F)(Cl)(Br)"} or unique_components == {"FC(Cl)Br"}
 
     assert len(binary_data) == len(data_frame[data_frame["N Components"] == 2])
 
