@@ -367,6 +367,7 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
     def _execute(self, directory, available_resources):
 
         from openff.toolkit.topology import Molecule, Topology
+        from openff.toolkit.utils.rdkit_wrapper import RDKitToolkitWrapper
 
         force_field_source = ForceFieldSource.from_json(self.force_field_path)
         cutoff = to_openmm(force_field_source.cutoff)
@@ -379,8 +380,12 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
         unique_molecules = {}
 
         for component in self.substance:
-            unique_molecule = Molecule.from_smiles(component.smiles)
-            unique_molecules[unique_molecule.to_smiles()] = unique_molecule
+            unique_molecule = Molecule.from_smiles(
+                component.smiles, toolkit_registry=RDKitToolkitWrapper()
+            )
+            unique_molecules[
+                unique_molecule.to_smiles(toolkit_registry=RDKitToolkitWrapper())
+            ] = unique_molecule
 
         # Parameterize each component in the system.
         system_templates = {}
@@ -420,7 +425,7 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
         for unique_molecule_index, group in groupings.items():
             unique_molecule = topology.molecule(unique_molecule_index)
 
-            smiles = unique_molecule.to_smiles()
+            smiles = unique_molecule.to_smiles(toolkit_registry=RDKitToolkitWrapper())
             system_template = system_templates[smiles]
 
             index_map = {}
@@ -434,7 +439,7 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
                 for index, atom in enumerate(duplicate_molecule.atoms):
                     index_map[atom.molecule_particle_index] = index
 
-                self._append_system(system, system_template, index_map)
+            self._append_system(system, system_template, index_map)
 
         if openmm_pdb_file.topology.getPeriodicBoxVectors() is not None:
 

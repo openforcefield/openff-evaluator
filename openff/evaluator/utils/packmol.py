@@ -19,6 +19,7 @@ from distutils.spawn import find_executable
 from functools import reduce
 
 import numpy as np
+from openff.toolkit.utils.rdkit_wrapper import RDKitToolkitWrapper
 from openff.units import unit
 
 from openff.evaluator.substances import Component
@@ -353,7 +354,11 @@ def _create_trajectory(molecule):
     # present in the molecule object.
     with tempfile.NamedTemporaryFile(suffix=".pdb") as file:
 
-        molecule.to_file(file.name, "PDB")
+        # Toolkit's PDB writer is untrustworthy (for non-biopolymers) with OpenEyeToolktiWrapper
+        # See https://github.com/openforcefield/openff-toolkit/issues/1307 and linked issues
+        molecule.to_file(
+            file.name, file_format="PDB", toolkit_registry=RDKitToolkitWrapper()
+        )
         # Load the pdb into an mdtraj object.
         mdtraj_trajectory = mdtraj.load_pdb(file.name)
 
