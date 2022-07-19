@@ -82,24 +82,36 @@ class Component(AttributeClass):
         """
         from openff.toolkit.topology import Molecule
         from openff.toolkit.utils.rdkit_wrapper import RDKitToolkitWrapper
+        from openff.toolkit.utils.toolkit_registry import ToolkitRegistry
 
-        # This parsing was previously done with `cmiles.utils.load_molecule`, which did NOT enforce
-        # the stereochemistry check that `Molecule` does
+        # This parsing was previously done with `cmiles.utils.load_molecule`, which
+        # * did NOT enforce stereochemistry while parsing SMILES and
+        # * implicitly used the same toolkit to write the SMILES back from an object
+        # This is hard-coded to keep test results consistent across OpenEye status
+        # and compared to older versions; if desired this could be relaxed
+        rdkit_registry = ToolkitRegistry(toolkit_precedence=[RDKitToolkitWrapper()])
+
         molecule = Molecule.from_smiles(
             smiles,
-            toolkit_registry=RDKitToolkitWrapper(),
+            toolkit_registry=rdkit_registry,
             allow_undefined_stereo=True,
         )
 
         try:
             # Try to make the smiles isomeric.
             smiles = molecule.to_smiles(
-                isomeric=True, explicit_hydrogens=False, mapped=False
+                isomeric=True,
+                explicit_hydrogens=False,
+                mapped=False,
+                toolkit_registry=rdkit_registry,
             )
         except ValueError:
             # Fall-back to non-isomeric.
             smiles = molecule.to_smiles(
-                isomeric=False, explicit_hydrogens=False, mapped=False
+                isomeric=False,
+                explicit_hydrogens=False,
+                mapped=False,
+                toolkit_registry=rdkit_registry,
             )
 
         return smiles

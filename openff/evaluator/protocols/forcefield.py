@@ -436,20 +436,6 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
 
                 self._append_system(system, system_template, index_map)
 
-        """
-        for topology_molecule in topology.topology_molecules:
-
-            smiles = topology_molecule.reference_molecule.to_smiles()
-            system_template = system_templates[smiles]
-
-            index_map = {}
-
-            for index, topology_atom in enumerate(topology_molecule.atoms):
-                index_map[topology_atom.atom.molecule_particle_index] = index
-
-            # Append the component template to the full system.
-            self._append_system(system, system_template, index_map)
-        """
         if openmm_pdb_file.topology.getPeriodicBoxVectors() is not None:
 
             system.setDefaultPeriodicBoxVectors(
