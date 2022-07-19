@@ -308,8 +308,8 @@ def test_system_subset_library_charge():
     assert np.isclose(charge_0.value_in_unit(openmm_unit.elementary_charge), -1.5)
     assert np.isclose(charge_1.value_in_unit(openmm_unit.elementary_charge), 1.5)
 
-    assert np.isclose(sigma_0.value_in_unit(openmm_unit.angstrom), 10.0)
-    assert np.isclose(sigma_1.value_in_unit(openmm_unit.angstrom), 10.0)
+    assert np.isclose(sigma_0.value_in_unit(openmm_unit.angstrom), 0.0)
+    assert np.isclose(sigma_1.value_in_unit(openmm_unit.angstrom), 0.0)
 
     assert np.isclose(epsilon_0.value_in_unit(openmm_unit.kilojoules_per_mole), 0.0)
     assert np.isclose(epsilon_1.value_in_unit(openmm_unit.kilojoules_per_mole), 0.0)
