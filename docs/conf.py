@@ -68,19 +68,6 @@ autodoc_default_options = {
     "member-order": "bysource",
 }
 
-autodoc_mock_imports = [
-    "dask",
-    "dask_jobqueue",
-    "distributed",
-    "packmol",
-    "pydantic",
-    "pymbar",
-    "scipy",
-    "openmm",
-    "typing_extensions",
-    "yaml",
-]
-
 # Autolabel settings
 autosectionlabel_maxdepth = 3
 autosectionlabel_prefix_document = True
@@ -131,7 +118,7 @@ intersphinx_mapping = {
     "python": ("https://docs.python.org/", None),
     "numpy": ("https://docs.scipy.org/doc/numpy/", None),
     "pandas": ("https://pandas.pydata.org/pandas-docs/stable/", None),
-    "mdtraj": ("http://mdtraj.org/latest/", None),
+    "mdtraj": ("http://mdtraj.org/1.9.7/", None),
     "dask": ("http://docs.dask.org/en/latest/", None),
     "dask.distributed": ("https://distributed.dask.org/en/latest/", None),
     "distributed": ("https://distributed.dask.org/en/latest/", None),
