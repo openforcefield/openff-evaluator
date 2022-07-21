@@ -24,7 +24,7 @@ dependencies:
   - openmm >=7.6
   - networkx
   - packmol
-  - pymbar >=3.0.5,<4.0.0
+  - pymbar >=4.0.0
   - mdtraj >=1.9.3
   - dask >=2.7.0
   - distributed >=2.7.0

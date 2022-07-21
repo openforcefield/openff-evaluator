@@ -3,7 +3,7 @@ Units tests for openff.evaluator.utils.statistics
 """
 
 import numpy as np
-from pymbar.timeseries import detectEquilibration
+from pymbar.timeseries import detect_equilibration
 
 from openff.evaluator.utils.timeseries import (
     analyze_time_series,
@@ -29,7 +29,7 @@ def test_analyze_time_series():
     random_array = np.random.rand(10)
 
     statistics = analyze_time_series(random_array, minimum_samples=3)
-    expected_index, expected_value, _ = detectEquilibration(random_array, fast=False)
+    expected_index, expected_value, _ = detect_equilibration(random_array, fast=False)
 
     assert expected_index == statistics.equilibration_index
     assert np.isclose(statistics.statistical_inefficiency, expected_value)
