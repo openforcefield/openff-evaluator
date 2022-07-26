@@ -486,11 +486,12 @@ class OpenMMSimulation(BaseSimulation):
         temperature = self.thermodynamic_state.temperature
         openmm_temperature = to_openmm(temperature)
 
-        pressure = (
-            None if self.ensemble == Ensemble.NVT else self.thermodynamic_state.pressure
-        )
-
-        openmm_pressure = to_openmm(pressure)
+        if self.ensemble == Ensemble.NVT:
+            pressure = None
+            openmm_pressure = None
+        else:
+            pressure = self.thermodynamic_state.pressure
+            openmm_pressure = to_openmm(pressure)
 
         if openmm_temperature is None:
 
