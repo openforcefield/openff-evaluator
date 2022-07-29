@@ -12,6 +12,7 @@ dependencies:
   - pytest
   - pytest-cov
   - codecov
+  - nbval
 
     # Standard dependencies
   - openff-toolkit >=0.11.0rc3

@@ -16,7 +16,7 @@ jobs:
 
   test:
 
-    name: 💻 ${{ matrix.os }}, 🐍 ${{ matrix.python-version }}, 👀 ${{ matrix.openeye }}
+    name: 💻 ${{ matrix.os }}, 🐍 ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
 
     env:
@@ -31,9 +31,6 @@ jobs:
         python-version:
           - 3.8
           - 3.9
-        openeye:
-          - true
-          - false
 
     steps:
       - uses: actions/checkout@v3.0.2
@@ -51,17 +48,6 @@ jobs:
           auto-activate-base: false
 
           show-channel-urls: true
-
-      - name: Install OpenEye
-        if: matrix.openeye
-        shell: bash -l {0}
-        run: |
-          echo "${SECRET_OE_LICENSE}" > ${OE_LICENSE}
-
-          conda install -c openeye openeye-toolkits
-          python -c "from openeye import oechem; assert oechem.OEChemIsLicensed()"
-        env:
-          SECRET_OE_LICENSE: ${{ secrets.OE_LICENSE }}
 
       - name: Install PASCAL Compiler (MacOS)
         shell: bash -l {0}
