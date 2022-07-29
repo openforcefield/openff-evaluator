@@ -12,6 +12,10 @@ on:
   schedule:
     - cron: "0 0 * * *"
 
+defaults:
+  run:
+    shell: bash -l {0}
+
 jobs:
 
   test:
@@ -54,7 +58,6 @@ jobs:
 
       - name: Install OpenEye
         if: matrix.openeye
-        shell: bash -l {0}
         run: |
           echo "${SECRET_OE_LICENSE}" > ${OE_LICENSE}
 
@@ -64,19 +67,16 @@ jobs:
           SECRET_OE_LICENSE: ${{ secrets.OE_LICENSE }}
 
       - name: Install PASCAL Compiler (MacOS)
-        shell: bash -l {0}
         if: startsWith(matrix.os, 'macOS')
         run: |
           brew install fpc
 
       - name: Install PASCAL Compiler (Ubuntu)
-        shell: bash -l {0}
         if: startsWith(matrix.os, 'ubuntu')
         run: |
           sudo apt-get install fp-compiler
 
       - name: Install checkmol
-        shell: bash -l {0}
         run: |
 
           curl https://homepage.univie.ac.at/norbert.haider/download/chemistry/checkmol/checkmol.pas > checkmol.pas
@@ -85,19 +85,16 @@ jobs:
           echo $(pwd) >> $GITHUB_PATH
 
       - name: Install Package
-        shell: bash -l {0}
         run: |
 
           python setup.py develop --no-deps
 
       - name: Conda Environment Information
-        shell: bash -l {0}
         run: |
           conda info
           conda list
 
       - name: Run tests
-        shell: bash -l {0}
         run: |
 
           pytest -v --cov=openff openff/evaluator/tests/ --cov-report=xml --color=yes
