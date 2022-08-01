@@ -34,6 +34,9 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
     high_precision: bool
         If true, a platform with the highest possible precision (double
         for CUDA and OpenCL, Reference for CPU only) will be returned.
+        For GPU platforms, this overrides the precision level in
+        `compute_resources`.
+
     Returns
     -------
     Platform
@@ -44,7 +47,6 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
     # Setup the requested platform:
     if compute_resources.number_of_gpus > 0:
 
-        # TODO: Make sure use mixing precision - CUDA, OpenCL.
         # TODO: Deterministic forces = True
 
         from openff.evaluator.backends import ComputeResources
@@ -52,35 +54,49 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
         toolkit_enum = ComputeResources.GPUToolkit(
             compute_resources.preferred_gpu_toolkit
         )
-
-        # A platform which runs on GPUs has been requested.
-        platform_name = (
-            "CUDA"
-            if toolkit_enum == ComputeResources.GPUToolkit.CUDA
-            else ComputeResources.GPUToolkit.OpenCL
+        precision_level = ComputeResources.GPUPrecision(
+            compute_resources.preferred_gpu_precision
         )
 
-        # noinspection PyCallByClass,PyTypeChecker
-        platform = Platform.getPlatformByName(platform_name)
+        # Get platform for running on GPUs.
+        if toolkit_enum == ComputeResources.GPUToolkit.auto:
 
+            from openmmtools.utils import get_fastest_platform
+
+            # noinspection PyCallByClass,PyTypeChecker
+            platform = get_fastest_platform(minimum_precision=precision_level)
+
+        elif toolkit_enum == ComputeResources.GPUToolkit.CUDA:
+            # noinspection PyCallByClass,PyTypeChecker
+            platform = Platform.getPlatformByName("CUDA")
+
+        elif toolkit_enum == ComputeResources.GPUToolkit.OpenCL:
+            # noinspection PyCallByClass,PyTypeChecker
+            platform = Platform.getPlatformByName("OpenCL")
+
+        else:
+            raise KeyError(f"Specified GPU toolkit {toolkit_enum} is not supported.")
+
+        # Set GPU device index
         if compute_resources.gpu_device_indices is not None:
 
-            property_platform_name = platform_name
-
-            if toolkit_enum == ComputeResources.GPUToolkit.CUDA:
-                property_platform_name = platform_name.lower().capitalize()
-
+            # `DeviceIndex` is used by both CUDA and OpenCL
             platform.setPropertyDefaultValue(
-                property_platform_name + "DeviceIndex",
+                "DeviceIndex",
                 compute_resources.gpu_device_indices,
             )
 
+        # Set GPU precision level
+        platform.setPropertyDefaultValue("Precision", precision_level.value)
         if high_precision:
             platform.setPropertyDefaultValue("Precision", "double")
 
+        # Print platform information
         logger.info(
-            "Setting up an openmm platform on GPU {}".format(
-                compute_resources.gpu_device_indices or 0
+            "Setting up an openmm platform on GPU {} with {} kernel and {} precision".format(
+                compute_resources.gpu_device_indices or 0,
+                platform.getName(),
+                platform.getPropertyDefaultValue("Precision"),
             )
         )
 
@@ -92,6 +108,7 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
             platform.setPropertyDefaultValue(
                 "Threads", str(compute_resources.number_of_threads)
             )
+
         else:
             # noinspection PyCallByClass,PyTypeChecker
             platform = Platform.getPlatformByName("Reference")
