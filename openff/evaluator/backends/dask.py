@@ -298,12 +298,6 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
 
         if resources_per_worker.number_of_gpus > 0:
 
-            if (
-                resources_per_worker.preferred_gpu_toolkit
-                == ComputeResources.GPUToolkit.OpenCL
-            ):
-                raise ValueError("The OpenCL gpu backend is not currently supported.")
-
             if resources_per_worker.number_of_gpus > 1:
                 raise ValueError("Only one GPU per worker is currently supported.")
 
@@ -541,6 +535,7 @@ class DaskLSFBackend(BaseDaskJobQueueBackend):
         >>> resources = QueueWorkerResources(number_of_threads=1,
         >>>                                  number_of_gpus=1,
         >>>                                  preferred_gpu_toolkit=QueueWorkerResources.GPUToolkit.CUDA,
+        >>>                                  preferred_gpu_precision=QueueWorkerResources.GPUPrecision.mixed,
         >>>                                  wallclock_time_limit='05:00')
         >>>
         >>> # Define the set of commands which will set up the correct environment
@@ -653,6 +648,7 @@ class DaskPBSBackend(BaseDaskJobQueueBackend):
         >>> resources = QueueWorkerResources(number_of_threads=1,
         >>>                                  number_of_gpus=1,
         >>>                                  preferred_gpu_toolkit=QueueWorkerResources.GPUToolkit.CUDA,
+        >>>                                  preferred_gpu_precision=QueueWorkerResources.GPUPrecision.mixed,
         >>>                                  wallclock_time_limit='05:00')
         >>>
         >>> # Define the set of commands which will set up the correct environment
@@ -734,6 +730,7 @@ class DaskSLURMBackend(BaseDaskJobQueueBackend):
         >>> resources = QueueWorkerResources(number_of_threads=1,
         >>>                                  number_of_gpus=1,
         >>>                                  preferred_gpu_toolkit=QueueWorkerResources.GPUToolkit.CUDA,
+        >>>                                  preferred_gpu_precision=QueueWorkerResources.GPUPrecision.mixed,
         >>>                                  wallclock_time_limit='05:00')
         >>>
         >>> # Define the set of commands which will set up the correct environment
@@ -800,12 +797,6 @@ class DaskLocalCluster(BaseDaskBackend):
 
         if resources_per_worker.number_of_gpus > 0:
 
-            if (
-                resources_per_worker.preferred_gpu_toolkit
-                == ComputeResources.GPUToolkit.OpenCL
-            ):
-                raise ValueError("The OpenCL gpu backend is not currently supported.")
-
             if resources_per_worker.number_of_gpus > 1:
                 raise ValueError("Only one GPU per worker is currently supported.")
 
@@ -827,7 +818,7 @@ class DaskLocalCluster(BaseDaskBackend):
         self._cluster = distributed.LocalCluster(
             name=None,
             n_workers=self._number_of_workers,
-            threads_per_worker=self._resources_per_worker.number_of_threads,
+            threads_per_worker=1,
             processes=False,
         )
 
