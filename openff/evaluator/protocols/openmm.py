@@ -97,7 +97,10 @@ def _evaluate_energies(
     temperature = to_openmm(thermodynamic_state.temperature)
     beta = 1.0 / (openmm_unit.BOLTZMANN_CONSTANT_kB * temperature)
 
-    pressure = to_openmm(thermodynamic_state.pressure)
+    if thermodynamic_state.pressure is None:
+        pressure = None
+    else:
+        pressure = to_openmm(thermodynamic_state.pressure)
 
     for frame_index in range(trajectory.n_frames):
 
