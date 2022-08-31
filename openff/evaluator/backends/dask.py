@@ -743,7 +743,7 @@ class DaskSLURMBackend(BaseDaskJobQueueBackend):
         >>> # ten workers with the requested resources depending on the calculation load.
         >>> from openff.evaluator.backends.dask import DaskSLURMBackend
         >>>
-        >>> pbs_backend = DaskPBSBackend(minimum_number_of_workers=1,
+        >>> slurm_backend = DaskSLURMBackend(minimum_number_of_workers=1,
         >>>                              maximum_number_of_workers=10,
         >>>                              resources_per_worker=resources,
         >>>                              queue_name='gpuqueue',
