@@ -39,18 +39,11 @@ jobs:
       - uses: actions/checkout@v3.0.2
 
       - name: Setup Conda Environment
-        uses: conda-incubator/setup-miniconda@v2.1.1
+        uses: mamba-org/provision-with-micromamba@main
         with:
-
-          python-version: ${{ matrix.python-version }}
           environment-file: devtools/conda-envs/test_env.yaml
-
-          activate-environment: test
-
-          auto-update-conda: true
-          auto-activate-base: false
-
-          show-channel-urls: true
+          extra-specs: |
+            python=${{ matrix.python-version }}
 
       - name: Install OpenEye
         if: matrix.openeye
@@ -58,7 +51,7 @@ jobs:
         run: |
           echo "${SECRET_OE_LICENSE}" > ${OE_LICENSE}
 
-          conda install -c openeye openeye-toolkits
+          micromamba install -c openeye openeye-toolkits
           python -c "from openeye import oechem; assert oechem.OEChemIsLicensed()"
         env:
           SECRET_OE_LICENSE: ${{ secrets.OE_LICENSE }}
