@@ -263,11 +263,19 @@ class BaseYankProtocol(Protocol, abc.ABC):
             )
 
             # A platform which runs on GPUs has been requested.
-            platform_name = (
-                "CUDA"
-                if toolkit_enum == ComputeResources.GPUToolkit.CUDA
-                else ComputeResources.GPUToolkit.OpenCL
-            )
+            if toolkit_enum == ComputeResources.GPUToolkit.auto:
+                platform_name = "fastest"
+
+            elif toolkit_enum == ComputeResources.GPUToolkit.CUDA:
+                platform_name = "CUDA"
+
+            elif toolkit_enum == ComputeResources.GPUToolkit.OpenCL:
+                platform_name = "OpenCL"
+
+            else:
+                raise KeyError(
+                    f"Specified GPU toolkit {toolkit_enum} is not supported in Yank."
+                )
 
         return {
             "verbose": self.verbose,
