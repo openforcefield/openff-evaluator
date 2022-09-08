@@ -335,7 +335,7 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
             The extra commands to run.
         """
         env_extra = dask.config.get(
-            f"jobqueue.{self._cluster_type}.env-extra", default=[]
+            f"jobqueue.{self._cluster_type}.job-script-prologue", default=[]
         )
 
         if self._setup_script_commands is not None:
@@ -353,7 +353,7 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
             The extra header options to add.
         """
         job_extra = dask.config.get(
-            f"jobqueue.{self._cluster_type}.job-extra", default=[]
+            f"jobqueue.{self._cluster_type}.job-extra-directives", default=[]
         )
 
         if self._extra_script_options is not None:

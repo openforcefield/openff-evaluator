@@ -1,7 +1,6 @@
 name: evaluator-test-env
 channels:
-  - conda-forge/label/openff-toolkit_rc
-  - conda-forge/label/openff-interchange_rc
+  - jaimergp/label/unsupported-cudatoolkit-shim
   - conda-forge
 dependencies:
     # Base depends
@@ -17,25 +16,16 @@ dependencies:
   - coverage >=4.4
 
     # Standard dependencies
-  - openff-toolkit >=0.11.0rc3
-  - smirnoff99frosst
-  - numpy
-  - pandas
-  - openmm >=7.6
-  - networkx
-  - packmol
+  - openff-toolkit >=0.11.0
   - pymbar >=4.0.0
-  - mdtraj >=1.9.3
   - dask >=2.7.0
   - distributed >=2.7.0
-  - dask-jobqueue >=0.7.0
+  - dask-jobqueue >=0.8.0
   - uncertainties
   - openmmtools
   - yank >=0.25.2
   - pyyaml
   - requests
-  - rdkit
-  - cmiles
   - python-dateutil
   - pydantic <2.0.0a0
   - paprika
