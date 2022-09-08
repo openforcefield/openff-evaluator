@@ -1,7 +1,5 @@
 name: evaluator
 channels:
-    - conda-forge/label/openff-toolkit_rc
-    - conda-forge/label/openff-interchange_rc
     - conda-forge
 dependencies:
     # Base depends
@@ -9,23 +7,32 @@ dependencies:
     - setuptools
     - pip
 
-    # Sphinx specific
+    # Standard dependencies
+    - openff-toolkit >=0.11.0
+    - packmol
+    - pymbar >=3.0.5,<4.0.0
+    - mdtraj >=1.9.3
+    - dask >=2.7.0
+    - distributed >=2.7.0
+    - dask-jobqueue >=0.7.0,<=0.8.0
+    - uncertainties
+    - openmmtools
+    - yank >=0.25.2
+    - pyyaml
+    - requests
+    - python-dateutil
+    - pydantic <2.0.0a0
+    - paprika
+    - taproom
+    - dataclasses
+
+    # Documentation dependencies
     - sphinx >=4.5,<5
     - nbsphinx
     - sphinx-notfound-page
     - sphinxcontrib-bibtex
     - pandoc
     - ipython
-
-    # Standard dependencies
-    - numpy
-    - pandas
-    - lxml
-    - icu 58*  # REQUIRED - DO NOT REMOVE.
-    - networkx
-    - pint >=0.10.1
-    - uncertainties
-    - openff-toolkit >=0.11.0rc3
 
     - pip:
       - git+https://github.com/openforcefield/openff-sphinx-theme.git@main

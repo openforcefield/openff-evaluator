@@ -2,7 +2,7 @@ ci:
   autoupdate_schedule: "monthly"
 repos:
 - repo: https://github.com/psf/black
-  rev: 22.3.0
+  rev: 22.8.0
   hooks:
   - id: black
     files: (^openff|^integration-tests)
@@ -12,7 +12,7 @@ repos:
   - id: isort
     files: (^openff|^integration-tests)
 - repo: https://github.com/PyCQA/flake8
-  rev: 4.0.1
+  rev: 5.0.4
   hooks:
   - id: flake8
     files: (^openff|^integration-tests)
