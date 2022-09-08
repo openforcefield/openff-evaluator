@@ -1,5 +1,6 @@
 name: evaluator-test-env
 channels:
+  - jaimergp/label/unsupported-cudatoolkit-shim
   - conda-forge
 dependencies:
     # Base depends
@@ -19,7 +20,7 @@ dependencies:
   - pymbar >=4.0.0
   - dask >=2.7.0
   - distributed >=2.7.0
-  - dask-jobqueue >=0.7.0,<=0.8.0
+  - dask-jobqueue >=0.8.0
   - uncertainties
   - openmmtools
   - yank >=0.25.2
