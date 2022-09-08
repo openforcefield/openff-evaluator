@@ -97,7 +97,10 @@ def _evaluate_energies(
     temperature = to_openmm(thermodynamic_state.temperature)
     beta = 1.0 / (openmm_unit.BOLTZMANN_CONSTANT_kB * temperature)
 
-    pressure = to_openmm(thermodynamic_state.pressure)
+    if thermodynamic_state.pressure is None:
+        pressure = None
+    else:
+        pressure = to_openmm(thermodynamic_state.pressure)
 
     for frame_index in range(trajectory.n_frames):
 
@@ -486,11 +489,12 @@ class OpenMMSimulation(BaseSimulation):
         temperature = self.thermodynamic_state.temperature
         openmm_temperature = to_openmm(temperature)
 
-        pressure = (
-            None if self.ensemble == Ensemble.NVT else self.thermodynamic_state.pressure
-        )
-
-        openmm_pressure = to_openmm(pressure)
+        if self.ensemble == Ensemble.NVT:
+            pressure = None
+            openmm_pressure = None
+        else:
+            pressure = self.thermodynamic_state.pressure
+            openmm_pressure = to_openmm(pressure)
 
         if openmm_temperature is None:
 
