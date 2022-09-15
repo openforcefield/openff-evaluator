@@ -20,12 +20,19 @@ toolkit (0.10.x and older) please use the 0.3.x release line.
 
 The `simtk` namespace is no longer supported. It is recommended to use OpenMM 7.6 or newer.
 
+Use of `pymbar` assumes version 4.0 or newer.
+
 Unit-bearing quantities are now handled by `openff-units` instead of the `openmm.units` units
 module. See the ```openff-units`` Documentation <https://github.com/openforcefield/openff-units>`_
 for more information, including OpenMM interoperability.
 
 The use of `CMILES <https://github.com/openforcefield/cmiles>`_ has been replaced with equivalent
 behavior using the OpenFF Toolkit as CMILES is no longer actively maintained.
+
+New Features
+""""""""""""
+
+* PR `#465 <https://github.com/openforcefield/openff-evaluator/pull/465>`_: Adds support for AMD GPUs via OpenCL.
 
 Documentation
 """""""""""""
