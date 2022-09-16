@@ -24,8 +24,7 @@ Two other version constraints have been added: ``pymbar >=4.0.0`` and ``mdtraj =
 future release should fix compatibility with newer versions of MDTraj.
 
 Unit-bearing quantities are now handled by ``openff-units`` instead of the ``openmm.units`` units
-module. See the ```openff-units`` Documentation <https://docs.openforcefield.org/projects/units/en/stable/>`_
-for more information, including OpenMM interoperability.
+module. See the ``openff-units`` `Documentation <https://docs.openforcefield.org/projects/units/en/stable/>`_ for more information, including OpenMM interoperability.
 
 The use of `CMILES <https://github.com/openforcefield/cmiles>`_ has been replaced with equivalent
 behavior using the OpenFF Toolkit as CMILES is no longer actively maintained.
