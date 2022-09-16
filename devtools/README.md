@@ -12,3 +12,4 @@ This directory contains the files to setup the Conda environment for testing pur
 
 * `conda-envs`: directory containing the YAML file(s) which fully describe Conda Environments, their dependencies, and those dependency provenance's
   * `test_env.yaml`: Simple test environment file with base dependencies. Channels are not specified here and therefore respect global Conda configuration
+  * `docs_env.yaml`: Environment used in building docs, both locally and on RTD.

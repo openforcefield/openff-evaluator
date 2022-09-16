@@ -1,4 +1,4 @@
-name: evaluator
+name: evaluator-docs
 channels:
     - conda-forge
 dependencies:
