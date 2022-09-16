@@ -18,12 +18,13 @@ This release is intended to be compatible with OpenFF Toolkit version 0.11.0 and
 compatible with older versions. To use OpenFF Evaluator in environments with older versions of the
 toolkit (0.10.x and older) please use the 0.3.x release line.
 
-The `simtk` namespace is no longer supported. It is recommended to use OpenMM 7.6 or newer.
+The ``simtk`` namespace is no longer supported. It is recommended to use OpenMM 7.6 or newer.
 
-Two other version constraints have been added: `pymbar >=4.0.0` and `mdtraj >=1.9.4`.
+Two other version constraints have been added: ``pymbar >=4.0.0`` and ``mdtraj =1.9.3,1.9.4``. A
+future release should fix compatibility with newer versions of MDTraj.
 
-Unit-bearing quantities are now handled by `openff-units` instead of the `openmm.units` units
-module. See the ```openff-units`` Documentation <https://github.com/openforcefield/openff-units>`_
+Unit-bearing quantities are now handled by ``openff-units`` instead of the ``openmm.units`` units
+module. See the ```openff-units`` Documentation <https://docs.openforcefield.org/projects/units/en/stable/>`_
 for more information, including OpenMM interoperability.
 
 The use of `CMILES <https://github.com/openforcefield/cmiles>`_ has been replaced with equivalent
