@@ -20,7 +20,7 @@ toolkit (0.10.x and older) please use the 0.3.x release line.
 
 The `simtk` namespace is no longer supported. It is recommended to use OpenMM 7.6 or newer.
 
-Use of `pymbar` assumes version 4.0 or newer.
+Two other version constraints have been added: `pymbar >=4.0.0` and `mdtraj >=1.9.4`.
 
 Unit-bearing quantities are now handled by `openff-units` instead of the `openmm.units` units
 module. See the ```openff-units`` Documentation <https://github.com/openforcefield/openff-units>`_
