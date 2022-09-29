@@ -159,8 +159,10 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
         unlicensed_library = "openeye.oechem" if not oechem.OEChemIsLicensed() else None
 
-        if unlicensed_library is not None:
-            raise MissingOptionalDependency(unlicensed_library, True)
+        # if unlicensed_library is not None:
+        #    raise MissingOptionalDependency(unlicensed_library, True)
+
+        self.toolkit = "rdkit" if unlicensed_library is not None else "openeye"
 
         # Converts variables
         host_codes = TaproomDataSet._convert_variable_to_list(host_codes)
@@ -216,7 +218,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         return variable
 
     @staticmethod
-    def _mol2_to_smiles(file_path: str) -> str:
+    def _molecule_to_smiles(file_path: str, file_format="MOL2") -> str:
         """Converts a mol2 file into a smiles string.
 
         Parameters
@@ -231,7 +233,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         """
         from openff.toolkit.topology import Molecule
 
-        receptor_molecule = Molecule.from_file(file_path, "MOL2")
+        receptor_molecule = Molecule.from_file(file_path, file_format=file_format)
 
         return receptor_molecule.to_smiles()
 
@@ -308,12 +310,10 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 water_mole_fraction = 1.0 - salt_mole_fraction * 2
 
                 substance.add_component(
-                    component=sodium,
-                    amount=MoleFraction(salt_mole_fraction),
+                    component=sodium, amount=MoleFraction(salt_mole_fraction),
                 )
                 substance.add_component(
-                    component=chlorine,
-                    amount=MoleFraction(salt_mole_fraction),
+                    component=chlorine, amount=MoleFraction(salt_mole_fraction),
                 )
 
             substance.add_component(
@@ -359,9 +359,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
     @staticmethod
     def _generate_lambda_scaling(
-        attach_lambdas: List[float],
-        n_pull_windows: int,
-        release_lambdas: List[float],
+        attach_lambdas: List[float], n_pull_windows: int, release_lambdas: List[float],
     ) -> Dict[str, Any]:
         """A help method to generate lambda scaling factors for use in error/convergence
         estimate.
@@ -500,8 +498,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
             root_host_path = os.path.dirname(host_yaml_path)
             host_path = os.path.join(
-                root_host_path,
-                host_spec["structure"].replace(".mol2", ".pdb"),
+                root_host_path, host_spec["structure"].replace(".mol2", ".pdb"),
             )
             unique_host_structures.add(host_path)
 
@@ -741,7 +738,18 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                     host_monomer_path = str(
                         host_yaml_path.parent.joinpath(host_yaml["monomer"])
                     )
-                host_smiles = TaproomDataSet._mol2_to_smiles(host_mol2_path)
+                try:
+                    host_smiles = TaproomDataSet._molecule_to_smiles(host_mol2_path)
+                except NotImplementedError:
+                    host_sdf_path = str(
+                        host_yaml_path.parent.joinpath(
+                            host_yaml["structure"].replace("mol2", "sdf")
+                        )
+                    )
+                    host_smiles = TaproomDataSet._molecule_to_smiles(
+                        host_sdf_path, file_format="SDF"
+                    )
+
                 host_tleap_template = str(
                     systems[host_name]["path"].joinpath(f"build_{host_name}.in")
                 )
@@ -752,7 +760,17 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                         guest_yaml["structure"]
                     )
                 )
-                guest_smiles = TaproomDataSet._mol2_to_smiles(guest_mol2_path)
+                try:
+                    guest_smiles = TaproomDataSet._molecule_to_smiles(guest_mol2_path)
+                except NotImplementedError:
+                    guest_sdf_path = str(
+                        host_yaml_path.parent.joinpath(guest_name).joinpath(
+                            guest_yaml["structure"].replace("mol2", "sdf")
+                        )
+                    )
+                    guest_smiles = TaproomDataSet._molecule_to_smiles(
+                        guest_sdf_path, file_format="SDF"
+                    )
 
                 # Build substance
                 substance = TaproomDataSet._build_substance(
@@ -762,6 +780,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                     negative_buffer_ion,
                     positive_buffer_ion,
                     in_vacuum,
+                    toolkit=self.toolkit,
                 )
                 host_only_substance = TaproomDataSet._build_substance(
                     None,
@@ -770,6 +789,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                     negative_buffer_ion,
                     positive_buffer_ion,
                     in_vacuum,
+                    toolkit=self.toolkit,
                 )
 
                 # Build metadata
@@ -798,9 +818,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                         }
                     )
                     measured_property.metadata["guest_file_paths"].update(
-                        {
-                            "guest_mol2_path": guest_mol2_path,
-                        }
+                        {"guest_mol2_path": guest_mol2_path}
                     )
 
                 all_properties.append(measured_property)
