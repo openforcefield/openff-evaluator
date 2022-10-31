@@ -320,9 +320,6 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             ),
         }
 
-        for restraint in metadata["symmetry_restraints"]:
-            del restraint["restraint"]
-
         dummy_atom_offset = metadata["guest_restraints"][0]["attach"]["target"]
         pull_distance = (
             metadata["guest_restraints"][0]["pull"]["target"] - dummy_atom_offset
