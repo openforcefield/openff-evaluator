@@ -80,17 +80,44 @@ def complex_file_path(tmp_path):
 @pytest.fixture(scope="module")
 def restraints_schema():
     return {
-        "static": [{"atoms": "@12 @1", "force_constant": 5.0}],
-        "conformational": [
-            {"atoms": "@1 @2 @3 @4", "force_constant": 6.0, "target": 104.3}
+        "static": [
+            {
+                "atoms": "@12 @1",
+                "force_constant": 5.0 * unit.kcal / unit.mol / unit.angstrom**2,
+            }
         ],
-        "symmetry": [{"atoms": "@12 @7 @3 @4", "force_constant": 50.0, "target": 11.0}],
-        "wall": [{"atoms": "@12 @7 @3 @4", "force_constant": 50.0, "target": 11.0}],
+        "conformational": [
+            {
+                "atoms": "@1 @2 @3 @4",
+                "force_constant": 6.0 * unit.kcal / unit.mol / unit.radians**2,
+                "target": 104.3 * unit.degrees,
+            }
+        ],
+        "symmetry": [
+            {
+                "atoms": "@12 @7 @3 @4",
+                "force_constant": 50.0 * unit.kcal / unit.mol / unit.radians**2,
+                "target": 11.0 * unit.degrees,
+            }
+        ],
+        "wall": [
+            {
+                "atoms": "@12 @7",
+                "force_constant": 50.0 * unit.kcal / unit.mol / unit.angstrom**2,
+                "target": 11.0 * unit.angstrom,
+            }
+        ],
         "guest": [
             {
                 "atoms": "@12 @7",
-                "attach": {"force_constant": 5.0, "target": 6.0},
-                "pull": {"force_constant": 5.0, "target": 24.0},
+                "attach": {
+                    "force_constant": 5.0 * unit.kcal / unit.mol / unit.angstrom**2,
+                    "target": 6.0 * unit.angstrom,
+                },
+                "pull": {
+                    "force_constant": 5.0 * unit.kcal / unit.mol / unit.angstrom**2,
+                    "target": 24.0 * unit.angstrom,
+                },
             }
         ],
     }
@@ -450,18 +477,36 @@ def test_compute_reference_work(tmp_path, complex_file_path):
         "guest": [
             {
                 "atoms": ":DM1 :7@C4",
-                "attach": {"force_constant": 5, "target": 6},
-                "pull": {"force_constant": 5, "target": 24},
+                "attach": {
+                    "force_constant": 5 * unit.kcal / unit.mol / unit.angstrom**2,
+                    "target": 6 * unit.angstrom,
+                },
+                "pull": {
+                    "force_constant": 5 * unit.kcal / unit.mol / unit.angstrom**2,
+                    "target": 24 * unit.angstrom,
+                },
             },
             {
                 "atoms": ":DM2 :DM1 :7@C4",
-                "attach": {"force_constant": 100, "target": 180},
-                "pull": {"force_constant": 100, "target": 180},
+                "attach": {
+                    "force_constant": 100 * unit.kcal / unit.mol / unit.radians**2,
+                    "target": 180 * unit.degrees,
+                },
+                "pull": {
+                    "force_constant": 100 * unit.kcal / unit.mol / unit.radians**2,
+                    "target": 180 * unit.degrees,
+                },
             },
             {
                 "atoms": ":DM1 :7@C4 :7@N1",
-                "attach": {"force_constant": 100, "target": 180},
-                "pull": {"force_constant": 100, "target": 180},
+                "attach": {
+                    "force_constant": 100 * unit.kcal / unit.mol / unit.radians**2,
+                    "target": 180 * unit.degrees,
+                },
+                "pull": {
+                    "force_constant": 100 * unit.kcal / unit.mol / unit.radians**2,
+                    "target": 180 * unit.degrees,
+                },
             },
         ]
     }
@@ -509,12 +554,27 @@ def test_analyse_apr(tmp_path, monkeypatch, complex_file_path):
     restraints_protocol.attach_lambdas = [0.0, 1.0]
     restraints_protocol.restraint_schemas = {
         "guest": [
-            {"atoms": ":DM1 @7", "attach": {"force_constant": 5, "target": 6}},
+            {
+                "atoms": ":DM1 @7",
+                "attach": {
+                    "force_constant": 5 * unit.kcal / unit.mol / unit.angstrom**2,
+                    "target": 6 * unit.angstrom,
+                },
+            },
             {
                 "atoms": ":DM2 :DM1 @7",
-                "attach": {"force_constant": 100, "target": 180},
+                "attach": {
+                    "force_constant": 100 * unit.kcal / unit.mol / unit.radians**2,
+                    "target": 180 * unit.degrees,
+                },
             },
-            {"atoms": ":DM1 @7 @8", "attach": {"force_constant": 100, "target": 180}},
+            {
+                "atoms": ":DM1 @7 @8",
+                "attach": {
+                    "force_constant": 100 * unit.kcal / unit.mol / unit.radians**2,
+                    "target": 180 * unit.degrees,
+                },
+            },
         ]
     }
     restraints_protocol.execute(str(tmp_path))

@@ -103,11 +103,8 @@ class AnalyzeAPRPhase(Protocol):
 
         self.result = Observable(
             unit.Measurement(
-                multiplier
-                * results[self.phase]["ti-block"]["fe"]
-                * unit.kilocalorie
-                / unit.mole,
-                results[self.phase]["ti-block"]["sem"] * unit.kilocalorie / unit.mole,
+                multiplier * results[self.phase]["ti-block"]["fe"],
+                results[self.phase]["ti-block"]["sem"],
             )
         )
 
@@ -139,10 +136,8 @@ class ComputeSymmetryCorrection(Protocol):
             unit.Measurement(
                 Analyze.symmetry_correction(
                     self.n_microstates,
-                    self.thermodynamic_state.temperature.to(unit.kelvin).magnitude,
-                )
-                * unit.kilocalorie
-                / unit.mole,
+                    self.thermodynamic_state.temperature,
+                ),
                 0 * unit.kilocalorie / unit.mole,
             )
         )
@@ -180,11 +175,9 @@ class ComputeReferenceWork(Protocol):
         self.result = Observable(
             unit.Measurement(
                 -Analyze.compute_ref_state_work(
-                    self.thermodynamic_state.temperature.to(unit.kelvin).magnitude,
+                    self.thermodynamic_state.temperature,
                     guest_restraints,
-                )
-                * unit.kilocalorie
-                / unit.mole,
+                ),
                 0 * unit.kilocalorie / unit.mole,
             )
         )
