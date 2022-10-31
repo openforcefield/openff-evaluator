@@ -292,9 +292,9 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             The constructed metadata dictionary.
         """
 
-        from paprika.restraints.read_yaml import read_yaml
+        from paprika.restraints.read_yaml import read_taproom_yaml
 
-        guest_spec = read_yaml(guest_yaml_path)
+        guest_spec = read_taproom_yaml(guest_yaml_path)
 
         guest_aliases = {
             guest_alias: atom_mask
@@ -337,7 +337,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
         for orientation, host_yaml_path in host_yaml_paths.items():
 
-            host_spec = read_yaml(host_yaml_path)
+            host_spec = read_taproom_yaml(host_yaml_path)
 
             root_host_path = os.path.dirname(host_yaml_path)
             host_path = os.path.join(
