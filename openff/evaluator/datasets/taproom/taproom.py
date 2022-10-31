@@ -326,8 +326,8 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             metadata["guest_restraints"][0]["pull"]["target"] - dummy_atom_offset
         )
 
-        metadata["dummy_atom_offset"] = dummy_atom_offset * unit.angstrom
-        metadata["pull_distance"] = pull_distance * unit.angstrom
+        metadata["dummy_atom_offset"] = dummy_atom_offset
+        metadata["pull_distance"] = pull_distance
 
         unique_attach_lambdas = set()
         unique_n_pull_windows = set()
