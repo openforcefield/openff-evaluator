@@ -132,9 +132,6 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
         unlicensed_library = "openeye.oechem" if not oechem.OEChemIsLicensed() else None
 
-        if unlicensed_library is not None:
-            raise MissingOptionalDependency(unlicensed_library, True)
-
         # TODO: Don't overwrite the taproom ionic strength and buffer ions.
         self._initialize(
             host_codes,
@@ -146,8 +143,8 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         )
 
     @staticmethod
-    def _mol2_to_smiles(file_path: str) -> str:
-        """Converts a mol2 file into a smiles string.
+    def _molecule_to_smiles(file_path: str, file_format: str = "MOL2") -> str:
+        """Converts a mol2/sdf file into a smiles string.
 
         Parameters
         ----------
@@ -161,7 +158,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         """
         from openff.toolkit.topology import Molecule
 
-        receptor_molecule = Molecule.from_file(file_path, "MOL2")
+        receptor_molecule = Molecule.from_file(file_path, file_format=file_format)
         return receptor_molecule.to_smiles()
 
     @staticmethod
@@ -500,7 +497,15 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 host_mol2_path = str(
                     host_yaml_path.parent.joinpath(host_yaml["structure"])
                 )
-                host_smiles = self._mol2_to_smiles(host_mol2_path)
+                try:
+                    host_smiles = self._molecule_to_smiles(
+                        host_mol2_path, file_format="MOL2"
+                    )
+                except NotImplementedError:
+                    host_sdf_path = host_mol2_path.replace(".mol2", ".sdf")
+                    host_smiles = self._molecule_to_smiles(
+                        host_sdf_path, file_format="SDF"
+                    )
 
                 guest_yaml_path = systems[host_name][guest_name]["yaml"]
 
@@ -512,7 +517,15 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                         guest_yaml["structure"]
                     )
                 )
-                guest_smiles = self._mol2_to_smiles(guest_mol2_path)
+                try:
+                    guest_smiles = self._molecule_to_smiles(
+                        guest_mol2_path, file_format="MOL2"
+                    )
+                except NotImplementedError:
+                    guest_sdf_path = guest_sdf_path.replace(".mol2", ".sdf")
+                    guest_smiles = self._molecule_to_smiles(
+                        guest_sdf_path, file_format="SDF"
+                    )
 
                 substance = self._build_substance(
                     guest_smiles,
