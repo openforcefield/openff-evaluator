@@ -14,7 +14,8 @@ from openff.evaluator.datasets import PhysicalPropertyDataSet, PropertyPhase, So
 from openff.evaluator.properties import HostGuestBindingAffinity
 from openff.evaluator.substances import Component, ExactAmount, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
-from openff.evaluator.utils.exceptions import MissingOptionalDependency
+
+# from openff.evaluator.utils.exceptions import MissingOptionalDependency
 
 logger = logging.getLogger(__name__)
 
@@ -125,12 +126,12 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         """
         super().__init__()
 
-        try:
-            from openeye import oechem
-        except ImportError:
-            raise MissingOptionalDependency("openeye.oechem", False)
-
-        unlicensed_library = "openeye.oechem" if not oechem.OEChemIsLicensed() else None
+        # try:
+        #     from openeye import oechem
+        # except ImportError:
+        #     raise MissingOptionalDependency("openeye.oechem", False)
+        #
+        # unlicensed_library = "openeye.oechem" if not oechem.OEChemIsLicensed() else None
 
         # TODO: Don't overwrite the taproom ionic strength and buffer ions.
         self._initialize(
@@ -494,15 +495,17 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 with open(host_yaml_path, "r") as file:
                     host_yaml = yaml.safe_load(file)
 
-                host_mol2_path = str(
-                    host_yaml_path.parent.joinpath(host_yaml["structure"])
-                )
                 try:
+                    host_mol2_path = str(
+                        host_yaml_path.parent.joinpath(host_yaml["structure"]["mol2"])
+                    )
                     host_smiles = self._molecule_to_smiles(
                         host_mol2_path, file_format="MOL2"
                     )
                 except NotImplementedError:
-                    host_sdf_path = host_mol2_path.replace(".mol2", ".sdf")
+                    host_sdf_path = str(
+                        host_yaml_path.parent.joinpath(host_yaml["structure"]["sdf"])
+                    )
                     host_smiles = self._molecule_to_smiles(
                         host_sdf_path, file_format="SDF"
                     )
@@ -512,17 +515,21 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 with open(guest_yaml_path, "r") as file:
                     guest_yaml = yaml.safe_load(file)
 
-                guest_mol2_path = str(
-                    host_yaml_path.parent.joinpath(guest_name).joinpath(
-                        guest_yaml["structure"]
-                    )
-                )
                 try:
+                    guest_mol2_path = str(
+                        host_yaml_path.parent.joinpath(guest_name).joinpath(
+                            guest_yaml["structure"]["mol2"]
+                        )
+                    )
                     guest_smiles = self._molecule_to_smiles(
                         guest_mol2_path, file_format="MOL2"
                     )
                 except NotImplementedError:
-                    guest_sdf_path = guest_sdf_path.replace(".mol2", ".sdf")
+                    guest_sdf_path = str(
+                        host_yaml_path.parent.joinpath(guest_name).joinpath(
+                            guest_yaml["structure"]["sdf"]
+                        )
+                    )
                     guest_smiles = self._molecule_to_smiles(
                         guest_sdf_path, file_format="SDF"
                     )
