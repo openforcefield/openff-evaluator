@@ -4,6 +4,7 @@ An API for importing a data set from the `taproom
 """
 import logging
 import os
+import warnings
 from typing import Any, Dict, List, Optional
 
 import pkg_resources
@@ -126,12 +127,19 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         """
         super().__init__()
 
-        # try:
-        #     from openeye import oechem
-        # except ImportError:
-        #     raise MissingOptionalDependency("openeye.oechem", False)
-        #
-        # unlicensed_library = "openeye.oechem" if not oechem.OEChemIsLicensed() else None
+        try:
+            from openeye import oechem
+
+            # Check OE license
+            unlicensed_library = (
+                "openeye.oechem" if not oechem.OEChemIsLicensed() else None
+            )
+            if unlicensed_library is not None:
+                raise MissingOptionalDependency(unlicensed_library, True)
+        except ImportError:
+            warnings.warn(
+                "`openeye.oechem` not detected, using RDKit and Antechamber toolkits."
+            )
 
         # TODO: Don't overwrite the taproom ionic strength and buffer ions.
         self._initialize(
@@ -144,7 +152,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         )
 
     @staticmethod
-    def _molecule_to_smiles(file_path: str, file_format: str = "MOL2") -> str:
+    def _molecule_to_smiles(file_path: str, file_format: str = "SDF") -> str:
         """Converts a mol2/sdf file into a smiles string.
 
         Parameters
@@ -490,50 +498,34 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 orientations = [
                     orientation for orientation in systems[host_name]["yaml"]
                 ]
+
+                # Get SMILES for host molecule
                 host_yaml_path = systems[host_name]["yaml"][orientations[0]]
 
                 with open(host_yaml_path, "r") as file:
                     host_yaml = yaml.safe_load(file)
 
-                try:
-                    host_mol2_path = str(
-                        host_yaml_path.parent.joinpath(host_yaml["structure"]["mol2"])
-                    )
-                    host_smiles = self._molecule_to_smiles(
-                        host_mol2_path, file_format="MOL2"
-                    )
-                except NotImplementedError:
-                    host_sdf_path = str(
-                        host_yaml_path.parent.joinpath(host_yaml["structure"]["sdf"])
-                    )
-                    host_smiles = self._molecule_to_smiles(
-                        host_sdf_path, file_format="SDF"
-                    )
+                host_sdf_path = str(
+                    host_yaml_path.parent.joinpath(host_yaml["structure"]["sdf"])
+                )
+                host_smiles = self._molecule_to_smiles(host_sdf_path, file_format="SDF")
 
+                # Get SMILES for guest molecule
                 guest_yaml_path = systems[host_name][guest_name]["yaml"]
 
                 with open(guest_yaml_path, "r") as file:
                     guest_yaml = yaml.safe_load(file)
 
-                try:
-                    guest_mol2_path = str(
-                        host_yaml_path.parent.joinpath(guest_name).joinpath(
-                            guest_yaml["structure"]["mol2"]
-                        )
+                guest_sdf_path = str(
+                    host_yaml_path.parent.joinpath(guest_name).joinpath(
+                        guest_yaml["structure"]["sdf"]
                     )
-                    guest_smiles = self._molecule_to_smiles(
-                        guest_mol2_path, file_format="MOL2"
-                    )
-                except NotImplementedError:
-                    guest_sdf_path = str(
-                        host_yaml_path.parent.joinpath(guest_name).joinpath(
-                            guest_yaml["structure"]["sdf"]
-                        )
-                    )
-                    guest_smiles = self._molecule_to_smiles(
-                        guest_sdf_path, file_format="SDF"
-                    )
+                )
+                guest_smiles = self._molecule_to_smiles(
+                    guest_sdf_path, file_format="SDF"
+                )
 
+                # build substance for complex and host-only
                 substance = self._build_substance(
                     guest_smiles,
                     host_smiles,
