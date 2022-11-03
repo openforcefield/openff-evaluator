@@ -763,9 +763,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
         dt_thermalization: unit.Quantity = 1.0 * unit.femtosecond,
         dt_equilibration: unit.Quantity = 2.0 * unit.femtosecond,
         dt_production: unit.Quantity = 2.0 * unit.femtosecond,
-        out_thermalization: int = 10000,
-        out_equilibration: int = 10000,
-        out_production: int = 5000,
+        out_thermalization_steps: int = 10000,
+        out_equilibration_steps: int = 10000,
+        out_production_steps: int = 5000,
         debug: bool = False,
     ):
         """Returns the default calculation schema to use when estimating
@@ -843,9 +843,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
             dt_thermalization=dt_thermalization,
             dt_equilibration=dt_equilibration,
             dt_production=dt_production,
-            out_thermalization=out_thermalization,
-            out_equilibration=out_equilibration,
-            out_production=out_production,
+            out_thermalization=out_thermalization_steps,
+            out_equilibration=out_equilibration_steps,
+            out_production=out_production_steps,
         )
 
         if debug:
