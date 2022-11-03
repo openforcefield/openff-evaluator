@@ -248,9 +248,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
         dt_thermalization: unit.Quantity,
         dt_equilibration: unit.Quantity,
         dt_production: unit.Quantity,
-        out_thermalization: int = 5000,
-        out_equilibration: int = 5000,
-        out_production: int = 5000,
+        out_thermalization: int,
+        out_equilibration: int,
+        out_production: int,
     ) -> Tuple[
         openmm.OpenMMEnergyMinimisation,
         openmm.OpenMMSimulation,
