@@ -15,8 +15,7 @@ from openff.evaluator.datasets import PhysicalPropertyDataSet, PropertyPhase, So
 from openff.evaluator.properties import HostGuestBindingAffinity
 from openff.evaluator.substances import Component, ExactAmount, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
-
-# from openff.evaluator.utils.exceptions import MissingOptionalDependency
+from openff.evaluator.utils.exceptions import MissingOptionalDependency
 
 logger = logging.getLogger(__name__)
 

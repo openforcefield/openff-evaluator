@@ -235,6 +235,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
         solvation_protocol.count_exact_amount = False
         solvation_protocol.box_aspect_ratio = [1.0, 1.0, 2.0]
         solvation_protocol.center_solute_in_box = False
+        solvation_protocol.tolerance = 2.4 * unit.angstrom
+
         return solvation_protocol
 
     @classmethod
@@ -246,6 +248,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
         dt_thermalization: unit.Quantity,
         dt_equilibration: unit.Quantity,
         dt_production: unit.Quantity,
+        out_thermalization: int = 5000,
+        out_equilibration: int = 5000,
+        out_production: int = 5000,
     ) -> Tuple[
         openmm.OpenMMEnergyMinimisation,
         openmm.OpenMMSimulation,
@@ -273,6 +278,12 @@ class HostGuestBindingAffinity(PhysicalProperty):
             The integration timestep during equilibration
         dt_production
             The integration timestep during production
+        out_thermalization
+            The number of steps between writing trajectories for thermalization
+        out_equilibration
+            The number of steps between writing trajectories for equilibration
+        outt_production
+            The number of steps between writing trajectories for production
 
         Returns
         -------
@@ -280,20 +291,23 @@ class HostGuestBindingAffinity(PhysicalProperty):
             an equilibration, and finally a production simulation.
         """
         energy_minimisation = openmm.OpenMMEnergyMinimisation("")
+        energy_minimisation.tolerance = (
+            10.0 * unit.kilojoules / unit.mole / unit.nanometer
+        )
 
         thermalization = openmm.OpenMMSimulation("")
         thermalization.steps_per_iteration = n_thermalization_steps
-        thermalization.output_frequency = 10000
+        thermalization.output_frequency = out_thermalization
         thermalization.timestep = dt_thermalization
 
         equilibration = openmm.OpenMMSimulation("")
         equilibration.steps_per_iteration = n_equilibration_steps
-        equilibration.output_frequency = 10000
+        equilibration.output_frequency = out_equilibration
         equilibration.timestep = dt_equilibration
 
         production = openmm.OpenMMSimulation("")
         production.steps_per_iteration = n_production_steps
-        production.output_frequency = 5000
+        production.output_frequency = out_production
         production.timestep = dt_production
 
         return energy_minimisation, thermalization, equilibration, production
@@ -749,6 +763,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
         dt_thermalization: unit.Quantity = 1.0 * unit.femtosecond,
         dt_equilibration: unit.Quantity = 2.0 * unit.femtosecond,
         dt_production: unit.Quantity = 2.0 * unit.femtosecond,
+        out_thermalization: int = 10000,
+        out_equilibration: int = 10000,
+        out_production: int = 5000,
         debug: bool = False,
     ):
         """Returns the default calculation schema to use when estimating
@@ -785,6 +802,12 @@ class HostGuestBindingAffinity(PhysicalProperty):
             The integration timestep during equilibration
         dt_production
             The integration timestep during production
+        out_thermalization
+            The number of steps between writing trajectories for thermalization
+        out_equilibration
+            The number of steps between writing trajectories for equilibration
+        outt_production
+            The number of steps between writing trajectories for production
         debug
             Whether to return a debug schema. This is nearly identical
             to the default schema, albeit with significantly less
@@ -820,6 +843,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
             dt_thermalization=dt_thermalization,
             dt_equilibration=dt_equilibration,
             dt_production=dt_production,
+            out_thermalization=out_thermalization,
+            out_equilibration=out_equilibration,
+            out_production=out_production,
         )
 
         if debug:
