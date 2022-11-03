@@ -248,9 +248,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
         dt_thermalization: unit.Quantity,
         dt_equilibration: unit.Quantity,
         dt_production: unit.Quantity,
-        out_thermalization: int = 5000,
-        out_equilibration: int = 5000,
-        out_production: int = 5000,
+        out_thermalization_steps: int,
+        out_equilibration_steps: int,
+        out_production_steps: int,
     ) -> Tuple[
         openmm.OpenMMEnergyMinimisation,
         openmm.OpenMMSimulation,
@@ -297,17 +297,17 @@ class HostGuestBindingAffinity(PhysicalProperty):
 
         thermalization = openmm.OpenMMSimulation("")
         thermalization.steps_per_iteration = n_thermalization_steps
-        thermalization.output_frequency = out_thermalization
+        thermalization.output_frequency = out_thermalization_steps
         thermalization.timestep = dt_thermalization
 
         equilibration = openmm.OpenMMSimulation("")
         equilibration.steps_per_iteration = n_equilibration_steps
-        equilibration.output_frequency = out_equilibration
+        equilibration.output_frequency = out_equilibration_steps
         equilibration.timestep = dt_equilibration
 
         production = openmm.OpenMMSimulation("")
         production.steps_per_iteration = n_production_steps
-        production.output_frequency = out_production
+        production.output_frequency = out_production_steps
         production.timestep = dt_production
 
         return energy_minimisation, thermalization, equilibration, production
@@ -763,9 +763,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
         dt_thermalization: unit.Quantity = 1.0 * unit.femtosecond,
         dt_equilibration: unit.Quantity = 2.0 * unit.femtosecond,
         dt_production: unit.Quantity = 2.0 * unit.femtosecond,
-        out_thermalization: int = 10000,
-        out_equilibration: int = 10000,
-        out_production: int = 5000,
+        out_thermalization_steps: int = 10000,
+        out_equilibration_steps: int = 10000,
+        out_production_steps: int = 5000,
         debug: bool = False,
     ):
         """Returns the default calculation schema to use when estimating
@@ -843,9 +843,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
             dt_thermalization=dt_thermalization,
             dt_equilibration=dt_equilibration,
             dt_production=dt_production,
-            out_thermalization=out_thermalization,
-            out_equilibration=out_equilibration,
-            out_production=out_production,
+            out_thermalization=out_thermalization_steps,
+            out_equilibration=out_equilibration_steps,
+            out_production=out_production_steps,
         )
 
         if debug:
