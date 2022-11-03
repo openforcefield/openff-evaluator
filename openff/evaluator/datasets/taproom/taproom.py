@@ -93,6 +93,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         self,
         host_codes: List[str] = None,
         guest_codes: List[str] = None,
+        host_guest_codes: Dict[str, List[str]] = None,
         default_ionic_strength: Optional[unit.Quantity] = 150 * unit.millimolar,
         negative_buffer_ion: str = "[Cl-]",
         positive_buffer_ion: str = "[Na+]",
@@ -104,10 +105,15 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         ----------
         host_codes
             The three letter codes of the host molecules to load from ``taproom``
-            If no list is provided, all hosts will be loaded.
+            if no list is provided, all hosts will be loaded.
         guest_codes
             The three letter codes of the guest molecules to load from ``taproom``.
-            If no list is provided, all guests will be loaded.
+            if no list is provided, all guests will be loaded.
+        host_guest_codes
+            A dictionary containing the three letter codes of guest molecules
+            for each host molecule to load from ``taproom``. This option provides
+            greater control for choosing the host-guest complexes. If specified,
+            `host_codes` and `guest_codes` will be ignored.
         default_ionic_strength
             The default ionic strength to use for measurements. The value
             specified in ``taproom`` will be ignored and this value used
@@ -140,10 +146,18 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 "`openeye.oechem` not detected, using RDKit and Antechamber toolkits."
             )
 
+        if host_guest_codes:
+            if host_codes is not None or guest_codes is not None:
+                warnings.warn(
+                    "Ignoring `host_codes` and `guest_codes`, choosing host-guest "
+                    "complex with `host_guest_codes` instead."
+                )
+
         # TODO: Don't overwrite the taproom ionic strength and buffer ions.
         self._initialize(
             host_codes,
             guest_codes,
+            host_guest_codes,
             default_ionic_strength,
             negative_buffer_ion,
             positive_buffer_ion,
@@ -410,6 +424,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         self,
         host_codes: List[str],
         guest_codes: List[str],
+        host_guest_codes: Dict[str, List[str]],
         ionic_strength: Optional[unit.Quantity],
         negative_buffer_ion: str,
         positive_buffer_ion: str,
@@ -425,6 +440,11 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         guest_codes
             The three letter codes of the guest molecules to load from ``taproom``.
             If no list is provided, all guests will be loaded.
+        host_guest_codes
+            A dictionary containing the three letter codes of guest molecules
+            for each host molecule to load from ``taproom``. This option provides
+            greater control for choosing the host-guest complexes. If specified,
+            `host_codes` and `guest_codes` will be ignored.
         ionic_strength
             The default ionic strength to use for measurements. The value
             specified in ``taproom`` will be ignored and this value used
@@ -459,10 +479,16 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
         all_properties = []
 
+        if host_guest_codes:
+            host_codes = list(host_guest_codes.keys())
+
         for host_name in measurements:
 
             if host_codes and host_name not in host_codes:
                 continue
+
+            if host_guest_codes:
+                guest_codes = host_guest_codes[host_name]
 
             for guest_name in measurements[host_name]:
 

@@ -24,6 +24,22 @@ def test_taproom():
     assert data_set.properties[0].source.host_identifier == "acd"
     assert data_set.properties[0].source.guest_identifier == "bam"
 
+    data_set = TaproomDataSet(host_guest_codes={"acd": ["bam", "but"], "bcd": ["ben"]})
+
+    assert len(data_set) == 3
+    assert isinstance(data_set.properties[0].source, TaproomSource)
+    assert isinstance(data_set.properties[1].source, TaproomSource)
+    assert isinstance(data_set.properties[2].source, TaproomSource)
+
+    assert data_set.properties[0].source.host_identifier == "bcd"
+    assert data_set.properties[0].source.guest_identifier == "ben"
+
+    assert data_set.properties[1].source.host_identifier == "acd"
+    assert data_set.properties[1].source.guest_identifier == "bam"
+
+    assert data_set.properties[2].source.host_identifier == "acd"
+    assert data_set.properties[2].source.guest_identifier == "but"
+
 
 @pytest.mark.skipif(
     openeye is None or not openeye.oechem.OEChemIsLicensed(),
