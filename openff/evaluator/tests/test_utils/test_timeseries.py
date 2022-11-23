@@ -3,7 +3,12 @@ Units tests for openff.evaluator.utils.statistics
 """
 
 import numpy as np
-from pymbar.timeseries import detect_equilibration
+
+try:
+    from pymbar.timeseries import detect_equilibration
+except ImportError:
+    from pymbar.timeseries import detectEquilibration as detect_equilibration
+
 
 from openff.evaluator.utils.timeseries import (
     analyze_time_series,
