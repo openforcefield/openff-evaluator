@@ -16,7 +16,7 @@ jobs:
 
   test:
 
-    name: 💻 ${{ matrix.os }}, 🐍 ${{ matrix.python-version }}, 👀 ${{ matrix.openeye }}
+    name: 💻 ${{ matrix.os }}, 🐍 ${{ matrix.python-version }}, 👀 ${{ matrix.openeye }}, pymbar ${{ matrix.pymbar-version }}
     runs-on: ${{ matrix.os }}
 
     env:
@@ -31,9 +31,13 @@ jobs:
         python-version:
           - 3.8
           - 3.9
+        pymbar-version:
+          - 3
+          - 4
         openeye:
           - true
           - false
+
 
     steps:
       - uses: actions/checkout@v3.1.0
@@ -44,6 +48,12 @@ jobs:
           environment-file: devtools/conda-envs/test_env.yaml
           extra-specs: |
             python=${{ matrix.python-version }}
+
+      - name: Install pymbar 3
+        if: ${{ matrix.pymbar-version == 3 }}
+        shell: bash -l {0}
+        run: |
+          micromamba install -c "pymbar =3" -c conda-forge -yq
 
       - name: Install OpenEye
         if: matrix.openeye
