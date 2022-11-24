@@ -8,6 +8,15 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
+0.4.1
+-----
+
+New Features
+""""""""""""
+
+* PR `#475 <https://github.com/openforcefield/openff-evaluator/pull/475>`_: Tests compatibility with `pymbar` 3 and 4.
+
+
 0.4.0
 -----
 
