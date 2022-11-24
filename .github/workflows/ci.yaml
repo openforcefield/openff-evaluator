@@ -53,7 +53,7 @@ jobs:
         if: ${{ matrix.pymbar-version == 3 }}
         shell: bash -l {0}
         run: |
-          micromamba install -c "pymbar =3" -c conda-forge -yq
+          micromamba install "pymbar =3" -c conda-forge -yq
 
       - name: Install OpenEye
         if: matrix.openeye
