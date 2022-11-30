@@ -91,7 +91,7 @@ jobs:
         shell: bash -l {0}
         run: |
 
-          python setup.py develop --no-deps
+          python -m pip install .
 
       - name: Conda Environment Information
         shell: bash -l {0}
