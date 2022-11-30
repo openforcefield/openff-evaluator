@@ -103,7 +103,7 @@ jobs:
         shell: bash -l {0}
         run: |
 
-          pytest -v --cov=openff openff/evaluator/tests/ --cov-report=xml --color=yes
+          python -m pytest -v --cov=openff openff/evaluator/tests/ --cov-report=xml --color=yes
 
       - name: Code coverage
         uses: codecov/codecov-action@v3.1.1
