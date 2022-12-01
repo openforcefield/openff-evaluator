@@ -91,7 +91,7 @@ jobs:
         shell: bash -l {0}
         run: |
 
-          python setup.py develop --no-deps
+          python -m pip install .
 
       - name: Conda Environment Information
         shell: bash -l {0}
@@ -103,7 +103,7 @@ jobs:
         shell: bash -l {0}
         run: |
 
-          pytest -v --cov=openff openff/evaluator/tests/ --cov-report=xml --color=yes
+          python -m pytest -v --cov=openff openff/evaluator/tests/ --cov-report=xml --color=yes
 
       - name: Code coverage
         uses: codecov/codecov-action@v3.1.1
