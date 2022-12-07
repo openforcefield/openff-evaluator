@@ -33,7 +33,10 @@ from openff.evaluator.utils.utils import (
 )
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
-from openff.toolkit.topology import Molecule
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from openff.toolkit.topology import Molecule
 
 logger = logging.getLogger(__name__)
 
