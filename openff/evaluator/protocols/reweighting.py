@@ -22,7 +22,6 @@ from openff.evaluator.utils.observables import (
     ObservableFrame,
     bootstrap,
 )
-from openff.evaluator.utils.pymbar import _PYMBAR_MAJOR_VERSION
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
 
@@ -492,19 +491,13 @@ class BaseMBARProtocol(Protocol, abc.ABC):
             observable_dimensions = observable.value.shape[1]
             assert observable_dimensions == 1
 
-            if _PYMBAR_MAJOR_VERSION == 3:
+            from openff.evaluator.utils.pymbar import compute_expectations
 
-                results = mbar.computeExpectations(
-                    observable.value.T.magnitude,
-                    target_reduced_potentials.value.T.magnitude,
-                    state_dependent=True,
-                )
-            elif _PYMBAR_MAJOR_VERSION == 4:
-                results = mbar.compute_expectations(
-                    observable.value.T.magnitude,
-                    target_reduced_potentials.value.T.magnitude,
-                    state_dependent=True,
-                )
+            results = getattr(mbar, compute_expectations)(
+                observable.value.T.magnitude,
+                target_reduced_potentials.value.T.magnitude,
+                state_dependent=True,
+            )
 
             uncertainty = results[1][-1] * observable.value.units
             average_value = average_value.plus_minus(uncertainty)
