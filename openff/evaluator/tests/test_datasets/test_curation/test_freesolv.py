@@ -1,4 +1,5 @@
 import pandas
+import pytest
 
 from openff.evaluator.datasets.curation.components.freesolv import (
     ImportFreeSolv,

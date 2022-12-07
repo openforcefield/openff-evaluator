@@ -805,13 +805,14 @@ class DaskLocalCluster(BaseDaskBackend):
             if visible_devices is None:
                 raise ValueError("The CUDA_VISIBLE_DEVICES variable is empty.")
 
-            gpu_device_indices = visible_devices.split(",")
 
-            if len(gpu_device_indices) != number_of_workers:
-                raise ValueError(
-                    "The number of available GPUs {} must match "
-                    "the number of requested workers {}."
-                )
+            # commented out to allow multiple calculations share one gpu through mps
+            # gpu_device_indices = visible_devices.split(",")
+            # if len(gpu_device_indices) != number_of_workers:
+            #     raise ValueError(
+            #         "The number of available GPUs {} must match "
+            #         "the number of requested workers {}."
+            #     )
 
     def start(self):
 
@@ -823,16 +824,21 @@ class DaskLocalCluster(BaseDaskBackend):
         )
 
         if self._resources_per_worker.number_of_gpus > 0:
+            assert self._resources_per_worker.number_of_gpus==1 
+            # round-robin assignment of available gpus
+            visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES")
+            gpu_device_indices = [int(id) for id in visible_devices.split(",")]
+            
 
             if isinstance(self._cluster.workers, dict):
 
                 for index, worker in self._cluster.workers.items():
-                    self._gpu_device_indices_by_worker[worker.id] = str(index)
+                    self._gpu_device_indices_by_worker[worker.id] = str(gpu_device_indices[index%len(gpu_device_indices)])
 
             else:
 
                 for index, worker in enumerate(self._cluster.workers):
-                    self._gpu_device_indices_by_worker[worker.id] = str(index)
+                    self._gpu_device_indices_by_worker[worker.id] = str(gpu_device_indices[index%len(gpu_device_indices)])
 
         super(DaskLocalCluster, self).start()
 

@@ -8,7 +8,6 @@ import logging
 import os
 import re
 import subprocess
-import textwrap
 from enum import Enum
 
 import numpy as np
@@ -34,6 +33,7 @@ from openff.evaluator.utils.utils import (
 )
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
+from openff.toolkit.topology import Molecule
 
 logger = logging.getLogger(__name__)
 
@@ -439,7 +439,7 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
                 for index, atom in enumerate(duplicate_molecule.atoms):
                     index_map[atom.molecule_particle_index] = index
 
-            self._append_system(system, system_template, index_map)
+                self._append_system(system, system_template, index_map)
 
         if openmm_pdb_file.topology.getPeriodicBoxVectors() is not None:
 
@@ -847,7 +847,9 @@ class BuildTLeapSystem(TemplateBuildSystem):
             charges = [x.m_as(unit.elementary_charge) for x in molecule.partial_charges]
 
             with open("charges.txt", "w") as file:
-                file.write(textwrap.fill(" ".join(map(str, charges)), width=70))
+                # file.write(textwrap.fill(" ".join(map(str, charges)), width=70))
+                file.write("\n".join(map(str, charges)))
+                file.write("\n")
 
             if force_field_source.leap_source == "leaprc.gaff2":
                 amber_type = "gaff2"
@@ -972,6 +974,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
 
             with open(input_file_path, "w") as file:
                 file.write("\n".join(template_lines))
+                file.write('\nquit\n')
 
             # Run tleap.
             tleap_process = subprocess.Popen(
@@ -991,8 +994,11 @@ class BuildTLeapSystem(TemplateBuildSystem):
                 raise RuntimeError("tleap failed to execute.")
 
             with open("leap.log", "r") as file:
-
-                if re.search(
+                if re.search("Exiting LEaP: Errors = 0; Warnings = 0; Notes = 0.",
+                            file.read()):
+                    # normal exiting log
+                    pass
+                elif re.search(
                     "ERROR|WARNING|Warning|duplicate|FATAL|Could|Fatal|Error",
                     file.read(),
                 ):
@@ -1004,7 +1010,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
             os.path.join(directory, rst7_file_name),
         )
 
-    def _generate_charges(self, molecule):
+    def _generate_charges(self, molecule: Molecule):
         """Generates a set of partial charges for a molecule using
         the specified charge backend.
 
@@ -1036,7 +1042,9 @@ class BuildTLeapSystem(TemplateBuildSystem):
             raise ValueError("Invalid toolkit specification.")
 
         molecule.generate_conformers(toolkit_registry=toolkit_wrapper)
-        molecule.compute_partial_charges_am1bcc(toolkit_registry=toolkit_wrapper)
+        molecule.assign_partial_charges(partial_charge_method='am1bcc',
+                                        toolkit_registry=toolkit_wrapper,
+                                        normalize_partial_charges=True)
 
     def _parameterize_molecule(self, molecule, force_field_source, cutoff):
         """Parameterize the specified molecule.
