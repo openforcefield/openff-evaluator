@@ -92,6 +92,7 @@ class ComputeResources:
 
         if self._number_of_gpus > 0:
             assert self._preferred_gpu_toolkit is not None
+            assert self._number_of_gpus == 1, f'only 1 gpu per worker is supported'
 
     def __getstate__(self):
         return {

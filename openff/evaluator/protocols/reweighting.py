@@ -491,7 +491,7 @@ class BaseMBARProtocol(Protocol, abc.ABC):
             observable_dimensions = observable.value.shape[1]
             assert observable_dimensions == 1
 
-            results = mbar.computeExpectations(
+            results = mbar.compute_expectations(
                 observable.value.T.magnitude,
                 target_reduced_potentials.value.T.magnitude,
                 state_dependent=True,
