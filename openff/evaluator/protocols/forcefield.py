@@ -1013,7 +1013,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
             os.path.join(directory, rst7_file_name),
         )
 
-    def _generate_charges(self, molecule: Molecule):
+    def _generate_charges(self, molecule):
         """Generates a set of partial charges for a molecule using
         the specified charge backend.
 
