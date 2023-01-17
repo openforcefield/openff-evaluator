@@ -33,10 +33,6 @@ from openff.evaluator.utils.utils import (
 )
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from openff.toolkit.topology import Molecule
 
 logger = logging.getLogger(__name__)
 
@@ -850,7 +846,6 @@ class BuildTLeapSystem(TemplateBuildSystem):
             charges = [x.m_as(unit.elementary_charge) for x in molecule.partial_charges]
 
             with open("charges.txt", "w") as file:
-                # file.write(textwrap.fill(" ".join(map(str, charges)), width=70))
                 file.write("\n".join(map(str, charges)))
                 file.write("\n")
 
@@ -977,7 +972,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
 
             with open(input_file_path, "w") as file:
                 file.write("\n".join(template_lines))
-                file.write('\nquit\n')
+                file.write("\nquit\n")
 
             # Run tleap.
             tleap_process = subprocess.Popen(
@@ -997,8 +992,9 @@ class BuildTLeapSystem(TemplateBuildSystem):
                 raise RuntimeError("tleap failed to execute.")
 
             with open("leap.log", "r") as file:
-                if re.search("Exiting LEaP: Errors = 0; Warnings = 0; Notes = 0.",
-                            file.read()):
+                if re.search(
+                    "Exiting LEaP: Errors = 0; Warnings = 0; Notes = 0.", file.read()
+                ):
                     # normal exiting log
                     pass
                 elif re.search(
@@ -1045,9 +1041,11 @@ class BuildTLeapSystem(TemplateBuildSystem):
             raise ValueError("Invalid toolkit specification.")
 
         molecule.generate_conformers(toolkit_registry=toolkit_wrapper)
-        molecule.assign_partial_charges(partial_charge_method='am1bcc',
-                                        toolkit_registry=toolkit_wrapper,
-                                        normalize_partial_charges=True)
+        molecule.assign_partial_charges(
+            partial_charge_method="am1bcc",
+            toolkit_registry=toolkit_wrapper,
+            normalize_partial_charges=True,
+        )
 
     def _parameterize_molecule(self, molecule, force_field_source, cutoff):
         """Parameterize the specified molecule.
@@ -1086,9 +1084,6 @@ class BuildTLeapSystem(TemplateBuildSystem):
     def _execute(self, directory, available_resources):
 
         force_field_source = ForceFieldSource.from_json(self.force_field_path)
-
-        # print('force_field_path', self.force_field_path)
-        # print(force_field_source)
 
         if not isinstance(force_field_source, TLeapForceFieldSource):
 
