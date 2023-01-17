@@ -40,7 +40,7 @@ jobs:
 
 
     steps:
-      - uses: actions/checkout@v3.1.0
+      - uses: actions/checkout@v3
 
       - name: Setup Conda Environment
         uses: mamba-org/provision-with-micromamba@main
@@ -106,7 +106,7 @@ jobs:
           python -m pytest -v --cov=openff openff/evaluator/tests/ --cov-report=xml --color=yes
 
       - name: Code coverage
-        uses: codecov/codecov-action@v3.1.1
+        uses: codecov/codecov-action@v3
         with:
           file: ./coverage.xml
           flags: unittests
