@@ -438,7 +438,7 @@ class BuildDockedCoordinates(Protocol):
         # Assign AM1-BCC charges to the ligand just as an initial guess
         # for docking. In future, we may want to get the charge model
         # directly from the force field.
-        ligand.compute_partial_charges_am1bcc()
+        ligand.assign_partial_charges(partial_charge_method="am1bcc")
 
         return ligand.to_openeye()
 
