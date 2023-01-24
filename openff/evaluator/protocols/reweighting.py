@@ -491,7 +491,9 @@ class BaseMBARProtocol(Protocol, abc.ABC):
             observable_dimensions = observable.value.shape[1]
             assert observable_dimensions == 1
 
-            results = mbar.computeExpectations(
+            from openff.evaluator.utils.pymbar import compute_expectations
+
+            results = getattr(mbar, compute_expectations)(
                 observable.value.T.magnitude,
                 target_reduced_potentials.value.T.magnitude,
                 state_dependent=True,
