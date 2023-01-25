@@ -9,13 +9,24 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
 
-Current development
--------------------
+
+0.4.2
+-----
 
 New Features
 """"""""""""
 
 * PR `#479 <https://github.com/openforcefield/openff-evaluator/pull/479>`_: Improves compatibility with `pymbar` 3 and 4.
+
+Bugfixes
+""""""""
+
+* PR `#489 <https://github.com/openforcefield/openff-evaluator/pull/489>`_: Properly creates Amber-style systems involving multiple molecules.
+
+Behavior Changes
+"""""""""""""""""
+
+* PR `#490 <https://github.com/openforcefield/openff-evaluator/pull/490>`_: Deprecates Yank protocols.
 
 
 0.4.1
