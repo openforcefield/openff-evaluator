@@ -7,6 +7,7 @@ import logging
 import os
 import shutil
 import threading
+import warnings
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
@@ -52,6 +53,17 @@ if TYPE_CHECKING:
     from openff.toolkit.typing.engines.smirnoff.forcefield import ForceField
 
 logger = logging.getLogger(__name__)
+
+
+class YankDeprecrationWarning(Warning):
+    pass
+
+
+warnings.warn(
+    "The YANK protocol has been deprecated and will be removed in a future release. "
+    "Free energy calculations will be enabled by Perses in the future.",
+    YankDeprecrationWarning,
+)
 
 
 class BaseYankProtocol(Protocol, abc.ABC):
