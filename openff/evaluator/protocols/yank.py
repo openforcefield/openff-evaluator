@@ -55,14 +55,14 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class YankDepcrationWarning(Warning):
+class YankDeprecrationWarning(Warning):
     pass
 
 
 warnings.warn(
     "The YANK protocol has been deprecated and will be removed in a future release. "
     "Free energy calculations will be enabled by Perses in the future.",
-    YankDepcrationWarning,
+    YankDeprecrationWarning,
 )
 
 
