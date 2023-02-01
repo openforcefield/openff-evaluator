@@ -7,7 +7,7 @@ repos:
   - id: black
     files: (^openff|^integration-tests)
 - repo: https://github.com/PyCQA/isort
-  rev: 5.11.4
+  rev: 5.12.0
   hooks:
   - id: isort
     files: (^openff|^integration-tests)
