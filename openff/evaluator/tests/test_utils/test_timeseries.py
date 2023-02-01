@@ -39,6 +39,5 @@ def test_analyze_time_series():
 
 
 def test_get_uncorrelated_indices():
-
     uncorrelated_indices = get_uncorrelated_indices(4, 2.0)
     assert uncorrelated_indices == [0, 2]

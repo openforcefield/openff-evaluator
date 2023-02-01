@@ -79,9 +79,7 @@ class StorageBackend(abc.ABC):
         all_object_keys = set()
 
         for data_type in stored_object_keys:
-
             for unique_key in stored_object_keys[data_type]:
-
                 if not self._object_exists(unique_key):
                     # The stored entry key does not exist in the system,
                     # so skip the entry. This may happen when the local
@@ -89,7 +87,6 @@ class StorageBackend(abc.ABC):
                     continue
 
                 if unique_key in all_object_keys:
-
                     raise KeyError(
                         "Two objects with the same unique key have been found."
                     )
@@ -210,7 +207,6 @@ class StorageBackend(abc.ABC):
 
         # Make sure the object is a supported type.
         if not isinstance(object_to_store, BaseStoredData):
-
             raise ValueError(
                 "Only objects inheriting from `BaseStoredData` can "
                 "be stored in the storage system."
@@ -227,7 +223,6 @@ class StorageBackend(abc.ABC):
         storage_key = self.has_object(object_to_store)
 
         if storage_key is not None:
-
             if not isinstance(object_to_store, ReplaceableData):
                 # Handle the case where the existing data
                 # should be returned, rather than storing
@@ -242,7 +237,6 @@ class StorageBackend(abc.ABC):
             )
 
             if object_to_store is None:
-
                 raise ValueError(
                     "Something went wrong when trying to "
                     "determine whether the object trying to "
@@ -254,7 +248,6 @@ class StorageBackend(abc.ABC):
                 return storage_key
 
         else:
-
             # Generate a unique id for this object.
             while storage_key is None or not self._is_key_unique(storage_key):
                 storage_key = str(uuid.uuid4()).replace("-", "")
@@ -272,7 +265,6 @@ class StorageBackend(abc.ABC):
             not isinstance(object_to_store, StorageBackend._ObjectKeyData)
             and storage_key not in self._stored_object_keys[object_class.__name__]
         ):
-
             self._stored_object_keys[object_class.__name__].append(storage_key)
             self._save_stored_object_keys()
 
@@ -357,7 +349,6 @@ class StorageBackend(abc.ABC):
         force_field_data, _ = self.retrieve_object(storage_key, ForceFieldData)
 
         if force_field_data is None:
-
             raise KeyError(
                 f"The force field with id {storage_key} does not exist "
                 f"in the storage system."
@@ -382,7 +373,6 @@ class StorageBackend(abc.ABC):
         """
 
         if isinstance(storage_object, HashableStoredData):
-
             hash_key = hash(storage_object)
             return self._object_hashes.get(hash_key, None)
 
@@ -393,7 +383,6 @@ class StorageBackend(abc.ABC):
             return None
 
         if len(query_results) > 1 or len(query_results[0]) > 1:
-
             raise ValueError(
                 "The backend contains multiple copies of the "
                 "same piece of data. This should not be possible."
@@ -464,7 +453,6 @@ class StorageBackend(abc.ABC):
             return results
 
         for unique_key in self._stored_object_keys[data_class.__name__]:
-
             if not self._object_exists(unique_key):
                 # Make sure the object is still in the system.
                 continue

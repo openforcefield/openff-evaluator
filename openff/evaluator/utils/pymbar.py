@@ -12,7 +12,6 @@ except ImportError:
 
 
 def __getattr__(name):
-
     if name == "detect_equilibration":
         if _PYMBAR_MAJOR_VERSION == 3:
             from pymbar.timeseries import detectEquilibration as detect_equilibration

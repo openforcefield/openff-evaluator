@@ -112,7 +112,6 @@ class ProtocolPath(PlaceholderValue):
 
     @classmethod
     def from_string(cls, existing_path_string: str):
-
         property_name, protocol_ids = ProtocolPath._to_components(existing_path_string)
 
         if any(x is None or len(x) == 0 for x in protocol_ids):
@@ -139,7 +138,6 @@ class ProtocolPath(PlaceholderValue):
         property_name_index = path_string.find(ProtocolPath.property_separator)
 
         if property_name_index < 0:
-
             raise ValueError(
                 f"A protocol path must contain a {ProtocolPath.property_separator} "
                 f"followed by the property name this path represents"
@@ -250,7 +248,6 @@ class ProtocolPath(PlaceholderValue):
         return {"full_path": self._full_path}
 
     def __setstate__(self, state):
-
         self._property_name, self._protocol_ids = ProtocolPath._to_components(
             state["full_path"]
         )

@@ -35,7 +35,6 @@ from openff.evaluator.utils.utils import temporarily_change_directory
 
 
 def define_data_set(reweighting: bool) -> PhysicalPropertyDataSet:
-
     # Define a common state to compute estimates at
     states = [
         ThermodynamicState(
@@ -53,7 +52,6 @@ def define_data_set(reweighting: bool) -> PhysicalPropertyDataSet:
 
     # Solvation free energies.
     if not reweighting:
-
         ethanol_substance = Substance.from_components("CCO")
         ethanol_substance.add_component(
             Component("CC=O", Component.Role.Solute), ExactAmount(1)
@@ -88,7 +86,6 @@ def define_data_set(reweighting: bool) -> PhysicalPropertyDataSet:
         )
 
     for state in states:
-
         # Excess properties.
         data_set.add_properties(
             ExcessMolarVolume(
@@ -199,7 +196,6 @@ def solvation_free_energy_schema() -> SimulationSchema:
 
 
 def main():
-
     setup_timestamp_logging()
 
     # Retrieve the current version.
@@ -212,7 +208,6 @@ def main():
     os.makedirs(os.path.join(version, "results"))
 
     with temporarily_change_directory(version):
-
         with DaskLSFBackend(
             minimum_number_of_workers=1,
             maximum_number_of_workers=12,
@@ -228,17 +223,14 @@ def main():
             ],
             queue_name="gpuqueue",
         ) as calculation_backend:
-
             with EvaluatorServer(
                 calculation_backend,
                 working_directory="outputs",
                 storage_backend=LocalFileStorage("cached-data"),
             ):
-
                 client = EvaluatorClient()
 
                 for allowed_layer in ["SimulationLayer", "ReweightingLayer"]:
-
                     data_set = define_data_set(allowed_layer == "ReweightingLayer")
 
                     options = RequestOptions()
@@ -248,7 +240,6 @@ def main():
                     }
 
                     if allowed_layer == "SimulationLayer":
-
                         options.add_schema(
                             "SimulationLayer",
                             "SolvationFreeEnergy",

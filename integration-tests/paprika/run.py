@@ -16,7 +16,6 @@ from openff.evaluator.workflow import Workflow
 
 
 def main():
-
     setup_timestamp_logging()
 
     # Retrieve the current version.
@@ -29,7 +28,6 @@ def main():
     os.makedirs(os.path.join(version, "results"))
 
     with temporarily_change_directory(version):
-
         # Load in the force field
         force_field = ForceField(
             "openff-1.2.0.offxml",
@@ -84,7 +82,6 @@ def main():
             ],
             queue_name="gpuqueue",
         ) as calculation_backend:
-
             results = workflow.execute(
                 root_directory="workflow", calculation_backend=calculation_backend
             ).result()

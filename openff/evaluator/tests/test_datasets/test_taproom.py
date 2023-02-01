@@ -15,7 +15,6 @@ except ImportError:
     reason="OpenEye is required for this test.",
 )
 def test_taproom():
-
     data_set = TaproomDataSet(host_codes=["acd"], guest_codes=["bam"])
 
     assert len(data_set) == 1
@@ -30,7 +29,6 @@ def test_taproom():
     reason="OpenEye is required for this test.",
 )
 def test_taproom_missing_oe_license(monkeypatch):
-
     from openeye import oechem
 
     def mock_return():
@@ -50,7 +48,6 @@ def test_taproom_missing_oe_license(monkeypatch):
     reason="OpenEye must not be present for this test.",
 )
 def test_taproom_missing_oe():
-
     with pytest.raises(MissingOptionalDependency) as error_info:
         TaproomDataSet()
 

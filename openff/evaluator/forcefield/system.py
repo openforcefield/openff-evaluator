@@ -5,7 +5,6 @@ from openff.evaluator.substances import Substance
 from openff.evaluator.utils.serialization import TypedBaseModel
 
 if TYPE_CHECKING:
-
     from openff.toolkit.topology import Topology
     from openmm import System
 
@@ -29,7 +28,6 @@ class ParameterizedSystem(TypedBaseModel):
 
     @property
     def topology(self) -> "Topology":
-
         from openff.toolkit.topology import Molecule, Topology
         from openmm import app
 
@@ -65,7 +63,6 @@ class ParameterizedSystem(TypedBaseModel):
         topology_path: str = None,
         system_path: str = None,
     ):
-
         self._substance = substance
         self._force_field = force_field
 
@@ -73,7 +70,6 @@ class ParameterizedSystem(TypedBaseModel):
         self._system_path = system_path
 
     def __getstate__(self):
-
         return {
             "substance": self._substance,
             "force_field": self._force_field,
@@ -82,7 +78,6 @@ class ParameterizedSystem(TypedBaseModel):
         }
 
     def __setstate__(self, state):
-
         self._substance = state["substance"]
         self._force_field = state["force_field"]
         self._topology_path = state["topology_path"]

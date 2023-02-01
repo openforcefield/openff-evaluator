@@ -50,7 +50,6 @@ class _Multiprocessor:
         """
 
         try:
-
             from openff.evaluator.workflow.plugins import registered_workflow_protocols
 
             # Each spun up worker doesn't automatically import
@@ -59,7 +58,6 @@ class _Multiprocessor:
             # longer be registered. We re-import / register them
             # here.
             if "registered_workflow_protocols" in kwargs:
-
                 protocols_to_import = kwargs.pop("registered_workflow_protocols")
 
                 for protocol_class in protocols_to_import:
@@ -72,14 +70,12 @@ class _Multiprocessor:
                     )
 
             if "logger_path" in kwargs:
-
                 formatter = timestamp_formatter()
                 logger_path = kwargs.pop("logger_path")
 
                 worker_logger = logging.getLogger()
 
                 if not len(worker_logger.handlers):
-
                     logger_handler = logging.FileHandler(logger_path)
                     logger_handler.setFormatter(formatter)
 
@@ -90,7 +86,6 @@ class _Multiprocessor:
                         not os.path.exists(logger_path)
                         or os.stat(logger_path).st_size == 0
                     ):
-
                         worker_logger.info("=========================================")
                         worker_logger.info(f"HOSTNAME: {platform.node()}")
                         if os.environ.get("PBS_JOBID") is not None:
@@ -162,7 +157,6 @@ class _Multiprocessor:
             and len(return_value) > 0
             and isinstance(return_value[0], Exception)
         ):
-
             formatted_exception = traceback.format_exception(
                 None, return_value[0], return_value[1]
             )
@@ -187,12 +181,10 @@ class BaseDaskBackend(CalculationBackend, abc.ABC):
         self._client = None
 
     def start(self):
-
         super(BaseDaskBackend, self).start()
         self._client = distributed.Client(self._cluster)
 
     def stop(self):
-
         if self._client is not None:
             self._client.close()
         if self._cluster is not None:
@@ -249,7 +241,6 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
         cluster_type=None,
         adaptive_class=None,
     ):
-
         """Constructs a new BaseDaskJobQueueBackend object
 
         Parameters
@@ -297,7 +288,6 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
         assert cluster_type is not None
 
         if resources_per_worker.number_of_gpus > 0:
-
             if resources_per_worker.number_of_gpus > 1:
                 raise ValueError("Only one GPU per worker is currently supported.")
 
@@ -391,7 +381,6 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
         str
         """
         if self._cluster is None:
-
             raise ValueError(
                 "The cluster is not initialized. This is usually"
                 "caused by calling `job_script` before `start`."
@@ -400,7 +389,6 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
         return self._cluster.job_script()
 
     def start(self):
-
         requested_memory = self._resources_per_worker.per_thread_memory_limit
         memory_string = f"{requested_memory.to(evaluator.unit.byte):~}".replace(" ", "")
 
@@ -442,7 +430,6 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
 
     @staticmethod
     def _wrapped_function(function, *args, **kwargs):
-
         available_resources = kwargs["available_resources"]
         per_worker_logging = kwargs.pop("per_worker_logging")
 
@@ -450,7 +437,6 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
 
         # Set up the logging per worker if the flag is set to True.
         if per_worker_logging:
-
             # Each worker should have its own log file.
             os.makedirs("worker-logs", exist_ok=True)
             kwargs["logger_path"] = os.path.join(
@@ -458,7 +444,6 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
             )
 
         if available_resources.number_of_gpus > 0:
-
             worker_id = distributed.get_worker().id
 
             available_resources._gpu_device_indices = (
@@ -475,7 +460,6 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
         # return function(*args, **kwargs)
 
     def submit_task(self, function, *args, **kwargs):
-
         from openff.evaluator.workflow.plugins import registered_workflow_protocols
 
         key = kwargs.pop("key", None)
@@ -520,7 +504,6 @@ class DaskLSFBackend(BaseDaskJobQueueBackend):
         disable_nanny_process=False,
         adaptive_class=None,
     ):
-
         """Constructs a new DaskLSFBackend object
 
         Examples
@@ -576,11 +559,9 @@ class DaskLSFBackend(BaseDaskJobQueueBackend):
         )
 
     def _get_job_extra(self):
-
         job_extra = super(DaskLSFBackend, self)._get_job_extra()
 
         if self._resources_per_worker.number_of_gpus > 0:
-
             job_extra.append(
                 "-gpu num={}:j_exclusive=yes:mode=shared:mps=no:".format(
                     self._resources_per_worker.number_of_gpus
@@ -590,7 +571,6 @@ class DaskLSFBackend(BaseDaskJobQueueBackend):
         return job_extra
 
     def _get_extra_cluster_kwargs(self):
-
         requested_memory = self._resources_per_worker.per_thread_memory_limit
         memory_bytes = requested_memory.to(evaluator.unit.byte).magnitude
 
@@ -628,7 +608,6 @@ class DaskPBSBackend(BaseDaskJobQueueBackend):
         resource_line=None,
         adaptive_class=None,
     ):
-
         """Constructs a new DaskLSFBackend object
 
         Parameters
@@ -684,7 +663,6 @@ class DaskPBSBackend(BaseDaskJobQueueBackend):
         self._resource_line = resource_line
 
     def _get_extra_cluster_kwargs(self):
-
         extra_kwargs = super(DaskPBSBackend, self)._get_extra_cluster_kwargs()
         extra_kwargs.update({"resource_spec": self._resource_line})
 
@@ -717,7 +695,6 @@ class DaskSLURMBackend(BaseDaskJobQueueBackend):
         disable_nanny_process=False,
         adaptive_class=None,
     ):
-
         """
         Examples
         --------
@@ -789,14 +766,12 @@ class DaskLocalCluster(BaseDaskBackend):
         requested_threads = number_of_workers * resources_per_worker.number_of_threads
 
         if requested_threads > maximum_threads:
-
             raise ValueError(
                 "The total number of requested threads ({})is greater than is available on the"
                 "machine ({})".format(requested_threads, maximum_threads)
             )
 
         if resources_per_worker.number_of_gpus > 0:
-
             if resources_per_worker.number_of_gpus > 1:
                 raise ValueError("Only one GPU per worker is currently supported.")
 
@@ -814,7 +789,6 @@ class DaskLocalCluster(BaseDaskBackend):
                 )
 
     def start(self):
-
         self._cluster = distributed.LocalCluster(
             name=None,
             n_workers=self._number_of_workers,
@@ -823,14 +797,11 @@ class DaskLocalCluster(BaseDaskBackend):
         )
 
         if self._resources_per_worker.number_of_gpus > 0:
-
             if isinstance(self._cluster.workers, dict):
-
                 for index, worker in self._cluster.workers.items():
                     self._gpu_device_indices_by_worker[worker.id] = str(index)
 
             else:
-
                 for index, worker in enumerate(self._cluster.workers):
                     self._gpu_device_indices_by_worker[worker.id] = str(index)
 
@@ -838,12 +809,10 @@ class DaskLocalCluster(BaseDaskBackend):
 
     @staticmethod
     def _wrapped_function(function, *args, **kwargs):
-
         available_resources = kwargs["available_resources"]
         gpu_assignments = kwargs.pop("gpu_assignments")
 
         if available_resources.number_of_gpus > 0:
-
             worker_id = distributed.get_worker().id
             available_resources._gpu_device_indices = gpu_assignments[worker_id]
 
@@ -858,7 +827,6 @@ class DaskLocalCluster(BaseDaskBackend):
         # return function(*args, **kwargs)
 
     def submit_task(self, function, *args, **kwargs):
-
         key = kwargs.pop("key", None)
 
         return self._client.submit(

@@ -48,14 +48,12 @@ class MeasurementSource(Source):
         self.reference = reference
 
     def __getstate__(self):
-
         return {
             "doi": self.doi,
             "reference": self.reference,
         }
 
     def __setstate__(self, state):
-
         self.doi = state["doi"]
         self.reference = state["reference"]
 
@@ -90,13 +88,11 @@ class CalculationSource(Source):
         self.provenance = provenance
 
     def __getstate__(self):
-
         return {
             "fidelity": self.fidelity,
             "provenance": self.provenance,
         }
 
     def __setstate__(self, state):
-
         self.fidelity = state["fidelity"]
         self.provenance = state["provenance"]

@@ -230,17 +230,14 @@ class EvaluatorServer:
         request_results = RequestResult()
 
         for batch_id in self._batch_ids_per_client_id[client_request_id]:
-
             # Find the batch.
             if batch_id in self._queued_batches:
                 batch = self._queued_batches[batch_id]
 
             elif batch_id in self._finished_batches:
-
                 batch = self._finished_batches[batch_id]
 
                 if len(batch.queued_properties) > 0:
-
                     return (
                         None,
                         EvaluatorException(
@@ -250,7 +247,6 @@ class EvaluatorServer:
                     )
 
             else:
-
                 return (
                     None,
                     EvaluatorException(
@@ -297,7 +293,6 @@ class EvaluatorServer:
         batches = []
 
         for substance in submission.dataset.substances:
-
             batch = Batch()
             batch.force_field_id = force_field_id
             batch.enable_data_caching = self._enable_data_caching
@@ -355,7 +350,6 @@ class EvaluatorServer:
         # Add edges to the graph based on which substances contain
         # the different component nodes.
         for substance in submission.dataset.substances:
-
             if len(substance) < 2:
                 continue
 
@@ -375,7 +369,6 @@ class EvaluatorServer:
         batches = []
 
         for _ in range(len(islands)):
-
             batch = Batch()
             batch.force_field_id = force_field_id
             batch.enable_data_caching = self._enable_data_caching
@@ -395,13 +388,11 @@ class EvaluatorServer:
             batches.append(batch)
 
         for physical_property in submission.dataset:
-
             smiles = [x.smiles for x in physical_property.substance]
 
             island_id = 0
 
             for island_id, island in enumerate(islands):
-
                 if not any(x in island for x in smiles):
                     continue
 
@@ -446,7 +437,6 @@ class EvaluatorServer:
             raise NotImplementedError()
 
         for batch in batches:
-
             self._queued_batches[batch.id] = batch
             self._batch_ids_per_client_id[request_id].append(batch.id)
 
@@ -467,9 +457,7 @@ class EvaluatorServer:
         # Optionally clean-up any files produced while estimating the batch with the
         # previous layer.
         if self._delete_working_files:
-
             for directory in glob(os.path.join(self._working_directory, "*", batch.id)):
-
                 if not os.path.isdir(directory):
                     continue
 
@@ -479,7 +467,6 @@ class EvaluatorServer:
             len(batch.options.calculation_layers) == 0
             or len(batch.queued_properties) == 0
         ):
-
             # Move any remaining properties to the unsuccessful list.
             batch.unsuccessful_properties = [*batch.queued_properties]
             batch.queued_properties = []
@@ -493,7 +480,6 @@ class EvaluatorServer:
         current_layer_type = batch.options.calculation_layers.pop(0)
 
         if current_layer_type not in registered_calculation_layers:
-
             # Add an exception if we reach an unsupported calculation layer.
             error_object = EvaluatorException(
                 message=f"The {current_layer_type} layer is not "
@@ -549,13 +535,11 @@ class EvaluatorServer:
         error = None
 
         try:
-
             # noinspection PyProtectedMember
             submission = EvaluatorClient._Submission.parse_json(json_model)
             submission.validate()
 
         except Exception as e:
-
             formatted_exception = traceback.format_exception(None, e, e.__traceback__)
 
             error = EvaluatorException(
@@ -566,7 +550,6 @@ class EvaluatorServer:
             submission = None
 
         if error is None:
-
             while request_id is None or request_id in self._batch_ids_per_client_id:
                 request_id = str(uuid.uuid4()).replace("-", "")
 
@@ -611,7 +594,6 @@ class EvaluatorServer:
         response = None
 
         if client_request_id not in self._batch_ids_per_client_id:
-
             error = EvaluatorException(
                 message=f"The request id ({client_request_id}) was not found "
                 f"on the server.",
@@ -642,7 +624,6 @@ class EvaluatorServer:
         try:
             message_type = EvaluatorMessageTypes(message_type_int)
         except ValueError as e:
-
             trace = traceback.format_exception(None, e, e.__traceback__)
             logger.info(f"Bad message type received: {trace}")
 
@@ -662,19 +643,15 @@ class EvaluatorServer:
         to_read = [self._socket]
 
         try:
-
             while not self._stopped:
-
                 ready, _, _ = select.select(to_read, [], [], 0.1)
 
                 for data in ready:
-
                     if data == self._socket:
                         connection, address = self._socket.accept()
                         to_read.append(connection)
 
                     else:
-
                         connection = data
                         self._handle_stream(connection, connection.getpeername())
                         connection.close()
@@ -710,9 +687,7 @@ class EvaluatorServer:
         self._socket.listen(128)
 
         try:
-
             if asynchronous:
-
                 self._server_thread = threading.Thread(
                     target=self._handle_connections, daemon=True
                 )
@@ -735,12 +710,10 @@ class EvaluatorServer:
         self._started = False
 
         if self._server_thread is not None:
-
             self._server_thread.join()
             self._server_thread = None
 
         if self._socket is not None:
-
             self._socket.close()
             self._socket = None
 
@@ -752,6 +725,5 @@ class EvaluatorServer:
         self.stop()
 
     def __del__(self):
-
         if self._started and not self._stopped:
             self.stop()

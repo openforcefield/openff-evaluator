@@ -28,7 +28,6 @@ from openff.evaluator.utils.exceptions import MissingOptionalDependency
 PropertyType = Tuple[str, int]
 
 if TYPE_CHECKING:
-
     PositiveInt = int
 
     try:
@@ -41,7 +40,6 @@ else:
 
 
 class State(BaseModel):
-
     temperature: float = Field(..., description="The temperature (K) of interest.")
     pressure: float = Field(..., description="The pressure (kPa) of interest.")
 
@@ -51,7 +49,6 @@ class State(BaseModel):
 
 
 class TargetState(BaseModel):
-
     property_types: List[PropertyType] = Field(
         ..., description="The properties to select at the specified states."
     )
@@ -62,7 +59,6 @@ class TargetState(BaseModel):
     @classmethod
     @validator("property_types")
     def property_types_validator(cls, value):
-
         assert len(value) > 0
         n_components = value[0][1]
 
@@ -71,13 +67,11 @@ class TargetState(BaseModel):
 
 
 class FingerPrintType(Enum):
-
     Tree = "Tree"
     MACCS166 = "MACCS166"
 
 
 class SelectSubstancesSchema(CurationComponentSchema):
-
     type: Literal["SelectSubstances"] = "SelectSubstances"
 
     target_environments: conlist(ChemicalEnvironment, min_items=1) = Field(
@@ -196,7 +190,6 @@ class SelectSubstances(CurationComponent):
     def _compute_mixture_finger_print(
         cls, mixture: Tuple[str, ...], finger_print_type: FingerPrintType
     ) -> Tuple["OEFingerPrint", ...]:
-
         """Computes the finger print of a mixture of molecules as defined
         by their smiles patterns.
 
@@ -269,7 +262,6 @@ class SelectSubstances(CurationComponent):
             distance = 1.0 - OETanimoto(finger_print_a[0], finger_print_b[0])
 
         elif len(mixture_a) == 2 and len(mixture_b) == 2:
-
             distance = min(
                 (1.0 - OETanimoto(finger_print_a[0], finger_print_b[0]))
                 + (1.0 - OETanimoto(finger_print_a[1], finger_print_b[1])),
@@ -323,7 +315,6 @@ class SelectSubstances(CurationComponent):
         previously_chosen: List[Tuple[str, ...]],
         finger_print_type: FingerPrintType,
     ) -> List[Tuple[str, ...]]:
-
         # Store the substances which can be selected, and those which
         # have already been selected.
         open_list = [*data_frame_to_substances(data_frame)]
@@ -335,7 +326,6 @@ class SelectSubstances(CurationComponent):
         while len(open_list) > 0 and len(closed_list) < max_n_possible:
 
             def distance_metric(mixture):
-
                 return cls._compute_distance_with_set(
                     mixture, [*previously_chosen, *closed_list], finger_print_type
                 )
@@ -369,7 +359,6 @@ class SelectSubstances(CurationComponent):
         # Perform the selection one for each size of substance (e.g. once
         # for pure, once for binary etc.)
         for n_components in range(min_n_components, max_n_components + 1):
-
             component_data = data_frame[data_frame["N Components"] == n_components]
 
             if len(component_data) == 0:
@@ -377,11 +366,9 @@ class SelectSubstances(CurationComponent):
 
             # Define all permutations of the target environments.
             if n_components == 1:
-
                 chemical_environments = [(x,) for x in schema.target_environments]
 
             elif n_components == 2:
-
                 chemical_environments = [
                     *[(x, x) for x in schema.target_environments],
                     *itertools.combinations(schema.target_environments, r=2),
@@ -394,7 +381,6 @@ class SelectSubstances(CurationComponent):
             selected_n_substances: Set[Tuple[str, ...]] = set()
 
             for chemical_environment in chemical_environments:
-
                 # Filter out any environments not currently being considered.
                 environment_filter = FilterByEnvironmentsSchema(
                     per_component_environments={
@@ -470,7 +456,6 @@ class SelectSubstances(CurationComponent):
             raise NotImplementedError()
 
         if schema.per_property:
-
             # Partition the data frame into ones which only contain a
             # single property type.
             property_headers = [
@@ -500,7 +485,6 @@ class SelectSubstances(CurationComponent):
 
 
 class SelectDataPointsSchema(CurationComponentSchema):
-
     type: Literal["SelectDataPoints"] = "SelectDataPoints"
 
     target_states: List[TargetState] = Field(
@@ -525,9 +509,7 @@ class SelectDataPoints(CurationComponent):
 
     @classmethod
     def _property_header(cls, data_frame, property_type):
-
         for column in data_frame:
-
             if column.find(f"{property_type} Value") < 0:
                 continue
 
@@ -537,7 +519,6 @@ class SelectDataPoints(CurationComponent):
 
     @classmethod
     def _distances_to_state(cls, data_frame: pandas.DataFrame, state_point: State):
-
         distance_sqr = (
             data_frame["Temperature (K)"] - state_point.temperature
         ) ** 2 + (
@@ -556,7 +537,6 @@ class SelectDataPoints(CurationComponent):
     def _distances_to_cluster(
         cls, data_frame: pandas.DataFrame, target_state: TargetState
     ):
-
         distances_sqr = pandas.DataFrame()
 
         for index, state_point in enumerate(target_state.states):
@@ -566,7 +546,6 @@ class SelectDataPoints(CurationComponent):
 
     @classmethod
     def _select_substance_data_points(cls, original_data_frame, target_state):
-
         n_components = target_state.property_types[0][1]
 
         data_frame = original_data_frame[
@@ -614,7 +593,6 @@ class SelectDataPoints(CurationComponent):
         selected_data = [False] * len(data_frame)
 
         for cluster_index in range(len(target_state.states)):
-
             # Calculate the distance between each clustered state and
             # the center of the cluster (i.e the clustered state).
             cluster_data = grouped_data[grouped_data["Cluster"] == cluster_index]
@@ -628,7 +606,6 @@ class SelectDataPoints(CurationComponent):
             open_list = [x[0] for x in target_state.property_types]
 
             while len(open_list) > 0 and len(cluster_data) > 0:
-
                 # Find the clustered state which is closest to the center of
                 # the cluster. Points measured at this state will becomes the
                 # candidates to be selected.
@@ -653,7 +630,6 @@ class SelectDataPoints(CurationComponent):
 
                 # Make sure to select a single data point for each type of property.
                 for selected_property_type in selected_property_types:
-
                     selected_property_data = original_data_frame[
                         select_data
                         & (data_frame["Property Type"] == selected_property_type)
@@ -694,7 +670,6 @@ class SelectDataPoints(CurationComponent):
     def _apply(
         cls, data_frame: pandas.DataFrame, schema: SelectDataPointsSchema, n_processes
     ) -> pandas.DataFrame:
-
         max_n_substances = data_frame["N Components"].max()
         component_headers = [f"Component {i + 1}" for i in range(max_n_substances)]
 
@@ -709,25 +684,20 @@ class SelectDataPoints(CurationComponent):
 
         # Start to choose the state points for each unique substance.
         for _, unique_substance in unique_substances.iterrows():
-
             substance_data_frame = ordered_data_frame
 
             for index, component in enumerate(unique_substance[component_headers]):
-
                 if pandas.isnull(component):
-
                     substance_data_frame = substance_data_frame[
                         substance_data_frame[component_headers[index]].isna()
                     ]
 
                 else:
-
                     substance_data_frame = substance_data_frame[
                         substance_data_frame[component_headers[index]] == component
                     ]
 
             for target_state in schema.target_states:
-
                 substance_selected_data = cls._select_substance_data_points(
                     substance_data_frame, target_state
                 )

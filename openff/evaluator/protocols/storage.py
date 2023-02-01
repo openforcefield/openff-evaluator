@@ -59,9 +59,7 @@ class UnpackStoredSimulationData(Protocol):
     )
 
     def _execute(self, directory, available_resources):
-
         if len(self.simulation_data_path) != 3:
-
             raise ValueError(
                 "The simulation data path should be a tuple of a path to the data "
                 "object, directory, and a path to the force field used to generate it."
@@ -72,13 +70,11 @@ class UnpackStoredSimulationData(Protocol):
         force_field_path = self.simulation_data_path[2]
 
         if not path.isdir(data_directory):
-
             raise ValueError(
                 f"The path to the data directory is invalid: {data_directory}"
             )
 
         if not path.isfile(force_field_path):
-
             raise ValueError(
                 f"The path to the force field is invalid: {force_field_path}"
             )
@@ -86,7 +82,6 @@ class UnpackStoredSimulationData(Protocol):
         data_object = StoredSimulationData.from_json(data_object_path)
 
         if not isinstance(data_object, StoredSimulationData):
-
             raise ValueError(
                 f"The data path must point to a `StoredSimulationData` "
                 f"object, and not a {data_object.__class__.__name__}",

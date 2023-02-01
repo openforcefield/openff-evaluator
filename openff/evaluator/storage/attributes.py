@@ -25,7 +25,6 @@ class StorageAttribute(Attribute):
         super().__init__(docstring, type_hint, UNDEFINED, optional)
 
     def _set_value(self, instance, value):
-
         # Handle the special case of turning strings
         # into file path objects for convenience.
         if (
@@ -46,7 +45,6 @@ class QueryAttribute(Attribute):
     """
 
     def __init__(self, docstring, type_hint, optional=False, custom_match=False):
-
         """Initializes self.
 
         Parameters

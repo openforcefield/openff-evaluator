@@ -6,7 +6,6 @@ from openff.evaluator.forcefield import ParameterGradient, ParameterGradientKey
 
 
 def test_gradient_addition():
-
     gradient_a = ParameterGradient(
         ParameterGradientKey("vdW", "[#1:1]", "epsilon"), 1.0 * unit.kelvin
     )
@@ -29,7 +28,6 @@ def test_gradient_addition():
 
 
 def test_gradient_subtraction():
-
     gradient_a = ParameterGradient(
         ParameterGradientKey("vdW", "[#1:1]", "epsilon"), 1.0 * unit.kelvin
     )
@@ -58,7 +56,6 @@ def test_gradient_subtraction():
 
 
 def test_gradient_multiplication():
-
     gradient_a = ParameterGradient(
         ParameterGradientKey("vdW", "[#1:1]", "epsilon"), 1.0 * unit.kelvin
     )
@@ -78,7 +75,6 @@ def test_gradient_multiplication():
 
 
 def test_gradient_division():
-
     gradient_a = ParameterGradient(
         ParameterGradientKey("vdW", "[#1:1]", "epsilon"), 2.0 * unit.kelvin
     )

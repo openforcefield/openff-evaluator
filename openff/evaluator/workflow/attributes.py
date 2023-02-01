@@ -116,7 +116,6 @@ class InputAttribute(Attribute):
             merge_behavior == InequalityMergeBehavior.SmallestValue
             or merge_behavior == InequalityMergeBehavior.LargestValue
         ):
-
             merge_docstring = ""
 
             if merge_behavior == InequalityMergeBehavior.SmallestValue:

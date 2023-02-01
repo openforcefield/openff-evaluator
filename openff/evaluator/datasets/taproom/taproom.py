@@ -51,7 +51,6 @@ class TaproomSource(Source):
         self.guest_identifier = guest_identifier
 
     def __getstate__(self):
-
         return {
             "doi": self.doi,
             "comment": self.comment,
@@ -61,7 +60,6 @@ class TaproomSource(Source):
         }
 
     def __setstate__(self, state):
-
         self.doi = state["doi"]
         self.comment = state["comment"]
         self.technique = state["technique"]
@@ -193,7 +191,6 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         substance = Substance()
 
         if guest_smiles is not None:
-
             guest = Component(smiles=guest_smiles, role=Component.Role.Ligand)
             substance.add_component(component=guest, amount=ExactAmount(1))
 
@@ -207,7 +204,6 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         water_mole_fraction = 1.0
 
         if ionic_strength is not None:
-
             salt_mole_fraction = Substance.calculate_aqueous_ionic_mole_fraction(
                 ionic_strength
             )
@@ -336,7 +332,6 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         unique_host_structures = set()
 
         for orientation, host_yaml_path in host_yaml_paths.items():
-
             host_spec = read_yaml(host_yaml_path)
 
             root_host_path = os.path.dirname(host_yaml_path)
@@ -444,7 +439,6 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             installed_benchmarks[entry_point.name] = entry_point.load()
 
         if len(installed_benchmarks) == 0:
-
             raise ValueError(
                 "No installed benchmarks could be found. Make sure the "
                 "`host-guest-benchmarks` package is installed."
@@ -456,12 +450,10 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         all_properties = []
 
         for host_name in measurements:
-
             if host_codes and host_name not in host_codes:
                 continue
 
             for guest_name in measurements[host_name]:
-
                 if guest_codes and guest_name not in guest_codes:
                     continue
 
@@ -540,7 +532,6 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 )
 
                 if attach_apr_meta_data:
-
                     measured_property.metadata = self._build_metadata(
                         systems[host_name]["yaml"],
                         systems[host_name][guest_name]["yaml"],

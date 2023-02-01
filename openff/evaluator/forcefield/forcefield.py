@@ -191,7 +191,6 @@ class LigParGenForceFieldSource(ForceFieldSource):
     """
 
     class ChargeModel(Enum):
-
         CM1A_1_14_LBCC = "1.14*CM1A-LBCC"
         CM1A_1_14 = "1.14*CM1A"
 

@@ -35,7 +35,6 @@ from openff.evaluator.utils.openmm import (
 
 
 def test_daltons():
-
     openmm_quantity = random() * openmm_unit.dalton
     openmm_raw_value = openmm_quantity.value_in_unit(
         openmm_unit.gram / openmm_unit.mole
@@ -65,7 +64,6 @@ def test_daltons():
     [random(), randint(1, 10), [random(), random()], np.array([random(), random()])],
 )
 def test_openmm_to_pint(openmm_unit, value):
-
     openmm_quantity = value * openmm_unit
     openmm_raw_value = openmm_quantity.value_in_unit(openmm_unit)
 
@@ -93,7 +91,6 @@ def test_openmm_to_pint(openmm_unit, value):
     [random(), randint(1, 10), [random(), random()], np.array([random(), random()])],
 )
 def test_pint_to_openmm(pint_unit, value):
-
     pint_quantity = value * pint_unit
     pint_raw_value = pint_quantity.magnitude
 
@@ -104,7 +101,6 @@ def test_pint_to_openmm(pint_unit, value):
 
 
 def test_constants():
-
     assert np.isclose(
         openmm_unit.AVOGADRO_CONSTANT_NA.value_in_unit((1.0 / openmm_unit.mole).unit),
         (1.0 * unit.avogadro_constant).to((1.0 / unit.mole).units).magnitude,
@@ -172,7 +168,6 @@ def hydrogen_chloride_force_field(
     force_field.register_parameter_handler(electrostatics_handler)
 
     if library_charge:
-
         library_charge_handler = LibraryChargeHandler(version=0.3)
         library_charge_handler.add_parameter(
             parameter_kwargs={
@@ -189,7 +184,6 @@ def hydrogen_chloride_force_field(
         force_field.register_parameter_handler(library_charge_handler)
 
     if charge_increment:
-
         charge_increment_handler = ChargeIncrementModelHandler(version=0.3)
         charge_increment_handler.add_parameter(
             parameter_kwargs={
@@ -201,7 +195,6 @@ def hydrogen_chloride_force_field(
         force_field.register_parameter_handler(charge_increment_handler)
 
     if vsite:
-
         # Molecule is intended to look like
         # mapping       :2    :1
         #               H --- Cl -- VS
@@ -229,7 +222,6 @@ def hydrogen_chloride_force_field(
 
 
 def test_system_subset_vdw():
-
     # Create a dummy topology
     topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
 
@@ -280,7 +272,6 @@ def test_system_subset_vdw_cutoff():
 
 
 def test_system_subset_library_charge():
-
     force_field = hydrogen_chloride_force_field(True, False, False)
 
     # Ensure a zero charge after perturbation.
@@ -316,7 +307,6 @@ def test_system_subset_library_charge():
 
 
 def test_system_subset_charge_increment():
-
     pytest.skip(
         "This test will fail until the SMIRNOFF charge increment handler allows "
         "N - 1 charges to be specified."
@@ -355,7 +345,6 @@ def test_system_subset_charge_increment():
     "smirks, all_zeros", [("[#6X4:1]", True), ("[#8:1]", False), (None, False)]
 )
 def test_compute_gradients(tmpdir, smirks, all_zeros):
-
     # Load a short trajectory.
     coordinate_path = get_data_filename("test/trajectories/water.pdb")
     trajectory_path = get_data_filename("test/trajectories/water.dcd")
@@ -403,7 +392,6 @@ def test_compute_gradients(tmpdir, smirks, all_zeros):
     "box_vectors", [None, (numpy.eye(3) * 3.0) * openmm_unit.nanometers]
 )
 def test_update_context_with_positions(box_vectors):
-
     force_field = hydrogen_chloride_force_field(True, False, True)
 
     topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
@@ -437,7 +425,6 @@ def test_update_context_with_positions(box_vectors):
 
 
 def test_update_context_with_pdb(tmpdir):
-
     force_field = hydrogen_chloride_force_field(True, False, True)
 
     topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
@@ -477,7 +464,6 @@ def test_update_context_with_pdb(tmpdir):
 
 
 def test_extract_atom_indices():
-
     force_field = hydrogen_chloride_force_field(True, False, True)
 
     topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()

@@ -96,7 +96,6 @@ def test_storage_retrieval():
     force_field = SmirnoffForceFieldSource.from_path("smirnoff99Frosst-1.1.0.offxml")
 
     with tempfile.TemporaryDirectory() as base_directory:
-
         # Create a storage backend with some dummy data.
         backend_directory = os.path.join(base_directory, "storage_dir")
         storage_backend = LocalFileStorage(backend_directory)
@@ -104,7 +103,6 @@ def test_storage_retrieval():
         force_field_id = storage_backend.store_force_field(force_field)
 
         for substance, phase, n_mol in data_to_store:
-
             data_directory = os.path.join(base_directory, substance.identifier)
             data = create_dummy_simulation_data(
                 data_directory,
@@ -117,7 +115,6 @@ def test_storage_retrieval():
             storage_keys[(substance, phase, n_mol)] = storage_key
 
         for physical_property in properties:
-
             schema = registered_calculation_schemas["ReweightingLayer"][
                 physical_property.__class__.__name__
             ]
@@ -140,7 +137,6 @@ def test_storage_retrieval():
             expected_data_list = expected_data_per_property[physical_property.__class__]
 
             for data_key in expected_data_list:
-
                 assert data_key in metadata
 
                 stored_metadata = metadata[data_key]

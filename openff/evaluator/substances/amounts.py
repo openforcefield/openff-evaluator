@@ -85,7 +85,6 @@ class MoleFraction(Amount):
         return f"x={self.value:.6f}"
 
     def to_number_of_molecules(self, total_substance_molecules, tolerance=None):
-
         # Determine how many molecules of each type will be present in the system.
         number_of_molecules = self.value * total_substance_molecules
         fractional_number_of_molecules = number_of_molecules % 1
@@ -96,7 +95,6 @@ class MoleFraction(Amount):
             number_of_molecules = int(round(number_of_molecules))
 
         if number_of_molecules == 0:
-
             raise ValueError(
                 "The total number of substance molecules was not large enough, "
                 "such that this non-zero amount translates into zero molecules "
@@ -104,11 +102,9 @@ class MoleFraction(Amount):
             )
 
         if tolerance is not None:
-
             mole_fraction = number_of_molecules / total_substance_molecules
 
             if abs(mole_fraction - self.value) > tolerance:
-
                 raise ValueError(
                     f"The mole fraction ({mole_fraction}) given a total number of molecules "
                     f"({total_substance_molecules}) is outside of the tolerance {tolerance} "
@@ -121,14 +117,12 @@ class MoleFraction(Amount):
         super(MoleFraction, self).validate(attribute_type)
 
         if self.value <= 0.0 or self.value > 1.0:
-
             raise ValueError(
                 "A mole fraction must be greater than zero, and less than or "
                 "equal to one."
             )
 
         if math.floor(self.value * 1e6) < 1:
-
             raise ValueError(
                 "Mole fractions are only precise to the sixth "
                 "decimal place within this class representation."

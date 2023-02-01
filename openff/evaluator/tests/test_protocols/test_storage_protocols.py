@@ -19,7 +19,6 @@ def test_unpack_stored_simulation_data():
     together within the`LocalStorage` system."""
 
     with tempfile.TemporaryDirectory() as directory:
-
         force_field_path = os.path.join(directory, "ff.json")
 
         with open(force_field_path, "w") as file:

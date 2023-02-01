@@ -20,9 +20,7 @@ from openff.evaluator.tests.utils import build_tip3p_smirnoff_force_field
 
 
 def test_build_smirnoff_system():
-
     with tempfile.TemporaryDirectory() as directory:
-
         force_field_path = path.join(directory, "ff.json")
 
         with open(force_field_path, "w") as file:
@@ -44,9 +42,7 @@ def test_build_smirnoff_system():
 
 
 def test_build_tleap_system():
-
     with tempfile.TemporaryDirectory() as directory:
-
         force_field_path = path.join(directory, "ff.json")
 
         with open(force_field_path, "w") as file:
@@ -68,7 +64,6 @@ def test_build_tleap_system():
 
 
 def test_build_ligpargen_system(requests_mock):
-
     force_field_source = LigParGenForceFieldSource(
         request_url="http://testligpargen.com/request",
         download_url="http://testligpargen.com/download",
@@ -150,7 +145,6 @@ phase2="3.141592653589793" phase3="0.00" phase4="3.141592653589793"/>
     requests_mock.post(force_field_source.download_url, text=download_callback)
 
     with tempfile.TemporaryDirectory() as directory:
-
         force_field_path = path.join(directory, "ff.json")
 
         with open(force_field_path, "w") as file:

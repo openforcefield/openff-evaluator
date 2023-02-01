@@ -97,23 +97,19 @@ def is_type_subclass_of_type(type_a, type_b):
 
     # Make sure these are types we support.
     if _is_typing_object(type_a) and not _is_supported_generic(type_a):
-
         raise ValueError(
             f'Only the {" ".join(map(str, _supported_generic_types))} '
             f"typing module types are supported, and not {type_a}."
         )
 
     if _is_typing_object(type_b) and not _is_supported_generic(type_b):
-
         raise ValueError(
             f'Only the {" ".join(map(str, _supported_generic_types))} '
             f"typing module types are supported, and not {type_b}."
         )
 
     if is_union_type(type_a):
-
         for arg in type_a.__args__:
-
             if not is_type_subclass_of_type(arg, type_b):
                 continue
 
@@ -122,9 +118,7 @@ def is_type_subclass_of_type(type_a, type_b):
         return False
 
     if is_union_type(type_b):
-
         for arg in type_b.__args__:
-
             if not is_type_subclass_of_type(type_a, arg):
                 continue
 
