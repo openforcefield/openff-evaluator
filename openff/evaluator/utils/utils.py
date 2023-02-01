@@ -110,7 +110,6 @@ def get_nested_attribute(containing_object, name):
     current_attribute = containing_object
 
     for index, full_attribute_name in enumerate(attribute_name_split):
-
         array_index = None
         attribute_name = full_attribute_name
 
@@ -123,22 +122,17 @@ def get_nested_attribute(containing_object, name):
             return None
 
         if not isinstance(current_attribute, dict):
-
             if not hasattr(current_attribute, attribute_name):
-
                 raise ValueError(
                     "This object does not have a {} "
                     "attribute.".format(".".join(attribute_name_split[: index + 1]))
                 )
 
             else:
-
                 current_attribute = getattr(current_attribute, attribute_name)
 
         else:
-
             if attribute_name not in current_attribute:
-
                 raise ValueError(
                     "This object does not have a {} "
                     "attribute.".format(".".join(attribute_name_split[: index + 1]))
@@ -148,13 +142,10 @@ def get_nested_attribute(containing_object, name):
                 current_attribute = current_attribute[attribute_name]
 
         if array_index is not None:
-
             if isinstance(current_attribute, list):
-
                 try:
                     array_index = int(array_index)
                 except ValueError:
-
                     raise ValueError(
                         "List indices must be integer: "
                         "{}".format(".".join(attribute_name_split[: index + 1]))
@@ -187,7 +178,6 @@ def set_nested_attribute(containing_object, name, value):
     attribute_name = name
 
     if attribute_name.find(".") > 1:
-
         last_separator_index = attribute_name.rfind(".")
 
         current_attribute = get_nested_attribute(
@@ -196,11 +186,9 @@ def set_nested_attribute(containing_object, name, value):
         attribute_name = attribute_name[last_separator_index + 1 :]
 
     if attribute_name.find("[") >= 0:
-
         attribute_name, array_index = extract_variable_index_and_name(attribute_name)
 
         if not hasattr(current_attribute, attribute_name):
-
             raise ValueError(
                 "This object does not have a {} attribute.".format(attribute_name)
             )
@@ -208,7 +196,6 @@ def set_nested_attribute(containing_object, name, value):
         current_attribute = getattr(current_attribute, attribute_name)
 
         if isinstance(current_attribute, list):
-
             try:
                 array_index = int(array_index)
             except ValueError:
@@ -219,9 +206,7 @@ def set_nested_attribute(containing_object, name, value):
         current_attribute[array_index] = value
 
     else:
-
         if not hasattr(current_attribute, attribute_name):
-
             raise ValueError(
                 "This object does not have a {} attribute.".format(attribute_name)
             )
@@ -250,15 +235,12 @@ def temporarily_change_directory(directory_path: Optional[str] = None):
     old_directory = os.getcwd()
 
     try:
-
         if directory_path is None:
-
             with TemporaryDirectory() as new_directory:
                 os.chdir(new_directory)
                 yield
 
         else:
-
             os.chdir(directory_path)
             yield
 
@@ -276,7 +258,6 @@ def has_openeye():
     """
 
     try:
-
         from openeye import oechem
 
         available = True

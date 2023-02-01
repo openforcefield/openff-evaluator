@@ -5,7 +5,6 @@ from openff.evaluator.utils.exceptions import MissingOptionalDependency
 
 
 class ChemicalEnvironment(Enum):
-
     Alkane = "Alkane"
     Cation = "Cation"
     Anion = "Anion"
@@ -215,7 +214,6 @@ class ChemicalEnvironment(Enum):
 
 
 def checkmol_code_to_environment(checkmol_code) -> ChemicalEnvironment:
-
     checkmol_code_map = {
         "000": ChemicalEnvironment.Alkane,
         "001": ChemicalEnvironment.Cation,
@@ -461,7 +459,6 @@ def analyse_functional_groups(smiles):
 
     # Make sure the checkmol utility has been installed separately.
     if shutil.which("checkmol") is None:
-
         raise MissingOptionalDependency(
             "checkmol",
             False,
@@ -475,12 +472,10 @@ def analyse_functional_groups(smiles):
 
     # Save the smile pattern out as an SDF file, ready to use as input to checkmol.
     with tempfile.NamedTemporaryFile(suffix=".sdf") as file:
-
         openff_molecule.to_file(file.name, "SDF")
 
         # Execute checkmol.
         try:
-
             result = subprocess.check_output(
                 ["checkmol", "-p", file.name],
                 stderr=subprocess.STDOUT,
@@ -497,7 +492,6 @@ def analyse_functional_groups(smiles):
     groups = {}
 
     for group in result.splitlines():
-
         group_code, group_count, _ = group.split(":")
 
         group_environment = checkmol_code_to_environment(group_code[1:])

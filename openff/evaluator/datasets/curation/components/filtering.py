@@ -25,14 +25,12 @@ from openff.evaluator.utils.checkmol import (
 )
 
 if TYPE_CHECKING:
-
     conint = int
     confloat = float
     PositiveInt = int
     PositiveFloat = float
 
 else:
-
     from pydantic import PositiveFloat, PositiveInt, confloat, conint, constr
 
 logger = logging.getLogger(__name__)
@@ -42,7 +40,6 @@ MoleFractionRange = Tuple[confloat(ge=0.0, le=1.0), confloat(ge=0.0, le=1.0)]
 
 
 class FilterDuplicatesSchema(CurationComponentSchema):
-
     type: Literal["FilterDuplicates"] = "FilterDuplicates"
 
     temperature_precision: conint(ge=0) = Field(
@@ -70,7 +67,6 @@ class FilterDuplicates(CurationComponent):
     def _apply(
         cls, data_frame: pandas.DataFrame, schema: FilterDuplicatesSchema, n_processes
     ) -> pandas.DataFrame:
-
         if len(data_frame) == 0:
             return data_frame
 
@@ -83,7 +79,6 @@ class FilterDuplicates(CurationComponent):
         filtered_data = []
 
         for n_components in range(minimum_n_components, maximum_n_components + 1):
-
             component_data = data_frame[
                 data_frame["N Components"] == n_components
             ].copy()
@@ -98,7 +93,6 @@ class FilterDuplicates(CurationComponent):
             subset_columns = ["Temperature (K)", "Pressure (kPa)", "Phase"]
 
             for index in range(n_components):
-
                 component_data[f"Mole Fraction {index + 1}"] = component_data[
                     f"Mole Fraction {index + 1}"
                 ].round(schema.mole_fraction_precision)
@@ -118,7 +112,6 @@ class FilterDuplicates(CurationComponent):
             sorted_filtered_data = []
 
             for value_header in value_headers:
-
                 uncertainty_header = value_header.replace("Value", "Uncertainty")
 
                 property_data = component_data[component_data[value_header].notna()]
@@ -145,7 +138,6 @@ class FilterDuplicates(CurationComponent):
 
 
 class FilterByTemperatureSchema(CurationComponentSchema):
-
     type: Literal["FilterByTemperature"] = "FilterByTemperature"
 
     minimum_temperature: Optional[PositiveFloat] = Field(
@@ -180,7 +172,6 @@ class FilterByTemperature(CurationComponent):
         schema: FilterByTemperatureSchema,
         n_processes,
     ) -> pandas.DataFrame:
-
         filtered_frame = data_frame
 
         if schema.minimum_temperature is not None:
@@ -197,7 +188,6 @@ class FilterByTemperature(CurationComponent):
 
 
 class FilterByPressureSchema(CurationComponentSchema):
-
     type: Literal["FilterByPressure"] = "FilterByPressure"
 
     minimum_pressure: Optional[PositiveFloat] = Field(
@@ -229,7 +219,6 @@ class FilterByPressure(CurationComponent):
     def _apply(
         cls, data_frame: pandas.DataFrame, schema: FilterByPressureSchema, n_processes
     ) -> pandas.DataFrame:
-
         filtered_frame = data_frame
 
         if schema.minimum_pressure is not None:
@@ -246,7 +235,6 @@ class FilterByPressure(CurationComponent):
 
 
 class FilterByMoleFractionSchema(CurationComponentSchema):
-
     type: Literal["FilterByMoleFraction"] = "FilterByMoleFraction"
 
     mole_fraction_ranges: Dict[conint(gt=1), List[List[MoleFractionRange]]] = Field(
@@ -260,9 +248,7 @@ class FilterByMoleFractionSchema(CurationComponentSchema):
 
     @validator("mole_fraction_ranges")
     def _validate_ranges(cls, value: Dict[int, List[List[MoleFractionRange]]]):
-
         for n_components, ranges in value.items():
-
             assert len(ranges) == n_components - 1
 
             assert all(
@@ -286,22 +272,18 @@ class FilterByMoleFraction(CurationComponent):
         schema: FilterByMoleFractionSchema,
         n_processes,
     ) -> pandas.DataFrame:
-
         filtered_frame = data_frame
 
         full_query = ~filtered_frame["N Components"].isin(schema.mole_fraction_ranges)
 
         for n_components, ranges in schema.mole_fraction_ranges.items():
-
             # Build the query to apply
             n_component_query = filtered_frame["N Components"] == n_components
 
             for index, component_ranges in enumerate(ranges):
-
                 component_query = None
 
                 for mole_fraction_range in component_ranges:
-
                     fraction_query = (
                         filtered_frame[f"Mole Fraction {index + 1}"]
                         > mole_fraction_range[0]
@@ -324,7 +306,6 @@ class FilterByMoleFraction(CurationComponent):
 
 
 class FilterByRacemicSchema(CurationComponentSchema):
-
     type: Literal["FilterByRacemic"] = "FilterByRacemic"
 
 
@@ -340,13 +321,11 @@ class FilterByRacemic(CurationComponent):
         schema: FilterByMoleFractionSchema,
         n_processes,
     ) -> pandas.DataFrame:
-
         # Begin building the query. All pure substances should be
         # retained by default.
         query = data_frame["N Components"] < 2
 
         for n_components in range(2, data_frame["N Components"].max() + 1):
-
             component_data = data_frame[data_frame["N Components"] == n_components]
 
             if len(component_data) == 0:
@@ -357,7 +336,6 @@ class FilterByRacemic(CurationComponent):
             is_racemic = None
 
             for index_0, index_1 in component_combinations:
-
                 components_racemic = component_data[
                     f"Component {index_0 + 1}"
                 ].str.replace("@", "") == component_data[
@@ -380,7 +358,6 @@ class FilterByRacemic(CurationComponent):
 
 
 class FilterByElementsSchema(CurationComponentSchema):
-
     type: Literal["FilterByElements"] = "FilterByElements"
 
     allowed_elements: Optional[List[constr(min_length=1)]] = Field(
@@ -398,7 +375,6 @@ class FilterByElementsSchema(CurationComponentSchema):
 
     @root_validator
     def _validate_mutually_exclusive(cls, values):
-
         allowed_elements = values.get("allowed_elements")
         forbidden_elements = values.get("forbidden_elements")
 
@@ -416,15 +392,12 @@ class FilterByElements(CurationComponent):
     def _apply(
         cls, data_frame: pandas.DataFrame, schema: FilterByElementsSchema, n_processes
     ) -> pandas.DataFrame:
-
         from openff.toolkit.topology import Molecule
 
         def filter_function(data_row):
-
             n_components = data_row["N Components"]
 
             for index in range(n_components):
-
                 smiles = data_row[f"Component {index + 1}"]
                 molecule = Molecule.from_smiles(smiles, allow_undefined_stereo=True)
 
@@ -445,7 +418,6 @@ class FilterByElements(CurationComponent):
 
 
 class FilterByPropertyTypesSchema(CurationComponentSchema):
-
     type: Literal["FilterByPropertyTypes"] = "FilterByPropertyTypes"
 
     property_types: List[constr(min_length=1)] = Field(
@@ -469,7 +441,6 @@ class FilterByPropertyTypesSchema(CurationComponentSchema):
 
     @root_validator
     def _validate_n_components(cls, values):
-
         property_types = values.get("property_types")
         n_components = values.get("n_components")
 
@@ -489,14 +460,12 @@ class FilterByPropertyTypes(CurationComponent):
         schema: FilterByPropertyTypesSchema,
         n_processes,
     ) -> pandas.DataFrame:
-
         property_headers = [
             header for header in data_frame if header.find(" Value ") >= 0
         ]
 
         # Removes the columns for properties which are not of interest.
         for header in property_headers:
-
             property_type = header.split(" ")[0]
 
             if property_type in schema.property_types:
@@ -523,7 +492,6 @@ class FilterByPropertyTypes(CurationComponent):
         # for the specific property types, and which were measured for the
         # specified number of components.
         for property_type, n_components in schema.n_components.items():
-
             property_header = next(
                 iter(x for x in property_headers if x.find(f"{property_type} ") == 0),
                 None,
@@ -539,7 +507,6 @@ class FilterByPropertyTypes(CurationComponent):
 
         # Apply the strict filter if requested
         if schema.strict:
-
             reordered_data_frame = reorder_data_frame(data_frame)
 
             # Build a dictionary of which properties should be present partitioned
@@ -547,9 +514,7 @@ class FilterByPropertyTypes(CurationComponent):
             property_types = defaultdict(list)
 
             if len(schema.n_components) > 0:
-
                 for property_type, n_components in schema.n_components.items():
-
                     for n_component in n_components:
                         property_types[n_component].append(property_type)
 
@@ -557,7 +522,6 @@ class FilterByPropertyTypes(CurationComponent):
                 max_n_components = max(property_types)
 
             else:
-
                 min_n_components = reordered_data_frame["N Components"].min()
                 max_n_components = reordered_data_frame["N Components"].max()
 
@@ -570,7 +534,6 @@ class FilterByPropertyTypes(CurationComponent):
             # For each N component find substances which have data points for
             # all of the specified property types.
             for n_components in range(min_n_components, max_n_components + 1):
-
                 component_data = reordered_data_frame[
                     reordered_data_frame["N Components"] == n_components
                 ]
@@ -627,7 +590,6 @@ class FilterByPropertyTypes(CurationComponent):
 
 
 class FilterByStereochemistrySchema(CurationComponentSchema):
-
     type: Literal["FilterByStereochemistry"] = "FilterByStereochemistry"
 
 
@@ -642,16 +604,13 @@ class FilterByStereochemistry(CurationComponent):
         schema: FilterByStereochemistrySchema,
         n_processes,
     ) -> pandas.DataFrame:
-
         from openff.toolkit.topology import Molecule
         from openff.toolkit.utils import UndefinedStereochemistryError
 
         def filter_function(data_row):
-
             n_components = data_row["N Components"]
 
             for index in range(n_components):
-
                 smiles = data_row[f"Component {index + 1}"]
 
                 try:
@@ -666,7 +625,6 @@ class FilterByStereochemistry(CurationComponent):
 
 
 class FilterByChargedSchema(CurationComponentSchema):
-
     type: Literal["FilterByCharged"] = "FilterByCharged"
 
 
@@ -679,15 +637,12 @@ class FilterByCharged(CurationComponent):
     def _apply(
         cls, data_frame: pandas.DataFrame, schema: FilterByChargedSchema, n_processes
     ) -> pandas.DataFrame:
-
         from openff.toolkit.topology import Molecule
 
         def filter_function(data_row):
-
             n_components = data_row["N Components"]
 
             for index in range(n_components):
-
                 smiles = data_row[f"Component {index + 1}"]
                 molecule = Molecule.from_smiles(smiles, allow_undefined_stereo=True)
 
@@ -727,11 +682,9 @@ class FilterByIonicLiquid(CurationComponent):
         n_processes,
     ) -> pandas.DataFrame:
         def filter_function(data_row):
-
             n_components = data_row["N Components"]
 
             for index in range(n_components):
-
                 smiles = data_row[f"Component {index + 1}"]
 
                 if "." in smiles:
@@ -765,7 +718,6 @@ class FilterBySmilesSchema(CurationComponentSchema):
 
     @root_validator
     def _validate_mutually_exclusive(cls, values):
-
         smiles_to_include = values.get("smiles_to_include")
         smiles_to_exclude = values.get("smiles_to_exclude")
 
@@ -785,7 +737,6 @@ class FilterBySmiles(CurationComponent):
     def _apply(
         cls, data_frame: pandas.DataFrame, schema: FilterBySmilesSchema, n_processes
     ) -> pandas.DataFrame:
-
         smiles_to_include = schema.smiles_to_include
         smiles_to_exclude = schema.smiles_to_exclude
 
@@ -795,7 +746,6 @@ class FilterBySmiles(CurationComponent):
             smiles_to_include = []
 
         def filter_function(data_row):
-
             n_components = data_row["N Components"]
 
             component_smiles = [
@@ -824,7 +774,6 @@ class FilterBySmiles(CurationComponent):
 
 
 class FilterBySmirksSchema(CurationComponentSchema):
-
     type: Literal["FilterBySmirks"] = "FilterBySmirks"
 
     smirks_to_include: Optional[List[str]] = Field(
@@ -849,7 +798,6 @@ class FilterBySmirksSchema(CurationComponentSchema):
 
     @root_validator
     def _validate_mutually_exclusive(cls, values):
-
         smirks_to_include = values.get("smirks_to_include")
         smirks_to_exclude = values.get("smirks_to_exclude")
 
@@ -903,7 +851,6 @@ class FilterBySmirks(CurationComponent):
     def _apply(
         cls, data_frame: pandas.DataFrame, schema: FilterBySmirksSchema, n_processes
     ) -> pandas.DataFrame:
-
         smirks_to_match = (
             schema.smirks_to_include
             if schema.smirks_to_include
@@ -911,7 +858,6 @@ class FilterBySmirks(CurationComponent):
         )
 
         def filter_function(data_row):
-
             n_components = data_row["N Components"]
 
             component_smiles = [
@@ -936,7 +882,6 @@ class FilterBySmirks(CurationComponent):
 
 
 class FilterByNComponentsSchema(CurationComponentSchema):
-
     type: Literal["FilterByNComponents"] = "FilterByNComponents"
 
     n_components: List[PositiveInt] = Field(
@@ -958,12 +903,10 @@ class FilterByNComponents(CurationComponent):
         schema: FilterByNComponentsSchema,
         n_processes,
     ) -> pandas.DataFrame:
-
         return data_frame[data_frame["N Components"].isin(schema.n_components)]
 
 
 class FilterBySubstancesSchema(CurationComponentSchema):
-
     type: Literal["FilterBySubstances"] = "FilterBySubstances"
 
     substances_to_include: Optional[List[Tuple[str, ...]]] = Field(
@@ -981,7 +924,6 @@ class FilterBySubstancesSchema(CurationComponentSchema):
 
     @root_validator
     def _validate_mutually_exclusive(cls, values):
-
         substances_to_include = values.get("substances_to_include")
         substances_to_exclude = values.get("substances_to_exclude")
 
@@ -1024,7 +966,6 @@ class FilterBySubstances(CurationComponent):
         cls, data_frame: pandas.DataFrame, schema: FilterBySubstancesSchema, n_processes
     ) -> pandas.DataFrame:
         def filter_function(data_row):
-
             n_components = data_row["N Components"]
 
             substances_to_include = schema.substances_to_include
@@ -1060,7 +1001,6 @@ class FilterBySubstances(CurationComponent):
 
 
 class FilterByEnvironmentsSchema(CurationComponentSchema):
-
     type: Literal["FilterByEnvironments"] = "FilterByEnvironments"
 
     per_component_environments: Optional[Dict[int, ComponentEnvironments]] = Field(
@@ -1095,7 +1035,6 @@ class FilterByEnvironmentsSchema(CurationComponentSchema):
 
     @validator("per_component_environments")
     def _validate_per_component_environments(cls, value):
-
         if value is None:
             return value
 
@@ -1104,7 +1043,6 @@ class FilterByEnvironmentsSchema(CurationComponentSchema):
 
     @root_validator
     def _validate_mutually_exclusive(cls, values):
-
         at_least_one_environment = values.get("at_least_one_environment")
         strictly_specified_environments = values.get("strictly_specified_environments")
 
@@ -1132,7 +1070,6 @@ class FilterByEnvironments(CurationComponent):
 
     @classmethod
     def _find_environments_per_component(cls, data_row: pandas.Series):
-
         n_components = data_row["N Components"]
 
         component_smiles = [
@@ -1141,7 +1078,6 @@ class FilterByEnvironments(CurationComponent):
         component_moieties = [analyse_functional_groups(x) for x in component_smiles]
 
         if any(x is None for x in component_moieties):
-
             logger.info(
                 f"Checkmol was unable to parse the system with components="
                 f"{component_smiles} and so this data point was discarded."
@@ -1153,7 +1089,6 @@ class FilterByEnvironments(CurationComponent):
 
     @classmethod
     def _is_match(cls, component_environments, environments_to_match, schema):
-
         operator = all if schema.strictly_specified_environments else any
 
         return operator(
@@ -1163,7 +1098,6 @@ class FilterByEnvironments(CurationComponent):
 
     @classmethod
     def _filter_by_environments(cls, data_row, schema: FilterByEnvironmentsSchema):
-
         environments_per_component = cls._find_environments_per_component(data_row)
 
         if environments_per_component is None:
@@ -1176,7 +1110,6 @@ class FilterByEnvironments(CurationComponent):
 
     @classmethod
     def _filter_by_per_component(cls, data_row, schema: FilterByEnvironmentsSchema):
-
         n_components = data_row["N Components"]
 
         if (
@@ -1196,12 +1129,10 @@ class FilterByEnvironments(CurationComponent):
         for component_index, component_environments in enumerate(
             environments_per_component
         ):
-
             # noinspection PyUnresolvedReferences
             for environments_index, environments_to_match in enumerate(
                 schema.per_component_environments[n_components]
             ):
-
                 match_matrix[component_index, environments_index] = cls._is_match(
                     component_environments, environments_to_match, schema
                 )
@@ -1217,7 +1148,6 @@ class FilterByEnvironments(CurationComponent):
         schema: FilterByEnvironmentsSchema,
         n_processes,
     ) -> pandas.DataFrame:
-
         if schema.environments is not None:
             filter_function = functools.partial(
                 cls._filter_by_environments, schema=schema

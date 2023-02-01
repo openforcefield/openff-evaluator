@@ -51,7 +51,6 @@ class ZeroGradients(Protocol, abc.ABC):
     )
 
     def _execute(self, directory, available_resources):
-
         from openmm import unit as openmm_unit
 
         force_field_source = ForceFieldSource.from_json(self.force_field_path)
@@ -62,7 +61,6 @@ class ZeroGradients(Protocol, abc.ABC):
         force_field = force_field_source.to_force_field()
 
         def _get_parameter_unit(gradient_key):
-
             parameter = force_field.get_parameter_handler(gradient_key.tag)
 
             if gradient_key.smirks is not None:
@@ -83,7 +81,6 @@ class ZeroGradients(Protocol, abc.ABC):
         self.input_observables.clear_gradients()
 
         if isinstance(self.input_observables, Observable):
-
             self.output_observables = Observable(
                 value=self.input_observables.value,
                 gradients=[
@@ -100,7 +97,6 @@ class ZeroGradients(Protocol, abc.ABC):
             )
 
         elif isinstance(self.input_observables, ObservableArray):
-
             self.output_observables = ObservableArray(
                 value=self.input_observables.value,
                 gradients=[

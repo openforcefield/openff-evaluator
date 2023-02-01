@@ -7,7 +7,6 @@ from openff.evaluator.storage import LocalFileStorage
 
 
 def test_root_directory(tmpdir):
-
     local_storage_path = os.path.join(tmpdir, "stored-data")
     local_storage = LocalFileStorage(root_directory=local_storage_path)
 

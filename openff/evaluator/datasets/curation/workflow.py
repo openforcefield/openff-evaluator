@@ -101,7 +101,6 @@ class CurationWorkflow:
         data_frame = data_frame.fillna(value=numpy.nan)
 
         for component_schema in schema.component_schemas:
-
             component_class_name = component_schema.__class__.__name__.replace(
                 "Schema", ""
             )

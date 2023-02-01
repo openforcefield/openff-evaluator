@@ -12,7 +12,6 @@ pack_int = int_struct.pack
 
 
 class EvaluatorMessageTypes(IntEnum):
-
     Undefined = 0
     Submission = 1
     Query = 2

@@ -10,7 +10,6 @@ from openff.evaluator.utils.packmol import PackmolRuntimeException
 
 
 def test_packmol_box_size():
-
     from openff.toolkit.topology import Molecule
 
     molecules = [Molecule.from_smiles("O")]
@@ -32,7 +31,6 @@ def test_packmol_box_size():
 
 
 def test_packmol_bad_input():
-
     from openff.toolkit.topology import Molecule
 
     molecules = [Molecule.from_smiles("O")]
@@ -42,7 +40,6 @@ def test_packmol_bad_input():
 
 
 def test_packmol_failed():
-
     from openff.toolkit.topology import Molecule
 
     molecules = [Molecule.from_smiles("O")]
@@ -52,7 +49,6 @@ def test_packmol_failed():
 
 
 def test_packmol_water():
-
     from openff.toolkit.topology import Molecule
 
     molecules = [Molecule.from_smiles("O")]
@@ -74,7 +70,6 @@ def test_packmol_water():
 
 
 def test_packmol_ions():
-
     from openff.toolkit.topology import Molecule
 
     molecules = [
@@ -104,7 +99,6 @@ def test_packmol_ions():
 
 
 def test_packmol_paracetamol():
-
     from openff.toolkit.topology import Molecule
 
     # Test something a bit more tricky than water
@@ -123,7 +117,6 @@ def test_packmol_paracetamol():
 
 
 def test_amino_acids():
-
     amino_residues = {
         "C[C@H](N)C(=O)O": "ALA",
         # Undefined stereochemistry error.

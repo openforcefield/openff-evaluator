@@ -315,7 +315,6 @@ class HostGuestBindingAffinity(PhysicalProperty):
         openmm.OpenMMSimulation,
         openmm.OpenMMSimulation,
     ]:
-
         minimization = copy.deepcopy(minimization_template)
         minimization.id = f"{id_prefix}_energy_minimization_{id_suffix}"
         minimization.input_coordinate_file = coordinate_path
@@ -362,7 +361,6 @@ class HostGuestBindingAffinity(PhysicalProperty):
         equilibration_template: openmm.OpenMMSimulation,
         production_template: openmm.OpenMMSimulation,
     ):
-
         # Define a replicator to set and solvate up the coordinates for each pull window
         orientation_placeholder = orientation_replicator.placeholder_id
 
@@ -605,7 +603,6 @@ class HostGuestBindingAffinity(PhysicalProperty):
         equilibration_template: openmm.OpenMMSimulation,
         production_template: openmm.OpenMMSimulation,
     ):
-
         # Define a replicator to set up each release window
         release_replicator = ProtocolReplicator("release_replicator")
         release_replicator.template_values = ProtocolPath(
@@ -823,12 +820,10 @@ class HostGuestBindingAffinity(PhysicalProperty):
         )
 
         if debug:
-
             solvation_template.max_molecules = 10
             solvation_template.mass_density = 0.01 * unit.grams / unit.milliliters
 
             for simulation_template in simulation_templates:
-
                 simulation_template.ensemble = Ensemble.NVT
                 simulation_template.steps_per_iteration = 500
                 simulation_template.output_frequency = 50

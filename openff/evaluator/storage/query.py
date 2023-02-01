@@ -55,7 +55,6 @@ class BaseDataQuery(AttributeClass, abc.ABC):
         matches = []
 
         for attribute_name in self.get_attributes(QueryAttribute):
-
             attribute = getattr(self.__class__, attribute_name)
 
             if not hasattr(data_object, attribute_name) or attribute.custom_match:
@@ -93,7 +92,6 @@ class BaseDataQuery(AttributeClass, abc.ABC):
         query = cls()
 
         for attribute_name in cls.get_attributes():
-
             if not hasattr(data_object, attribute_name):
                 continue
 
@@ -125,7 +123,6 @@ class SubstanceQuery(AttributeClass, abc.ABC):
     # )
 
     def validate(self, attribute_type=None):
-
         super(SubstanceQuery, self).validate(attribute_type)
 
         # if (
@@ -224,13 +221,11 @@ class BaseSimulationDataQuery(BaseDataQuery, abc.ABC):
 
         # Handle the sub-substance match.
         if self.substance_query.components_only:
-
             if data_substance.number_of_components != 1:
                 # We are only interested in pure data.
                 return None
 
             for component in self.substance.components:
-
                 if component.smiles != data_substance.components[0].smiles:
                     continue
 
@@ -257,7 +252,6 @@ class BaseSimulationDataQuery(BaseDataQuery, abc.ABC):
         return None
 
     def apply(self, data_object, attributes_to_ignore=None):
-
         matches = []
 
         # Apply a custom match behaviour for the substance
@@ -276,11 +270,9 @@ class BaseSimulationDataQuery(BaseDataQuery, abc.ABC):
         return tuple(matches)
 
     def validate(self, attribute_type=None):
-
         super(BaseSimulationDataQuery, self).validate(attribute_type)
 
         if self.substance_query != UNDEFINED and self.substance == UNDEFINED:
-
             raise ValueError(
                 "The `substance_query` can only be used when the "
                 "`substance` attribute is set."

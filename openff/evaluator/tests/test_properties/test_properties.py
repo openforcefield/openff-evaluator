@@ -30,7 +30,6 @@ def workflow_merge_functions():
     """
 
     def function_a(workflow_a, workflow_b):
-
         workflow_graph = WorkflowGraph()
 
         workflow_graph.add_workflows(workflow_a)
@@ -39,7 +38,6 @@ def workflow_merge_functions():
         return workflow_graph
 
     def function_b(workflow_a, workflow_b):
-
         workflow_graph = WorkflowGraph()
         workflow_graph.add_workflows(workflow_a, workflow_b)
 
@@ -92,7 +90,6 @@ def test_workflow_schema_merging(
     by the `WorkflowGraph`."""
 
     if property_type == "HostGuestBindingAffinity":
-
         pytest.skip(
             "This test does not currently support host-guest binding affinities "
             "which usually require specialised property metadata."
@@ -144,7 +141,6 @@ def test_workflow_schema_merging(
         assert protocol_id in workflow_graph.protocols
 
     for protocol_id_A, protocol_id_B in zip(merge_order_a, merge_order_b):
-
         assert protocol_id_A == protocol_id_B
 
         assert (

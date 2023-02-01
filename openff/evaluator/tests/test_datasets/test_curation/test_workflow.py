@@ -23,7 +23,6 @@ from openff.evaluator.thermodynamics import ThermodynamicState
 
 @pytest.fixture(scope="module")
 def data_frame() -> pandas.DataFrame:
-
     data_set = PhysicalPropertyDataSet()
     data_set.add_properties(
         Density(

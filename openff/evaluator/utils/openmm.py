@@ -15,7 +15,6 @@ from openff.evaluator.attributes.attributes import UndefinedAttribute
 from openff.evaluator.forcefield import ParameterGradientKey
 
 if TYPE_CHECKING:
-
     from openff.toolkit.topology import Topology
     from openff.toolkit.typing.engines.smirnoff import ForceField
 
@@ -46,7 +45,6 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
 
     # Setup the requested platform:
     if compute_resources.number_of_gpus > 0:
-
         # TODO: Deterministic forces = True
 
         from openff.evaluator.backends import ComputeResources
@@ -60,7 +58,6 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
 
         # Get platform for running on GPUs.
         if toolkit_enum == ComputeResources.GPUToolkit.auto:
-
             from openmmtools.utils import get_fastest_platform
 
             # noinspection PyCallByClass,PyTypeChecker
@@ -79,7 +76,6 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
 
         # Set GPU device index
         if compute_resources.gpu_device_indices is not None:
-
             # `DeviceIndex` is used by both CUDA and OpenCL
             platform.setPropertyDefaultValue(
                 "DeviceIndex",
@@ -101,7 +97,6 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
         )
 
     else:
-
         if not high_precision:
             # noinspection PyCallByClass,PyTypeChecker
             platform = Platform.getPlatformByName("CPU")
@@ -135,7 +130,6 @@ def disable_pbc(system):
     """
 
     for force_index in range(system.getNumForces()):
-
         force = system.getForce(force_index)
 
         if not isinstance(force, (openmm.NonbondedForce, openmm.CustomNonbondedForce)):
@@ -196,7 +190,6 @@ def system_subset(
     registered_handlers = force_field.registered_parameter_handlers
 
     for handler_to_register in handlers_to_register:
-
         if handler_to_register not in registered_handlers:
             continue
 
@@ -232,7 +225,6 @@ def system_subset(
 
     # Optionally perturb the parameter of interest.
     if scale_amount is not None:
-
         if numpy.isclose(parameter_value.m, 0.0):
             # Careful thought needs to be given to this. Consider cases such as
             # epsilon or sigma where negative values are not allowed.
@@ -288,20 +280,17 @@ def update_context_with_positions(
     n_atoms = system.getNumParticles() - n_vsites
 
     if len(positions) != n_atoms and len(positions) != (n_atoms + n_vsites):
-
         raise ValueError(
             "The length of the positions array does not match either the "
             "the number of atoms or the number of atoms + v-sites."
         )
 
     if n_vsites > 0 and len(positions) != (n_atoms + n_vsites):
-
         new_positions = numpy.zeros((system.getNumParticles(), 3))
 
         i = 0
 
         for j in range(system.getNumParticles()):
-
             if not system.isVirtualSite(j):
                 # take an old position and update the index
                 new_positions[j] = positions[i].value_in_unit(openmm_unit.nanometers)

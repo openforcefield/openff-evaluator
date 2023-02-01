@@ -197,7 +197,6 @@ class BaseYankProtocol(Protocol, abc.ABC):
 
         # Find the resiude names of the molecules which have the correct role.
         for molecule in topology.molecules:
-
             molecule_smiles = molecule.to_smiles()
 
             if molecule_smiles not in component_smiles:
@@ -266,7 +265,6 @@ class BaseYankProtocol(Protocol, abc.ABC):
         platform_name = "CPU"
 
         if available_resources.number_of_gpus > 0:
-
             # A platform which runs on GPUs has been requested.
             from openff.evaluator.backends import ComputeResources
 
@@ -465,7 +463,6 @@ class BaseYankProtocol(Protocol, abc.ABC):
         from yank.experiment import ExperimentBuilder
 
         with temporarily_change_directory(directory):
-
             # Set the default properties on the desired platform
             # before calling into yank.
             setup_platform_with_resources(available_resources)
@@ -473,7 +470,6 @@ class BaseYankProtocol(Protocol, abc.ABC):
             exp_builder = ExperimentBuilder("yank.yaml")
 
             if setup_only is True:
-
                 from openmm import unit as openmm_unit
 
                 return {
@@ -583,7 +579,6 @@ class BaseYankProtocol(Protocol, abc.ABC):
         ]
 
     def _execute(self, directory, available_resources):
-
         yaml_filename = os.path.join(directory, "yank.yaml")
 
         # Create the yank yaml input file from a dictionary of options.
@@ -603,7 +598,6 @@ class BaseYankProtocol(Protocol, abc.ABC):
             logger.info("Launching YANK in the main thread.")
             analysed_output = self._run_yank(directory, available_resources, setup_only)
         else:
-
             from multiprocessing import Process, Queue
 
             logger.info("Launching YANK in a new process.")
@@ -798,7 +792,6 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         return {"default": {"nonbonded_method": charge_method}}
 
     def _get_system_dictionary(self):
-
         solvent_dictionary = self._get_solvent_dictionary()
         solvent_key = next(iter(solvent_dictionary))
 
@@ -815,7 +808,6 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         return {"host-guest": host_guest_dictionary}
 
     def _get_protocol_dictionary(self):
-
         ligand_protocol_dictionary = {
             "lambda_electrostatics": self.ligand_electrostatic_lambdas,
             "lambda_sterics": self.ligand_steric_lambdas,
@@ -825,7 +817,6 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
             self.ligand_electrostatic_lambdas == UNDEFINED
             and self.ligand_steric_lambdas == UNDEFINED
         ):
-
             ligand_protocol_dictionary = "auto"
 
         elif (
@@ -835,7 +826,6 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
             self.ligand_electrostatic_lambdas == UNDEFINED
             and self.ligand_steric_lambdas != UNDEFINED
         ):
-
             raise ValueError(
                 "Either both of `ligand_electrostatic_lambdas` and "
                 "`ligand_steric_lambdas` must be set, or neither "
@@ -851,7 +841,6 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
             self.complex_electrostatic_lambdas == UNDEFINED
             and self.complex_steric_lambdas == UNDEFINED
         ):
-
             complex_protocol_dictionary = "auto"
 
         elif (
@@ -861,7 +850,6 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
             self.complex_electrostatic_lambdas == UNDEFINED
             and self.complex_steric_lambdas != UNDEFINED
         ):
-
             raise ValueError(
                 "Either both of `complex_electrostatic_lambdas` and "
                 "`complex_steric_lambdas` must be set, or neither "
@@ -876,13 +864,11 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         return {"absolute_binding_dictionary": absolute_binding_dictionary}
 
     def _get_experiments_dictionary(self):
-
         experiments_dictionary = super(
             LigandReceptorYankProtocol, self
         )._get_experiments_dictionary()
 
         if self.apply_restraints:
-
             ligand_dsl = f"(resname {self.ligand_residue_name}) and (mass > 1.5)"
             receptor_dsl = f"(resname {self.receptor_residue_name}) and (mass > 1.5)"
 
@@ -895,7 +881,6 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         return experiments_dictionary
 
     def _get_full_input_dictionary(self, available_resources):
-
         full_dictionary = super(
             LigandReceptorYankProtocol, self
         )._get_full_input_dictionary(available_resources)
@@ -904,7 +889,6 @@ class LigandReceptorYankProtocol(BaseYankProtocol):
         return full_dictionary
 
     def _execute(self, directory, available_resources):
-
         # Because of quirks in where Yank looks files while doing temporary
         # directory changes, we need to copy the coordinate files locally so
         # they are correctly found.
@@ -1098,7 +1082,6 @@ class SolvationYankProtocol(BaseYankProtocol):
         self._local_solution_2_system = "solvent_2.xml"
 
     def _get_system_dictionary(self):
-
         solvent_1_dsl = self._get_dsl_from_role(
             [self.solute, self.solvent_1],
             self.solution_1_coordinates,
@@ -1133,7 +1116,6 @@ class SolvationYankProtocol(BaseYankProtocol):
         return {"solvation-system": solvation_system_dictionary}
 
     def _get_protocol_dictionary(self):
-
         solvent_1_protocol_dictionary = {
             "lambda_electrostatics": self.electrostatic_lambdas_1,
             "lambda_sterics": self.steric_lambdas_1,
@@ -1143,7 +1125,6 @@ class SolvationYankProtocol(BaseYankProtocol):
             self.electrostatic_lambdas_1 == UNDEFINED
             and self.steric_lambdas_1 == UNDEFINED
         ):
-
             solvent_1_protocol_dictionary = "auto"
 
         elif (
@@ -1153,7 +1134,6 @@ class SolvationYankProtocol(BaseYankProtocol):
             self.electrostatic_lambdas_1 == UNDEFINED
             and self.steric_lambdas_1 != UNDEFINED
         ):
-
             raise ValueError(
                 "Either both of `electrostatic_lambdas_1` and "
                 "`steric_lambdas_1` must be set, or neither "
@@ -1169,7 +1149,6 @@ class SolvationYankProtocol(BaseYankProtocol):
             self.electrostatic_lambdas_2 == UNDEFINED
             and self.steric_lambdas_2 == UNDEFINED
         ):
-
             solvent_2_protocol_dictionary = "auto"
 
         elif (
@@ -1179,7 +1158,6 @@ class SolvationYankProtocol(BaseYankProtocol):
             self.electrostatic_lambdas_2 == UNDEFINED
             and self.steric_lambdas_2 != UNDEFINED
         ):
-
             raise ValueError(
                 "Either both of `electrostatic_lambdas_2` and "
                 "`steric_lambdas_2` must be set, or neither "
@@ -1346,7 +1324,6 @@ class SolvationYankProtocol(BaseYankProtocol):
         )
 
     def _execute(self, directory, available_resources):
-
         from openmm import XmlSerializer
 
         solute_components = [
@@ -1405,7 +1382,6 @@ class SolvationYankProtocol(BaseYankProtocol):
             vacuum_system_path = self._local_solution_2_system
 
         if vacuum_system_path is not None:
-
             logger.info(
                 f"Disabling the periodic boundary conditions in {vacuum_system_path} "
                 f"by setting the cutoff type to NoCutoff"

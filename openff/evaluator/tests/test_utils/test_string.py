@@ -11,7 +11,6 @@ from openff.evaluator.utils.string import sanitize_smiles_file_name
 
 
 def test_valid_extract_variable_index_and_name():
-
     valid_path = "variable_name[index_string]"
 
     variable_name, index = string.extract_variable_index_and_name(valid_path)
@@ -36,7 +35,6 @@ def test_valid_extract_variable_index_and_name():
     ],
 )
 def test_invalid_extract_variable_index_and_name(invalid_path):
-
     with pytest.raises(ValueError):
         string.extract_variable_index_and_name(invalid_path)
 
@@ -45,14 +43,12 @@ def test_invalid_extract_variable_index_and_name(invalid_path):
     "smiles_pattern", [r"C/C=C/C=C/COC(=O)", r"CCOC(=O)/C=C(/C)\O"]
 )
 def test_sanitize_smiles_file_name(smiles_pattern):
-
     smiles_file_name = f"file_{smiles_pattern}.json"
     sanitized_smiles_file_name = sanitize_smiles_file_name(smiles_file_name)
 
     assert sanitized_smiles_file_name.find("/") < 0
 
     with tempfile.TemporaryDirectory() as temporary_directory:
-
         with open(
             path.join(temporary_directory, sanitized_smiles_file_name), "w"
         ) as file:

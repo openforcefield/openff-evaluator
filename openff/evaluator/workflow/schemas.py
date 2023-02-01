@@ -76,7 +76,6 @@ class ProtocolGroupSchema(ProtocolSchema):
         super(ProtocolGroupSchema, self).validate(attribute_type)
 
         for key, value in self.protocol_schemas.items():
-
             assert isinstance(key, str)
             assert isinstance(value, ProtocolSchema)
 
@@ -125,11 +124,9 @@ class ProtocolReplicator(TypedBaseModel):
         self.template_values = None
 
     def __getstate__(self):
-
         return {"id": self.id, "template_values": self.template_values}
 
     def __setstate__(self, state):
-
         self.id = state["id"]
         self.template_values = state["template_values"]
 
@@ -191,7 +188,6 @@ class ProtocolReplicator(TypedBaseModel):
         ) or (
             template_values is None and (template_index < 0 or template_value is None)
         ):
-
             raise ValueError(
                 "Either the template values array must be set, or a specific "
                 "template index and value must be passed."
@@ -201,13 +197,11 @@ class ProtocolReplicator(TypedBaseModel):
         replicated_protocol_map = {}
 
         for protocol_id, protocol in protocols.items():
-
             should_replicate = self.placeholder_id in protocol_id
 
             # If this protocol should not be directly replicated then try and
             # replicate any child protocols...
             if not should_replicate:
-
                 replicated_protocols[protocol_id] = protocol
 
                 if template_index is not None and template_index >= 0:
@@ -254,21 +248,18 @@ class ProtocolReplicator(TypedBaseModel):
         template_index=-1,
         template_value=None,
     ):
-
         replicated_protocol_map[ProtocolPath("", protocol.id)] = []
         replicated_protocols = {}
 
         template_values_dict = {template_index: template_value}
 
         if template_values is not None:
-
             template_values_dict = {
                 index: template_value
                 for index, template_value in enumerate(template_values)
             }
 
         for index, template_value in template_values_dict.items():
-
             protocol_schema = protocol.schema
             protocol_schema.id = protocol_schema.id.replace(
                 self.placeholder_id, str(index)
@@ -285,14 +276,12 @@ class ProtocolReplicator(TypedBaseModel):
 
             # Pass the template values to any inputs which require them.
             for required_input in replicated_protocol.required_inputs:
-
                 input_value = replicated_protocol.get_value(required_input)
 
                 if not isinstance(input_value, ReplicatorValue):
                     continue
 
                 elif input_value.replicator_id != self.id:
-
                     input_value.replicator_id = input_value.replicator_id.replace(
                         self.placeholder_id, str(index)
                     )
@@ -320,14 +309,12 @@ class ProtocolReplicator(TypedBaseModel):
         template_index=-1,
         template_value=None,
     ):
-
         replicated_child_ids = protocol.apply_replicator(
             self, template_values, template_index, template_value
         )
 
         # Append the id of this protocols to any replicated child protocols.
         for child_id, replicated_ids in replicated_child_ids.items():
-
             child_id.prepend_protocol_id(protocol.id)
 
             for replicated_id, _ in replicated_ids:
@@ -361,16 +348,13 @@ class ProtocolReplicator(TypedBaseModel):
                 inverse_replication_map[replicated_id] = (original_id, index)
 
         for protocol_id, protocol in protocols.items():
-
             # Look at each of the protocols inputs and see if its value is either a ProtocolPath,
             # or a list of ProtocolPath's.
             for required_input in protocol.required_inputs:
-
                 all_value_references = protocol.get_value_references(required_input)
                 replicated_value_references = {}
 
                 for source_path, value_reference in all_value_references.items():
-
                     if self.placeholder_id not in value_reference.full_path:
                         continue
 
@@ -382,7 +366,6 @@ class ProtocolReplicator(TypedBaseModel):
                     continue
 
                 for source_path, value_reference in replicated_value_references.items():
-
                     full_source_path = source_path.copy()
                     full_source_path.prepend_protocol_id(protocol_id)
 
@@ -400,7 +383,6 @@ class ProtocolReplicator(TypedBaseModel):
                     ]
 
                     for replicated_id, map_tuple in inverse_replication_map.items():
-
                         original_id, replicated_index = map_tuple
 
                         if (
@@ -480,7 +462,6 @@ class WorkflowSchema(AttributeClass):
             protocol_schemas = protocol_group_schema.protocol_schemas
 
         for protocol_schema_key in protocol_schemas:
-
             protocol_schema = protocol_schemas[protocol_schema_key]
 
             if protocol_schema.type not in protocol_replacements:
@@ -493,7 +474,6 @@ class WorkflowSchema(AttributeClass):
             ](protocol_schema.id)
 
             for input_path in new_protocol.required_inputs:
-
                 if input_path not in protocol.required_inputs:
                     continue
 
@@ -537,7 +517,6 @@ class WorkflowSchema(AttributeClass):
         protocols_to_replicate = []
 
         for protocol_id, protocol in protocols.items():
-
             if protocol_id.find(replicator.placeholder_id) >= 0:
                 protocols_to_replicate.append(protocol_id)
 
@@ -575,14 +554,12 @@ class WorkflowSchema(AttributeClass):
         full_unreplicated_path = str(protocol_path.full_path)
 
         for replicator in self.protocol_replicators:
-
             if replicator.placeholder_id in full_unreplicated_path:
                 continue
 
             protocols_to_replicate = self._find_protocols_to_be_replicated(replicator)
 
             for protocol_id in protocols_to_replicate:
-
                 match_pattern = re.escape(
                     protocol_id.replace(replicator.placeholder_id, r"\d+")
                 )
@@ -629,42 +606,34 @@ class WorkflowSchema(AttributeClass):
         return ProtocolPath(property_name, *protocol_path.protocol_ids)
 
     def _validate_replicators(self, schemas_by_id):
-
         if self.protocol_replicators == UNDEFINED:
             return
 
         assert all(isinstance(x, ProtocolReplicator) for x in self.protocol_replicators)
 
         for replicator in self.protocol_replicators:
-
             assert replicator.id is not None and len(replicator.id) > 0
 
             if not isinstance(replicator.template_values, list) and not isinstance(
                 replicator.template_values, ProtocolPath
             ):
-
                 raise ValueError(
                     "The template values of a replicator must either be "
                     "a list of values, or a reference to a list of values."
                 )
 
             if isinstance(replicator.template_values, list):
-
                 for template_value in replicator.template_values:
-
                     if not isinstance(template_value, ProtocolPath):
                         continue
 
                     if template_value.start_protocol not in schemas_by_id:
-
                         raise ValueError(
                             f"The value source {template_value} does not exist."
                         )
 
             elif isinstance(replicator.template_values, ProtocolPath):
-
                 if not replicator.template_values.is_global:
-
                     raise ValueError(
                         "Template values must either be a constant, or come from the "
                         "global scope."
@@ -677,21 +646,18 @@ class WorkflowSchema(AttributeClass):
                 )
                 >= 0
             ):
-
                 raise ValueError(
                     "The final value source cannot come from"
                     "a protocol which is being replicated."
                 )
 
     def _validate_final_value(self, schemas_by_id):
-
         if self.final_value_source == UNDEFINED:
             return
 
         assert isinstance(self.final_value_source, ProtocolPath)
 
         if self.final_value_source.start_protocol not in schemas_by_id:
-
             raise ValueError(
                 f"The value source {self.final_value_source} does not exist."
             )
@@ -718,16 +684,13 @@ class WorkflowSchema(AttributeClass):
         )
 
         for output_label in self.outputs_to_store:
-
             output_to_store = self.outputs_to_store[output_label]
             output_to_store.validate()
 
             for attribute_name in output_to_store.get_attributes(StorageAttribute):
-
                 attribute_value = getattr(output_to_store, attribute_name)
 
                 if isinstance(attribute_value, ReplicatorValue):
-
                     matching_replicas = [
                         x
                         for x in self.protocol_replicators
@@ -735,7 +698,6 @@ class WorkflowSchema(AttributeClass):
                     ]
 
                     if len(matching_replicas) == 0:
-
                         raise ValueError(
                             f"An output to store is trying to take its value from a "
                             f"replicator {attribute_value.replicator_id} which does "
@@ -768,11 +730,9 @@ class WorkflowSchema(AttributeClass):
         """
 
         for protocol_schema in schemas_by_id.values():
-
             protocol_object = protocol_schema.to_protocol()
 
             for input_path in protocol_object.required_inputs:
-
                 input_value = protocol_object.get_value(input_path)
                 input_attribute = protocol_object.get_class_attribute(input_path)
 
@@ -782,18 +742,15 @@ class WorkflowSchema(AttributeClass):
                 is_optional = input_attribute.optional
 
                 if input_value == UNDEFINED and is_optional is False:
-
                     raise ValueError(
                         f"The {input_path} required input of protocol "
                         f"{protocol_schema.id} was not set."
                     )
 
             for input_path in protocol_object.required_inputs:
-
                 value_references = protocol_object.get_value_references(input_path)
 
                 for source_path, value_reference in value_references.items():
-
                     if value_reference.is_global:
                         # We handle global input validation separately
                         continue
@@ -806,14 +763,12 @@ class WorkflowSchema(AttributeClass):
                         value_reference.start_protocol not in schemas_by_id
                         and value_reference.start_protocol != protocol_object.id
                     ):
-
                         raise ValueError(
                             f"The {protocol_object.id} protocol tries to take input "
                             f"from a non-existent protocol: {value_reference.full_path}"
                         )
 
                     if value_reference.start_protocol != protocol_object.id:
-
                         other_protocol_schema = schemas_by_id[
                             value_reference.start_protocol
                         ]
@@ -838,7 +793,6 @@ class WorkflowSchema(AttributeClass):
                         value_reference.full_path != unnested_value_reference.full_path
                         or source_path.full_path != unnested_source_path.full_path
                     ):
-
                         continue
 
                     is_replicated_reference = False
@@ -848,7 +802,6 @@ class WorkflowSchema(AttributeClass):
                         protocol_replicators = []
 
                     for replicator in protocol_replicators:
-
                         if (
                             replicator.placeholder_id in protocol_schema.id
                             and replicator.placeholder_id
@@ -858,7 +811,6 @@ class WorkflowSchema(AttributeClass):
                             and replicator.placeholder_id
                             not in value_reference.protocol_path
                         ):
-
                             continue
 
                         is_replicated_reference = True
@@ -880,7 +832,6 @@ class WorkflowSchema(AttributeClass):
                     if not is_type_subclass_of_type(
                         expected_output_type, expected_input_type
                     ):
-
                         raise ValueError(
                             f"The output type ({expected_output_type}) of "
                             f"{value_reference} does not match the requested "
@@ -901,7 +852,6 @@ class WorkflowSchema(AttributeClass):
         protocol_ids = []
 
         for protocol_id, protocol_schema in schemas_by_id.items():
-
             protocol_ids.append(protocol_id)
 
             if not isinstance(protocol_schema, ProtocolGroupSchema):
@@ -935,7 +885,6 @@ class WorkflowSchema(AttributeClass):
         duplicate_ids = self._find_duplicates(all_protocol_ids)
 
         if len(duplicate_ids) > 0:
-
             raise ValueError(
                 f"Several protocols in the schema have the same id: "
                 f"{duplicate_ids}. This is currently unsupported due to issues "
@@ -952,12 +901,10 @@ class WorkflowSchema(AttributeClass):
         replicator_ids = [x.placeholder_id for x in self.protocol_replicators]
 
         for protocol_id, protocol_schema in schemas_by_id.items():
-
             if not isinstance(protocol_schema, ProtocolGroupSchema):
                 continue
 
             for replicator_id in replicator_ids:
-
                 if replicator_id not in protocol_id:
                     continue
 
@@ -965,7 +912,6 @@ class WorkflowSchema(AttributeClass):
                     replicator_id not in child_id
                     for child_id in protocol_schema.protocol_schemas
                 ):
-
                     raise ValueError(
                         f"The children of replicated protocol {protocol_id} must also "
                         f"contain the replicators placeholder id in their id to ensure "
@@ -976,7 +922,6 @@ class WorkflowSchema(AttributeClass):
             self._validate_replicated_child_ids(protocol_schema.protocol_schemas)
 
     def validate(self, attribute_type=None):
-
         super(WorkflowSchema, self).validate(attribute_type)
 
         # Do some simple type checking.
