@@ -16,7 +16,7 @@ jobs:
 
   test:
 
-    name: 💻 ${{ matrix.os }}, 🐍 ${{ matrix.python-version }}, 👀 ${{ matrix.openeye }}, pymbar ${{ matrix.pymbar-version }}
+    name: 💻 ${{ matrix.os }}, 🐍 ${{ matrix.python-version }}, 👀 ${{ matrix.openeye }}, pymbar ${{ matrix.pymbar-version }}, OpenMM ${{ matrix.openmm-version }}
     runs-on: ${{ matrix.os }}
 
     env:
