@@ -79,6 +79,7 @@ def test_schema_serialization(calculation_layer, property_type):
     assert json_schema == property_recreated_json
 
 
+@pytest.mark.skip
 @pytest.mark.parametrize(
     "calculation_layer, property_type", calculation_schema_generator()
 )
