@@ -12,7 +12,6 @@ dependencies:
   - pytest-cov
   - codecov
   - requests-mock # For testing http requests.
-  - smirnoff-plugins # For testing custom nonbonded forces
   - coverage >=4.4
 
     # Standard dependencies
@@ -24,7 +23,6 @@ dependencies:
   - dask-jobqueue >=0.8.0
   - uncertainties
   - openmmtools
-  - yank >=0.25.2
   - pyyaml
   - requests
   - python-dateutil
