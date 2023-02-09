@@ -89,12 +89,6 @@ def test_workflow_schema_merging(
     """Tests that two of the exact the same calculations get merged into one
     by the `WorkflowGraph`."""
 
-    if property_type == "HostGuestBindingAffinity":
-        pytest.skip(
-            "This test does not currently support host-guest binding affinities "
-            "which usually require specialised property metadata."
-        )
-
     schema = registered_calculation_schemas[calculation_layer][property_type]
 
     if callable(schema):
