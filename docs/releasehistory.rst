@@ -9,6 +9,16 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
 
+Current development
+-------------------
+
+This is the last release that will support OpenMM 7.
+
+Bugfixes
+""""""""
+
+* PR `#496 <https://github.com/openforcefield/openff-evaluator/pull/495>`_: Add support for OpenMM 8
+
 
 0.4.2
 -----
