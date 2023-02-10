@@ -99,7 +99,7 @@ class Component(AttributeClass):
 
         try:
             # Try to make the smiles isomeric.
-            smiles = molecule.to_smiles(
+            smiles: str = molecule.to_smiles(
                 isomeric=True,
                 explicit_hydrogens=False,
                 mapped=False,
@@ -107,7 +107,7 @@ class Component(AttributeClass):
             )
         except ValueError:
             # Fall-back to non-isomeric.
-            smiles = molecule.to_smiles(
+            smiles: str = molecule.to_smiles(
                 isomeric=False,
                 explicit_hydrogens=False,
                 mapped=False,

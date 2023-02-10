@@ -32,3 +32,8 @@ dependencies:
   - paprika
   - taproom
   - dataclasses
+
+  - mypy
+  - types-setuptools
+  - types-pkg_resources
+  - pandas-stubs >=1.2.0.56

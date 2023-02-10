@@ -1,5 +1,6 @@
 import functools
 from enum import Enum
+from typing import Dict
 
 from openff.evaluator.utils.exceptions import MissingOptionalDependency
 
@@ -214,7 +215,7 @@ class ChemicalEnvironment(Enum):
 
 
 def checkmol_code_to_environment(checkmol_code) -> ChemicalEnvironment:
-    checkmol_code_map = {
+    checkmol_code_map = Dict[str, str] = {
         "000": ChemicalEnvironment.Alkane,
         "001": ChemicalEnvironment.Cation,
         "002": ChemicalEnvironment.Anion,
