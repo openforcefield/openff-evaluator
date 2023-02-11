@@ -5,14 +5,14 @@ repos:
   rev: 23.1.0
   hooks:
   - id: black
-    files: (^openff|^integration-tests)
+    files: (^openff|^integration-tests|^stubs)
 - repo: https://github.com/PyCQA/isort
   rev: 5.12.0
   hooks:
   - id: isort
-    files: (^openff|^integration-tests)
+    files: (^openff|^integration-tests|^stubs)
 - repo: https://github.com/PyCQA/flake8
   rev: 6.0.0
   hooks:
   - id: flake8
-    files: (^openff|^integration-tests)
+    files: (^openff|^integration-tests|^stubs)

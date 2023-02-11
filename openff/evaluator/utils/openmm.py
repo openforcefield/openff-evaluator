@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import numpy
 import openmm
-from openff.units import unit
+from openff.units import Quantity, unit
 from openmm import app
 from openmm import unit as openmm_unit
 
@@ -145,7 +145,7 @@ def system_subset(
     force_field: "ForceField",
     topology: "Topology",
     scale_amount: Optional[float] = None,
-) -> Tuple["openmm.System", "unit.Quantity"]:
+) -> Tuple[openmm.System, Quantity]:
     """Produces an OpenMM system containing the minimum number of forces while
     still containing a specified force field parameter, and those other parameters
     which may interact with it (e.g. in the case of vdW parameters).

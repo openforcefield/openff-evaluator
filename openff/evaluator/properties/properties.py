@@ -1,7 +1,7 @@
 import abc
 from typing import Dict, Optional, Tuple
 
-from openff.units import unit
+from openff.units import Quantity, unit
 
 from openff.evaluator.attributes import UNDEFINED, PlaceholderValue
 from openff.evaluator.datasets import PhysicalProperty, PropertyPhase
@@ -83,7 +83,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
 
         Parameters
         ----------
-        absolute_tolerance: openff.evaluator.unit.Quantity, optional
+        absolute_tolerance: openff.evaluator.Quantity, optional
             The absolute tolerance to estimate the property to within.
         relative_tolerance: float
             The tolerance (as a fraction of the properties reported
@@ -276,7 +276,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
     def _default_reweighting_schema(
         cls,
         observable_type: ObservableType,
-        absolute_tolerance: unit.Quantity = UNDEFINED,
+        absolute_tolerance: Quantity = UNDEFINED,
         relative_tolerance: float = UNDEFINED,
         n_effective_samples: int = 50,
     ) -> ReweightingSchema:
@@ -444,7 +444,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
     @classmethod
     def default_reweighting_schema(
         cls,
-        absolute_tolerance: unit.Quantity = UNDEFINED,
+        absolute_tolerance: Quantity = UNDEFINED,
         relative_tolerance: float = UNDEFINED,
         n_effective_samples: int = 50,
     ) -> ReweightingSchema:

@@ -984,12 +984,12 @@ class BuildTLeapSystem(TemplateBuildSystem):
         """
 
         if self.charge_backend == BuildTLeapSystem.ChargeBackend.OpenEye:
-            from openff.toolkit.utils.toolkits import OpenEyeToolkitWrapper
+            from openff.toolkit.utils import OpenEyeToolkitWrapper
 
             toolkit_wrapper = OpenEyeToolkitWrapper()
 
         elif self.charge_backend == BuildTLeapSystem.ChargeBackend.AmberTools:
-            from openff.toolkit.utils.toolkits import (
+            from openff.toolkit.utils import (
                 AmberToolsToolkitWrapper,
                 RDKitToolkitWrapper,
                 ToolkitRegistry,

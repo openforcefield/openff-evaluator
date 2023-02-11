@@ -24,7 +24,7 @@ from typing import (
 import numpy
 import pandas
 import pint.compat
-from openff.units import unit
+from openff.units import Quantity, unit
 
 from openff.evaluator.forcefield import ParameterGradient, ParameterGradientKey
 
@@ -88,7 +88,7 @@ class _Observable(abc.ABC):
 
         if not (
             isinstance(other, unit.Measurement)
-            or isinstance(other, unit.Quantity)
+            or isinstance(other, Quantity)
             or isinstance(other, self.__class__)
         ):
             raise NotImplementedError()
@@ -111,26 +111,26 @@ class _Observable(abc.ABC):
             gradients=gradients,
         )
 
-    def __add__(self, other: Union[unit.Quantity, T]) -> T:
+    def __add__(self, other: Union[Quantity, T]) -> T:
         return self._add_sub(other, operator.add)
 
-    def __radd__(self, other: Union[float, int, unit.Quantity, T]) -> T:
+    def __radd__(self, other: Union[float, int, Quantity, T]) -> T:
         return self.__add__(other)
 
-    def __sub__(self, other: Union[unit.Quantity, T]) -> T:
+    def __sub__(self, other: Union[Quantity, T]) -> T:
         return self._add_sub(other, operator.sub)
 
-    def __rsub__(self, other: Union[float, int, unit.Quantity, T]) -> T:
+    def __rsub__(self, other: Union[float, int, Quantity, T]) -> T:
         return -self.__sub__(other)
 
-    def __mul__(self, other: Union[float, int, unit.Quantity, T]) -> T:
+    def __mul__(self, other: Union[float, int, Quantity, T]) -> T:
         if (
             isinstance(other, float)
             or isinstance(other, int)
-            or isinstance(other, unit.Quantity)
+            or isinstance(other, Quantity)
         ):
             if (
-                isinstance(other, unit.Quantity)
+                isinstance(other, Quantity)
                 and isinstance(other.magnitude, numpy.ndarray)
                 and other.magnitude.ndim < 2
             ):
@@ -167,13 +167,13 @@ class _Observable(abc.ABC):
 
         return val
 
-    def __rmul__(self, other: Union[float, int, unit.Quantity, T]) -> T:
+    def __rmul__(self, other: Union[float, int, Quantity, T]) -> T:
         return self.__mul__(other)
 
     def __neg__(self) -> T:
         return self * -1.0
 
-    def __truediv__(self, other: Union[float, int, unit.Quantity, T]):
+    def __truediv__(self, other: Union[float, int, Quantity, T]):
         if not isinstance(other, self.__class__):
             return self * (1.0 / other)
 
@@ -199,15 +199,15 @@ class _Observable(abc.ABC):
             ],
         )
 
-    def __rtruediv__(self, other: Union[float, int, unit.Quantity, T]):
+    def __rtruediv__(self, other: Union[float, int, Quantity, T]):
         if isinstance(other, self.__class__):
             return self.__truediv__(other)
 
-        if not isinstance(other, (float, int, unit.Quantity)):
+        if not isinstance(other, (float, int, Quantity)):
             raise NotImplementedError()
 
         if (
-            isinstance(other, unit.Quantity)
+            isinstance(other, Quantity)
             and isinstance(other.magnitude, numpy.ndarray)
             and other.magnitude.ndim < 2
         ):
@@ -261,31 +261,29 @@ class Observable(_Observable):
     """
 
     @property
-    def value(self) -> unit.Quantity:
+    def value(self) -> Quantity:
         return None if self._value is None else self._value.value
 
     @property
-    def error(self) -> unit.Quantity:
+    def error(self) -> Quantity:
         return None if self._value is None else self._value.error
 
     def __init__(
         self,
-        value: Union[unit.Measurement, unit.Quantity] = None,
+        value: Union[unit.Measurement, Quantity] = None,
         gradients: List[ParameterGradient] = None,
     ):
         super(Observable, self).__init__(value, gradients)
 
     def _initialize(
         self,
-        value: Union[unit.Measurement, unit.Quantity],
+        value: Union[unit.Measurement, Quantity],
         gradients: List[ParameterGradient],
     ):
-        if value is not None and not isinstance(
-            value, (unit.Quantity, unit.Measurement)
-        ):
+        if value is not None and not isinstance(value, (Quantity, unit.Measurement)):
             raise TypeError(
                 "The value must be either an `openff.evaluator.unit.Measurement` or "
-                "an `openff.evaluator.unit.Quantity`."
+                "an `openff.evaluator.Quantity`."
             )
 
         if value is not None and not isinstance(value, unit.Measurement):
@@ -299,7 +297,7 @@ class Observable(_Observable):
                 raise ValueError("A valid value must be provided.")
 
             if not all(
-                isinstance(gradient.value, unit.Quantity)
+                isinstance(gradient.value, Quantity)
                 and isinstance(gradient.value.magnitude, (int, float))
                 for gradient in gradients
             ):
@@ -317,20 +315,20 @@ class ObservableArray(_Observable):
     """
 
     @property
-    def value(self) -> unit.Quantity:
+    def value(self) -> Quantity:
         """The value(s) of the observable."""
         return self._value
 
     def __init__(
-        self, value: unit.Quantity = None, gradients: List[ParameterGradient] = None
+        self, value: Quantity = None, gradients: List[ParameterGradient] = None
     ):
         super(ObservableArray, self).__init__(value, gradients)
 
-    def _initialize(self, value: unit.Quantity, gradients: List[ParameterGradient]):
+    def _initialize(self, value: Quantity, gradients: List[ParameterGradient]):
         expected_types = (int, float, numpy.ndarray)
 
         if value is not None:
-            if not isinstance(value, unit.Quantity) or not isinstance(
+            if not isinstance(value, Quantity) or not isinstance(
                 value.magnitude, expected_types
             ):
                 raise TypeError(
@@ -357,7 +355,7 @@ class ObservableArray(_Observable):
 
             # Make sure the value and gradients have the same wrapped type.
             if not all(
-                isinstance(gradient.value, unit.Quantity)
+                isinstance(gradient.value, Quantity)
                 and isinstance(gradient.value.magnitude, expected_types)
                 for gradient in gradients
             ):
@@ -397,7 +395,7 @@ class ObservableArray(_Observable):
                 reshaped_gradients.append(
                     ParameterGradient(
                         key=gradient.key,
-                        value=unit.Quantity(gradient_value, gradient.value.units),
+                        value=Quantity(gradient_value, gradient.value.units),
                     )
                 )
 
@@ -621,7 +619,7 @@ class ObservableFrame(MutableMapping[Union[str, ObservableType], ObservableArray
 
     @classmethod
     def from_openmm(
-        cls, file_path: str, pressure: unit.Quantity = None
+        cls, file_path: str, pressure: Quantity = None
     ) -> "ObservableFrame":
         """Creates an observable frame from the CSV output of an OpenMM simulation.
 

@@ -1,4 +1,4 @@
-from typing import FrozenSet, Dict, Optional
+from typing import Dict, FrozenSet, Optional
 
 _SOLVENT_TYPES: FrozenSet[str]
 _WATER_RESIDUES: FrozenSet[str]

@@ -4,7 +4,7 @@ A collection of density physical property definitions.
 import copy
 from typing import Dict, Tuple
 
-from openff.units import unit
+from openff.units import Quantity, unit
 
 from openff.evaluator.datasets import PhysicalProperty
 from openff.evaluator.layers import register_calculation_schema
@@ -243,9 +243,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
         n_thermalization_steps: int,
         n_equilibration_steps: int,
         n_production_steps: int,
-        dt_thermalization: unit.Quantity,
-        dt_equilibration: unit.Quantity,
-        dt_production: unit.Quantity,
+        dt_thermalization: Quantity,
+        dt_equilibration: Quantity,
+        dt_production: Quantity,
     ) -> Tuple[
         openmm.OpenMMEnergyMinimisation,
         openmm.OpenMMSimulation,
@@ -743,9 +743,9 @@ class HostGuestBindingAffinity(PhysicalProperty):
         n_thermalization_steps: int = 50000,
         n_equilibration_steps: int = 200000,
         n_production_steps: int = 2500000,
-        dt_thermalization: unit.Quantity = 1.0 * unit.femtosecond,
-        dt_equilibration: unit.Quantity = 2.0 * unit.femtosecond,
-        dt_production: unit.Quantity = 2.0 * unit.femtosecond,
+        dt_thermalization: Quantity = 1.0 * unit.femtosecond,
+        dt_equilibration: Quantity = 2.0 * unit.femtosecond,
+        dt_production: Quantity = 2.0 * unit.femtosecond,
         debug: bool = False,
     ):
         """Returns the default calculation schema to use when estimating

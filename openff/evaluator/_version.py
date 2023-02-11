@@ -8,12 +8,12 @@
 # versioneer-0.18 (https://github.com/warner/python-versioneer)
 
 """Git implementation of _version.py."""
-
 import errno
 import os
 import re
 import subprocess
 import sys
+from typing import Dict
 
 
 def get_keywords():
@@ -51,7 +51,7 @@ class NotThisMethod(Exception):
     """Exception raised if a method is not valid for the current scenario."""
 
 
-LONG_VERSION_PY = {}
+LONG_VERSION_PY: Dict = {}
 HANDLERS = {}
 
 

@@ -1,4 +1,4 @@
-from typing import Any, Optional, NoReturn, Generator, List
+from typing import Any, Generator, List, NoReturn, Optional
 
 class Element(object):
     atomic_number: int
