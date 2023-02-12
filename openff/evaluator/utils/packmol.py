@@ -92,14 +92,12 @@ def _validate_inputs(
         )
 
     if box_aspect_ratio is not None:
-
         # noinspection PyTypeChecker
         assert len(box_aspect_ratio) == 3
         assert all(x > 0.0 for x in box_aspect_ratio)
 
     # noinspection PyTypeChecker
     if len(molecules) != len(number_of_copies):
-
         raise ValueError(
             "The length of `molecules` and `number_of_copies` must be identical."
         )
@@ -143,8 +141,7 @@ def _approximate_box_size_by_density(
 
     volume = 0.0 * unit.angstrom**3
 
-    for (molecule, number) in zip(molecules, n_copies):
-
+    for molecule, number in zip(molecules, n_copies):
         # The toolkit reports masses as daltons
         molecule_mass = reduce(
             (lambda x, y: x + y), [atom.mass for atom in molecule.atoms]
@@ -245,7 +242,6 @@ def _generate_residue_name(residue, smiles):
 
     # Check for water
     if standardized_smiles == "O":
-
         residue.name = "HOH"
 
         # Re-assign the water atom names. These need to be set to get
@@ -253,7 +249,6 @@ def _generate_residue_name(residue, smiles):
         h_counter = 1
 
         for atom in residue.atoms:
-
             if atom.element.symbol == "O":
                 atom.name = "O1"
             else:
@@ -316,7 +311,6 @@ def _ion_residue_name(molecule):
     formal_charge = int(formal_charge)
 
     if formal_charge != 0:
-
         charge_symbol = "-" if formal_charge < 0 else "+"
         formal_charge = abs(formal_charge)
 
@@ -353,7 +347,6 @@ def _create_trajectory(molecule):
     # will not always save the atoms in the same order that they are
     # present in the molecule object.
     with tempfile.NamedTemporaryFile(suffix=".pdb") as file:
-
         # Toolkit's PDB writer is untrustworthy (for non-biopolymers) with OpenEyeToolktiWrapper
         # See https://github.com/openforcefield/openff-toolkit/issues/1307 and linked issues
         molecule.to_file(
@@ -419,7 +412,6 @@ def _build_input_file(
 
     # Add the section of the molecule to solvate if provided.
     if structure_to_solvate is not None:
-
         solute_position = [0.0] * 3
 
         if center_solute:
@@ -442,7 +434,6 @@ def _build_input_file(
 
     # Add a section for each type of molecule to add.
     for file_name, count in zip(molecule_file_names, molecule_counts):
-
         input_lines.extend(
             [
                 f"structure {file_name}",
@@ -492,9 +483,7 @@ def _correct_packmol_output(
     import mdtraj
 
     with warnings.catch_warnings():
-
         if structure_to_solvate is not None:
-
             # Catch the known warning which is fixed in the next section.
             warnings.filterwarnings(
                 "ignore", message="WARNING: two consecutive residues with same number"
@@ -506,7 +495,6 @@ def _correct_packmol_output(
     all_n_copies = []
 
     if structure_to_solvate is not None:
-
         solvated_trajectory = mdtraj.load(structure_to_solvate)
 
         all_topologies.append(solvated_trajectory.topology)
@@ -528,12 +516,10 @@ def _correct_packmol_output(
     all_bonds = []
     offset = 0
 
-    for (molecule_topology, count) in zip(all_topologies, all_n_copies):
-
+    for molecule_topology, count in zip(all_topologies, all_n_copies):
         _, molecule_bonds = molecule_topology.to_dataframe()
 
         for i in range(count):
-
             for bond in molecule_bonds:
                 all_bonds.append(
                     [int(bond[0].item()) + offset, int(bond[1].item()) + offset]
@@ -553,14 +539,12 @@ def _correct_packmol_output(
         existing_bonds.append(bond)
 
     for bond in all_bonds:
-
         atom_a = trajectory.topology.atom(bond[0])
         atom_b = trajectory.topology.atom(bond[1])
 
         bond_exists = False
 
         for existing_bond in existing_bonds:
-
             if (existing_bond.atom1 == atom_a and existing_bond.atom2 == atom_b) or (
                 existing_bond.atom2 == atom_a and existing_bond.atom1 == atom_b
             ):
@@ -588,7 +572,6 @@ def pack_box(
     working_directory=None,
     retain_working_files=False,
 ):
-
     """Run packmol to generate a box containing a mixture of molecules.
 
     Parameters
@@ -661,7 +644,6 @@ def pack_box(
 
     # Estimate the box_size from mass density if one is not provided.
     if box_size is None:
-
         box_size = _approximate_box_size_by_density(
             molecules, number_of_copies, mass_density, box_aspect_ratio
         )
@@ -670,7 +652,6 @@ def pack_box(
     temporary_directory = False
 
     if working_directory is None:
-
         working_directory = tempfile.mkdtemp()
         temporary_directory = True
 
@@ -679,7 +660,6 @@ def pack_box(
 
     # Copy the structure to solvate if one is provided.
     if structure_to_solvate is not None:
-
         import mdtraj
 
         trajectory = mdtraj.load_pdb(structure_to_solvate)
@@ -694,13 +674,11 @@ def pack_box(
     assigned_residue_names = []
 
     with temporarily_change_directory(working_directory):
-
         # Create PDB files for all of the molecules.
         pdb_file_names = []
         mdtraj_topologies = []
 
         for index, molecule in enumerate(molecules):
-
             mdtraj_trajectory = _create_trajectory(molecule)
 
             pdb_file_name = f"{index}.pdb"
@@ -726,7 +704,6 @@ def pack_box(
         )
 
         with open(input_file_path) as file_handle:
-
             result = subprocess.check_output(
                 packmol_path, stdin=file_handle, stderr=subprocess.STDOUT
             ).decode("utf-8")
@@ -737,14 +714,12 @@ def pack_box(
             packmol_succeeded = result.find("Success!") > 0
 
         if not retain_working_files:
-
             os.unlink(input_file_path)
 
             for file_path in pdb_file_names:
                 os.unlink(file_path)
 
         if not packmol_succeeded:
-
             if verbose:
                 logger.info("Packmol failed to converge")
 

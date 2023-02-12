@@ -41,9 +41,7 @@ from openff.evaluator.substances import Component, ExactAmount, MoleFraction, Su
     ],
 )
 def test_add_values_protocol(values):
-
     with tempfile.TemporaryDirectory() as temporary_directory:
-
         add_quantities = AddValues("add")
         add_quantities.values = values
 
@@ -70,9 +68,7 @@ def test_add_values_protocol(values):
     ],
 )
 def test_subtract_values_protocol(values):
-
     with tempfile.TemporaryDirectory() as temporary_directory:
-
         sub_quantities = SubtractValues("sub")
         sub_quantities.value_b = values[1]
         sub_quantities.value_a = values[0]
@@ -95,9 +91,7 @@ def test_subtract_values_protocol(values):
 )
 @pytest.mark.parametrize("multiplier", [random.randint(1, 10), random.random()])
 def test_multiply_values_protocol(value, multiplier):
-
     with tempfile.TemporaryDirectory() as temporary_directory:
-
         multiply_quantities = MultiplyValue("multiply")
         multiply_quantities.value = value
         multiply_quantities.multiplier = multiplier
@@ -119,9 +113,7 @@ def test_multiply_values_protocol(value, multiplier):
 )
 @pytest.mark.parametrize("divisor", [random.randint(1, 10), random.random()])
 def test_divide_values_protocol(value, divisor):
-
     with tempfile.TemporaryDirectory() as temporary_directory:
-
         divide_quantities = DivideValue("divide")
         divide_quantities.value = value
         divide_quantities.divisor = divisor
@@ -143,7 +135,6 @@ def test_divide_values_protocol(value, divisor):
     ],
 )
 def test_weight_by_mole_fraction_protocol(component_smiles, value):
-
     full_substance = Substance.from_components("C", "CC", "CCC")
     component = Substance.from_components(component_smiles)
 
@@ -152,7 +143,6 @@ def test_weight_by_mole_fraction_protocol(component_smiles, value):
     ).value
 
     with tempfile.TemporaryDirectory() as temporary_directory:
-
         weight_protocol = WeightByMoleFraction("weight")
         weight_protocol.value = value
         weight_protocol.full_substance = full_substance

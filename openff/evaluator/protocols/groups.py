@@ -63,7 +63,6 @@ class ConditionalGroup(ProtocolGroup):
         )
 
         def __eq__(self, other):
-
             return (
                 type(self) == type(other)
                 and self.left_hand_value == other.left_hand_value
@@ -195,7 +194,6 @@ class ConditionalGroup(ProtocolGroup):
             return current_iteration
 
         with open(checkpoint_path, "r") as file:
-
             checkpoint_dictionary = json.load(file)
             current_iteration = checkpoint_dictionary["current_iteration"]
 
@@ -224,7 +222,6 @@ class ConditionalGroup(ProtocolGroup):
         original_schemas = [x.schema for x in self._protocols]
 
         while should_continue:
-
             # Create a checkpoint file so we can pick off where
             # we left off if this execution fails due to time
             # constraints for e.g.
@@ -242,13 +239,11 @@ class ConditionalGroup(ProtocolGroup):
             conditions_met = True
 
             for condition in self._conditions:
-
                 # Check to see if we have reached our goal.
                 if not self._evaluate_condition(condition):
                     conditions_met = False
 
             if conditions_met:
-
                 logger.info(
                     f"{self.id} loop finished after {self.current_iteration} iterations"
                 )
@@ -277,14 +272,12 @@ class ConditionalGroup(ProtocolGroup):
         merged_ids = super(ConditionalGroup, self).merge(other)
 
         for condition in other.conditions:
-
             if isinstance(condition.left_hand_value, ProtocolPath):
                 condition.left_hand_value.replace_protocol(other.id, self.id)
             if isinstance(condition.right_hand_value, ProtocolPath):
                 condition.right_hand_value.replace_protocol(other.id, self.id)
 
             for merged_id in merged_ids:
-
                 if isinstance(condition.left_hand_value, ProtocolPath):
                     condition.left_hand_value.replace_protocol(
                         merged_id, merged_ids[merged_id]
@@ -309,30 +302,25 @@ class ConditionalGroup(ProtocolGroup):
         """
 
         for condition in self.conditions:
-
             if condition == condition_to_add:
                 return
 
         self.conditions.append(condition_to_add)
 
     def get_value_references(self, input_path):
-
         if input_path.property_name != "conditions":
             return super(ConditionalGroup, self).get_value_references(input_path)
 
         value_references = {}
 
         for index, condition in enumerate(self.conditions):
-
             if isinstance(condition.left_hand_value, ProtocolPath):
-
                 source_path = ProtocolPath(
                     "conditions[{}].left_hand_value".format(index)
                 )
                 value_references[source_path] = condition.left_hand_value
 
             if isinstance(condition.right_hand_value, ProtocolPath):
-
                 source_path = ProtocolPath(
                     "conditions[{}].right_hand_value".format(index)
                 )

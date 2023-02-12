@@ -11,9 +11,7 @@ from openff.evaluator.workflow.utils import ProtocolPath
 
 
 def test_conditional_protocol_group():
-
     with tempfile.TemporaryDirectory() as directory:
-
         initial_value = 2 * unit.kelvin
 
         value_protocol_a = DummyProtocol("protocol_a")
@@ -43,9 +41,7 @@ def test_conditional_protocol_group():
 
 
 def test_conditional_protocol_group_fail():
-
     with tempfile.TemporaryDirectory() as directory:
-
         initial_value = 2 * unit.kelvin
 
         value_protocol_a = DummyProtocol("protocol_a")
@@ -100,6 +96,5 @@ def test_conditional_group_self_reference():
     group.add_condition(condition_2)
 
     with tempfile.TemporaryDirectory() as directory:
-
         group.execute(directory, ComputeResources())
         assert protocol.output_value == criteria + 1

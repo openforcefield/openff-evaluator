@@ -40,7 +40,6 @@ from openff.evaluator.workflow.utils import ProtocolPath, ReplicatorValue
     ],
 )
 def test_simple_workflow_graph(calculation_backend, compute_resources, exception):
-
     expected_value = (1 * unit.kelvin).plus_minus(0.1 * unit.kelvin)
 
     protocol_a = DummyProtocol("protocol_a")
@@ -59,15 +58,10 @@ def test_simple_workflow_graph(calculation_backend, compute_resources, exception
     workflow_graph = workflow.to_graph()
 
     with tempfile.TemporaryDirectory() as directory:
-
         if calculation_backend is not None:
-
             with DaskLocalCluster() as calculation_backend:
-
                 if exception:
-
                     with pytest.raises(AssertionError):
-
                         workflow_graph.execute(
                             directory, calculation_backend, compute_resources
                         )
@@ -75,7 +69,6 @@ def test_simple_workflow_graph(calculation_backend, compute_resources, exception
                     return
 
                 else:
-
                     results_futures = workflow_graph.execute(
                         directory, calculation_backend, compute_resources
                     )
@@ -84,15 +77,12 @@ def test_simple_workflow_graph(calculation_backend, compute_resources, exception
                 result = results_futures[0].result()
 
         else:
-
             result = workflow_graph.execute(
                 directory, calculation_backend, compute_resources
             )[0]
 
             if exception:
-
                 with pytest.raises(AssertionError):
-
                     workflow_graph.execute(
                         directory, calculation_backend, compute_resources
                     )
@@ -104,7 +94,6 @@ def test_simple_workflow_graph(calculation_backend, compute_resources, exception
 
 
 def test_workflow_with_groups():
-
     expected_value = (1 * unit.kelvin).plus_minus(0.1 * unit.kelvin)
 
     protocol_a = DummyProtocol("protocol_a")
@@ -136,9 +125,7 @@ def test_workflow_with_groups():
     workflow_graph = workflow.to_graph()
 
     with tempfile.TemporaryDirectory() as directory:
-
         with DaskLocalCluster() as calculation_backend:
-
             results_futures = workflow_graph.execute(directory, calculation_backend)
             assert len(results_futures) == 1
 
@@ -149,7 +136,6 @@ def test_workflow_with_groups():
 
 
 def test_nested_input():
-
     dict_protocol = DummyProtocol("dict_protocol")
     dict_protocol.input_value = {"a": ThermodynamicState(1.0 * unit.kelvin)}
 
@@ -168,9 +154,7 @@ def test_nested_input():
     workflow_graph = workflow.to_graph()
 
     with tempfile.TemporaryDirectory() as temporary_directory:
-
         with DaskLocalCluster() as calculation_backend:
-
             results_futures = workflow_graph.execute(
                 temporary_directory, calculation_backend
             )
@@ -182,7 +166,6 @@ def test_nested_input():
 
 
 def test_index_replicated_protocol():
-
     replicator = ProtocolReplicator("replicator")
     replicator.template_values = ["a", "b", "c", "d"]
 
@@ -194,7 +177,6 @@ def test_index_replicated_protocol():
     schema.protocol_schemas = [replicated_protocol.schema]
 
     for index in range(len(replicator.template_values)):
-
         indexing_protocol = DummyProtocol(f"indexing_protocol_{index}")
         indexing_protocol.input_value = ProtocolPath(
             "output_value", f"protocol_{index}"
@@ -208,7 +190,6 @@ def test_index_replicated_protocol():
 
 
 def test_from_schema():
-
     protocol_a = DummyProtocol("protocol_a")
     protocol_a.input_value = 1 * unit.kelvin
 
@@ -226,7 +207,6 @@ def test_from_schema():
 
 
 def test_unique_ids():
-
     protocol_a = DummyProtocol("protocol-a")
     protocol_a.input_value = 1
 
@@ -247,7 +227,6 @@ def test_unique_ids():
 
 
 def test_replicated_ids():
-
     replicator = ProtocolReplicator("replicator-a")
 
     protocol_a = DummyProtocol("protocol-a")
@@ -270,7 +249,6 @@ def test_replicated_ids():
 
 
 def test_find_relevant_gradient_keys(tmpdir):
-
     force_field = ForceField()
 
     vdw_handler = force_field.get_parameter_handler("vdW")

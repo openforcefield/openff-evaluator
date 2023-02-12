@@ -103,7 +103,6 @@ class ComputeResources:
         }
 
     def __setstate__(self, state):
-
         self._number_of_threads = state["number_of_threads"]
         self._number_of_gpus = state["number_of_gpus"]
         self._preferred_gpu_toolkit = state["preferred_gpu_toolkit"]
@@ -137,7 +136,8 @@ class QueueWorkerResources(ComputeResources):
     @property
     def wallclock_time_limit(self):
         """str: The maximum amount of wall clock time that a worker can run for. This should
-        be a string of the form `HH:MM` where HH is the number of hours and MM the number of minutes"""
+        be a string of the form `HH:MM` where HH is the number of hours and MM the number of minutes
+        """
         return self._wallclock_time_limit
 
     def __init__(
@@ -190,7 +190,6 @@ class QueueWorkerResources(ComputeResources):
         assert wallclock_pattern.match(wallclock_time_limit) is not None
 
     def __getstate__(self):
-
         base_dict = super(QueueWorkerResources, self).__getstate__()
 
         base_dict.update(
@@ -237,7 +236,6 @@ class CalculationBackend(abc.ABC):
         return self._started
 
     def __init__(self, number_of_workers=1, resources_per_worker=None):
-
         """Constructs a new CalculationBackend object.
 
         Parameters
@@ -296,6 +294,5 @@ class CalculationBackend(abc.ABC):
         self.stop()
 
     def __del__(self):
-
         if self._started:
             self.stop()

@@ -43,7 +43,6 @@ from openff.evaluator.utils.utils import is_file_and_not_empty
 from openff.evaluator.workflow import workflow_protocol
 
 if TYPE_CHECKING:
-
     import openmm
     from mdtraj import Trajectory
     from openff.toolkit.topology import Topology
@@ -103,7 +102,6 @@ def _evaluate_energies(
         pressure = to_openmm(thermodynamic_state.pressure)
 
     for frame_index in range(trajectory.n_frames):
-
         positions = trajectory.xyz[frame_index]
         box_vectors = None
 
@@ -191,7 +189,6 @@ def _compute_gradients(
         topology.box_vectors = from_openmm(trajectory.openmm_boxes(0))
 
     for parameter_key in gradient_parameters:
-
         # Build the slightly perturbed systems.
         reverse_system, reverse_parameter_value = system_subset(
             parameter_key, force_field, topology, -perturbation_amount
@@ -226,7 +223,6 @@ def _compute_gradients(
                 enable_pbc,
             )
         else:
-
             zeros = np.zeros(len(trajectory))
 
             reverse_energies = forward_energies = ObservableFrame(
@@ -318,7 +314,6 @@ def _compute_gradients(
             )
 
     for observable_type in observables:
-
         observables[observable_type] = ObservableArray(
             value=observables[observable_type].value,
             gradients=gradients[observable_type],
@@ -332,7 +327,6 @@ class OpenMMEnergyMinimisation(BaseEnergyMinimisation):
     """
 
     def _execute(self, directory, available_resources):
-
         import openmm
         from openmm import app
         from openmm import unit as openmm_unit
@@ -397,7 +391,6 @@ class OpenMMSimulation(BaseSimulation):
             steps_per_iteration=-1,
             current_step_number=0,
         ):
-
             self.output_frequency = output_frequency
             self.checkpoint_frequency = checkpoint_frequency
             self.steps_per_iteration = steps_per_iteration
@@ -422,15 +415,15 @@ class OpenMMSimulation(BaseSimulation):
         openmm file reporters.
         """
 
-        def __init__(self, integrator, topology, system, current_step):
+        def __init__(self, integrator, topology, system, context, current_step):
             self.integrator = integrator
             self.topology = topology
             self.system = system
+            self.context = context
             self.currentStep = current_step
 
     class _DCDReporter:
         def __init__(self, file, append=False):
-
             self._append = append
 
             mode = "r+b" if append else "wb"
@@ -441,11 +434,9 @@ class OpenMMSimulation(BaseSimulation):
             self._atom_indices = None
 
         def report(self, simulation, state):
-
             from openmm import app
 
             if self._dcd is None:
-
                 self._dcd = app.DCDFile(
                     self._out,
                     simulation.topology,
@@ -468,7 +459,6 @@ class OpenMMSimulation(BaseSimulation):
             self._out.close()
 
     def __init__(self, protocol_id):
-
         super().__init__(protocol_id)
 
         self._checkpoint_path = None
@@ -481,7 +471,6 @@ class OpenMMSimulation(BaseSimulation):
         self._integrator = None
 
     def _execute(self, directory, available_resources):
-
         import mdtraj
         from openmm import app
 
@@ -497,7 +486,6 @@ class OpenMMSimulation(BaseSimulation):
             openmm_pressure = to_openmm(pressure)
 
         if openmm_temperature is None:
-
             raise ValueError(
                 "A temperature must be set to perform a simulation in any ensemble"
             )
@@ -517,7 +505,6 @@ class OpenMMSimulation(BaseSimulation):
 
         # Set up the simulation objects.
         if self._context is None or self._integrator is None:
-
             self._context, self._integrator = self._setup_simulation_objects(
                 openmm_temperature, openmm_pressure, available_resources
             )
@@ -526,7 +513,6 @@ class OpenMMSimulation(BaseSimulation):
         local_input_coordinate_path = os.path.join(directory, "input.pdb")
 
         if not is_file_and_not_empty(local_input_coordinate_path):
-
             input_pdb_file = app.PDBFile(self.input_coordinate_file)
 
             with open(local_input_coordinate_path, "w+") as configuration_file:
@@ -600,7 +586,6 @@ class OpenMMSimulation(BaseSimulation):
 
         # Create a platform with the correct resources.
         if not self.allow_gpu_platforms:
-
             from openff.evaluator.backends import ComputeResources
 
             available_resources = ComputeResources(
@@ -616,7 +601,6 @@ class OpenMMSimulation(BaseSimulation):
 
         # Disable the periodic boundary conditions if requested.
         if not self.enable_pbc:
-
             disable_pbc(system)
             pressure = None
 
@@ -647,12 +631,10 @@ class OpenMMSimulation(BaseSimulation):
         box_vectors = None
 
         if self.enable_pbc:
-
             # Optionally set up the box vectors.
             box_vectors = input_pdb_file.topology.getPeriodicBoxVectors()
 
             if box_vectors is None:
-
                 raise ValueError(
                     "The input file must contain box vectors when running with PBC."
                 )
@@ -711,7 +693,6 @@ class OpenMMSimulation(BaseSimulation):
             The number of frames to truncate to.
         """
         with open(self._local_statistics_path) as file:
-
             header_line = file.readline()
             file_contents = re.sub("#.*\n", "", file.read())
 
@@ -723,7 +704,6 @@ class OpenMMSimulation(BaseSimulation):
         statistics_length = len(existing_statistics_array)
 
         if statistics_length < number_of_frames:
-
             raise ValueError(
                 f"The saved number of statistics frames ({statistics_length}) "
                 f"is less than expected ({number_of_frames})."
@@ -735,7 +715,6 @@ class OpenMMSimulation(BaseSimulation):
         truncated_statistics_array = existing_statistics_array[0:number_of_frames]
 
         with open(self._local_statistics_path, "w") as file:
-
             file.write(f"{header_line}")
             truncated_statistics_array.to_csv(file, index=False, header=False)
 
@@ -770,7 +749,6 @@ class OpenMMSimulation(BaseSimulation):
 
         # Make sure there is at least the expected number of frames.
         if trajectory_length < number_of_frames:
-
             raise ValueError(
                 f"The saved number of trajectory frames ({trajectory_length}) "
                 f"is less than expected ({number_of_frames})."
@@ -784,11 +762,8 @@ class OpenMMSimulation(BaseSimulation):
         temporary_trajectory_path = f"{self._local_trajectory_path}.tmp"
 
         with DCDTrajectoryFile(self._local_trajectory_path, "r") as input_file:
-
             with DCDTrajectoryFile(temporary_trajectory_path, "w") as output_file:
-
                 for frame_index in range(0, number_of_frames):
-
                     frame = input_file.read_as_traj(topology, n_frames=1, stride=1)
 
                     output_file.write(
@@ -837,14 +812,12 @@ class OpenMMSimulation(BaseSimulation):
         if not is_file_and_not_empty(
             self._checkpoint_path
         ) or not is_file_and_not_empty(self._state_path):
-
             logger.info("No checkpoint files were found.")
             return current_step_number
 
         if not is_file_and_not_empty(
             self._local_statistics_path
         ) or not is_file_and_not_empty(self._local_trajectory_path):
-
             raise ValueError(
                 "Checkpoint files were correctly found, but the trajectory "
                 "or statistics files seem to be missing. This should not happen."
@@ -864,7 +837,6 @@ class OpenMMSimulation(BaseSimulation):
             or self.checkpoint_frequency != checkpoint.checkpoint_frequency
             or self.steps_per_iteration != checkpoint.steps_per_iteration
         ):
-
             raise ValueError(
                 "Neither the output frequency, the checkpoint "
                 "frequency, nor the steps per iteration can "
@@ -988,13 +960,18 @@ class OpenMMSimulation(BaseSimulation):
         # reporters.
         topology = app.PDBFile(self.input_coordinate_file).topology
         system = self.parameterized_system.system
-        simulation = self._Simulation(integrator, topology, system, current_step)
+        simulation = self._Simulation(
+            integrator,
+            topology,
+            system,
+            context,
+            current_step,
+        )
 
         # Perform the simulation.
         checkpoint_counter = 0
 
         while current_step < total_number_of_steps:
-
             steps_to_take = min(
                 self.output_frequency, total_number_of_steps - current_step
             )
@@ -1043,7 +1020,6 @@ class OpenMMEvaluateEnergies(BaseEvaluateEnergies):
     """
 
     def _execute(self, directory, available_resources):
-
         import mdtraj
 
         # Load in the inputs.
@@ -1069,7 +1045,6 @@ class OpenMMEvaluateEnergies(BaseEvaluateEnergies):
         if not isinstance(
             self.parameterized_system.force_field, SmirnoffForceFieldSource
         ):
-
             raise ValueError(
                 "Derivates can only be computed for systems parameterized with SMIRNOFF "
                 "force fields."

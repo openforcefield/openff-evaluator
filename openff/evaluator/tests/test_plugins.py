@@ -12,7 +12,6 @@ from openff.evaluator.workflow import registered_workflow_protocols
 
 
 def test_register_default_plugins():
-
     register_default_plugins()
 
     assert len(registered_workflow_protocols) > 0

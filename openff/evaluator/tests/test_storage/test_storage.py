@@ -19,7 +19,6 @@ from openff.evaluator.tests.utils import create_dummy_simulation_data
 def test_simple_store_and_retrieve(data_class):
     """Tests storing and retrieving a simple object."""
     with tempfile.TemporaryDirectory() as temporary_directory:
-
         local_storage = LocalFileStorage(temporary_directory)
 
         storage_object = data_class()
@@ -54,7 +53,6 @@ def test_force_field_storage():
     )
 
     with tempfile.TemporaryDirectory() as temporary_directory:
-
         local_storage = LocalFileStorage(temporary_directory)
 
         force_field_id = local_storage.store_force_field(force_field_source)
@@ -70,11 +68,9 @@ def test_force_field_storage():
 
 
 def test_base_simulation_data_storage():
-
     substance = Substance.from_components("C")
 
     with tempfile.TemporaryDirectory() as base_directory:
-
         data_directory = os.path.join(base_directory, "data_directory")
         data_object = create_dummy_simulation_data(data_directory, substance)
 
@@ -98,7 +94,6 @@ def test_base_simulation_data_storage():
 
 
 def test_base_simulation_data_query():
-
     substance_a = Substance.from_components("C")
     substance_b = Substance.from_components("CO")
 
@@ -107,19 +102,16 @@ def test_base_simulation_data_query():
     substances = [substance_a, substance_b, substance_full]
 
     with tempfile.TemporaryDirectory() as base_directory:
-
         backend_directory = os.path.join(base_directory, "storage_dir")
         storage = LocalFileStorage(backend_directory)
 
         for substance in substances:
-
             data_directory = os.path.join(base_directory, f"{substance.identifier}")
             data_object = create_dummy_simulation_data(data_directory, substance)
 
             storage.store_object(data_object, data_directory)
 
         for substance in substances:
-
             substance_query = SimulationDataQuery()
             substance_query.substance = substance
 
@@ -138,11 +130,9 @@ def test_base_simulation_data_query():
 
 @pytest.mark.parametrize("reverse_order", [True, False])
 def test_duplicate_simulation_data_storage(reverse_order):
-
     substance = Substance.from_components("CO")
 
     with tempfile.TemporaryDirectory() as base_directory_path:
-
         storage_directory = os.path.join(base_directory_path, "storage")
         local_storage = LocalFileStorage(storage_directory)
 
@@ -151,7 +141,6 @@ def test_duplicate_simulation_data_storage(reverse_order):
         data_to_store = []
 
         for index in range(3):
-
             data_directory = os.path.join(base_directory_path, f"data_{index}")
             coordinate_name = f"data_{index}.pdb"
 
@@ -175,7 +164,6 @@ def test_duplicate_simulation_data_storage(reverse_order):
 
         # Store the data
         for index, data in iterator:
-
             data_object, data_directory = data
 
             storage_key = local_storage.store_object(data_object, data_directory)

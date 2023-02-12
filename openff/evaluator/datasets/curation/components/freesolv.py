@@ -24,7 +24,6 @@ logger = logging.getLogger(__name__)
 
 
 class ImportFreeSolvSchema(CurationComponentSchema):
-
     type: Literal["ImportFreeSolv"] = "ImportFreeSolv"
 
 
@@ -82,11 +81,9 @@ class ImportFreeSolv(CurationComponent):
         matched_dois: List[str] = []
 
         for split_doi in doi_split:
-
             matched_doi = None
 
             for doi_pattern in doi_patterns:
-
                 regex_match = re.match(doi_pattern, split_doi, re.I)
 
                 if not regex_match:
@@ -112,7 +109,6 @@ class ImportFreeSolv(CurationComponent):
         schema: ImportFreeSolvSchema,
         n_processes,
     ) -> pandas.DataFrame:
-
         from openff.units import unit
 
         from openff.evaluator import properties, substances
@@ -123,7 +119,6 @@ class ImportFreeSolv(CurationComponent):
         data_entries = []
 
         for _, row in free_solv_data_frame.iterrows():
-
             # Extract and standardize the SMILES pattern of the
             solute_smiles = row["SMILES"].lstrip().rstrip()
             solute_smiles = substances.Component(solute_smiles).smiles

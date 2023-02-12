@@ -110,9 +110,7 @@ def test_thermoml_from_files():
 
     # Make sure the DOI was found from the enthalpy file
     for physical_property in data_set:
-
         if isinstance(physical_property, EnthalpyOfMixing):
-
             assert physical_property.source.doi != UNDEFINED
             assert physical_property.source.doi == "10.1016/j.jct.2008.12.004"
 

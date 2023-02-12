@@ -14,20 +14,17 @@ from openff.evaluator.datasets.curation.components import (
 )
 
 if TYPE_CHECKING:
-
     conint = int
     PositiveInt = int
     PositiveFloat = float
 
 else:
-
     from pydantic import conint
 
 logger = logging.getLogger(__name__)
 
 
 class ConvertExcessDensityDataSchema(CurationComponentSchema):
-
     type: Literal["ConvertExcessDensityDataSchema"] = "ConvertExcessDensityDataSchema"
 
     temperature_precision: conint(ge=0) = Field(
@@ -57,7 +54,6 @@ class ConvertExcessDensityData(CurationComponent):
     @classmethod
     @functools.lru_cache(500)
     def _molecular_weight(cls, smiles):
-
         from openff.toolkit.topology import Molecule
 
         molecule = Molecule.from_smiles(smiles, allow_undefined_stereo=True)
@@ -291,7 +287,6 @@ class ConvertExcessDensityData(CurationComponent):
         schema: ConvertExcessDensityDataSchema,
         n_processes,
     ) -> pandas.DataFrame:
-
         if len(data_frame) == 0:
             return data_frame
 
@@ -326,7 +321,6 @@ class ConvertExcessDensityData(CurationComponent):
         v_excess_data = pandas.DataFrame()
 
         if "ExcessMolarVolume Value (cm ** 3 / mol)" in data_frame:
-
             v_excess_data = data_frame[
                 (data_frame["ExcessMolarVolume Value (cm ** 3 / mol)"].notna())
                 & (data_frame["N Components"] == 2)
@@ -343,19 +337,16 @@ class ConvertExcessDensityData(CurationComponent):
         data_to_concat = [data_frame]
 
         if len(binary_density_data) > 0:
-
             v_excess_from_density = cls._convert_density_to_v_excess(
                 binary_density_data
             )
             data_to_concat.append(v_excess_from_density)
 
         if len(v_excess_data) > 0:
-
             density_from_v_excess = cls._convert_v_excess_to_density(v_excess_data)
             data_to_concat.append(density_from_v_excess)
 
         if len(data_to_concat) > 1:
-
             converted_data = pandas.concat(
                 data_to_concat,
                 ignore_index=True,
@@ -363,7 +354,6 @@ class ConvertExcessDensityData(CurationComponent):
             )
 
         else:
-
             converted_data = data_frame
 
         return converted_data

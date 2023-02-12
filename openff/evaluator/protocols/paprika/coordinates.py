@@ -59,15 +59,12 @@ def _atom_indices_by_role(
     atom_indices = defaultdict(list)
 
     for component_role in components_by_role:
-
         for component in components_by_role[component_role]:
-
             # Find the indices of all instances of this component.
             off_molecule = off_molecules[component]
             reference_smiles = off_molecule.to_smiles()
 
             for molecule in off_topology.molecules:
-
                 if molecule.to_smiles() != reference_smiles:
                     continue
 
@@ -136,7 +133,6 @@ class PreparePullCoordinates(_PrepareAPRCoordinates):
     )
 
     def _execute(self, directory, available_resources):
-
         from openmm import app
         from paprika.evaluator import Setup
 
@@ -171,7 +167,6 @@ class PrepareReleaseCoordinates(_PrepareAPRCoordinates):
     """
 
     def _execute(self, directory, available_resources):
-
         import mdtraj
         from openmm import app
         from paprika.evaluator import Setup
@@ -242,7 +237,6 @@ class AddDummyAtoms(Protocol):
     )
 
     def _execute(self, directory, available_resources):
-
         import parmed.geometry
         from openmm import NonbondedForce, XmlSerializer, app
         from paprika.evaluator import Setup
@@ -290,7 +284,6 @@ class AddDummyAtoms(Protocol):
             system.addParticle(mass=207)
 
         for force_index in range(system.getNumForces()):
-
             force = system.getForce(force_index)
 
             if not isinstance(force, NonbondedForce):
