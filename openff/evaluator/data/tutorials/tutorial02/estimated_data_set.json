@@ -238,7 +238,7 @@
                     },
                     ".statistics_type": {
                       "value": "Density",
-                      "@type": "openff.evaluator.utils.statistics.ObservableType"
+                      "@type": "openff.evaluator.utils.observables.ObservableType"
                     },
                     ".divisor": 1.0
                   },
@@ -307,7 +307,7 @@
                 },
                 ".water_model": {
                   "value": "TIP3P",
-                  "@type": "openff.evaluator.protocols.forcefield.BaseBuildSystem.WaterModel"
+                  "@type": "openff.evaluator.protocols.forcefield.TemplateBuildSystem.WaterModel"
                 },
                 ".charged_molecule_paths": [],
                 ".apply_known_charges": true
@@ -646,7 +646,7 @@
                 },
                 ".water_model": {
                   "value": "TIP3P",
-                  "@type": "openff.evaluator.protocols.forcefield.BaseBuildSystem.WaterModel"
+                  "@type": "openff.evaluator.protocols.forcefield.TemplateBuildSystem.WaterModel"
                 },
                 ".charged_molecule_paths": [],
                 ".apply_known_charges": true
@@ -711,7 +711,7 @@
                 },
                 ".water_model": {
                   "value": "TIP3P",
-                  "@type": "openff.evaluator.protocols.forcefield.BaseBuildSystem.WaterModel"
+                  "@type": "openff.evaluator.protocols.forcefield.TemplateBuildSystem.WaterModel"
                 },
                 ".charged_molecule_paths": [],
                 ".apply_known_charges": true
@@ -863,7 +863,7 @@
                     },
                     ".statistics_type": {
                       "value": "Density",
-                      "@type": "openff.evaluator.utils.statistics.ObservableType"
+                      "@type": "openff.evaluator.utils.observables.ObservableType"
                     },
                     ".divisor": 1.0
                   },
@@ -950,7 +950,7 @@
                     },
                     ".statistics_type": {
                       "value": "PotentialEnergy",
-                      "@type": "openff.evaluator.utils.statistics.ObservableType"
+                      "@type": "openff.evaluator.utils.observables.ObservableType"
                     },
                     ".divisor": 1.0
                   },
@@ -969,7 +969,7 @@
                     },
                     ".statistics_type": {
                       "value": "PotentialEnergy",
-                      "@type": "openff.evaluator.utils.statistics.ObservableType"
+                      "@type": "openff.evaluator.utils.observables.ObservableType"
                     },
                     ".divisor": 256
                   },
@@ -1359,7 +1359,7 @@
                     },
                     ".statistics_type": {
                       "value": "Density",
-                      "@type": "openff.evaluator.utils.statistics.ObservableType"
+                      "@type": "openff.evaluator.utils.observables.ObservableType"
                     },
                     ".divisor": 1.0
                   },
@@ -1428,7 +1428,7 @@
                 },
                 ".water_model": {
                   "value": "TIP3P",
-                  "@type": "openff.evaluator.protocols.forcefield.BaseBuildSystem.WaterModel"
+                  "@type": "openff.evaluator.protocols.forcefield.TemplateBuildSystem.WaterModel"
                 },
                 ".charged_molecule_paths": [],
                 ".apply_known_charges": true
@@ -1767,7 +1767,7 @@
                 },
                 ".water_model": {
                   "value": "TIP3P",
-                  "@type": "openff.evaluator.protocols.forcefield.BaseBuildSystem.WaterModel"
+                  "@type": "openff.evaluator.protocols.forcefield.TemplateBuildSystem.WaterModel"
                 },
                 ".charged_molecule_paths": [],
                 ".apply_known_charges": true
@@ -1832,7 +1832,7 @@
                 },
                 ".water_model": {
                   "value": "TIP3P",
-                  "@type": "openff.evaluator.protocols.forcefield.BaseBuildSystem.WaterModel"
+                  "@type": "openff.evaluator.protocols.forcefield.TemplateBuildSystem.WaterModel"
                 },
                 ".charged_molecule_paths": [],
                 ".apply_known_charges": true
@@ -1984,7 +1984,7 @@
                     },
                     ".statistics_type": {
                       "value": "Density",
-                      "@type": "openff.evaluator.utils.statistics.ObservableType"
+                      "@type": "openff.evaluator.utils.observables.ObservableType"
                     },
                     ".divisor": 1.0
                   },
@@ -2071,7 +2071,7 @@
                     },
                     ".statistics_type": {
                       "value": "PotentialEnergy",
-                      "@type": "openff.evaluator.utils.statistics.ObservableType"
+                      "@type": "openff.evaluator.utils.observables.ObservableType"
                     },
                     ".divisor": 1.0
                   },
@@ -2090,7 +2090,7 @@
                     },
                     ".statistics_type": {
                       "value": "PotentialEnergy",
-                      "@type": "openff.evaluator.utils.statistics.ObservableType"
+                      "@type": "openff.evaluator.utils.observables.ObservableType"
                     },
                     ".divisor": 256
                   },

@@ -27,3 +27,8 @@ repos:
         - --py38-plus
     - id: nbqa-isort
       files: ^docs/tutorial
+- repo: https://github.com/kynan/nbstripout
+  rev: 0.6.1
+  hooks:
+    - id: nbstripout
+      files: ^docs/tutorial
