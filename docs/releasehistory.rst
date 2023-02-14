@@ -17,7 +17,7 @@ This release adds support for OpenMM 8. Support for OpenMM 7 will be removed in 
 Bugfixes
 """"""""
 
-* PR `#496 <https://github.com/openforcefield/openff-evaluator/pull/495>`_: Add support for OpenMM 8
+* PR `#496 <https://github.com/openforcefield/openff-evaluator/pull/496>`_: Add support for OpenMM 8
 
 
 Documentation
