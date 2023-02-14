@@ -16,7 +16,7 @@ jobs:
 
   test:
 
-    name: 💻 ${{ matrix.os }}, 🐍 ${{ matrix.python-version }}, 👀 ${{ matrix.openeye }}, pymbar ${{ matrix.pymbar-version }}
+    name: 💻 ${{ matrix.os }}, 🐍 ${{ matrix.python-version }}, 👀 ${{ matrix.openeye }}, pymbar ${{ matrix.pymbar-version }}, OpenMM ${{ matrix.openmm-version }}
     runs-on: ${{ matrix.os }}
 
     env:
@@ -34,6 +34,9 @@ jobs:
         pymbar-version:
           - 3
           - 4
+        openmm-version:
+          - 7
+          - 8
         openeye:
           - true
           - false
@@ -49,11 +52,10 @@ jobs:
           extra-specs: |
             python=${{ matrix.python-version }}
 
-      - name: Install pymbar 3
-        if: ${{ matrix.pymbar-version == 3 }}
+      - name: Update openmm, pymbar versions
         shell: bash -l {0}
         run: |
-          micromamba install "pymbar =3" -c conda-forge -yq
+          micromamba install "openmm =${{ matrix.openmm-version }}" "pymbar =${{ matrix.pymbar-version }}" -c conda-forge -yq
 
       - name: Install OpenEye
         if: matrix.openeye
@@ -104,6 +106,16 @@ jobs:
         run: |
 
           python -m pytest -v --cov=openff openff/evaluator/tests/ --cov-report=xml --color=yes
+
+      - name: Run (non-GPU) tutorials
+        shell: bash -l {0}
+        if: ${{ matrix.pymbar-version == 3 }}
+        run: |
+          # ForceBalance requires pymbar 3, so don't run these tests if we are using pymbar 4,
+          # even though we're not running the fitting tutorial
+          # https://github.com/conda-forge/forcebalance-feedstock/blob/9793b0205489f8ec7826d301a3c82cfb96997c57/recipe/meta.yaml#L29
+          micromamba install "forcebalance >=1.9.5" -c conda-forge -yq
+          python -m pytest --nbval-lax docs/tutorials/tutorial01.ipynb docs/tutorials/tutorial03.ipynb
 
       - name: Code coverage
         uses: codecov/codecov-action@v3
