@@ -10,7 +10,7 @@ dependencies:
     # Testing and development
   - pytest
   - pytest-cov
-  - codecov
+  - nbval
   - requests-mock # For testing http requests.
   - smirnoff-plugins # For testing custom nonbonded forces
   - coverage >=4.4
@@ -18,7 +18,7 @@ dependencies:
     # Standard dependencies
   - openff-toolkit >=0.11.0
   - openmm =8
-  - pymbar >=4
+  - pymbar =3|4
   - dask >=2.7.0
   - distributed >=2.7.0
   - dask-jobqueue >=0.8.0
@@ -32,3 +32,6 @@ dependencies:
   - paprika
   - taproom
   - dataclasses
+
+    # Shims
+  - packaging =21
