@@ -10,7 +10,7 @@ dependencies:
     # Testing and development
   - pytest
   - pytest-cov
-  - codecov
+  - nbval
   - requests-mock # For testing http requests.
   - smirnoff-plugins # For testing custom nonbonded forces
   - coverage >=4.4

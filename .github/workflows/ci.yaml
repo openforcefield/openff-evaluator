@@ -113,6 +113,12 @@ jobs:
 
           python -m pytest -v --cov=openff openff/evaluator/tests/ --cov-report=xml --color=yes
 
+      - name: Run (non-GPU) tutorials
+        shell: bash -l {0}
+        run: |
+
+          python -m pytest --nbval-lax docs/tutorials/tutorial01.ipynb docs/tutorials/tutorial03.ipynb
+
       - name: Code coverage
         uses: codecov/codecov-action@v3
         with:
