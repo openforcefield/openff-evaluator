@@ -35,4 +35,3 @@ dependencies:
 
     # Shims
   - packaging =21
-  - forcebalance =1.9.5
