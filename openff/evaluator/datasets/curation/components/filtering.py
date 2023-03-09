@@ -851,9 +851,7 @@ class FilterBySmirks(CurationComponent):
             """
             rdmol = Chem.MolFromSmiles(smiles, sanitize=False)
 
-            if rdmol is None:
-                # TODO: Catch this
-                raise Exception
+            # TODO: This function does not handle SMILES parsing failures gracefully.
 
             Chem.SanitizeMol(
                 rdmol,
@@ -888,10 +886,7 @@ class FilterBySmirks(CurationComponent):
             """
             qmol = Chem.MolFromSmarts(smarts)
 
-            if qmol is None:
-                raise ValueError(
-                    'RDKit could not parse the SMIRKS string "{}"'.format(smarts)
-                )
+            # TODO: This function does not handle SMILES parsing failures gracefully.
 
             # Create atom mapping for query molecule
             idx_map = dict()
